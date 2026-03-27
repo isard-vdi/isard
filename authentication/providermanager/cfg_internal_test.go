@@ -111,6 +111,12 @@ func TestNotifyBrandingDomainChangeIfNeeded(t *testing.T) {
 
 	assert := assert.New(t)
 
+	testAuth := &model.CategoryAuthentication{
+		SAML: &model.CategoryAuthSAML{
+			ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+		},
+	}
+
 	cases := map[string]struct {
 		Old         *string
 		New         *string
@@ -149,13 +155,14 @@ func TestNotifyBrandingDomainChangeIfNeeded(t *testing.T) {
 
 			ch := make(chan categoryBrandingDomainChange, 1)
 
-			notifyBrandingDomainChangeIfNeeded(ch, "cat1", tc.Old, tc.New)
+			notifyBrandingDomainChangeIfNeeded(ch, "cat1", tc.Old, tc.New, testAuth)
 
 			if tc.ExpectValue {
 				select {
 				case v := <-ch:
 					assert.Equal("cat1", v.CategoryID)
 					assert.Equal(tc.New, v.Host)
+					assert.Equal(testAuth, v.Authentication)
 				case <-time.After(100 * time.Millisecond):
 					t.Fatal("expected value on channel but got none")
 				}
@@ -267,6 +274,8 @@ func TestCfgWatcherWatch(t *testing.T) {
 
 			logger := log.New("test", "debug")
 			watcher := initCfgWatcher(logger)
+			watcher.reloadInterval = 10 * time.Millisecond
+			watcher.reloadInterval = 10 * time.Millisecond
 
 			ldapMock := provider.NewMockConfigurableProvider[model.LDAPConfig](t)
 			samlMock := provider.NewMockConfigurableProvider[model.SAMLConfig](t)
@@ -397,6 +406,7 @@ func TestCfgWatcherAddLDAPWatcher(t *testing.T) {
 
 			logger := log.New("test", "debug")
 			watcher := initCfgWatcher(logger)
+			watcher.reloadInterval = 10 * time.Millisecond
 
 			mock := provider.NewMockConfigurableProvider[model.LDAPConfig](t)
 			if tc.PrepareMock != nil {
@@ -461,6 +471,7 @@ func TestCfgWatcherAddSAMLWatcher(t *testing.T) {
 
 			logger := log.New("test", "debug")
 			watcher := initCfgWatcher(logger)
+			watcher.reloadInterval = 10 * time.Millisecond
 
 			mock := provider.NewMockConfigurableProvider[model.SAMLConfig](t)
 			if tc.PrepareMock != nil {
@@ -525,6 +536,7 @@ func TestCfgWatcherAddGoogleWatcher(t *testing.T) {
 
 			logger := log.New("test", "debug")
 			watcher := initCfgWatcher(logger)
+			watcher.reloadInterval = 10 * time.Millisecond
 
 			mock := provider.NewMockConfigurableProvider[model.GoogleConfig](t)
 			if tc.PrepareMock != nil {
@@ -1645,6 +1657,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 
 			logger := log.New("test", "debug")
 			watcher := initCfgWatcher(logger)
+			watcher.reloadInterval = 10 * time.Millisecond
 
 			var wg sync.WaitGroup
 			watcher.watchCategories(ctx, &wg, dbMock)

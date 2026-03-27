@@ -42,8 +42,10 @@ type categoryDisabledProviderChange struct {
 }
 
 type categoryBrandingDomainChange struct {
-	CategoryID string
-	Host       *string
+	CategoryID     string
+	Host           *string
+	Authentication *model.CategoryAuthentication
+	retries        int
 }
 
 type providerChangesChannels struct {
@@ -119,34 +121,34 @@ func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r
 		defer ticker.Stop()
 
 		for {
-			newCfg := &model.Config{}
-			if err := newCfg.Load(ctx, sess); err != nil {
-				c.log.Error().Err(err).Msg("reload authentication config")
-
-			} else {
-				notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderLocal, cfg.Local.Enabled, newCfg.Local.Enabled)
-				notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderLDAP, cfg.LDAP.Enabled, newCfg.LDAP.Enabled)
-				notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderSAML, cfg.SAML.Enabled, newCfg.SAML.Enabled)
-				notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderGoogle, cfg.Google.Enabled, newCfg.Google.Enabled)
-
-				if newCfg.LDAP.Enabled {
-					notifyIfNeeded(c.globalChanges.ldapChanges, cfg.LDAP.LDAPConfig, newCfg.LDAP.LDAPConfig)
-				}
-				if newCfg.SAML.Enabled {
-					notifyIfNeeded(c.globalChanges.samlChanges, cfg.SAML.SAMLConfig, newCfg.SAML.SAMLConfig)
-				}
-				if newCfg.Google.Enabled {
-					notifyIfNeeded(c.globalChanges.googleChanges, cfg.Google.GoogleConfig, newCfg.Google.GoogleConfig)
-				}
-
-				cfg = newCfg
-			}
-
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
 			}
+
+			newCfg := &model.Config{}
+			if err := newCfg.Load(ctx, sess); err != nil {
+				c.log.Error().Err(err).Msg("reload authentication config")
+				continue
+			}
+
+			notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderLocal, cfg.Local.Enabled, newCfg.Local.Enabled)
+			notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderLDAP, cfg.LDAP.Enabled, newCfg.LDAP.Enabled)
+			notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderSAML, cfg.SAML.Enabled, newCfg.SAML.Enabled)
+			notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderGoogle, cfg.Google.Enabled, newCfg.Google.Enabled)
+
+			if newCfg.LDAP.Enabled {
+				notifyIfNeeded(c.globalChanges.ldapChanges, cfg.LDAP.LDAPConfig, newCfg.LDAP.LDAPConfig)
+			}
+			if newCfg.SAML.Enabled {
+				notifyIfNeeded(c.globalChanges.samlChanges, cfg.SAML.SAMLConfig, newCfg.SAML.SAMLConfig)
+			}
+			if newCfg.Google.Enabled {
+				notifyIfNeeded(c.globalChanges.googleChanges, cfg.Google.GoogleConfig, newCfg.Google.GoogleConfig)
+			}
+
+			cfg = newCfg
 		}
 	}()
 }
@@ -250,8 +252,9 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 		// so the provider exists when SetBrandingHost is called.
 		if brandingHost := extractBrandingHost(entry); brandingHost != nil {
 			c.categoriesBrandingDomainChanges <- categoryBrandingDomainChange{
-				CategoryID: categoryID,
-				Host:       brandingHost,
+				CategoryID:     categoryID,
+				Host:           brandingHost,
+				Authentication: &cfg,
 			}
 		}
 	}
@@ -264,18 +267,25 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 		defer ticker.Stop()
 
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+
 			newCfgCategories, err := model.CategoryConfigurationsLoad(ctx, sess)
 			if err != nil {
 				c.log.Error().Err(err).Msg("reload categories authentication config")
+				continue
+			}
 
-			} else {
 				for categoryID, newEntry := range newCfgCategories {
 					entry := cfgCategories[categoryID]
 
-					notifyBrandingDomainChangeIfNeeded(c.categoriesBrandingDomainChanges, categoryID, extractBrandingHost(entry), extractBrandingHost(newEntry))
-
 					cfg := entry.Authentication
 					newCfg := newEntry.Authentication
+
+					notifyBrandingDomainChangeIfNeeded(c.categoriesBrandingDomainChanges, categoryID, extractBrandingHost(entry), extractBrandingHost(newEntry), &newCfg)
 
 					changesChans := c.getOrCreateCategoryChangesChannels(categoryID)
 
@@ -451,13 +461,6 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 				}
 
 				cfgCategories = newCfgCategories
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-			}
 		}
 	}()
 }
@@ -507,14 +510,15 @@ func notifyIfNeeded[T any](channel chan T, cfg T, newCfg T) {
 	}
 }
 
-func notifyBrandingDomainChangeIfNeeded(channel chan categoryBrandingDomainChange, categoryID string, host, newHost *string) {
+func notifyBrandingDomainChangeIfNeeded(channel chan categoryBrandingDomainChange, categoryID string, host, newHost *string, auth *model.CategoryAuthentication) {
 	if cmp.Equal(host, newHost) {
 		return
 	}
 
 	channel <- categoryBrandingDomainChange{
-		CategoryID: categoryID,
-		Host:       newHost,
+		CategoryID:     categoryID,
+		Host:           newHost,
+		Authentication: auth,
 	}
 }
 

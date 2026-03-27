@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
+	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 
@@ -149,35 +150,105 @@ func (m *ProviderManager) Manage(ctx context.Context, wg *sync.WaitGroup) {
 				m.handleCategoryDisabledProviderChange(change.CategoryID, change.Provider, change.Disabled)
 
 			case change := <-m.cfgWatcher.categoriesBrandingDomainChanges:
-				m.handleCategoryBrandingDomainChange(ctx, change)
+				if !m.handleCategoryBrandingDomainChange(ctx, change) {
+					// The target provider doesn't exist yet (e.g. providerChange hasn't
+					// been processed). Re-enqueue so it gets retried after the provider
+					// is created.
+					change.retries++
+					if change.retries > 10 {
+						m.log.Warn().Str("category", change.CategoryID).Msg("branding domain change exceeded max retries, discarding")
+					} else {
+						m.cfgWatcher.categoriesBrandingDomainChanges <- change
+					}
+				}
 			}
 		}
 	}()
 }
 
-func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context, change categoryBrandingDomainChange) {
-	m.mux.RLock()
-	defer m.mux.RUnlock()
+func providerConfigSource(auth *model.CategoryAuthentication, name string) (model.CategoryAuthenticationConfigSource, bool) {
+	if auth == nil {
+		return model.CategoryAuthenticationConfigSourceGlobal, false
+	}
 
+	var source model.CategoryAuthenticationConfigSource
+	var disabled bool
+
+	switch name {
+	case types.ProviderSAML:
+		if auth.SAML == nil {
+			return model.CategoryAuthenticationConfigSourceGlobal, false
+		}
+		source, disabled = auth.SAML.ConfigSource, auth.SAML.Disabled
+	case types.ProviderGoogle:
+		if auth.Google == nil {
+			return model.CategoryAuthenticationConfigSourceGlobal, false
+		}
+		source, disabled = auth.Google.ConfigSource, auth.Google.Disabled
+	case types.ProviderLDAP:
+		if auth.LDAP == nil {
+			return model.CategoryAuthenticationConfigSourceGlobal, false
+		}
+		source, disabled = auth.LDAP.ConfigSource, auth.LDAP.Disabled
+	default:
+		return model.CategoryAuthenticationConfigSourceGlobal, false
+	}
+
+	if source != model.CategoryAuthenticationConfigSourceCustom {
+		source = model.CategoryAuthenticationConfigSourceGlobal
+	}
+
+	return source, disabled
+}
+
+// handleCategoryBrandingDomainChange applies branding to providers matching the
+// category's config_source. It returns true if at least one provider was updated.
+func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context, change categoryBrandingDomainChange) bool {
 	log := m.log.With().Str("category", change.CategoryID).Logger()
-
 	if change.Host != nil {
 		log.Info().Str("host", *change.Host).Msg("loading branding domain")
 	} else {
 		log.Info().Msg("clearing branding domain")
 	}
 
-	scope := m.readScope(change.CategoryID)
-	for _, prv := range scope.providers {
-		bap, ok := prv.(provider.BrandingAwareProvider)
-		if !ok {
-			continue
-		}
+	type brandingTarget struct {
+		name     string
+		provider provider.BrandingAwareProvider
+	}
 
-		if err := bap.SetBrandingHost(ctx, change.Host); err != nil {
-			log.Error().Err(err).Msg("update branding host on provider")
+	var targets []brandingTarget
+
+	collectTargets := func(scope *providerSet, expectedSource model.CategoryAuthenticationConfigSource) {
+		for name, prv := range scope.providers {
+			bap, ok := prv.(provider.BrandingAwareProvider)
+			if !ok {
+				continue
+			}
+
+			source, disabled := providerConfigSource(change.Authentication, name)
+
+			if disabled || source != expectedSource {
+				continue
+			}
+
+			targets = append(targets, brandingTarget{name: name, provider: bap})
 		}
 	}
+
+	m.mux.RLock()
+	if catScope, ok := m.categories[change.CategoryID]; ok {
+		collectTargets(catScope, model.CategoryAuthenticationConfigSourceCustom)
+	}
+	collectTargets(&m.global, model.CategoryAuthenticationConfigSourceGlobal)
+	m.mux.RUnlock()
+
+	for _, t := range targets {
+		if err := t.provider.SetBrandingHost(ctx, change.CategoryID, change.Host); err != nil {
+			log.Error().Err(err).Str("provider", t.name).Msg("update branding host on provider")
+		}
+	}
+
+	return len(targets) > 0
 }
 
 func (m *ProviderManager) handleProviderChange(ctx context.Context, wg *sync.WaitGroup, change providerChange) {

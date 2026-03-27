@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -38,9 +39,9 @@ var _ ConfigurableProvider[model.SAMLConfig] = &SAML{}
 var _ BrandingAwareProvider = &SAML{}
 
 type SAMLConfig struct {
-	Middleware         *samlsp.Middleware
-	BrandingMiddleware *samlsp.Middleware
-	BrandingHost       string
+	Middleware          *samlsp.Middleware
+	BrandingMiddlewares map[string]*samlsp.Middleware
+	BrandingHosts       map[string]string
 
 	FieldUID      string
 	ReUID         *regexp.Regexp
@@ -88,19 +89,20 @@ type SAML struct {
 	db         r.QueryExecutor
 	httpClient *http.Client
 
-	brandingMux  sync.RWMutex
-	brandingHost *string
-	lastModelCfg *model.SAMLConfig
+	brandingMux   sync.RWMutex
+	brandingHosts map[string]string
+	lastModelCfg  *model.SAMLConfig
 }
 
 func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
 	s := &SAML{
-		cfg:        &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
-		secret:     secret,
-		host:       host,
-		categoryID: categoryID,
-		log:        log,
-		db:         db,
+		cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+		secret:        secret,
+		host:          host,
+		categoryID:    categoryID,
+		log:           log,
+		db:            db,
+		brandingHosts: map[string]string{},
 	}
 	return s
 }
@@ -213,7 +215,6 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		}
 
 		if err := validateMetadataURL(cfg.MetadataURL); err != nil {
-			s.log.Error().Err(err).Str("url", cfg.MetadataURL).Msg("invalid metadata URL")
 			return fmt.Errorf("invalid metadata URL: %w", err)
 		}
 
@@ -274,22 +275,24 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 
 	prvCfg.Middleware = middleware
 
-	// Create branding middleware if a branding host is configured.
-	brandingHost := s.getBrandingHost()
-	if brandingHost != nil {
-		params.host = *brandingHost
+	// Create branding middlewares for each category branding host.
+	brandingHosts := s.getBrandingHosts()
+	brandingMiddlewares := make(map[string]*samlsp.Middleware, len(brandingHosts))
+	hostMap := make(map[string]string, len(brandingHosts))
+	for catID, bHost := range brandingHosts {
+		bParams := params
+		bParams.host = bHost
 
-		brandingMiddleware, err := buildSAMLMiddleware(params)
+		bMW, err := buildSAMLMiddleware(bParams)
 		if err != nil {
-			return fmt.Errorf("build branding middleware: %w", err)
+			return fmt.Errorf("build branding middleware for category %s: %w", catID, err)
 		}
 
-		prvCfg.BrandingMiddleware = brandingMiddleware
-		prvCfg.BrandingHost = *brandingHost
-	} else {
-		prvCfg.BrandingMiddleware = nil
-		prvCfg.BrandingHost = ""
+		brandingMiddlewares[catID] = bMW
+		hostMap[catID] = bHost
 	}
+	prvCfg.BrandingMiddlewares = brandingMiddlewares
+	prvCfg.BrandingHosts = hostMap
 
 	//
 	// Rest of the configuration
@@ -379,9 +382,41 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	s.cfg.LoadCfg(prvCfg)
 
 	// Cache the model config for branding host reload.
-	s.brandingMux.Lock()
-	s.lastModelCfg = &cfg
-	s.brandingMux.Unlock()
+	// If branding hosts were updated concurrently (e.g. during initial startup),
+	// the map we read above may be stale. Detect this and rebuild branding middlewares.
+	const maxBrandingRetries = 3
+	for i := 0; i < maxBrandingRetries; i++ {
+		s.brandingMux.Lock()
+		s.lastModelCfg = &cfg
+		needsReload := !maps.Equal(s.brandingHosts, prvCfg.BrandingHosts)
+		s.brandingMux.Unlock()
+
+		if !needsReload {
+			return nil
+		}
+
+		s.log.Info().Msg("branding hosts were updated during config load, rebuilding branding middlewares")
+
+		updatedHosts := s.getBrandingHosts()
+		updatedMiddlewares := make(map[string]*samlsp.Middleware, len(updatedHosts))
+		updatedHostMap := make(map[string]string, len(updatedHosts))
+		for catID, bHost := range updatedHosts {
+			bParams := params
+			bParams.host = bHost
+
+			bMW, err := buildSAMLMiddleware(bParams)
+			if err != nil {
+				return fmt.Errorf("build branding middleware for category %s: %w", catID, err)
+			}
+
+			updatedMiddlewares[catID] = bMW
+			updatedHostMap[catID] = bHost
+		}
+
+		prvCfg.BrandingMiddlewares = updatedMiddlewares
+		prvCfg.BrandingHosts = updatedHostMap
+		s.cfg.LoadCfg(prvCfg)
+	}
 
 	return nil
 }
@@ -425,7 +460,8 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
-	sess, err := cfg.Middleware.Session.GetSession(r)
+	mw := s.Middleware(args.Host)
+	sess, err := mw.Session.GetSession(r)
 	if err != nil {
 		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
@@ -610,16 +646,20 @@ func (s *SAML) GuessRole(ctx context.Context, u *types.ProviderUserData, rawRole
 	}, rawRoles)
 }
 
-func (s *SAML) getBrandingHost() *string {
+func (s *SAML) getBrandingHosts() map[string]string {
 	s.brandingMux.RLock()
 	defer s.brandingMux.RUnlock()
 
-	return s.brandingHost
+	return maps.Clone(s.brandingHosts)
 }
 
-func (s *SAML) SetBrandingHost(ctx context.Context, host *string) error {
+func (s *SAML) SetBrandingHost(ctx context.Context, categoryID string, host *string) error {
 	s.brandingMux.Lock()
-	s.brandingHost = host
+	if host != nil {
+		s.brandingHosts[categoryID] = *host
+	} else {
+		delete(s.brandingHosts, categoryID)
+	}
 	lastCfg := s.lastModelCfg
 	s.brandingMux.Unlock()
 
@@ -633,8 +673,12 @@ func (s *SAML) SetBrandingHost(ctx context.Context, host *string) error {
 func (s *SAML) Middleware(host string) *samlsp.Middleware {
 	cfg := s.cfg.Cfg()
 
-	if cfg.BrandingMiddleware != nil && cfg.BrandingHost == host {
-		return cfg.BrandingMiddleware
+	for catID, bHost := range cfg.BrandingHosts {
+		if bHost == host {
+			if mw := cfg.BrandingMiddlewares[catID]; mw != nil {
+				return mw
+			}
+		}
 	}
 
 	return cfg.Middleware

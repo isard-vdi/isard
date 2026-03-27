@@ -1205,14 +1205,17 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 		PrepareManager func(*testing.T) *ProviderManager
 		Change         categoryBrandingDomainChange
 	}{
-		"should call SetBrandingHost on branding-aware providers in the category": {
+		"should call SetBrandingHost on custom category provider": {
 			PrepareManager: func(t *testing.T) *ProviderManager {
 				bap := provider.NewMockBrandingAwareProvider(t)
 				host := "branding.example.com"
-				bap.On("SetBrandingHost", t.Context(), &host).Return(nil)
+				bap.On("SetBrandingHost", t.Context(), "cat1", &host).Return(nil)
 
 				return &ProviderManager{
 					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
 					categories: map[string]*providerSet{
 						"cat1": {
 							providers: map[string]provider.Provider{
@@ -1225,27 +1228,84 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 			Change: categoryBrandingDomainChange{
 				CategoryID: "cat1",
 				Host:       strPtr("branding.example.com"),
+				Authentication: &model.CategoryAuthentication{
+					SAML: &model.CategoryAuthSAML{
+						ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+					},
+				},
 			},
 		},
-		"should skip providers that do not implement BrandingAwareProvider": {
-			PrepareManager: func(_ *testing.T) *ProviderManager {
+		"should call SetBrandingHost on global provider when config_source is global": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				host := "branding.example.com"
+				bap.On("SetBrandingHost", t.Context(), "cat1", &host).Return(nil)
+
 				return &ProviderManager{
 					log: log.New("test", "debug"),
-					categories: map[string]*providerSet{
-						"cat1": {
-							providers: map[string]provider.Provider{
-								types.ProviderUnknown: &provider.Unknown{},
-							},
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderSAML: bap,
 						},
 					},
+					categories: map[string]*providerSet{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
 				CategoryID: "cat1",
 				Host:       strPtr("branding.example.com"),
+				Authentication: &model.CategoryAuthentication{
+					SAML: &model.CategoryAuthSAML{
+						ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+					},
+				},
 			},
 		},
-		"should fallback to global when category has no specific providers": {
+		"should call SetBrandingHost on global provider when no provider config exists": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				host := "branding.example.com"
+				bap.On("SetBrandingHost", t.Context(), "cat1", &host).Return(nil)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderSAML: bap,
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID:     "cat1",
+				Host:           strPtr("branding.example.com"),
+				Authentication: &model.CategoryAuthentication{},
+			},
+		},
+		"should skip disabled provider": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil),
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID: "cat1",
+				Host:       strPtr("branding.example.com"),
+				Authentication: &model.CategoryAuthentication{
+					SAML: &model.CategoryAuthSAML{
+						Disabled: true,
+					},
+				},
+			},
+		},
+		"should skip providers that do not implement BrandingAwareProvider": {
 			PrepareManager: func(_ *testing.T) *ProviderManager {
 				return &ProviderManager{
 					log: log.New("test", "debug"),
@@ -1258,30 +1318,51 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 				}
 			},
 			Change: categoryBrandingDomainChange{
-				CategoryID: "cat1",
-				Host:       strPtr("branding.example.com"),
+				CategoryID:     "cat1",
+				Host:           strPtr("branding.example.com"),
+				Authentication: &model.CategoryAuthentication{},
 			},
 		},
 		"should log error when SetBrandingHost fails": {
 			PrepareManager: func(t *testing.T) *ProviderManager {
 				bap := provider.NewMockBrandingAwareProvider(t)
 				host := "branding.example.com"
-				bap.On("SetBrandingHost", t.Context(), &host).Return(errors.New("reload failed"))
+				bap.On("SetBrandingHost", t.Context(), "cat1", &host).Return(errors.New("reload failed"))
 
 				return &ProviderManager{
 					log: log.New("test", "debug"),
-					categories: map[string]*providerSet{
-						"cat1": {
-							providers: map[string]provider.Provider{
-								types.ProviderSAML: bap,
-							},
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderSAML: bap,
 						},
 					},
+					categories: map[string]*providerSet{},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID:     "cat1",
+				Host:           strPtr("branding.example.com"),
+				Authentication: &model.CategoryAuthentication{},
+			},
+		},
+		"should skip custom source when no category scope exists": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
 				CategoryID: "cat1",
 				Host:       strPtr("branding.example.com"),
+				Authentication: &model.CategoryAuthentication{
+					SAML: &model.CategoryAuthSAML{
+						ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+					},
+				},
 			},
 		},
 	}
@@ -1301,8 +1382,6 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 
 func TestProviderManagerFullFlow(t *testing.T) {
 	t.Parallel()
-
-	assert := assert.New(t)
 
 	cases := map[string]struct {
 		PrepareDB      func(*r.Mock)
@@ -1370,7 +1449,8 @@ func TestProviderManagerFullFlow(t *testing.T) {
 				}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
-			Expected: []string{"form", "ldap", "local"},
+			ReloadInterval: 10 * time.Millisecond,
+			Expected:       []string{"form", "ldap", "local"},
 		},
 		"should dynamically disable global provider on reload": {
 			PrepareDB: func(m *r.Mock) {
@@ -1383,7 +1463,8 @@ func TestProviderManagerFullFlow(t *testing.T) {
 				}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
-			Expected: []string{"form", "local"},
+			ReloadInterval: 10 * time.Millisecond,
+			Expected:       []string{"form", "local"},
 		},
 		"should dynamically enable category provider on reload": {
 			PrepareDB: func(m *r.Mock) {
@@ -1409,8 +1490,9 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					},
 				}, nil)
 			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local"},
+			ReloadInterval: 10 * time.Millisecond,
+			CategoryID:     "cat1",
+			Expected:       []string{"form", "local"},
 		},
 		"should dynamically disable category provider and clean up empty category": {
 			PrepareDB: func(m *r.Mock) {
@@ -1436,8 +1518,11 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					},
 				}, nil)
 			},
-			CategoryID: "cat1",
+			ReloadInterval: 10 * time.Millisecond,
+			CategoryID:     "cat1",
 			CheckCategory: func(t *testing.T, m *ProviderManager) {
+				assert := assert.New(t)
+
 				m.mux.RLock()
 				defer m.mux.RUnlock()
 
@@ -1525,7 +1610,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
 				}
 
-				m.On(r.Table("config").Get(1).Field("auth")).Return(globalLocalOnly, nil).Times(2)
+				m.On(r.Table("config").Get(1).Field("auth")).Return(globalLocalOnly, nil).Once()
 				m.On(r.Table("config").Get(1).Field("auth")).Return(globalWithSAML, nil).Times(5)
 				m.On(r.Table("config").Get(1).Field("auth")).Return(globalLocalOnly, nil)
 
@@ -1564,7 +1649,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					},
 				}
 
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catEmpty, nil).Times(3)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catEmpty, nil).Times(2)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catCustomSAML, nil).Once()
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catDisabledSAML, nil).Once()
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catCustomSAML, nil).Once()
@@ -1573,6 +1658,8 @@ func TestProviderManagerFullFlow(t *testing.T) {
 			},
 			ReloadInterval: 1 * time.Second,
 			CheckCategory: func(t *testing.T, m *ProviderManager) {
+				assert := assert.New(t)
+
 				// Initial load.
 				assert.Equal([]string{"form", "local"}, m.Providers("cat1"))
 				assert.Equal(types.ProviderUnknown, m.Provider(types.ProviderSAML, "cat1").String())
@@ -1608,11 +1695,173 @@ func TestProviderManagerFullFlow(t *testing.T) {
 				assert.Equal(types.ProviderUnknown, m.Provider(types.ProviderSAML, "cat1").String())
 			},
 		},
+		"should apply branding to global provider when category has no provider config": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			CategoryID: "cat1",
+			Expected:   []string{"form", "local", "saml"},
+		},
+		"should apply branding to global provider when category config_source is global": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{},
+							"saml": map[string]any{
+								"config_source": "global",
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			CategoryID: "cat1",
+			Expected:   []string{"form", "local", "saml"},
+		},
+		"should apply branding to category provider when config_source is custom": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{},
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://cat1-saml.test/metadata",
+								},
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			CategoryID: "cat1",
+			Expected:   []string{"form", "local", "saml"},
+		},
+		"should not apply branding when category provider is disabled": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{},
+							"saml": map[string]any{
+								"disabled": true,
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			CategoryID: "cat1",
+			Expected:   []string{"form", "local"},
+		},
+		"should not apply branding when global provider is not enabled and category has no provider config": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			CategoryID: "cat1",
+			Expected:   []string{"form", "local"},
+		},
+		"should apply branding to category provider when config_source is custom even if global is not enabled": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+				}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{},
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://cat1-saml.test/metadata",
+								},
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			CategoryID: "cat1",
+			Expected:   []string{"form", "local", "saml"},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
+			assert := assert.New(t)
 
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()

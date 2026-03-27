@@ -65,7 +65,7 @@ type ConfigurableProvider[Cfg any] interface {
 // branding domain changes.
 type BrandingAwareProvider interface {
 	Provider
-	SetBrandingHost(ctx context.Context, host *string) error
+	SetBrandingHost(ctx context.Context, categoryID string, host *string) error
 }
 
 type ProviderError struct {
