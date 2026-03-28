@@ -22,7 +22,8 @@
 {% with
   name="protocol",
   label="Protocol",
-  placeholder="ldap"
+  placeholder="ldap",
+  value="ldap"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -39,6 +40,7 @@
   name="port",
   label="Port",
   placeholder=389,
+  value=389,
   type="number"
 %}
   {% include '/snippets/form_field.html' %}
@@ -71,7 +73,8 @@
 {% with
   name="filter",
   label="Filter",
-  placeholder="(&(objectClass=person)(uid=%s))"
+  placeholder="(&(objectClass=person)(uid=%s))",
+  value="(&(objectClass=person)(uid=%s))"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -86,7 +89,8 @@
 {% with
   name="regex_uid",
   label="Regex UID",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -101,7 +105,8 @@
 {% with
   name="regex_username",
   label="Regex Username",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -117,7 +122,8 @@
 {% with
   name="regex_name",
   label="Regex Name",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -133,7 +139,8 @@
 {% with
   name="regex_email",
   label="Regex Email",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -149,7 +156,8 @@
 {% with
   name="regex_photo",
   label="Regex Photo",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -198,7 +206,17 @@
 {% with
   name="regex_category",
   label="Regex Category",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="group_default",
+  label="Default Group",
+  placeholder="default",
+  value="default"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -214,15 +232,8 @@
 {% with
   name="regex_group",
   label="Regex Group",
-  placeholder=".*"
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="group_default",
-  label="Default Group",
-  placeholder="default"
+  placeholder=".*",
+  value=".*"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -236,9 +247,26 @@
 {% endwith %}
 
 {% with
+  name="role_default",
+  label="Default Role",
+  type="select",
+  required=false,
+  options={
+    "": "",
+    "user": "User",
+    "advanced": "Advanced",
+    "manager": "Manager",
+    "admin": "Administrator"
+  }
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
   name="role_list_filter",
   label="Role List Filter",
-  placeholder="(&(objectClass=posixGroup)(memberUid=%s))"
+  placeholder="(&(objectClass=posixGroup)(memberUid=%s))",
+  value="(&(objectClass=posixGroup)(memberUid=%s))"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -262,7 +290,8 @@
 {% with
   name="role_list_regex",
   label="Role List Regex",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -299,21 +328,6 @@
   label="Role User IDs",
   placeholder="Coma separated IDs",
   required=False
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="role_default",
-  label="Default Role",
-  type="select",
-  required=True,
-  options={
-    "user": "User",
-    "advanced": "Advanced",
-    "manager": "Manager",
-    "admin": "Administrator"
-  }
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
