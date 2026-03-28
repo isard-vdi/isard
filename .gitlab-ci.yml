@@ -34,6 +34,7 @@ variables:
   DOCKER_VERSION: "28"
   DOCKER_TLS_CERTDIR: "/certs"
   GITLAB_ADVANCED_SAST_ENABLED: "true"
+  MAX_UNVERIFIED_CORES: "16"
 
 default:
   retry: 1
@@ -381,6 +382,7 @@ gemnasium-dependency_scanning:
     # Scan all the subdirectories
     DS_MAX_DEPTH: -1
     DS_INCLUDE_DEV_DEPENDENCIES: "false"
+    DS_REMEDIATE: "false"
 
 docker-tag:
   stage: release
