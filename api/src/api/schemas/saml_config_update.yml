@@ -1,0 +1,18 @@
+enabled:
+  type: boolean
+  required: true
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - value: true
+        other_fields:
+          and:
+            - saml_config
+migration:
+  type: dict
+  schema: migration
+saml_config:
+  type: dict
+  schema: saml_config
