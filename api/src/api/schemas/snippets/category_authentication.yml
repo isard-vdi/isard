@@ -139,6 +139,16 @@ ldap:
     email_domain_restriction:
       type: dict
       schema: email_domain_restriction
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - path: enabled
+                    value: true
+            other_fields:
+              and:
+                - ldap_config.field_email
     config_source:
       type: string
       allowed:
@@ -156,3 +166,15 @@ ldap:
     ldap_config:
       type: dict
       schema: ldap_config
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - path: auto_register
+                    value: true
+                  - path: group_default
+                    value: ''
+            other_fields:
+              and:
+                - ldap_config.field_group
