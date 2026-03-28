@@ -1065,13 +1065,39 @@ def update_vgpu_info_if_stopped(dom_id):
         vgpu_info.get("started", False) is True
         or vgpu_info.get("reserved", False) is True
     ):
-        update_vgpu_uuid_domain_action(
+        result = update_vgpu_uuid_domain_action(
             vgpu_info.get("gpu_id", False),
             vgpu_info.get("uuid", False),
             "domain_stopped",
             domain_id=dom_id,
             profile=vgpu_info.get("profile", False),
         )
+        if result is False:
+            # UUID no longer exists in vgpus table — force clear stale vgpu_info
+            # so the domain can be restarted with a fresh GPU allocation
+            logs.main.warning(
+                f"Forcing vgpu_info cleanup for domain {dom_id} "
+                f"(stale uuid {vgpu_info.get('uuid')} not found in vgpus table)"
+            )
+            r_conn = new_rethink_connection()
+            try:
+                r.table("domains").get(dom_id).update(
+                    {
+                        "vgpu_info": {
+                            "gpu_id": False,
+                            "profile": False,
+                            "uuid": False,
+                            "started": False,
+                            "reserved": False,
+                        }
+                    }
+                ).run(r_conn)
+            except Exception as e:
+                logs.main.error(
+                    f"Error forcing vgpu_info cleanup for domain {dom_id}: {e}"
+                )
+            finally:
+                close_rethink_connection(r_conn)
 
 
 ####
