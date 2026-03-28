@@ -884,6 +884,7 @@ class ApiHypervisors:
 
         try:
             print("ssh-keygen", "-R", "[" + hostname + "]:" + str(port), "-f", path)
+            # Possible OS Command injection
             check_output(
                 ("ssh-keygen", "-R", "[" + hostname + "]:" + str(port), "-f", path),
                 text=True,
@@ -892,6 +893,7 @@ class ApiHypervisors:
             log.error("Could not remove ssh key for [" + hostname + "]" + str(port))
             return False
         try:
+            # Possible OS Command injection
             check_output(
                 (
                     "ssh-keygen",
@@ -914,6 +916,7 @@ class ApiHypervisors:
                 pass
 
         try:
+            # Possible OS Command injection 
             new_fingerprint = check_output(
                 ("ssh-keyscan", "-p", port, "-t", "rsa", "-T", "3", hostname), text=True
             ).strip()
