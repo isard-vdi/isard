@@ -215,6 +215,35 @@ export default {
       }
 
       this.client = new Guacamole.Client(tunnel)
+
+      // Resume any AudioContext suspended by browser autoplay policy.
+      // Guacamole creates one internally for RDP audio; browsers block
+      // it until a real user gesture (click/keydown).
+      const resumeAudio = () => {
+        const allContexts = window._guacAudioContexts || []
+        allContexts.forEach(ctx => {
+          if (ctx.state === 'suspended') ctx.resume()
+        })
+        document.removeEventListener('click', resumeAudio)
+        document.removeEventListener('keydown', resumeAudio)
+      }
+      // Intercept AudioContext creation to track instances
+      if (!window._guacAudioContexts) {
+        window._guacAudioContexts = []
+        const OrigAudioContext = window.AudioContext || window.webkitAudioContext
+        if (OrigAudioContext) {
+          const PatchedAudioContext = function (...args) {
+            const ctx = new OrigAudioContext(...args)
+            window._guacAudioContexts.push(ctx)
+            return ctx
+          }
+          PatchedAudioContext.prototype = OrigAudioContext.prototype
+          window.AudioContext = PatchedAudioContext
+        }
+      }
+      document.addEventListener('click', resumeAudio)
+      document.addEventListener('keydown', resumeAudio)
+
       clipboard.install(this.client)
 
       tunnel.onerror = (status) => {

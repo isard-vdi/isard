@@ -342,22 +342,30 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 		}
 	}
 
+	// Set defaults for guacd connect args that must not be empty
+	if config.Parameters["security"] == "" {
+		config.Parameters["security"] = "rdp"
+	}
+	if config.Parameters["ignore-cert"] == "" {
+		config.Parameters["ignore-cert"] = "true"
+	}
+
 	var err error
 	if query.Get("width") != "" {
-		config.OptimalScreenHeight, err = strconv.Atoi(query.Get("width"))
-		if err != nil || config.OptimalScreenHeight == 0 {
-			logrus.Error("Invalid height")
-			config.OptimalScreenHeight = 600
+		config.OptimalScreenWidth, err = strconv.Atoi(query.Get("width"))
+		if err != nil || config.OptimalScreenWidth == 0 {
+			logrus.Error("Invalid width")
+			config.OptimalScreenWidth = 1024
 		}
 	}
 	if query.Get("height") != "" {
-		config.OptimalScreenWidth, err = strconv.Atoi(query.Get("height"))
-		if err != nil || config.OptimalScreenWidth == 0 {
-			logrus.Error("Invalid width")
-			config.OptimalScreenWidth = 800
+		config.OptimalScreenHeight, err = strconv.Atoi(query.Get("height"))
+		if err != nil || config.OptimalScreenHeight == 0 {
+			logrus.Error("Invalid height")
+			config.OptimalScreenHeight = 768
 		}
 	}
-	config.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
+	config.AudioMimetypes = []string{"audio/L16"}
 
 	logrus.Debug("Connecting to guacd")
 	addr, err := net.ResolveTCPAddr("tcp", guacdAddr)

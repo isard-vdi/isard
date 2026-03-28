@@ -40,12 +40,8 @@ func NewStream(conn net.Conn, timeout time.Duration) (ret *Stream) {
 	}
 }
 
-// Write sends messages to Guacamole with a timeout
+// Write sends messages to Guacamole
 func (s *Stream) Write(data []byte) (n int, err error) {
-	if err = s.conn.SetWriteDeadline(time.Now().Add(s.timeout)); err != nil {
-		logrus.Error(err)
-		return
-	}
 	return s.conn.Write(data)
 }
 
