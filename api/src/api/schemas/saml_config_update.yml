@@ -8,11 +8,33 @@ enabled:
           - and:
               - value: true
         other_fields:
-          and:
-            - saml_config
+          or:
+            - saml_config.metadata_url
+            - saml_config.metadata_file
 migration:
   type: dict
   schema: migration
 saml_config:
   type: dict
   schema: saml_config
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - path: auto_register
+                value: true
+              - path: group_default
+                value: ''
+        other_fields:
+          and:
+            - saml_config.field_group
+      - values:
+          - and:
+              - path: auto_register
+                value: true
+              - path: role_default
+                value: ''
+        other_fields:
+          and:
+            - saml_config.field_role

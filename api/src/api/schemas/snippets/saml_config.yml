@@ -1,6 +1,6 @@
 metadata_url:
   type: string
-  regex: '^https://.*$'
+  regex: '^(https://.*)?$'
 metadata_file:
   type: string
 entity_id:
@@ -8,10 +8,13 @@ entity_id:
 signature_method:
   type: string
 key_file:
+  empty: false
   type: string
 cert_file:
+  empty: false
   type: string
 max_issue_delay:
+  empty: false
   type: string
 field_uid:
   empty: false
@@ -20,26 +23,65 @@ regex_uid:
   empty: false
   type: string
 field_username:
-  empty: false
   type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_username
 regex_username:
   empty: false
   type: string
+  dependencies: field_username
 field_name:
   type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_name
 regex_name:
   empty: false
   type: string
+  dependencies: field_name
 field_email:
   type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_email
 regex_email:
   empty: false
   type: string
+  dependencies: field_email
 field_photo:
   type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_photo
 regex_photo:
   empty: false
   type: string
+  dependencies: field_photo
 auto_register:
   empty: false
   type: boolean
@@ -48,24 +90,63 @@ auto_register_roles:
 guess_category:
   empty: false
   type: boolean
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - value: true
+        other_fields:
+          and:
+            - field_category
 field_category:
+  empty: false
   type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_category
 regex_category:
   empty: false
   type: string
+  dependencies: field_category
 field_group:
   type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_group
 regex_group:
   empty: false
   type: string
+  dependencies: field_group
 group_default:
-  empty: false
   type: string
 field_role:
   type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_role
 regex_role:
   empty: false
   type: string
+  dependencies: field_role
 role_admin_ids:
   type: string
 role_manager_ids:
@@ -75,9 +156,9 @@ role_advanced_ids:
 role_user_ids:
   type: string
 role_default:
-  empty: false
   type: string
 logout_redirect_url:
+  empty: false
   type: string
   regex: '^https://.*$'
 save_email:

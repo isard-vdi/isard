@@ -217,10 +217,7 @@ class IsardValidator(Validator):
                       and:
                         - my_dict_field.field_group
         """
-        conditions = self.schema[field].get("meta", {}).get("depends_if")
-        if not conditions:
-            return
-        for condition in conditions:
+        for condition in self.schema[field]["meta"]["depends_if"]:
             self._evaluate_depends_if(field, value, condition)
 
     def _evaluate_depends_if(self, field, value, condition):
