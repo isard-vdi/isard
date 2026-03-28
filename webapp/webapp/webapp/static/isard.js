@@ -492,9 +492,10 @@ function fillFormData ($container, data, prefix) {
 }
 
 /**
- * Resets all form fields inside a container to their default empty state.
- * Checkboxes are unchecked via iCheck, multi-selects are emptied, and all
- * other inputs are cleared. Parsley validation state is also reset.
+ * Resets all form fields inside a container to their default state.
+ * Checkboxes are unchecked via iCheck, multi-selects are emptied, single
+ * selects reset to the first option, and other inputs are restored to their
+ * HTML default value. Parsley validation state is also reset.
  *
  * @param {jQuery} $container - The container element holding the form fields.
  */
@@ -518,7 +519,7 @@ function resetFormData ($container) {
     $(this).prop('selectedIndex', 0).trigger('change');
   });
   $container.find(':input:not(:checkbox):not(select):not(button)').each(function () {
-    $(this).val('').trigger('change');
+    $(this).val(this.defaultValue).trigger('change');
   });
   var $form = $container.closest('form');
   if (!$form.length) $form = $container.filter('form');

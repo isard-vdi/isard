@@ -56,7 +56,8 @@
 {% with
   name="key_file",
   label="Key File",
-  placeholder="/keys/isardvdi.key"
+  placeholder="/keys/isardvdi.key",
+  value="/keys/isardvdi.key"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -64,7 +65,8 @@
 {% with
   name="cert_file",
   label="Cert File",
-  placeholder="/keys/isardvdi.cert"
+  placeholder="/keys/isardvdi.cert",
+  value="/keys/isardvdi.cert"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -72,7 +74,8 @@
 {% with
   name="max_issue_delay",
   label="Max Issue Delay",
-  placeholder="90s"
+  placeholder="90s",
+  value="90s"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -87,14 +90,16 @@
 {% with
   name="regex_uid",
   label="Regex UID",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
 
 {% with
   name="field_username",
-  label="Field Username"
+  label="Field Username",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -102,14 +107,17 @@
 {% with
   name="regex_username",
   label="Regex Username",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
 
 {% with
   name="field_name",
-  label="Field Name"
+  label="Field Name",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -117,7 +125,9 @@
 {% with
   name="regex_name",
   label="Regex Name",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -133,7 +143,9 @@
 {% with
   name="regex_email",
   label="Regex Email",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -149,7 +161,9 @@
 {% with
   name="regex_photo",
   label="Regex Photo",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -198,7 +212,19 @@
 {% with
   name="regex_category",
   label="Regex Category",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="group_default",
+  label="Default Group",
+  placeholder="default",
+  value="default",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -214,15 +240,9 @@
 {% with
   name="regex_group",
   label="Regex Group",
-  placeholder=".*"
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="group_default",
-  label="Default Group",
-  placeholder="default"
+  placeholder=".*",
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -238,7 +258,9 @@
 {% with
   name="regex_role",
   label="Regex Role",
-  placeholder=".*"
+  placeholder=".*",
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -283,8 +305,9 @@
   name="role_default",
   label="Default Role",
   type="select",
-  required=True,
+  required=false,
   options={
+    "": "",
     "user": "User",
     "advanced": "Advanced",
     "manager": "Manager",
@@ -296,8 +319,7 @@
 
 {% with
   name="logout_redirect_url",
-  label="Logout Redirect URL",
-  required=false
+  label="Logout Redirect URL"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
