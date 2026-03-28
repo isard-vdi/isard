@@ -21,7 +21,7 @@ case "$ACTION" in
         ;;
     del)
         arp -d "$IP" dev vlan-wg 2>/dev/null || true
-        # Remove source IP pinning
-        ovs-ofctl del-flows --strict ovsbr0 "table=2,priority=100,ip,dl_src=$MAC,nw_src=$IP"
+        # Table 2 flow is NOT removed here — managed by wgadmin domain
+        # lifecycle instead. Removing on lease expiry breaks running VMs.
         ;;
 esac

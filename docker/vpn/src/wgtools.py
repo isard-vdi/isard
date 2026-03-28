@@ -668,6 +668,9 @@ PostUp = %s
             return
         elif data["new_val"] == None:
             # Deleted. We should ensure that no rules are kept for this domain.
+            guest_ip = data["old_val"].get("viewer", {}).get("guest_ip")
+            if guest_ip:
+                self._remove_table2_flow(guest_ip)
             return
         else:
             # Updated
@@ -681,9 +684,20 @@ PostUp = %s
             elif "viewer" not in data["new_val"].keys() and data["old_val"].get(
                 "viewer", {}
             ).get("guest_ip"):
-                self.uipt.desktop_remove(
-                    data["old_val"]["user"], data["old_val"]["viewer"]["guest_ip"]
-                )
+                guest_ip = data["old_val"]["viewer"]["guest_ip"]
+                self.uipt.desktop_remove(data["old_val"]["user"], guest_ip)
+                self._remove_table2_flow(guest_ip)
+
+    def _remove_table2_flow(self, guest_ip):
+        """Remove table 2 source IP pinning flow and ARP entry for a stopped domain."""
+        subprocess.run(
+            ["ovs-ofctl", "del-flows", "ovsbr0", f"table=2,ip,nw_src={guest_ip}"],
+            capture_output=True,
+        )
+        subprocess.run(
+            ["arp", "-d", guest_ip, "dev", "vlan-wg"],
+            capture_output=True,
+        )
 
     def set_initial_rules(self):
         started_desktops = (
