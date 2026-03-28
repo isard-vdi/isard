@@ -180,9 +180,20 @@ docker-image-codegen:
   before_script:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - |
+      if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
+        docker buildx create --name ci-builder --driver docker-container --driver-opt network=host --config /etc/buildkit/buildkitd.toml --use
+      fi
   script:
     - |
-      if $[[ inputs.use-image-build-cache ]]
+      if [ -n "$BUILDKIT_CACHE_REGISTRY" ] && $[[ inputs.use-image-build-cache ]]
+      then
+        docker buildx build -f $DOCKERFILE \
+          --cache-from "type=registry,ref=$BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:buildcache" \
+          --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main \
+          --cache-to "type=registry,ref=$BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:buildcache,mode=max" \
+          --load -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+      elif $[[ inputs.use-image-build-cache ]]
       then
         docker build -f $DOCKERFILE --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main --cache-to type=inline -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
       else
@@ -235,7 +246,11 @@ docker-compose-build:
     - |-
       for file in docker-compose*.yml; do
         cp "$file" "no-cache-$file"
-        yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
+        if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
+          yq -i '.services |= map_values(.build.cache_from = [ "type=registry,ref='"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":buildcache", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=registry,ref='"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":buildcache,mode=max" ])' $file
+        else
+          yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
+        fi
       done
   artifacts:
     paths:
@@ -313,6 +328,10 @@ docker-image:
     - apk add git docker-compose
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - |
+      if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
+        docker buildx create --name ci-builder --driver docker-container --driver-opt network=host --config /etc/buildkit/buildkitd.toml --use
+      fi
   script:
     - git submodule update --init --recursive --remote
     - |
@@ -404,6 +423,9 @@ release:
 
 container_scanning:
   stage: container-scan
+  needs:
+    - job: docker-image
+      artifacts: false
   variables:
     CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$IMAGE
     CI_APPLICATION_TAG: $CI_COMMIT_REF_SLUG

@@ -3,13 +3,13 @@
 set -e
 
 openapi_ts() {
-	ln -s /deps/package.json .
-	ln -s /deps/node_modules .
+	ln -sf /deps/package.json .
+	ln -sf /deps/node_modules .
 
 	CODEGEN="$1" npx --no @hey-api/openapi-ts
 
-	rm package.json
-	rm node_modules
+	rm -f package.json
+	rm -f node_modules
 }
 
 rm -rf pkg/gen
@@ -31,20 +31,19 @@ else
 fi
 buf generate
 
-# Notifier OAS
-mkdir -p pkg/gen/oas/notifier
-ogen --target ./pkg/gen/oas/notifier -package notifier --clean pkg/oas/notifier/notifier.json
+# OAS generation — ogen runs in parallel, openapi_ts runs sequentially (shares symlinks)
+mkdir -p pkg/gen/oas/notifier pkg/gen/oas/authentication pkg/gen/oas/api
 
-# Authentication OAS
-mkdir -p pkg/gen/oas/authentication
-ogen --target ./pkg/gen/oas/authentication -package authentication --clean pkg/oas/authentication/authentication.json
+ogen --target ./pkg/gen/oas/notifier -package notifier --clean pkg/oas/notifier/notifier.json &
+ogen --target ./pkg/gen/oas/authentication -package authentication --clean pkg/oas/authentication/authentication.json &
+ogen --target ./pkg/gen/oas/api -package api --clean pkg/oas/api/api.json &
+
 openapi_ts authentication
-
-# API OAS
-mkdir -p pkg/gen/oas/api
-ogen --target ./pkg/gen/oas/api -package api --clean pkg/oas/api/api.json
 openapi_ts api
 
-# Go mocks
-mockery
-cd pkg/sdk && mockery && cd -
+wait  # wait for ogen background jobs
+
+# Go mocks (need ogen output, run both in parallel)
+mockery &
+(cd pkg/sdk && mockery) &
+wait
