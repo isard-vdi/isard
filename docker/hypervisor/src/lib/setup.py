@@ -8,7 +8,7 @@ from pprint import pprint
 from time import sleep
 
 from api_client import ApiClient
-from gpu_discovery import discover_gpus
+from gpu_discovery import discover_gpus, discover_hugepages
 
 DEFAULT_STORAGE_POOL_ID = (
     SourceFileLoader("storage_pool", "/src/_common/default_storage_pool.py")
@@ -70,6 +70,7 @@ def SetupHypervisor():
         "only_forced": json.loads(os.environ.get("ONLY_FORCED_HYP", "false").lower()),
         "nvidia_gpus": json.dumps(discover_gpus()),
         "nvidia_enabled": False,  # Will be set below based on discovery
+        "hugepages_info": json.dumps(discover_hugepages()),
         "min_free_mem_gb": os.environ.get("HYPER_FREEMEM", "0"),
         "min_free_gpu_mem_gb": os.environ.get("GPU_ONLY_MEM", "0"),
         "storage_pools": os.environ.get(

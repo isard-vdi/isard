@@ -312,6 +312,7 @@ class ApiHypervisors:
         enabled_virt_pools=[],
         buffering_hyper=False,
         gpu_only=False,
+        hugepages_info=None,
     ):
         data = {}
 
@@ -345,6 +346,7 @@ class ApiHypervisors:
                 enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
+                hugepages_info=hugepages_info,
             )
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
@@ -383,6 +385,7 @@ class ApiHypervisors:
                 enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
+                hugepages_info=hugepages_info,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
@@ -457,6 +460,7 @@ class ApiHypervisors:
         enabled_virt_pools=[],
         buffering_hyper=False,
         gpu_only=False,
+        hugepages_info=None,
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -505,6 +509,7 @@ class ApiHypervisors:
             "buffering_hyper": buffering_hyper,
             "gpu_only": gpu_only,
             "vpn": {"tunneling_mode": vpn_tunneling_mode},
+            "hugepages_info": hugepages_info if hugepages_info else {},
         }
 
         hypervisor = _validate_item("hypervisors", hypervisor)

@@ -25,6 +25,7 @@ services:
       - /opt/isard-local/sockets/:/var/run/libvirt/
       - /opt/isard-local/environment:/usr/local/etc/environment
       - /dev/vfio:/dev/vfio
+      - /dev/hugepages:/dev/hugepages
       - /lib/modules:/lib/modules:ro
       # NVIDIA GPU support: nvidia-smi binary and management library for GPU discovery
       - ${NVIDIA_SMI_PATH:-/usr/bin/nvidia-smi}:/usr/bin/nvidia-smi:ro

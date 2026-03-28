@@ -399,9 +399,72 @@ def discover_gpus():
     return gpus
 
 
+def discover_hugepages():
+    """Detect hugepage availability from /sys/kernel/mm/hugepages/.
+
+    Reads the kernel's hugepage configuration (total and free counts per size)
+    and checks whether hugetlbfs is mounted at /dev/hugepages (required for
+    QEMU inside a container to use hugepages).
+
+    Returns:
+        dict with keys:
+            "1G":  {"total": int, "free": int}
+            "2M":  {"total": int, "free": int}
+            "mounted": bool  (True if /dev/hugepages is a mount point)
+    """
+    # Map sysfs directory suffixes to human-readable size labels
+    _SIZE_MAP = {
+        1048576: "1G",  # hugepages-1048576kB = 1G pages
+        2048: "2M",  # hugepages-2048kB = 2M pages
+    }
+
+    result = {"1G": {"total": 0, "free": 0}, "2M": {"total": 0, "free": 0}}
+
+    hugepages_dir = "/sys/kernel/mm/hugepages"
+    try:
+        entries = os.listdir(hugepages_dir)
+    except OSError:
+        entries = []
+
+    for entry in entries:
+        # entry format: "hugepages-1048576kB" or "hugepages-2048kB"
+        match = re.match(r"hugepages-(\d+)kB", entry)
+        if not match:
+            continue
+
+        size_kb = int(match.group(1))
+        label = _SIZE_MAP.get(size_kb)
+        if not label:
+            continue
+
+        path = os.path.join(hugepages_dir, entry)
+        total = 0
+        free = 0
+        try:
+            with open(os.path.join(path, "nr_hugepages")) as f:
+                total = int(f.read().strip())
+        except (OSError, ValueError):
+            pass
+        try:
+            with open(os.path.join(path, "free_hugepages")) as f:
+                free = int(f.read().strip())
+        except (OSError, ValueError):
+            pass
+
+        result[label] = {"total": total, "free": free}
+
+    # Check if hugetlbfs is mounted (QEMU needs this inside the container)
+    result["mounted"] = os.path.ismount("/dev/hugepages")
+
+    return result
+
+
 if __name__ == "__main__":
     gpus = discover_gpus()
     if gpus:
         print(json.dumps(gpus, indent=2))
     else:
         print("No NVIDIA GPUs found")
+
+    hp = discover_hugepages()
+    print(json.dumps(hp, indent=2))

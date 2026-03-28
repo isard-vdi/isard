@@ -448,6 +448,7 @@ def _parse_extra_gpu_info(gpu_selected):
             else ""
         ),
         "pci_bus_id": gpu_selected.get("pci_bus_id"),
+        "hugepages": gpu_selected.get("hugepages_info", {}),
     }
 
 

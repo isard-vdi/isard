@@ -126,10 +126,20 @@ do
 done
 report_step 5 "Network setup" None
 
-echo "---> Discovering NVIDIA GPUs..."
+echo "---> Discovering NVIDIA GPUs and hugepages..."
 export LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH:-}
-python3 -c "from lib.gpu_discovery import discover_gpus; import json; gpus = discover_gpus(); print(json.dumps(gpus, indent=2)) if gpus else print('No NVIDIA GPUs found')"
-report_step 6 "GPU discovery" None
+python3 -c "
+from lib.gpu_discovery import discover_gpus, discover_hugepages
+import json
+gpus = discover_gpus()
+print(json.dumps(gpus, indent=2)) if gpus else print('No NVIDIA GPUs found')
+hp = discover_hugepages()
+if hp.get('1G', {}).get('total') or hp.get('2M', {}).get('total'):
+    print(json.dumps(hp, indent=2))
+else:
+    print('No hugepages configured')
+"
+report_step 6 "GPU & hugepages discovery" None
 
 echo "---> Checking hypervisor by creating/destroying test domain..."
 virsh create /src/checks/domain.xml

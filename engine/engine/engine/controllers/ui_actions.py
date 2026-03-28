@@ -12,6 +12,7 @@ from time import sleep
 from cachetools import TTLCache, cached
 from engine.models.domain_xml import (
     BUS_TYPES,
+    add_memory_backing,
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
     recreate_xml_to_start,
@@ -345,6 +346,14 @@ class UiActions(object):
                         domain_id=id_domain,
                         profile=extra_info["profile"],
                     )
+
+                    # Add hugepages memory backing if hypervisor supports it
+                    hugepages = extra_info.get("hugepages", {})
+                    if hugepages.get("mounted"):
+                        if hugepages.get("1G", {}).get("total", 0) > 0:
+                            xml = add_memory_backing(xml, "1", "G")
+                        elif hugepages.get("2M", {}).get("total", 0) > 0:
+                            xml = add_memory_backing(xml, "2", "M")
 
                 if LOG_LEVEL == "DEBUG":
                     print(f"%%%% DOMAIN: {id_domain} -- action: {action} %%%%")
