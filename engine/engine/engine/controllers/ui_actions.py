@@ -35,6 +35,7 @@ from engine.services.db import (
     update_domain_status,
     update_origin_and_parents_to_new_template,
     update_table_field,
+    update_vgpu_info_if_stopped,
     update_vgpu_uuid_domain_action,
 )
 from engine.services.db.storage_pool import get_category_storage_pool_id
@@ -206,6 +207,8 @@ class UiActions(object):
                 domain.get("create_dict", {}).get("hardware", {}).get("memory", 1048576)
             )
             domain_memory_gb = domain_memory_kb / 1048576
+            # Clean up any stale vGPU reservation before starting
+            update_vgpu_info_if_stopped(id_domain)
             if starting_paused is True:
                 hyp = self.start_paused_domain_from_xml(
                     xml,
