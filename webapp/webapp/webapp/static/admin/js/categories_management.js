@@ -770,6 +770,20 @@ function actionsCategoryDetail() {
               }
             }
           });
+
+          var providerConfigs = { saml: samlFieldConfig };
+          $.each(providerConfigs, function (provider, configFn) {
+            var config = configFn();
+            config.externalRequired = {
+              field_email: $(modal + " [name='authentication[" + provider + "][email_domain_restriction][enabled]']")
+            };
+            setupProviderFieldDependencies(
+              $(modal + " #" + provider + "-panel"),
+              "authentication[" + provider + "][" + provider + "_config]",
+              config
+            );
+          });
+
         });
 
         $(modal + " #id").val(pk);

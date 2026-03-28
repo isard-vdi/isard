@@ -40,6 +40,7 @@ $(document).ready(function () {
                 fillFormData($(modal + "Form"), data);
                 toggleProviderSections(modal, provider, data.enabled);
                 $(modal + " select#level").trigger("change");
+                addProviderConditionalRequiredListeners(modal);
             }
         });
         $(modal).modal({
@@ -326,6 +327,17 @@ function addProviderConfigModalListeners(modal) {
     });
 }
 
+function addProviderConditionalRequiredListeners(modal) {
+    var providerConfigs = { saml: samlFieldConfig, ldap: ldapFieldConfig };
+    $.each(providerConfigs, function (provider, configFn) {
+        setupProviderFieldDependencies(
+            $(modal + "Form ." + provider + "_config"),
+            provider + "_config",
+            configFn()
+        );
+    });
+}
+
 function renderProviderDataTable(provider) {
     $(`#${provider}-table`).DataTable({
         "ajax": {
@@ -340,6 +352,16 @@ function renderProviderDataTable(provider) {
                 fillFormData($(`#${provider}`), json);
                 $(`#form-${provider}-config-show .config-fields`).toggle(json["enabled"]);
                 $(`#${provider} .migration-section`).toggle(json["enabled"]);
+                var configFns = {
+                    saml: samlFieldConfig
+                };
+                if (configFns[provider]) {
+                    setupProviderFieldDependencies(
+                        $(`#form-${provider}-config-show`),
+                        provider + "_config",
+                        configFns[provider]()
+                    );
+                }
                 return [json.migration];
             }
         },

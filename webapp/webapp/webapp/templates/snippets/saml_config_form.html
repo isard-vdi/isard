@@ -169,31 +169,6 @@
 {% endwith %}
 
 {% with
-  name="auto_register",
-  label="Auto Register",
-  type="checkbox"
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="auto_register_roles",
-  label="Auto Register Roles",
-  type="select",
-  multiple=True,
-  selected_all=True,
-  required=False,
-  options={
-    "admin": "Administrator",
-    "manager": "Manager",
-    "advanced": "Advanced",
-    "user": "User"
-  }
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
   name="guess_category",
   label="Guess Category",
   type="checkbox"
@@ -215,6 +190,31 @@
   placeholder=".*",
   value=".*",
   required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="auto_register",
+  label="Auto Register",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="auto_register_roles",
+  label="Auto Register Roles",
+  type="select",
+  multiple=True,
+  selected_all=True,
+  required=False,
+  options={
+    "admin": "Administrator",
+    "manager": "Manager",
+    "advanced": "Advanced",
+    "user": "User"
+  }
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -243,6 +243,22 @@
   placeholder=".*",
   value=".*",
   required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="role_default",
+  label="Default Role",
+  type="select",
+  required=false,
+  options={
+    "": "",
+    "user": "User",
+    "advanced": "Advanced",
+    "manager": "Manager",
+    "admin": "Administrator"
+  }
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -297,22 +313,6 @@
   label="Role User IDs",
   placeholder="Coma separated IDs",
   required=False
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="role_default",
-  label="Default Role",
-  type="select",
-  required=false,
-  options={
-    "": "",
-    "user": "User",
-    "advanced": "Advanced",
-    "manager": "Manager",
-    "admin": "Administrator"
-  }
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}

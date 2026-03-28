@@ -445,6 +445,188 @@ function toggleFormSection ($container, enabled) {
 }
 
 /**
+ * Sets up conditional visibility and required state for provider config fields.
+ *
+ * @param {jQuery} $container - Container element holding the config fields.
+ * @param {string} namePrefix - Bracket-notation prefix for field names.
+ * @param {Object} config - Configuration object with:
+ * @param {Array}  [config.fieldsWithRegex] - Field names that have a regex counterpart
+ *        (derived by replacing 'field' with 'regex' in the name).
+ * @param {Object} [config.fieldVisibility] - Map of field names to visibility conditions
+ *        (checkbox, optional empty field).
+ * @param {Array}  [config.mutualRequired] - Pairs of field names where at least one is required
+ *        (e.g. [['metadata_url', 'metadata_file']]).
+ * @param {Object} [config.externalRequired] - Map of field names to external jQuery checkbox
+ *        elements that control whether the field is required.
+ */
+function setupProviderFieldDependencies ($container, namePrefix, config) {
+  var fieldsWithRegex = config.fieldsWithRegex || [];
+  var fieldVisibility = config.fieldVisibility || {};
+  var mutualRequired = config.mutualRequired || [];
+  var externalRequired = config.externalRequired || {};
+
+  function setRequired ($field, required) {
+    var parsleyField = $field.parsley();
+    if (required) {
+      $field.attr('required', 'required');
+      if (parsleyField) parsleyField.validate();
+    } else {
+      $field.removeAttr('required');
+      if (parsleyField) parsleyField.reset();
+    }
+    $field.closest('.item.form-group').find('.required').toggle(required);
+  }
+
+  function getField (name) {
+    return $container.find("[name='" + namePrefix + "[" + name + "]']");
+  }
+
+  function getFieldSection (name) {
+    return getField(name).closest('.item.form-group');
+  }
+
+  function updateRegexVisibility (fieldName) {
+    var regexName = fieldName.replace('field', 'regex');
+    var fieldVisible = getField(fieldName).attr('data-parsley-excluded') !== 'true';
+    var hasField = fieldVisible && !!getField(fieldName).val();
+    toggleFormSection(getFieldSection(regexName), hasField);
+    setRequired(getField(regexName), hasField);
+  }
+
+  function updateFieldVisibility (fieldName) {
+    var condition = fieldVisibility[fieldName];
+    if (!condition) return;
+    var visible = getField(condition.checkbox).is(':checked');
+    if (condition.empty) {
+      visible = visible && !getField(condition.empty).val();
+    }
+    toggleFormSection(getFieldSection(fieldName), visible);
+    setRequired(getField(fieldName), visible && !condition.optional);
+    if (fieldsWithRegex.indexOf(fieldName) !== -1) {
+      updateRegexVisibility(fieldName);
+    }
+  }
+
+  function updateExternalRequired (fieldName) {
+    var $checkbox = externalRequired[fieldName];
+    var $field = getField(fieldName);
+    var required = $checkbox.is(':checked');
+    setRequired($field, required);
+    $field.attr('data-parsley-excluded', !required && !$field.val());
+    if (fieldsWithRegex.indexOf(fieldName) !== -1) {
+      updateRegexVisibility(fieldName);
+    }
+  }
+
+  function updateMutualRequired (pair) {
+    var $a = getField(pair[0]);
+    var $b = getField(pair[1]);
+    var aVal = $a.val();
+    var bVal = $b.val();
+    setRequired($a, !bVal);
+    setRequired($b, !aVal);
+  }
+
+  // Mutual required pairs
+  $.each(mutualRequired, function (_, pair) {
+    getField(pair[0]).off('input.prov-req').on('input.prov-req', function () {
+      updateMutualRequired(pair);
+    });
+    getField(pair[1]).off('input.prov-req').on('input.prov-req', function () {
+      updateMutualRequired(pair);
+    });
+  });
+
+  // field -> regex visibility
+  $.each(fieldsWithRegex, function (_, fieldName) {
+    getField(fieldName).off('input.prov-req').on('input.prov-req', function () {
+      updateRegexVisibility(fieldName);
+    });
+  });
+
+  // field visibility conditions
+  var checkboxTriggers = {};
+  var inputTriggers = {};
+  $.each(fieldVisibility, function (fieldName, condition) {
+    var cb = condition.checkbox;
+    if (!checkboxTriggers[cb]) checkboxTriggers[cb] = [];
+    checkboxTriggers[cb].push(fieldName);
+    if (condition.empty) {
+      var emp = condition.empty;
+      if (!inputTriggers[emp]) inputTriggers[emp] = [];
+      inputTriggers[emp].push(fieldName);
+    }
+  });
+  $.each(checkboxTriggers, function (trigger, fields) {
+    getField(trigger).off('ifChecked.prov-req ifUnchecked.prov-req ifChanged.prov-req')
+      .on('ifChecked.prov-req ifUnchecked.prov-req ifChanged.prov-req', function () {
+        $.each(fields, function (_, fieldName) {
+          updateFieldVisibility(fieldName);
+        });
+      });
+  });
+  $.each(inputTriggers, function (trigger, fields) {
+    getField(trigger).off('input.prov-req change.prov-req')
+      .on('input.prov-req change.prov-req', function () {
+        $.each(fields, function (_, fieldName) {
+          updateFieldVisibility(fieldName);
+        });
+      });
+  });
+
+  // External checkbox -> field required listeners
+  $.each(externalRequired, function (fieldName, $checkbox) {
+    $checkbox.off('ifChecked.prov-req ifUnchecked.prov-req')
+      .on('ifChecked.prov-req ifUnchecked.prov-req', function () {
+        updateExternalRequired(fieldName);
+      });
+    getField(fieldName).off('input.prov-ext').on('input.prov-ext', function () {
+      var required = $checkbox.is(':checked');
+      $(this).attr('data-parsley-excluded', !required && !$(this).val());
+    });
+  });
+
+  // Set initial state
+  $.each(mutualRequired, function (_, pair) {
+    updateMutualRequired(pair);
+  });
+  $.each(fieldsWithRegex, function (_, fieldName) {
+    updateRegexVisibility(fieldName);
+  });
+  $.each(fieldVisibility, function (fieldName) {
+    updateFieldVisibility(fieldName);
+  });
+  $.each(externalRequired, function (fieldName) {
+    updateExternalRequired(fieldName);
+  });
+}
+
+function samlFieldConfig () {
+  return {
+    fieldsWithRegex: [
+      'field_username', 'field_name', 'field_email', 'field_photo',
+      'field_category', 'field_group', 'field_role'
+    ],
+    fieldVisibility: {
+      auto_register_roles: { checkbox: 'auto_register', optional: true },
+      field_category:      { checkbox: 'guess_category' },
+      group_default:       { checkbox: 'auto_register', optional: true },
+      field_group:         { checkbox: 'auto_register', empty: 'group_default' },
+      role_default:        { checkbox: 'auto_register', optional: true },
+      field_role:          { checkbox: 'auto_register', empty: 'role_default' },
+      role_admin_ids:      { checkbox: 'auto_register', optional: true },
+      role_manager_ids:    { checkbox: 'auto_register', optional: true },
+      role_advanced_ids:   { checkbox: 'auto_register', optional: true },
+      role_user_ids:       { checkbox: 'auto_register', optional: true }
+    },
+    mutualRequired: [
+      ['metadata_url', 'metadata_file']
+    ]
+  };
+}
+
+
+/**
  * Populates form fields inside a container with values from a data object.
  * Supports nested objects (via recursion), checkboxes (via iCheck), multi-value
  * selects (arrays), and standard inputs. Field names use bracket notation
