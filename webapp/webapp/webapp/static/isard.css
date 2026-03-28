@@ -315,3 +315,8 @@ table.dataTable tr.shown td.details-control > button > i:before {
 .disabled-preview {
   opacity: 50%;
 }
+
+/* Initially hidden elements (toggled by JS via jQuery .toggle()) */
+.initially-hidden {
+  display: none;
+}

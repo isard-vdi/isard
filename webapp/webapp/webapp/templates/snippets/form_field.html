@@ -26,9 +26,7 @@
       class="control-label col-sm-3 col-xs-12"
     >
       {{ label }}
-      {% if required is not false %}
-        <span class="required">*</span>
-      {% endif %}
+      <span class="required{% if required is false %} initially-hidden{% endif %}">*</span>
     </label>
     <div class="col-sm-9 col-xs-12">
       {% if type == 'file' %}
@@ -61,6 +59,9 @@
             type="{{ type if type else 'text' }}"
             data-parsley-trigger="change"
             placeholder="{{ placeholder }}"
+            {% if value is defined and value is not none %}
+              value="{{ value }}"
+            {% endif %}
           {% endif %}
           {{ '' if required is false or type == 'checkbox' else 'required' }}
           {{ 'disabled' if disabled else '' }}
