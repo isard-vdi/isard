@@ -242,7 +242,7 @@ pid-file=/var/run/ovs-vlan-wg.pid
 except-interface=lo
 bind-dynamic
 interface=vlan-wg
-dhcp-range=${DHCP_START},${DHCP_END},${GUESTS_MASK}
+dhcp-range=${DHCP_START},${DHCP_END},${GUESTS_MASK},24h
 dhcp-no-override
 dhcp-authoritative
 dhcp-lease-max=100000
