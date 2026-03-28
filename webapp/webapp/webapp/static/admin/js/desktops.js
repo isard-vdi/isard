@@ -2131,7 +2131,7 @@ function renderAction(data){
             error: function(data) {
                 notice.update({
                     title: 'ERROR updating XML',
-                    text: data.responseJSON.description,
+                    text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
