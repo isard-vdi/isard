@@ -8,11 +8,13 @@ domain:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - true
-          other_fields:
-            - certificate_source
-            - name
+          - values:
+              - and:
+                  - value: true
+            other_fields:
+              and:
+                - certificate_source
+                - name
     name:
       type: string
       maxlength: 255
@@ -26,10 +28,12 @@ domain:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - custom
-          other_fields:
-            - certificate_data
+          - values:
+              - and:
+                  - value: custom
+            other_fields:
+              and:
+                - certificate_data
     certificate_data:
       type: string
 logo:
@@ -42,10 +46,12 @@ logo:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - true
-          other_fields:
-            - data
+          - values:
+              - and:
+                  - value: true
+            other_fields:
+              and:
+                - data
     data:
       type: string
       regex: "^data:(image/svg\\+xml|image/png|image/webp);base64,.+$"

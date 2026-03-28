@@ -5,10 +5,12 @@ enabled:
   check_with: depends_if
   meta:
     depends_if:
-      values:
-        - true
-      other_fields:
-        - allowed
+      - values:
+          - and:
+              - value: true
+        other_fields:
+          and:
+            - allowed
 allowed:
   type: list
   schema:

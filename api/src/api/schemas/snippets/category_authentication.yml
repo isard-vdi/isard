@@ -7,10 +7,12 @@ local:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - false
-          other_fields:
-            - email_domain_restriction
+          - values:
+              - and:
+                  - value: false
+            other_fields:
+              and:
+                - email_domain_restriction
     email_domain_restriction:
       type: dict
       schema: email_domain_restriction
@@ -23,11 +25,13 @@ google:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - false
-          other_fields:
-            - email_domain_restriction
-            - config_source
+          - values:
+              - and:
+                  - value: false
+            other_fields:
+              and:
+                - email_domain_restriction
+                - config_source
     email_domain_restriction:
       type: dict
       schema: email_domain_restriction
@@ -39,10 +43,12 @@ google:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - custom
-          other_fields:
-            - google_config
+          - values:
+              - and:
+                  - value: custom
+            other_fields:
+              and:
+                - google_config
     google_config:
       type: dict
       schema: google_config
@@ -55,11 +61,13 @@ saml:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - false
-          other_fields:
-            - email_domain_restriction
-            - config_source
+          - values:
+              - and:
+                  - value: false
+            other_fields:
+              and:
+                - email_domain_restriction
+                - config_source
     email_domain_restriction:
       type: dict
       schema: email_domain_restriction
@@ -71,10 +79,12 @@ saml:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - custom
-          other_fields:
-            - saml_config
+          - values:
+              - and:
+                  - value: custom
+            other_fields:
+              and:
+                - saml_config
     saml_config:
       type: dict
       schema: saml_config
@@ -87,11 +97,13 @@ ldap:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - false
-          other_fields:
-            - email_domain_restriction
-            - config_source
+          - values:
+              - and:
+                  - value: false
+            other_fields:
+              and:
+                - email_domain_restriction
+                - config_source
     email_domain_restriction:
       type: dict
       schema: email_domain_restriction
@@ -103,10 +115,12 @@ ldap:
       check_with: depends_if
       meta:
         depends_if:
-          values:
-            - custom
-          other_fields:
-            - ldap_config
+          - values:
+              - and:
+                  - value: custom
+            other_fields:
+              and:
+                - ldap_config
     ldap_config:
       type: dict
       schema: ldap_config
