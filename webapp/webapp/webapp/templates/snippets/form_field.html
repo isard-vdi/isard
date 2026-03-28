@@ -70,7 +70,7 @@
         {% if type == 'select' %}
         >
           {% for value, label in (options or {}).items() %}
-            <option value="{{ value }}">{{ label }}</option>
+            <option value="{{ value }}" {{ 'selected' if selected_all else '' }}>{{ label }}</option>
           {% endfor %}
         </select>
         {% else %}

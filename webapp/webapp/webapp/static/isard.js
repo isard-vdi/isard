@@ -468,12 +468,17 @@ function fillFormData ($container, data, prefix) {
     if ($field.is(':checkbox')) {
       $field.iCheck(value ? 'check' : 'uncheck').iCheck('update').trigger('ifChanged');
     } else if ($.isArray(value)) {
-      // Populate multi-select fields by adding each array item as a selected option
-      $field.empty();
-      $.each(value, function (_, item) {
-        $field.append(new Option(item, item, true, true));
-      });
-      $field.trigger('change');
+      if ($field.is('select[multiple]') && $field.find('option').length) {
+        // Static-option multiselects: select matching options
+        $field.val(value).trigger('change');
+      } else {
+        // Dynamic multiselects: replace options with the provided values
+        $field.empty();
+        $.each(value, function (_, item) {
+          $field.append(new Option(item, item, true, true));
+        });
+        $field.trigger('change');
+      }
     } else {
       $field.val(value).trigger('change');
     }
@@ -498,7 +503,16 @@ function resetFormData ($container) {
     $(this).iCheck('uncheck').iCheck('update').trigger('ifChanged');
   });
   $container.find('select[multiple]').each(function () {
-    $(this).empty().trigger('change');
+    var $select = $(this);
+    if ($select.find('option').length) {
+      // Static-option multiselects: restore default selected state
+      $select.find('option').each(function () {
+        this.selected = this.defaultSelected;
+      });
+      $select.trigger('change');
+    } else {
+      $select.empty().trigger('change');
+    }
   });
   $container.find('select:not([multiple])').each(function () {
     $(this).prop('selectedIndex', 0).trigger('change');

@@ -165,8 +165,16 @@
 {% with
   name="auto_register_roles",
   label="Auto Register Roles",
-  placeholder="Coma separated roles",
-  required=False
+  type="select",
+  multiple=True,
+  selected_all=True,
+  required=False,
+  options={
+    "admin": "Administrator",
+    "manager": "Manager",
+    "advanced": "Advanced",
+    "user": "User"
+  }
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
