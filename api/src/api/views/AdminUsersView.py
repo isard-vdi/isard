@@ -639,7 +639,7 @@ def api_v3_admin_category_authentication_put(payload, category_id):
             traceback.format_exc(),
         )
     data = _validate_item("category_authentication", data)
-    users.update_category(category_id, data)
+    Category(category_id).authentication = data.get("authentication")
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 

@@ -51,7 +51,14 @@ auto_register:
   empty: false
   type: boolean
 auto_register_roles:
-  type: string
+  type: list
+  schema:
+    type: string
+    allowed:
+      - admin
+      - manager
+      - advanced
+      - user
 guess_category:
   empty: false
   type: boolean

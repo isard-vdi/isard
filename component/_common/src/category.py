@@ -20,6 +20,10 @@
 import base64
 import os
 
+from isardvdi_common.provider_config import (
+    provider_config_api_to_db,
+    provider_config_db_to_api,
+)
 from rethinkdb import r
 
 from .rethink_custom_base_factory import RethinkCustomBase
@@ -43,6 +47,9 @@ class Category(RethinkCustomBase):
         """
         Get an attribute from the Category object.
 
+        When getting the 'authentication' attribute, converts provider config
+        fields from DB format (comma-separated strings) to API format (lists).
+
         When getting the 'branding' attribute, injects logo.data as a base64
         data URL read from the filesystem if the logo is enabled and a file
         exists on disk.
@@ -53,6 +60,12 @@ class Category(RethinkCustomBase):
         :rtype: any
         """
         value = super().__getattr__(name)
+        if name == "authentication" and value:
+            for provider_data in value.values():
+                if isinstance(provider_data, dict):
+                    for v in provider_data.values():
+                        if isinstance(v, dict):
+                            provider_config_db_to_api(v)
         if name == "branding" and value:
             logo = value.get("logo", {})
             logo.pop("data", None)
@@ -72,6 +85,9 @@ class Category(RethinkCustomBase):
         """
         Set an attribute on the Category object.
 
+        When setting the 'authentication' attribute, converts provider config
+        fields from API format (lists) to DB format (comma-separated strings).
+
         When setting the 'branding' attribute:
         - Validates that the domain is not already in use by another category.
         - If logo.data contains a base64 data URL, decodes it and saves the
@@ -85,6 +101,12 @@ class Category(RethinkCustomBase):
         :raises ValueError: If the branding domain is already in use by another
             category or if the logo data is invalid.
         """
+        if name == "authentication" and value:
+            for provider_data in value.values():
+                if isinstance(provider_data, dict):
+                    for v in provider_data.values():
+                        if isinstance(v, dict):
+                            provider_config_api_to_db(v)
         if name == "branding" and value:
             enabled = value.get("domain", {}).get("enabled")
             domain_name = value.get("domain", {}).get("name")

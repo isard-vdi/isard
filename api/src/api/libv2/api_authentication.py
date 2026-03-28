@@ -25,6 +25,10 @@ from cachetools import TTLCache, cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.configuration import Configuration
+from isardvdi_common.provider_config import (
+    provider_config_api_to_db,
+    provider_config_db_to_api,
+)
 from rethinkdb import RethinkDB
 
 from api import app
@@ -223,10 +227,14 @@ def get_provider_config(provider):
             for secret_key in PROVIDER_SENSITIVE_KEYS:
                 if secret_key in value:
                     del value[secret_key]
+            provider_config_db_to_api(value)
     return config
 
 
 def update_provider_config(provider, data):
+    for key, value in data.items():
+        if isinstance(value, dict):
+            provider_config_api_to_db(value)
     with app.app_context():
         r.table("config").get(1).update(
             {"auth": {provider: r.row["auth"][provider].merge(data)}}
