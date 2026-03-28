@@ -4,8 +4,9 @@ const clipboard = {}
 
 clipboard.install = (client) => {
   clipboard.getLocalClipboard().then(data => {
-    clipboard.cache = data
-    return true
+    if (data) {
+      clipboard.cache = data
+    }
   })
 
   window.addEventListener('load', clipboard.update(client), true)
@@ -21,8 +22,10 @@ clipboard.install = (client) => {
 clipboard.update = client => {
   return () => {
     clipboard.getLocalClipboard().then(data => {
-      clipboard.cache = data
-      clipboard.setRemoteClipboard(client)
+      if (data) {
+        clipboard.cache = data
+        clipboard.setRemoteClipboard(client)
+      }
     })
   }
 }
@@ -51,10 +54,15 @@ clipboard.setRemoteClipboard = (client) => {
 
 clipboard.getLocalClipboard = async () => {
   if (navigator.clipboard && navigator.clipboard.readText) {
-    const text = await navigator.clipboard.readText()
-    return {
-      type: 'text/plain',
-      data: text
+    try {
+      const text = await navigator.clipboard.readText()
+      return {
+        type: 'text/plain',
+        data: text
+      }
+    } catch (e) {
+      // Browser blocks clipboard read without user activation (click/tap).
+      // Clipboard will sync on the next copy/cut event instead.
     }
   }
 }
