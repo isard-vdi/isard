@@ -771,7 +771,7 @@ function actionsCategoryDetail() {
             }
           });
 
-          var providerConfigs = { saml: samlFieldConfig };
+          var providerConfigs = { saml: samlFieldConfig, ldap: ldapFieldConfig };
           $.each(providerConfigs, function (provider, configFn) {
             var config = configFn();
             config.externalRequired = {

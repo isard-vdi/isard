@@ -97,7 +97,8 @@
 
 {% with
   name="field_username",
-  label="Field Username"
+  label="Field Username",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -106,7 +107,8 @@
   name="regex_username",
   label="Regex Username",
   placeholder=".*",
-  value=".*"
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -123,7 +125,8 @@
   name="regex_name",
   label="Regex Name",
   placeholder=".*",
-  value=".*"
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -140,7 +143,8 @@
   name="regex_email",
   label="Regex Email",
   placeholder=".*",
-  value=".*"
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -157,7 +161,34 @@
   name="regex_photo",
   label="Regex Photo",
   placeholder=".*",
-  value=".*"
+  value=".*",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="guess_category",
+  label="Guess Category",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_category",
+  label="Field Category",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_category",
+  label="Regex Category",
+  placeholder=".*",
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -188,35 +219,11 @@
 {% endwith %}
 
 {% with
-  name="guess_category",
-  label="Guess Category",
-  type="checkbox"
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="field_category",
-  label="Field Category",
-  required=False
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="regex_category",
-  label="Regex Category",
-  placeholder=".*",
-  value=".*"
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
   name="group_default",
   label="Default Group",
   placeholder="default",
-  value="default"
+  value="default",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -233,15 +240,8 @@
   name="regex_group",
   label="Regex Group",
   placeholder=".*",
-  value=".*"
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="role_list_search_base",
-  label="Role List Search Base",
-  required=False
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -263,10 +263,19 @@
 {% endwith %}
 
 {% with
+  name="role_list_search_base",
+  label="Role List Search Base",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
   name="role_list_filter",
   label="Role List Filter",
   placeholder="(&(objectClass=posixGroup)(memberUid=%s))",
-  value="(&(objectClass=posixGroup)(memberUid=%s))"
+  value="(&(objectClass=posixGroup)(memberUid=%s))",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}
@@ -291,7 +300,8 @@
   name="role_list_regex",
   label="Role List Regex",
   placeholder=".*",
-  value=".*"
+  value=".*",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}

@@ -631,6 +631,29 @@ function samlFieldConfig () {
   };
 }
 
+function ldapFieldConfig () {
+  return {
+    fieldsWithRegex: [
+      'field_username', 'field_name', 'field_email', 'field_photo',
+      'field_category', 'field_group', 'role_list_field'
+    ],
+    fieldVisibility: {
+      auto_register_roles:   { checkbox: 'auto_register', optional: true },
+      field_category:        { checkbox: 'guess_category' },
+      group_default:         { checkbox: 'auto_register', optional: true },
+      field_group:           { checkbox: 'auto_register', empty: 'group_default' },
+      role_default:          { checkbox: 'auto_register', optional: true },
+      role_list_search_base: { checkbox: 'auto_register' },
+      role_list_filter:      { checkbox: 'auto_register' },
+      role_list_use_user_dn: { checkbox: 'auto_register', optional: true },
+      role_list_field:       { checkbox: 'auto_register' },
+      role_admin_ids:        { checkbox: 'auto_register', optional: true },
+      role_manager_ids:      { checkbox: 'auto_register', optional: true },
+      role_advanced_ids:     { checkbox: 'auto_register', optional: true },
+      role_user_ids:         { checkbox: 'auto_register', optional: true }
+    }
+  };
+}
 
 /**
  * Populates form fields inside a container with values from a data object.
