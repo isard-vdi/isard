@@ -180,28 +180,23 @@ docker-image-codegen:
   before_script:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - |
-      if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-        docker buildx create --name ci-builder --driver docker-container --driver-opt network=host --config /etc/buildkit/buildkitd.toml --use
-      fi
   script:
     - |
-      if [ -n "$BUILDKIT_CACHE_REGISTRY" ] && $[[ inputs.use-image-build-cache ]]
+      if $[[ inputs.use-image-build-cache ]]
       then
-        docker buildx build -f $DOCKERFILE \
-          --cache-from "type=registry,ref=$BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:buildcache" \
-          --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main \
-          --cache-to "type=registry,ref=$BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:buildcache,mode=max" \
-          --load -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
-      elif $[[ inputs.use-image-build-cache ]]
-      then
-        docker build -f $DOCKERFILE --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main --cache-to type=inline -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+        CACHE_ARGS="--cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main --cache-to type=inline"
+        if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
+          CACHE_ARGS="--cache-from $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest $CACHE_ARGS"
+        fi
+        docker build -f $DOCKERFILE $CACHE_ARGS -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
       else
         docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
       fi
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
+    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest || true
+    - docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest || true
 
 gen-protobuf:
   stage: generate
@@ -247,7 +242,7 @@ docker-compose-build:
       for file in docker-compose*.yml; do
         cp "$file" "no-cache-$file"
         if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-          yq -i '.services |= map_values(.build.cache_from = [ "type=registry,ref='"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":buildcache", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=registry,ref='"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":buildcache,mode=max" ])' $file
+          yq -i '.services |= map_values(.build.cache_from = [ "'"$BUILDKIT_CACHE_REGISTRY"'/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":latest", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
         else
           yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
         fi
@@ -328,10 +323,6 @@ docker-image:
     - apk add git docker-compose
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - |
-      if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
-        docker buildx create --name ci-builder --driver docker-container --driver-opt network=host --config /etc/buildkit/buildkitd.toml --use
-      fi
   script:
     - git submodule update --init --recursive --remote
     - |
@@ -345,6 +336,11 @@ docker-image:
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
+    - |
+      if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
+        docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
+        docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
+      fi
 
 # test-e2e:
 #   stage: test
