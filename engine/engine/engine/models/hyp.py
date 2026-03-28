@@ -142,8 +142,12 @@ class HypStats(object):
                 if time.time() - key >= minutes * 60:
                     del self.hyper_stats_history[hyp_id][key]
 
-    def set_stats(self, hyp_id, memory, cpu):
+    def set_stats(self, hyp_id, memory, cpu, hugepages_total_kb=0, hugepages_free_kb=0):
         memory["available"] = memory["free"] + memory["cached"]
+        if hugepages_total_kb > 0:
+            memory["available"] += hugepages_free_kb
+            memory["hugepages_total_kb"] = hugepages_total_kb
+            memory["hugepages_free_kb"] = hugepages_free_kb
         current_libvirt_stats = {"memory": memory, "cpu": cpu}
         if hyp_id not in self.hyper_libvirt_last_stats.keys():
             cpu_current, _, _ = calcule_cpu_hyp_stats(
@@ -1488,12 +1492,46 @@ class hyp(object):
             self.spice_proxy_port,
         )
 
+    def _get_hugepages_stats(self):
+        hugepages_info = (
+            self.hypervisor.get("hugepages_info", {}) if self.hypervisor else {}
+        )
+        hugepages_total_1g = hugepages_info.get("1G", {}).get("total", 0)
+        hugepages_total_2m = hugepages_info.get("2M", {}).get("total", 0)
+        hugepages_total_kb = hugepages_total_1g * 1048576 + hugepages_total_2m * 2048
+        if hugepages_total_kb == 0:
+            return 0, 0
+
+        hugepages_free_kb = 0
+        try:
+            page_sizes = []
+            if hugepages_total_1g > 0:
+                page_sizes.append(1048576)
+            if hugepages_total_2m > 0:
+                page_sizes.append(2048)
+            num_cells = self.conn.getInfo()[4]
+            free_pages = self.conn.getFreePages(page_sizes, 0, num_cells)
+            # getFreePages returns {cell_idx: {page_size_kb: free_count}}
+            for cell_idx, sizes in free_pages.items():
+                for page_size_kb, free_count in sizes.items():
+                    hugepages_free_kb += free_count * page_size_kb
+        except Exception as e:
+            log.warning(
+                f"[{self.id_hyp_rethink}] getFreePages failed, assuming all hugepages free: {e}"
+            )
+            hugepages_free_kb = hugepages_total_kb
+
+        return hugepages_total_kb, hugepages_free_kb
+
     def get_system_stats(self):
         try:
             start = time.time()
             memory = self.conn.getMemoryStats(-1)
             cpu = self.conn.getCPUStats(-1)
-            hyp_stats.set_stats(self.id_hyp_rethink, memory, cpu)
+            hugepages_total_kb, hugepages_free_kb = self._get_hugepages_stats()
+            hyp_stats.set_stats(
+                self.id_hyp_rethink, memory, cpu, hugepages_total_kb, hugepages_free_kb
+            )
             self.stats = {
                 "mem_stats": hyp_stats.get_stats(self.id_hyp_rethink)["memory"],
                 "mem_stats_1min": hyp_stats.get_stats(self.id_hyp_rethink, minutes=1)[

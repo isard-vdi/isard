@@ -101,3 +101,6 @@ vpn:
       allowed:
         - wireguard+geneve
         - geneve
+hugepages_info:
+  type: dict
+  default: {}

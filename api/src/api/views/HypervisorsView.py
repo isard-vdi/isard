@@ -119,6 +119,11 @@ def api_v3_hypervisor(hyper_id=False):
                 nvidia_gpus = json.loads(nvidia_gpus_raw)
             except (json.JSONDecodeError, TypeError):
                 nvidia_gpus = []
+            hugepages_info_raw = request.form.get("hugepages_info", "{}")
+            try:
+                hugepages_info = json.loads(hugepages_info_raw)
+            except (json.JSONDecodeError, TypeError):
+                hugepages_info = {}
             min_free_mem_gb = int(
                 request.form.get("min_free_mem_gb", default="0", type=str)
             )
@@ -170,6 +175,7 @@ def api_v3_hypervisor(hyper_id=False):
             enabled_virt_pools=enabled_virt_pools,
             buffering_hyper=buffering_hyper,
             gpu_only=gpu_only,
+            hugepages_info=hugepages_info,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])

@@ -2107,3 +2107,48 @@ def recreate_xml_if_gpu(xml, mdev_uid, pci_bus_id=None, is_passthrough=False):
     tree.xpath(xpath_parent)[0].insert(-1, element_tree)
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output
+
+
+def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=8):
+    """Add <memoryBacking> with hugepages to domain XML.
+
+    Reduces VFIO IOMMU memory mapping time for GPU desktops by using
+    hugepages instead of standard 4K pages.  Only called when the target
+    hypervisor has hugepages available.
+
+    See https://libvirt.org/formatdomain.html#memory-backing
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error("Exception parsing xml in add_memory_backing: {}".format(e))
+        return xml
+
+    # Remove existing memoryBacking (idempotent)
+    for elem in tree.xpath("/domain/memoryBacking"):
+        elem.getparent().remove(elem)
+
+    xml_backing = """<memoryBacking>
+  <hugepages>
+    <page size="{size}" unit="{unit}"/>
+  </hugepages>
+  <allocation mode="immediate" threads="{threads}"/>
+  <locked/>
+</memoryBacking>""".format(
+        size=hugepage_size, unit=hugepage_unit, threads=alloc_threads
+    )
+
+    element = etree.parse(StringIO(xml_backing)).getroot()
+
+    # Insert after currentMemory (standard libvirt XML ordering)
+    current_mem = tree.xpath("/domain/currentMemory")
+    if current_mem:
+        current_mem[0].addnext(element)
+    elif tree.xpath("/domain/memory"):
+        tree.xpath("/domain/memory")[0].addnext(element)
+    else:
+        tree.xpath("/domain")[0].insert(0, element)
+
+    xml_output = indent(etree.tostring(tree, encoding="unicode"))
+    return xml_output

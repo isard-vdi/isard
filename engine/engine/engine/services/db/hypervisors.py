@@ -780,6 +780,7 @@ def get_hypers_gpu_online(
             "mountpoints",
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
+            "hugepages_info",
         )
         .run(r_conn)
     )
@@ -876,6 +877,7 @@ def get_hypers_gpu_online(
                             "next_gpu_id": gpu_id,
                             "gpu_profile": gpu_brand_model_profile,
                             "pci_bus_id": pci,
+                            "hugepages_info": h.get("hugepages_info", {}),
                         }
                     },
                 }
