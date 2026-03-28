@@ -271,9 +271,16 @@ $(document).ready(function () {
       "render": function (data, type, full, meta) {
         if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
         if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
-        mem_used = (full.stats.mem_stats.total - full.stats.mem_stats.available)
-        perc = mem_used * 100 / full.stats.mem_stats.total
-        return Math.round(mem_used / 1024 / 1024) + 'GB/' + Math.round(full.stats.mem_stats.total / 1024 / 1024) + 'GB' + renderProgress(Math.round(perc), 70, Math.round((full.stats.mem_stats.total - full.min_free_mem_gb * 1024 * 1024) * 100 / full.stats.mem_stats.total))
+        var ms = full.stats.mem_stats
+        var mem_used = ms.total - ms.available
+        var perc = mem_used * 100 / ms.total
+        var label = Math.round(mem_used / 1024 / 1024) + 'GB/' + Math.round(ms.total / 1024 / 1024) + 'GB'
+        if (ms.hugepages_total_kb > 0) {
+          var hp_used = Math.round((ms.hugepages_total_kb - ms.hugepages_free_kb) / 1024 / 1024)
+          var hp_total = Math.round(ms.hugepages_total_kb / 1024 / 1024)
+          label += ' <span style="color:#8a6d3b;" title="Hugepages used/total">(HP:' + hp_used + '/' + hp_total + 'GB)</span>'
+        }
+        return label + renderProgress(Math.round(perc), 70, Math.round((ms.total - full.min_free_mem_gb * 1024 * 1024) * 100 / ms.total))
       }
     },
     {
@@ -633,6 +640,7 @@ $(document).ready(function () {
 
 function updateRamTotals(table) {
   var totalRAM = 0, availRAM = 0, totalVMs = 0, onlineCount = 0;
+  var totalHP = 0, freeHP = 0;
   table.rows().every(function () {
     var d = this.data();
     if (d.status !== "Online") return;
@@ -640,6 +648,10 @@ function updateRamTotals(table) {
     if (d.stats && d.stats.mem_stats) {
       totalRAM += d.stats.mem_stats.total;
       availRAM += d.stats.mem_stats.available;
+      if (d.stats.mem_stats.hugepages_total_kb > 0) {
+        totalHP += d.stats.mem_stats.hugepages_total_kb;
+        freeHP += d.stats.mem_stats.hugepages_free_kb;
+      }
     }
     if (d.desktops_started !== undefined) {
       totalVMs += d.desktops_started;
@@ -655,11 +667,15 @@ function updateRamTotals(table) {
   var totalGB = Math.round(totalRAM / 1024 / 1024);
   var freeGB = Math.round(availRAM / 1024 / 1024);
   var perc = Math.round(usedRAM * 100 / totalRAM);
-  $('#ram-totals-content').html(
-    'RAM Used: ' + usedGB + 'GB / Total: ' + totalGB + 'GB - Free: ' + freeGB + 'GB ' +
+  var summary = 'RAM Used: ' + usedGB + 'GB / Total: ' + totalGB + 'GB - Free: ' + freeGB + 'GB ' +
     renderRamBar(perc) +
-    ' | VMs: ' + totalVMs + ' started'
-  );
+    ' | VMs: ' + totalVMs + ' started';
+  if (totalHP > 0) {
+    var usedHPGB = Math.round((totalHP - freeHP) / 1024 / 1024);
+    var totalHPGB = Math.round(totalHP / 1024 / 1024);
+    summary += ' | HP: ' + usedHPGB + '/' + totalHPGB + 'GB';
+  }
+  $('#ram-totals-content').html(summary);
 }
 
 function renderRamBar(usedPerc) {

@@ -510,6 +510,8 @@ class HypervisorsThread(threading.Thread):
                                             "mem_stats": {
                                                 "total": True,
                                                 "available": True,
+                                                "hugepages_total_kb": True,
+                                                "hugepages_free_kb": True,
                                             },
                                             "cpu_1min": {"used": True},
                                             "last_action": True,
