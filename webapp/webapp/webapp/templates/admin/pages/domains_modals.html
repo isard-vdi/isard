@@ -336,41 +336,33 @@
    </div>
 </div>
 
-<div class="modal fade" id="modalEditXml" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-   <div class="modal-dialog">
+<div class="modal fade" id="modalEditXmlSections" tabindex="-1" role="dialog" aria-labelledby="xmlSectionsLabel" aria-hidden="true">
+   <div class="modal-dialog modal-lg">
       <div class="modal-content">
-         <!-- Modal Header -->
-         <div class="modal-header">   
-               <button type="button" class="close" 
-                  data-dismiss="modal">
-                     <span aria-hidden="true">&times;</span>
-                     <span class="sr-only">Close</span>
-               </button>
-               <h4 class="modal-title" id="myModalLabel">
-                  <i class="fa fa-file-code-o fa-1x"> </i> Edit XML
-               </h4>
+         <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="xmlSectionsLabel">
+               <i class="fa fa-puzzle-piece fa-1x"></i> Edit XML Sections
+            </h4>
          </div>
-         <!-- Modal Body -->
-         <div class="modal-body">
-            <form id="modalEditXmlForm" class="form-horizontal form-label-left">
-               <input  id="id" name="id" type="hidden" required>
-               <div class="item form-group">
-                  </label>
-                  <div class="col-md-12 col-sm-12 col-xs-12">
-                     <textarea class="form-control" rows="30" id="xml"></textarea>
-                  </div>
-               </div>
-            </form>
+         <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+            <input id="xmlSectionsDomainId" type="hidden">
+            <div id="xmlSectionsContainer">
+               <!-- Sections rendered dynamically by JS -->
+            </div>
          </div>
-         <!-- Modal Footer -->
          <div class="modal-footer">
             <ul class="nav navbar-left panel_toolbox">
-                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+               <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
             </ul>
             <ul class="nav navbar-right panel_toolbox">
-               <button id="send" type="button" class="btn btn-success">Update</button>
+               <button id="xmlSectionsValidate" type="button" class="btn btn-info">Validate</button>
+               <button id="xmlSectionsSave" type="button" class="btn btn-success">Update</button>
             </ul>
-        </div>
+         </div>
       </div>
    </div>
 </div>

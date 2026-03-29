@@ -38,3 +38,36 @@ ids:
     coerce: sanitize
 server_autostart:
   type: boolean
+xml_protected_sections:
+  type: list
+  schema:
+    type: string
+    allowed:
+      - memory
+      - vcpus
+      - cpu
+      - boot_order
+      - features
+      - clock
+      - pm
+      - disks
+      - isos
+      - floppies
+      - disk_cache
+      - qos_disk
+      - video
+      - graphics
+      - network
+      - controllers
+      - input
+      - console
+      - sound
+      - channels
+      - redirdev
+      - rng
+      - memballoon
+      - hostdev
+      - filesystem
+      - domain_type
+      - qemu_guest_agent
+      - shared_folder

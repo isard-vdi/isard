@@ -1693,6 +1693,13 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         # error when parsing xml
         return False
 
+    # Sections protected from engine modification by admin
+    protected = set(
+        dict_domain.get("create_dict", {}).get("xml_protected_sections", [])
+    )
+    if protected:
+        log.info(f"Domain {id_domain}: xml_protected_sections={sorted(protected)}")
+
     x.set_name(id_domain)
     try:
         uuid.UUID(id_domain)
@@ -1705,88 +1712,100 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     hw = resolve_hardware_from_create_dict(dict_domain)
 
     # Memory
-    x.set_memory(
-        memory=hw["memory"],
-        unit=hw["memory_unit"],
-        current=int(hw.get("currentMemory", hw["memory"]) * DEFAULT_BALLOON),
-    )
+    if "memory" not in protected:
+        x.set_memory(
+            memory=hw["memory"],
+            unit=hw["memory_unit"],
+            current=int(hw.get("currentMemory", hw["memory"]) * DEFAULT_BALLOON),
+        )
 
     # vCPUs
-    x.set_vcpu(hw["vcpus"])
+    if "vcpus" not in protected:
+        x.set_vcpu(hw["vcpus"])
 
     # Video
-    x.set_video_type(hw["video"])
+    if "video" not in protected:
+        x.set_video_type(hw["video"])
 
     # Boot order
-    if "boot_order" in hw:
-        x.update_boot_order(hw["boot_order"], hw.get("boot_menu_enable", False))
+    if "boot_order" not in protected:
+        if "boot_order" in hw:
+            x.update_boot_order(hw["boot_order"], hw.get("boot_menu_enable", False))
 
     # Disks - already resolved by resolve_hardware_from_create_dict()
-    total_disks_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="disk"]'))
-    if "disks" in hw:
-        num_remove_disks = total_disks_in_xml - len(hw["disks"])
-        if num_remove_disks > 0:
-            for i in range(num_remove_disks):
-                x.remove_disk()
-        for i, disk in enumerate(hw["disks"]):
-            if not disk.get("file"):
-                log.error(f"disk {i} in domain {id_domain} not resolved")
-                return False
-            s = disk["file"]
-            type_disk = (
-                "qcow2" if s[s.rfind(".") :].lower().find("qcow") == 1 else "raw"
-            )
+    if "disks" not in protected:
+        total_disks_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="disk"]'))
+        if "disks" in hw:
+            num_remove_disks = total_disks_in_xml - len(hw["disks"])
+            if num_remove_disks > 0:
+                for i in range(num_remove_disks):
+                    x.remove_disk()
+            for i, disk in enumerate(hw["disks"]):
+                if not disk.get("file"):
+                    log.error(f"disk {i} in domain {id_domain} not resolved")
+                    return False
+                s = disk["file"]
+                type_disk = (
+                    "qcow2" if s[s.rfind(".") :].lower().find("qcow") == 1 else "raw"
+                )
 
-            if i >= total_disks_in_xml:
-                force_bus = disk.get("bus") or "virtio"
-                x.add_disk(index=i, path_disk=s, type_disk=type_disk, bus=force_bus)
-            else:
-                force_bus = disk.get("bus") or False
-                if force_bus:
-                    x.set_vdisk(s, index=i, type_disk=type_disk, force_bus=force_bus)
+                if i >= total_disks_in_xml:
+                    force_bus = disk.get("bus") or "virtio"
+                    x.add_disk(index=i, path_disk=s, type_disk=type_disk, bus=force_bus)
                 else:
-                    x.set_vdisk(s, index=i, type_disk=type_disk)
-    elif total_disks_in_xml > 0:
-        for i in range(total_disks_in_xml):
-            x.remove_disk()
+                    force_bus = disk.get("bus") or False
+                    if force_bus:
+                        x.set_vdisk(
+                            s, index=i, type_disk=type_disk, force_bus=force_bus
+                        )
+                    else:
+                        x.set_vdisk(s, index=i, type_disk=type_disk)
+        elif total_disks_in_xml > 0:
+            for i in range(total_disks_in_xml):
+                x.remove_disk()
 
     # ISOs
-    total_cdroms_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
-    if "isos" in hw:
-        num_remove = total_cdroms_in_xml - len(hw["isos"])
-        if num_remove > 0:
-            for i in range(num_remove):
+    if "isos" not in protected:
+        total_cdroms_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
+        if "isos" in hw:
+            num_remove = total_cdroms_in_xml - len(hw["isos"])
+            if num_remove > 0:
+                for i in range(num_remove):
+                    x.remove_cdrom()
+            for i in range(len(hw["isos"])):
+                if i >= total_cdroms_in_xml:
+                    x.add_cdrom(path_cdrom=hw["isos"][i]["path"])
+                else:
+                    x.set_cdrom(hw["isos"][i]["path"], index=i)
+        elif total_cdroms_in_xml > 0:
+            for i in range(total_cdroms_in_xml):
                 x.remove_cdrom()
-        for i in range(len(hw["isos"])):
-            if i >= total_cdroms_in_xml:
-                x.add_cdrom(path_cdrom=hw["isos"][i]["path"])
-            else:
-                x.set_cdrom(hw["isos"][i]["path"], index=i)
-    elif total_cdroms_in_xml > 0:
-        for i in range(total_cdroms_in_xml):
-            x.remove_cdrom()
 
     # Custom floppy
-    if "custom" in dict_domain:
-        if type(dict_domain["custom"]) is dict:
-            if "path_custom_fd" in dict_domain["custom"]:
-                x.add_floppy(path_floppy=dict_domain["custom"]["path_custom_fd"])
+    if "floppies" not in protected:
+        if "custom" in dict_domain:
+            if type(dict_domain["custom"]) is dict:
+                if "path_custom_fd" in dict_domain["custom"]:
+                    x.add_floppy(path_floppy=dict_domain["custom"]["path_custom_fd"])
 
     # Floppies
-    total_floppies_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="floppy"]'))
-    if "floppies" in hw:
-        num_remove = total_floppies_in_xml - len(hw["floppies"])
-        if num_remove > 0:
-            for i in range(num_remove):
+    if "floppies" not in protected:
+        total_floppies_in_xml = len(
+            x.tree.xpath('/domain/devices/disk[@device="floppy"]')
+        )
+        if "floppies" in hw:
+            num_remove = total_floppies_in_xml - len(hw["floppies"])
+            if num_remove > 0:
+                for i in range(num_remove):
+                    x.remove_floppy()
+            for i in range(len(hw["floppies"])):
+                if i >= total_floppies_in_xml:
+                    x.add_floppy(path_floppy=hw["floppies"][i]["path"])
+                else:
+                    x.set_floppy(hw["floppies"][i]["path"], index=i)
+        elif total_floppies_in_xml > 0:
+            for i in range(total_floppies_in_xml):
                 x.remove_floppy()
-        for i in range(len(hw["floppies"])):
-            if i >= total_floppies_in_xml:
-                x.add_floppy(path_floppy=hw["floppies"][i]["path"])
-            else:
-                x.set_floppy(hw["floppies"][i]["path"], index=i)
-    elif total_floppies_in_xml > 0:
-        for i in range(total_floppies_in_xml):
-            x.remove_floppy()
 
     ##### actions to customize xml
 
@@ -1798,56 +1817,62 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     x.add_metadata_isard(user_id, group_id, category_id, parent_id)
 
     # disk cache
-    try:
-        x.set_disk_driver_cache()
-    except Exception as e:
-        log.error(
-            "Exception when setting domain {} disk cache: {}".format(id_domain, e)
-        )
+    if "disk_cache" not in protected:
+        try:
+            x.set_disk_driver_cache()
+        except Exception as e:
+            log.error(
+                "Exception when setting domain {} disk cache: {}".format(id_domain, e)
+            )
 
     # qos
-    storage_pool = get_category_storage_pool(category_id)
-    if storage_pool.get("qos_disk_id") is not None:
-        qos_disk_id = storage_pool["qos_disk_id"]
-        iotune = get_qos_disk_iotune(qos_disk_id)
-        if iotune:
-            x.set_qos_disk(iotune)
-        else:
-            log.error(
-                f"qos_disk_id {qos_disk_id} from storage_pool {storage_pool['id']} not found in qos_disk table"
-            )
-    else:
-        qos_disk_id = dict_domain["create_dict"]["hardware"].get("qos_disk_id", False)
-        if qos_disk_id:
+    if "qos_disk" not in protected:
+        storage_pool = get_category_storage_pool(category_id)
+        if storage_pool.get("qos_disk_id") is not None:
+            qos_disk_id = storage_pool["qos_disk_id"]
             iotune = get_qos_disk_iotune(qos_disk_id)
             if iotune:
                 x.set_qos_disk(iotune)
             else:
-                log.error(f"qos_disk_id {qos_disk_id} not found in qos_disk table")
-
-    if (
-        not dict_domain.get("create_dict", {})
-        .get("hardware", {})
-        .get("not_change_cpu_section")
-    ):
-        if (
-            dict_domain.get("create_dict", {})
-            .get("hardware", {})
-            .get("virtualization_nested")
-        ):
-            x.set_cpu_host_model("host-passthrough")
+                log.error(
+                    f"qos_disk_id {qos_disk_id} from storage_pool {storage_pool['id']} not found in qos_disk table"
+                )
         else:
-            x.set_cpu_host_model(cpu_host_model)
+            qos_disk_id = dict_domain["create_dict"]["hardware"].get(
+                "qos_disk_id", False
+            )
+            if qos_disk_id:
+                iotune = get_qos_disk_iotune(qos_disk_id)
+                if iotune:
+                    x.set_qos_disk(iotune)
+                else:
+                    log.error(f"qos_disk_id {qos_disk_id} not found in qos_disk table")
+
+    # cpu
+    if "cpu" not in protected:
+        if (
+            not dict_domain.get("create_dict", {})
+            .get("hardware", {})
+            .get("not_change_cpu_section")
+        ):
+            if (
+                dict_domain.get("create_dict", {})
+                .get("hardware", {})
+                .get("virtualization_nested")
+            ):
+                x.set_cpu_host_model("host-passthrough")
+            else:
+                x.set_cpu_host_model(cpu_host_model)
 
     # spice video compression
-    # x.add_spice_graphics_if_not_exist()
-    graphics_list = (
-        dict_domain.get("create_dict", {}).get("hardware", {}).get("graphics", [])
-    )
-    id_graphics = graphics_list[0] if graphics_list else "default"
-    x.set_spice_video_options(id_graphics)
+    if "graphics" not in protected:
+        graphics_list = (
+            dict_domain.get("create_dict", {}).get("hardware", {}).get("graphics", [])
+        )
+        id_graphics = graphics_list[0] if graphics_list else "default"
+        x.set_spice_video_options(id_graphics)
 
-    # spice password
+    # spice password (always engine-managed for security)
     if ssl is True:
         # recreate random password in x.viewer_passwd
         x.reset_viewer_passwd()
@@ -1855,40 +1880,44 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         # only for test purposes, not use in production
         x.spice_remove_passwd_nossl()
 
-    # add vnc access
+    # add vnc access (always engine-managed for viewer connectivity)
     x.add_vnc_with_websockets()
 
     # recreate xml interfaces from create_dict
-    recreate_xml_interfaces(dict_domain, x)
+    if "network" not in protected:
+        recreate_xml_interfaces(dict_domain, x)
 
     # Strip GPU hostdev entries — balancer re-adds the correct one at start time
-    x.remove_gpu_hostdev()
+    if "hostdev" not in protected:
+        x.remove_gpu_hostdev()
 
-    # Add mac2network metadata for ovs-worker
-    # (start_paused domains use different function, won't have this metadata)
+    # Add mac2network metadata for ovs-worker (always engine-managed)
     if x.mac2network_mappings:
         x.add_mac2network_metadata(x.mac2network_mappings)
 
     # Shared folder
-    file_spice_options = (
-        dict_domain.get("guest_properties", {})
-        .get("viewers", {})
-        .get("file_spice", {})
-        .get("options", {})
-    )
-    if type(file_spice_options) is dict:
-        if file_spice_options.get("shared_folder") is True:
-            x.add_shared_folder()
+    if "shared_folder" not in protected:
+        file_spice_options = (
+            dict_domain.get("guest_properties", {})
+            .get("viewers", {})
+            .get("file_spice", {})
+            .get("options", {})
+        )
+        if type(file_spice_options) is dict:
+            if file_spice_options.get("shared_folder") is True:
+                x.add_shared_folder()
 
     x.remove_selinux_options()
 
-    x.set_domain_type_and_emulator()
+    if "domain_type" not in protected:
+        x.set_domain_type_and_emulator()
 
     # remove boot order in disk definition that conflict with /os/boot order in xml
     x.remove_boot_order_and_danger_options_from_disks()
 
     # Ensure there's always QEMU guest agent
-    x.add_qemu_guest_agent()
+    if "qemu_guest_agent" not in protected:
+        x.add_qemu_guest_agent()
 
     x.dict_from_xml()
 

@@ -636,6 +636,10 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
                 **new_domain,
                 **{"xml": new_data["xml"]},
             }
+        if "xml_protected_sections" in new_data:
+            new_domain.setdefault("create_dict", {})["xml_protected_sections"] = (
+                new_data["xml_protected_sections"]
+            )
 
     if "name" in new_data and new_data.get("name") != domain.get("name"):
         new_domain["name"] = new_data.get("name")
