@@ -1306,21 +1306,8 @@ function actionsDomainDetail(){
     });
 
     $('.btn-xml').on('click', function () {
-            var pk=$(this).closest("[data-pk]").attr("data-pk");
-            $("#modalEditXmlForm")[0].reset();
-            $('#modalEditXml').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            $('#modalEditXmlForm #id').val(pk);
-            $.ajax({
-                type: "GET",
-                url:"/api/v3/admin/domains/xml/" + pk,
-                success: function(data)
-                {
-                    $('#modalEditXmlForm #xml').val(data);
-                }
-            });
+        var pk = $(this).closest("[data-pk]").attr("data-pk");
+        openXmlSections(pk);
     });
 
     $('.btn-server').on('click', function () {
@@ -2112,48 +2099,6 @@ function renderAction(data){
                 })
             }
         });
-
-    $("#modalEditXml #send").on('click', function(e){
-        var notice = new PNotify({
-            text: 'Updating xml for selected item(s)...',
-            hide: false,
-            opacity: 1,
-            icon: 'fa fa-spinner fa-pulse'
-        })
-        var form = $('#modalEditXmlForm');
-        id=$('#modalEditXmlForm #id').val();
-        xml=$('#modalEditXmlForm #xml').val();
-        $.ajax({
-            type: 'PUT',
-            url: '/api/v3/domain/'+id,
-            data: JSON.stringify({'xml':xml}),
-            contentType: 'application/json',
-            error: function(data) {
-                notice.update({
-                    title: 'ERROR updating XML',
-                    text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
-                })
-            },
-            success: function(data) {
-                $("#modalEditXmlForm")[0].reset();
-                $("#modalEditXml").modal('hide');
-                notice.update({
-                    title: 'Updated',
-                    text: 'Domain XML updated successfully',
-                    hide: true,
-                    delay: 2000,
-                    icon: 'fa fa-' + data.icon,
-                    opacity: 1,
-                    type: 'success'
-                })
-            }
-        })
-    });
 
         function parse_desktop(data){
             return {

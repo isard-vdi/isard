@@ -183,6 +183,72 @@ def api_v3_admin_domains_xml(payload, domain_id):
     )
 
 
+@app.route("/api/v3/admin/domains/xml_capabilities", methods=["GET"])
+@is_admin
+def api_v3_admin_domains_xml_capabilities(payload):
+    from ..libv2.api_xml_sections import get_domain_capabilities
+
+    caps = get_domain_capabilities()
+    return (
+        json.dumps(caps),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/domains/xml_sections/<domain_id>", methods=["GET", "POST"])
+@is_admin
+def api_v3_admin_domains_xml_sections(payload, domain_id):
+    from ..libv2.api_xml_sections import merge_xml_sections, split_xml_sections
+
+    if request.method == "GET":
+        domain = admin_table_get("domains", domain_id, pluck=["xml", "create_dict"])
+        protected = domain.get("create_dict", {}).get("xml_protected_sections", [])
+        sections = split_xml_sections(domain["xml"], protected)
+        return (
+            json.dumps(
+                {"sections": sections, "xml_full": domain["xml"]},
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
+
+    # POST — merge edited sections back into full XML
+    data = request.get_json(force=True)
+    if "sections" not in data:
+        raise Error(
+            "bad_request",
+            "Missing 'sections' in request body",
+            traceback.format_exc(),
+        )
+
+    domain = admin_table_get("domains", domain_id, pluck=["xml", "create_dict"])
+    merged_xml = merge_xml_sections(domain["xml"], data["sections"])
+
+    protected_sections = data.get("xml_protected_sections", [])
+
+    # Validate xml_protected_sections against allowlist (OWASP Finding 2)
+    from ..libv2.api_xml_sections import SECTION_DEFS, save_domain_xml_and_protected
+
+    allowed_keys = {s["key"] for s in SECTION_DEFS if s["protectable"]}
+    if not isinstance(protected_sections, list) or not all(
+        isinstance(k, str) and k in allowed_keys for k in protected_sections
+    ):
+        raise Error(
+            "bad_request",
+            "Invalid xml_protected_sections: must be a list of valid section keys",
+            traceback.format_exc(),
+        )
+
+    save_domain_xml_and_protected(domain_id, merged_xml, protected_sections)
+
+    return (
+        json.dumps({"xml": merged_xml, "valid": True}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/desktops/tree_list/<id>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_desktops_tree_list(payload, id):
