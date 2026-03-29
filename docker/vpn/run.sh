@@ -1,3 +1,18 @@
+# NOTRACK for tunnel traffic (reduces conntrack overhead)
+# On-the-wire ports:
+#   WG_USERS_PORT:  always WireGuard (user VPN)
+#   WG_HYPERS_PORT: WireGuard (wg+geneve mode) or plain Geneve (geneve-only mode)
+echo "$(date): INFO: Applying NOTRACK rules for tunnel traffic"
+_wg_users_port=${WG_USERS_PORT:-443}
+_wg_hypers_port=${WG_HYPERS_PORT:-4443}
+for _port in $_wg_users_port $_wg_hypers_port; do
+    iptables -t raw -C PREROUTING -p udp --dport "$_port" -j NOTRACK 2>/dev/null || \
+        iptables -t raw -I PREROUTING 1 -p udp --dport "$_port" -j NOTRACK
+    iptables -t raw -C OUTPUT -p udp --sport "$_port" -j NOTRACK 2>/dev/null || \
+        iptables -t raw -I OUTPUT 1 -p udp --sport "$_port" -j NOTRACK
+done
+echo "$(date): INFO: Tunnel traffic (UDP $_wg_users_port, $_wg_hypers_port): NOTRACK applied"
+
 # Start conntrackd
 echo "1" > /host-proc/sys/net/netfilter/nf_conntrack_acct
 conntrackd &
