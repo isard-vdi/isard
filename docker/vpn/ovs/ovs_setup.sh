@@ -119,7 +119,7 @@ ovs-vsctl set interface ovsbr0 mtu_request=$_ovs_mtu
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Adding OVS vlan-wg port to default bridge with tag 4095"
 ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
 ip a a ${GUESTS_GW}/${WG_GUESTS_NETS#*/} dev vlan-wg >> /var/log/ovs 2>&1
-ovs-vsctl set interface vlan-wg mtu_request=$_ovs_mtu
+ovs-vsctl set interface vlan-wg mtu_request=$_guest_mtu
 ip link set vlan-wg up >> /var/log/ovs 2>&1
 
 # Monitor if vlan-wg is really up
