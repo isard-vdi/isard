@@ -19,30 +19,25 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
-import json
-
-from api.libv2.api_notify import notify_admins
-from isardvdi_common.api_exceptions import Error
-from rethinkdb import RethinkDB
-
-from api import app
-
-r = RethinkDB()
 import csv
 import io
+import json
 import os
 import traceback
 
-import gevent
+from api.libv2.api_notify import notify_admins
+from api.libv2.stale_while_revalidate import KeyedStaleWhileRevalidate
+from isardvdi_common.api_exceptions import Error
+from rethinkdb import RethinkDB
 
-from api import socketio
+from api import app, socketio
+
+r = RethinkDB()
 
 from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
-
-from isardvdi_common.api_exceptions import Error
 
 from .api_desktop_events import (
     activate_autostart,
@@ -564,6 +559,9 @@ def change_item_owner(table, item_id, new_user_id="admin"):
 
 # Indexed filter fields for smart index selection
 INDEXED_FILTERS = {"status", "category", "group", "user", "hyp_started", "server"}
+
+# Cache for domains_status_minimal (keyed by status, 5s TTL, max 10 status keys)
+_domains_status_minimal_cache = KeyedStaleWhileRevalidate(ttl=5, maxsize=10)
 
 
 class ApiAdmin:
@@ -1139,17 +1137,16 @@ class ApiAdmin:
             return list(query.run(db.conn))
 
     def domains_status_minimal(self, status):
-        with app.app_context():
-            return list(
-                r.table("domains")
-                .get_all(["desktop", status], index="kind_status")
-                .pluck(
-                    "id",
-                    "name",
-                    "accessed",
+        def fetch():
+            with app.app_context():
+                return list(
+                    r.table("domains")
+                    .get_all(["desktop", status], index="kind_status")
+                    .pluck("id", "name", "accessed")
+                    .run(db.conn)
                 )
-                .run(db.conn)
-            )
+
+        return _domains_status_minimal_cache.get(status, fetch)
 
     def get_domain_storage(self, domain_id):
         with app.app_context():
