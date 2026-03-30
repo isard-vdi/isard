@@ -784,6 +784,14 @@ function actionsCategoryDetail() {
             );
           });
 
+          // Make LDAP password required only when no password is set yet
+          var $ldapPassword = $(modal + " [name='authentication[ldap][ldap_config][password]']");
+          var ldapPasswordSet = authentication?.ldap?.ldap_config?.password_set;
+          if (ldapPasswordSet === false) {
+            $ldapPassword.attr('required', 'required');
+            $ldapPassword.closest('.item.form-group').find('.required').show();
+          }
+
         });
 
         $(modal + " #id").val(pk);

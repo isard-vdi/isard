@@ -57,7 +57,9 @@
 {% with
   name="password",
   label="Password",
-  type="password"
+  type="password",
+  autocomplete="new-password",
+  required=false
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}

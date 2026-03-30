@@ -659,6 +659,36 @@ def api_v3_admin_category_authentication_put(payload, category_id):
             "Unable to parse body data.",
             traceback.format_exc(),
         )
+
+    # For each provider config: preserve existing secret if not provided, require if absent from DB
+    authentication = data.get("authentication", {})
+    if authentication:
+        existing_auth = users.CategoryGet(category_id, True).get("authentication") or {}
+        for provider_name, provider_data in authentication.items():
+            if not isinstance(provider_data, dict):
+                continue
+            for config_key, config_data in provider_data.items():
+                if not isinstance(config_data, dict):
+                    continue
+                for secret_key in PROVIDER_SENSITIVE_KEYS:
+                    if secret_key not in config_data:
+                        continue
+                    if config_data[secret_key]:
+                        continue
+                    del config_data[secret_key]
+                    existing_val = (
+                        existing_auth.get(provider_name, {})
+                        .get(config_key, {})
+                        .get(secret_key)
+                    )
+                    if existing_val:
+                        config_data[secret_key] = existing_val
+                    else:
+                        raise Error(
+                            "bad_request",
+                            f"{secret_key} is required",
+                        )
+
     data = _validate_item("category_authentication", data)
     Category(category_id).authentication = data.get("authentication")
     return json.dumps({}), 200, {"Content-Type": "application/json"}

@@ -65,6 +65,9 @@
             {% if pattern %}
               pattern="{{ pattern }}"
             {% endif %}
+            {% if autocomplete %}
+              autocomplete="{{ autocomplete }}"
+            {% endif %}
           {% endif %}
           {{ '' if required is false or type == 'checkbox' else 'required' }}
           {{ 'disabled' if disabled else '' }}
