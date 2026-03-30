@@ -787,7 +787,8 @@
           "table-header": {
             "kind": "Tipus",
             "name": "Nom",
-            "user": "Usuari"
+            "user": "Usuari",
+            "role": "Rol"
           }
         },
         "convert": {

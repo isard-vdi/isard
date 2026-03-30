@@ -1082,7 +1082,8 @@
           "table-header": {
             "kind": "Tipo",
             "name": "Nombre",
-            "user": "Usuario"
+            "user": "Usuario",
+            "role": "Rol"
           }
         },
         "convert": {

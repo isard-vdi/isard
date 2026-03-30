@@ -91,7 +91,7 @@ export default {
     const $store = context.root.$store
     const perPage = ref(10)
     const pageOptions = ref([6, 10, 20, 30, 50, 100])
-    const filterOn = ref(['kind', 'name', 'user'])
+    const filterOn = ref(['kind', 'name', 'user', 'role'])
     const loading = ref(false)
 
     const derivatives = computed(() => $store.getters.getTemplateDerivatives)
@@ -142,6 +142,13 @@ export default {
           sortable: true,
           label: i18n.t('views.templates.modal.delete.table-header.user'),
           thStyle: { width: '20%' },
+          formatter: (value) => (value || '--')
+        },
+        {
+          key: 'role',
+          sortable: true,
+          label: i18n.t('views.templates.modal.delete.table-header.role'),
+          thStyle: { width: '15%' },
           formatter: (value) => (value || '--')
         }
       ]

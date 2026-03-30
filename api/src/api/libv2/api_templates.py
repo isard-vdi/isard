@@ -284,6 +284,7 @@ class ApiTemplates:
                     "kind": domain_tree["kind"],
                     "name": domain_tree["title"],
                     "user": domain_tree["user"],
+                    "role": domain_tree.get("role", "--"),
                 }
             ]
             deployments = []
@@ -299,6 +300,7 @@ class ApiTemplates:
                 "kind": item["kind"],
                 "name": item["title"],
                 "user": item["user"],
+                "role": item.get("role", "--"),
             }
 
             if item.get("children"):

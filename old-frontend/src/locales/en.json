@@ -1074,7 +1074,8 @@
                     "table-header": {
                         "kind": "Kind",
                         "name": "Name",
-                        "user": "User"
+                        "user": "User",
+                        "role": "Role"
                     }
                 },
                 "convert": {

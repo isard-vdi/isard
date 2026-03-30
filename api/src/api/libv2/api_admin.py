@@ -60,6 +60,7 @@ from .api_user_storage import (
     isard_user_storage_update_group,
     isard_user_storage_update_user,
 )
+from .caches import get_cached_user_with_names
 from .helpers import (
     USER_SENSITIVE_FIELDS,
     _check,
@@ -1256,6 +1257,10 @@ class ApiAdmin:
                 )
                 .run(db.conn)
             )
+        root_user_data = (
+            get_cached_user_with_names(d["user"], with_secondary_groups_names=False)
+            or {}
+        )
         root = [
             {
                 "id": d["id"],
@@ -1273,7 +1278,8 @@ class ApiAdmin:
                     else ""
                 ),
                 "duplicate_parent_template": d.get("duplicate_parent_template", False),
-                "user": d["username"],
+                "user": root_user_data.get("user_name", d["username"]),
+                "role": root_user_data.get("role_name", "--"),
                 "category": d["category_name"],
                 "group": d["group_name"],
                 "kind": d["kind"] if d["kind"] == "desktop" else "template",
@@ -1399,6 +1405,12 @@ class ApiAdmin:
 
         fancyd = []
         for d in derivated:
+            user_data = (
+                get_cached_user_with_names(d["user"], with_secondary_groups_names=False)
+                if d["user"] != "-"
+                else None
+            )
+            user_data = user_data or {}
             if user["role"] == "manager" or user["role"] == "admin":
                 fancyd.append(
                     {
@@ -1413,7 +1425,8 @@ class ApiAdmin:
                                 else d["duplicate_parent_template"]
                             )
                         ),
-                        "user": d["username"],
+                        "user": user_data.get("user_name", d["username"]),
+                        "role": user_data.get("role_name", "--"),
                         "category": d["category_name"],
                         "group": d["group_name"],
                         "kind": d["kind"],
@@ -1437,7 +1450,8 @@ class ApiAdmin:
                                 else d["duplicate_parent_template"]
                             )
                         ),
-                        "user": d["username"],
+                        "user": user_data.get("user_name", d["username"]),
+                        "role": user_data.get("role_name", "--"),
                         "category": d["category_name"],
                         "group": d["group_name"],
                         "kind": d["kind"],

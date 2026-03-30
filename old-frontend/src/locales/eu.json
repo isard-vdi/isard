@@ -675,7 +675,8 @@
           },
           "table-header": {
             "name": "Izena",
-            "user": "Erabiltzaile"
+            "user": "Erabiltzaile",
+            "role": "Rola"
           },
           "button": {
             "delete": "Ezabatu txantiloia"
