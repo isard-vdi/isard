@@ -176,9 +176,7 @@ const configIsError = computed(() =>
 const configError = computed(() =>
   categoryConfigId.value ? categoryConfigError.value : globalConfigError.value
 )
-const config = computed(() =>
-  categoryConfigId.value ? categoryConfig.value : globalConfig.value
-)
+const config = computed(() => (categoryConfigId.value ? categoryConfig.value : globalConfig.value))
 
 const providersCategoryId = computed(() => {
   if (category.value) {
