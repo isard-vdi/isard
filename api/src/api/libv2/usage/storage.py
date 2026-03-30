@@ -101,6 +101,7 @@ class StorageUsage:
                 },
             }
             for s in storage
+            if "user_id" in s
         ]
         return data
 
