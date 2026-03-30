@@ -96,44 +96,9 @@ func (m *ProviderManager) readScope(categoryID string) *providerSet {
 	return &m.global
 }
 
-// handleCategoryDisabledProviderChange tracks whether a provider is explicitly disabled in a category.
-func (m *ProviderManager) handleCategoryDisabledProviderChange(categoryID string, prv string, disabled bool) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-
-	if !disabled {
-		d, ok := m.categoriesDisabledProviders[categoryID]
-		if !ok {
-			return
-		}
-
-		delete(d, prv)
-
-		if len(d) == 0 {
-			delete(m.categoriesDisabledProviders, categoryID)
-		}
-
-		return
-	}
-
-	if _, ok := m.categoriesDisabledProviders[categoryID]; !ok {
-		m.categoriesDisabledProviders[categoryID] = map[string]bool{}
-	}
-
-	m.categoriesDisabledProviders[categoryID][prv] = true
-}
-
-// isCategoryDisabledProvider returns true if the provider is explicitly disabled in the category.
-func (m *ProviderManager) isCategoryDisabledProvider(categoryID string, prv string) bool {
-	d, ok := m.categoriesDisabledProviders[categoryID]
-	if !ok {
-		return false
-	}
-
-	return d[prv]
-}
-
 func (m *ProviderManager) Manage(ctx context.Context, wg *sync.WaitGroup) {
+	m.log.Debug().Msg("starting provider manager")
+
 	// Start watching for configuration changes.
 	m.cfgWatcher.Watch(ctx, wg, m.db)
 
@@ -248,10 +213,61 @@ func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context
 		}
 	}
 
+	if change.Host != nil {
+		log.Info().Str("host", *change.Host).Msg("branding domain loaded")
+	} else {
+		log.Info().Msg("branding domain cleared")
+	}
+
 	return len(targets) > 0
 }
 
+// handleCategoryDisabledProviderChange tracks whether a provider is explicitly disabled in a category.
+func (m *ProviderManager) handleCategoryDisabledProviderChange(categoryID string, prv string, disabled bool) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	if !disabled {
+		d, ok := m.categoriesDisabledProviders[categoryID]
+		if !ok {
+			return
+		}
+
+		delete(d, prv)
+		m.log.Info().Str("category", categoryID).Str("provider", prv).Msg("category provider re-enabled (removed from disabled list)")
+
+		if len(d) == 0 {
+			delete(m.categoriesDisabledProviders, categoryID)
+		}
+
+		return
+	}
+
+	if _, ok := m.categoriesDisabledProviders[categoryID]; !ok {
+		m.categoriesDisabledProviders[categoryID] = map[string]bool{}
+	}
+
+	m.categoriesDisabledProviders[categoryID][prv] = true
+	m.log.Info().Str("category", categoryID).Str("provider", prv).Msg("category provider explicitly disabled")
+}
+
+// isCategoryDisabledProvider returns true if the provider is explicitly disabled in the category.
+func (m *ProviderManager) isCategoryDisabledProvider(categoryID string, prv string) bool {
+	d, ok := m.categoriesDisabledProviders[categoryID]
+	if !ok {
+		return false
+	}
+
+	return d[prv]
+}
+
 func (m *ProviderManager) handleProviderChange(ctx context.Context, wg *sync.WaitGroup, change providerChange) {
+	evt := m.log.Info()
+	if change.CategoryID != nil {
+		evt = evt.Str("category", *change.CategoryID)
+	}
+	evt.Str("provider", change.Provider).Bool("enabled", change.Enabled).Msg("processing provider change")
+
 	if change.Enabled {
 		m.enableProvider(ctx, wg, change.Provider, change.CategoryID)
 
@@ -274,6 +290,7 @@ func (m *ProviderManager) disableProvider(prv string, categoryID *string) {
 
 	// Clean up category if it has no active providers.
 	if categoryID != nil && isProvidersEmpty(scope.providers) {
+		log.Debug().Msg("category has no active providers, removing scope")
 		delete(m.categories, *categoryID)
 		m.cfgWatcher.categoriesMux.Lock()
 		delete(m.cfgWatcher.categoriesChanges, *categoryID)
@@ -328,6 +345,7 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 
 	log, scope := m.resolveScope(categoryID)
 	if scope == nil {
+		log.Debug().Msg("creating new provider scope for category")
 		scope = &providerSet{
 			providers:      initProvidersMap(m.cfg, log, m.db),
 			watcherCancels: map[string]context.CancelFunc{},
@@ -445,6 +463,8 @@ func (m *ProviderManager) Providers(categoryID string) []string {
 
 	slices.Sort(providers)
 
+	m.log.Debug().Str("category", categoryID).Strs("providers", providers).Msg("resolved providers for category")
+
 	return providers
 }
 
@@ -478,16 +498,25 @@ func (m *ProviderManager) Provider(p string, categoryID string) provider.Provide
 
 	// Don't fall back if the provider is explicitly disabled in the category.
 	if m.isCategoryDisabledProvider(categoryID, p) {
+		m.log.Debug().Str("provider", p).Str("category", categoryID).Msg("provider explicitly disabled in category, returning unknown")
 		return getProvider(m.global.providers, types.ProviderUnknown)
 	}
 
 	prv := getProvider(m.readScope(categoryID).providers, p)
 	if prv != nil && prv.String() != types.ProviderUnknown {
+		m.log.Debug().Str("provider", p).Str("category", categoryID).Str("resolved", prv.String()).Msg("resolved provider for category")
 		return prv
 	}
 
 	// Fallback to global providers.
-	return getProvider(m.global.providers, p)
+	globalPrv := getProvider(m.global.providers, p)
+	if globalPrv == nil {
+		m.log.Debug().Str("provider", p).Str("category", categoryID).Msg("provider not found")
+		return nil
+	}
+
+	m.log.Debug().Str("provider", p).Str("category", categoryID).Str("resolved", globalPrv.String()).Msg("falling back to global provider")
+	return globalPrv
 }
 
 func getProvider(prvs map[string]provider.Provider, p string) provider.Provider {

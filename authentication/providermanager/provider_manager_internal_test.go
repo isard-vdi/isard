@@ -45,6 +45,7 @@ func TestProviderManagerProviders(t *testing.T) {
 		"should return form sub-providers and form itself": {
 			PrepareManager: func() *ProviderManager {
 				return &ProviderManager{
+					log:                         log.New("test", "debug"),
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -61,6 +62,7 @@ func TestProviderManagerProviders(t *testing.T) {
 		"should not include form when it has no sub-providers": {
 			PrepareManager: func() *ProviderManager {
 				return &ProviderManager{
+					log:                         log.New("test", "debug"),
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -79,6 +81,7 @@ func TestProviderManagerProviders(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -98,6 +101,7 @@ func TestProviderManagerProviders(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -117,6 +121,7 @@ func TestProviderManagerProviders(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -137,6 +142,7 @@ func TestProviderManagerProviders(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -166,6 +172,7 @@ func TestProviderManagerProviders(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -194,6 +201,7 @@ func TestProviderManagerProviders(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -214,6 +222,7 @@ func TestProviderManagerProviders(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -245,6 +254,7 @@ func TestProviderManagerProviders(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -292,6 +302,7 @@ func TestProviderManagerProvider(t *testing.T) {
 		"should return the provider by direct lookup": {
 			PrepareManager: func() *ProviderManager {
 				return &ProviderManager{
+					log:                         log.New("test", "debug"),
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -308,6 +319,7 @@ func TestProviderManagerProvider(t *testing.T) {
 		"should fall back to form sub-provider": {
 			PrepareManager: func() *ProviderManager {
 				return &ProviderManager{
+					log:                         log.New("test", "debug"),
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -324,6 +336,7 @@ func TestProviderManagerProvider(t *testing.T) {
 		"should fall back to unknown for nonexistent provider": {
 			PrepareManager: func() *ProviderManager {
 				return &ProviderManager{
+					log:                         log.New("test", "debug"),
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -342,6 +355,7 @@ func TestProviderManagerProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -369,6 +383,7 @@ func TestProviderManagerProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -396,6 +411,7 @@ func TestProviderManagerProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -422,6 +438,7 @@ func TestProviderManagerProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				return &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -441,6 +458,7 @@ func TestProviderManagerProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -471,6 +489,7 @@ func TestProviderManagerProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -500,6 +519,7 @@ func TestProviderManagerProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := &ProviderManager{
+					log:                         log,
 					categoriesDisabledProviders: map[string]map[string]bool{},
 					global: providerSet{
 						providers: map[string]provider.Provider{
@@ -628,6 +648,7 @@ func TestProviderManagerSAML(t *testing.T) {
 		"should return nil when the SAML provider is not present": {
 			PrepareManager: func() *ProviderManager {
 				return &ProviderManager{
+					log: log.New("test", "debug"),
 					global: providerSet{
 						providers: map[string]provider.Provider{},
 					},
@@ -638,6 +659,7 @@ func TestProviderManagerSAML(t *testing.T) {
 		"should return nil when the SAML provider has no middleware configured": {
 			PrepareManager: func() *ProviderManager {
 				return &ProviderManager{
+					log: log.New("test", "debug"),
 					global: providerSet{
 						providers: map[string]provider.Provider{
 							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
@@ -1137,7 +1159,9 @@ func TestHandleCategoryDisabledProviderChange(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
+			logger := log.New("test", "debug")
 			m := &ProviderManager{
+				log:                         logger,
 				categoriesDisabledProviders: tc.InitialDisabled,
 			}
 
@@ -1720,9 +1744,9 @@ func TestProviderConfigSource(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
-		Auth           *model.CategoryAuthentication
-		Provider       string
-		ExpectedSource model.CategoryAuthenticationConfigSource
+		Auth             *model.CategoryAuthentication
+		Provider         string
+		ExpectedSource   model.CategoryAuthenticationConfigSource
 		ExpectedDisabled bool
 	}{
 		"should return global when auth is nil": {

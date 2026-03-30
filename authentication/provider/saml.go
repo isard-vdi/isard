@@ -194,18 +194,18 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 
 	// Try to load metadata from local file first (if configured).
 	if cfg.MetadataFile != "" {
-		s.log.Info().Str("file", cfg.MetadataFile).Msg("attempting to load IdP metadata from local file")
+		s.log.Debug().Str("file", cfg.MetadataFile).Msg("attempting to load IdP metadata from local file")
 
 		data, readErr := os.ReadFile(cfg.MetadataFile)
 		if readErr == nil {
 			metadata, err = samlsp.ParseMetadata(data)
 			if err == nil {
-				s.log.Info().Str("file", cfg.MetadataFile).Msg("successfully loaded IdP metadata from local file")
+				s.log.Debug().Str("file", cfg.MetadataFile).Msg("successfully loaded IdP metadata from local file")
 			} else {
 				s.log.Warn().Err(err).Str("file", cfg.MetadataFile).Msg("failed to parse local metadata file, falling back to URL")
 			}
 		} else {
-			s.log.Info().Err(readErr).Str("file", cfg.MetadataFile).Msg("local metadata file not found, falling back to URL")
+			s.log.Error().Err(readErr).Str("file", cfg.MetadataFile).Msg("local metadata file not found, falling back to URL")
 		}
 	}
 
@@ -228,13 +228,13 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		if httpClient == nil {
 			httpClient = &http.Client{Timeout: 30 * time.Second}
 		}
-		s.log.Info().Str("url", cfg.MetadataURL).Msg("fetching IdP metadata from URL")
+		s.log.Debug().Str("url", cfg.MetadataURL).Msg("fetching IdP metadata from URL")
 		metadata, err = samlsp.FetchMetadata(ctx, httpClient, *remoteMetadataURL)
 		if err != nil {
 			return fmt.Errorf("fetch metadata from URL failed: %w", err)
 		}
 
-		s.log.Info().Str("url", cfg.MetadataURL).Msg("successfully fetched IdP metadata from URL")
+		s.log.Debug().Str("url", cfg.MetadataURL).Msg("successfully fetched IdP metadata from URL")
 	}
 
 	k, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
@@ -268,10 +268,10 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	}
 
 	if cfg.EntityID != "" {
-		s.log.Info().Str("entity_id", cfg.EntityID).Msg("using custom SAML Entity ID")
+		s.log.Debug().Str("entity_id", cfg.EntityID).Msg("using custom SAML Entity ID")
 	}
 	if cfg.SignatureMethod != "" {
-		s.log.Info().Str("signature_method", cfg.SignatureMethod).Msg("SAML request signing enabled")
+		s.log.Debug().Str("signature_method", cfg.SignatureMethod).Msg("SAML request signing enabled")
 	}
 
 	prvCfg.Middleware = middleware
@@ -396,7 +396,7 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 			return nil
 		}
 
-		s.log.Info().Msg("branding hosts were updated during config load, rebuilding branding middlewares")
+		s.log.Debug().Msg("branding hosts were updated during config load, rebuilding branding middlewares")
 
 		updatedHosts := s.getBrandingHosts()
 		updatedMiddlewares := make(map[string]*samlsp.Middleware, len(updatedHosts))

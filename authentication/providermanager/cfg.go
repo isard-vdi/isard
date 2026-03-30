@@ -2,6 +2,8 @@ package providermanager
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -83,6 +85,8 @@ func extractBrandingHost(entry model.CategoryConfigEntry) *string {
 }
 
 func (c *cfgWatcher) Watch(ctx context.Context, wg *sync.WaitGroup, sess r.QueryExecutor) {
+	c.log.Debug().Dur("reload_interval", c.reloadInterval).Msg("starting configuration watcher")
+
 	c.watchGlobal(ctx, wg, sess)
 	c.watchCategories(ctx, wg, sess)
 }
@@ -93,22 +97,28 @@ func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r
 		c.log.Fatal().Err(err).Msg("load initial global authentication configuration")
 	}
 
+	c.log.Debug().Msg("loaded initial global authentication configuration")
+
 	// Initial global providers setup.
 	if cfg.Local.Enabled {
+		c.log.Debug().Str("provider", types.ProviderLocal).Msg("scheduling initial global provider enable")
 		c.providerChanges <- providerChange{Provider: types.ProviderLocal, Enabled: true}
 	}
 
 	if cfg.LDAP.Enabled {
+		c.log.Debug().Str("provider", types.ProviderLDAP).Msg("scheduling initial global provider enable")
 		c.providerChanges <- providerChange{Provider: types.ProviderLDAP, Enabled: true}
 		c.globalChanges.ldapChanges <- cfg.LDAP.LDAPConfig
 	}
 
 	if cfg.SAML.Enabled {
+		c.log.Debug().Str("provider", types.ProviderSAML).Msg("scheduling initial global provider enable")
 		c.providerChanges <- providerChange{Provider: types.ProviderSAML, Enabled: true}
 		c.globalChanges.samlChanges <- cfg.SAML.SAMLConfig
 	}
 
 	if cfg.Google.Enabled {
+		c.log.Debug().Str("provider", types.ProviderGoogle).Msg("scheduling initial global provider enable")
 		c.providerChanges <- providerChange{Provider: types.ProviderGoogle, Enabled: true}
 		c.globalChanges.googleChanges <- cfg.Google.GoogleConfig
 	}
@@ -130,10 +140,12 @@ func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r
 				continue
 			}
 
-			notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderLocal, cfg.Local.Enabled, newCfg.Local.Enabled)
-			notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderLDAP, cfg.LDAP.Enabled, newCfg.LDAP.Enabled)
-			notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderSAML, cfg.SAML.Enabled, newCfg.SAML.Enabled)
-			notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderGoogle, cfg.Google.Enabled, newCfg.Google.Enabled)
+			c.log.Debug().Msg("reloading global authentication configuration")
+
+			notifyProviderChangeIfNeeded(c.log, c.providerChanges, nil, types.ProviderLocal, cfg.Local.Enabled, newCfg.Local.Enabled)
+			notifyProviderChangeIfNeeded(c.log, c.providerChanges, nil, types.ProviderLDAP, cfg.LDAP.Enabled, newCfg.LDAP.Enabled)
+			notifyProviderChangeIfNeeded(c.log, c.providerChanges, nil, types.ProviderSAML, cfg.SAML.Enabled, newCfg.SAML.Enabled)
+			notifyProviderChangeIfNeeded(c.log, c.providerChanges, nil, types.ProviderGoogle, cfg.Google.Enabled, newCfg.Google.Enabled)
 
 			if newCfg.LDAP.Enabled {
 				notifyIfNeeded(c.globalChanges.ldapChanges, cfg.LDAP.LDAPConfig, newCfg.LDAP.LDAPConfig)
@@ -155,6 +167,8 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 	if err != nil {
 		c.log.Fatal().Err(err).Msg("load initial categories authentication configuration")
 	}
+
+	c.log.Debug().Strs("categories", slices.Sorted(maps.Keys(cfgCategories))).Msg("loaded initial categories authentication configuration")
 
 	for categoryID, entry := range cfgCategories {
 		cfg := entry.Authentication
@@ -273,188 +287,192 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 				continue
 			}
 
-				for categoryID, newEntry := range newCfgCategories {
-					entry := cfgCategories[categoryID]
+			c.log.Debug().Strs("categories", slices.Sorted(maps.Keys(newCfgCategories))).Msg("reloading categories authentication configuration")
 
-					cfg := entry.Authentication
-					newCfg := newEntry.Authentication
+			for categoryID, newEntry := range newCfgCategories {
+				entry := cfgCategories[categoryID]
 
-					notifyBrandingDomainChangeIfNeeded(c.categoriesBrandingDomainChanges, categoryID, extractBrandingHost(entry), extractBrandingHost(newEntry), &newCfg)
+				cfg := entry.Authentication
+				newCfg := newEntry.Authentication
 
-					changesChans := c.getOrCreateCategoryChangesChannels(categoryID)
+				notifyBrandingDomainChangeIfNeeded(c.categoriesBrandingDomainChanges, categoryID, extractBrandingHost(entry), extractBrandingHost(newEntry), &newCfg)
 
-					hasProviders := false
+				changesChans := c.getOrCreateCategoryChangesChannels(categoryID)
 
-					cfgLocalExists := cfg.Local != nil
-					newCfgLocalExists := newCfg.Local != nil
+				hasProviders := false
 
-					cfgLocalEnabled := cfgLocalExists && !cfg.Local.Disabled
-					newCfgLocalEnabled := newCfgLocalExists && !newCfg.Local.Disabled
-					notifyProviderChangeIfNeeded(c.providerChanges, &categoryID, types.ProviderLocal, cfgLocalEnabled, newCfgLocalEnabled)
+				cfgLocalExists := cfg.Local != nil
+				newCfgLocalExists := newCfg.Local != nil
 
-					cfgLocalDisabled := cfgLocalExists && cfg.Local.Disabled
-					newCfgLocalDisabled := newCfgLocalExists && newCfg.Local.Disabled
-					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderLocal, cfgLocalDisabled, newCfgLocalDisabled)
+				cfgLocalEnabled := cfgLocalExists && !cfg.Local.Disabled
+				newCfgLocalEnabled := newCfgLocalExists && !newCfg.Local.Disabled
+				notifyProviderChangeIfNeeded(c.log, c.providerChanges, &categoryID, types.ProviderLocal, cfgLocalEnabled, newCfgLocalEnabled)
 
-					cfgLDAPExists := cfg.LDAP != nil
-					newCfgLDAPExists := newCfg.LDAP != nil
+				cfgLocalDisabled := cfgLocalExists && cfg.Local.Disabled
+				newCfgLocalDisabled := newCfgLocalExists && newCfg.Local.Disabled
+				notifyDisabledProviderChangeIfNeeded(c.log, c.categoriesDisabledProvidersChanges, categoryID, types.ProviderLocal, cfgLocalDisabled, newCfgLocalDisabled)
 
-					cfgLDAPEnabled := cfgLDAPExists && !cfg.LDAP.Disabled && cfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.LDAP.LDAPConfig != nil
-					newCfgLDAPEnabled := newCfgLDAPExists && !newCfg.LDAP.Disabled && newCfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.LDAP.LDAPConfig != nil
-					notifyProviderChangeIfNeeded(c.providerChanges, &categoryID, types.ProviderLDAP, cfgLDAPEnabled, newCfgLDAPEnabled)
+				cfgLDAPExists := cfg.LDAP != nil
+				newCfgLDAPExists := newCfg.LDAP != nil
 
-					cfgLDAPDisabled := cfgLDAPExists && cfg.LDAP.Disabled
-					newCfgLDAPDisabled := newCfgLDAPExists && newCfg.LDAP.Disabled
-					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderLDAP, cfgLDAPDisabled, newCfgLDAPDisabled)
+				cfgLDAPEnabled := cfgLDAPExists && !cfg.LDAP.Disabled && cfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.LDAP.LDAPConfig != nil
+				newCfgLDAPEnabled := newCfgLDAPExists && !newCfg.LDAP.Disabled && newCfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.LDAP.LDAPConfig != nil
+				notifyProviderChangeIfNeeded(c.log, c.providerChanges, &categoryID, types.ProviderLDAP, cfgLDAPEnabled, newCfgLDAPEnabled)
 
-					cfgSAMLExists := cfg.SAML != nil
-					newCfgSAMLExists := newCfg.SAML != nil
+				cfgLDAPDisabled := cfgLDAPExists && cfg.LDAP.Disabled
+				newCfgLDAPDisabled := newCfgLDAPExists && newCfg.LDAP.Disabled
+				notifyDisabledProviderChangeIfNeeded(c.log, c.categoriesDisabledProvidersChanges, categoryID, types.ProviderLDAP, cfgLDAPDisabled, newCfgLDAPDisabled)
 
-					cfgSAMLEnabled := cfgSAMLExists && !cfg.SAML.Disabled && cfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.SAML.SAMLConfig != nil
-					newCfgSAMLEnabled := newCfgSAMLExists && !newCfg.SAML.Disabled && newCfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.SAML.SAMLConfig != nil
-					notifyProviderChangeIfNeeded(c.providerChanges, &categoryID, types.ProviderSAML, cfgSAMLEnabled, newCfgSAMLEnabled)
+				cfgSAMLExists := cfg.SAML != nil
+				newCfgSAMLExists := newCfg.SAML != nil
 
-					cfgSAMLDisabled := cfgSAMLExists && cfg.SAML.Disabled
-					newCfgSAMLDisabled := newCfgSAMLExists && newCfg.SAML.Disabled
-					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderSAML, cfgSAMLDisabled, newCfgSAMLDisabled)
+				cfgSAMLEnabled := cfgSAMLExists && !cfg.SAML.Disabled && cfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.SAML.SAMLConfig != nil
+				newCfgSAMLEnabled := newCfgSAMLExists && !newCfg.SAML.Disabled && newCfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.SAML.SAMLConfig != nil
+				notifyProviderChangeIfNeeded(c.log, c.providerChanges, &categoryID, types.ProviderSAML, cfgSAMLEnabled, newCfgSAMLEnabled)
 
-					cfgGoogleExists := cfg.Google != nil
-					newCfgGoogleExists := newCfg.Google != nil
+				cfgSAMLDisabled := cfgSAMLExists && cfg.SAML.Disabled
+				newCfgSAMLDisabled := newCfgSAMLExists && newCfg.SAML.Disabled
+				notifyDisabledProviderChangeIfNeeded(c.log, c.categoriesDisabledProvidersChanges, categoryID, types.ProviderSAML, cfgSAMLDisabled, newCfgSAMLDisabled)
 
-					cfgGoogleEnabled := cfgGoogleExists && !cfg.Google.Disabled && cfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.Google.GoogleConfig != nil
-					newCfgGoogleEnabled := newCfgGoogleExists && !newCfg.Google.Disabled && newCfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.Google.GoogleConfig != nil
-					notifyProviderChangeIfNeeded(c.providerChanges, &categoryID, types.ProviderGoogle, cfgGoogleEnabled, newCfgGoogleEnabled)
+				cfgGoogleExists := cfg.Google != nil
+				newCfgGoogleExists := newCfg.Google != nil
 
-					cfgGoogleDisabled := cfgGoogleExists && cfg.Google.Disabled
-					newCfgGoogleDisabled := newCfgGoogleExists && newCfg.Google.Disabled
-					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderGoogle, cfgGoogleDisabled, newCfgGoogleDisabled)
+				cfgGoogleEnabled := cfgGoogleExists && !cfg.Google.Disabled && cfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.Google.GoogleConfig != nil
+				newCfgGoogleEnabled := newCfgGoogleExists && !newCfg.Google.Disabled && newCfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.Google.GoogleConfig != nil
+				notifyProviderChangeIfNeeded(c.log, c.providerChanges, &categoryID, types.ProviderGoogle, cfgGoogleEnabled, newCfgGoogleEnabled)
 
-					if newCfgLocalEnabled {
-						hasProviders = true
-					}
+				cfgGoogleDisabled := cfgGoogleExists && cfg.Google.Disabled
+				newCfgGoogleDisabled := newCfgGoogleExists && newCfg.Google.Disabled
+				notifyDisabledProviderChangeIfNeeded(c.log, c.categoriesDisabledProvidersChanges, categoryID, types.ProviderGoogle, cfgGoogleDisabled, newCfgGoogleDisabled)
 
-					if newCfgLDAPEnabled && newCfg.LDAP.LDAPConfig != nil {
-						hasProviders = true
-
-						var cfgLDAPConfig model.LDAPConfig
-						if cfgLDAPEnabled && cfg.LDAP.LDAPConfig != nil {
-							cfgLDAPConfig = *cfg.LDAP.LDAPConfig
-						}
-
-						notifyIfNeeded(changesChans.ldapChanges, cfgLDAPConfig, *newCfg.LDAP.LDAPConfig)
-					}
-
-					if newCfgSAMLEnabled && newCfg.SAML.SAMLConfig != nil {
-						hasProviders = true
-
-						var cfgSAMLConfig model.SAMLConfig
-						if cfgSAMLEnabled && cfg.SAML.SAMLConfig != nil {
-							cfgSAMLConfig = *cfg.SAML.SAMLConfig
-						}
-
-						notifyIfNeeded(changesChans.samlChanges, cfgSAMLConfig, *newCfg.SAML.SAMLConfig)
-					}
-
-					if newCfgGoogleEnabled && newCfg.Google.GoogleConfig != nil {
-						hasProviders = true
-
-						var cfgGoogleConfig model.GoogleConfig
-						if cfgGoogleEnabled && cfg.Google.GoogleConfig != nil {
-							cfgGoogleConfig = *cfg.Google.GoogleConfig
-						}
-
-						notifyIfNeeded(changesChans.googleChanges, cfgGoogleConfig, *newCfg.Google.GoogleConfig)
-					}
-
-					// If the category has providers, add it to the map.
-					c.categoriesMux.Lock()
-					if hasProviders {
-						c.categoriesChanges[categoryID] = changesChans
-					} else {
-						delete(c.categoriesChanges, categoryID)
-					}
-					c.categoriesMux.Unlock()
+				if newCfgLocalEnabled {
+					hasProviders = true
 				}
 
-				// Handle categories that were deleted from the DB.
-				for categoryID, entry := range cfgCategories {
-					if _, ok := newCfgCategories[categoryID]; ok {
-						continue
+				if newCfgLDAPEnabled && newCfg.LDAP.LDAPConfig != nil {
+					hasProviders = true
+
+					var cfgLDAPConfig model.LDAPConfig
+					if cfgLDAPEnabled && cfg.LDAP.LDAPConfig != nil {
+						cfgLDAPConfig = *cfg.LDAP.LDAPConfig
 					}
 
-					cfg := entry.Authentication
+					notifyIfNeeded(changesChans.ldapChanges, cfgLDAPConfig, *newCfg.LDAP.LDAPConfig)
+				}
 
-					// Send disable events for all active providers in the deleted category.
-					if cfg.Local != nil {
-						if cfg.Local.Disabled {
-							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
-								CategoryID: categoryID,
-								Provider:   types.ProviderLocal,
-								Disabled:   false,
-							}
-						} else {
-							c.providerChanges <- providerChange{
-								CategoryID: &categoryID,
-								Provider:   types.ProviderLocal,
-								Enabled:    false,
-							}
-						}
+				if newCfgSAMLEnabled && newCfg.SAML.SAMLConfig != nil {
+					hasProviders = true
+
+					var cfgSAMLConfig model.SAMLConfig
+					if cfgSAMLEnabled && cfg.SAML.SAMLConfig != nil {
+						cfgSAMLConfig = *cfg.SAML.SAMLConfig
 					}
 
-					if cfg.LDAP != nil {
-						if cfg.LDAP.Disabled {
-							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
-								CategoryID: categoryID,
-								Provider:   types.ProviderLDAP,
-								Disabled:   false,
-							}
-						} else if cfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.LDAP.LDAPConfig != nil {
-							c.providerChanges <- providerChange{
-								CategoryID: &categoryID,
-								Provider:   types.ProviderLDAP,
-								Enabled:    false,
-							}
-						}
+					notifyIfNeeded(changesChans.samlChanges, cfgSAMLConfig, *newCfg.SAML.SAMLConfig)
+				}
+
+				if newCfgGoogleEnabled && newCfg.Google.GoogleConfig != nil {
+					hasProviders = true
+
+					var cfgGoogleConfig model.GoogleConfig
+					if cfgGoogleEnabled && cfg.Google.GoogleConfig != nil {
+						cfgGoogleConfig = *cfg.Google.GoogleConfig
 					}
 
-					if cfg.SAML != nil {
-						if cfg.SAML.Disabled {
-							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
-								CategoryID: categoryID,
-								Provider:   types.ProviderSAML,
-								Disabled:   false,
-							}
-						} else if cfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.SAML.SAMLConfig != nil {
-							c.providerChanges <- providerChange{
-								CategoryID: &categoryID,
-								Provider:   types.ProviderSAML,
-								Enabled:    false,
-							}
-						}
-					}
+					notifyIfNeeded(changesChans.googleChanges, cfgGoogleConfig, *newCfg.Google.GoogleConfig)
+				}
 
-					if cfg.Google != nil {
-						if cfg.Google.Disabled {
-							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
-								CategoryID: categoryID,
-								Provider:   types.ProviderGoogle,
-								Disabled:   false,
-							}
-						} else if cfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.Google.GoogleConfig != nil {
-							c.providerChanges <- providerChange{
-								CategoryID: &categoryID,
-								Provider:   types.ProviderGoogle,
-								Enabled:    false,
-							}
-						}
-					}
-
-					c.categoriesMux.Lock()
+				// If the category has providers, add it to the map.
+				c.categoriesMux.Lock()
+				if hasProviders {
+					c.categoriesChanges[categoryID] = changesChans
+				} else {
 					delete(c.categoriesChanges, categoryID)
-					c.categoriesMux.Unlock()
+				}
+				c.categoriesMux.Unlock()
+			}
+
+			// Handle categories that were deleted from the DB.
+			for categoryID, entry := range cfgCategories {
+				if _, ok := newCfgCategories[categoryID]; ok {
+					continue
 				}
 
-				cfgCategories = newCfgCategories
+				c.log.Info().Str("category", categoryID).Msg("category removed from DB, disabling all its providers")
+
+				cfg := entry.Authentication
+
+				// Send disable events for all active providers in the deleted category.
+				if cfg.Local != nil {
+					if cfg.Local.Disabled {
+						c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+							CategoryID: categoryID,
+							Provider:   types.ProviderLocal,
+							Disabled:   false,
+						}
+					} else {
+						c.providerChanges <- providerChange{
+							CategoryID: &categoryID,
+							Provider:   types.ProviderLocal,
+							Enabled:    false,
+						}
+					}
+				}
+
+				if cfg.LDAP != nil {
+					if cfg.LDAP.Disabled {
+						c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+							CategoryID: categoryID,
+							Provider:   types.ProviderLDAP,
+							Disabled:   false,
+						}
+					} else if cfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.LDAP.LDAPConfig != nil {
+						c.providerChanges <- providerChange{
+							CategoryID: &categoryID,
+							Provider:   types.ProviderLDAP,
+							Enabled:    false,
+						}
+					}
+				}
+
+				if cfg.SAML != nil {
+					if cfg.SAML.Disabled {
+						c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+							CategoryID: categoryID,
+							Provider:   types.ProviderSAML,
+							Disabled:   false,
+						}
+					} else if cfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.SAML.SAMLConfig != nil {
+						c.providerChanges <- providerChange{
+							CategoryID: &categoryID,
+							Provider:   types.ProviderSAML,
+							Enabled:    false,
+						}
+					}
+				}
+
+				if cfg.Google != nil {
+					if cfg.Google.Disabled {
+						c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+							CategoryID: categoryID,
+							Provider:   types.ProviderGoogle,
+							Disabled:   false,
+						}
+					} else if cfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.Google.GoogleConfig != nil {
+						c.providerChanges <- providerChange{
+							CategoryID: &categoryID,
+							Provider:   types.ProviderGoogle,
+							Enabled:    false,
+						}
+					}
+				}
+
+				c.categoriesMux.Lock()
+				delete(c.categoriesChanges, categoryID)
+				c.categoriesMux.Unlock()
+			}
+
+			cfgCategories = newCfgCategories
 		}
 	})
 }
@@ -476,20 +494,40 @@ func (c *cfgWatcher) getOrCreateCategoryChangesChannels(categoryID string) *prov
 	return changesChans
 }
 
-func notifyProviderChangeIfNeeded(channel chan providerChange, categoryID *string, prv string, enabled, newEnabled bool) {
-	if enabled != newEnabled {
-		channel <- providerChange{
-			CategoryID: categoryID,
-			Provider:   prv,
-			Enabled:    newEnabled,
-		}
+func notifyProviderChangeIfNeeded(log *zerolog.Logger, channel chan providerChange, categoryID *string, prv string, enabled, newEnabled bool) {
+	if enabled == newEnabled {
+		return
+	}
+
+	action := "enable"
+	if !newEnabled {
+		action = "disable"
+	}
+
+	evt := log.Debug().Str("provider", prv).Str("action", action)
+	if categoryID != nil {
+		evt = evt.Str("category", *categoryID)
+	}
+	evt.Msg("provider state change detected")
+
+	channel <- providerChange{
+		CategoryID: categoryID,
+		Provider:   prv,
+		Enabled:    newEnabled,
 	}
 }
 
-func notifyDisabledProviderChangeIfNeeded(channel chan categoryDisabledProviderChange, categoryID string, prv string, disabled, newDisabled bool) {
+func notifyDisabledProviderChangeIfNeeded(log *zerolog.Logger, channel chan categoryDisabledProviderChange, categoryID string, prv string, disabled, newDisabled bool) {
 	if disabled == newDisabled {
 		return
 	}
+
+	action := "disabled"
+	if !newDisabled {
+		action = "re-enabled"
+	}
+
+	log.Debug().Str("provider", prv).Str("category", categoryID).Str("action", action).Msg("category disabled provider change detected")
 
 	channel <- categoryDisabledProviderChange{
 		CategoryID: categoryID,

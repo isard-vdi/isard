@@ -346,7 +346,8 @@ func TestNotifyProviderChangeIfNeeded(t *testing.T) {
 
 			ch := make(chan providerChange, 1)
 
-			notifyProviderChangeIfNeeded(ch, nil, "test-provider", tc.Enabled, tc.NewEnabled)
+			logger := log.New("test", "debug")
+			notifyProviderChangeIfNeeded(logger, ch, nil, "test-provider", tc.Enabled, tc.NewEnabled)
 
 			if tc.ExpectSend {
 				select {
@@ -405,7 +406,8 @@ func TestNotifyDisabledProviderChangeIfNeeded(t *testing.T) {
 
 			ch := make(chan categoryDisabledProviderChange, 1)
 
-			notifyDisabledProviderChangeIfNeeded(ch, "cat1", "test-provider", tc.Disabled, tc.NewDisabled)
+			logger := log.New("test", "debug")
+			notifyDisabledProviderChangeIfNeeded(logger, ch, "cat1", "test-provider", tc.Disabled, tc.NewDisabled)
 
 			if tc.ExpectSend {
 				select {
