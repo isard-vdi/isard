@@ -407,7 +407,7 @@ function socketio_on(){
             if (form.parsley().isValid()) {
                 users = csv_preview.data().toArray()
                 filecontents = users.map(user => {
-                    return `${user.username},${user.name},${user.email},\"${user.password.replace(/"/g, '""')}\",${user.group},${user.category},${user.role}`
+                    return [user.username, user.name, user.email, user.password, user.group, user.category, user.role].map(csvEscape).join(',')
                 }
                 ).join('\n')
                 viewerFile = new Blob([`username,name,email,password,group,category,role\n` + filecontents], { type: "text/csv" });
@@ -1811,6 +1811,15 @@ function toObject(names, values) {
     return result;
 }
 
+function csvEscape(value) {
+    if (value == null) return '';
+    var str = String(value);
+    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 || str.indexOf('\n') !== -1) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
 function showUserExportButtons(table, buttonsRowClass) {
     new $.fn.dataTable.Buttons(table, {
         buttons: [
@@ -1819,23 +1828,30 @@ function showUserExportButtons(table, buttonsRowClass) {
                 title: "csv-users",
                 titleAttr: "Export the current displayed data to a CSV file",
                 exportOptions: {
+                    columns: [16] // ID column
                 },
                 customize: function (csv) {
-                    var split_csv = csv.split("\n");
                     var csv_data = 'Active,Name,Provider,Category,UID,Role,Group,Secondary groups,VPN,Last access,ID\n';
-
+                    var split_csv = csv.split("\n");
                     $.each(split_csv.slice(1), function (index, csv_row) {
-                        var csv_cell_array = csv_row.split('","');
-                        csv_cell_array.splice(0, 1);
-                        csv_cell_array.splice(10, 1);
-                        pk = csv_cell_array[csv_cell_array.length - 1].replace(/"/g, '');
-
+                        var pk = csv_row.replace(/"/g, '');
+                        if (!pk) return;
                         var rowData = table.row('#' + pk).data();
-                        csv_cell_array[0] = rowData.active;
-                        csv_cell_array[7] = csv_cell_array[8].replace(/,/g, ' | ');
-                        csv_cell_array[8] = rowData.vpn.wireguard.connected;
-
-                        csv_data = csv_data + csv_cell_array.join(",") + '\n';
+                        if (!rowData) return;
+                        var fields = [
+                            rowData.active,
+                            rowData.name,
+                            rowData.provider,
+                            rowData.category_name,
+                            rowData.uid,
+                            rowData.role_name,
+                            rowData.group_name,
+                            rowData.secondary_groups_names.join(' | '),
+                            rowData.vpn.wireguard.connected,
+                            rowData.accessed ? formatTimestampUTC(rowData.accessed * 1000) : '',
+                            rowData.id
+                        ];
+                        csv_data = csv_data + fields.map(csvEscape).join(',') + '\n';
                     });
                     return csv_data
                 }
@@ -1855,13 +1871,25 @@ function showUserExportButtons(table, buttonsRowClass) {
                 title: "update-from-csv-export",
                 titleAttr: "Generate a CSV file from the current displayed data, to use in the \"Update from CSV\" feature.",
                 customize: function (csv) {
-                    var csv_data = ['active,name,provider,category,uid,username,group,secondary_groups,password\n']
+                    var csv_data = 'active,name,provider,category,uid,username,group,secondary_groups,password\n';
                     var split_csv = csv.split("\n");
                     $.each(split_csv.slice(1), function (index, csv_row) {
-                        var csv_cell_array = csv_row.split('","');
-                        csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
-                        var rowData = table.row('#' + csv_cell_array[0]).data();
-                        csv_data = csv_data + (`${rowData.active},${rowData.name},${rowData.provider},${rowData.category_name},${rowData.uid},${rowData.username},${rowData.group_name},${rowData.secondary_groups_names.join("/")},\n`);
+                        var pk = csv_row.replace(/"/g, '');
+                        if (!pk) return;
+                        var rowData = table.row('#' + pk).data();
+                        if (!rowData) return;
+                        var fields = [
+                            rowData.active,
+                            rowData.name,
+                            rowData.provider,
+                            rowData.category_name,
+                            rowData.uid,
+                            rowData.username,
+                            rowData.group_name,
+                            rowData.secondary_groups_names.join('/'),
+                            ''
+                        ];
+                        csv_data = csv_data + fields.map(csvEscape).join(',') + '\n';
                     });
                     return csv_data
                 }
@@ -1875,13 +1903,22 @@ function showUserExportButtons(table, buttonsRowClass) {
                 title: "bulk-users-export",
                 titleAttr: `Generate a CSV file from the current displayed data, to use in the \"Bulk create\" feature.`,
                 customize: function (csv) {
-                    var csv_data = ['username,name,email,group,category,role\n']
+                    var csv_data = 'username,name,email,group,category,role\n';
                     var split_csv = csv.split("\n");
                     $.each(split_csv.slice(1), function (index, csv_row) {
-                        var csv_cell_array = csv_row.split('","');
-                        csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
-                        var rowData = table.row('#' + csv_cell_array[0]).data();
-                        csv_data = csv_data + (`${rowData.uid},${rowData.name},${rowData.email},${rowData.group_name},${rowData.category_name},${rowData.role}\n`);
+                        var pk = csv_row.replace(/"/g, '');
+                        if (!pk) return;
+                        var rowData = table.row('#' + pk).data();
+                        if (!rowData) return;
+                        var fields = [
+                            rowData.uid,
+                            rowData.name,
+                            rowData.email,
+                            rowData.group_name,
+                            rowData.category_name,
+                            rowData.role
+                        ];
+                        csv_data = csv_data + fields.map(csvEscape).join(',') + '\n';
                     });
                     return csv_data
                 }
