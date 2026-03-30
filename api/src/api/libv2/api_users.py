@@ -770,8 +770,16 @@ class ApiUsers:
                     .without("quota", "limits")
                     .merge(
                         lambda group: {
-                            "linked_groups_names": r.table("groups")
-                            .get_all(r.args(group["linked_groups"]))["name"]
+                            "linked_groups_data": r.table("groups")
+                            .get_all(r.args(group["linked_groups"]))
+                            .merge(
+                                lambda g: {
+                                    "category_name": r.table("categories")
+                                    .get(g["parent_category"])
+                                    .default({"name": "[deleted]"})["name"]
+                                }
+                            )
+                            .pluck("id", "name", "category_name")
                             .coerce_to("array")
                         }
                     )
@@ -783,8 +791,16 @@ class ApiUsers:
                     .without("quota", "limits")
                     .merge(
                         lambda group: {
-                            "linked_groups_names": r.table("groups")
-                            .get_all(r.args(group["linked_groups"]))["name"]
+                            "linked_groups_data": r.table("groups")
+                            .get_all(r.args(group["linked_groups"]))
+                            .merge(
+                                lambda g: {
+                                    "category_name": r.table("categories")
+                                    .get(g["parent_category"])
+                                    .default({"name": "[deleted]"})["name"]
+                                }
+                            )
+                            .pluck("id", "name", "category_name")
                             .coerce_to("array"),
                             "parent_category_name": r.table("categories").get(
                                 group["parent_category"]

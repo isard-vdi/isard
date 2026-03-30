@@ -57,7 +57,14 @@ $(document).ready(function() {
             {
                 "targets": 4,
                 "render": function ( data, type, full, meta ) {
-                    return full.linked_groups_names
+                    var count = full.linked_groups_data ? full.linked_groups_data.length : 0;
+                    if (count === 0) return '0';
+                    var names = $.map(full.linked_groups_data, function(g) {
+                        return g.category_name + ' - ' + g.name;
+                    });
+                    names.sort();
+                    return '<span data-toggle="tooltip" data-placement="top" title="' +
+                        names.join('&#013;') + '">' + count + '</span>';
                 }
             },
             {
