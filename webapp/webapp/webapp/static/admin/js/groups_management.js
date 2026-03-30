@@ -200,10 +200,15 @@ $(document).ready(function() {
                     });
                 },
                 processResults: function (data) {
+                    data.sort(function(a, b) {
+                        var catCmp = (a.category_name || '').localeCompare(b.category_name || '');
+                        if (catCmp !== 0) return catCmp;
+                        return (a.name || '').localeCompare(b.name || '');
+                    });
                     return {
                         results: $.map(data, function (item, i) {
                             return {
-                                text: item.name,
+                                text: item.category_name + ' - ' + item.name,
                                 id: item.id
                             }
                         })
@@ -292,7 +297,7 @@ function renderGroupsDetailPannel ( d ) {
     $newPanel.html(function(i, oldHtml){
         var linked_groups_names = []
             $.each(d.linked_groups_data, function(i, group) {
-                linked_groups_names.push(group.name)
+                linked_groups_names.push(group.category_name + ' - ' + group.name)
             })
         return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description).replace(/d.linked_groups/g, linked_groups_names);
     });
@@ -325,10 +330,15 @@ function actionsGroupDetail(){
                     });
                 },
                 processResults: function (data) {
+                    data.sort(function(a, b) {
+                        var catCmp = (a.category_name || '').localeCompare(b.category_name || '');
+                        if (catCmp !== 0) return catCmp;
+                        return (a.name || '').localeCompare(b.name || '');
+                    });
                     return {
                         results: $.map(data, function (item, i) {
                             return {
-                                text: item.name,
+                                text: item.category_name + ' - ' + item.name,
                                 id: item.id
                             }
                         })
@@ -346,16 +356,16 @@ function actionsGroupDetail(){
                 $('#modalEditGroupForm #name').val(group.name);
                 $('#modalEditGroupForm #description').val(group.description);
                 $.each(group.linked_groups_data, function(i, group) {
-                    var newOption = new Option(group.name, group.id, true, true);
+                    var newOption = new Option(group.category_name + ' - ' + group.name, group.id, true, true);
                     $('#modalEditGroupForm #linked_groups').append(newOption).trigger('change');
                 });
                 $('#modalEditGroupForm :checkbox').iCheck('uncheck').iCheck('update');
 
                 // autoDesktopsShow('#modalEditGroupForm', group)
-                ephemeralDesktopsShow('#modalEditGroupForm', group)          
+                ephemeralDesktopsShow('#modalEditGroupForm', group)
 
                 $.each(group.linked_groups_data, function(i, group) {
-                    var newOption = new Option(group.name, group.id, true, true);
+                    var newOption = new Option(group.category_name + ' - ' + group.name, group.id, true, true);
                     $("#modalEditGroupForm #linked_groups").append(newOption).trigger('change');
                 })
             }
