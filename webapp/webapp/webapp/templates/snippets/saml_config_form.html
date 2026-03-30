@@ -75,7 +75,8 @@
   name="max_issue_delay",
   label="Max Issue Delay",
   placeholder="90s",
-  value="90s"
+  value="90s",
+  pattern="(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}

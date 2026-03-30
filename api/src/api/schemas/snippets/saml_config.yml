@@ -16,6 +16,7 @@ cert_file:
 max_issue_delay:
   empty: false
   type: string
+  regex: '^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$'
 field_uid:
   empty: false
   type: string

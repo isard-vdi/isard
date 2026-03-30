@@ -62,6 +62,9 @@
             {% if value is defined and value is not none %}
               value="{{ value }}"
             {% endif %}
+            {% if pattern %}
+              pattern="{{ pattern }}"
+            {% endif %}
           {% endif %}
           {{ '' if required is false or type == 'checkbox' else 'required' }}
           {{ 'disabled' if disabled else '' }}
