@@ -247,25 +247,37 @@ class Engine(object):
 
                         for t in threads_dead:
                             if t[0].startswith("worker_"):
+                                hyp_id = t[0].split("_")[1]
+                                if hyp_id in workers_started:
+                                    logs.main.info(
+                                        f"Dead worker for {hyp_id} already replaced by new thread, skipping cap_status downgrade"
+                                    )
+                                    continue
                                 update_table_dict(
                                     "hypervisors",
-                                    t[0].split("_")[1],
+                                    hyp_id,
                                     {"cap_status": {"hypervisor": False}},
                                 )
                                 telegram_send_thread(
                                     "WARN",
-                                    f"Hypervisor {t[0].split('_')[1]} worker is dead\n",
+                                    f"Hypervisor {hyp_id} worker is dead\n",
                                 )
                                 next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
                             if t[0].startswith("diskop_"):
+                                hyp_id = t[0].split("_")[1]
+                                if hyp_id in diskop_started:
+                                    logs.main.info(
+                                        f"Dead diskop for {hyp_id} already replaced by new thread, skipping cap_status downgrade"
+                                    )
+                                    continue
                                 update_table_dict(
                                     "hypervisors",
-                                    t[0].split("_")[1],
+                                    hyp_id,
                                     {"cap_status": {"disk_operations": False}},
                                 )
                                 telegram_send_thread(
                                     "WARN",
-                                    f"Hypervisor {t[0].split('_')[1]} disk_operations is dead\n",
+                                    f"Hypervisor {hyp_id} disk_operations is dead\n",
                                 )
                                 next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
 
