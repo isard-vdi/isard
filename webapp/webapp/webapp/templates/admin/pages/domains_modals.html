@@ -849,6 +849,7 @@
                          <th class="nested-th">Kind</th>
                          <th class="nested-th">Duplicate</th>
                          <th class="nested-th">User</th>
+                         <th class="nested-th">Role</th>
                          <th class="nested-th">Category</th>
                          <th class="nested-th">Group</th>
                        </tr>
@@ -860,12 +861,14 @@
             <div class="row">
                <div class="x_panel">
                      <div class="x_content">
-                        <p style="font-size: 18px;margin-bottom:0px; color: red"> All these desktops and templates will be deleted!<br></p>
-                        <p id="warning">These dependencies will also be deleted and moved to the recycle bin. </p>
+                        <div id="delete-warning">
+                           <p style="font-size: 18px;margin-bottom:0px; color: red"> All these desktops and templates will be deleted!<br></p>
+                           <p id="warning">These dependencies will also be deleted and moved to the recycle bin. </p>
+                        </div>
                         {% if current_user.role != 'admin' %}
                         <div class="alert alert-danger" role="alert" id="manager-warning" style="display:none;">
-                           This template has derivatives from categories you do not own.<b>
-                              You cannot delete this item.</b><br>Please, contact your administrator
+                           <i class="fa fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                           This template has derivatives in other categories that you do not manage. You cannot delete this item.
                         </div>
                         {% endif %}
                      </div>
@@ -876,7 +879,12 @@
          <div class="modal-footer">
             <ul class="nav navbar-left panel_toolbox">
                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-            </ul>                
+            </ul>
+            {% if current_user.role != 'admin' %}
+            <p id="cross-category-footer" class="text-danger pull-left" style="display:none; margin: 8px 0 0 15px;">
+               You cannot delete this template because it has derivatives in categories you do not manage. Please contact your administrator.
+            </p>
+            {% endif %}
             <ul class="nav navbar-right panel_toolbox">
                <li><button id="send" type="button" class="btn btn-danger">Stop and Delete</button></li>
             </ul>

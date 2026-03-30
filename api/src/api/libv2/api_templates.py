@@ -284,29 +284,46 @@ class ApiTemplates:
                     "kind": domain_tree["kind"],
                     "name": domain_tree["title"],
                     "user": domain_tree["user"],
+                    "role": domain_tree.get("role", "--"),
+                    "category": domain_tree.get("category", "--"),
+                    "group": domain_tree.get("group", "--"),
                 }
             ]
             deployments = []
             pending = False
+            cross_category = False
         except:
             domains = [{}]
             deployments = []
             pending = True
+            cross_category = False
 
         for item in domain_tree["children"]:
+            is_masked = item.get("unselectable") or item.get("category") == "-"
             item_result = {
                 "id": item["id"],
                 "kind": item["kind"],
                 "name": item["title"],
                 "user": item["user"],
+                "role": item.get("role", "--"),
+                "category": item.get("category", "--"),
+                "group": item.get("group", "--"),
             }
 
             if item.get("children"):
                 child_result = self.check_children(payload, item)
                 domains.extend(child_result["domains"])
                 pending = pending or child_result["pending"]
+                cross_category = cross_category or child_result["cross_category"]
             else:
-                if item["kind"] == "deployment":
+                if is_masked:
+                    pending = True
+                    cross_category = True
+                    if item["kind"] == "deployment":
+                        deployments.append({})
+                    else:
+                        domains.append({})
+                elif item["kind"] == "deployment":
                     try:
                         ownsDeploymentId(payload, item["id"], True)
                         deployments.append(item_result)
@@ -321,7 +338,12 @@ class ApiTemplates:
                         pending = True
                         domains.append({})
 
-        return {"deployments": deployments, "domains": domains, "pending": pending}
+        return {
+            "deployments": deployments,
+            "domains": domains,
+            "pending": pending,
+            "cross_category": cross_category,
+        }
 
     def is_duplicate(self, template_id):
         with app.app_context():

@@ -45,6 +45,16 @@ desktops_persistent = ApiDesktopsPersistent()
 domains = ApiDomains()
 
 
+def _tree_has_cross_category(tree_node, payload):
+    """Check if any item in the template tree belongs to a different category."""
+    if tree_node.get("category") == "-" or tree_node.get("unselectable"):
+        return True
+    for child in tree_node.get("children", []):
+        if _tree_has_cross_category(child, payload):
+            return True
+    return False
+
+
 @app.route("/api/v3/admin/domains", methods=["POST"])
 @is_admin_or_manager
 def api_v3_admin_domains(payload):
@@ -316,6 +326,15 @@ def admin_multiple_actions_domains(payload):
 @app.route("/api/v3/admin/templates/delete/<template_id>", methods=["DELETE"])
 @is_admin_or_manager
 def api_v3_admin_templates_delete(payload, template_id):
+    ownsDomainId(payload, template_id)
+    if payload["role_id"] == "manager":
+        tree = admins.get_template_tree_list(template_id, payload["user_id"])[0]
+        has_cross_category = _tree_has_cross_category(tree, payload)
+        if has_cross_category:
+            raise Error(
+                "forbidden",
+                "Template has derivatives in other categories. Contact an administrator.",
+            )
     templates_delete(template_id, payload["user_id"])
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
