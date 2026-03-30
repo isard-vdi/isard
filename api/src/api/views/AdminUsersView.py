@@ -42,6 +42,7 @@ from ..libv2.api_admin import (
     manager_table_list,
 )
 from ..libv2.api_allowed import ApiAllowed
+from ..libv2.api_authentication import PROVIDER_SENSITIVE_KEYS
 from ..libv2.api_sessions import revoke_user_session
 from ..libv2.api_storage import add_category_to_storage_pool, get_storage_pool
 from ..libv2.api_targets import (
@@ -587,12 +588,30 @@ def api_v3_admin_user_desktops(payload, user_id=None):
     )
 
 
+def _strip_authentication_secrets(authentication):
+    """Strip sensitive keys from category authentication provider configs.
+
+    Replaces each sensitive key with a ``<key>_set`` boolean so the frontend
+    knows whether a secret is already configured without exposing its value.
+    """
+    if not authentication:
+        return
+    for provider_data in authentication.values():
+        if isinstance(provider_data, dict):
+            for config_data in provider_data.values():
+                if isinstance(config_data, dict):
+                    for secret_key in PROVIDER_SENSITIVE_KEYS:
+                        config_data[f"{secret_key}_set"] = secret_key in config_data
+                        config_data.pop(secret_key, None)
+
+
 @app.route("/api/v3/admin/category/<category_id>", methods=["GET"])
 @is_admin
 def api_v3_admin_category(payload, category_id):
     ownsCategoryId(payload, category_id)
     category = users.CategoryGet(category_id, True)
     category["is_default"] = True if (category["id"] == "default") else False
+    _strip_authentication_secrets(category.get("authentication"))
     return (
         json.dumps(category),
         200,
@@ -624,7 +643,9 @@ def api_v3_admin_edit_category(payload, category_id):
 @app.route("/api/v3/admin/category/<category_id>/authentication", methods=["GET"])
 @check_permissions("authentication")
 def api_v3_admin_category_authentication_get(payload, category_id):
-    return jsonify(Category(category_id).authentication)
+    authentication = Category(category_id).authentication
+    _strip_authentication_secrets(authentication)
+    return jsonify(authentication)
 
 
 @app.route("/api/v3/admin/category/<category_id>/authentication", methods=["PUT"])
