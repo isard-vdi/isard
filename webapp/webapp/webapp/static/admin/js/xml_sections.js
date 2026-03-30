@@ -85,6 +85,11 @@ function renderXmlSections(sections, capabilities) {
             navHtml += '</ul></div>';
         }
     });
+    navHtml += '<span style="float: right;">' +
+        '<label class="btn btn-xs btn-warning" style="margin: 1px 2px; font-size: 11px; cursor: pointer;">' +
+        '<i class="fa fa-upload"></i> Upload XML' +
+        '<input type="file" id="xmlUploadFile" accept=".xml" style="display: none;">' +
+        '</label></span>';
     navHtml += '</div>';
     container.append(navHtml);
 
@@ -106,6 +111,70 @@ function renderXmlSections(sections, capabilities) {
         }
         // Close dropdown after clicking
         $(this).closest('.btn-group').find('.dropdown-toggle').dropdown('toggle');
+    });
+
+    // Handle XML file upload
+    container.on('change', '#xmlUploadFile', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            var xmlContent = ev.target.result;
+
+            $.ajax({
+                type: 'POST',
+                url: '/api/v3/admin/domains/xml_sections/parse',
+                data: JSON.stringify({xml: xmlContent}),
+                contentType: 'application/json',
+                success: function(resp) {
+                    var updated = [];
+                    var skipped = [];
+                    resp.sections.forEach(function(section) {
+                        if (!section.key || !/^[a-z_]+$/.test(section.key)) return;
+                        var panel = $('#xml-section-' + section.key);
+                        if (!panel.length) return;
+                        var hiddenInput = panel.find('.xml-section-protect');
+                        if (hiddenInput.length === 0) {
+                            skipped.push(escapeHtml(section.label) + ' (system-locked)');
+                            return;
+                        }
+                        if (hiddenInput.val() === '1') {
+                            skipped.push(escapeHtml(section.label) + ' (admin-locked)');
+                            return;
+                        }
+                        panel.find('.xml-section-textarea').val(section.xml);
+                        updated.push(escapeHtml(section.label));
+                    });
+
+                    var msg = '';
+                    if (updated.length) msg += '<b>Updated:</b> ' + updated.join(', ');
+                    if (skipped.length) msg += (msg ? '<br>' : '') + '<b>Skipped (locked):</b> ' + skipped.join(', ');
+                    if (!updated.length && !skipped.length) msg = 'No sections found in the uploaded XML.';
+
+                    new PNotify({
+                        title: 'XML Uploaded',
+                        text: msg,
+                        type: updated.length ? 'success' : 'info',
+                        hide: true,
+                        delay: 6000,
+                        icon: 'fa fa-upload'
+                    });
+                },
+                error: function(data) {
+                    new PNotify({
+                        title: 'Upload Error',
+                        text: data.responseJSON ? escapeHtml(data.responseJSON.description) : 'Failed to parse uploaded XML',
+                        type: 'error',
+                        hide: true,
+                        delay: 5000,
+                        icon: 'fa fa-warning'
+                    });
+                }
+            });
+        };
+        reader.readAsText(file);
+        $(this).val('');
     });
 
     // Render section panels

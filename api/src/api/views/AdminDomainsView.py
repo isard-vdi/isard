@@ -196,6 +196,33 @@ def api_v3_admin_domains_xml_capabilities(payload):
     )
 
 
+@app.route("/api/v3/admin/domains/xml_sections/parse", methods=["POST"])
+@is_admin
+def api_v3_admin_domains_xml_sections_parse(payload):
+    from ..libv2.api_xml_sections import split_xml_sections
+
+    data = request.get_json(force=True)
+    xml_str = data.get("xml", "")
+    if not isinstance(xml_str, str) or not xml_str.strip():
+        raise Error(
+            "bad_request",
+            "Missing or invalid 'xml' field",
+            traceback.format_exc(),
+        )
+    if len(xml_str) > 2 * 1024 * 1024:
+        raise Error(
+            "bad_request",
+            "XML exceeds maximum allowed size (2 MB)",
+            traceback.format_exc(),
+        )
+    sections = split_xml_sections(xml_str, [])
+    return (
+        json.dumps({"sections": sections}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/domains/xml_sections/<domain_id>", methods=["GET", "POST"])
 @is_admin
 def api_v3_admin_domains_xml_sections(payload, domain_id):
