@@ -67,6 +67,17 @@ report_step 2 "VPN setup" None
 echo "---> Setting up OpenVswitch over wg..."
 sh -c "/src/ovs/setup.sh"
 
+# Read WG hypers gateway IP computed by setup.sh
+if [ -f /tmp/wg_hypers_gw ]; then
+  WG_HYPERS_GW=$(cat /tmp/wg_hypers_gw)
+else
+  WG_HYPERS_GW=$(python3 -c "
+import ipaddress, os
+n = ipaddress.ip_network(os.environ.get('WG_HYPERS_NET', '10.1.0.0/24'), strict=False)
+print(n[1])
+" 2>/dev/null || echo "10.1.0.1")
+fi
+
 echo "---> Starting OVS worker daemon..."
 # Worker uses Unix socket at /var/run/openvswitch/ovs-worker.sock
 python3 /src/ovs/ovs-worker.py &
@@ -207,7 +218,7 @@ tail -f /tmp/qemu-hook.log &
 while true
 do
     if [ "$HYPERVISOR_VPN_TUNNELING_MODE" = "wireguard+geneve" ]; then
-        ping -c 1 10.1.0.1 >/dev/null 2>&1
+        ping -c 1 $WG_HYPERS_GW >/dev/null 2>&1
         if [[ $? -ne 0 ]]; then
             wg-quick down wg0  >/dev/null 2>&1
             wg-quick up wg0  >/dev/null 2>&1

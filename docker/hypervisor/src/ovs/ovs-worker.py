@@ -102,25 +102,41 @@ class OvsWorker:
         )
 
         # Discover geneve port number (set up by setup.sh before we start)
+        # In wg+geneve mode the interface is named $DOMAIN
+        # In geneve mode the interface is named vpn-geneve
         domain = os.environ.get("DOMAIN", "")
-        try:
-            result = subprocess.run(
-                ["ovs-vsctl", "get", "Interface", domain, "ofport"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            self.geneve_port = result.stdout.strip()
+        self.geneve_port = None
+        for iface_name in [domain, "vpn-geneve"]:
+            if not iface_name:
+                continue
+            try:
+                result = subprocess.run(
+                    ["ovs-vsctl", "get", "Interface", iface_name, "ofport"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                port = result.stdout.strip()
+                if port and port != "-1":
+                    self.geneve_port = port
+                    log(
+                        {
+                            "event": "geneve_port_discovered",
+                            "port": self.geneve_port,
+                            "interface": iface_name,
+                        }
+                    )
+                    break
+            except Exception:
+                continue
+
+        if self.geneve_port is None:
             log(
                 {
-                    "event": "geneve_port_discovered",
-                    "port": self.geneve_port,
-                    "interface": domain,
+                    "event": "geneve_port_error",
+                    "error": f"Could not find geneve port via DOMAIN='{domain}' or 'vpn-geneve'",
                 }
             )
-        except Exception as e:
-            log({"event": "geneve_port_error", "error": str(e)})
-            self.geneve_port = None
 
     def start(self):
         """Initialize and start the worker"""
