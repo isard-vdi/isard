@@ -26,11 +26,13 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Final allowed remote access: ${API
 eval $(python3 -c "
 import ipaddress, os
 gn = ipaddress.ip_network(os.environ.get('WG_GUESTS_NETS', '10.2.0.0/16'), strict=False)
+hn = ipaddress.ip_network(os.environ.get('WG_HYPERS_NET', '10.1.0.0/24'), strict=False)
 print(f'GUESTS_GW={gn[1]}')
 print(f'GUESTS_BASTION={gn[2]}')
 print(f'GUESTS_SAMBA={gn[3]}')
 print(f'GUESTS_GUAC={gn[4]}')
 print(f'GUESTS_INFRA_CIDR={ipaddress.ip_network(str(gn.network_address) + \"/28\", strict=False)}')
+print(f'WG_HYPERS_GW={hn[1]}')
 " 2>/dev/null) || {
   # Fallback: shell-based extraction for containers without python3
   _NET_BASE=$(echo "${WG_GUESTS_NETS:-10.2.0.0/16}" | cut -d/ -f1)
@@ -40,6 +42,9 @@ print(f'GUESTS_INFRA_CIDR={ipaddress.ip_network(str(gn.network_address) + \"/28\
   GUESTS_SAMBA="${_PREFIX}.3"
   GUESTS_GUAC="${_PREFIX}.4"
   GUESTS_INFRA_CIDR="${_NET_BASE}/28"
+  _HYPERS_BASE=$(echo "${WG_HYPERS_NET:-10.1.0.0/24}" | cut -d/ -f1)
+  _HYPERS_PREFIX=${_HYPERS_BASE%.*}
+  WG_HYPERS_GW="${_HYPERS_PREFIX}.1"
 }
 
 # Ensure OVS DB exists and matches the installed schema version
@@ -149,9 +154,13 @@ if [ "$vpn_tunneling_mode" = "geneve" ]; then
     GENEVE_PORT=$(ovs-vsctl get Interface vpn-geneve ofport)
 else
     echo "Configuring OVS for WireGuard + Geneve tunneling"
-    ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=10.1.0.1
+    ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=$WG_HYPERS_GW
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Geneve tunnel to VPN gateway $WG_HYPERS_GW (from WG_HYPERS_NET)"
     GENEVE_PORT=$(ovs-vsctl get Interface "$DOMAIN" ofport)
 fi
+
+# Save computed gateway for reuse by start.sh keepalive loop
+echo "$WG_HYPERS_GW" > /tmp/wg_hypers_gw
 
 # ============================================================================
 # SECURITY: RSTP for Loop Protection

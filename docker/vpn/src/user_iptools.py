@@ -26,7 +26,10 @@ class UserIpTools(object):
         iptc.easy.insert_rule("filter", "fw-users", REJECT)
 
         iptc.easy.add_chain("filter", "fw-vpn")
-        rule = {"src": "10.0.0.0/255.255.0.0", "target": "fw-users"}
+        users_net = ipaddress.ip_network(
+            os.environ.get("WG_USERS_NET", "10.0.0.0/16"), strict=False
+        )
+        rule = {"src": str(users_net.with_netmask), "target": "fw-users"}
         iptc.easy.insert_rule("filter", "fw-vpn", rule)
 
         print("XXXXXXXXXXXXXXXXXX Initial users iptables")
