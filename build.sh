@@ -430,11 +430,11 @@ create_docker_compose_file(){
 	fi
 	if [ -z "$GOLANG_BUILD_IMAGE" ]
 	then
-		export GOLANG_BUILD_IMAGE="golang:1.23-alpine3.20"
+		export GOLANG_BUILD_IMAGE="golang:1.25.8-alpine3.22"
 	fi
 	if [ -z "$GOLANG_RUN_IMAGE" ]
 	then
-		export GOLANG_RUN_IMAGE="alpine:3.20"
+		export GOLANG_RUN_IMAGE="alpine:3.22"
 	fi
 	if [ -z "$FLAVOUR" ]
 	then

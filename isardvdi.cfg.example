@@ -387,7 +387,7 @@ DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 DOCKER_IMAGE_TAG=main
 
 # Golang image used for building the Golang microservices images
-GOLANG_BUILD_IMAGE=golang:1.24.3-alpine3.22
+GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22
 # Image used for running the images the Golang microservices images
 GOLANG_RUN_IMAGE=alpine:3.22.0
 

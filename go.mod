@@ -1,6 +1,6 @@
 module gitlab.com/isard/isardvdi
 
-go 1.23.2
+go 1.25.8
 
 replace gitlab.com/isard/isardvdi/pkg/sdk => ./pkg/sdk
 

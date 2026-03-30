@@ -256,7 +256,7 @@ docker-compose-build:
 unit-test-go:
   stage: unit-test
   needs: ["gen-protobuf"]
-  image: golang:1.24
+  image: golang:1.25.8
   before_script:
     - apt-get update && apt-get install -y libvirt-dev
     - go install gotest.tools/gotestsum@latest
