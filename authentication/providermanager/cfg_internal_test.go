@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -12,6 +13,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -50,7 +52,7 @@ func TestNotifyIfNeeded(t *testing.T) {
 				select {
 				case v := <-ch:
 					assert.Equal(tc.New, v)
-				case <-time.After(100 * time.Millisecond):
+				default:
 					t.Fatal("expected value on channel but got none")
 				}
 
@@ -58,7 +60,7 @@ func TestNotifyIfNeeded(t *testing.T) {
 				select {
 				case <-ch:
 					t.Fatal("expected no value on channel but got one")
-				case <-time.After(100 * time.Millisecond):
+				default:
 				}
 			}
 		})
@@ -163,14 +165,14 @@ func TestNotifyBrandingDomainChangeIfNeeded(t *testing.T) {
 					assert.Equal("cat1", v.CategoryID)
 					assert.Equal(tc.New, v.Host)
 					assert.Equal(testAuth, v.Authentication)
-				case <-time.After(100 * time.Millisecond):
+				default:
 					t.Fatal("expected value on channel but got none")
 				}
 			} else {
 				select {
 				case <-ch:
 					t.Fatal("expected no value on channel but got one")
-				case <-time.After(100 * time.Millisecond):
+				default:
 				}
 			}
 		})
@@ -179,8 +181,6 @@ func TestNotifyBrandingDomainChangeIfNeeded(t *testing.T) {
 
 func TestCfgWatcherWatch(t *testing.T) {
 	t.Parallel()
-
-	assert := assert.New(t)
 
 	cases := map[string]struct {
 		PrepareDB        func(*r.Mock)
@@ -266,50 +266,44 @@ func TestCfgWatcherWatch(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
 
-			dbMock := r.NewMock()
-			tc.PrepareDB(dbMock)
+				dbMock := r.NewMock()
+				tc.PrepareDB(dbMock)
 
-			logger := log.New("test", "debug")
-			watcher := initCfgWatcher(logger)
-			watcher.reloadInterval = 10 * time.Millisecond
-			watcher.reloadInterval = 10 * time.Millisecond
+				logger := log.New("test", "debug")
+				watcher := initCfgWatcher(logger)
+				watcher.reloadInterval = 10 * time.Millisecond
 
-			ldapMock := provider.NewMockConfigurableProvider[model.LDAPConfig](t)
-			samlMock := provider.NewMockConfigurableProvider[model.SAMLConfig](t)
-			googleMock := provider.NewMockConfigurableProvider[model.GoogleConfig](t)
+				ldapMock := provider.NewMockConfigurableProvider[model.LDAPConfig](t)
+				samlMock := provider.NewMockConfigurableProvider[model.SAMLConfig](t)
+				googleMock := provider.NewMockConfigurableProvider[model.GoogleConfig](t)
 
-			if tc.PrepareProviders != nil {
-				tc.PrepareProviders(ctx, ldapMock, samlMock, googleMock)
-			}
+				if tc.PrepareProviders != nil {
+					tc.PrepareProviders(ctx, ldapMock, samlMock, googleMock)
+				}
 
-			var watcherWg sync.WaitGroup
-			addLDAPWatcher(ctx, &watcherWg, logger, watcher.globalChanges.ldapChanges, ldapMock)
-			addSAMLWatcher(ctx, &watcherWg, logger, watcher.globalChanges.samlChanges, samlMock)
-			addGoogleWatcher(ctx, &watcherWg, logger, watcher.globalChanges.googleChanges, googleMock)
+				var watcherWg sync.WaitGroup
+				addLDAPWatcher(ctx, &watcherWg, logger, watcher.globalChanges.ldapChanges, ldapMock)
+				addSAMLWatcher(ctx, &watcherWg, logger, watcher.globalChanges.samlChanges, samlMock)
+				addGoogleWatcher(ctx, &watcherWg, logger, watcher.globalChanges.googleChanges, googleMock)
 
-			var watchWg sync.WaitGroup
-			watcher.Watch(ctx, &watchWg, dbMock)
+				var watchWg sync.WaitGroup
+				watcher.Watch(ctx, &watchWg, dbMock)
 
-			time.Sleep(100 * time.Millisecond)
-			cancel()
+				time.Sleep(watcher.reloadInterval + time.Millisecond)
+				synctest.Wait()
 
-			done := make(chan struct{})
-			go func() {
+				cancel()
+				synctest.Wait()
+
 				watcherWg.Wait()
 				watchWg.Wait()
-				close(done)
-			}()
 
-			select {
-			case <-done:
-			case <-time.After(1 * time.Second):
-				assert.Fail("goroutines did not stop after context cancellation")
-			}
-
-			dbMock.AssertExpectations(t)
+				dbMock.AssertExpectations(t)
+			})
 		})
 	}
 }
@@ -359,24 +353,119 @@ func TestNotifyProviderChangeIfNeeded(t *testing.T) {
 				case v := <-ch:
 					assert.Equal("test-provider", v.Provider)
 					assert.Equal(tc.NewEnabled, v.Enabled)
-				case <-time.After(100 * time.Millisecond):
+				default:
 					t.Fatal("expected value on channel but got none")
 				}
 			} else {
 				select {
 				case <-ch:
 					t.Fatal("expected no value on channel but got one")
-				case <-time.After(100 * time.Millisecond):
+				default:
 				}
 			}
 		})
 	}
 }
 
-func TestCfgWatcherAddLDAPWatcher(t *testing.T) {
+func TestNotifyDisabledProviderChangeIfNeeded(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
+
+	cases := map[string]struct {
+		Disabled    bool
+		NewDisabled bool
+		ExpectSend  bool
+	}{
+		"should send change when disabled becomes enabled": {
+			Disabled:    true,
+			NewDisabled: false,
+			ExpectSend:  true,
+		},
+		"should send change when enabled becomes disabled": {
+			Disabled:    false,
+			NewDisabled: true,
+			ExpectSend:  true,
+		},
+		"should not send when disabled stays true": {
+			Disabled:    true,
+			NewDisabled: true,
+			ExpectSend:  false,
+		},
+		"should not send when disabled stays false": {
+			Disabled:    false,
+			NewDisabled: false,
+			ExpectSend:  false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			ch := make(chan categoryDisabledProviderChange, 1)
+
+			notifyDisabledProviderChangeIfNeeded(ch, "cat1", "test-provider", tc.Disabled, tc.NewDisabled)
+
+			if tc.ExpectSend {
+				select {
+				case v := <-ch:
+					assert.Equal("cat1", v.CategoryID)
+					assert.Equal("test-provider", v.Provider)
+					assert.Equal(tc.NewDisabled, v.Disabled)
+				default:
+					t.Fatal("expected value on channel but got none")
+				}
+			} else {
+				select {
+				case <-ch:
+					t.Fatal("expected no value on channel but got one")
+				default:
+				}
+			}
+		})
+	}
+}
+
+func testAddProviderWatcher[T any](
+	t *testing.T,
+	addWatcher func(context.Context, *sync.WaitGroup, *zerolog.Logger, chan T, provider.ConfigurableProvider[T]),
+	getChan func(*cfgWatcher) chan T,
+	config *T,
+	prepareMock func(context.Context, *provider.MockConfigurableProvider[T]),
+) {
+	t.Helper()
+
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		logger := log.New("test", "debug")
+		watcher := initCfgWatcher(logger)
+
+		mock := provider.NewMockConfigurableProvider[T](t)
+		if prepareMock != nil {
+			prepareMock(ctx, mock)
+		}
+
+		ch := getChan(watcher)
+
+		var wg sync.WaitGroup
+		addWatcher(ctx, &wg, logger, ch, mock)
+
+		if config != nil {
+			ch <- *config
+			synctest.Wait()
+		}
+
+		cancel()
+		synctest.Wait()
+		wg.Wait()
+	})
+}
+
+func TestCfgWatcherAddLDAPWatcher(t *testing.T) {
+	t.Parallel()
 
 	cases := map[string]struct {
 		PrepareMock func(context.Context, *provider.MockConfigurableProvider[model.LDAPConfig])
@@ -400,48 +489,16 @@ func TestCfgWatcherAddLDAPWatcher(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-
-			logger := log.New("test", "debug")
-			watcher := initCfgWatcher(logger)
-			watcher.reloadInterval = 10 * time.Millisecond
-
-			mock := provider.NewMockConfigurableProvider[model.LDAPConfig](t)
-			if tc.PrepareMock != nil {
-				tc.PrepareMock(ctx, mock)
-			}
-
-			var wg sync.WaitGroup
-			addLDAPWatcher(ctx, &wg, logger, watcher.globalChanges.ldapChanges, mock)
-
-			if tc.Config != nil {
-				watcher.globalChanges.ldapChanges <- *tc.Config
-				time.Sleep(100 * time.Millisecond)
-			}
-
-			cancel()
-
-			done := make(chan struct{})
-			go func() {
-				wg.Wait()
-				close(done)
-			}()
-
-			select {
-			case <-done:
-			case <-time.After(1 * time.Second):
-				assert.Fail("watcher goroutine did not stop after context cancellation")
-			}
+			testAddProviderWatcher(t, addLDAPWatcher,
+				func(w *cfgWatcher) chan model.LDAPConfig { return w.globalChanges.ldapChanges },
+				tc.Config, tc.PrepareMock,
+			)
 		})
 	}
 }
 
 func TestCfgWatcherAddSAMLWatcher(t *testing.T) {
 	t.Parallel()
-
-	assert := assert.New(t)
 
 	cases := map[string]struct {
 		PrepareMock func(context.Context, *provider.MockConfigurableProvider[model.SAMLConfig])
@@ -465,48 +522,16 @@ func TestCfgWatcherAddSAMLWatcher(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-
-			logger := log.New("test", "debug")
-			watcher := initCfgWatcher(logger)
-			watcher.reloadInterval = 10 * time.Millisecond
-
-			mock := provider.NewMockConfigurableProvider[model.SAMLConfig](t)
-			if tc.PrepareMock != nil {
-				tc.PrepareMock(ctx, mock)
-			}
-
-			var wg sync.WaitGroup
-			addSAMLWatcher(ctx, &wg, logger, watcher.globalChanges.samlChanges, mock)
-
-			if tc.Config != nil {
-				watcher.globalChanges.samlChanges <- *tc.Config
-				time.Sleep(100 * time.Millisecond)
-			}
-
-			cancel()
-
-			done := make(chan struct{})
-			go func() {
-				wg.Wait()
-				close(done)
-			}()
-
-			select {
-			case <-done:
-			case <-time.After(1 * time.Second):
-				assert.Fail("watcher goroutine did not stop after context cancellation")
-			}
+			testAddProviderWatcher(t, addSAMLWatcher,
+				func(w *cfgWatcher) chan model.SAMLConfig { return w.globalChanges.samlChanges },
+				tc.Config, tc.PrepareMock,
+			)
 		})
 	}
 }
 
 func TestCfgWatcherAddGoogleWatcher(t *testing.T) {
 	t.Parallel()
-
-	assert := assert.New(t)
 
 	cases := map[string]struct {
 		PrepareMock func(context.Context, *provider.MockConfigurableProvider[model.GoogleConfig])
@@ -530,40 +555,10 @@ func TestCfgWatcherAddGoogleWatcher(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-
-			logger := log.New("test", "debug")
-			watcher := initCfgWatcher(logger)
-			watcher.reloadInterval = 10 * time.Millisecond
-
-			mock := provider.NewMockConfigurableProvider[model.GoogleConfig](t)
-			if tc.PrepareMock != nil {
-				tc.PrepareMock(ctx, mock)
-			}
-
-			var wg sync.WaitGroup
-			addGoogleWatcher(ctx, &wg, logger, watcher.globalChanges.googleChanges, mock)
-
-			if tc.Config != nil {
-				watcher.globalChanges.googleChanges <- *tc.Config
-				time.Sleep(100 * time.Millisecond)
-			}
-
-			cancel()
-
-			done := make(chan struct{})
-			go func() {
-				wg.Wait()
-				close(done)
-			}()
-
-			select {
-			case <-done:
-			case <-time.After(1 * time.Second):
-				assert.Fail("watcher goroutine did not stop after context cancellation")
-			}
+			testAddProviderWatcher(t, addGoogleWatcher,
+				func(w *cfgWatcher) chan model.GoogleConfig { return w.globalChanges.googleChanges },
+				tc.Config, tc.PrepareMock,
+			)
 		})
 	}
 }
@@ -632,8 +627,6 @@ func TestGetOrCreateCategoryChangesChannels(t *testing.T) {
 
 func TestCfgWatcherWatchCategories(t *testing.T) {
 	t.Parallel()
-
-	assert := assert.New(t)
 
 	cases := map[string]struct {
 		PrepareDB               func(*r.Mock)
@@ -1649,123 +1642,119 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
+			synctest.Test(t, func(t *testing.T) {
+				assert := assert.New(t)
 
-			dbMock := r.NewMock()
-			tc.PrepareDB(dbMock)
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
 
-			logger := log.New("test", "debug")
-			watcher := initCfgWatcher(logger)
-			watcher.reloadInterval = 10 * time.Millisecond
+				dbMock := r.NewMock()
+				tc.PrepareDB(dbMock)
 
-			var wg sync.WaitGroup
-			watcher.watchCategories(ctx, &wg, dbMock)
+				logger := log.New("test", "debug")
+				watcher := initCfgWatcher(logger)
+				watcher.reloadInterval = 10 * time.Millisecond
 
-			time.Sleep(100 * time.Millisecond)
-			cancel()
+				var wg sync.WaitGroup
+				watcher.watchCategories(ctx, &wg, dbMock)
 
-			done := make(chan struct{})
-			go func() {
+				time.Sleep(watcher.reloadInterval + time.Millisecond)
+				synctest.Wait()
+
+				cancel()
+				synctest.Wait()
 				wg.Wait()
-				close(done)
-			}()
 
-			select {
-			case <-done:
-			case <-time.After(1 * time.Second):
-				assert.Fail("goroutines did not stop after context cancellation")
-			}
-
-			// Drain and collect provider changes
-			var changes []providerChange
-			for {
-				select {
-				case c := <-watcher.providerChanges:
-					changes = append(changes, c)
-				default:
-					goto doneChanges
-				}
-			}
-		doneChanges:
-
-			if tc.ExpectedChanges == nil {
-				tc.ExpectedChanges = []providerChange{}
-			}
-
-			assert.ElementsMatch(tc.ExpectedChanges, changes)
-
-			// Drain and collect LDAP configs from all category channels
-			var ldapConfigs []model.LDAPConfig
-			for _, ch := range watcher.categoriesChanges {
+				// Drain and collect provider changes
+				var changes []providerChange
+			drainChanges:
 				for {
 					select {
-					case cfg := <-ch.ldapChanges:
-						ldapConfigs = append(ldapConfigs, cfg)
+					case c := <-watcher.providerChanges:
+						changes = append(changes, c)
 					default:
-						goto doneLDAP
+						break drainChanges
 					}
 				}
-			doneLDAP:
-			}
 
-			if tc.ExpectedLDAPConfigs != nil {
-				assert.ElementsMatch(tc.ExpectedLDAPConfigs, ldapConfigs)
-			}
+				if tc.ExpectedChanges == nil {
+					tc.ExpectedChanges = []providerChange{}
+				}
 
-			// Drain and collect SAML configs from all category channels
-			var samlConfigs []model.SAMLConfig
-			for _, ch := range watcher.categoriesChanges {
+				assert.ElementsMatch(tc.ExpectedChanges, changes)
+
+				// Drain and collect LDAP configs from all category channels
+				var ldapConfigs []model.LDAPConfig
+				for _, ch := range watcher.categoriesChanges {
+				drainLDAP:
+					for {
+						select {
+						case cfg := <-ch.ldapChanges:
+							ldapConfigs = append(ldapConfigs, cfg)
+						default:
+							break drainLDAP
+						}
+					}
+				}
+
+				if tc.ExpectedLDAPConfigs != nil {
+					assert.ElementsMatch(tc.ExpectedLDAPConfigs, ldapConfigs)
+				}
+
+				// Drain and collect SAML configs from all category channels
+				var samlConfigs []model.SAMLConfig
+				for _, ch := range watcher.categoriesChanges {
+				drainSAML:
+					for {
+						select {
+						case cfg := <-ch.samlChanges:
+							samlConfigs = append(samlConfigs, cfg)
+						default:
+							break drainSAML
+						}
+					}
+				}
+
+				if tc.ExpectedSAMLConfigs != nil {
+					assert.ElementsMatch(tc.ExpectedSAMLConfigs, samlConfigs)
+				}
+
+				// Drain and collect Google configs from all category channels
+				var googleConfigs []model.GoogleConfig
+				for _, ch := range watcher.categoriesChanges {
+				drainGoogle:
+					for {
+						select {
+						case cfg := <-ch.googleChanges:
+							googleConfigs = append(googleConfigs, cfg)
+						default:
+							break drainGoogle
+						}
+					}
+				}
+
+				if tc.ExpectedGoogleConfigs != nil {
+					assert.ElementsMatch(tc.ExpectedGoogleConfigs, googleConfigs)
+				}
+
+				// Drain and collect disabled provider changes.
+				var categoriesDisabledChanges []categoryDisabledProviderChange
+			drainDisabled:
 				for {
 					select {
-					case cfg := <-ch.samlChanges:
-						samlConfigs = append(samlConfigs, cfg)
+					case c := <-watcher.categoriesDisabledProvidersChanges:
+						categoriesDisabledChanges = append(categoriesDisabledChanges, c)
 					default:
-						goto doneSAML
+						break drainDisabled
 					}
 				}
-			doneSAML:
-			}
 
-			if tc.ExpectedSAMLConfigs != nil {
-				assert.ElementsMatch(tc.ExpectedSAMLConfigs, samlConfigs)
-			}
-
-			// Drain and collect Google configs from all category channels
-			var googleConfigs []model.GoogleConfig
-			for _, ch := range watcher.categoriesChanges {
-				for {
-					select {
-					case cfg := <-ch.googleChanges:
-						googleConfigs = append(googleConfigs, cfg)
-					default:
-						goto doneGoogle
-					}
+				if tc.ExpectedDisabledChanges != nil {
+					assert.ElementsMatch(tc.ExpectedDisabledChanges, categoriesDisabledChanges)
 				}
-			doneGoogle:
-			}
 
-			if tc.ExpectedGoogleConfigs != nil {
-				assert.ElementsMatch(tc.ExpectedGoogleConfigs, googleConfigs)
-			}
-
-			// Drain and collect disabled provider changes.
-			var categoriesDisabledChanges []categoryDisabledProviderChange
-		drainDisabled:
-			for {
-				select {
-				case c := <-watcher.categoriesDisabledProvidersChanges:
-					categoriesDisabledChanges = append(categoriesDisabledChanges, c)
-				default:
-					break drainDisabled
-				}
-			}
-
-			if tc.ExpectedDisabledChanges != nil {
-				assert.ElementsMatch(tc.ExpectedDisabledChanges, categoriesDisabledChanges)
-			}
-
-			dbMock.AssertExpectations(t)
+				dbMock.AssertExpectations(t)
+			})
 		})
 	}
 }

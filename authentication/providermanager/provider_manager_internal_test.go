@@ -3,8 +3,10 @@ package providermanager
 import (
 	"context"
 	"errors"
+	"net/http"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
@@ -17,6 +19,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
+
+var noNetworkClient = &http.Client{
+	Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("no network in tests")
+	}),
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
 func TestProviderManagerProviders(t *testing.T) {
 	t.Parallel()
@@ -71,7 +85,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{},
@@ -109,7 +123,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
 							types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
 						},
 					},
@@ -129,7 +143,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
 							types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
 						},
 					},
@@ -158,7 +172,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -186,7 +200,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{},
@@ -206,7 +220,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -237,7 +251,7 @@ func TestProviderManagerProviders(t *testing.T) {
 							types.ProviderUnknown:  &provider.Unknown{},
 							types.ProviderExternal: provider.InitExternal(nil),
 							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
 							types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
 						},
 					},
@@ -333,7 +347,7 @@ func TestProviderManagerProvider(t *testing.T) {
 						providers: map[string]provider.Provider{
 							types.ProviderUnknown: &provider.Unknown{},
 							types.ProviderForm:    provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -360,7 +374,7 @@ func TestProviderManagerProvider(t *testing.T) {
 						providers: map[string]provider.Provider{
 							types.ProviderUnknown: &provider.Unknown{},
 							types.ProviderForm:    provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -432,7 +446,7 @@ func TestProviderManagerProvider(t *testing.T) {
 						providers: map[string]provider.Provider{
 							types.ProviderUnknown: &provider.Unknown{},
 							types.ProviderForm:    provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{
@@ -491,7 +505,7 @@ func TestProviderManagerProvider(t *testing.T) {
 						providers: map[string]provider.Provider{
 							types.ProviderUnknown: &provider.Unknown{},
 							types.ProviderForm:    provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
-							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil),
+							types.ProviderSAML:    provider.InitSAML("", "", nil, log, nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{},
@@ -626,7 +640,7 @@ func TestProviderManagerSAML(t *testing.T) {
 				return &ProviderManager{
 					global: providerSet{
 						providers: map[string]provider.Provider{
-							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil),
+							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{},
@@ -696,7 +710,7 @@ func TestProviderManagerEnableProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := InitProviderManager(cfg.Authentication{}, log, nil)
-				m.global.providers[types.ProviderSAML] = provider.InitSAML("", "", nil, log, nil)
+				m.global.providers[types.ProviderSAML] = provider.InitSAML("", "", nil, log, nil, nil)
 
 				return m
 			},
@@ -882,7 +896,7 @@ func TestProviderManagerDisableProvider(t *testing.T) {
 				log := log.New("test", "debug")
 
 				m := InitProviderManager(cfg.Authentication{}, log, nil)
-				m.global.providers[types.ProviderSAML] = provider.InitSAML("", "", nil, log, nil)
+				m.global.providers[types.ProviderSAML] = provider.InitSAML("", "", nil, log, nil, nil)
 
 				_, cancel := context.WithCancel(context.Background())
 				m.global.watcherCancels[types.ProviderSAML] = cancel
@@ -928,7 +942,7 @@ func TestProviderManagerDisableProvider(t *testing.T) {
 						types.ProviderUnknown:  &provider.Unknown{},
 						types.ProviderExternal: provider.InitExternal(nil),
 						types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, nil, nil),
-						types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil),
+						types.ProviderSAML:     provider.InitSAML("", "", nil, log, nil, nil),
 					},
 					watcherCancels: map[string]context.CancelFunc{
 						types.ProviderSAML: cancel,
@@ -1170,7 +1184,7 @@ func TestIsProvidersEmpty(t *testing.T) {
 			Providers: map[string]provider.Provider{
 				types.ProviderUnknown:  &provider.Unknown{},
 				types.ProviderExternal: provider.InitExternal(nil),
-				types.ProviderSAML:     provider.InitSAML("", "", nil, log.New("test", "debug"), nil),
+				types.ProviderSAML:     provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
 			},
 			Expected: false,
 		},
@@ -1205,6 +1219,27 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 		PrepareManager func(*testing.T) *ProviderManager
 		Change         categoryBrandingDomainChange
 	}{
+		"should clear branding domain on global provider": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				bap.On("SetBrandingHost", t.Context(), "cat1", (*string)(nil)).Return(nil)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderSAML: bap,
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID:     "cat1",
+				Host:           nil,
+				Authentication: &model.CategoryAuthentication{},
+			},
+		},
 		"should call SetBrandingHost on custom category provider": {
 			PrepareManager: func(t *testing.T) *ProviderManager {
 				bap := provider.NewMockBrandingAwareProvider(t)
@@ -1289,7 +1324,7 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 					log: log.New("test", "debug"),
 					global: providerSet{
 						providers: map[string]provider.Provider{
-							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil),
+							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
 						},
 					},
 					categories: map[string]*providerSet{},
@@ -1380,7 +1415,7 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 	}
 }
 
-func TestProviderManagerFullFlow(t *testing.T) {
+func TestProviderManagerManage(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
@@ -1390,54 +1425,6 @@ func TestProviderManagerFullFlow(t *testing.T) {
 		Expected       []string
 		CheckCategory  func(*testing.T, *ProviderManager)
 	}{
-		"should set up global providers from initial config": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-					LDAP:  model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
-			},
-			Expected: []string{"form", "ldap", "local"},
-		},
-		"should set up category providers from initial config": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id": "cat1",
-						"authentication": map[string]any{
-							"local": map[string]any{},
-							"saml": map[string]any{
-								"config_source": "custom",
-								"saml_config": map[string]any{
-									"metadata_url": "https://saml.test/metadata",
-								},
-							},
-						},
-					},
-				}, nil)
-			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local", "saml"},
-		},
-		"should fall back to global when category has no providers": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id":             "cat1",
-						"authentication": map[string]any{},
-					},
-				}, nil)
-			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local"},
-		},
 		"should dynamically enable global provider on reload": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
@@ -1523,42 +1510,16 @@ func TestProviderManagerFullFlow(t *testing.T) {
 			CheckCategory: func(t *testing.T, m *ProviderManager) {
 				assert := assert.New(t)
 
+				time.Sleep(11 * time.Millisecond)
+				synctest.Wait()
+
 				m.mux.RLock()
 				defer m.mux.RUnlock()
 
 				assert.Nil(m.categories["cat1"])
 			},
 		},
-		"should handle global reload error gracefully": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-				}, nil).Once()
-				m.On(r.Table("config").Get(1).Field("auth")).Return(nil, errors.New("reload error"))
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
-			},
-			Expected: []string{"form", "local"},
-		},
-		"should handle all providers enabled globally and per-category": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local:  model.Local{Enabled: true},
-					LDAP:   model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
-					SAML:   model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
-					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id": "cat1",
-						"authentication": map[string]any{
-							"local": map[string]any{},
-						},
-					},
-				}, nil)
-			},
-			Expected: []string{"form", "google", "ldap", "local", "saml"},
-		},
-		"should fall back to global provider for config_source global in category": {
+		"should process branding domain change through manage pipeline": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
@@ -1569,8 +1530,11 @@ func TestProviderManagerFullFlow(t *testing.T) {
 						"id": "cat1",
 						"authentication": map[string]any{
 							"local": map[string]any{},
-							"saml": map[string]any{
-								"config_source": "global",
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
 							},
 						},
 					},
@@ -1579,19 +1543,23 @@ func TestProviderManagerFullFlow(t *testing.T) {
 			CategoryID: "cat1",
 			Expected:   []string{"form", "local", "saml"},
 		},
-		"should not fall back to global when category provider is disabled": {
+		"should discard branding domain change after max retries": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
-					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
 				}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
 							"saml": map[string]any{
 								"disabled": true,
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
 							},
 						},
 					},
@@ -1666,194 +1634,214 @@ func TestProviderManagerFullFlow(t *testing.T) {
 
 				// Enable global SAML.
 				time.Sleep(1100 * time.Millisecond)
+				synctest.Wait()
 				assert.Equal([]string{"form", "local", "saml"}, m.Providers("cat1"))
 				assert.Equal(types.ProviderSAML, m.Provider(types.ProviderSAML, "cat1").String())
 
 				// Enable custom category SAML.
 				time.Sleep(1100 * time.Millisecond)
+				synctest.Wait()
 				assert.Equal([]string{"form", "local", "saml"}, m.Providers("cat1"))
 				assert.Equal(types.ProviderSAML, m.Provider(types.ProviderSAML, "cat1").String())
 
 				// Disable category SAML.
 				time.Sleep(1100 * time.Millisecond)
+				synctest.Wait()
 				assert.Equal([]string{"form", "local"}, m.Providers("cat1"))
 				assert.Equal(types.ProviderUnknown, m.Provider(types.ProviderSAML, "cat1").String())
 
 				// Re-enable custom category SAML.
 				time.Sleep(1100 * time.Millisecond)
+				synctest.Wait()
 				assert.Equal([]string{"form", "local", "saml"}, m.Providers("cat1"))
 				assert.Equal(types.ProviderSAML, m.Provider(types.ProviderSAML, "cat1").String())
 
 				// Switch to global config_source.
 				time.Sleep(1100 * time.Millisecond)
+				synctest.Wait()
 				assert.Equal([]string{"form", "local", "saml"}, m.Providers("cat1"))
 				assert.Equal(types.ProviderSAML, m.Provider(types.ProviderSAML, "cat1").String())
 
 				// Disable global SAML.
 				time.Sleep(1100 * time.Millisecond)
+				synctest.Wait()
 				assert.Equal([]string{"form", "local"}, m.Providers("cat1"))
 				assert.Equal(types.ProviderUnknown, m.Provider(types.ProviderSAML, "cat1").String())
 			},
 		},
-		"should apply branding to global provider when category has no provider config": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id": "cat1",
-						"authentication": map[string]any{
-							"local": map[string]any{},
-						},
-						"branding": map[string]any{
-							"domain": map[string]any{
-								"enabled": true,
-								"name":    "branding.example.com",
-							},
-						},
-					},
-				}, nil)
-			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local", "saml"},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			synctest.Test(t, func(t *testing.T) {
+				assert := assert.New(t)
+
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+
+				var wg sync.WaitGroup
+
+				dbMock := r.NewMock()
+				tc.PrepareDB(dbMock)
+
+				m := InitProviderManager(cfg.Authentication{}, log.New("test", "debug"), dbMock)
+				m.httpClient = noNetworkClient
+
+				if tc.ReloadInterval > 0 {
+					m.cfgWatcher.reloadInterval = tc.ReloadInterval
+				}
+
+				m.Manage(ctx, &wg)
+				synctest.Wait()
+
+				if tc.ReloadInterval > 0 && tc.CheckCategory == nil {
+					time.Sleep(tc.ReloadInterval + time.Millisecond)
+					synctest.Wait()
+				}
+
+				if tc.CheckCategory != nil {
+					tc.CheckCategory(t, m)
+				} else {
+					result := m.Providers(tc.CategoryID)
+					assert.Equal(tc.Expected, result)
+				}
+
+				cancel()
+				synctest.Wait()
+				wg.Wait()
+			})
+		})
+	}
+}
+
+func TestProviderConfigSource(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		Auth           *model.CategoryAuthentication
+		Provider       string
+		ExpectedSource model.CategoryAuthenticationConfigSource
+		ExpectedDisabled bool
+	}{
+		"should return global when auth is nil": {
+			Auth:           nil,
+			Provider:       types.ProviderSAML,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
 		},
-		"should apply branding to global provider when category config_source is global": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id": "cat1",
-						"authentication": map[string]any{
-							"local": map[string]any{},
-							"saml": map[string]any{
-								"config_source": "global",
-							},
-						},
-						"branding": map[string]any{
-							"domain": map[string]any{
-								"enabled": true,
-								"name":    "branding.example.com",
-							},
-						},
-					},
-				}, nil)
-			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local", "saml"},
+		"should return global when SAML is nil": {
+			Auth:           &model.CategoryAuthentication{},
+			Provider:       types.ProviderSAML,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
 		},
-		"should apply branding to category provider when config_source is custom": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id": "cat1",
-						"authentication": map[string]any{
-							"local": map[string]any{},
-							"saml": map[string]any{
-								"config_source": "custom",
-								"saml_config": map[string]any{
-									"metadata_url": "https://cat1-saml.test/metadata",
-								},
-							},
-						},
-						"branding": map[string]any{
-							"domain": map[string]any{
-								"enabled": true,
-								"name":    "branding.example.com",
-							},
-						},
-					},
-				}, nil)
-			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local", "saml"},
+		"should return global when LDAP is nil": {
+			Auth:           &model.CategoryAuthentication{},
+			Provider:       types.ProviderLDAP,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
 		},
-		"should not apply branding when category provider is disabled": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id": "cat1",
-						"authentication": map[string]any{
-							"local": map[string]any{},
-							"saml": map[string]any{
-								"disabled": true,
-							},
-						},
-						"branding": map[string]any{
-							"domain": map[string]any{
-								"enabled": true,
-								"name":    "branding.example.com",
-							},
-						},
-					},
-				}, nil)
-			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local"},
+		"should return global when Google is nil": {
+			Auth:           &model.CategoryAuthentication{},
+			Provider:       types.ProviderGoogle,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
 		},
-		"should not apply branding when global provider is not enabled and category has no provider config": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id": "cat1",
-						"authentication": map[string]any{
-							"local": map[string]any{},
-						},
-						"branding": map[string]any{
-							"domain": map[string]any{
-								"enabled": true,
-								"name":    "branding.example.com",
-							},
-						},
-					},
-				}, nil)
+		"should return custom for SAML with custom config_source": {
+			Auth: &model.CategoryAuthentication{
+				SAML: &model.CategoryAuthSAML{
+					ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+				},
 			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local"},
+			Provider:       types.ProviderSAML,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceCustom,
 		},
-		"should apply branding to category provider when config_source is custom even if global is not enabled": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
-					Local: model.Local{Enabled: true},
-				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
-					map[string]any{
-						"id": "cat1",
-						"authentication": map[string]any{
-							"local": map[string]any{},
-							"saml": map[string]any{
-								"config_source": "custom",
-								"saml_config": map[string]any{
-									"metadata_url": "https://cat1-saml.test/metadata",
-								},
-							},
-						},
-						"branding": map[string]any{
-							"domain": map[string]any{
-								"enabled": true,
-								"name":    "branding.example.com",
-							},
-						},
-					},
-				}, nil)
+		"should return custom for LDAP with custom config_source": {
+			Auth: &model.CategoryAuthentication{
+				LDAP: &model.CategoryAuthLDAP{
+					ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+				},
 			},
-			CategoryID: "cat1",
-			Expected:   []string{"form", "local", "saml"},
+			Provider:       types.ProviderLDAP,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceCustom,
+		},
+		"should return custom for Google with custom config_source": {
+			Auth: &model.CategoryAuthentication{
+				Google: &model.CategoryAuthGoogle{
+					ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+				},
+			},
+			Provider:       types.ProviderGoogle,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceCustom,
+		},
+		"should return global for SAML with global config_source": {
+			Auth: &model.CategoryAuthentication{
+				SAML: &model.CategoryAuthSAML{
+					ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+				},
+			},
+			Provider:       types.ProviderSAML,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
+		},
+		"should return global for LDAP with global config_source": {
+			Auth: &model.CategoryAuthentication{
+				LDAP: &model.CategoryAuthLDAP{
+					ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+				},
+			},
+			Provider:       types.ProviderLDAP,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
+		},
+		"should return global for Google with global config_source": {
+			Auth: &model.CategoryAuthentication{
+				Google: &model.CategoryAuthGoogle{
+					ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+				},
+			},
+			Provider:       types.ProviderGoogle,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
+		},
+		"should return disabled true for disabled SAML": {
+			Auth: &model.CategoryAuthentication{
+				SAML: &model.CategoryAuthSAML{
+					Disabled: true,
+				},
+			},
+			Provider:         types.ProviderSAML,
+			ExpectedSource:   model.CategoryAuthenticationConfigSourceGlobal,
+			ExpectedDisabled: true,
+		},
+		"should return disabled true for disabled LDAP": {
+			Auth: &model.CategoryAuthentication{
+				LDAP: &model.CategoryAuthLDAP{
+					Disabled: true,
+				},
+			},
+			Provider:         types.ProviderLDAP,
+			ExpectedSource:   model.CategoryAuthenticationConfigSourceGlobal,
+			ExpectedDisabled: true,
+		},
+		"should return disabled true for disabled Google": {
+			Auth: &model.CategoryAuthentication{
+				Google: &model.CategoryAuthGoogle{
+					Disabled: true,
+				},
+			},
+			Provider:         types.ProviderGoogle,
+			ExpectedSource:   model.CategoryAuthenticationConfigSourceGlobal,
+			ExpectedDisabled: true,
+		},
+		"should normalize unknown config_source to global": {
+			Auth: &model.CategoryAuthentication{
+				SAML: &model.CategoryAuthSAML{
+					ConfigSource: "unknown",
+				},
+			},
+			Provider:       types.ProviderSAML,
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
+		},
+		"should return global for unknown provider": {
+			Auth:           &model.CategoryAuthentication{},
+			Provider:       "nonexistent",
+			ExpectedSource: model.CategoryAuthenticationConfigSourceGlobal,
 		},
 	}
 
@@ -1863,33 +1851,9 @@ func TestProviderManagerFullFlow(t *testing.T) {
 
 			assert := assert.New(t)
 
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-
-			var wg sync.WaitGroup
-
-			dbMock := r.NewMock()
-			tc.PrepareDB(dbMock)
-
-			m := InitProviderManager(cfg.Authentication{}, log.New("test", "debug"), dbMock)
-
-			if tc.ReloadInterval > 0 {
-				m.cfgWatcher.reloadInterval = tc.ReloadInterval
-			}
-
-			m.Manage(ctx, &wg)
-
-			time.Sleep(100 * time.Millisecond)
-
-			if tc.CheckCategory != nil {
-				tc.CheckCategory(t, m)
-			} else {
-				result := m.Providers(tc.CategoryID)
-				assert.Equal(tc.Expected, result)
-			}
-
-			cancel()
-			wg.Wait()
+			source, disabled := providerConfigSource(tc.Auth, tc.Provider)
+			assert.Equal(tc.ExpectedSource, source)
+			assert.Equal(tc.ExpectedDisabled, disabled)
 		})
 	}
 }

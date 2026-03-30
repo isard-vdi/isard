@@ -94,7 +94,7 @@ type SAML struct {
 	lastModelCfg  *model.SAMLConfig
 }
 
-func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
+func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor, httpClient *http.Client) *SAML {
 	s := &SAML{
 		cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 		secret:        secret,
@@ -102,6 +102,7 @@ func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logge
 		categoryID:    categoryID,
 		log:           log,
 		db:            db,
+		httpClient:    httpClient,
 		brandingHosts: map[string]string{},
 	}
 	return s

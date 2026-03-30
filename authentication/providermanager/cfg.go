@@ -113,10 +113,7 @@ func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r
 		c.globalChanges.googleChanges <- cfg.Google.GoogleConfig
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		ticker := time.NewTicker(c.reloadInterval)
 		defer ticker.Stop()
 
@@ -150,7 +147,7 @@ func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r
 
 			cfg = newCfg
 		}
-	}()
+	})
 }
 
 func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, sess r.QueryExecutor) {
@@ -259,10 +256,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 		}
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		ticker := time.NewTicker(c.reloadInterval)
 		defer ticker.Stop()
 
@@ -462,7 +456,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 
 				cfgCategories = newCfgCategories
 		}
-	}()
+	})
 }
 
 func (c *cfgWatcher) getOrCreateCategoryChangesChannels(categoryID string) *providerChangesChannels {
@@ -523,10 +517,7 @@ func notifyBrandingDomainChangeIfNeeded(channel chan categoryBrandingDomainChang
 }
 
 func addLDAPWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.LDAPConfig, p provider.ConfigurableProvider[model.LDAPConfig]) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -541,14 +532,11 @@ func addLDAPWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger
 				}
 			}
 		}
-	}()
+	})
 }
 
 func addSAMLWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.SAMLConfig, p provider.ConfigurableProvider[model.SAMLConfig]) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -563,14 +551,11 @@ func addSAMLWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger
 				}
 			}
 		}
-	}()
+	})
 }
 
 func addGoogleWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.GoogleConfig, p provider.ConfigurableProvider[model.GoogleConfig]) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -585,5 +570,5 @@ func addGoogleWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logg
 				}
 			}
 		}
-	}()
+	})
 }

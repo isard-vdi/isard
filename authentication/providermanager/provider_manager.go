@@ -2,6 +2,7 @@ package providermanager
 
 import (
 	"context"
+	"net/http"
 	"slices"
 	"sync"
 
@@ -66,6 +67,8 @@ type ProviderManager struct {
 	db  r.QueryExecutor
 
 	cfgWatcher *cfgWatcher
+
+	httpClient *http.Client
 
 	global                      providerSet
 	categories                  map[string]*providerSet
@@ -134,10 +137,7 @@ func (m *ProviderManager) Manage(ctx context.Context, wg *sync.WaitGroup) {
 	// Start watching for configuration changes.
 	m.cfgWatcher.Watch(ctx, wg, m.db)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -163,7 +163,7 @@ func (m *ProviderManager) Manage(ctx context.Context, wg *sync.WaitGroup) {
 				}
 			}
 		}
-	}()
+	})
 }
 
 func providerConfigSource(auth *model.CategoryAuthentication, name string) (model.CategoryAuthenticationConfigSource, bool) {
@@ -353,6 +353,7 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 		db:           m.db,
 		changesChans: changesChans,
 		categoryID:   categoryID,
+		httpClient:   m.httpClient,
 	}, scope, prv)
 }
 
@@ -362,6 +363,7 @@ type enableProviderParams struct {
 	db           r.QueryExecutor
 	changesChans *providerChangesChannels
 	categoryID   *string
+	httpClient   *http.Client
 }
 
 func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProviderParams, scope *providerSet, p string) {
@@ -398,7 +400,7 @@ func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProvid
 		}
 
 	case types.ProviderSAML:
-		saml := provider.InitSAML(params.cfg.Secret, params.cfg.Host, params.categoryID, params.log, params.db)
+		saml := provider.InitSAML(params.cfg.Secret, params.cfg.Host, params.categoryID, params.log, params.db, params.httpClient)
 
 		watcherCtx, cancel := context.WithCancel(ctx)
 		scope.watcherCancels[p] = cancel
