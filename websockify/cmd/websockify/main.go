@@ -140,9 +140,10 @@ func isPortAllowed(port int) bool {
 }
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	Subprotocols:    []string{"binary"},
+	ReadBufferSize:    8192,
+	WriteBufferSize:   8192,
+	Subprotocols:      []string{"binary"},
+	EnableCompression: false,
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
@@ -236,6 +237,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tcpConn.Close()
 
+	if tc, ok := tcpConn.(*net.TCPConn); ok {
+		tc.SetNoDelay(true)
+		tc.SetReadBuffer(65536)
+		tc.SetWriteBuffer(65536)
+	}
+
 	logger.Info().Str("client_ip", clientIP).Str("hypervisor", hyper).Int("port", port).Msg("WebSocket proxy established")
 	proxy(wsConn, tcpConn, fmt.Sprintf("%s:%d", hyper, port), clientIP)
 }
@@ -274,10 +281,6 @@ func proxy(wsConn *websocket.Conn, tcpConn net.Conn, target string, clientIP str
 				}
 				atomic.AddInt64(&totalBytesWsToTcp, int64(len(b)))
 				atomic.AddInt64(&packetCountWsToTcp, 1)
-				// Only log large packets or every 100 packets to reduce noise
-				if len(b) > 4096 {
-					logger.Debug().Int("bytes", len(b)).Str("client_ip", clientIP).Str("target", target).Msg("WS->TCP large packet")
-				}
 
 			case websocket.PingMessage:
 				if err := wsConn.WriteMessage(websocket.PongMessage, b); err != nil {
@@ -304,7 +307,7 @@ func proxy(wsConn *websocket.Conn, tcpConn net.Conn, target string, clientIP str
 			Msg("Proxy session ended")
 	}()
 
-	buf := make([]byte, 1024)
+	buf := make([]byte, 16384)
 	for {
 		n, err := tcpConn.Read(buf)
 		if err != nil {
@@ -318,10 +321,6 @@ func proxy(wsConn *websocket.Conn, tcpConn net.Conn, target string, clientIP str
 		}
 		atomic.AddInt64(&totalBytesTcpToWs, int64(n))
 		atomic.AddInt64(&packetCountTcpToWs, 1)
-		// Only log large packets to reduce noise
-		if n > 4096 {
-			logger.Debug().Int("bytes", n).Str("client_ip", clientIP).Str("target", target).Msg("TCP->WS large packet")
-		}
 	}
 }
 
