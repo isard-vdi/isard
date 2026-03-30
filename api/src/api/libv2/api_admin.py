@@ -1412,29 +1412,30 @@ class ApiAdmin:
             )
             user_data = user_data or {}
             if user["role"] == "manager" or user["role"] == "admin":
-                fancyd.append(
-                    {
-                        "id": d["id"],
-                        "title": d["name"],
-                        "parent": (
-                            d.get("template_id")
-                            if d.get("kind") == "deployment"
-                            else (
-                                d["parents"][-1]
-                                if d.get("parents")
-                                else d["duplicate_parent_template"]
-                            )
-                        ),
-                        "user": user_data.get("user_name", d["username"]),
-                        "role": user_data.get("role_name", "--"),
-                        "category": d["category_name"],
-                        "group": d["group_name"],
-                        "kind": d["kind"],
-                        "duplicate_parent_template": d.get(
-                            "duplicate_parent_template", False
-                        ),
-                    }
-                )
+                item = {
+                    "id": d["id"],
+                    "title": d["name"],
+                    "parent": (
+                        d.get("template_id")
+                        if d.get("kind") == "deployment"
+                        else (
+                            d["parents"][-1]
+                            if d.get("parents")
+                            else d["duplicate_parent_template"]
+                        )
+                    ),
+                    "user": user_data.get("user_name", d["username"]),
+                    "role": user_data.get("role_name", "--"),
+                    "category": d["category_name"],
+                    "group": d["group_name"],
+                    "kind": d["kind"],
+                    "duplicate_parent_template": d.get(
+                        "duplicate_parent_template", False
+                    ),
+                }
+                if d.get("unselectable"):
+                    item["unselectable"] = True
+                fancyd.append(item)
             else:
                 ## It can only be an advanced user
                 fancyd.append(

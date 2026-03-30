@@ -54,6 +54,8 @@ function renderTemplateTree(row, item, level) {
     row.append('<td class="nested-td">' + (item.duplicate_parent_template ? '<i class="fa fa-check"></i>' : '') + '</td>');
     // User column
     row.append('<td class="nested-td">' + item.user + '</td>');
+    // Role column
+    row.append('<td class="nested-td">' + (item.role || '--') + '</td>');
     // Category column
     row.append('<td class="nested-td">' + item.category + '</td>');
     // Group column

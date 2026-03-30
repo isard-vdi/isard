@@ -12,7 +12,18 @@
   >
     <div class="mx-4">
       <span
-        v-if="derivatives.pending"
+        v-if="derivatives.cross_category"
+        class="text-danger"
+      >
+        <b-icon
+          class="mr-2"
+          variant="danger"
+          icon="exclamation-triangle-fill"
+        />
+        {{ $t(`views.templates.modal.delete.warning.cross_category`) }}
+      </span>
+      <span
+        v-else-if="derivatives.pending"
         class="text-danger"
       >
         <b-icon
@@ -68,9 +79,14 @@
           {{ $t(`views.templates.modal.delete.button.delete`) }}
         </b-button>
         <p
-          v-if="derivatives.pending"
-          class="text-danger my
-          -2 ml-4"
+          v-if="derivatives.cross_category"
+          class="text-danger my-2 ml-4"
+        >
+          {{ $t(`views.templates.modal.delete.warning.cross_category_footer`) }}
+        </p>
+        <p
+          v-else-if="derivatives.pending"
+          class="text-danger my-2 ml-4"
         >
           {{ $t(`views.templates.modal.delete.warning.footer`) }}
         </p>
@@ -91,7 +107,7 @@ export default {
     const $store = context.root.$store
     const perPage = ref(10)
     const pageOptions = ref([6, 10, 20, 30, 50, 100])
-    const filterOn = ref(['kind', 'name', 'user', 'role'])
+    const filterOn = ref(['kind', 'name', 'user', 'role', 'category', 'group'])
     const loading = ref(false)
 
     const derivatives = computed(() => $store.getters.getTemplateDerivatives)
@@ -148,6 +164,20 @@ export default {
           key: 'role',
           sortable: true,
           label: i18n.t('views.templates.modal.delete.table-header.role'),
+          thStyle: { width: '10%' },
+          formatter: (value) => (value || '--')
+        },
+        {
+          key: 'category',
+          sortable: true,
+          label: i18n.t('views.templates.modal.delete.table-header.category'),
+          thStyle: { width: '15%' },
+          formatter: (value) => (value || '--')
+        },
+        {
+          key: 'group',
+          sortable: true,
+          label: i18n.t('views.templates.modal.delete.table-header.group'),
           thStyle: { width: '15%' },
           formatter: (value) => (value || '--')
         }

@@ -779,7 +779,9 @@
           "warning": {
             "pending": "AVÍS! Algunes plantilles i escriptoris depenen d'aquesta plantilla, els quals NO són propietat teva.",
             "delete": "AVÍS! Aquestes plantilles i escriptoris depenen d'aquesta plantilla i també seran esborrats.",
-            "footer": "No pots esborrar aquesta plantilla. Contacta amb el teu administrador."
+            "footer": "No pots esborrar aquesta plantilla. Contacta amb el teu administrador.",
+            "cross_category": "Aquesta plantilla té derivats en altres categories que no gestioneu. No podeu eliminar aquest element.",
+            "cross_category_footer": "No podeu eliminar aquesta plantilla perquè té derivats en categories que no gestioneu. Contacteu amb l'administrador."
           },
           "button": {
             "delete": "Esborrar plantilla"
@@ -788,7 +790,9 @@
             "kind": "Tipus",
             "name": "Nom",
             "user": "Usuari",
-            "role": "Rol"
+            "role": "Rol",
+            "category": "Categoria",
+            "group": "Grup"
           }
         },
         "convert": {
@@ -1054,20 +1058,20 @@
           "domain-info": "Informació de DNS"
         },
         "domain-info": {
-            "title": "Pots utilitzar el teu propi nom de domini per accedir a aquest escriptori mitjançant el bastió.",
-            "cname": "Afegeix un registre CNAME al teu proveïdor de DNS apuntant a: "
+          "title": "Pots utilitzar el teu propi nom de domini per accedir a aquest escriptori mitjançant el bastió.",
+          "cname": "Afegeix un registre CNAME al teu proveïdor de DNS apuntant a: "
         },
         "domain-status": {
-            "verified": "Domini verificat i actiu",
-            "verified-pending-save": "Domini verificat (desa per aplicar)",
-            "not-verified": "Domini no verificat - fes clic a l'escut per verificar"
+          "verified": "Domini verificat i actiu",
+          "verified-pending-save": "Domini verificat (desa per aplicar)",
+          "not-verified": "Domini no verificat - fes clic a l'escut per verificar"
         },
         "buttons": {
-            "update-authorized-keys": "Actualitzar claus SSH autoritzades",
-            "bastion-domain-updated": "Actualitzar domini personalitzat",
-            "update-domains": "Actualitzar dominis personalitzats",
-            "add-domain": "Afegir domini",
-            "verify-domain": "Verificar DNS del domini"
+          "update-authorized-keys": "Actualitzar claus SSH autoritzades",
+          "bastion-domain-updated": "Actualitzar domini personalitzat",
+          "update-domains": "Actualitzar dominis personalitzats",
+          "add-domain": "Afegir domini",
+          "verify-domain": "Verificar DNS del domini"
         }
       }
     },

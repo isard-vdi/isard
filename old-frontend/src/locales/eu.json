@@ -671,12 +671,16 @@
           "warning": {
             "pending": "OHARRA Zenbait domeinu txantiloi honen mende daude, eta EZ da zure jabetzakoa.",
             "delete": "ADI! Txantiloi eta idazmahai horiek txantiloi horren araberakoak dira, eta ezabatu egingo dira.",
-            "footer": "Ezin duzu txantiloi hau ezabatu. Jarri administratzailearekin harremanetan"
+            "footer": "Ezin duzu txantiloi hau ezabatu. Jarri administratzailearekin harremanetan",
+            "cross_category": "This template has derivatives in other categories that you do not manage. You cannot delete this item.",
+            "cross_category_footer": "You cannot delete this template because it has derivatives in categories you do not own. Please contact your administrator."
           },
           "table-header": {
             "name": "Izena",
             "user": "Erabiltzaile",
-            "role": "Rola"
+            "role": "Rola",
+            "category": "Category",
+            "group": "Group"
           },
           "button": {
             "delete": "Ezabatu txantiloia"

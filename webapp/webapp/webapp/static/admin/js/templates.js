@@ -785,10 +785,10 @@ function actionsDomainDetail(){
 
     $('.btn-delete-template').on('click', function () {
         $('#modalDeleteTemplate #manager-warning').hide();
-        $('#modalDeleteTemplate p').show();
-        $('#modalDeleteTemplate #send').prop('disabled', false);
-        $('#modalDeleteTemplate #send').attr('title', '');
-    
+        $('#modalDeleteTemplate #cross-category-footer').hide();
+        $('#modalDeleteTemplate #delete-warning').show();
+        $('#modalDeleteTemplate #send').prop('disabled', false).removeClass('btn-secondary').addClass('btn-danger').text('Stop and Delete');
+
         var pk = $(this).closest("[data-pk]").attr("data-pk")
         $('#modalDeleteTemplate').modal({
             backdrop: 'static',
@@ -1221,8 +1221,30 @@ function populate_tree_template_delete(id) {
             const rootElement = $('#nestedTemplateTable tbody');
             $('#nestedTemplateTable tbody').html('')
             renderTable(data, rootElement,1, renderTemplateTree);
+
+            // Check if any items have masked category (cross-category derivatives)
+            if (hasCrossCategoryItems(data)) {
+                $('#modalDeleteTemplate #manager-warning').show();
+                $('#modalDeleteTemplate #cross-category-footer').show();
+                $('#modalDeleteTemplate #delete-warning').hide();
+                $('#modalDeleteTemplate #send').prop('disabled', true).removeClass('btn-danger').addClass('btn-secondary').text('Stop and Delete');
+            }
         }
     });
+}
+
+function hasCrossCategoryItems(items) {
+    if (!items) return false;
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (item.category === '-' || item.unselectable) {
+            return true;
+        }
+        if (item.children && hasCrossCategoryItems(item.children)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 //~ RENDER DATATABLE

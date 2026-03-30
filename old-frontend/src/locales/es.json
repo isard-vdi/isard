@@ -1074,7 +1074,9 @@
           "warning": {
             "pending": "AVISO! Algunas plantillas y escritorios dependen de esta plantilla, los cuales NO son de tu propiedad.",
             "delete": "AVISO! Estas plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
-            "footer": "No puedes eliminar esta plantilla. Contacta con tu administrador."
+            "footer": "No puedes eliminar esta plantilla. Contacta con tu administrador.",
+            "cross_category": "Esta plantilla tiene derivados en otras categorías que no gestionas. No puedes eliminar este elemento.",
+            "cross_category_footer": "No puedes eliminar esta plantilla porque tiene derivados en categorías que no gestionas. Contacta con tu administrador."
           },
           "button": {
             "delete": "Eliminar plantilla"
@@ -1083,7 +1085,9 @@
             "kind": "Tipo",
             "name": "Nombre",
             "user": "Usuario",
-            "role": "Rol"
+            "role": "Rol",
+            "category": "Categoría",
+            "group": "Grupo"
           }
         },
         "convert": {
@@ -1358,11 +1362,11 @@
           "not-verified": "Dominio no verificado - haz clic en el escudo para verificar"
         },
         "buttons": {
-            "update-authorized-keys": "Actualizar claves SSH autorizadas",
-            "update-domain": "Actualizar dominio personalizado",
-            "update-domains": "Actualizar dominios personalizados",
-            "add-domain": "Añadir dominio",
-            "verify-domain": "Verificar DNS del dominio"
+          "update-authorized-keys": "Actualizar claves SSH autorizadas",
+          "update-domain": "Actualizar dominio personalizado",
+          "update-domains": "Actualizar dominios personalizados",
+          "add-domain": "Añadir dominio",
+          "verify-domain": "Verificar DNS del dominio"
         }
       }
     },

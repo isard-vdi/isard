@@ -15,6 +15,7 @@ const getDefaultState = () => {
       domains: [],
       deployments: [],
       pending: false,
+      cross_category: false,
       is_duplicated: false
     },
     templateId: '',
