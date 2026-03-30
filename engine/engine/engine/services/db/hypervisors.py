@@ -1092,9 +1092,22 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
 
         # Check if a GPU card already has this physical_device assigned
         already_assigned = list(
-            r.table("gpus").filter({"physical_device": vgpu_id}).pluck("id").run(r_conn)
+            r.table("gpus")
+            .filter({"physical_device": vgpu_id})
+            .pluck("id", "model")
+            .run(r_conn)
         )
-        if len(already_assigned) == 0:
+        if len(already_assigned) > 0:
+            # Update stale model if it differs
+            if already_assigned[0].get("model") != d["model"]:
+                r.table("gpus").get(already_assigned[0]["id"]).update(
+                    {"model": d["model"]}
+                ).run(r_conn)
+                logs.workers.info(
+                    f"GPU card '{already_assigned[0]['id']}' model "
+                    f"updated to '{d['model']}'"
+                )
+        else:
             # No card has this device yet — find an unassigned one
             gpus = list(
                 r.table("gpus")

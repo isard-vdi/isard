@@ -8,7 +8,7 @@ from pprint import pprint
 from time import sleep
 
 from api_client import ApiClient
-from gpu_discovery import discover_gpus, discover_hugepages
+from gpu_discovery import discover_gpus, discover_hugepages, discover_pci_devices
 
 DEFAULT_STORAGE_POOL_ID = (
     SourceFileLoader("storage_pool", "/src/_common/default_storage_pool.py")
@@ -88,6 +88,7 @@ def SetupHypervisor():
 
     gpu_list = json.loads(HYPERVISOR["nvidia_gpus"])
     HYPERVISOR["nvidia_enabled"] = len(gpu_list) > 0
+    HYPERVISOR["pci_devices"] = json.dumps(discover_pci_devices(gpu_list))
 
     ## Adding hyper. Received dict with certs and number
     ok = False

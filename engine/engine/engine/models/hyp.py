@@ -1627,9 +1627,8 @@ class hyp(object):
                     else "passthrough"
                 )
 
-                # Extract model from profile name
-                first_profile_name = gpu["vgpu_profiles"][0]["name"]
-                model_gpu = first_profile_name.split("-")[0]  # e.g., "A40"
+                # Extract model from profile name (fallback)
+                _fallback_model = gpu["vgpu_profiles"][0]["name"].split("-")[0]
             else:
                 # No vGPU driver: PCI passthrough only via VFIO
                 d_types = {
@@ -1641,7 +1640,12 @@ class hyp(object):
                     }
                 }
                 type_max_gpus = "passthrough"
-                model_gpu = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
+                _fallback_model = (
+                    gpu["name"].replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+                )
+
+            # Use pre-computed model from discovery if available
+            model_gpu = gpu.get("model") or _fallback_model
 
             # Add MIG profiles into d_types (available on MIG-capable GPUs)
             for mig_prof in gpu.get("mig_profiles", []):

@@ -313,6 +313,7 @@ class ApiHypervisors:
         buffering_hyper=False,
         gpu_only=False,
         hugepages_info=None,
+        pci_devices=None,
     ):
         data = {}
 
@@ -347,6 +348,7 @@ class ApiHypervisors:
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
                 hugepages_info=hugepages_info,
+                pci_devices=pci_devices,
             )
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
@@ -386,6 +388,7 @@ class ApiHypervisors:
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
                 hugepages_info=hugepages_info,
+                pci_devices=pci_devices,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
@@ -407,8 +410,19 @@ class ApiHypervisors:
             # Lets check if it's fingerprint is already here
             # self.update_fingerprint(hostname,hypervisor['port'])
 
+        # Log PCI device changes (informational)
+        if pci_devices and hypervisor:
+            try:
+                self._diff_pci_devices(hypervisor.get("pci_devices", {}), pci_devices)
+            except Exception as e:
+                log.warning(f"Failed to diff PCI devices: {e}")
+
         # Auto-populate gpu_profiles and gpu cards from scanned GPU data
         if nvidia_gpus:
+            try:
+                self._resolve_gpu_models(hyper_id, nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to resolve GPU models: {e}")
             try:
                 self.ensure_gpu_profiles(nvidia_gpus)
             except Exception as e:
@@ -461,6 +475,7 @@ class ApiHypervisors:
         buffering_hyper=False,
         gpu_only=False,
         hugepages_info=None,
+        pci_devices=None,
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -510,6 +525,7 @@ class ApiHypervisors:
             "gpu_only": gpu_only,
             "vpn": {"tunneling_mode": vpn_tunneling_mode},
             "hugepages_info": hugepages_info if hugepages_info else {},
+            "pci_devices": pci_devices if pci_devices else {},
         }
 
         hypervisor = _validate_item("hypervisors", hypervisor)
@@ -526,6 +542,82 @@ class ApiHypervisors:
             )
         return result
 
+    @staticmethod
+    def _normalize_gpu_model(gpu_name, vgpu_profiles=None):
+        """Dash-free model name derivation (same logic as gpu_discovery)."""
+        if vgpu_profiles:
+            return vgpu_profiles[0]["name"].split("-")[0]
+        return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+
+    def _resolve_gpu_models(self, hyper_id, nvidia_gpus):
+        """Resolve stable model names for discovered GPUs.
+
+        For each GPU, checks if an auto-created card already exists in the
+        database (by deterministic PCI-based card_id).  If so, uses the
+        existing card's model name to prevent flipping between vGPU-derived
+        and nvidia-smi-derived names across restarts.
+
+        Modifies each GPU dict in-place, setting ``_resolved_model``.
+        """
+        for gpu in nvidia_gpus:
+            pci_bus_id = gpu["pci_bus_id"]
+            normalized = pci_bus_id.lower()
+            if len(normalized.split(":")[0]) > 4:
+                normalized = "0000:" + normalized.split(":", 1)[1]
+            pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+            card_id = f"auto-{hyper_id}-{pci_name}"
+
+            with app.app_context():
+                existing_card = r.table("gpus").get(card_id).run(db.conn)
+
+            if existing_card and existing_card.get("model"):
+                gpu["_resolved_model"] = existing_card["model"]
+            else:
+                # First-time: use discovery-computed model or derive fresh
+                gpu["_resolved_model"] = gpu.get("model") or self._normalize_gpu_model(
+                    gpu["name"], gpu.get("vgpu_profiles")
+                )
+
+    def _diff_pci_devices(self, old_map, new_map):
+        """Log PCI device changes between two hypervisor registrations.
+
+        Detects new devices, removed devices, and GPU moves (via gpu_uuid).
+        Informational only — does not modify any database state.
+        """
+        old_addrs = set(old_map.keys())
+        new_addrs = set(new_map.keys())
+
+        for addr in sorted(new_addrs - old_addrs):
+            dev = new_map[addr]
+            log.info(
+                f"PCI device added at {addr}: "
+                f"vendor={dev.get('vendor')} device={dev.get('device_id')} "
+                f"driver={dev.get('driver')}"
+            )
+
+        for addr in sorted(old_addrs - new_addrs):
+            dev = old_map[addr]
+            log.info(
+                f"PCI device removed from {addr}: "
+                f"vendor={dev.get('vendor')} device={dev.get('device_id')}"
+            )
+
+        # Detect GPU moves via gpu_uuid
+        old_uuid_to_addr = {}
+        for addr, dev in old_map.items():
+            uuid = dev.get("gpu_uuid")
+            if uuid:
+                old_uuid_to_addr[uuid] = addr
+
+        for addr, dev in new_map.items():
+            uuid = dev.get("gpu_uuid")
+            if uuid and uuid in old_uuid_to_addr:
+                old_addr = old_uuid_to_addr[uuid]
+                if old_addr != addr:
+                    log.warning(
+                        f"GPU {uuid} moved from PCI slot {old_addr} " f"to {addr}"
+                    )
+
     def ensure_gpu_profiles(self, nvidia_gpus):
         """Create or update gpu_profiles entries from hypervisor-scanned GPU data.
 
@@ -540,12 +632,10 @@ class ApiHypervisors:
         for gpu in nvidia_gpus:
             vgpu_profiles = gpu.get("vgpu_profiles", [])
 
-            # Derive model from vGPU profile names if available: "A40-4Q" → "A40"
-            # Otherwise from GPU name: "NVIDIA A40" → "A40"
-            if vgpu_profiles:
-                model = vgpu_profiles[0]["name"].split("-")[0]
-            else:
-                model = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
+            # Use PCI-anchored model if available, otherwise derive fresh
+            model = gpu.get("_resolved_model") or gpu.get("model")
+            if not model:
+                model = self._normalize_gpu_model(gpu["name"], vgpu_profiles)
 
             if model not in models:
                 models[model] = {"gpu": gpu, "profiles": []}
@@ -659,11 +749,10 @@ class ApiHypervisors:
             return
 
         for gpu in nvidia_gpus:
-            vgpu_profiles = gpu.get("vgpu_profiles", [])
-            if vgpu_profiles:
-                model = vgpu_profiles[0]["name"].split("-")[0]
-            else:
-                model = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
+            # Use PCI-anchored model if available, otherwise derive fresh
+            model = gpu.get("_resolved_model") or gpu.get("model")
+            if not model:
+                model = self._normalize_gpu_model(gpu["name"], gpu.get("vgpu_profiles"))
 
             # Normalize PCI bus ID to libvirt pci_name format
             pci_bus_id = gpu["pci_bus_id"]
@@ -697,11 +786,19 @@ class ApiHypervisors:
                 existing_card = r.table("gpus").get(card_id).run(db.conn)
 
             if existing_card:
-                # Only update physical_device, preserve admin edits
+                # Update physical_device and sync model/gpu_uuid if changed
+                update_fields = {"physical_device": vgpu_id}
+                if existing_card.get("model") != model:
+                    update_fields["model"] = model
+                    log.info(
+                        f"GPU card '{card_id}' model updated: "
+                        f"{existing_card.get('model')} -> {model}"
+                    )
+                gpu_uuid = gpu.get("gpu_uuid")
+                if gpu_uuid and existing_card.get("gpu_uuid") != gpu_uuid:
+                    update_fields["gpu_uuid"] = gpu_uuid
                 with app.app_context():
-                    r.table("gpus").get(card_id).update(
-                        {"physical_device": vgpu_id}
-                    ).run(db.conn)
+                    r.table("gpus").get(card_id).update(update_fields).run(db.conn)
                 log.info(f"GPU card '{card_id}' updated physical_device -> {vgpu_id}")
                 continue
 
@@ -749,6 +846,7 @@ class ApiHypervisors:
                 ),
                 "profiles_enabled": [],
                 "physical_device": vgpu_id,
+                "gpu_uuid": gpu.get("gpu_uuid"),
             }
 
             with app.app_context():

@@ -115,14 +115,15 @@ def _run_nvidia_smi():
     """Run nvidia-smi and return parsed GPU info.
 
     Returns:
-        list of dicts with keys: name, memory_total_mb, pci_bus_id, driver_version, mig_mode
+        list of dicts with keys: name, memory_total_mb, pci_bus_id,
+        driver_version, mig_mode, gpu_uuid.
         Empty list if nvidia-smi is not available or fails.
     """
     try:
         result = subprocess.run(
             [
                 "nvidia-smi",
-                "--query-gpu=name,memory.total,pci.bus_id,driver_version,mig.mode.current",
+                "--query-gpu=name,memory.total,pci.bus_id,driver_version,mig.mode.current,gpu_uuid",
                 "--format=csv,noheader,nounits",
             ],
             capture_output=True,
@@ -137,7 +138,7 @@ def _run_nvidia_smi():
     gpus = []
     for line in result.stdout.strip().splitlines():
         parts = [p.strip() for p in line.split(",")]
-        if len(parts) != 5:
+        if len(parts) < 5:
             continue
         gpus.append(
             {
@@ -146,6 +147,7 @@ def _run_nvidia_smi():
                 "pci_bus_id": parts[2],
                 "driver_version": parts[3],
                 "mig_mode": parts[4],
+                "gpu_uuid": parts[5] if len(parts) > 5 else None,
             }
         )
     return gpus
@@ -334,6 +336,10 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
 
         dev_path = os.path.join(sysfs_base, entry)
 
+        # Skip SR-IOV Virtual Functions — they are managed by the PF
+        if os.path.islink(os.path.join(dev_path, "physfn")):
+            continue
+
         # Check NVIDIA vendor
         try:
             with open(os.path.join(dev_path, "vendor")) as f:
@@ -375,6 +381,8 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
                 "driver_version": "N/A",
                 "vgpu_profiles": [],
                 "mig_mode": "[N/A]",
+                "model": normalize_gpu_model(name),
+                "gpu_uuid": None,
             }
         )
 
@@ -434,6 +442,21 @@ def _aggregate_subdevice_profiles(pci_bus_id):
     return profiles, sub_paths if sub_paths else None, path_parent
 
 
+def normalize_gpu_model(gpu_name, vgpu_profiles=None):
+    """Derive a dash-free canonical model name for a GPU.
+
+    Uses vGPU profile name prefix when available (e.g., "A40" from "A40-4Q"),
+    otherwise normalizes the nvidia-smi name by stripping "NVIDIA " prefix
+    and removing spaces and dashes to produce a dash-free string.
+
+    The model MUST be dash-free because the system uses
+    "BRAND-MODEL-PROFILE" format with dashes as separators.
+    """
+    if vgpu_profiles:
+        return vgpu_profiles[0]["name"].split("-")[0]
+    return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+
+
 def discover_gpus():
     """Discover NVIDIA GPUs and their vGPU profiles.
 
@@ -459,6 +482,8 @@ def discover_gpus():
             "driver_version": gpu["driver_version"],
             "vgpu_profiles": profiles,
             "mig_mode": mig_mode,
+            "model": normalize_gpu_model(gpu["name"], profiles),
+            "gpu_uuid": gpu.get("gpu_uuid"),
         }
 
         if mig_mode != "[N/A]":
@@ -491,6 +516,109 @@ def discover_gpus():
     gpus.extend(_scan_sysfs_nvidia_gpus(known_pci_ids))
 
     return gpus
+
+
+def _read_sysfs_attr(dev_path, attr, strip_prefix="0x"):
+    """Read a sysfs attribute file, stripping optional prefix."""
+    try:
+        with open(os.path.join(dev_path, attr)) as f:
+            val = f.read().strip()
+        if strip_prefix and val.lower().startswith(strip_prefix):
+            val = val[len(strip_prefix) :]
+        return val.lower()
+    except OSError:
+        return None
+
+
+def discover_pci_devices(gpu_list=None):
+    """Scan sysfs for all PCI devices and build a hardware inventory map.
+
+    Returns a dict keyed by normalized PCI address (e.g., "0000:41:00.0")
+    with device attributes. Only includes primary function (.0) devices and
+    skips PCI bridges/host controllers (class 06xxxx).
+
+    If *gpu_list* is provided (output of discover_gpus()), NVIDIA GPU entries
+    are enriched with gpu_uuid from the GPU discovery data.
+    """
+    sysfs_base = "/sys/bus/pci/devices"
+    devices = {}
+
+    try:
+        entries = sorted(os.listdir(sysfs_base))
+    except OSError:
+        return devices
+
+    # Build gpu_uuid lookup from gpu_list: normalized_pci_id -> gpu_uuid
+    gpu_uuids = {}
+    if gpu_list:
+        for gpu in gpu_list:
+            norm = _normalize_pci_bus_id(gpu["pci_bus_id"]).lower()
+            if gpu.get("gpu_uuid"):
+                gpu_uuids[norm] = gpu["gpu_uuid"]
+
+    for entry in entries:
+        # Only primary function devices
+        if not entry.endswith(".0"):
+            continue
+
+        dev_path = os.path.join(sysfs_base, entry)
+        pci_addr = entry.lower()
+
+        vendor = _read_sysfs_attr(dev_path, "vendor")
+        device_id = _read_sysfs_attr(dev_path, "device")
+        class_code = _read_sysfs_attr(dev_path, "class")
+
+        if not vendor or not class_code:
+            continue
+
+        # Skip PCI bridges and host controllers (class 06xxxx)
+        if class_code.startswith("06"):
+            continue
+
+        # Skip SR-IOV Virtual Functions — they belong to their PF
+        if os.path.islink(os.path.join(dev_path, "physfn")):
+            continue
+
+        info = {
+            "vendor": vendor,
+            "device_id": device_id,
+            "class_code": class_code,
+        }
+
+        subsys_vendor = _read_sysfs_attr(dev_path, "subsystem_vendor")
+        subsys_device = _read_sysfs_attr(dev_path, "subsystem_device")
+        if subsys_vendor:
+            info["subsystem_vendor"] = subsys_vendor
+        if subsys_device:
+            info["subsystem_device"] = subsys_device
+
+        # Driver currently bound
+        driver_link = os.path.join(dev_path, "driver")
+        if os.path.islink(driver_link):
+            info["driver"] = os.path.basename(os.readlink(driver_link))
+        else:
+            info["driver"] = None
+
+        # IOMMU group
+        iommu_link = os.path.join(dev_path, "iommu_group")
+        if os.path.islink(iommu_link):
+            info["iommu_group"] = os.path.basename(os.readlink(iommu_link))
+
+        # NUMA node
+        numa = _read_sysfs_attr(dev_path, "numa_node", strip_prefix="")
+        if numa is not None:
+            try:
+                info["numa_node"] = int(numa)
+            except ValueError:
+                pass
+
+        # Attach gpu_uuid for NVIDIA GPUs
+        if vendor == "10de" and pci_addr in gpu_uuids:
+            info["gpu_uuid"] = gpu_uuids[pci_addr]
+
+        devices[pci_addr] = info
+
+    return devices
 
 
 def discover_hugepages():
@@ -559,6 +687,9 @@ if __name__ == "__main__":
         print(json.dumps(gpus, indent=2))
     else:
         print("No NVIDIA GPUs found")
+
+    pci = discover_pci_devices(gpus)
+    print(json.dumps(pci, indent=2))
 
     hp = discover_hugepages()
     print(json.dumps(hp, indent=2))

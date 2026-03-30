@@ -104,3 +104,6 @@ vpn:
 hugepages_info:
   type: dict
   default: {}
+pci_devices:
+  type: dict
+  default: {}
