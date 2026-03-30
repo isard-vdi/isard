@@ -441,7 +441,13 @@ function toggleFormSection ($container, enabled) {
   $container.find(':input').attr('data-parsley-excluded', !enabled);
   $container.find(':checkbox').trigger('ifChanged');
   var $form = $container.closest('form');
-  if ($form.length) $form.parsley().validate();
+  if ($form.length) {
+    var activeElement = document.activeElement;
+    $form.parsley().validate();
+    if (activeElement && document.activeElement !== activeElement) {
+      activeElement.focus();
+    }
+  }
 }
 
 /**
