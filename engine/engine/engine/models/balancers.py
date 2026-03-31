@@ -244,12 +244,10 @@ class BalancerInterface:
             or not reservables.get("vgpus")
             or not len(reservables.get("vgpus", []))
         ):
-            return (
-                self._get_next_capabilities_virt(
-                    forced_hyp, favourite_hyp, storage_pool_id, domain_memory_gb
-                ),
-                {},
+            hyp_id, hyp_extra = self._get_next_capabilities_virt(
+                forced_hyp, favourite_hyp, storage_pool_id, domain_memory_gb
             )
+            return hyp_id, hyp_extra
 
         # Desktop has vgpu
         gpu_profile = reservables.get("vgpus")[0]
@@ -345,7 +343,7 @@ class BalancerInterface:
         if len(hypers_w_threads) == 0:
             logs.main.debug("####################### BALANCER #######################")
             logs.main.error("No hypervisors online to execute next virt action.")
-            return False
+            return False, {}
         if len(hypers_w_threads) == 1:
             hyper_selected = hypers_w_threads[0]["id"]
             with self._lock:
@@ -355,7 +353,7 @@ class BalancerInterface:
                 "Executing next virt action in the only hypervisor available: %s"
                 % hyper_selected
             )
-            return hyper_selected
+            return hyper_selected, _build_hugepages_extra(hypers_w_threads[0])
 
         with self._lock:
             self._cleanup_expired()
@@ -363,12 +361,16 @@ class BalancerInterface:
             hyper_selected = self._balancer._balancer(adjusted_hypers)["id"]
             self._record_pending(hyper_selected, domain_memory_gb)
 
+        selected_hyper = next(
+            (h for h in hypers_w_threads if h["id"] == hyper_selected), {}
+        )
+
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
             "Executing next virt action in hypervisor: %s (current hypers avail: %s)"
             % (hyper_selected, [h["id"] for h in hypers_w_threads]),
         )
-        return hyper_selected
+        return hyper_selected, _build_hugepages_extra(selected_hyper)
 
     def _get_next_capabilities_virt_gpus(
         self,
@@ -434,6 +436,20 @@ class BalancerInterface:
             % (original["id"], gpu_profile, [h["id"] for h in hypers_w_threads]),
         )
         return original["id"], _parse_extra_gpu_info(original["gpu_selected"])
+
+
+def _build_hugepages_extra(hyper_dict):
+    """Extract hugepages fallback info for non-GPU desktops."""
+    hugepages_info = hyper_dict.get("hugepages_info", {})
+    if not hugepages_info or not hugepages_info.get("mounted"):
+        return {}
+    mem_stats = hyper_dict.get("stats", {}).get("mem_stats", {})
+    return {
+        "hugepages": hugepages_info,
+        "min_free_mem_gb": hyper_dict.get("min_free_mem_gb", 0) or 0,
+        "mem_available_kb": mem_stats.get("available", 0),
+        "hugepages_free_kb": mem_stats.get("hugepages_free_kb", 0),
+    }
 
 
 def _parse_extra_gpu_info(gpu_selected):

@@ -560,6 +560,7 @@ def get_hypers_online(
             "mountpoints",
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
+            "hugepages_info",
             "libvirt_warning",  # Include warning state for balancer
             "degraded",  # Include degraded state for webapp display
             "cap_status",  # Include cap_status for balancer operation
