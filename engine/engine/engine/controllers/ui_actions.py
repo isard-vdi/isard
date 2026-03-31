@@ -358,6 +358,25 @@ class UiActions(object):
                         elif hugepages.get("2M", {}).get("total", 0) > 0:
                             xml = add_memory_backing(xml, "2", "M")
 
+                else:
+                    # Non-GPU: use hugepages as fallback when regular RAM is low
+                    hugepages = extra_info.get("hugepages", {})
+                    if hugepages.get("mounted"):
+                        mem_available_kb = extra_info.get("mem_available_kb", 0)
+                        hp_free_kb = extra_info.get("hugepages_free_kb", 0)
+                        min_free_kb = (
+                            int(extra_info.get("min_free_mem_gb", 0)) * 1048576
+                        )
+                        regular_available_kb = mem_available_kb - hp_free_kb
+                        domain_memory_kb = domain_memory_gb * 1048576
+
+                        if regular_available_kb - domain_memory_kb < min_free_kb:
+                            if hp_free_kb >= domain_memory_kb:
+                                if hugepages.get("1G", {}).get("total", 0) > 0:
+                                    xml = add_memory_backing(xml, "1", "G")
+                                elif hugepages.get("2M", {}).get("total", 0) > 0:
+                                    xml = add_memory_backing(xml, "2", "M")
+
                 if LOG_LEVEL == "DEBUG":
                     print(f"%%%% DOMAIN: {id_domain} -- action: {action} %%%%")
                     print(
