@@ -46,6 +46,7 @@ func InitProviderManager(cfg cfg.Authentication, log *zerolog.Logger, db r.Query
 		},
 		categories:                  map[string]*providerSet{},
 		categoriesDisabledProviders: map[string]map[string]bool{},
+		brandingDomains:             map[string]categoryBrandingDomainChange{},
 	}
 
 	return m
@@ -73,6 +74,7 @@ type ProviderManager struct {
 	global                      providerSet
 	categories                  map[string]*providerSet
 	categoriesDisabledProviders map[string]map[string]bool
+	brandingDomains             map[string]categoryBrandingDomainChange
 }
 
 func (m *ProviderManager) resolveScope(categoryID *string) (*zerolog.Logger, *providerSet) {
@@ -115,17 +117,7 @@ func (m *ProviderManager) Manage(ctx context.Context, wg *sync.WaitGroup) {
 				m.handleCategoryDisabledProviderChange(change.CategoryID, change.Provider, change.Disabled)
 
 			case change := <-m.cfgWatcher.categoriesBrandingDomainChanges:
-				if !m.handleCategoryBrandingDomainChange(ctx, change) {
-					// The target provider doesn't exist yet (e.g. providerChange hasn't
-					// been processed). Re-enqueue so it gets retried after the provider
-					// is created.
-					change.retries++
-					if change.retries > 10 {
-						m.log.Warn().Str("category", change.CategoryID).Msg("branding domain change exceeded max retries, discarding")
-					} else {
-						m.cfgWatcher.categoriesBrandingDomainChanges <- change
-					}
-				}
+				m.handleCategoryBrandingDomainChange(ctx, change)
 			}
 		}
 	})
@@ -166,9 +158,9 @@ func providerConfigSource(auth *model.CategoryAuthentication, name string) (mode
 	return source, disabled
 }
 
-// handleCategoryBrandingDomainChange applies branding to providers matching the
-// category's config_source. It returns true if at least one provider was updated.
-func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context, change categoryBrandingDomainChange) bool {
+// handleCategoryBrandingDomainChange stores the branding domain and applies it
+// to providers matching the category's config_source.
+func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context, change categoryBrandingDomainChange) {
 	log := m.log.With().Str("category", change.CategoryID).Logger()
 	if change.Host != nil {
 		log.Info().Str("host", *change.Host).Msg("loading branding domain")
@@ -200,12 +192,17 @@ func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context
 		}
 	}
 
-	m.mux.RLock()
+	m.mux.Lock()
+	if change.Host != nil {
+		m.brandingDomains[change.CategoryID] = change
+	} else {
+		delete(m.brandingDomains, change.CategoryID)
+	}
 	if catScope, ok := m.categories[change.CategoryID]; ok {
 		collectTargets(catScope, model.CategoryAuthenticationConfigSourceCustom)
 	}
 	collectTargets(&m.global, model.CategoryAuthenticationConfigSourceGlobal)
-	m.mux.RUnlock()
+	m.mux.Unlock()
 
 	for _, t := range targets {
 		if err := t.provider.SetBrandingHost(ctx, change.CategoryID, change.Host); err != nil {
@@ -218,8 +215,6 @@ func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context
 	} else {
 		log.Info().Msg("branding domain cleared")
 	}
-
-	return len(targets) > 0
 }
 
 // handleCategoryDisabledProviderChange tracks whether a provider is explicitly disabled in a category.
@@ -373,6 +368,30 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 		categoryID:   categoryID,
 		httpClient:   m.httpClient,
 	}, scope, prv)
+
+	m.applyStoredBranding(ctx, log, scope, prv, categoryID)
+}
+
+// applyStoredBranding applies stored branding domains to a newly enabled provider.
+// Must be called with m.mux held.
+func (m *ProviderManager) applyStoredBranding(ctx context.Context, log *zerolog.Logger, scope *providerSet, prv string, categoryID *string) {
+	if categoryID == nil {
+		return
+	}
+
+	bap, ok := scope.providers[prv].(provider.BrandingAwareProvider)
+	if !ok {
+		return
+	}
+
+	bd, ok := m.brandingDomains[*categoryID]
+	if !ok {
+		return
+	}
+
+	if err := bap.SetBrandingHost(ctx, bd.CategoryID, bd.Host); err != nil {
+		log.Error().Err(err).Str("category", bd.CategoryID).Msg("apply stored branding host to new provider")
+	}
 }
 
 type enableProviderParams struct {

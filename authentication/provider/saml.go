@@ -382,42 +382,9 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 
 	s.cfg.LoadCfg(prvCfg)
 
-	// Cache the model config for branding host reload.
-	// If branding hosts were updated concurrently (e.g. during initial startup),
-	// the map we read above may be stale. Detect this and rebuild branding middlewares.
-	const maxBrandingRetries = 3
-	for i := 0; i < maxBrandingRetries; i++ {
-		s.brandingMux.Lock()
-		s.lastModelCfg = &cfg
-		needsReload := !maps.Equal(s.brandingHosts, prvCfg.BrandingHosts)
-		s.brandingMux.Unlock()
-
-		if !needsReload {
-			return nil
-		}
-
-		s.log.Debug().Msg("branding hosts were updated during config load, rebuilding branding middlewares")
-
-		updatedHosts := s.getBrandingHosts()
-		updatedMiddlewares := make(map[string]*samlsp.Middleware, len(updatedHosts))
-		updatedHostMap := make(map[string]string, len(updatedHosts))
-		for catID, bHost := range updatedHosts {
-			bParams := params
-			bParams.host = bHost
-
-			bMW, err := buildSAMLMiddleware(bParams)
-			if err != nil {
-				return fmt.Errorf("build branding middleware for category %s: %w", catID, err)
-			}
-
-			updatedMiddlewares[catID] = bMW
-			updatedHostMap[catID] = bHost
-		}
-
-		prvCfg.BrandingMiddlewares = updatedMiddlewares
-		prvCfg.BrandingHosts = updatedHostMap
-		s.cfg.LoadCfg(prvCfg)
-	}
+	s.brandingMux.Lock()
+	s.lastModelCfg = &cfg
+	s.brandingMux.Unlock()
 
 	return nil
 }

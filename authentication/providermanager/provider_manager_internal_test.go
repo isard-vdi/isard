@@ -571,7 +571,8 @@ func TestProviderManagerHealthcheck(t *testing.T) {
 							types.ProviderUnknown: &provider.Unknown{},
 						},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 		},
@@ -665,7 +666,8 @@ func TestProviderManagerSAML(t *testing.T) {
 							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
 						},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 		},
@@ -1242,6 +1244,7 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 	cases := map[string]struct {
 		PrepareManager func(*testing.T) *ProviderManager
 		Change         categoryBrandingDomainChange
+		CheckAfter     func(*testing.T, *ProviderManager)
 	}{
 		"should clear branding domain on global provider": {
 			PrepareManager: func(t *testing.T) *ProviderManager {
@@ -1255,7 +1258,8 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 							types.ProviderSAML: bap,
 						},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
@@ -1282,6 +1286,7 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 							},
 						},
 					},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
@@ -1307,7 +1312,8 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 							types.ProviderSAML: bap,
 						},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
@@ -1333,7 +1339,8 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 							types.ProviderSAML: bap,
 						},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
@@ -1351,7 +1358,8 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 							types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
 						},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
@@ -1373,7 +1381,8 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 							types.ProviderUnknown: &provider.Unknown{},
 						},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
@@ -1395,13 +1404,64 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 							types.ProviderSAML: bap,
 						},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
 				CategoryID:     "cat1",
 				Host:           strPtr("branding.example.com"),
 				Authentication: &model.CategoryAuthentication{},
+			},
+		},
+		"should store branding domain in map": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID:     "cat1",
+				Host:           strPtr("branding.example.com"),
+				Authentication: &model.CategoryAuthentication{},
+			},
+			CheckAfter: func(t *testing.T, m *ProviderManager) {
+				assert := assert.New(t)
+
+				bd, ok := m.brandingDomains["cat1"]
+				assert.True(ok)
+				assert.Equal("branding.example.com", *bd.Host)
+			},
+		},
+		"should remove branding domain from map when cleared": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID: "cat1",
+							Host:       strPtr("old.example.com"),
+						},
+					},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID:     "cat1",
+				Host:           nil,
+				Authentication: &model.CategoryAuthentication{},
+			},
+			CheckAfter: func(t *testing.T, m *ProviderManager) {
+				assert := assert.New(t)
+				assert.Empty(m.brandingDomains)
 			},
 		},
 		"should skip custom source when no category scope exists": {
@@ -1411,7 +1471,8 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 					global: providerSet{
 						providers: map[string]provider.Provider{},
 					},
-					categories: map[string]*providerSet{},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
 				}
 			},
 			Change: categoryBrandingDomainChange{
@@ -1435,6 +1496,157 @@ func TestHandleCategoryBrandingDomainChange(t *testing.T) {
 			// Mock expectations are verified automatically via t.Cleanup
 			// registered by NewMockBrandingAwareProvider.
 			m.handleCategoryBrandingDomainChange(t.Context(), tc.Change)
+
+			if tc.CheckAfter != nil {
+				tc.CheckAfter(t, m)
+			}
+		})
+	}
+}
+
+func TestApplyStoredBranding(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		PrepareManager func(*testing.T) *ProviderManager
+		ProviderName   string
+		CategoryID     *string
+	}{
+		"should apply branding to category provider": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				host := "branding.example.com"
+				bap.On("SetBrandingHost", t.Context(), "cat1", &host).Return(nil)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{
+						"cat1": {
+							providers: map[string]provider.Provider{
+								types.ProviderSAML: bap,
+							},
+						},
+					},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID:     "cat1",
+							Host:           strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderSAML,
+			CategoryID:   strPtr("cat1"),
+		},
+		"should skip when category ID is nil": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories:      map[string]*providerSet{},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
+				}
+			},
+			ProviderName: types.ProviderSAML,
+			CategoryID:   nil,
+		},
+		"should skip when provider is not BrandingAwareProvider": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{
+						"cat1": {
+							providers: map[string]provider.Provider{
+								types.ProviderUnknown: &provider.Unknown{},
+							},
+						},
+					},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID:     "cat1",
+							Host:           strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderUnknown,
+			CategoryID:   strPtr("cat1"),
+		},
+		"should skip when no branding domain is stored for category": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{
+						"cat1": {
+							providers: map[string]provider.Provider{
+								types.ProviderSAML: provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
+							},
+						},
+					},
+					brandingDomains: map[string]categoryBrandingDomainChange{},
+				}
+			},
+			ProviderName: types.ProviderSAML,
+			CategoryID:   strPtr("cat1"),
+		},
+		"should apply branding even when stored authentication says provider is disabled": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				host := "branding.example.com"
+				bap.On("SetBrandingHost", t.Context(), "cat1", &host).Return(nil)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{},
+					},
+					categories: map[string]*providerSet{
+						"cat1": {
+							providers: map[string]provider.Provider{
+								types.ProviderSAML: bap,
+							},
+						},
+					},
+					brandingDomains: map[string]categoryBrandingDomainChange{
+						"cat1": {
+							CategoryID: "cat1",
+							Host:       strPtr("branding.example.com"),
+							Authentication: &model.CategoryAuthentication{
+								SAML: &model.CategoryAuthSAML{
+									Disabled: true,
+								},
+							},
+						},
+					},
+				}
+			},
+			ProviderName: types.ProviderSAML,
+			CategoryID:   strPtr("cat1"),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			m := tc.PrepareManager(t)
+
+			_, scope := m.resolveScope(tc.CategoryID)
+
+			m.applyStoredBranding(t.Context(), m.log, scope, tc.ProviderName, tc.CategoryID)
 		})
 	}
 }
@@ -1567,7 +1779,7 @@ func TestProviderManagerManage(t *testing.T) {
 			CategoryID: "cat1",
 			Expected:   []string{"form", "local", "saml"},
 		},
-		"should discard branding domain change after max retries": {
+		"should store branding domain when no matching provider exists": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
@@ -1591,6 +1803,172 @@ func TestProviderManagerManage(t *testing.T) {
 			},
 			CategoryID: "cat1",
 			Expected:   []string{"form", "local"},
+		},
+		"should apply stored branding domain when category custom provider is enabled on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+				}, nil)
+
+				// Initial: cat1 has branding domain but no custom SAML.
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id":             "cat1",
+						"authentication": map[string]any{},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil).Once()
+
+				// Reload: cat1 now has custom SAML.
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://cat1-saml.test/metadata",
+								},
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			ReloadInterval: 10 * time.Millisecond,
+			CheckCategory: func(t *testing.T, m *ProviderManager) {
+				assert := assert.New(t)
+
+				time.Sleep(11 * time.Millisecond)
+				synctest.Wait()
+
+				assert.Equal([]string{"form", "local", "saml"}, m.Providers("cat1"))
+
+				m.mux.RLock()
+				defer m.mux.RUnlock()
+
+				bd, ok := m.brandingDomains["cat1"]
+				assert.True(ok)
+				assert.Equal("branding.example.com", *bd.Host)
+			},
+		},
+		"should apply stored branding domain when provider goes from disabled to custom on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+				}, nil)
+
+				// Initial: cat1 has branding domain with SAML explicitly disabled.
+				// The stored Authentication will have SAML.Disabled=true.
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"disabled": true,
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil).Once()
+
+				// Reload: SAML goes from disabled to custom+enabled.
+				// Branding host unchanged → no new branding event.
+				// The stored Authentication is stale (still says disabled).
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://cat1-saml.test/metadata",
+								},
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			ReloadInterval: 10 * time.Millisecond,
+			CheckCategory: func(t *testing.T, m *ProviderManager) {
+				assert := assert.New(t)
+
+				time.Sleep(11 * time.Millisecond)
+				synctest.Wait()
+
+				assert.Equal([]string{"form", "local", "saml"}, m.Providers("cat1"))
+
+				m.mux.RLock()
+				defer m.mux.RUnlock()
+
+				bd, ok := m.brandingDomains["cat1"]
+				assert.True(ok)
+				assert.Equal("branding.example.com", *bd.Host)
+			},
+		},
+		"should clear stored branding domain when category is deleted": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
+					Local: model.Local{Enabled: true},
+				}, nil)
+
+				// Initial: cat1 has branding domain.
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id":             "cat1",
+						"authentication": map[string]any{},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "branding.example.com",
+							},
+						},
+					},
+				}, nil).Once()
+
+				// Reload: category deleted from DB.
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			ReloadInterval: 10 * time.Millisecond,
+			CheckCategory: func(t *testing.T, m *ProviderManager) {
+				assert := assert.New(t)
+
+				// Verify branding was stored initially.
+				m.mux.RLock()
+				_, ok := m.brandingDomains["cat1"]
+				m.mux.RUnlock()
+				assert.True(ok)
+
+				// After reload, category is deleted → branding should be cleared.
+				time.Sleep(11 * time.Millisecond)
+				synctest.Wait()
+
+				m.mux.RLock()
+				defer m.mux.RUnlock()
+
+				assert.Empty(m.brandingDomains)
+			},
 		},
 		"should handle full lifecycle of provider enable, category override, disable, and re-enable": {
 			PrepareDB: func(m *r.Mock) {

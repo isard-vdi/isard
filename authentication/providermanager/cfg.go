@@ -47,7 +47,6 @@ type categoryBrandingDomainChange struct {
 	CategoryID     string
 	Host           *string
 	Authentication *model.CategoryAuthentication
-	retries        int
 }
 
 type providerChangesChannels struct {
@@ -252,10 +251,10 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 			}
 		}
 
-		// If the category has providers, add it to the map.
-		if hasProviders {
+		// If the category has no providers, remove it from the map.
+		if !hasProviders {
 			c.categoriesMux.Lock()
-			c.categoriesChanges[categoryID] = changesChans
+			delete(c.categoriesChanges, categoryID)
 			c.categoriesMux.Unlock()
 		}
 
@@ -382,14 +381,12 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 					notifyIfNeeded(changesChans.googleChanges, cfgGoogleConfig, *newCfg.Google.GoogleConfig)
 				}
 
-				// If the category has providers, add it to the map.
-				c.categoriesMux.Lock()
-				if hasProviders {
-					c.categoriesChanges[categoryID] = changesChans
-				} else {
+				// If the category has no providers, remove it from the map.
+				if !hasProviders {
+					c.categoriesMux.Lock()
 					delete(c.categoriesChanges, categoryID)
+					c.categoriesMux.Unlock()
 				}
-				c.categoriesMux.Unlock()
 			}
 
 			// Handle categories that were deleted from the DB.
@@ -399,6 +396,14 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 				}
 
 				c.log.Info().Str("category", categoryID).Msg("category removed from DB, disabling all its providers")
+
+				if extractBrandingHost(entry) != nil {
+					c.categoriesBrandingDomainChanges <- categoryBrandingDomainChange{
+						CategoryID:     categoryID,
+						Host:           nil,
+						Authentication: &entry.Authentication,
+					}
+				}
 
 				cfg := entry.Authentication
 
@@ -478,8 +483,8 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 }
 
 func (c *cfgWatcher) getOrCreateCategoryChangesChannels(categoryID string) *providerChangesChannels {
-	c.categoriesMux.RLock()
-	defer c.categoriesMux.RUnlock()
+	c.categoriesMux.Lock()
+	defer c.categoriesMux.Unlock()
 
 	if changesChans, ok := c.categoriesChanges[categoryID]; ok {
 		return changesChans
@@ -490,6 +495,8 @@ func (c *cfgWatcher) getOrCreateCategoryChangesChannels(categoryID string) *prov
 		samlChanges:   make(chan model.SAMLConfig, 1024),
 		googleChanges: make(chan model.GoogleConfig, 1024),
 	}
+
+	c.categoriesChanges[categoryID] = changesChans
 
 	return changesChans
 }
