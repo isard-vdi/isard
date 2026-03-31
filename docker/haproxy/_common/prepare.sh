@@ -22,9 +22,6 @@ then
 fi
 cat "$tmp_dir"/*.cfg > /usr/local/etc/haproxy/haproxy.cfg
 
-PASSWD=$(mkpasswd -m sha-512 $WEBAPP_ADMIN_PWD)
-sed -i "/^    user admin password/c\    user admin password $PASSWD" /usr/local/etc/haproxy/haproxy.cfg
-
 if [ -f /certs/custom-portal-chain.pem ]
 then
   sed -i 's/\/chain.pem/\/custom-portal-chain.pem/g' /usr/local/etc/haproxy/haproxy.cfg
