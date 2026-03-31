@@ -344,7 +344,7 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 
 	// Set defaults for guacd connect args that must not be empty
 	if config.Parameters["security"] == "" {
-		config.Parameters["security"] = "rdp"
+		config.Parameters["security"] = "any"
 	}
 	if config.Parameters["ignore-cert"] == "" {
 		config.Parameters["ignore-cert"] = "true"
