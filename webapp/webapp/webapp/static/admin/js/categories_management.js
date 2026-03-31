@@ -792,6 +792,14 @@ function actionsCategoryDetail() {
             $ldapPassword.closest('.item.form-group').find('.required').show();
           }
 
+          // Make Google client secret required only when no client secret is set yet
+          var $googleClientSecret = $(modal + " [name='authentication[google][google_config][client_secret]']");
+          var googleClientSecretSet = authentication?.google?.google_config?.client_secret_set;
+          if (googleClientSecretSet === false) {
+            $googleClientSecret.attr('required', 'required');
+            $googleClientSecret.closest('.item.form-group').find('.required').show();
+          }
+
         });
 
         $(modal + " #id").val(pk);
