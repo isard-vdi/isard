@@ -91,6 +91,18 @@ env > /tmp/env # This is needed by the dnsmasq-hook to get the envvars
 # This is the route needed, should be added from above python script
 #ip r a $WG_USERS_NET via ${WG_HYPER_NET_WG_PEER}
 
+echo "---> Configuring hugepages support..."
+if mountpoint -q /dev/hugepages 2>/dev/null; then
+  if ! grep -q '^hugetlbfs_mount' /etc/libvirt/qemu.conf 2>/dev/null; then
+    echo 'hugetlbfs_mount = "/dev/hugepages"' >> /etc/libvirt/qemu.conf
+    echo "    hugetlbfs_mount added to qemu.conf"
+  else
+    echo "    hugetlbfs_mount already configured"
+  fi
+else
+  echo "    /dev/hugepages not mounted, skipping"
+fi
+
 echo "---> Starting libvirt daemon..."
 chown root:kvm /dev/kvm
 /usr/sbin/virtlogd -d
