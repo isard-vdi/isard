@@ -276,7 +276,7 @@ def rcb_cutoff_time_surpass_delete(payload):
     def process_bulk_delete():
         exceptions = []
         try:
-            for rb_id in recycle_bin_ids:
+            for i, rb_id in enumerate(recycle_bin_ids):
                 try:
                     rb_delete_queue.enqueue(
                         {
@@ -287,6 +287,9 @@ def rcb_cutoff_time_surpass_delete(payload):
                     )
                 except Error as e:
                     exceptions.append(e.args[1])
+                # Throttle: pause between batches to prevent RQ task spike
+                if (i + 1) % 50 == 0:
+                    gevent.sleep(1.0)
             notify_admins(
                 "recyclebin_action",
                 {

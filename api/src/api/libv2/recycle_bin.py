@@ -1783,6 +1783,9 @@ class RecycleBin(object):
                                     "status": task.status,
                                 }
                             )
+                            # Throttle RQ task submissions to prevent spike
+                            if len(tasks) % 10 == 0:
+                                time.sleep(0.2)
 
             except Exception as e:
                 raise Error(
