@@ -681,13 +681,27 @@ def get_count(recycle_bin_id):
             .get(recycle_bin_id)
             .merge(
                 {
-                    "desktops": r.row["desktops"].count(),
-                    "templates": r.row["templates"].count(),
-                    "storages": r.row["storages"].count(),
-                    "deployments": r.row["deployments"].count(),
-                    "categories": r.row["categories"].count(),
-                    "groups": r.row["groups"].count(),
-                    "users": r.row["users"].count(),
+                    "desktops": r.row["desktops_count"].default(
+                        r.row["desktops"].count()
+                    ),
+                    "templates": r.row["templates_count"].default(
+                        r.row["templates"].count()
+                    ),
+                    "storages": r.row["storages_count"].default(
+                        r.row["storages"].count()
+                    ),
+                    "deployments": r.row["deployments_count"].default(
+                        r.row["deployments"].count()
+                    ),
+                    "categories": r.row["categories_count"].default(
+                        r.row["categories"].count()
+                    ),
+                    "groups": r.row["groups_count"].default(
+                        r.row["groups"].count()
+                    ),
+                    "users": r.row["users_count"].default(
+                        r.row["users"].count()
+                    ),
                 }
             )
             .run(db.conn)
@@ -711,16 +725,30 @@ def get_item_count(user_id=None, category_id=None, status=None):
     else:
         query = query.get_all(r.args(["recycled", "deleting"]), index="status")
     count_query = {
-        "desktops": r.row["desktops"].count(),
-        "templates": r.row["templates"].count(),
-        "storages": r.row["storages"].count(),
-        "deployments": r.row["deployments"].count(),
-        "categories": r.row["categories"].count(),
-        "groups": r.row["groups"].count(),
-        "users": r.row["users"].count(),
-        "last": r.row["logs"][-1],
+        "desktops": r.row["desktops_count"].default(r.row["desktops"].count()),
+        "templates": r.row["templates_count"].default(r.row["templates"].count()),
+        "storages": r.row["storages_count"].default(r.row["storages"].count()),
+        "deployments": r.row["deployments_count"].default(
+            r.row["deployments"].count()
+        ),
+        "categories": r.row["categories_count"].default(
+            r.row["categories"].count()
+        ),
+        "groups": r.row["groups_count"].default(r.row["groups"].count()),
+        "users": r.row["users_count"].default(r.row["users"].count()),
+        "last": r.row["last_log"].default(r.row["logs"][-1]),
     }
-    query = query.merge(count_query).without("logs", "tasks")
+    query = query.merge(count_query).without(
+        "logs",
+        "tasks",
+        "desktops",
+        "templates",
+        "storages",
+        "deployments",
+        "users",
+        "groups",
+        "categories",
+    )
     with app.app_context():
         return list(query.run(db.conn))
 
@@ -957,9 +985,9 @@ def add_log(
         "agent_role": agent_role,
     }
     with app.app_context():
-        r.table("recycle_bin").get(id).update({"logs": r.row["logs"].append(logs)}).run(
-            db.conn
-        )
+        r.table("recycle_bin").get(id).update(
+            {"logs": r.row["logs"].append(logs), "last_log": logs}
+        ).run(db.conn)
 
 
 def get_template_dependant_recycle_bin_entries(templates, index):
@@ -1132,6 +1160,14 @@ class RecycleBin(object):
                             "groups": self.groups,
                             "categories": self.categories,
                             "size": self.size,
+                            "desktops_count": 0,
+                            "templates_count": 0,
+                            "storages_count": 0,
+                            "deployments_count": 0,
+                            "users_count": 0,
+                            "groups_count": 0,
+                            "categories_count": 0,
+                            "last_log": None,
                         },
                         return_changes=True,
                     )
@@ -1924,13 +1960,19 @@ class RecycleBinDomain(RecycleBin):
         if domain["kind"] == "desktop":
             with app.app_context():
                 r.table("recycle_bin").get(self.id).update(
-                    {"desktops": r.row["desktops"].append(domain)}
+                    {
+                        "desktops": r.row["desktops"].append(domain),
+                        "desktops_count": r.row["desktops_count"].default(0).add(1),
+                    }
                 ).run(db.conn)
             apib.delete_item_bookings("desktop", domain["id"])
         if domain["kind"] == "template":
             with app.app_context():
                 r.table("recycle_bin").get(self.id).update(
-                    {"templates": r.row["templates"].append(domain)}
+                    {
+                        "templates": r.row["templates"].append(domain),
+                        "templates_count": r.row["templates_count"].default(0).add(1),
+                    }
                 ).run(db.conn)
         # Move its disk to recycle_bin
         if not (
@@ -1949,7 +1991,12 @@ class RecycleBinDomain(RecycleBin):
     def add_desktops(self, desktops):
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
-                {"desktops": r.row["desktops"].add(desktops)}
+                {
+                    "desktops": r.row["desktops"].add(desktops),
+                    "desktops_count": r.row["desktops_count"]
+                    .default(0)
+                    .add(len(desktops)),
+                }
             ).run(db.conn)
 
         rcb_storage = RecycleBinStorage(id=self.id, user_id=self.agent_id)
@@ -2076,6 +2123,7 @@ class RecycleBinStorage(RecycleBin):
                 r.table("recycle_bin").get(self.id).update(
                     {
                         "storages": r.row["storages"].append(storage),
+                        "storages_count": r.row["storages_count"].default(0).add(1),
                         "size": r.row["size"]
                         + storage.get("qemu-img-info", {}).get("actual-size", 0),
                     }
@@ -2084,7 +2132,12 @@ class RecycleBinStorage(RecycleBin):
     def add_storages(self, storages):
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
-                {"storages": r.row["storages"].add(storages)}
+                {
+                    "storages": r.row["storages"].add(storages),
+                    "storages_count": r.row["storages_count"]
+                    .default(0)
+                    .add(len(storages)),
+                }
             ).run(db.conn)
 
 
@@ -2108,7 +2161,12 @@ class RecycleBinDeployment(RecycleBin):
     def add_deployment(self, deployment):
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
-                {"deployments": r.row["deployments"].append(deployment)}
+                {
+                    "deployments": r.row["deployments"].append(deployment),
+                    "deployments_count": r.row["deployments_count"]
+                    .default(0)
+                    .add(1),
+                }
             ).run(db.conn)
             desktops_ids = list(
                 r.table("domains")
@@ -2136,7 +2194,12 @@ class RecycleBinDeployment(RecycleBin):
     def add_deployments(self, deployments):
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
-                {"deployments": r.row["deployments"].add(deployments)}
+                {
+                    "deployments": r.row["deployments"].add(deployments),
+                    "deployments_count": r.row["deployments_count"]
+                    .default(0)
+                    .add(len(deployments)),
+                }
             ).run(db.conn)
         deployments_ids = [deployment["id"] for deployment in deployments]
         with app.app_context():
@@ -2280,6 +2343,7 @@ class RecycleBinUser(RecycleBin):
                 r.table("recycle_bin").get(self.id).update(
                     {
                         "users": r.row["users"].append(user),
+                        "users_count": r.row["users_count"].default(0).add(1),
                     }
                 ).run(db.conn)
             isard_user_storage_disable_users([user])
@@ -2366,7 +2430,9 @@ class RecycleBinGroup(RecycleBin):
             r.table("recycle_bin").get(self.id).update(
                 {
                     "users": r.row["users"].add(users),
+                    "users_count": r.row["users_count"].default(0).add(len(users)),
                     "groups": r.row["groups"].append(group),
+                    "groups_count": r.row["groups_count"].default(0).add(1),
                 }
             ).run(db.conn)
             r.table("users").get_all(group["id"], index="group").delete().run(db.conn)
@@ -2468,8 +2534,11 @@ class RecycleBinCategory(RecycleBin):
             r.table("recycle_bin").get(self.id).update(
                 {
                     "users": r.row["users"].add(users),
+                    "users_count": r.row["users_count"].default(0).add(len(users)),
                     "groups": r.row["groups"].add(groups),
+                    "groups_count": r.row["groups_count"].default(0).add(len(groups)),
                     "categories": r.row["categories"].append(category),
+                    "categories_count": r.row["categories_count"].default(0).add(1),
                 }
             ).run(db.conn)
             r.table("users").get_all(category["id"], index="category").delete().run(
