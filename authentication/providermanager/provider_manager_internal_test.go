@@ -249,6 +249,77 @@ func TestProviderManagerProviders(t *testing.T) {
 			CategoryID: "cat1",
 			Expected:   []string{"form", "local"},
 		},
+		"should exclude form when all its sub-providers are disabled in category": {
+			PrepareManager: func() *ProviderManager {
+				log := log.New("test", "debug")
+
+				m := &ProviderManager{
+					log:                         log,
+					categoriesDisabledProviders: map[string]map[string]bool{},
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderUnknown:  &provider.Unknown{},
+							types.ProviderExternal: provider.InitExternal(nil),
+							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), provider.InitLDAP("", log, nil)),
+							types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, true)
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLDAP, true)
+
+				return m
+			},
+			CategoryID: "cat1",
+			Expected:   []string{"google"},
+		},
+		"should keep form when only one sub-provider is disabled in category": {
+			PrepareManager: func() *ProviderManager {
+				log := log.New("test", "debug")
+
+				m := &ProviderManager{
+					log:                         log,
+					categoriesDisabledProviders: map[string]map[string]bool{},
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderUnknown:  &provider.Unknown{},
+							types.ProviderExternal: provider.InitExternal(nil),
+							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), provider.InitLDAP("", log, nil)),
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, true)
+
+				return m
+			},
+			CategoryID: "cat1",
+			Expected:   []string{"form", "ldap"},
+		},
+		"should exclude form when only sub-provider local is disabled in category and no ldap exists": {
+			PrepareManager: func() *ProviderManager {
+				log := log.New("test", "debug")
+
+				m := &ProviderManager{
+					log:                         log,
+					categoriesDisabledProviders: map[string]map[string]bool{},
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderUnknown:  &provider.Unknown{},
+							types.ProviderExternal: provider.InitExternal(nil),
+							types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log, provider.InitLocal(nil), nil),
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, true)
+
+				return m
+			},
+			CategoryID: "cat1",
+			Expected:   []string{},
+		},
 		"should exclude disabled provider even when category has no providerSet": {
 			PrepareManager: func() *ProviderManager {
 				log := log.New("test", "debug")

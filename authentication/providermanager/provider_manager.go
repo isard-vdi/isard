@@ -480,6 +480,16 @@ func (m *ProviderManager) Providers(categoryID string) []string {
 		return m.isCategoryDisabledProvider(categoryID, p)
 	})
 
+	// Remove "form" if none of its sub-providers (local, ldap) remain active.
+	if slices.Contains(providers, types.ProviderForm) {
+		hasFormSubProvider := slices.Contains(providers, types.ProviderLocal) || slices.Contains(providers, types.ProviderLDAP)
+		if !hasFormSubProvider {
+			providers = slices.DeleteFunc(providers, func(p string) bool {
+				return p == types.ProviderForm
+			})
+		}
+	}
+
 	slices.Sort(providers)
 
 	m.log.Debug().Str("category", categoryID).Strs("providers", providers).Msg("resolved providers for category")
