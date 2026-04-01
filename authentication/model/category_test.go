@@ -52,6 +52,56 @@ func TestCategoryLoad(t *testing.T) {
 				},
 			},
 		},
+		"should load a category with config_source global for Local": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("with-global-local")).Return([]interface{}{
+					map[string]interface{}{
+						"id":  "with-global-local",
+						"uid": "with-global-local",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil)
+			},
+			Category: &model.Category{ID: "with-global-local"},
+			ExpectedCategory: &model.Category{
+				ID:  "with-global-local",
+				UID: "with-global-local",
+				Authentication: &model.CategoryAuthentication{
+					Local: &model.CategoryAuthLocal{
+						ConfigSource: model.CategoryAuthenticationConfigSourceGlobal,
+					},
+				},
+			},
+		},
+		"should load a category with config_source custom for Local": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("with-custom-local")).Return([]interface{}{
+					map[string]interface{}{
+						"id":  "with-custom-local",
+						"uid": "with-custom-local",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil)
+			},
+			Category: &model.Category{ID: "with-custom-local"},
+			ExpectedCategory: &model.Category{
+				ID:  "with-custom-local",
+				UID: "with-custom-local",
+				Authentication: &model.CategoryAuthentication{
+					Local: &model.CategoryAuthLocal{
+						ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+					},
+				},
+			},
+		},
 		"should load a category with config_source global for LDAP": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("categories").Get("with-global-ldap")).Return([]interface{}{

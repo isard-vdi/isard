@@ -35,6 +35,7 @@ const (
 type CategoryAuthLocal struct {
 	Disabled               bool                                         `rethinkdb:"disabled"`
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
+	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
 }
 
 type CategoryAuthLDAP struct {

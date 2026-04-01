@@ -183,7 +183,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 					Provider:   types.ProviderLocal,
 					Disabled:   true,
 				}
-			} else {
+			} else if cfg.Local.ConfigSource == model.CategoryAuthenticationConfigSourceCustom {
 				hasProviders = true
 
 				c.providerChanges <- providerChange{
