@@ -77,7 +77,7 @@ class Balancer_less_cpu_till_low_ram:
             f"BALANCER LESS CPU TILL LOW RAM. CPU IDLE: {[{h['id']: h['stats']['cpu_1min']['idle']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
         logs.main.debug(
-            f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: (h['stats']['mem_stats']['total']-h['stats']['mem_stats']['available'])/h['stats']['mem_stats']['total']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
+            f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: _get_used_ram_percentage(h)} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
 
         # Collect all hypervisors with enough free RAM (sorted by CPU)
@@ -116,7 +116,7 @@ class Balancer_less_cpu_till_low_ram_percent:
             f"BALANCER LESS CPU TILL LOW RAM PERCENTAGE. CPU IDLE: {[{h['id']: h['stats']['cpu_1min']['idle']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
         logs.main.debug(
-            f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: (h['stats']['mem_stats']['total']-h['stats']['mem_stats']['available'])/h['stats']['mem_stats']['total']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
+            f"BALANCER LESS CPU TILL LOW RAM PERCENTAGE. RAM PERCENTAGE: {[{h['id']: _get_used_ram_percentage(h)} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
 
         # Collect all hypervisors with enough free RAM (sorted by CPU)
@@ -471,9 +471,9 @@ def _parse_extra_gpu_info(gpu_selected):
 def _get_used_ram_percentage(hyper) -> float:
     mem_stats = hyper.get("stats", {}).get("mem_stats", {})
     total_ram = mem_stats.get("total", 1)
-    used_ram = total_ram - mem_stats.get("available", 0)
+    used_ram = mem_stats.get("used", total_ram - mem_stats.get("available", 0))
 
-    return 1 / (total_ram / used_ram)
+    return used_ram / total_ram if total_ram > 0 else 0
 
 
 # Sort the hypervisors by used RAM (absolute) (low to high)

@@ -55,9 +55,16 @@ $(document).ready(function() {
         "render": function(data, type, full, meta) {
           if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
           if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
-          mem_used=(full.stats.mem_stats.total - full.stats.mem_stats.available)
-          perc=mem_used*100/full.stats.mem_stats.total
-          return Math.round(mem_used/1024/1024)+'GB/'+Math.round(full.stats.mem_stats.total/1024/1024)+'GB'+renderProgress(Math.round(perc), 70, Math.round((full.stats.mem_stats.total-full.min_free_mem_gb*1024*1024)*100/full.stats.mem_stats.total))
+          var ms = full.stats.mem_stats
+          var mem_used = ms.used != null ? ms.used : (ms.total - ms.available)
+          var perc = ms.total > 0 ? mem_used * 100 / ms.total : 0
+          var label = Math.round(mem_used/1024/1024)+'GB/'+Math.round(ms.total/1024/1024)+'GB'
+          if (ms.hugepages_total_kb > 0) {
+            var hp_used = Math.round((ms.hugepages_used_kb != null ? ms.hugepages_used_kb : (ms.hugepages_total_kb - ms.hugepages_free_kb)) / 1024 / 1024)
+            var hp_total = Math.round(ms.hugepages_total_kb / 1024 / 1024)
+            label += ' <span style="color:#8a6d3b;" title="Hugepages: ' + hp_total + 'GB reserved, ' + hp_used + 'GB in use by VMs">(HP:' + hp_used + '/' + hp_total + 'GB)</span>'
+          }
+          return label + renderProgress(Math.round(perc), 70, Math.round((ms.total-full.min_free_mem_gb*1024*1024)*100/ms.total))
         }
       },
       {
