@@ -27,6 +27,7 @@ from ..libv2.recycle_bin import (
     get_default_delete,
     get_delete_action,
     get_item_count,
+    get_old_deleted_entry_ids,
     get_old_entries_config,
     get_recycle_bin_cuttoff_time,
     get_recycle_bin_entries_cutoff_time_surpassed,
@@ -451,11 +452,7 @@ def recycle_bin_old_entries_archive(payload):
 @app.route("/api/v3/recycle_bin/old_entries/delete", methods=["PUT"])
 @is_admin
 def recycle_bin_old_entries_delete(payload):
-    rcb_list = []
-    rcbs = get_item_count(status="deleted")
-    for rcb in rcbs:
-        if check_older_than_old_entry_max_time(rcb["last"]["time"]):
-            rcb_list.append(rcb["id"])
+    rcb_list = get_old_deleted_entry_ids()
     RecycleBin.delete_old_entries(rcb_list)
 
     return (

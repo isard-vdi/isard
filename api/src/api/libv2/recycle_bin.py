@@ -798,6 +798,26 @@ def check_older_than_old_entry_max_time(last):
         return last < (datetime.now() - timedelta(hours=max_time_hours)).timestamp()
 
 
+def get_old_deleted_entry_ids():
+    """
+    Get IDs of deleted entries older than max_time using server-side filtering
+    on the status_accessed index instead of fetching all entries to Python.
+    """
+    max_time_config = get_old_entries_config()["max_time"]
+    if max_time_config is None:
+        return []
+    cutoff = (datetime.now() - timedelta(hours=int(max_time_config))).timestamp()
+    with app.app_context():
+        return list(
+            r.table("recycle_bin")
+            .between(
+                ["deleted", r.minval], ["deleted", cutoff], index="status_accessed"
+            )
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+
+
 @cached(cache=TTLCache(maxsize=1, ttl=30))
 def get_default_delete():
     with app.app_context():
@@ -1891,14 +1911,16 @@ class RecycleBin(object):
                 ).run(db.conn)
 
     @classmethod
-    def delete_old_entries(cls, rcb_list):
-        with app.app_context():
-            results = (
-                r.table("recycle_bin")
-                .get_all(r.args(rcb_list))
-                .delete()
-                .run(db.conn, array_limit=500000)
-            )
+    def delete_old_entries(cls, rcb_list, chunk_size=500):
+        if not rcb_list:
+            return
+        rcb_list = list(rcb_list)
+        for i in range(0, len(rcb_list), chunk_size):
+            chunk = rcb_list[i : i + chunk_size]
+            with app.app_context():
+                r.table("recycle_bin").get_all(r.args(chunk)).delete().run(
+                    db.conn, array_limit=200000
+                )
 
     # @classmethod
     # def archive_old_entries(cls, rcb_list):
