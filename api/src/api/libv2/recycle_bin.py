@@ -69,11 +69,10 @@ class RecycleBinDeleteQueue:
         if not hasattr(self, "initialized"):
             self.queue = Queue()
             self.recycle_bin_ids = set()
+            self.recycle_bin_ids_lock = threading.Lock()
             self.stop_event = threading.Event()
             self.worker_thread = threading.Thread(target=self._background_worker)
-            self.worker_thread.daemon = (
-                True  # Allows the thread to exit when the main program exits
-            )
+            self.worker_thread.daemon = True
             self.worker_thread.start()
             self.initialized = True
             # Add all recycle bin that are in status queued to the queue to be processed
@@ -94,81 +93,94 @@ class RecycleBinDeleteQueue:
 
     def enqueue(self, item):
         recycle_bin_id = item.get("recycle_bin_id")
-        if recycle_bin_id not in self.recycle_bin_ids:
-            update_status(recycle_bin_id, item.get("user_id"), "queued")
-            add_log(
-                "queued",
-                recycle_bin_id,
-                "system",
-                "isard-scheduler",
-                "isard-scheduler",
-                None,
-                None,
-                None,
-            )
-            self.queue.put(item)
+        with self.recycle_bin_ids_lock:
+            if recycle_bin_id in self.recycle_bin_ids:
+                app.logger.debug(
+                    f"Item with recycle_bin_id {recycle_bin_id} is already in the queue."
+                )
+                return
             self.recycle_bin_ids.add(recycle_bin_id)
-            app.logger.debug(
-                f"Item with recycle_bin_id {recycle_bin_id} added to the queue."
-            )
-        else:
-            app.logger.debug(
-                f"Item with recycle_bin_id {recycle_bin_id} is already in the queue."
-            )
+        update_status(recycle_bin_id, item.get("user_id"), "queued")
+        add_log(
+            "queued",
+            recycle_bin_id,
+            "system",
+            "isard-scheduler",
+            "isard-scheduler",
+            None,
+            None,
+            None,
+        )
+        self.queue.put(item)
+        app.logger.debug(
+            f"Item with recycle_bin_id {recycle_bin_id} added to the queue."
+        )
 
     def dequeue(self):
         try:
-            item = self.queue.get(
-                timeout=1
-            )  # Timeout to allow thread to check for stop_event
-            self.recycle_bin_ids.remove(item.get("recycle_bin_id"))
+            item = self.queue.get(timeout=1)
+            with self.recycle_bin_ids_lock:
+                self.recycle_bin_ids.discard(item.get("recycle_bin_id"))
             return item
         except Empty:
             return None
 
     def perform_operation(self, recycle_bin_id, user_id):
-        # Example operation using user_id
         app.logger.debug(f"Performing operation with user_id {user_id}")
         try:
             rb = RecycleBin(id=recycle_bin_id)
             rb.delete_storage(user_id)
             if rb.item_type in ["user", "group", "category"]:
-                dependants_rb_ids = []
-                for user in rb.users:
+                dependants_rb_ids = set()
+
+                # Batch query for all users at once
+                if rb.users:
+                    user_keys = [[user["id"], "recycled"] for user in rb.users]
                     with app.app_context():
-                        dependants_rb_ids += set(
+                        user_deps = list(
                             r.table("recycle_bin")
-                            .get_all([user["id"], "recycled"], index=f"owner_status")
-                            .filter(lambda rb: rb["id"] != recycle_bin_id)
+                            .get_all(r.args(user_keys), index="owner_status")
+                            .filter(lambda rcb: rcb["id"] != recycle_bin_id)
                             .pluck("id")["id"]
                             .run(db.conn)
                         )
-                if rb.item_type == "group":
-                    for group in rb.groups:
-                        with app.app_context():
-                            dependants_rb_ids += set(
-                                r.table("recycle_bin")
-                                .get_all(
-                                    [group["id"], "recycled"],
-                                    index=f"owner_group_status",
-                                )
-                                .filter(lambda rb: rb["id"] != recycle_bin_id)
-                                .pluck("id")["id"]
-                                .run(db.conn)
+                        dependants_rb_ids.update(user_deps)
+
+                # Batch query for all groups at once
+                if rb.item_type == "group" and rb.groups:
+                    group_keys = [
+                        [group["id"], "recycled"] for group in rb.groups
+                    ]
+                    with app.app_context():
+                        group_deps = list(
+                            r.table("recycle_bin")
+                            .get_all(
+                                r.args(group_keys), index="owner_group_status"
                             )
-                elif rb.item_type == "category":
-                    for category in rb.categories:
-                        with app.app_context():
-                            dependants_rb_ids += set(
-                                r.table("recycle_bin")
-                                .get_all(
-                                    [category["id"], "recycled"],
-                                    index=f"owner_category_status",
-                                )
-                                .filter(lambda rb: rb["id"] != recycle_bin_id)
-                                .pluck("id")["id"]
-                                .run(db.conn)
+                            .filter(lambda rcb: rcb["id"] != recycle_bin_id)
+                            .pluck("id")["id"]
+                            .run(db.conn)
+                        )
+                        dependants_rb_ids.update(group_deps)
+
+                # Batch query for all categories at once
+                elif rb.item_type == "category" and rb.categories:
+                    category_keys = [
+                        [cat["id"], "recycled"] for cat in rb.categories
+                    ]
+                    with app.app_context():
+                        cat_deps = list(
+                            r.table("recycle_bin")
+                            .get_all(
+                                r.args(category_keys),
+                                index="owner_category_status",
                             )
+                            .filter(lambda rcb: rcb["id"] != recycle_bin_id)
+                            .pluck("id")["id"]
+                            .run(db.conn)
+                        )
+                        dependants_rb_ids.update(cat_deps)
+
                 for d_rb_id in dependants_rb_ids:
                     self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
         except Exception as e:
@@ -176,7 +188,6 @@ class RecycleBinDeleteQueue:
                 f"Error processing recycle bin {recycle_bin_id}: {str(e)}",
                 exc_info=True,
             )
-            # Update status back to recycled so it can be retried or manually handled
             try:
                 update_status(recycle_bin_id, user_id, "recycled")
             except Exception as status_error:
@@ -208,7 +219,7 @@ class RecycleBinDeleteQueue:
                     f"Critical error in recycle bin background worker: {str(e)}",
                     exc_info=True,
                 )
-            time.sleep(0.1)  # Add a small sleep to prevent a tight loop
+            time.sleep(0.1)
 
     def stop(self):
         self.stop_event.set()
