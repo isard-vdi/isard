@@ -5998,6 +5998,7 @@ password:s:%s"""
                     mapped = config_map[provider.get("enabled", None)]
                     allowed_domains = provider.get("allowed_domains", [])
                     provider["disabled"] = mapped["disabled"]
+                    provider["config_source"] = "global"
                     provider["email_domain_restriction"] = {
                         "enabled": mapped["email_domain_restriction-enabled"]
                         and bool(allowed_domains),
