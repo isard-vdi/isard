@@ -1251,7 +1251,7 @@ def storage_path_statuses(payload):
 @is_admin
 def storage_find(payload, storage_id):
     storage = get_storage(payload, storage_id)
-    return jsonify(storage.find(payload.get("user_id")))
+    return jsonify(storage.find(payload.get("user_id"), full_walk=True))
 
 
 @app.route("/api/v3/storages/find", methods=["PUT"])
@@ -1271,7 +1271,7 @@ def storages_find(payload):
         )
     for storage_id in storages_ids:
         storage = get_storage(payload, storage_id)
-        storage.find(payload.get("user_id"))
+        storage.find(payload.get("user_id"), full_walk=True)
 
     return jsonify({})
 
@@ -1284,7 +1284,7 @@ def storages_find_by_status(payload, status):
     for storage_id in storages_ids:
         try:
             storage = get_storage(payload, storage_id)
-            storage.find(payload.get("user_id"))
+            storage.find(payload.get("user_id"), full_walk=True)
         except:
             notify_admin(
                 payload["user_id"],

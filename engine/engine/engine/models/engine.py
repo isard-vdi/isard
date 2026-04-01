@@ -822,7 +822,7 @@ class Engine(object):
                                             storage, "readonly", False
                                         ):
                                             try:
-                                                storage.find(user_id, blocking=False)
+                                                storage.find(user_id)
                                             except Exception as e:
                                                 logs.main.debug(
                                                     f"Could not create find task for storage {storage.id}: {e}"

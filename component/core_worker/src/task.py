@@ -397,19 +397,6 @@ def domain_change_storage(domain_id, storage_id):
     domain.create_dict = c_dict
 
 
-def storage_domains_force_update(storage_id):
-    """
-    Force update domains of a storage.
-
-    No longer sets domains to StartingPaused: hardware is now resolved
-    on-demand at domain start time via resolve_hardware_from_create_dict().
-
-    :param storage_id: Storage ID
-    :type storage_id: str
-    """
-    return
-
-
 def _valid_storage_pool(storage, new_path):
     """
     Update the storage pool if the new path matches the expected pool path.

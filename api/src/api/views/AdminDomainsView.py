@@ -383,7 +383,7 @@ def api_v3_admin_domains_find_storages(payload, status):
             if not Storage.exists(storage_id):
                 continue
             storage = Storage(storage_id)
-            storage.find(payload.get("user_id"))
+            storage.find(payload.get("user_id"), full_walk=True)
             tasks_created += 1
         except Exception:
             notify_admin(
