@@ -13,9 +13,15 @@ local:
             other_fields:
               and:
                 - email_domain_restriction
+                - config_source
     email_domain_restriction:
       type: dict
       schema: email_domain_restriction
+    config_source:
+      type: string
+      allowed:
+        - global
+        - custom
 google:
   type: dict
   schema:

@@ -63,16 +63,16 @@
           {% endwith %}
         {% endwith %}
 
-        {% if provider != "local" %}
-          {% with
-            name="config_source",
-            label="Config Source",
-            type="select",
-            options={"global": "Global", "custom": "Custom"}
-          %}
-            {% include '/snippets/form_field.html' %}
-          {% endwith %}
+        {% with
+          name="config_source",
+          label="Config Source",
+          type="select",
+          options={"global": "Global", "custom": "Custom"}
+        %}
+          {% include '/snippets/form_field.html' %}
+        {% endwith %}
 
+        {% if provider != "local" %}
           <div class="provider-config-form">
             <h5>Provider Configuration</h5>
             {% with name_prefix=name_prefix ~ "[" ~ provider ~ "_config]" %}
