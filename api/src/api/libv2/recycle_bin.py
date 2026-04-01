@@ -724,7 +724,7 @@ def get_count(recycle_bin_id):
         )
 
 
-@cached(cache=TTLCache(maxsize=50, ttl=10))
+@cached(cache=TTLCache(maxsize=50, ttl=30))
 def get_item_count(user_id=None, category_id=None, status=None):
     query = r.table("recycle_bin")
     if user_id:
@@ -780,7 +780,7 @@ def get_user_amount(user_id):
         )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=30))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_old_entries_config():
     with app.app_context():
         try:
@@ -818,7 +818,7 @@ def get_old_deleted_entry_ids():
         )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=30))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_default_delete():
     with app.app_context():
         try:
@@ -827,7 +827,7 @@ def get_default_delete():
             return False
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=30))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_delete_action():
     with app.app_context():
         try:
@@ -836,7 +836,7 @@ def get_delete_action():
             return "delete"
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_user_recycle_bin_cutoff_time(user_id):
     """
     Retrieve the user recycle bin cutoff time.
@@ -863,7 +863,7 @@ def get_user_recycle_bin_cutoff_time(user_id):
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_categories_recycle_bin_cutoff_time():
     """
     Retrieve all the categories cutoff time.
@@ -880,7 +880,7 @@ def get_categories_recycle_bin_cutoff_time():
         )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_category_recycle_bin_cuttoff_time(category_id):
     """
     Get the recycle bin cutoff time applied to a category.
@@ -904,7 +904,7 @@ def get_category_recycle_bin_cuttoff_time(category_id):
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_recycle_bin_cuttoff_time(category_id=None):
     """
     Get the recycle bin cutoff time for a category or the global cutoff time.
