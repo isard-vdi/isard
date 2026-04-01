@@ -1,4 +1,5 @@
 import traceback
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 from cachetools import TTLCache, cached
@@ -302,37 +303,143 @@ def get(recycle_bin_id=None, all_data=None):
         result = r.table("recycle_bin").get(recycle_bin_id).run(db.conn)
 
     if all_data:
-        for domain in result["desktops"] + result["templates"]:
-            category = get_category_data(domain["category"])
-            group = get_group_data(domain["group"])
-            domain["category"] = category
-            domain["group"] = group
+        all_domains = result["desktops"] + result["templates"]
+
+        # Batch-fetch all unique categories and groups in 2 queries
+        category_ids = set()
+        group_ids = set()
+        for domain in all_domains:
+            if isinstance(domain.get("category"), str):
+                category_ids.add(domain["category"])
+            if isinstance(domain.get("group"), str):
+                group_ids.add(domain["group"])
+        for user in result.get("users", []):
+            if isinstance(user.get("category"), str):
+                category_ids.add(user["category"])
+            if isinstance(user.get("group"), str):
+                group_ids.add(user["group"])
+
+        with app.app_context():
+            categories = (
+                {
+                    c["id"]: c
+                    for c in r.table("categories")
+                    .get_all(r.args(list(category_ids)))
+                    .pluck("id", "name")
+                    .run(db.conn)
+                }
+                if category_ids
+                else {}
+            )
+            groups = (
+                {
+                    g["id"]: g
+                    for g in r.table("groups")
+                    .get_all(r.args(list(group_ids)))
+                    .pluck("id", "name")
+                    .run(db.conn)
+                }
+                if group_ids
+                else {}
+            )
+
+        storage_to_domains = defaultdict(list)
+        for domain in all_domains:
+            cat_id = domain.get("category")
+            grp_id = domain.get("group")
+            domain["category"] = categories.get(
+                cat_id, {"id": cat_id, "name": "[Deleted]"}
+            )
+            domain["group"] = groups.get(grp_id, {"id": grp_id, "name": "[Deleted]"})
+            for disk in (
+                domain.get("create_dict", {}).get("hardware", {}).get("disks", [])
+            ):
+                if "storage_id" in disk:
+                    storage_to_domains[disk["storage_id"]].append(domain)
 
         for storage in result["storages"]:
-            storage["domains"] = []
-            for domain in result["desktops"] + result["templates"]:
-                for disk in domain["create_dict"]["hardware"]["disks"]:
-                    if disk["storage_id"] == storage["id"]:
-                        storage["domains"].append(domain["name"])
-                        storage["category"] = domain["category"]
-                        storage["user"] = domain["username"]
+            matches = storage_to_domains.get(storage["id"], [])
+            storage["domains"] = [m["name"] for m in matches]
+            if matches:
+                storage["category"] = matches[0]["category"]
+                storage["user"] = matches[0].get("username")
+
+        # Batch-fetch deployment users
+        deployment_user_ids = list(
+            set(
+                d["user"]
+                for d in result.get("deployments", [])
+                if isinstance(d.get("user"), str)
+            )
+        )
+        if deployment_user_ids:
+            with app.app_context():
+                dep_users = {
+                    u["id"]: u
+                    for u in r.table("users")
+                    .get_all(r.args(deployment_user_ids))
+                    .pluck("id", "username", "category", "group")
+                    .run(db.conn)
+                }
+        else:
+            dep_users = {}
+
+        # Fetch any deployment-user categories/groups not already loaded
+        missing_cat_ids = set()
+        missing_grp_ids = set()
+        for u in dep_users.values():
+            if u.get("category") and u["category"] not in categories:
+                missing_cat_ids.add(u["category"])
+            if u.get("group") and u["group"] not in groups:
+                missing_grp_ids.add(u["group"])
+        if missing_cat_ids:
+            with app.app_context():
+                categories.update(
+                    {
+                        c["id"]: c
+                        for c in r.table("categories")
+                        .get_all(r.args(list(missing_cat_ids)))
+                        .pluck("id", "name")
+                        .run(db.conn)
+                    }
+                )
+        if missing_grp_ids:
+            with app.app_context():
+                groups.update(
+                    {
+                        g["id"]: g
+                        for g in r.table("groups")
+                        .get_all(r.args(list(missing_grp_ids)))
+                        .pluck("id", "name")
+                        .run(db.conn)
+                    }
+                )
 
         for deployment in result["deployments"]:
-            user = get_user_data(deployment["user"])
-            category = get_category_data(user["category_id"])
-            group = get_group_data(user["group_id"])
-            user = (
-                r.table("users")
-                .get(deployment["user"])
-                .default({"username": "[Deleted]"})
-            )
-            deployment["user"] = user["username"].run(db.conn)
-            deployment["category"] = category
-            deployment["group"] = group
+            user = dep_users.get(deployment["user"])
+            if user:
+                deployment["user"] = user.get("username", "[Deleted]")
+                deployment["category"] = categories.get(
+                    user.get("category"),
+                    {"id": user.get("category"), "name": "[Deleted]"},
+                )
+                deployment["group"] = groups.get(
+                    user.get("group"), {"id": user.get("group"), "name": "[Deleted]"}
+                )
+            else:
+                deployment["user"] = "[Deleted]"
+                deployment["category"] = {"id": None, "name": "[Deleted]"}
+                deployment["group"] = {"id": None, "name": "[Deleted]"}
 
-        for user in result["users"]:
-            user["category"] = get_category_data(user["category"])["name"]
-            user["group"] = get_group_data(user["group"])["name"]
+        for user in result.get("users", []):
+            cat_id = user.get("category")
+            grp_id = user.get("group")
+            user["category"] = categories.get(
+                cat_id, {"id": cat_id, "name": "[Deleted]"}
+            ).get("name", "[Deleted]")
+            user["group"] = groups.get(
+                grp_id, {"id": grp_id, "name": "[Deleted]"}
+            ).get("name", "[Deleted]")
     return result
 
 
