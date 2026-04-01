@@ -623,8 +623,11 @@ def recycle_bin_add_unused_items(payload):
         notification_action = get_notification_action(notification["action_id"])
         recycle_bin_cutoff_time = get_recycle_bin_cuttoff_time()
 
-    for desktop in desktops:
+    for i, desktop in enumerate(desktops):
         desktop_delete(desktop["id"], "isard-scheduler")
+        # Delay every 50 items to avoid overwhelming .changes() handlers
+        if (i + 1) % 50 == 0:
+            gevent.sleep(0.5)
         if notification:
             notification_data.append(
                 {
@@ -658,8 +661,11 @@ def recycle_bin_add_unused_items(payload):
         notification_action = get_notification_action(notification["action_id"])
         recycle_bin_cutoff_time = get_recycle_bin_cuttoff_time()
 
-    for deployment in deployments:
+    for i, deployment in enumerate(deployments):
         deployment_delete(deployment["id"], "isard-scheduler")
+        # Delay every 50 items to avoid overwhelming .changes() handlers
+        if (i + 1) % 50 == 0:
+            gevent.sleep(0.5)
         if notification:
             common_data = {
                 "item_id": deployment["id"],

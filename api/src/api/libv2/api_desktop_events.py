@@ -477,17 +477,20 @@ def desktop_delete(desktop_id, agent_id, permanent=False):
         rcb.delete_storage(agent_id)
 
 
-def desktops_delete(agent_id, desktops_ids, permanent=False, batch_size=200):
+def desktops_delete(agent_id, desktops_ids, permanent=False, batch_size=50):
     action = "delete"
     try:
         rcb_instances = []
 
-        # Process desktops in batches of maximum 100
+        # Process desktops in batches with delay to avoid overwhelming .changes() handlers
         for i in range(0, len(desktops_ids), batch_size):
             batch_ids = desktops_ids[i : i + batch_size]
             rcb = RecycleBinBulk(user_id=agent_id)
             rcb.add(batch_ids)
             rcb_instances.append(rcb)
+            # Delay between batches to allow .changes() handlers to process
+            if i + batch_size < len(desktops_ids):
+                time.sleep(0.5)
 
         max_time = get_user_recycle_bin_cutoff_time(agent_id)
         # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
