@@ -443,76 +443,81 @@ def get(recycle_bin_id=None, all_data=None):
     return result
 
 
-@cached(cache=TTLCache(maxsize=50, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_recycle_bin_entries_cutoff_time_surpassed():
     """
-    Retrieve all recycle bin entries that have surpassed the cutoff time. It will consider the global
-    cutoff time or the category cutoff time.
+    Retrieve all recycle bin entries that have surpassed the cutoff time.
+    Uses compound indexes (status_accessed, owner_category_status_accessed)
+    with .between() range scans and union queries for single round-trip.
 
     :return: Recycle bin entries that have surpassed the cutoff time
-    :rtype: list
+    :rtype: set
     """
-    recycle_bin_entries = []
     recycle_bin_cuttoff_time = get_recycle_bin_cuttoff_time()
     recycle_bin_categories_cuttoff_time = get_categories_recycle_bin_cutoff_time()
 
     if not recycle_bin_categories_cuttoff_time:
+        # Simple case: single global cutoff, use status_accessed index
+        cutoff = (
+            datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+        ).timestamp()
         with app.app_context():
-            recycle_bin_entries = list(
+            return set(
                 r.table("recycle_bin")
-                .get_all("recycled", index="status")
-                .filter(
-                    r.row["accessed"]
-                    < (
-                        datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
-                    ).timestamp()
-                )
-                .pluck("id")["id"]
-                .run(db.conn)
-            )
-    else:
-        for category in recycle_bin_categories_cuttoff_time:
-            with app.app_context():
-                recycle_bin_entries += list(
-                    r.table("recycle_bin")
-                    .get_all(
-                        [category["id"], "recycled"], index="owner_category_status"
-                    )
-                    .filter(
-                        r.row["accessed"]
-                        < (
-                            datetime.now()
-                            - timedelta(hours=category["recycle_bin_cutoff_time"])
-                        ).timestamp()
-                    )
-                    .pluck("id")["id"]
-                    .run(db.conn)
-                )
-
-        categories_to_exclude_ids = [
-            category["id"] for category in recycle_bin_categories_cuttoff_time
-        ]
-
-        with app.app_context():
-            recycle_bin_entries += list(
-                r.table("recycle_bin")
-                .get_all("recycled", index="status")
-                .filter(
-                    lambda rb: r.expr(categories_to_exclude_ids)
-                    .contains(rb["owner_category_id"])
-                    .not_()
-                )
-                .filter(
-                    r.row["accessed"]
-                    < (
-                        datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
-                    ).timestamp()
+                .between(
+                    ["recycled", r.minval],
+                    ["recycled", cutoff],
+                    index="status_accessed",
                 )
                 .pluck("id")["id"]
                 .run(db.conn)
             )
 
-    return set(recycle_bin_entries)
+    # Complex case: per-category cutoffs via union query
+    queries = []
+    categories_to_exclude_ids = []
+
+    for cat in recycle_bin_categories_cuttoff_time:
+        cutoff = (
+            datetime.now() - timedelta(hours=cat["recycle_bin_cutoff_time"])
+        ).timestamp()
+        queries.append(
+            r.table("recycle_bin")
+            .between(
+                [cat["id"], "recycled", r.minval],
+                [cat["id"], "recycled", cutoff],
+                index="owner_category_status_accessed",
+            )
+            .pluck("id")["id"]
+        )
+        categories_to_exclude_ids.append(cat["id"])
+
+    # Global cutoff for categories without custom cutoff
+    global_cutoff = (
+        datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+    ).timestamp()
+    queries.append(
+        r.table("recycle_bin")
+        .between(
+            ["recycled", r.minval],
+            ["recycled", global_cutoff],
+            index="status_accessed",
+        )
+        .filter(
+            lambda doc: r.expr(categories_to_exclude_ids)
+            .contains(doc["owner_category_id"])
+            .not_()
+        )
+        .pluck("id")["id"]
+    )
+
+    # Single round-trip union
+    combined = queries[0]
+    for q in queries[1:]:
+        combined = combined.union(q)
+
+    with app.app_context():
+        return set(combined.distinct().run(db.conn))
 
 
 def update_status(rb_id, owner_id, status):
