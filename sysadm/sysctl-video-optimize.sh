@@ -30,11 +30,12 @@ SETTINGS[net.ipv4.tcp_max_syn_backlog]=65535
 
 # --- TCP buffer sizes ---
 # min/default/max in bytes. Larger buffers for video frame bursts.
-# Default kernel is 4K/87K/6M. We raise default to 256K for streaming.
+# Default kernel is 4K/87K/6M. We raise default to 256K and max to 16M for streaming.
+# Core defaults raised to 4M to not regress non-TCP sockets.
 SETTINGS[net.ipv4.tcp_rmem]="4096 262144 16777216"
 SETTINGS[net.ipv4.tcp_wmem]="4096 262144 16777216"
-SETTINGS[net.core.rmem_default]=262144
-SETTINGS[net.core.wmem_default]=262144
+SETTINGS[net.core.rmem_default]=4194304
+SETTINGS[net.core.wmem_default]=4194304
 SETTINGS[net.core.rmem_max]=16777216
 SETTINGS[net.core.wmem_max]=16777216
 
@@ -68,8 +69,8 @@ SETTINGS[net.ipv4.tcp_tw_reuse]=2
 SETTINGS[net.ipv4.tcp_fin_timeout]=15
 
 # --- Network queue ---
-# Increase the max number of queued packets when interface receives faster than kernel processes
-SETTINGS[net.core.netdev_max_backlog]=16384
+# Raise max backlog to 250K for high-throughput packet queueing
+SETTINGS[net.core.netdev_max_backlog]=250000
 # Increase max number of packets queued on OUTPUT
 SETTINGS[net.core.optmem_max]=131072
 
