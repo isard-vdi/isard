@@ -246,11 +246,9 @@ const form = useForm({
 
 // Fetch user allowed hardware options
 
-const {
-  isPending: userAllowedHardwareLoading,
-  error: userAllowedHardwareError,
-  data: userAllowedHardware
-} = useQuery(getAllowedHardwareOptions())
+const { isPending: userAllowedHardwareLoading, data: userAllowedHardware } = useQuery(
+  getAllowedHardwareOptions()
+)
 
 const diskBusOptions = computed(() => userAllowedHardware.value?.disk_bus || [])
 const videosOptions = computed(() => userAllowedHardware.value?.videos || [])
@@ -368,6 +366,17 @@ const getLimitedMessage = (fieldName: string) => {
   })
 }
 
+function getNamedResources(ids: string[] | undefined, options: { id: string; name: string }[]) {
+  if (!ids) return undefined
+  return ids.map((id) => {
+    const item = options.find((option) => option.id === id)
+    return {
+      id,
+      name: item?.name ?? id
+    }
+  })
+}
+
 // Add state for modal
 const showNetworksModal = ref(false)
 
@@ -384,12 +393,8 @@ const getFormData = () => ({
   ...(props.showDiskSize ? { diskSize: form.getFieldValue('diskSize') } : {}),
   videos: form.getFieldValue('videos'),
   bootOrder: form.getFieldValue('bootOrder'),
-  ...(props.showPeripherals
-    ? {
-        isos: form.getFieldValue('isos'),
-        floppies: form.getFieldValue('floppies')
-      }
-    : {}),
+  isos: getNamedResources(form.getFieldValue('isos'), isosOptions.value),
+  floppies: getNamedResources(form.getFieldValue('floppies'), floppiesOptions.value),
   interfaces: form.getFieldValue('interfaces'),
   reservables: {
     vgpus: (form.getFieldValue('reservables.vgpus') as string[] | undefined)?.length

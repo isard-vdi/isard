@@ -57,6 +57,10 @@
         "title": "Duplica Plantilla",
         "subtitle": "Crea una nova plantilla duplicant-ne una existent"
       },
+      "edit": {
+        "title": "Edita una plantilla",
+        "subtitle": "Edita les propietats, visibilitat i configuració de maquinari de la plantilla"
+      },
       "recycle-bin": {
         "title": "Paperera de reciclatge",
         "subtitle": "Veu, restaura o elimina elements a la teva paperera",
@@ -472,6 +476,10 @@
             "subtitle": "Aquesta plantilla es compartirà amb {groups} i {users}.",
             "button": "Gestiona usuaris i grups"
           },
+          "access": {
+            "title": "Resum d'accés",
+            "subtitle": "Això és un resum dels mètodes d'accés disponibles per a la teva plantilla."
+          },
           "hardware": {
             "title": "Resum de maquinari",
             "subtitle": "Aquest és un resum del maquinari heretat que s'utilitzarà per a la teva plantilla."
@@ -848,32 +856,12 @@
       }
     },
     "edit-template": {
-      "title": "Edita la plantilla",
-      "subtitle": "Editant «{name}»",
       "header": {
         "cancel": "Cancel·la",
         "save": "Desa els canvis"
       },
       "errors": {
         "title": "Error en desar la plantilla"
-      },
-      "info": {
-        "title": "Nom i descripció",
-        "description": "Defineix el nom i la descripció de la plantilla."
-      },
-      "access": {
-        "title": "Accés",
-        "description": "Visualitzadors i credencials per als escriptoris resultants."
-      },
-      "hardware": {
-        "title": "Maquinari",
-        "description": "vCPU, memòria, ordre d’arrencada, interfícies i reservables."
-      },
-      "unsaved-changes": {
-        "title": "Canvis sense desar",
-        "description": "Tens canvis sense desar. Si surts els perdràs.",
-        "stay": "Quedat",
-        "leave": "Descarta els canvis"
       }
     },
     "new-desktop-from-media": {
@@ -1609,6 +1597,20 @@
         "title": "Bastió"
       }
     },
+    "domain-hardware-summary": {
+      "system": {
+        "title": "Sistema"
+      },
+      "networks": {
+        "title": "Xarxes"
+      },
+      "peripherals": {
+        "title": "Perifèrics"
+      },
+      "reservables": {
+        "title": "Reservables"
+      }
+    },
     "viewers-selector": {
       "browser-viewers": {
         "label": "Visors de navegador",
@@ -2181,6 +2183,33 @@
         "generic": "No s’ha pogut pujar. Torna-ho a provar.",
         "invalid_type": "Tipus de fitxer no vàlid. Tria un PNG, JPG o GIF.",
         "too_large": "El fitxer és massa gran. La mida màxima és 5 MB."
+      },
+      "form": {
+        "validation": {
+          "required": "El camp {field} és obligatori",
+          "min-length": "El camp {field} ha de tenir almenys {min} caràcters",
+          "min-array-length": "El camp {field} ha de tenir almenys {min} elements",
+          "max-array-length": "El camp {field} ha de tenir com a màxim {max} elements",
+          "max-length": "El camp {field} ha de tenir com a màxim {max} caràcters",
+          "min-value": "El camp {field} ha de ser almenys {min}",
+          "max-value": "El camp {field} ha de ser com a màxim {max}",
+          "type": {
+            "string": "El camp {field} ha de ser una cadena de text",
+            "number": "El camp {field} ha de ser un número",
+            "integer": "El camp {field} ha de ser un nombre enter",
+            "boolean": "El camp {field} ha de ser vertader o fals",
+            "array": "El camp {field} ha de ser una llista",
+            "email": "El camp {field} ha de ser una adreça de correu electrònic vàlida"
+          },
+          "invalid-format": "El camp {field} té un format no vàlid",
+          "multiple-of": "El camp {field} ha de coincidir amb almenys un dels formats permesos",
+          "unrecognized-keys": "El camp {field} té claus no reconegudes: {keys}",
+          "invalid-union": "El camp {field} ha de coincidir amb almenys un dels formats permesos",
+          "invalid-key": "El camp {field} té una clau no vàlida",
+          "invalid-element": "El camp {field} té un element no vàlid",
+          "invalid-value": "El camp {field} té un valor no vàlid",
+          "unique": "El camp {field} ha de ser únic"
+        }
       }
     },
     "notification-modal": {
@@ -2273,6 +2302,16 @@
         "template_failed": "Aquesta plantilla ha fallat i no es pot duplicar."
       }
     },
+    "edit-template": {
+      "errors": {
+        "generic": "Hi ha hagut un error en desar la plantilla. Torna-ho a provar.",
+        "internal_server": "Error intern del servidor en desar la plantilla.",
+        "new_template_name_exists": "Ja existeix una plantilla amb aquest nom. Si us plau, tria un nom diferent.",
+        "not_found": "No s'ha trobat la plantilla.",
+        "precondition_required": "La plantilla ha d'estar aturada per poder-la editar.",
+        "bad_request": "Els visors RDP necessiten la xarxa wireguard. Si us plau, afegeix la xarxa wireguard a aquesta plantilla o elimina els visors RDP."
+      }
+    },
     "new-media": {
       "errors": {
         "generic": {
@@ -2315,6 +2354,19 @@
           "title": "Els reservables dels escriptoris no son iguals",
           "description": "Tots els escriptoris amb reservables en un desplegament han de tenir els mateixos reservables assignats. Si us plau, assegura't que tots els escriptoris amb reservables tinguin els mateixos reservables assignats i torna-ho a provar."
         }
+      }
+    },
+    "edit-desktop": {
+      "errors": {
+        "generic": "Hi ha hagut un error en desar l’escriptori. Torna-ho a provar.",
+        "internal_server": "Error intern del servidor en desar l’escriptori.",
+        "desktop_not_stopped": "L’escriptori ha d’estar aturat abans d’editar-lo."
+      }
+    },
+    "new-from-media": {
+      "errors": {
+        "generic": "Hi ha hagut un error en crear l’escriptori. Torna-ho a provar.",
+        "internal_server": "Error intern del servidor en crear l’escriptori."
       }
     }
   },

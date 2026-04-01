@@ -316,7 +316,15 @@ class Domain(RethinkCustomBase):
             search=search,
             search_field=search_field,
             filters=filters,
-            pluck=["id", "name", "image", "description"],
+            pluck=[
+                "id",
+                "name",
+                "image",
+                "description",
+                "enabled",
+                "status",
+                "progress",
+            ],
         )
 
     @classmethod

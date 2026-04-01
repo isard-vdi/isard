@@ -94,14 +94,22 @@ const router = createRouter({
               component: () => import('../views/NewTemplateView.vue')
             },
             {
-              path: 'edit/:templateId',
-              name: 'edit-template',
-              component: () => import('../views/EditTemplateView.vue'),
+              path: 'edit',
+              name: 'edit-template-root',
               meta: {
                 title: 'router.templates.edit.title',
                 subtitle: 'router.templates.edit.subtitle'
-              }
+              },
+              redirect: { name: 'templates' },
+              children: [
+                {
+                  path: ':templateId',
+                  name: 'edit-template',
+                  component: () => import('../views/EditTemplateView.vue')
+                }
+              ]
             },
+
             {
               path: 'duplicate',
               name: 'duplicate-template-root',

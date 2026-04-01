@@ -121,7 +121,8 @@ const {
       template_id: props.templateId!
     }
   }),
-  enabled: computed(() => !!props.templateId)
+  enabled: computed(() => !!props.templateId),
+  gcTime: 0
 })
 
 // Fetch desktop info when desktopId is provided
@@ -135,7 +136,8 @@ const {
       desktop_id: props.desktopId!
     }
   }),
-  enabled: computed(() => !!props.desktopId)
+  enabled: computed(() => !!props.desktopId),
+  gcTime: 0
 })
 
 // Computed access values from template or desktop data or props
@@ -168,9 +170,13 @@ const fullscreen = computed<boolean>(() => {
 
 const viewers = computed<string[]>(() => {
   if (templateData.value?.guest_properties) {
-    return Object.keys(templateData.value.guest_properties.viewers)
+    return Object.entries(templateData.value.guest_properties.viewers ?? {})
+      .filter(([, v]) => v !== null)
+      .map(([k]) => k)
   } else if (desktopData.value?.guest_properties?.viewers) {
-    return Object.keys(desktopData.value.guest_properties.viewers)
+    return Object.entries(desktopData.value.guest_properties.viewers)
+      .filter(([, v]) => v !== null)
+      .map(([k]) => k)
   } else {
     return props.viewers
   }
@@ -236,6 +242,13 @@ const form = useForm({
   validators: {
     onChange: formSchema
   }
+})
+
+// Sync form fields when source data changes (e.g. stale cache replaced by fresh fetch)
+watch([templateData, desktopData], () => {
+  form.setFieldValue('credentials', credentials.value)
+  form.setFieldValue('fullscreen', fullscreen.value)
+  form.setFieldValue('viewers', viewers.value)
 })
 
 // --- Viewer / wireguard coordination ---
@@ -463,18 +476,9 @@ const showPassword = ref(false)
             <FeaturedIconOutline kind="outline" color="warning" />
             <AlertTitle>{{ t('components.domain.access.wireguard-warning.title') }}</AlertTitle>
             <AlertDescription>
-              <p class="mb-3">
+              <p class="mb-0">
                 {{ t('components.domain.access.wireguard-warning.description') }}
               </p>
-              <Button
-                v-if="props.onRequestAddInterface"
-                size="sm"
-                hierarchy="secondary-color"
-                icon="plus"
-                @click="handleAddWireguardInterface"
-              >
-                {{ t('components.domain.access.wireguard-warning.add-interface-button') }}
-              </Button>
             </AlertDescription>
           </Alert>
         </div>
