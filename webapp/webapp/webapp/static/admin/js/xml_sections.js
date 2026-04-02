@@ -16,7 +16,11 @@ var SECTION_CAPS_MAP = {
     'channels': ['channel_types'],
     'network': ['interface_backends'],
     'redirdev': ['redirdev_buses'],
-    'features': ['features']
+    'features': ['features'],
+    'tpm': ['tpm_models', 'tpm_backend_versions'],
+    'audio': ['audio_types'],
+    'serial': ['serial_target_types'],
+    'watchdog': ['watchdog_models', 'watchdog_actions']
 };
 
 function openXmlSections(domainId) {
@@ -231,20 +235,45 @@ function renderXmlSections(sections, capabilities) {
                 if (!val) return;
                 if (ck === 'cpu_models') {
                     var usable = val.filter(function(m) { return m.usable; });
-                    capsItems.push('<b>Usable CPU models:</b> ' + escapeHtml(usable.map(function(m) { return m.name; }).join(', ')));
+                    capsItems.push('<li><b>Usable CPU models:</b> ' + escapeHtml(usable.map(function(m) { return m.name; }).join(', ')) + '</li>');
                 } else if (ck === 'features') {
-                    if (val.hyperv) capsItems.push('<b>Hyper-V:</b> ' + escapeHtml(val.hyperv.join(', ')));
+                    if (val.hyperv) capsItems.push('<li><b>Hyper-V:</b> ' + escapeHtml(val.hyperv.join(', ')) + '</li>');
                 } else if (ck === 'vcpu_max') {
-                    capsItems.push('<b>Max vCPUs:</b> ' + escapeHtml(String(val)));
+                    capsItems.push('<li><b>Max vCPUs:</b> ' + escapeHtml(String(val)) + '</li>');
                 } else if (Array.isArray(val)) {
                     var label = ck.replace(/_/g, ' ');
-                    capsItems.push('<b>' + escapeHtml(label) + ':</b> ' + escapeHtml(val.join(', ')));
+                    capsItems.push('<li><b>' + escapeHtml(label) + ':</b> ' + escapeHtml(val.join(', ')) + '</li>');
                 }
             });
             if (capsItems.length > 0) {
-                capsHtml = '<div class="xml-caps-info" style="margin-top: 4px; padding: 4px 8px; background: #fafafa; border: 1px solid #eee; border-radius: 3px; font-size: 11px; color: #666;">' +
-                    '<i class="fa fa-info-circle"></i> ' + capsItems.join(' &nbsp;|&nbsp; ') + '</div>';
+                capsHtml = '<div class="xml-caps-sidebar" style="padding: 6px 8px; background: #fafafa; ' +
+                    'border: 1px solid #eee; border-radius: 3px; font-size: 11px; color: #666; ' +
+                    'height: 100%; overflow-y: auto;">' +
+                    '<div style="font-weight: bold; margin-bottom: 4px;">' +
+                    '<i class="fa fa-info-circle"></i> Available Options</div>' +
+                    '<ul style="padding-left: 16px; margin: 0;">' +
+                    capsItems.join('') +
+                    '</ul></div>';
             }
+        }
+
+        var textareaHtml =
+            '<textarea class="form-control xml-section-textarea" ' +
+                'data-key="' + safeKey + '" ' +
+                'rows="' + rows + '" ' +
+                'style="font-family: monospace; font-size: 12px; background-color: ' + bgColor + '; color: ' + textColor + '; resize: vertical; width: 100%;"' +
+                (isSystemLocked ? ' readonly' : '') +
+            '>' + escapeHtml(section.xml) + '</textarea>';
+
+        var contentHtml;
+        if (capsHtml) {
+            contentHtml =
+                '<div style="display: flex; align-items: stretch; gap: 5px;">' +
+                    '<div style="flex: 2; min-width: 0;">' + textareaHtml + '</div>' +
+                    '<div style="flex: 1; min-width: 180px;">' + capsHtml + '</div>' +
+                '</div>';
+        } else {
+            contentHtml = textareaHtml;
         }
 
         var panelHtml =
@@ -261,13 +290,7 @@ function renderXmlSections(sections, capabilities) {
                     '</div>' +
                 '</div>' +
                 '<div class="x_content" style="padding: 5px;">' +
-                    '<textarea class="form-control xml-section-textarea" ' +
-                        'data-key="' + safeKey + '" ' +
-                        'rows="' + rows + '" ' +
-                        'style="font-family: monospace; font-size: 12px; background-color: ' + bgColor + '; color: ' + textColor + '; resize: vertical;"' +
-                        (isSystemLocked ? ' readonly' : '') +
-                    '>' + escapeHtml(section.xml) + '</textarea>' +
-                    capsHtml +
+                    contentHtml +
                 '</div>' +
             '</div>';
 
