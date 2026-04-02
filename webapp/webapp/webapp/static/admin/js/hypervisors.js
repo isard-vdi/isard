@@ -272,13 +272,13 @@ $(document).ready(function () {
         if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
         if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
         var ms = full.stats.mem_stats
-        var mem_used = ms.total - ms.available
-        var perc = mem_used * 100 / ms.total
+        var mem_used = ms.used != null ? ms.used : (ms.total - ms.available)
+        var perc = ms.total > 0 ? mem_used * 100 / ms.total : 0
         var label = Math.round(mem_used / 1024 / 1024) + 'GB/' + Math.round(ms.total / 1024 / 1024) + 'GB'
         if (ms.hugepages_total_kb > 0) {
-          var hp_used = Math.round((ms.hugepages_total_kb - ms.hugepages_free_kb) / 1024 / 1024)
+          var hp_used = Math.round((ms.hugepages_used_kb != null ? ms.hugepages_used_kb : (ms.hugepages_total_kb - ms.hugepages_free_kb)) / 1024 / 1024)
           var hp_total = Math.round(ms.hugepages_total_kb / 1024 / 1024)
-          label += ' <span style="color:#8a6d3b;" title="Hugepages used/total">(HP:' + hp_used + '/' + hp_total + 'GB)</span>'
+          label += ' <span style="color:#8a6d3b;" title="Hugepages: ' + hp_total + 'GB reserved, ' + hp_used + 'GB in use by VMs">(HP:' + hp_used + '/' + hp_total + 'GB)</span>'
         }
         return label + renderProgress(Math.round(perc), 70, Math.round((ms.total - full.min_free_mem_gb * 1024 * 1024) * 100 / ms.total))
       }
@@ -485,8 +485,8 @@ $(document).ready(function () {
     "rowCallback": function (row, data, dataIndex) {
       if (!("stats" in data)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
       if (!("min_free_mem_gb" in data)) { data.min_free_mem_gb = 0 }
-      mem_used = (data.stats.mem_stats.total - data.stats.mem_stats.available)
-      perc = mem_used * 100 / data.stats.mem_stats.total
+      var mem_used = data.stats.mem_stats.used != null ? data.stats.mem_stats.used : (data.stats.mem_stats.total - data.stats.mem_stats.available)
+      var perc = data.stats.mem_stats.total > 0 ? mem_used * 100 / data.stats.mem_stats.total : 0
       if ('stats' in data) {
         if (data.stats.mem_stats.total - mem_used - data.min_free_mem_gb * 1024 * 1024 <= 0) {
           $(row).css({ "background-color": "#FFCCCB" })
@@ -639,18 +639,18 @@ $(document).ready(function () {
 })
 
 function updateRamTotals(table) {
-  var totalRAM = 0, availRAM = 0, totalVMs = 0, onlineCount = 0;
-  var totalHP = 0, freeHP = 0;
+  var totalRAM = 0, usedRAM = 0, totalVMs = 0, onlineCount = 0;
+  var totalHP = 0, usedHP = 0;
   table.rows().every(function () {
     var d = this.data();
     if (d.status !== "Online") return;
     onlineCount++;
     if (d.stats && d.stats.mem_stats) {
       totalRAM += d.stats.mem_stats.total;
-      availRAM += d.stats.mem_stats.available;
+      usedRAM += d.stats.mem_stats.used != null ? d.stats.mem_stats.used : (d.stats.mem_stats.total - d.stats.mem_stats.available);
       if (d.stats.mem_stats.hugepages_total_kb > 0) {
         totalHP += d.stats.mem_stats.hugepages_total_kb;
-        freeHP += d.stats.mem_stats.hugepages_free_kb;
+        usedHP += d.stats.mem_stats.hugepages_used_kb != null ? d.stats.mem_stats.hugepages_used_kb : (d.stats.mem_stats.hugepages_total_kb - d.stats.mem_stats.hugepages_free_kb);
       }
     }
     if (d.desktops_started !== undefined) {
@@ -662,16 +662,15 @@ function updateRamTotals(table) {
     return;
   }
   $('#ram-totals').show();
-  var usedRAM = totalRAM - availRAM;
   var usedGB = Math.round(usedRAM / 1024 / 1024);
   var totalGB = Math.round(totalRAM / 1024 / 1024);
-  var freeGB = Math.round(availRAM / 1024 / 1024);
-  var perc = Math.round(usedRAM * 100 / totalRAM);
+  var freeGB = totalGB - usedGB;
+  var perc = totalRAM > 0 ? Math.round(usedRAM * 100 / totalRAM) : 0;
   var summary = 'RAM Used: ' + usedGB + 'GB / Total: ' + totalGB + 'GB - Free: ' + freeGB + 'GB ' +
     renderRamBar(perc) +
     ' | VMs: ' + totalVMs + ' started';
   if (totalHP > 0) {
-    var usedHPGB = Math.round((totalHP - freeHP) / 1024 / 1024);
+    var usedHPGB = Math.round(usedHP / 1024 / 1024);
     var totalHPGB = Math.round(totalHP / 1024 / 1024);
     summary += ' | HP: ' + usedHPGB + '/' + totalHPGB + 'GB';
   }

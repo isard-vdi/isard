@@ -144,10 +144,10 @@ class HypStats(object):
 
     def set_stats(self, hyp_id, memory, cpu, hugepages_total_kb=0, hugepages_free_kb=0):
         memory["available"] = memory["free"] + memory["cached"]
-        if hugepages_total_kb > 0:
-            memory["available"] += hugepages_free_kb
-            memory["hugepages_total_kb"] = hugepages_total_kb
-            memory["hugepages_free_kb"] = hugepages_free_kb
+        memory["hugepages_total_kb"] = hugepages_total_kb
+        memory["hugepages_free_kb"] = hugepages_free_kb
+        memory["hugepages_used_kb"] = hugepages_total_kb - hugepages_free_kb
+        memory["used"] = memory["total"] - memory["available"] - hugepages_free_kb
         current_libvirt_stats = {"memory": memory, "cpu": cpu}
         if hyp_id not in self.hyper_libvirt_last_stats.keys():
             cpu_current, _, _ = calcule_cpu_hyp_stats(
@@ -1492,6 +1492,43 @@ class hyp(object):
             self.spice_proxy_port,
         )
 
+    @staticmethod
+    def _parse_free_pages(free_pages, page_sizes, num_cells):
+        """Parse getFreePages result regardless of libvirt-python format.
+
+        Handles:
+          - flat list [count, ...] (len = num_reported_cells * len(page_sizes))
+          - list of dicts [{page_size_kb: count}, ...]
+          - dict of dicts {cell_idx: {page_size_kb: count}, ...}
+        """
+        total_free_kb = 0
+        if isinstance(free_pages, dict):
+            for _cell_idx, sizes in free_pages.items():
+                for page_size_kb, free_count in sizes.items():
+                    total_free_kb += free_count * page_size_kb
+            reported_cells = len(free_pages)
+        elif isinstance(free_pages, list):
+            if len(free_pages) > 0 and isinstance(free_pages[0], dict):
+                for cell_dict in free_pages:
+                    for page_size_kb, free_count in cell_dict.items():
+                        total_free_kb += free_count * page_size_kb
+                reported_cells = len(free_pages)
+            else:
+                idx = 0
+                for _cell in range(num_cells):
+                    for page_size_kb in page_sizes:
+                        if idx < len(free_pages):
+                            total_free_kb += free_pages[idx] * page_size_kb
+                            idx += 1
+                reported_cells = len(free_pages) // len(page_sizes) if page_sizes else 0
+        else:
+            return 0
+
+        if 0 < reported_cells < num_cells:
+            total_free_kb = total_free_kb * num_cells // reported_cells
+
+        return total_free_kb
+
     def _get_hugepages_stats(self):
         hugepages_info = (
             self.hypervisor.get("hugepages_info", {}) if self.hypervisor else {}
@@ -1511,17 +1548,16 @@ class hyp(object):
                 page_sizes.append(2048)
             num_cells = self.conn.getInfo()[4]
             free_pages = self.conn.getFreePages(page_sizes, 0, num_cells)
-            # getFreePages returns {cell_idx: {page_size_kb: free_count}}
-            for cell_idx, sizes in free_pages.items():
-                for page_size_kb, free_count in sizes.items():
-                    hugepages_free_kb += free_count * page_size_kb
+            hugepages_free_kb = self._parse_free_pages(
+                free_pages, page_sizes, num_cells
+            )
         except Exception as e:
             log.warning(
                 f"[{self.id_hyp_rethink}] getFreePages failed, assuming all hugepages free: {e}"
             )
             hugepages_free_kb = hugepages_total_kb
 
-        return hugepages_total_kb, hugepages_free_kb
+        return hugepages_total_kb, min(hugepages_free_kb, hugepages_total_kb)
 
     def get_system_stats(self):
         try:

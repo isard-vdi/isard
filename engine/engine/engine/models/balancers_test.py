@@ -25,11 +25,27 @@ from engine.models.balancers import (
                 }
             },
             0.25,
-        )
+        ),
+        # With explicit 'used' field (hugepages-aware)
+        (
+            {
+                "stats": {
+                    "mem_stats": {
+                        "total": 1008 * 1024 * 1024,
+                        "available": 206 * 1024 * 1024,
+                        "used": 130 * 1024 * 1024,
+                        "hugepages_total_kb": 336 * 1024 * 1024,
+                        "hugepages_free_kb": 336 * 1024 * 1024,
+                        "hugepages_used_kb": 0,
+                    }
+                }
+            },
+            130 / 1008,
+        ),
     ],
 )
 def test_get_used_ram_percentage(test_input, expected):
-    assert _get_used_ram_percentage(test_input) == expected
+    assert _get_used_ram_percentage(test_input) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(

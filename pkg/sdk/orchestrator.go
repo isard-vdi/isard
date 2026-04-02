@@ -34,8 +34,8 @@ func (o *OrchestratorHypervisor) calcLoad() {
 
 	o.RAM = OrchestratorResourceLoad{
 		Total: o.Stats.Mem.Total / 1024,
-		Used:  (o.Stats.Mem.Total - o.Stats.Mem.Available) / 1024,
-		Free:  o.Stats.Mem.Available / 1024,
+		Used:  o.Stats.Mem.Used / 1024,
+		Free:  (o.Stats.Mem.Total - o.Stats.Mem.Used) / 1024,
 	}
 }
 
@@ -46,11 +46,15 @@ type OrchestratorHypervisorStats struct {
 }
 
 type OrchestratorHypervisorStatsMem struct {
-	Available int `json:"available,omitempty"`
-	Buffers   int `json:"buffers,omitempty"`
-	Cached    int `json:"cached,omitempty"`
-	Free      int `json:"free,omitempty"`
-	Total     int `json:"total,omitempty"`
+	Available        int `json:"available,omitempty"`
+	Buffers          int `json:"buffers,omitempty"`
+	Cached           int `json:"cached,omitempty"`
+	Free             int `json:"free,omitempty"`
+	Total            int `json:"total,omitempty"`
+	Used             int `json:"used,omitempty"`
+	HugepagesTotalKB int `json:"hugepages_total_kb,omitempty"`
+	HugepagesFreeKB  int `json:"hugepages_free_kb,omitempty"`
+	HugepagesUsedKB  int `json:"hugepages_used_kb,omitempty"`
 }
 
 type OrchestratorHypervisorStatsCPU struct {
