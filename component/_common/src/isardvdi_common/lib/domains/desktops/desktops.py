@@ -1659,6 +1659,8 @@ class DesktopsProcessed(RethinkSharedConnection):
                     cls._rdb_connection
                 )
 
+            Caches.invalidate_cache("domains", d)
+
     @classmethod
     def update_desktop_reservables(cls, desktop_id, reservables):
         """_From api/libv2/api_desktops_persistent.py ApiDesktopsPersistent.UpdateReservables()_"""

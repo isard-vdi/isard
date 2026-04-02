@@ -99,7 +99,8 @@ const {
       template_id: props.templateId!
     }
   }),
-  enabled: computed(() => !!props.templateId)
+  enabled: computed(() => !!props.templateId),
+  gcTime: 0
 })
 
 // Fetch desktop info when desktopId is provided
@@ -242,6 +243,20 @@ const form = useForm({
   validators: {
     onChange: formSchema
   }
+})
+
+// Sync form fields when source data changes (e.g. stale cache replaced by fresh fetch)
+watch([templateData, desktopData], () => {
+  form.setFieldValue('vcpus', vcpus.value)
+  form.setFieldValue('memory', memory.value)
+  form.setFieldValue('diskBus', diskBus.value)
+  form.setFieldValue('diskSize', diskSize.value)
+  form.setFieldValue('videos', videos.value)
+  form.setFieldValue('bootOrder', bootOrder.value)
+  form.setFieldValue('isos', isos.value)
+  form.setFieldValue('floppies', floppies.value)
+  form.setFieldValue('reservables.vgpus', vgpus.value)
+  form.setFieldValue('interfaces', interfaces.value)
 })
 
 // Fetch user allowed hardware options
