@@ -634,6 +634,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		PrepareDB               func(*r.Mock)
 		ExpectedChanges         []providerChange
 		ExpectedDisabledChanges []categoryDisabledProviderChange
+		ExpectedBrandingChanges []categoryBrandingDomainChange
 		ExpectedLDAPConfigs     []model.LDAPConfig
 		ExpectedSAMLConfigs     []model.SAMLConfig
 		ExpectedGoogleConfigs   []model.GoogleConfig
@@ -644,7 +645,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 						},
 					},
 				}, nil)
@@ -731,7 +734,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 							"ldap": map[string]any{
 								"config_source": "custom",
 								"ldap_config": map[string]any{
@@ -788,7 +793,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 						},
 					},
 				}, nil)
@@ -803,7 +810,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 						},
 					},
 				}, nil).Once()
@@ -945,7 +954,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat2",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 						},
 					},
 				}, nil)
@@ -960,7 +971,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 						},
 					},
 				}, nil).Once()
@@ -982,7 +995,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 							"ldap": map[string]any{
 								"config_source": "custom",
 								"ldap_config": map[string]any{
@@ -1008,7 +1023,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 							"ldap": map[string]any{
 								"config_source": "custom",
 								"ldap_config": map[string]any{
@@ -1051,7 +1068,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 							"ldap": map[string]any{
 								"config_source": "custom",
 								"ldap_config": map[string]any{
@@ -1507,7 +1526,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 						},
 					},
 				}, nil)
@@ -1526,7 +1547,9 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
-							"local": map[string]any{},
+							"local": map[string]any{
+								"config_source": "custom",
+							},
 						},
 					},
 				}, nil).Once()
@@ -1637,6 +1660,856 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 				{CategoryID: "cat1", Provider: types.ProviderGoogle, Disabled: true},
 				{CategoryID: "cat1", Provider: types.ProviderGoogle, Disabled: false},
 			},
+		},
+		"should not enable local with config_source global": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{},
+		},
+		"should not send SAML change when SAML config is nil": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{},
+		},
+		"should not send Google change when Google config is nil": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"google": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{},
+		},
+		"should broadcast initial SAML provider and config for category": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://saml.test/metadata",
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderSAML, Enabled: true},
+			},
+			ExpectedSAMLConfigs: []model.SAMLConfig{
+				{MetadataURL: "https://saml.test/metadata"},
+			},
+		},
+		"should handle multiple categories on initial load": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+					map[string]any{
+						"id": "cat2",
+						"authentication": map[string]any{
+							"ldap": map[string]any{
+								"config_source": "custom",
+								"ldap_config": map[string]any{
+									"host": "ldap.test",
+									"port": 636,
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat2"), Provider: types.ProviderLDAP, Enabled: true},
+			},
+			ExpectedLDAPConfigs: []model.LDAPConfig{
+				{Host: "ldap.test", Port: 636},
+			},
+		},
+		"should not enable any provider when all have config_source global on initial load": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "global",
+							},
+							"ldap": map[string]any{
+								"config_source": "global",
+							},
+							"saml": map[string]any{
+								"config_source": "global",
+							},
+							"google": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{},
+		},
+		"should detect local transition from custom to global on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: false},
+			},
+		},
+		"should detect SAML transition from custom to global on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://saml.test/metadata",
+								},
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderSAML, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderSAML, Enabled: false},
+			},
+		},
+		"should detect Google transition from custom to global on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"google": map[string]any{
+								"config_source": "custom",
+								"google_config": map[string]any{
+									"client_id":     "test-id",
+									"client_secret": "test-secret",
+								},
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"google": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderGoogle, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderGoogle, Enabled: false},
+			},
+		},
+		"should detect LDAP transition from global to custom on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"ldap": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"ldap": map[string]any{
+								"config_source": "custom",
+								"ldap_config": map[string]any{
+									"host": "ldap.test",
+									"port": 636,
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLDAP, Enabled: true},
+			},
+			ExpectedLDAPConfigs: []model.LDAPConfig{
+				{Host: "ldap.test", Port: 636},
+			},
+		},
+		"should detect SAML transition from global to custom on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://saml.test/metadata",
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderSAML, Enabled: true},
+			},
+			ExpectedSAMLConfigs: []model.SAMLConfig{
+				{MetadataURL: "https://saml.test/metadata"},
+			},
+		},
+		"should detect Google transition from global to custom on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"google": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"google": map[string]any{
+								"config_source": "custom",
+								"google_config": map[string]any{
+									"client_id":     "test-id",
+									"client_secret": "test-secret",
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderGoogle, Enabled: true},
+			},
+			ExpectedGoogleConfigs: []model.GoogleConfig{
+				{ClientID: "test-id", ClientSecret: "test-secret"},
+			},
+		},
+		"should detect local transition from global to custom on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+			},
+		},
+		"should not send changes when config is unchanged on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+							"ldap": map[string]any{
+								"config_source": "custom",
+								"ldap_config": map[string]any{
+									"host": "ldap.test",
+									"port": 636,
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLDAP, Enabled: true},
+			},
+			ExpectedLDAPConfigs: []model.LDAPConfig{
+				{Host: "ldap.test", Port: 636},
+			},
+		},
+		"should handle new category with LDAP appearing on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"ldap": map[string]any{
+								"config_source": "custom",
+								"ldap_config": map[string]any{
+									"host": "ldap.test",
+									"port": 636,
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLDAP, Enabled: true},
+			},
+			ExpectedLDAPConfigs: []model.LDAPConfig{
+				{Host: "ldap.test", Port: 636},
+			},
+		},
+		"should handle new category with multiple providers appearing on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+							"saml": map[string]any{
+								"config_source": "custom",
+								"saml_config": map[string]any{
+									"metadata_url": "https://saml.test/metadata",
+								},
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderSAML, Enabled: true},
+			},
+			ExpectedSAMLConfigs: []model.SAMLConfig{
+				{MetadataURL: "https://saml.test/metadata"},
+			},
+		},
+		"should not send disable for LDAP with config_source global when category is deleted": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"ldap": map[string]any{
+								"config_source": "global",
+								"ldap_config": map[string]any{
+									"host": "ldap.test",
+									"port": 636,
+								},
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			ExpectedChanges: []providerChange{},
+		},
+		"should send disable for local but not LDAP global when category is deleted": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+							"ldap": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: false},
+			},
+		},
+		"should handle multiple categories deleted on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+					map[string]any{
+						"id": "cat2",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat2"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: false},
+				{CategoryID: strPtr("cat2"), Provider: types.ProviderLocal, Enabled: false},
+			},
+		},
+		"should handle one category deleted and another added on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat2",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: false},
+				{CategoryID: strPtr("cat2"), Provider: types.ProviderLocal, Enabled: true},
+			},
+		},
+		"should send branding domain change on initial load": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+			},
+			ExpectedBrandingChanges: []categoryBrandingDomainChange{
+				{
+					CategoryID: "cat1",
+					Host:       strPtr("example.com"),
+					Authentication: &model.CategoryAuthentication{
+						Local: &model.CategoryAuthLocal{
+							ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+						},
+					},
+				},
+			},
+		},
+		"should not send branding domain change when domain is disabled on initial load": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": false,
+								"name":    "example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+			},
+			ExpectedBrandingChanges: []categoryBrandingDomainChange{},
+		},
+		"should clear branding domain when category is deleted on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "example.com",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: false},
+			},
+			ExpectedBrandingChanges: []categoryBrandingDomainChange{
+				{
+					CategoryID: "cat1",
+					Host:       strPtr("example.com"),
+					Authentication: &model.CategoryAuthentication{
+						Local: &model.CategoryAuthLocal{
+							ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+						},
+					},
+				},
+				{
+					CategoryID: "cat1",
+					Host:       nil,
+					Authentication: &model.CategoryAuthentication{
+						Local: &model.CategoryAuthLocal{
+							ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+						},
+					},
+				},
+			},
+		},
+		"should detect branding domain change on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "old.example.com",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "new.example.com",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+			},
+			ExpectedBrandingChanges: []categoryBrandingDomainChange{
+				{
+					CategoryID: "cat1",
+					Host:       strPtr("old.example.com"),
+					Authentication: &model.CategoryAuthentication{
+						Local: &model.CategoryAuthLocal{
+							ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+						},
+					},
+				},
+				{
+					CategoryID: "cat1",
+					Host:       strPtr("new.example.com"),
+					Authentication: &model.CategoryAuthentication{
+						Local: &model.CategoryAuthLocal{
+							ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+						},
+					},
+				},
+			},
+		},
+		"should detect branding domain disabled on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": true,
+								"name":    "example.com",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "custom",
+							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{
+								"enabled": false,
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
+			},
+			ExpectedBrandingChanges: []categoryBrandingDomainChange{
+				{
+					CategoryID: "cat1",
+					Host:       strPtr("example.com"),
+					Authentication: &model.CategoryAuthentication{
+						Local: &model.CategoryAuthLocal{
+							ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+						},
+					},
+				},
+				{
+					CategoryID: "cat1",
+					Host:       nil,
+					Authentication: &model.CategoryAuthentication{
+						Local: &model.CategoryAuthLocal{
+							ConfigSource: model.CategoryAuthenticationConfigSourceCustom,
+						},
+					},
+				},
+			},
+		},
+		"should not send LDAP enable when config is nil despite config_source custom on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"ldap": map[string]any{
+								"config_source": "custom",
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{},
+		},
+		"should send local disable on delete even with config_source global": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"config_source": "global",
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			ExpectedChanges: []providerChange{
+				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: false},
+			},
+		},
+		"should handle category with all providers disabled on initial load": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"disabled": true,
+							},
+							"ldap": map[string]any{
+								"disabled": true,
+							},
+							"saml": map[string]any{
+								"disabled": true,
+							},
+							"google": map[string]any{
+								"disabled": true,
+							},
+						},
+					},
+				}, nil)
+			},
+			ExpectedChanges: []providerChange{},
+			ExpectedDisabledChanges: []categoryDisabledProviderChange{
+				{CategoryID: "cat1", Provider: types.ProviderLocal, Disabled: true},
+				{CategoryID: "cat1", Provider: types.ProviderLDAP, Disabled: true},
+				{CategoryID: "cat1", Provider: types.ProviderSAML, Disabled: true},
+				{CategoryID: "cat1", Provider: types.ProviderGoogle, Disabled: true},
+			},
+		},
+		"should handle category with all providers disabled then all deleted on reload": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
+					map[string]any{
+						"id": "cat1",
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"disabled": true,
+							},
+							"ldap": map[string]any{
+								"disabled": true,
+							},
+							"saml": map[string]any{
+								"disabled": true,
+							},
+							"google": map[string]any{
+								"disabled": true,
+							},
+						},
+					},
+				}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			ExpectedChanges: []providerChange{},
+			ExpectedDisabledChanges: []categoryDisabledProviderChange{
+				{CategoryID: "cat1", Provider: types.ProviderLocal, Disabled: true},
+				{CategoryID: "cat1", Provider: types.ProviderLDAP, Disabled: true},
+				{CategoryID: "cat1", Provider: types.ProviderSAML, Disabled: true},
+				{CategoryID: "cat1", Provider: types.ProviderGoogle, Disabled: true},
+				{CategoryID: "cat1", Provider: types.ProviderLocal, Disabled: false},
+				{CategoryID: "cat1", Provider: types.ProviderLDAP, Disabled: false},
+				{CategoryID: "cat1", Provider: types.ProviderSAML, Disabled: false},
+				{CategoryID: "cat1", Provider: types.ProviderGoogle, Disabled: false},
+			},
+		},
+		"should handle empty categories on initial load": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
+			},
+			ExpectedChanges: []providerChange{},
 		},
 	}
 
@@ -1753,6 +2626,22 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 
 				if tc.ExpectedDisabledChanges != nil {
 					assert.ElementsMatch(tc.ExpectedDisabledChanges, categoriesDisabledChanges)
+				}
+
+				// Drain and collect branding domain changes.
+				var brandingChanges []categoryBrandingDomainChange
+			drainBranding:
+				for {
+					select {
+					case c := <-watcher.categoriesBrandingDomainChanges:
+						brandingChanges = append(brandingChanges, c)
+					default:
+						break drainBranding
+					}
+				}
+
+				if tc.ExpectedBrandingChanges != nil {
+					assert.ElementsMatch(tc.ExpectedBrandingChanges, brandingChanges)
 				}
 
 				dbMock.AssertExpectations(t)

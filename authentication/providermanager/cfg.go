@@ -303,8 +303,8 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 				cfgLocalExists := cfg.Local != nil
 				newCfgLocalExists := newCfg.Local != nil
 
-				cfgLocalEnabled := cfgLocalExists && !cfg.Local.Disabled
-				newCfgLocalEnabled := newCfgLocalExists && !newCfg.Local.Disabled
+				cfgLocalEnabled := cfgLocalExists && !cfg.Local.Disabled && cfg.Local.ConfigSource == model.CategoryAuthenticationConfigSourceCustom
+				newCfgLocalEnabled := newCfgLocalExists && !newCfg.Local.Disabled && newCfg.Local.ConfigSource == model.CategoryAuthenticationConfigSourceCustom
 				notifyProviderChangeIfNeeded(c.log, c.providerChanges, &categoryID, types.ProviderLocal, cfgLocalEnabled, newCfgLocalEnabled)
 
 				cfgLocalDisabled := cfgLocalExists && cfg.Local.Disabled
