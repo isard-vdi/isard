@@ -133,7 +133,6 @@ class RecycleBinDeleteQueue:
             if rb.item_type in ["user", "group", "category"]:
                 dependants_rb_ids = set()
 
-                # Batch query for all users at once
                 if rb.users:
                     user_keys = [[user["id"], "recycled"] for user in rb.users]
                     with app.app_context():
@@ -146,28 +145,20 @@ class RecycleBinDeleteQueue:
                         )
                         dependants_rb_ids.update(user_deps)
 
-                # Batch query for all groups at once
                 if rb.item_type == "group" and rb.groups:
-                    group_keys = [
-                        [group["id"], "recycled"] for group in rb.groups
-                    ]
+                    group_keys = [[group["id"], "recycled"] for group in rb.groups]
                     with app.app_context():
                         group_deps = list(
                             r.table("recycle_bin")
-                            .get_all(
-                                r.args(group_keys), index="owner_group_status"
-                            )
+                            .get_all(r.args(group_keys), index="owner_group_status")
                             .filter(lambda rcb: rcb["id"] != recycle_bin_id)
                             .pluck("id")["id"]
                             .run(db.conn)
                         )
                         dependants_rb_ids.update(group_deps)
 
-                # Batch query for all categories at once
                 elif rb.item_type == "category" and rb.categories:
-                    category_keys = [
-                        [cat["id"], "recycled"] for cat in rb.categories
-                    ]
+                    category_keys = [[cat["id"], "recycled"] for cat in rb.categories]
                     with app.app_context():
                         cat_deps = list(
                             r.table("recycle_bin")
@@ -316,7 +307,27 @@ def get(recycle_bin_id=None, all_data=None):
     if all_data:
         all_domains = result["desktops"] + result["templates"]
 
-        # Batch-fetch all unique categories and groups in 2 queries
+        # Fetch deployment users first so we can collect all category/group IDs
+        # in one pass and avoid a second round-trip
+        deployment_user_ids = list(
+            set(
+                d["user"]
+                for d in result.get("deployments", [])
+                if isinstance(d.get("user"), str)
+            )
+        )
+        if deployment_user_ids:
+            with app.app_context():
+                dep_users = {
+                    u["id"]: u
+                    for u in r.table("users")
+                    .get_all(r.args(deployment_user_ids))
+                    .pluck("id", "username", "category", "group")
+                    .run(db.conn)
+                }
+        else:
+            dep_users = {}
+
         category_ids = set()
         group_ids = set()
         for domain in all_domains:
@@ -329,6 +340,11 @@ def get(recycle_bin_id=None, all_data=None):
                 category_ids.add(user["category"])
             if isinstance(user.get("group"), str):
                 group_ids.add(user["group"])
+        for u in dep_users.values():
+            if isinstance(u.get("category"), str):
+                category_ids.add(u["category"])
+            if isinstance(u.get("group"), str):
+                group_ids.add(u["group"])
 
         with app.app_context():
             categories = (
@@ -375,57 +391,6 @@ def get(recycle_bin_id=None, all_data=None):
                 storage["category"] = matches[0]["category"]
                 storage["user"] = matches[0].get("username")
 
-        # Batch-fetch deployment users
-        deployment_user_ids = list(
-            set(
-                d["user"]
-                for d in result.get("deployments", [])
-                if isinstance(d.get("user"), str)
-            )
-        )
-        if deployment_user_ids:
-            with app.app_context():
-                dep_users = {
-                    u["id"]: u
-                    for u in r.table("users")
-                    .get_all(r.args(deployment_user_ids))
-                    .pluck("id", "username", "category", "group")
-                    .run(db.conn)
-                }
-        else:
-            dep_users = {}
-
-        # Fetch any deployment-user categories/groups not already loaded
-        missing_cat_ids = set()
-        missing_grp_ids = set()
-        for u in dep_users.values():
-            if u.get("category") and u["category"] not in categories:
-                missing_cat_ids.add(u["category"])
-            if u.get("group") and u["group"] not in groups:
-                missing_grp_ids.add(u["group"])
-        if missing_cat_ids:
-            with app.app_context():
-                categories.update(
-                    {
-                        c["id"]: c
-                        for c in r.table("categories")
-                        .get_all(r.args(list(missing_cat_ids)))
-                        .pluck("id", "name")
-                        .run(db.conn)
-                    }
-                )
-        if missing_grp_ids:
-            with app.app_context():
-                groups.update(
-                    {
-                        g["id"]: g
-                        for g in r.table("groups")
-                        .get_all(r.args(list(missing_grp_ids)))
-                        .pluck("id", "name")
-                        .run(db.conn)
-                    }
-                )
-
         for deployment in result["deployments"]:
             user = dep_users.get(deployment["user"])
             if user:
@@ -448,9 +413,9 @@ def get(recycle_bin_id=None, all_data=None):
             user["category"] = categories.get(
                 cat_id, {"id": cat_id, "name": "[Deleted]"}
             ).get("name", "[Deleted]")
-            user["group"] = groups.get(
-                grp_id, {"id": grp_id, "name": "[Deleted]"}
-            ).get("name", "[Deleted]")
+            user["group"] = groups.get(grp_id, {"id": grp_id, "name": "[Deleted]"}).get(
+                "name", "[Deleted]"
+            )
     return result
 
 
@@ -522,13 +487,8 @@ def get_recycle_bin_entries_cutoff_time_surpassed():
         .pluck("id")["id"]
     )
 
-    # Single round-trip union
-    combined = queries[0]
-    for q in queries[1:]:
-        combined = combined.union(q)
-
     with app.app_context():
-        return set(combined.distinct().run(db.conn))
+        return set(r.union(*queries).run(db.conn))
 
 
 def update_status(rb_id, owner_id, status):
@@ -689,37 +649,27 @@ def get_user_recycle_bin_ids(user_id, status):
         )
 
 
+def _count_fields():
+    """RethinkDB merge dict that replaces array fields with pre-computed counts,
+    falling back to .count() for entries created before the migration."""
+    return {
+        "desktops": r.row["desktops_count"].default(r.row["desktops"].count()),
+        "templates": r.row["templates_count"].default(r.row["templates"].count()),
+        "storages": r.row["storages_count"].default(r.row["storages"].count()),
+        "deployments": r.row["deployments_count"].default(r.row["deployments"].count()),
+        "categories": r.row["categories_count"].default(r.row["categories"].count()),
+        "groups": r.row["groups_count"].default(r.row["groups"].count()),
+        "users": r.row["users_count"].default(r.row["users"].count()),
+    }
+
+
 @cached(cache=TTLCache(maxsize=50, ttl=10))
 def get_count(recycle_bin_id):
     with app.app_context():
         return (
             r.table("recycle_bin")
             .get(recycle_bin_id)
-            .merge(
-                {
-                    "desktops": r.row["desktops_count"].default(
-                        r.row["desktops"].count()
-                    ),
-                    "templates": r.row["templates_count"].default(
-                        r.row["templates"].count()
-                    ),
-                    "storages": r.row["storages_count"].default(
-                        r.row["storages"].count()
-                    ),
-                    "deployments": r.row["deployments_count"].default(
-                        r.row["deployments"].count()
-                    ),
-                    "categories": r.row["categories_count"].default(
-                        r.row["categories"].count()
-                    ),
-                    "groups": r.row["groups_count"].default(
-                        r.row["groups"].count()
-                    ),
-                    "users": r.row["users_count"].default(
-                        r.row["users"].count()
-                    ),
-                }
-            )
+            .merge(_count_fields())
             .run(db.conn)
         )
 
@@ -740,31 +690,9 @@ def get_item_count(user_id=None, category_id=None, status=None):
         query = query.get_all(status, index="status")
     else:
         query = query.get_all(r.args(["recycled", "deleting"]), index="status")
-    count_query = {
-        "desktops": r.row["desktops_count"].default(r.row["desktops"].count()),
-        "templates": r.row["templates_count"].default(r.row["templates"].count()),
-        "storages": r.row["storages_count"].default(r.row["storages"].count()),
-        "deployments": r.row["deployments_count"].default(
-            r.row["deployments"].count()
-        ),
-        "categories": r.row["categories_count"].default(
-            r.row["categories"].count()
-        ),
-        "groups": r.row["groups_count"].default(r.row["groups"].count()),
-        "users": r.row["users_count"].default(r.row["users"].count()),
-        "last": r.row["last_log"].default(r.row["logs"][-1]),
-    }
-    query = query.merge(count_query).without(
-        "logs",
-        "tasks",
-        "desktops",
-        "templates",
-        "storages",
-        "deployments",
-        "users",
-        "groups",
-        "categories",
-    )
+    count_query = _count_fields()
+    count_query["last"] = r.row["last_log"].default(r.row["logs"][-1])
+    query = query.merge(count_query).without("logs", "tasks")
     with app.app_context():
         return list(query.run(db.conn))
 
@@ -1921,6 +1849,8 @@ class RecycleBin(object):
                 r.table("recycle_bin").get_all(r.args(chunk)).delete().run(
                     db.conn, array_limit=200000
                 )
+            if i + chunk_size < len(rcb_list):
+                time.sleep(0.5)
 
     # @classmethod
     # def archive_old_entries(cls, rcb_list):
@@ -2204,9 +2134,7 @@ class RecycleBinDeployment(RecycleBin):
             r.table("recycle_bin").get(self.id).update(
                 {
                     "deployments": r.row["deployments"].append(deployment),
-                    "deployments_count": r.row["deployments_count"]
-                    .default(0)
-                    .add(1),
+                    "deployments_count": r.row["deployments_count"].default(0).add(1),
                 }
             ).run(db.conn)
             desktops_ids = list(
