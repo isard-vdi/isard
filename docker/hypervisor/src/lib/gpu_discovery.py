@@ -681,6 +681,71 @@ def discover_hugepages():
     return result
 
 
+def discover_numa_topology():
+    """Discover per-NUMA-node CPU list and hugepages from sysfs.
+
+    Reads /sys/devices/system/node/node* to build a map of which CPUs and
+    hugepages belong to each NUMA node. The cpulist values are static hardware
+    topology; the hugepages counts are a snapshot from discovery time.
+
+    Returns:
+        dict: {
+            "nodes": {
+                "0": {
+                    "cpulist": "0-15,32-47",
+                    "hugepages": {"1G": {"total": 168, "free": 105}, "2M": {...}}
+                },
+                "1": {...}
+            }
+        }
+        Returns empty dict if /sys/devices/system/node is not available.
+    """
+    _SIZE_MAP = {
+        1048576: "1G",
+        2048: "2M",
+    }
+
+    node_dir = "/sys/devices/system/node"
+    try:
+        entries = sorted(d for d in os.listdir(node_dir) if re.match(r"node\d+$", d))
+    except OSError:
+        return {}
+
+    nodes = {}
+    for entry in entries:
+        node_id = entry.replace("node", "")
+        node_path = os.path.join(node_dir, entry)
+
+        # Read CPU list for this NUMA node
+        cpulist = ""
+        try:
+            with open(os.path.join(node_path, "cpulist")) as f:
+                cpulist = f.read().strip()
+        except (OSError, ValueError):
+            pass
+
+        # Read per-size hugepages for this NUMA node
+        hugepages = {"1G": {"total": 0, "free": 0}, "2M": {"total": 0, "free": 0}}
+        for size_kb, label in _SIZE_MAP.items():
+            hp_dir = os.path.join(node_path, "hugepages", f"hugepages-{size_kb}kB")
+            try:
+                with open(os.path.join(hp_dir, "nr_hugepages")) as f:
+                    hugepages[label]["total"] = int(f.read().strip())
+            except (OSError, ValueError):
+                pass
+            try:
+                with open(os.path.join(hp_dir, "free_hugepages")) as f:
+                    hugepages[label]["free"] = int(f.read().strip())
+            except (OSError, ValueError):
+                pass
+
+        nodes[node_id] = {"cpulist": cpulist, "hugepages": hugepages}
+
+    if not nodes:
+        return {}
+    return {"nodes": nodes}
+
+
 if __name__ == "__main__":
     gpus = discover_gpus()
     if gpus:

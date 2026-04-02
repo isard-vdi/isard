@@ -314,6 +314,7 @@ class ApiHypervisors:
         gpu_only=False,
         hugepages_info=None,
         pci_devices=None,
+        numa_topology=None,
     ):
         data = {}
 
@@ -349,6 +350,7 @@ class ApiHypervisors:
                 gpu_only=gpu_only,
                 hugepages_info=hugepages_info,
                 pci_devices=pci_devices,
+                numa_topology=numa_topology,
             )
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
@@ -389,6 +391,7 @@ class ApiHypervisors:
                 gpu_only=gpu_only,
                 hugepages_info=hugepages_info,
                 pci_devices=pci_devices,
+                numa_topology=numa_topology,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
@@ -476,6 +479,7 @@ class ApiHypervisors:
         gpu_only=False,
         hugepages_info=None,
         pci_devices=None,
+        numa_topology=None,
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -526,6 +530,7 @@ class ApiHypervisors:
             "vpn": {"tunneling_mode": vpn_tunneling_mode},
             "hugepages_info": hugepages_info if hugepages_info else {},
             "pci_devices": pci_devices if pci_devices else {},
+            "numa_topology": numa_topology if numa_topology else {},
         }
 
         hypervisor = _validate_item("hypervisors", hypervisor)

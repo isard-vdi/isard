@@ -129,6 +129,11 @@ def api_v3_hypervisor(hyper_id=False):
                 pci_devices = json.loads(pci_devices_raw)
             except (json.JSONDecodeError, TypeError):
                 pci_devices = {}
+            numa_topology_raw = request.form.get("numa_topology", "{}")
+            try:
+                numa_topology = json.loads(numa_topology_raw)
+            except (json.JSONDecodeError, TypeError):
+                numa_topology = {}
             min_free_mem_gb = int(
                 request.form.get("min_free_mem_gb", default="0", type=str)
             )
@@ -182,6 +187,7 @@ def api_v3_hypervisor(hyper_id=False):
             gpu_only=gpu_only,
             hugepages_info=hugepages_info,
             pci_devices=pci_devices,
+            numa_topology=numa_topology,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])

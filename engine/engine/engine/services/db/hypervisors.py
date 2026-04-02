@@ -561,6 +561,7 @@ def get_hypers_online(
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
             "hugepages_info",
+            "numa_topology",
             "libvirt_warning",  # Include warning state for balancer
             "degraded",  # Include degraded state for webapp display
             "cap_status",  # Include cap_status for balancer operation
@@ -782,6 +783,8 @@ def get_hypers_gpu_online(
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
             "hugepages_info",
+            "numa_topology",
+            "pci_devices",
         )
         .run(r_conn)
     )
@@ -867,6 +870,13 @@ def get_hypers_gpu_online(
                 f"hypervisor with available profile gpu: {h['id']}, uuid_selected: {mdev_uuid}, "
                 + f"gpu_profile: {gpu_brand_model_profile}, gpu_id: {gpu_id}"
             )
+            # Look up GPU NUMA node from pci_devices (sysfs format)
+            # pci is in libvirt format "pci_0000_41_00_0", convert to "0000:41:00.0"
+            pci_sysfs = pci[4:].replace("_", ":", 2)  # "0000:41:00_0"
+            pci_sysfs = (
+                pci_sysfs[: len(pci_sysfs) - 2] + "." + pci_sysfs[-1]
+            )  # "0000:41:00.0"
+            gpu_numa_node = h.get("pci_devices", {}).get(pci_sysfs, {}).get("numa_node")
             hypervisors_with_available_profile.append(
                 {
                     **h,
@@ -879,6 +889,14 @@ def get_hypers_gpu_online(
                             "gpu_profile": gpu_brand_model_profile,
                             "pci_bus_id": pci,
                             "hugepages_info": h.get("hugepages_info", {}),
+                            "hugepages_free_kb": h.get("stats", {})
+                            .get("mem_stats", {})
+                            .get("hugepages_free_kb", 0),
+                            "numa_hugepages_free_kb": h.get("stats", {})
+                            .get("mem_stats", {})
+                            .get("numa_hugepages_free_kb", {}),
+                            "gpu_numa_node": gpu_numa_node,
+                            "numa_topology": h.get("numa_topology", {}),
                         }
                     },
                 }

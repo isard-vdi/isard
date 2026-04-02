@@ -107,3 +107,6 @@ hugepages_info:
 pci_devices:
   type: dict
   default: {}
+numa_topology:
+  type: dict
+  default: {}

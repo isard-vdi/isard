@@ -142,11 +142,20 @@ class HypStats(object):
                 if time.time() - key >= minutes * 60:
                     del self.hyper_stats_history[hyp_id][key]
 
-    def set_stats(self, hyp_id, memory, cpu, hugepages_total_kb=0, hugepages_free_kb=0):
+    def set_stats(
+        self,
+        hyp_id,
+        memory,
+        cpu,
+        hugepages_total_kb=0,
+        hugepages_free_kb=0,
+        numa_hugepages_free_kb=None,
+    ):
         memory["available"] = memory["free"] + memory["cached"]
         memory["hugepages_total_kb"] = hugepages_total_kb
         memory["hugepages_free_kb"] = hugepages_free_kb
         memory["hugepages_used_kb"] = hugepages_total_kb - hugepages_free_kb
+        memory["numa_hugepages_free_kb"] = numa_hugepages_free_kb or {}
         memory["used"] = memory["total"] - memory["available"] - hugepages_free_kb
         current_libvirt_stats = {"memory": memory, "cpu": cpu}
         if hyp_id not in self.hyper_libvirt_last_stats.keys():
@@ -1497,22 +1506,20 @@ class hyp(object):
         """Parse getFreePages result regardless of libvirt-python format.
 
         Handles:
-          - flat list [count, ...] (len = num_reported_cells * len(page_sizes))
-          - list of dicts [{page_size_kb: count}, ...]
           - dict of dicts {cell_idx: {page_size_kb: count}, ...}
+          - list of dicts [{page_size_kb: count}, ...]
+          - flat list [count, ...] (len = num_reported_cells * len(page_sizes))
         """
         total_free_kb = 0
         if isinstance(free_pages, dict):
             for _cell_idx, sizes in free_pages.items():
                 for page_size_kb, free_count in sizes.items():
                     total_free_kb += free_count * page_size_kb
-            reported_cells = len(free_pages)
         elif isinstance(free_pages, list):
             if len(free_pages) > 0 and isinstance(free_pages[0], dict):
                 for cell_dict in free_pages:
                     for page_size_kb, free_count in cell_dict.items():
                         total_free_kb += free_count * page_size_kb
-                reported_cells = len(free_pages)
             else:
                 idx = 0
                 for _cell in range(num_cells):
@@ -1520,16 +1527,111 @@ class hyp(object):
                         if idx < len(free_pages):
                             total_free_kb += free_pages[idx] * page_size_kb
                             idx += 1
-                reported_cells = len(free_pages) // len(page_sizes) if page_sizes else 0
         else:
             return 0
 
-        if 0 < reported_cells < num_cells:
-            total_free_kb = total_free_kb * num_cells // reported_cells
-
         return total_free_kb
 
+    def _get_hugepages_free_from_sysfs(self, hugepages_total_1g, hugepages_total_2m):
+        """Read hugepages free counts from sysfs via SSH.
+
+        Uses per-size sysfs files instead of /proc/meminfo because the latter
+        only reports the default hugepage size and silently ignores others.
+
+        Reads per-NUMA free counts when numa_topology is available in the
+        hypervisor record, deriving the global total from the per-node sum.
+        Falls back to global-only reads when per-NUMA data is unavailable.
+
+        Returns:
+            tuple: (total_free_kb, numa_free_kb) where numa_free_kb is a dict
+                   {"0": kb, "1": kb, ...} or {} if per-NUMA data unavailable.
+                   Returns (None, {}) on any failure.
+        """
+        numa_topo = self.hypervisor.get("numa_topology", {}) if self.hypervisor else {}
+        node_ids = sorted(numa_topo.get("nodes", {}).keys())
+
+        sizes_kb = []
+        if hugepages_total_1g > 0:
+            sizes_kb.append(1048576)
+        if hugepages_total_2m > 0:
+            sizes_kb.append(2048)
+        if not sizes_kb:
+            return None, {}
+
+        # Try per-NUMA reads first (one SSH command for all nodes and sizes)
+        if len(node_ids) > 1:
+            cmd_parts = []
+            for node_id in node_ids:
+                for size_kb in sizes_kb:
+                    cmd_parts.append(
+                        f"cat /sys/devices/system/node/node{node_id}"
+                        f"/hugepages/hugepages-{size_kb}kB/free_hugepages"
+                    )
+            cmd = " && echo '---' && ".join(cmd_parts)
+            try:
+                result = exec_remote_cmd(
+                    cmd,
+                    self.hostname,
+                    username=self.user,
+                    port=self.port,
+                    timeout=5,
+                )
+                if not result["err"]:
+                    out = result["out"].decode("utf-8", errors="replace").strip()
+                    parts = [p.strip() for p in out.split("---")]
+                    expected = len(node_ids) * len(sizes_kb)
+                    if len(parts) == expected:
+                        numa_free_kb = {}
+                        total_free_kb = 0
+                        idx = 0
+                        for node_id in node_ids:
+                            node_free = 0
+                            for size_kb in sizes_kb:
+                                node_free += int(parts[idx]) * size_kb
+                                idx += 1
+                            numa_free_kb[node_id] = node_free
+                            total_free_kb += node_free
+                        return total_free_kb, numa_free_kb
+            except (SSHTimeoutError, Exception) as e:
+                log.debug(f"[{self.id_hyp_rethink}] per-NUMA sysfs read failed: {e}")
+
+        # Fallback: global-only reads
+        cmd_parts = []
+        for size_kb in sizes_kb:
+            cmd_parts.append(
+                f"cat /sys/kernel/mm/hugepages/hugepages-{size_kb}kB/free_hugepages"
+            )
+        cmd = " && echo '---' && ".join(cmd_parts)
+        try:
+            result = exec_remote_cmd(
+                cmd,
+                self.hostname,
+                username=self.user,
+                port=self.port,
+                timeout=5,
+            )
+            if result["err"]:
+                return None, {}
+
+            out = result["out"].decode("utf-8", errors="replace").strip()
+            parts = [p.strip() for p in out.split("---")]
+            if len(parts) != len(sizes_kb):
+                return None, {}
+
+            total_free_kb = 0
+            for free_str, size_kb in zip(parts, sizes_kb):
+                total_free_kb += int(free_str) * size_kb
+            return total_free_kb, {}
+        except (SSHTimeoutError, Exception) as e:
+            log.debug(f"[{self.id_hyp_rethink}] sysfs hugepages read failed: {e}")
+            return None, {}
+
     def _get_hugepages_stats(self):
+        """Return (total_kb, free_kb, numa_free_kb).
+
+        numa_free_kb is {"0": kb, "1": kb, ...} when per-NUMA data is
+        available, {} otherwise.
+        """
         hugepages_info = (
             self.hypervisor.get("hugepages_info", {}) if self.hypervisor else {}
         )
@@ -1537,8 +1639,20 @@ class hyp(object):
         hugepages_total_2m = hugepages_info.get("2M", {}).get("total", 0)
         hugepages_total_kb = hugepages_total_1g * 1048576 + hugepages_total_2m * 2048
         if hugepages_total_kb == 0:
-            return 0, 0
+            return 0, 0, {}
 
+        # Primary: read from kernel sysfs via SSH (authoritative, handles all sizes)
+        hugepages_free_kb, numa_free_kb = self._get_hugepages_free_from_sysfs(
+            hugepages_total_1g, hugepages_total_2m
+        )
+        if hugepages_free_kb is not None:
+            return (
+                hugepages_total_kb,
+                min(hugepages_free_kb, hugepages_total_kb),
+                numa_free_kb,
+            )
+
+        # Fallback: libvirt getFreePages with dict-collision detection
         hugepages_free_kb = 0
         try:
             page_sizes = []
@@ -1548,6 +1662,18 @@ class hyp(object):
                 page_sizes.append(2048)
             num_cells = self.conn.getInfo()[4]
             free_pages = self.conn.getFreePages(page_sizes, 0, num_cells)
+
+            # Detect libvirt bug: duplicate cell IDs cause dict key collision,
+            # resulting in fewer keys than expected NUMA cells.
+            if isinstance(free_pages, dict) and len(free_pages) < num_cells:
+                log.warning(
+                    f"[{self.id_hyp_rethink}] getFreePages returned "
+                    f"{len(free_pages)} cells but expected {num_cells} "
+                    f"(libvirt duplicate cell ID bug), using single-cell query"
+                )
+                free_pages = self.conn.getFreePages(page_sizes, 0, 1)
+                num_cells = 1
+
             hugepages_free_kb = self._parse_free_pages(
                 free_pages, page_sizes, num_cells
             )
@@ -1557,16 +1683,23 @@ class hyp(object):
             )
             hugepages_free_kb = hugepages_total_kb
 
-        return hugepages_total_kb, min(hugepages_free_kb, hugepages_total_kb)
+        return hugepages_total_kb, min(hugepages_free_kb, hugepages_total_kb), {}
 
     def get_system_stats(self):
         try:
             start = time.time()
             memory = self.conn.getMemoryStats(-1)
             cpu = self.conn.getCPUStats(-1)
-            hugepages_total_kb, hugepages_free_kb = self._get_hugepages_stats()
+            hugepages_total_kb, hugepages_free_kb, numa_hp_free = (
+                self._get_hugepages_stats()
+            )
             hyp_stats.set_stats(
-                self.id_hyp_rethink, memory, cpu, hugepages_total_kb, hugepages_free_kb
+                self.id_hyp_rethink,
+                memory,
+                cpu,
+                hugepages_total_kb,
+                hugepages_free_kb,
+                numa_hp_free,
             )
             self.stats = {
                 "mem_stats": hyp_stats.get_stats(self.id_hyp_rethink)["memory"],
