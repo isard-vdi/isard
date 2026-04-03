@@ -100,21 +100,71 @@ class RecycleBinDeleteQueue:
                 )
                 return
             self.recycle_bin_ids.add(recycle_bin_id)
-        update_status(recycle_bin_id, item.get("user_id"), "queued")
-        add_log(
-            "queued",
-            recycle_bin_id,
-            "system",
-            "isard-scheduler",
-            "isard-scheduler",
-            None,
-            None,
-            None,
+        log_entry = {
+            "time": int(time.time()),
+            "action": "queued",
+            "agent_type": "system",
+            "agent_id": "isard-scheduler",
+            "agent_name": "isard-scheduler",
+            "agent_category_id": None,
+            "agent_category_name": None,
+            "agent_role": None,
+        }
+        with app.app_context():
+            r.table("recycle_bin").get(recycle_bin_id).update(
+                {
+                    "status": "queued",
+                    "logs": r.row["logs"].append(log_entry),
+                    "last_log": log_entry,
+                }
+            ).run(db.conn)
+        send_socket_user(
+            "update_recycle_bin",
+            {"id": recycle_bin_id, "status": "queued"},
+            item.get("user_id"),
+        )
+        send_socket_admin(
+            "update_recycle_bin", {"id": recycle_bin_id, "status": "queued"}
         )
         self.queue.put(item)
         app.logger.debug(
             f"Item with recycle_bin_id {recycle_bin_id} added to the queue."
         )
+
+    def bulk_enqueue(self, items):
+        """Enqueue multiple items with a single DB write for the status+log update."""
+        new_items = []
+        with self.recycle_bin_ids_lock:
+            for item in items:
+                rb_id = item.get("recycle_bin_id")
+                if rb_id not in self.recycle_bin_ids:
+                    self.recycle_bin_ids.add(rb_id)
+                    new_items.append(item)
+        if not new_items:
+            return
+        ids = [i["recycle_bin_id"] for i in new_items]
+        log_entry = {
+            "time": int(time.time()),
+            "action": "queued",
+            "agent_type": "system",
+            "agent_id": "isard-scheduler",
+            "agent_name": "isard-scheduler",
+            "agent_category_id": None,
+            "agent_category_name": None,
+            "agent_role": None,
+        }
+        with app.app_context():
+            r.table("recycle_bin").get_all(r.args(ids)).update(
+                {
+                    "status": "queued",
+                    "logs": r.row["logs"].append(log_entry),
+                    "last_log": log_entry,
+                }
+            ).run(db.conn)
+        send_socket_admin("update_recycle_bin", {"ids": ids, "status": "queued"})
+        for item in new_items:
+            self.queue.put(item)
+            app.logger.debug(f"Item {item.get('recycle_bin_id')} bulk-added to queue.")
 
     def dequeue(self):
         try:

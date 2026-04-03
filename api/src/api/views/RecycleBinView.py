@@ -275,22 +275,16 @@ def rcb_cutoff_time_surpass_delete(payload):
     recycle_bin_ids = get_recycle_bin_entries_cutoff_time_surpassed()
 
     def process_bulk_delete():
-        exceptions = []
         try:
-            for i, rb_id in enumerate(recycle_bin_ids):
-                try:
-                    rb_delete_queue.enqueue(
-                        {
-                            "action": "delete",
-                            "recycle_bin_id": rb_id,
-                            "user_id": payload["user_id"],
-                        }
-                    )
-                except Error as e:
-                    exceptions.append(e.args[1])
-                # Throttle: pause between batches to prevent RQ task spike
-                if (i + 1) % 50 == 0:
-                    gevent.sleep(1.0)
+            items = [
+                {
+                    "action": "delete",
+                    "recycle_bin_id": rb_id,
+                    "user_id": payload["user_id"],
+                }
+                for rb_id in recycle_bin_ids
+            ]
+            rb_delete_queue.bulk_enqueue(items)
             notify_admins(
                 "recyclebin_action",
                 {
@@ -306,15 +300,13 @@ def rcb_cutoff_time_surpass_delete(payload):
             if isinstance(e.args, tuple) and len(e.args) > 1:
                 error_message = e.args[1]
             notify_admins(
-                (
-                    "recyclebin_action",
-                    {
-                        "action": "delete",
-                        "count": len(recycle_bin_ids),
-                        "msg": error_message,
-                        "status": "failed",
-                    },
-                )
+                "recyclebin_action",
+                {
+                    "action": "delete",
+                    "count": len(recycle_bin_ids),
+                    "msg": error_message,
+                    "status": "failed",
+                },
             )
 
         except Exception as e:
