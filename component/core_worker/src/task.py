@@ -203,7 +203,10 @@ def storage_update_parent(storage_id):
     task = Task(get_current_job().id)
     if task.depending_status == "finished":
         storage = Storage(storage_id)
-        backing_file = getattr(storage, "qemu-img-info").get("full-backing-filename")
+        qemu_img_info = getattr(storage, "qemu-img-info")
+        if qemu_img_info is None:
+            return
+        backing_file = qemu_img_info.get("full-backing-filename")
         if backing_file:
             backing_storage = Storage.get_by_path(backing_file)
             if backing_storage:
