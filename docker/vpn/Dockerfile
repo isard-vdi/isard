@@ -38,7 +38,7 @@ RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     wireguard-tools \
     openssh \
-    openvswitch@community \
+    openvswitch@community=3.7.0-r1 \
     dnsmasq \
     # For WireGuard and others
     iptables \
