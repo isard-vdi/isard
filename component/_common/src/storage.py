@@ -404,15 +404,22 @@ class Storage(RethinkCustomBase):
         except Exception as e:
             raise
 
-    def find(self, user_id, blocking=True, retry=3):
+    def find(self, user_id, blocking=True, retry=3, full_walk=False):
         """
         Create a task to find the storage.
         It assumes any isard-storage will have all mountpoints in /isard.
+
+        When full_walk is False (default), the task checks the expected
+        path directly and only falls back to a full filesystem walk if
+        the file is not found. When full_walk is True, always walks the
+        entire /isard tree (useful for admin diagnostics).
 
         :param user_id: User ID of the user executing the task
         :type user_id: str
         :param blocking: Blocking
         :type blocking: bool
+        :param full_walk: Force a full filesystem walk
+        :type full_walk: bool
         :return: Task ID
         :rtype: str
         """
@@ -428,6 +435,7 @@ class Storage(RethinkCustomBase):
                 "kwargs": {
                     "storage_id": self.id,
                     "storage_path": self.path,
+                    "full_walk": full_walk,
                 }
             },
             dependents=[
@@ -448,13 +456,6 @@ class Storage(RethinkCustomBase):
                                     "storage_id": self.id,
                                 }
                             },
-                            "dependents": [
-                                {
-                                    "queue": "core",
-                                    "task": "storage_domains_force_update",
-                                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
-                                }
-                            ],
                         }
                     ],
                 }
@@ -646,11 +647,6 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                             },
-                            {
-                                "queue": "core",
-                                "task": "storage_domains_force_update",
-                                "job_kwargs": {"kwargs": {"storage_id": self.id}},
-                            },
                         ],
                     },
                 ]
@@ -759,11 +755,6 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                             },
-                        },
-                        {
-                            "queue": "core",
-                            "task": "storage_domains_force_update",
-                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
                         },
                     ],
                 },
@@ -1567,15 +1558,6 @@ class Storage(RethinkCustomBase):
                                             "storage_id": self.id,
                                         }
                                     },
-                                    "dependents": [
-                                        {
-                                            "queue": "core",
-                                            "task": "storage_domains_force_update",
-                                            "job_kwargs": {
-                                                "kwargs": {"storage_id": self.id}
-                                            },
-                                        }
-                                    ],
                                 }
                             ],
                         }

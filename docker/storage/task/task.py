@@ -21,17 +21,28 @@ import logging
 import shutil
 import tempfile
 from json import loads
-from os import environ, makedirs, remove, rename, walk
+from os import environ, makedirs, remove, rename
+from os import stat as os_stat
+from os import walk
 from os.path import basename, dirname, getmtime, isdir, isfile, join
 from pathlib import Path
 from re import search
-from subprocess import PIPE, CalledProcessError, Popen, check_output, run
+from subprocess import (
+    PIPE,
+    CalledProcessError,
+    Popen,
+    TimeoutExpired,
+    check_output,
+    run,
+)
 from time import sleep
 
 log = logging.getLogger(__name__)
 
 from isardvdi_common.task import Task
 from rq import Queue, get_current_job
+
+QEMU_IMG_TIMEOUT = 30  # seconds; prevents indefinite hangs on NFS
 
 
 def _same_file(file1, file2):
@@ -50,19 +61,16 @@ def _same_file(file1, file2):
     if not isfile(file1) or not isfile(file2):
         return False
 
-    return (
-        basename(file1) == basename(file2)
-        and isfile(file1)
-        and isfile(file2)
-        and (
-            check_output(["stat", "-c", "%Y", file1]).decode()
-            == check_output(["stat", "-c", "%Y", file2]).decode()
-        )
-        and (
-            check_output(["stat", "-c", "%s", file1]).decode()
-            == check_output(["stat", "-c", "%s", file2]).decode()
-        )
-    )
+    if basename(file1) != basename(file2):
+        return False
+
+    try:
+        stat1 = os_stat(file1)
+        stat2 = os_stat(file2)
+    except OSError:
+        return False
+
+    return stat1.st_mtime == stat2.st_mtime and stat1.st_size == stat2.st_size
 
 
 def extract_progress_from_qemu_img_convert_output(process):
@@ -195,6 +203,7 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     return run(
         command,
         check=True,
+        timeout=QEMU_IMG_TIMEOUT,
     ).returncode
 
 
@@ -221,6 +230,7 @@ def qemu_img_info(storage_id, storage_path):
                 "json",
                 storage_path,
             ],
+            timeout=QEMU_IMG_TIMEOUT,
         )
     )
     qemu_img_info_data.setdefault("backing-filename")
@@ -241,20 +251,25 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
     :rtype: dict
     """
 
-    completed_process = run(
-        [
-            "qemu-img",
-            "info",
-            "-U",
-            "--backing-chain",
-            "-f",
-            "qcow2",
-            "--output",
-            "json",
-            storage_path,
-        ],
-        capture_output=True,
-    )
+    try:
+        completed_process = run(
+            [
+                "qemu-img",
+                "info",
+                "-U",
+                "--backing-chain",
+                "-f",
+                "qcow2",
+                "--output",
+                "json",
+                storage_path,
+            ],
+            capture_output=True,
+            timeout=QEMU_IMG_TIMEOUT,
+        )
+    except TimeoutExpired:
+        log.error("qemu_img_info_backing_chain: timeout for %s", storage_path)
+        return {"id": storage_id, "status": "broken_chain"}
     storage_data = {"id": storage_id}
     if completed_process.returncode == 0:
         storage_data["status"] = "ready"
@@ -264,21 +279,32 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
         qemu_img_info_data[0].setdefault("full-backing-filename")
         storage_data["qemu-img-info"] = qemu_img_info_data[0]
     else:
-        path = (
-            search(
-                rb"^qemu-img: Could not open \'([^\']*)\': ", completed_process.stderr
-            )
-            .group(1)
-            .decode()
+        match = search(
+            rb"^qemu-img: Could not open \'([^\']*)\': ", completed_process.stderr
         )
-        if path == storage_path:
-            storage_data["status"] = "deleted"
-        elif path == qemu_img_info(storage_id, storage_path).get(
-            "qemu-img-info", {}
-        ).get("backing-filename"):
-            storage_data["status"] = "orphan"
-        else:
+        if match is None:
+            log.error(
+                "qemu_img_info_backing_chain: unexpected stderr for %s: %s",
+                storage_path,
+                completed_process.stderr,
+            )
             storage_data["status"] = "broken_chain"
+        else:
+            path = match.group(1).decode()
+            if path == storage_path:
+                storage_data["status"] = "deleted"
+            else:
+                try:
+                    backing = (
+                        qemu_img_info(storage_id, storage_path)
+                        .get("qemu-img-info", {})
+                        .get("backing-filename")
+                    )
+                    storage_data["status"] = (
+                        "orphan" if path == backing else "broken_chain"
+                    )
+                except Exception:
+                    storage_data["status"] = "broken_chain"
 
     return storage_data
 
@@ -494,25 +520,61 @@ def resize(storage_path, increment):
                 "resize",
                 storage_path,
                 f"+{increment}G",
-            ]
+            ],
+            timeout=QEMU_IMG_TIMEOUT,
         ).returncode
     except Exception as e:
         return e
 
 
-def find(storage_id, storage_path):
+def find(storage_id, storage_path, full_walk=False):
     """
     Find storage path from storage_id recursively in base_path.
     It assumes any isard-storage will have all mountpoints in /isard.
 
+    When full_walk is False (default), checks the expected storage_path
+    directly (O(1)) and returns immediately if found. Falls back to a
+    full walk only when the file is missing from the expected path.
+    When full_walk is True, always walks the entire /isard tree to
+    discover duplicates, moved files, and invalid copies.
+
     :param storage_id: Storage ID
     :type storage_id: str
-    :return: List of dicts with storage path, modified time, and qemu-img info backing chain
-    :rtype: list
+    :param storage_path: Expected storage path
+    :type storage_path: str
+    :param full_walk: Force a full filesystem walk
+    :type full_walk: bool
+    :return: Dict with storage id, status, and list of matching files
+    :rtype: dict
     """
     root_dir = "/isard"
     matching_files = []
     status = "deleted"
+
+    # Fast path: check expected location directly (O(1) on NFS)
+    if not full_walk and isfile(storage_path):
+        try:
+            modified_time = getmtime(storage_path)
+        except OSError:
+            modified_time = None
+        if storage_path.endswith(".qcow2") and not basename(storage_path).startswith(
+            "."
+        ):
+            storage_data = qemu_img_info_backing_chain(storage_id, storage_path)
+        else:
+            storage_data = None
+        matching_files.append(
+            {
+                "path": storage_path,
+                "mtime": modified_time,
+                "storage_data": storage_data,
+            }
+        )
+        if storage_data:
+            status = storage_data["status"]
+        return {"id": storage_id, "status": status, "matching_files": matching_files}
+
+    # Full walk: file not at expected path, or full_walk explicitly requested
     for root, _, files in walk(root_dir):
         for filename in files:
             if storage_id in filename:
@@ -535,7 +597,7 @@ def find(storage_id, storage_path):
                         "storage_data": storage_data,
                     }
                 )
-                if storage_path == file_path:
+                if storage_path == file_path and storage_data:
                     status = storage_data["status"]
     return {"id": storage_id, "status": status, "matching_files": matching_files}
 

@@ -195,7 +195,7 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                         domain_dict = get_domain(id_domain)
                         user_id = domain_dict.get("user") if domain_dict else None
                         if user_id:
-                            Storage(storage_id).find(user_id, blocking=False)
+                            Storage(storage_id).find(user_id)
                     except Exception as e:
                         log.debug(
                             f"Could not create find task for storage {storage_id}: {e}"
@@ -362,7 +362,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
                     domain_storage_id = action.get("domain_storage_id")
                     if domain_storage_id and Storage.exists(domain_storage_id):
                         try:
-                            Storage(domain_storage_id).find(user_id, blocking=False)
+                            Storage(domain_storage_id).find(user_id)
                         except Exception as e:
                             log.debug(
                                 f"Could not create find task for domain storage {domain_storage_id}: {e}"
@@ -371,7 +371,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
                     template_storage_id = action.get("storage_id")
                     if template_storage_id and Storage.exists(template_storage_id):
                         try:
-                            Storage(template_storage_id).find(user_id, blocking=False)
+                            Storage(template_storage_id).find(user_id)
                         except Exception as e:
                             log.debug(
                                 f"Could not create find task for template storage {template_storage_id}: {e}"
