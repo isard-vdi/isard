@@ -23,16 +23,33 @@ var SECTION_CAPS_MAP = {
     'watchdog': ['watchdog_models', 'watchdog_actions']
 };
 
-function openXmlSections(domainId) {
+// Global state for XML sections editor mode
+var xmlSectionsMode = 'domain'; // 'domain' or 'virt_install'
+
+function xmlSectionsApiUrl(id) {
+    if (xmlSectionsMode === 'virt_install') {
+        return '/api/v3/admin/virt_install/xml_sections/' + id;
+    }
+    return '/api/v3/admin/domains/xml_sections/' + id;
+}
+
+function openXmlSections(domainId, mode) {
+    xmlSectionsMode = mode || 'domain';
     $('#xmlSectionsDomainId').val(domainId);
     $('#xmlSectionsContainer').html(
         '<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>'
     );
+    // Hide virt_install-specific buttons when editing virt_install directly
+    if (xmlSectionsMode === 'virt_install') {
+        $('#xmlSectionsSaveVirtInstall').hide();
+    } else {
+        $('#xmlSectionsSaveVirtInstall').show();
+    }
     $('#modalEditXmlSections').modal({backdrop: 'static', keyboard: false}).modal('show');
 
     // Fetch sections and capabilities in parallel
     $.when(
-        $.ajax({type: "GET", url: "/api/v3/admin/domains/xml_sections/" + domainId}),
+        $.ajax({type: "GET", url: xmlSectionsApiUrl(domainId)}),
         $.ajax({type: "GET", url: "/api/v3/admin/domains/xml_capabilities"})
     ).done(function(sectionsResp, capsResp) {
         renderXmlSections(sectionsResp[0].sections, capsResp[0]);
@@ -368,7 +385,7 @@ $(document).on('click', '#xmlSectionsValidate', function() {
 
     $.ajax({
         type: 'POST',
-        url: '/api/v3/admin/domains/xml_sections/' + domainId,
+        url: xmlSectionsApiUrl(domainId),
         data: JSON.stringify(data),
         contentType: 'application/json',
         success: function(resp) {
@@ -409,7 +426,7 @@ $(document).on('click', '#xmlSectionsSave', function() {
 
     $.ajax({
         type: 'POST',
-        url: '/api/v3/admin/domains/xml_sections/' + domainId,
+        url: xmlSectionsApiUrl(domainId),
         data: JSON.stringify(data),
         contentType: 'application/json',
         success: function(resp) {
@@ -428,6 +445,111 @@ $(document).on('click', '#xmlSectionsSave', function() {
             notice.update({
                 title: 'ERROR updating XML',
                 text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                type: 'error',
+                hide: true,
+                delay: 5000,
+                icon: 'fa fa-warning',
+                opacity: 1
+            });
+        }
+    });
+});
+
+// Download XML button
+$(document).on('click', '#xmlSectionsDownload', function() {
+    var domainId = $('#xmlSectionsDomainId').val();
+    var data = collectXmlSections();
+    var notice = new PNotify({
+        text: 'Merging XML for download...',
+        hide: false,
+        opacity: 1,
+        icon: 'fa fa-spinner fa-pulse'
+    });
+
+    $.ajax({
+        type: 'POST',
+        url: xmlSectionsApiUrl(domainId),
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        success: function(resp) {
+            notice.remove();
+            var blob = new Blob([resp.xml], {type: 'application/xml'});
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = domainId + '.xml';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        },
+        error: function(data) {
+            notice.update({
+                title: 'Download Error',
+                text: data.responseJSON ? data.responseJSON.description : 'Failed to merge XML',
+                type: 'error',
+                hide: true,
+                delay: 5000,
+                icon: 'fa fa-warning',
+                opacity: 1
+            });
+        }
+    });
+});
+
+// Save as virt_install button — open name prompt
+$(document).on('click', '#xmlSectionsSaveVirtInstall', function() {
+    $('#virtInstallName').val('');
+    $('#modalVirtInstallName').modal('show');
+});
+
+// Confirm save as virt_install
+$(document).on('click', '#virtInstallNameConfirm', function() {
+    var name = $('#virtInstallName').val().trim();
+    if (!name) {
+        new PNotify({
+            title: 'Error',
+            text: 'Please enter a name',
+            type: 'error',
+            hide: true,
+            delay: 3000,
+            opacity: 1
+        });
+        return;
+    }
+
+    var domainId = $('#xmlSectionsDomainId').val();
+    var data = collectXmlSections();
+    data.name = name;
+
+    var notice = new PNotify({
+        text: 'Saving as virt_install...',
+        hide: false,
+        opacity: 1,
+        icon: 'fa fa-spinner fa-pulse'
+    });
+
+    $.ajax({
+        type: 'POST',
+        url: '/api/v3/admin/domains/xml_sections/' + domainId + '/save_virt_install',
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        success: function(resp) {
+            $('#modalVirtInstallName').modal('hide');
+            notice.update({
+                title: 'Saved',
+                text: 'virt_install "' + escapeHtml(resp.name) + '" created (ID: ' + escapeHtml(resp.id) + ')',
+                type: 'success',
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-check',
+                opacity: 1
+            });
+        },
+        error: function(data) {
+            notice.update({
+                title: 'Error',
+                text: data.responseJSON ? data.responseJSON.description : 'Failed to save virt_install',
                 type: 'error',
                 hide: true,
                 delay: 5000,

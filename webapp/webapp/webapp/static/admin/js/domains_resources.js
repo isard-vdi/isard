@@ -1291,6 +1291,73 @@ $(document).ready(function () {
 
 
 
+    // virt_install table
+    virtinstall_table = $('#table-virt-install').DataTable({
+        "ajax": {
+            "url": "/admin/table/virt_install",
+            "contentType": "application/json",
+            "type": 'POST',
+            "data": function (d) { return JSON.stringify({ 'order_by': 'name', 'without': ['xml'] }) }
+        },
+        "sAjaxDataProp": "",
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
+        "columns": [
+            {
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
+                "defaultContent": ''
+            },
+            { "data": "id" },
+            { "data": "name" },
+            { "data": "icon" },
+            { "data": "vers" },
+            {
+                "className": 'actions-control',
+                "orderable": false,
+                "data": null,
+                "width": "91px",
+                "defaultContent": '<button id="btn-xml" class="btn btn-xs" type="button" data-placement="top" title="Edit XML"><i class="fa fa-file-code-o" style="color:darkblue"></i></button> \
+                                    <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top" title="Delete"><i class="fa fa-times" style="color:darkred"></i></button>'
+            },
+        ],
+        "order": [[2, 'asc']]
+    });
+
+    $('#table-virt-install').find(' tbody').on('click', 'button', function () {
+        var data = virtinstall_table.row($(this).parents('tr')).data();
+        switch ($(this).attr('id')) {
+            case 'btn-xml':
+                openXmlSections(data.id, 'virt_install');
+                break;
+            case 'btn-delete':
+                new PNotify({
+                    title: 'Confirmation Needed',
+                    text: "Are you sure you want to delete virt_install: " + data.name + "?",
+                    hide: false,
+                    opacity: 0.9,
+                    confirm: { confirm: true },
+                    buttons: { closer: false, sticker: false },
+                    history: { history: false },
+                    addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function () {
+                    $.ajax({
+                        type: "DELETE",
+                        url: "/admin/table/virt_install/" + data["id"],
+                        contentType: "application/json",
+                        success: function (data) {
+                            virtinstall_table.ajax.reload();
+                        }
+                    });
+                }).on('pnotify.cancel', function () {});
+                break;
+        }
+    });
+
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 
@@ -1315,6 +1382,9 @@ function socketio_on() {
                 break;
             case 'remotevpn':
                 dtUpdateInsert(remotevpn_table, dict['data'], false);
+                break;
+            case 'virt_install':
+                dtUpdateInsert(virtinstall_table, dict['data'], false);
                 break;
         }
 
@@ -1373,6 +1443,9 @@ function socketio_on() {
                 break;
             case 'remotevpn':
                 var row = remotevpn_table.row('#' + data.id).remove().draw();
+                break;
+            case 'virt_install':
+                var row = virtinstall_table.row('#' + data.id).remove().draw();
                 break;
         }
         new PNotify({
