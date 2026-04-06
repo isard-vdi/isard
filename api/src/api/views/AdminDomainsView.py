@@ -286,6 +286,76 @@ def api_v3_admin_domains_xml_sections(payload, domain_id):
     )
 
 
+@app.route(
+    "/api/v3/admin/domains/xml_sections/<domain_id>/save_virt_install",
+    methods=["POST"],
+)
+@is_admin
+def api_v3_admin_domains_xml_sections_save_virt_install(payload, domain_id):
+    data = request.get_json()
+    if not data or "sections" not in data or "name" not in data:
+        raise Error(
+            "bad_request",
+            "Missing 'sections' or 'name' in request body",
+            traceback.format_exc(),
+        )
+
+    name = data["name"].strip()
+    if not name:
+        raise Error("bad_request", "Name cannot be empty")
+
+    from ..libv2.api_xml_sections import save_as_virt_install
+
+    record = save_as_virt_install(domain_id, data["sections"], name)
+    return (
+        json.dumps({"id": record["id"], "name": record["name"]}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/virt_install/xml_sections/<virt_id>",
+    methods=["GET", "POST"],
+)
+@is_admin
+def api_v3_admin_virt_install_xml_sections(payload, virt_id):
+    from ..libv2.api_xml_sections import merge_xml_sections, split_xml_sections
+
+    vi = admin_table_get("virt_install", virt_id, pluck=["xml"])
+
+    if request.method == "GET":
+        sections = split_xml_sections(vi["xml"], [])
+        return (
+            json.dumps({"sections": sections, "xml_full": vi["xml"]}),
+            200,
+            {"Content-Type": "application/json"},
+        )
+
+    # POST — merge and save
+    data = request.get_json(force=True)
+    if "sections" not in data:
+        raise Error(
+            "bad_request",
+            "Missing 'sections' in request body",
+            traceback.format_exc(),
+        )
+
+    merged_xml = merge_xml_sections(vi["xml"], data["sections"])
+
+    from rethinkdb import RethinkDB
+
+    rr = RethinkDB()
+    from ..libv2.api_admin import db
+
+    rr.table("virt_install").get(virt_id).update({"xml": merged_xml}).run(db.conn)
+    return (
+        json.dumps({"xml": merged_xml, "valid": True}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/desktops/tree_list/<id>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_desktops_tree_list(payload, id):

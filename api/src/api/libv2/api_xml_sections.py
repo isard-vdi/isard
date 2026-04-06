@@ -3,7 +3,9 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import re
 import traceback
+import uuid
 from xml.etree import ElementTree as ET
 from xml.parsers.expat import ParserCreate
 
@@ -16,7 +18,7 @@ r = RethinkDB()
 
 # Import the already-initialized db connection pool from api_admin
 # (RDB can't be initialized after first request)
-from .api_admin import db
+from .api_admin import admin_table_get, db
 
 # Maximum size for a single XML snippet (256 KB)
 MAX_SNIPPET_SIZE = 256 * 1024
@@ -244,6 +246,62 @@ SECTION_DEFS = [
         "protectable": True,
         "multi": True,
     },
+    {
+        "key": "audio",
+        "label": "Audio",
+        "group": "Devices",
+        "xpaths": [".//devices/audio"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "serial",
+        "label": "Serial",
+        "group": "Devices",
+        "xpaths": [".//devices/serial"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "watchdog",
+        "label": "Watchdog",
+        "group": "Devices",
+        "xpaths": [".//devices/watchdog"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "panic",
+        "label": "Panic Device",
+        "group": "Devices",
+        "xpaths": [".//devices/panic"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "shmem",
+        "label": "Shared Memory",
+        "group": "Devices",
+        "xpaths": [".//devices/shmem"],
+        "protectable": True,
+        "multi": True,
+    },
+    {
+        "key": "iommu",
+        "label": "IOMMU",
+        "group": "Devices",
+        "xpaths": [".//devices/iommu"],
+        "protectable": True,
+    },
+    # --- Security ---
+    {
+        "key": "tpm",
+        "label": "TPM",
+        "group": "Security",
+        "xpaths": [".//devices/tpm"],
+        "protectable": True,
+        "multi": True,
+    },
     # --- Passthrough ---
     {
         "key": "hostdev",
@@ -288,12 +346,98 @@ SECTION_DEFS = [
         "xpaths": ["./metadata"],
         "protectable": False,
     },
+    # --- Catch-all for unmatched elements ---
+    {
+        "key": "other_toplevel",
+        "label": "Other (top-level)",
+        "group": "Other",
+        "xpaths": [],
+        "protectable": True,
+        "multi": True,
+        "catchall": "toplevel",
+    },
+    {
+        "key": "other_devices",
+        "label": "Other Devices",
+        "group": "Other",
+        "xpaths": [],
+        "protectable": True,
+        "multi": True,
+        "catchall": "devices",
+    },
 ]
 
 
 def _elem_to_str(elem):
     """Convert an XML element to an indented string."""
     return ET.tostring(elem, encoding="unicode").strip()
+
+
+def _find_section_elements(root, sdef):
+    """Find all XML elements matching a section definition's xpaths."""
+    elems = []
+    for xpath in sdef["xpaths"]:
+        if sdef.get("multi"):
+            elems.extend(root.findall(xpath))
+        else:
+            elem = root.find(xpath)
+            if elem is not None:
+                elems.append(elem)
+    return elems
+
+
+def _collect_claimed_elements(root):
+    """Collect all elements claimed by non-catchall SECTION_DEFS.
+
+    Returns a set of element ids (id(elem)) that are matched by at least one
+    normal section's xpaths.  Uses id() which is stable as long as the element
+    objects remain alive in the same tree (guaranteed within a single call).
+    """
+    claimed = set()
+    for sdef in SECTION_DEFS:
+        if sdef.get("catchall"):
+            continue
+        for elem in _find_section_elements(root, sdef):
+            claimed.add(id(elem))
+    return claimed
+
+
+def _get_unclaimed_children(root, claimed, catchall_type):
+    """Return (parent, unclaimed_children) for a catch-all section type."""
+    if catchall_type == "toplevel":
+        parent = root
+        devices_elem = root.find("./devices")
+        unclaimed = [
+            child
+            for child in list(parent)
+            if id(child) not in claimed and child is not devices_elem
+        ]
+    elif catchall_type == "devices":
+        parent = root.find("./devices")
+        if parent is None:
+            return None, []
+        unclaimed = [child for child in list(parent) if id(child) not in claimed]
+    else:
+        return None, []
+    return parent, unclaimed
+
+
+def _parse_snippet(snippet_xml, section_key):
+    """Parse an XML snippet string into a list of elements."""
+    try:
+        wrapper_xml = f"<_wrapper>{snippet_xml}</_wrapper>"
+        return list(_safe_fromstring(wrapper_xml))
+    except ET.ParseError as e:
+        raise Error(
+            "bad_request",
+            f"Invalid XML in section '{section_key}': {e}",
+            traceback.format_exc(),
+        )
+
+
+def _build_parent_map(root):
+    """Build a child->parent lookup dict in a single tree traversal."""
+    return {id(child): parent for parent in root.iter() for child in parent}
 
 
 def split_xml_sections(xml_str, protected_sections):
@@ -311,28 +455,28 @@ def split_xml_sections(xml_str, protected_sections):
         )
 
     protected_set = set(protected_sections)
+    claimed = _collect_claimed_elements(root)
     sections = []
 
     for sdef in SECTION_DEFS:
         snippets = []
-        for xpath in sdef["xpaths"]:
-            if sdef.get("multi"):
-                elems = root.findall(xpath)
-                for elem in elems:
-                    snippets.append(_elem_to_str(elem))
-            else:
-                elem = root.find(xpath)
-                if elem is not None:
-                    snippets.append(_elem_to_str(elem))
 
-        # For domain_type extra_attrs (the type attribute on <domain>)
-        if sdef.get("extra_attrs"):
-            for path, attr in sdef["extra_attrs"]:
-                target = root if path == "." else root.find(path)
-                if target is not None and attr in target.attrib:
-                    snippets.insert(
-                        0, f'<!-- domain {attr}="{target.attrib[attr]}" -->'
-                    )
+        if sdef.get("catchall"):
+            _, unclaimed = _get_unclaimed_children(root, claimed, sdef["catchall"])
+            for child in unclaimed:
+                snippets.append(_elem_to_str(child))
+        else:
+            for elem in _find_section_elements(root, sdef):
+                snippets.append(_elem_to_str(elem))
+
+            # For domain_type extra_attrs (the type attribute on <domain>)
+            if sdef.get("extra_attrs"):
+                for path, attr in sdef["extra_attrs"]:
+                    target = root if path == "." else root.find(path)
+                    if target is not None and attr in target.attrib:
+                        snippets.insert(
+                            0, f'<!-- domain {attr}="{target.attrib[attr]}" -->'
+                        )
 
         xml_snippet = "\n".join(snippets) if snippets else ""
         sections.append(
@@ -349,6 +493,10 @@ def split_xml_sections(xml_str, protected_sections):
     return sections
 
 
+# Lookup dict for SECTION_DEFS by key (built once at import time)
+_SDEF_BY_KEY = {s["key"]: s for s in SECTION_DEFS}
+
+
 def merge_xml_sections(base_xml_str, edited_sections):
     """Merge edited XML snippets back into the base XML.
 
@@ -357,7 +505,6 @@ def merge_xml_sections(base_xml_str, edited_sections):
 
     Returns the merged full XML string.
     """
-    # Type validation (Finding 5)
     if not isinstance(edited_sections, dict):
         raise Error(
             "bad_request",
@@ -376,11 +523,14 @@ def merge_xml_sections(base_xml_str, edited_sections):
 
     protectable_keys = {s["key"] for s in SECTION_DEFS if s["protectable"]}
 
+    # Process normal sections first, then catchall sections.
+    # Compute claimed elements once after normal sections are done.
+    catchall_edits = []
+
     for key, snippet_xml in edited_sections.items():
         if key not in protectable_keys:
             continue
 
-        # Type and size validation (Findings 4 & 5)
         if not isinstance(snippet_xml, str):
             raise Error(
                 "bad_request",
@@ -394,52 +544,38 @@ def merge_xml_sections(base_xml_str, edited_sections):
                 traceback.format_exc(),
             )
 
-        sdef = next((s for s in SECTION_DEFS if s["key"] == key), None)
+        sdef = _SDEF_BY_KEY.get(key)
         if not sdef:
             continue
 
-        if not snippet_xml.strip():
-            # Empty snippet — remove matching elements
-            for xpath in sdef["xpaths"]:
-                if sdef.get("multi"):
-                    for elem in root.findall(xpath):
-                        (
-                            elem.getparent()
-                            if hasattr(elem, "getparent")
-                            else _remove_elem(root, elem)
-                        )
-                else:
-                    elem = root.find(xpath)
-                    if elem is not None:
-                        _remove_elem(root, elem)
+        if sdef.get("catchall"):
+            catchall_edits.append((sdef, snippet_xml))
             continue
 
-        # Wrap snippet in a temporary root for parsing
-        try:
-            wrapper_xml = f"<_wrapper>{snippet_xml}</_wrapper>"
-            new_elems = list(_safe_fromstring(wrapper_xml))
-        except ET.ParseError as e:
-            raise Error(
-                "bad_request",
-                f"Invalid XML in section '{key}': {e}",
-                traceback.format_exc(),
-            )
+        if not snippet_xml.strip():
+            parent_map = _build_parent_map(root)
+            for elem in _find_section_elements(root, sdef):
+                parent = parent_map.get(id(elem))
+                if parent is not None:
+                    parent.remove(elem)
+            continue
 
-        # Remove ALL old elements matching ANY xpath in this section
+        new_elems = _parse_snippet(snippet_xml, key)
+
+        # Remove old elements, tracking insertion position
+        parent_map = _build_parent_map(root)
         first_parent = None
         first_idx = None
-        for xpath in sdef["xpaths"]:
-            for old_elem in root.findall(xpath):
-                parent = _find_parent(root, old_elem)
-                if parent is not None:
-                    if first_parent is None:
-                        first_parent = parent
-                        first_idx = list(parent).index(old_elem)
-                    parent.remove(old_elem)
+        for old_elem in _find_section_elements(root, sdef):
+            parent = parent_map.get(id(old_elem))
+            if parent is not None:
+                if first_parent is None:
+                    first_parent = parent
+                    first_idx = list(parent).index(old_elem)
+                parent.remove(old_elem)
 
         # Determine insertion parent and position
         if first_parent is None and new_elems:
-            # No existing elements — figure out parent from xpath
             xpath = sdef["xpaths"][0]
             parent_path = xpath.rsplit("/", 1)[0] if "/" in xpath else "."
             parent_path = parent_path.replace(".", "").lstrip("/")
@@ -448,10 +584,15 @@ def merge_xml_sections(base_xml_str, edited_sections):
                 first_parent = root
             first_idx = len(list(first_parent))
 
-        # Insert new elements at the position of the first removed element
         if first_parent is not None:
             for i, new_elem in enumerate(new_elems):
                 first_parent.insert(first_idx + i, new_elem)
+
+    # Process catch-all sections with a single claimed-elements computation
+    if catchall_edits:
+        claimed = _collect_claimed_elements(root)
+        for sdef, snippet_xml in catchall_edits:
+            _merge_catchall_section(root, sdef, snippet_xml, claimed)
 
     # Validate the final XML
     merged_xml = ET.tostring(root, encoding="unicode")
@@ -467,19 +608,25 @@ def merge_xml_sections(base_xml_str, edited_sections):
     return merged_xml
 
 
-def _remove_elem(root, elem):
-    """Remove an element from anywhere in the tree."""
-    parent = _find_parent(root, elem)
-    if parent is not None:
+def _merge_catchall_section(root, sdef, snippet_xml, claimed):
+    """Merge a catch-all section back into the XML tree."""
+    parent, old_unclaimed = _get_unclaimed_children(root, claimed, sdef["catchall"])
+
+    if parent is None and snippet_xml.strip():
+        # "devices" catchall with no <devices> element yet
+        parent = ET.SubElement(root, "devices")
+
+    if parent is None:
+        return
+
+    for elem in old_unclaimed:
         parent.remove(elem)
 
+    if not snippet_xml.strip():
+        return
 
-def _find_parent(root, target):
-    """Find the parent of a target element in the tree."""
-    for parent in root.iter():
-        if target in list(parent):
-            return parent
-    return None
+    for new_elem in _parse_snippet(snippet_xml, sdef["key"]):
+        parent.append(new_elem)
 
 
 def save_domain_xml_and_protected(domain_id, xml, protected_sections):
@@ -490,6 +637,209 @@ def save_domain_xml_and_protected(domain_id, xml, protected_sections):
             "create_dict": {"xml_protected_sections": r.literal(protected_sections)},
         }
     ).run(db.conn)
+
+
+def generalize_xml(xml_str, name):
+    """Transform a domain XML into a generalized virt_install template.
+
+    Replaces domain-specific values (disk paths, UUIDs, runtime artifacts)
+    with generic placeholders matching the pattern in initdb/default_xmls/.
+    """
+    root = _safe_fromstring(xml_str)
+
+    # Name and UUID
+    name_el = root.find("name")
+    if name_el is not None:
+        name_el.text = name
+    uuid_el = root.find("uuid")
+    if uuid_el is not None:
+        uuid_el.text = str(uuid.uuid4())
+
+    # Disk source paths → placeholders
+    _DISK_PLACEHOLDERS = {
+        "disk": "/home/tmp/disk.qcow2",
+        "cdrom": "/home/tmp/cdrom.iso",
+        "floppy": "/home/tmp/floppy.img",
+    }
+    for disk in root.findall(".//devices/disk"):
+        device = disk.get("device", "disk")
+        placeholder = _DISK_PLACEHOLDERS.get(device)
+        if placeholder:
+            src = disk.find("source")
+            if src is not None:
+                src.set("file", placeholder)
+                # Remove runtime attributes like index
+                for attr in ["index"]:
+                    if attr in src.attrib:
+                        del src.attrib[attr]
+        # Remove backingStore (runtime)
+        for bs in disk.findall("backingStore"):
+            disk.remove(bs)
+
+    # Graphics: reset ports
+    for gfx in root.findall(".//devices/graphics"):
+        if "port" in gfx.attrib:
+            gfx.set("port", "-1")
+        if "tlsPort" in gfx.attrib:
+            gfx.set("tlsPort", "-1")
+        # Remove runtime listen attribute from <graphics> tag itself
+        if "listen" in gfx.attrib:
+            del gfx.attrib["listen"]
+        if "websocket" in gfx.attrib:
+            del gfx.attrib["websocket"]
+
+    # Remove all <alias> elements (runtime artifacts)
+    for alias in root.findall(".//{*}alias") + root.findall(".//alias"):
+        parent = alias.getparent() if hasattr(alias, "getparent") else None
+        if parent is None:
+            # ElementTree doesn't have getparent, build parent map
+            pass
+    # Use parent map approach for ElementTree
+    parent_map = {id(c): p for p in root.iter() for c in p}
+    for alias in list(root.iter("alias")):
+        parent = parent_map.get(id(alias))
+        if parent is not None:
+            parent.remove(alias)
+
+    # Remove all <address> elements on devices (PCI/USB auto-assigned by libvirt)
+    # Keep addresses on controllers as they define the topology
+    _STRIP_ADDRESS_FROM = {
+        "disk",
+        "interface",
+        "input",
+        "sound",
+        "video",
+        "memballoon",
+        "redirdev",
+        "tpm",
+        "rng",
+        "watchdog",
+    }
+    for elem in root.iter():
+        if elem.tag in _STRIP_ADDRESS_FROM:
+            for addr in elem.findall("address"):
+                elem.remove(addr)
+
+    # Remove <nvram> (runtime-generated)
+    os_el = root.find("os")
+    if os_el is not None:
+        for nvram in os_el.findall("nvram"):
+            os_el.remove(nvram)
+
+    # Strip specific machine version from <os><type machine=...>
+    # e.g. "pc-q35-10.0" → "q35", "pc-i440fx-2.8" → "pc"
+    os_type = root.find(".//os/type")
+    if os_type is not None and os_type.get("machine"):
+        machine = os_type.get("machine")
+        if "q35" in machine:
+            os_type.set("machine", "q35")
+        elif "i440fx" in machine or machine.startswith("pc"):
+            os_type.set("machine", "pc")
+
+    # Remove runtime source paths on channels (e.g. unix socket paths)
+    for channel in root.findall(".//devices/channel"):
+        if channel.get("type") == "unix":
+            for src in channel.findall("source"):
+                channel.remove(src)
+        # Remove target state attribute
+        tgt = channel.find("target")
+        if tgt is not None and "state" in tgt.attrib:
+            del tgt.attrib["state"]
+
+    # Remove Isard-specific metadata, keep libosinfo
+    metadata = root.find("metadata")
+    if metadata is not None:
+        for child in list(metadata):
+            # Keep libosinfo namespace elements
+            if "libosinfo" not in (child.tag or ""):
+                metadata.remove(child)
+
+    # Remove console source (runtime)
+    for console in root.findall(".//devices/console"):
+        if "tty" in console.attrib:
+            del console.attrib["tty"]
+        for src in console.findall("source"):
+            console.remove(src)
+
+    # Remove serial source (runtime)
+    for serial in root.findall(".//devices/serial"):
+        for src in serial.findall("source"):
+            serial.remove(src)
+
+    return ET.tostring(root, encoding="unicode")
+
+
+def _extract_virt_install_metadata(xml_str, name):
+    """Extract metadata fields for a virt_install record from XML."""
+    root = _safe_fromstring(xml_str)
+
+    # Extract www from libosinfo
+    www = ""
+    for elem in root.iter():
+        if "libosinfo" in (elem.tag or "") and "os" in (elem.tag or ""):
+            www = elem.get("id", "")
+            break
+
+    # Derive icon from name
+    name_lower = name.lower()
+    if "windows" in name_lower or "win" in name_lower:
+        icon = "windows"
+    elif "redhat" in name_lower or "rhel" in name_lower or "centos" in name_lower:
+        icon = "redhat"
+    elif "fedora" in name_lower:
+        icon = "fedora"
+    elif "ubuntu" in name_lower:
+        icon = "ubuntu"
+    elif "debian" in name_lower:
+        icon = "debian"
+    elif "suse" in name_lower:
+        icon = "suse"
+    else:
+        icon = "linux"
+
+    # Derive version from www URL if possible
+    vers = ""
+    if www:
+        # Pattern like http://microsoft.com/win/10 → "10"
+        parts = www.rstrip("/").split("/")
+        if parts:
+            vers = parts[-1]
+
+    return {"www": www, "icon": icon, "vers": vers}
+
+
+def save_as_virt_install(domain_id, edited_sections, name):
+    """Merge XML sections, generalize, and save as a new virt_install entry."""
+    domain = admin_table_get("domains", domain_id, pluck=["xml"])
+    merged_xml = merge_xml_sections(domain["xml"], edited_sections)
+    generalized_xml = generalize_xml(merged_xml, name)
+    meta = _extract_virt_install_metadata(generalized_xml, name)
+
+    # Generate ID: slugify name
+    virt_id = re.sub(r"[^a-zA-Z0-9]+", "_", name).strip("_")
+    if not virt_id:
+        raise Error(
+            "bad_request", "Name must contain at least one alphanumeric character"
+        )
+
+    # Check for duplicates
+    existing = r.table("virt_install").get(virt_id).run(db.conn)
+    if existing:
+        raise Error(
+            "conflict",
+            f"A virt_install with ID '{virt_id}' already exists",
+        )
+
+    record = {
+        "id": virt_id,
+        "name": name,
+        "vers": meta["vers"],
+        "www": meta["www"],
+        "icon": meta["icon"],
+        "xml": generalized_xml,
+    }
+    r.table("virt_install").insert(record).run(db.conn)
+    return record
 
 
 def get_domain_capabilities():

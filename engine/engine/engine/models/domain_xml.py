@@ -944,7 +944,7 @@ class DomainXML(object):
         self.add_device(xpath_same, element, xpath_next, xpath_previous)
 
     def set_video_type(self, video):
-        if video.get("type", "none") in ["none", "virtio"]:
+        if video.get("type", "none") != "qxl":
             # remove all attributes like vram that have no sense if type_video is none
             # libvirt xml parser launch an exception if these keys exists
             for key in self.tree.xpath("/domain/devices/video/model")[0].keys():
@@ -971,14 +971,14 @@ class DomainXML(object):
             self.tree.xpath("/domain/devices/video/model")[0].set(
                 "heads", str(video["heads"])
             )
+        if video.get("vram"):
+            self.tree.xpath("/domain/devices/video/model")[0].set(
+                "vram", str(video["vram"])
+            )
         if video["type"] == "qxl":
             if video.get("ram"):
                 self.tree.xpath("/domain/devices/video/model")[0].set(
                     "ram", str(video["ram"])
-                )
-            if video.get("vram"):
-                self.tree.xpath("/domain/devices/video/model")[0].set(
-                    "vram", str(video["vram"])
                 )
 
     def add_metadata_isard(self, user_id, group_id, category_id, parent_id):
