@@ -27,6 +27,7 @@ from ..libv2.recycle_bin import (
     get_default_delete,
     get_delete_action,
     get_item_count,
+    get_old_deleted_entry_ids,
     get_old_entries_config,
     get_recycle_bin_cuttoff_time,
     get_recycle_bin_entries_cutoff_time_surpassed,
@@ -274,19 +275,16 @@ def rcb_cutoff_time_surpass_delete(payload):
     recycle_bin_ids = get_recycle_bin_entries_cutoff_time_surpassed()
 
     def process_bulk_delete():
-        exceptions = []
         try:
-            for rb_id in recycle_bin_ids:
-                try:
-                    rb_delete_queue.enqueue(
-                        {
-                            "action": "delete",
-                            "recycle_bin_id": rb_id,
-                            "user_id": payload["user_id"],
-                        }
-                    )
-                except Error as e:
-                    exceptions.append(e.args[1])
+            items = [
+                {
+                    "action": "delete",
+                    "recycle_bin_id": rb_id,
+                    "user_id": payload["user_id"],
+                }
+                for rb_id in recycle_bin_ids
+            ]
+            rb_delete_queue.bulk_enqueue(items)
             notify_admins(
                 "recyclebin_action",
                 {
@@ -302,15 +300,13 @@ def rcb_cutoff_time_surpass_delete(payload):
             if isinstance(e.args, tuple) and len(e.args) > 1:
                 error_message = e.args[1]
             notify_admins(
-                (
-                    "recyclebin_action",
-                    {
-                        "action": "delete",
-                        "count": len(recycle_bin_ids),
-                        "msg": error_message,
-                        "status": "failed",
-                    },
-                )
+                "recyclebin_action",
+                {
+                    "action": "delete",
+                    "count": len(recycle_bin_ids),
+                    "msg": error_message,
+                    "status": "failed",
+                },
             )
 
         except Exception as e:
@@ -448,11 +444,7 @@ def recycle_bin_old_entries_archive(payload):
 @app.route("/api/v3/recycle_bin/old_entries/delete", methods=["PUT"])
 @is_admin
 def recycle_bin_old_entries_delete(payload):
-    rcb_list = []
-    rcbs = get_item_count(status="deleted")
-    for rcb in rcbs:
-        if check_older_than_old_entry_max_time(rcb["last"]["time"]):
-            rcb_list.append(rcb["id"])
+    rcb_list = get_old_deleted_entry_ids()
     RecycleBin.delete_old_entries(rcb_list)
 
     return (
@@ -623,8 +615,11 @@ def recycle_bin_add_unused_items(payload):
         notification_action = get_notification_action(notification["action_id"])
         recycle_bin_cutoff_time = get_recycle_bin_cuttoff_time()
 
-    for desktop in desktops:
+    for i, desktop in enumerate(desktops):
         desktop_delete(desktop["id"], "isard-scheduler")
+        # Delay every 50 items to avoid overwhelming .changes() handlers
+        if (i + 1) % 50 == 0:
+            gevent.sleep(0.5)
         if notification:
             notification_data.append(
                 {
@@ -658,8 +653,11 @@ def recycle_bin_add_unused_items(payload):
         notification_action = get_notification_action(notification["action_id"])
         recycle_bin_cutoff_time = get_recycle_bin_cuttoff_time()
 
-    for deployment in deployments:
+    for i, deployment in enumerate(deployments):
         deployment_delete(deployment["id"], "isard-scheduler")
+        # Delay every 50 items to avoid overwhelming .changes() handlers
+        if (i + 1) % 50 == 0:
+            gevent.sleep(0.5)
         if notification:
             common_data = {
                 "item_id": deployment["id"],

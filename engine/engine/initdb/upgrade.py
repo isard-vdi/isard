@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 183
+release_version = 184
+# release 184: Add recycle_bin indexes and pre-computed count fields for performance
 # release 183: Import Google OAuth2 configuration from AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* environment variables
 # release 182: Import SAML configuration from AUTHENTICATION_AUTHENTICATION_SAML_* environment variables
 # release 181: Add proxy_protocol field to bastion targets http configuration
@@ -6142,6 +6143,51 @@ password:s:%s"""
                 r.table(table).index_create(
                     "owner_group_status",
                     [r.row["owner_group_id"], r.row["status"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 184:
+            try:
+                r.table(table).index_create(
+                    "status_accessed",
+                    [r.row["status"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("status_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "owner_category_status_accessed",
+                    [
+                        r.row["owner_category_id"],
+                        r.row["status"],
+                        r.row["accessed"],
+                    ],
+                ).run(self.conn)
+                r.table(table).index_wait("owner_category_status_accessed").run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).update(
+                    lambda doc: {
+                        "desktops_count": doc["desktops"].count(),
+                        "templates_count": doc["templates"].count(),
+                        "storages_count": doc["storages"].count(),
+                        "deployments_count": doc["deployments"].count(),
+                        "users_count": doc["users"].count(),
+                        "groups_count": doc["groups"].count(),
+                        "categories_count": doc["categories"].count(),
+                        "last_log": r.branch(
+                            doc["logs"].count().gt(0),
+                            doc["logs"].nth(-1),
+                            None,
+                        ),
+                    }
                 ).run(self.conn)
             except Exception as e:
                 print(e)

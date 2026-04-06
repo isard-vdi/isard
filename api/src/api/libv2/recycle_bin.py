@@ -1,4 +1,5 @@
 import traceback
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 from cachetools import TTLCache, cached
@@ -68,11 +69,10 @@ class RecycleBinDeleteQueue:
         if not hasattr(self, "initialized"):
             self.queue = Queue()
             self.recycle_bin_ids = set()
+            self.recycle_bin_ids_lock = threading.Lock()
             self.stop_event = threading.Event()
             self.worker_thread = threading.Thread(target=self._background_worker)
-            self.worker_thread.daemon = (
-                True  # Allows the thread to exit when the main program exits
-            )
+            self.worker_thread.daemon = True
             self.worker_thread.start()
             self.initialized = True
             # Add all recycle bin that are in status queued to the queue to be processed
@@ -93,81 +93,135 @@ class RecycleBinDeleteQueue:
 
     def enqueue(self, item):
         recycle_bin_id = item.get("recycle_bin_id")
-        if recycle_bin_id not in self.recycle_bin_ids:
-            update_status(recycle_bin_id, item.get("user_id"), "queued")
-            add_log(
-                "queued",
-                recycle_bin_id,
-                "system",
-                "isard-scheduler",
-                "isard-scheduler",
-                None,
-                None,
-                None,
-            )
-            self.queue.put(item)
+        with self.recycle_bin_ids_lock:
+            if recycle_bin_id in self.recycle_bin_ids:
+                app.logger.debug(
+                    f"Item with recycle_bin_id {recycle_bin_id} is already in the queue."
+                )
+                return
             self.recycle_bin_ids.add(recycle_bin_id)
-            app.logger.debug(
-                f"Item with recycle_bin_id {recycle_bin_id} added to the queue."
-            )
-        else:
-            app.logger.debug(
-                f"Item with recycle_bin_id {recycle_bin_id} is already in the queue."
-            )
+        log_entry = {
+            "time": int(time.time()),
+            "action": "queued",
+            "agent_type": "system",
+            "agent_id": "isard-scheduler",
+            "agent_name": "isard-scheduler",
+            "agent_category_id": None,
+            "agent_category_name": None,
+            "agent_role": None,
+        }
+        with app.app_context():
+            r.table("recycle_bin").get(recycle_bin_id).update(
+                {
+                    "status": "queued",
+                    "logs": r.row["logs"].append(log_entry),
+                    "last_log": log_entry,
+                }
+            ).run(db.conn)
+        send_socket_user(
+            "update_recycle_bin",
+            {"id": recycle_bin_id, "status": "queued"},
+            item.get("user_id"),
+        )
+        send_socket_admin(
+            "update_recycle_bin", {"id": recycle_bin_id, "status": "queued"}
+        )
+        self.queue.put(item)
+        app.logger.debug(
+            f"Item with recycle_bin_id {recycle_bin_id} added to the queue."
+        )
+
+    def bulk_enqueue(self, items):
+        """Enqueue multiple items with a single DB write for the status+log update."""
+        new_items = []
+        with self.recycle_bin_ids_lock:
+            for item in items:
+                rb_id = item.get("recycle_bin_id")
+                if rb_id not in self.recycle_bin_ids:
+                    self.recycle_bin_ids.add(rb_id)
+                    new_items.append(item)
+        if not new_items:
+            return
+        ids = [i["recycle_bin_id"] for i in new_items]
+        log_entry = {
+            "time": int(time.time()),
+            "action": "queued",
+            "agent_type": "system",
+            "agent_id": "isard-scheduler",
+            "agent_name": "isard-scheduler",
+            "agent_category_id": None,
+            "agent_category_name": None,
+            "agent_role": None,
+        }
+        with app.app_context():
+            r.table("recycle_bin").get_all(r.args(ids)).update(
+                {
+                    "status": "queued",
+                    "logs": r.row["logs"].append(log_entry),
+                    "last_log": log_entry,
+                }
+            ).run(db.conn)
+        send_socket_admin("update_recycle_bin", {"ids": ids, "status": "queued"})
+        for item in new_items:
+            self.queue.put(item)
+            app.logger.debug(f"Item {item.get('recycle_bin_id')} bulk-added to queue.")
 
     def dequeue(self):
         try:
-            item = self.queue.get(
-                timeout=1
-            )  # Timeout to allow thread to check for stop_event
-            self.recycle_bin_ids.remove(item.get("recycle_bin_id"))
+            item = self.queue.get(timeout=1)
+            with self.recycle_bin_ids_lock:
+                self.recycle_bin_ids.discard(item.get("recycle_bin_id"))
             return item
         except Empty:
             return None
 
     def perform_operation(self, recycle_bin_id, user_id):
-        # Example operation using user_id
         app.logger.debug(f"Performing operation with user_id {user_id}")
         try:
             rb = RecycleBin(id=recycle_bin_id)
             rb.delete_storage(user_id)
             if rb.item_type in ["user", "group", "category"]:
-                dependants_rb_ids = []
-                for user in rb.users:
+                dependants_rb_ids = set()
+
+                if rb.users:
+                    user_keys = [[user["id"], "recycled"] for user in rb.users]
                     with app.app_context():
-                        dependants_rb_ids += set(
+                        user_deps = list(
                             r.table("recycle_bin")
-                            .get_all([user["id"], "recycled"], index=f"owner_status")
-                            .filter(lambda rb: rb["id"] != recycle_bin_id)
+                            .get_all(r.args(user_keys), index="owner_status")
+                            .filter(lambda rcb: rcb["id"] != recycle_bin_id)
                             .pluck("id")["id"]
                             .run(db.conn)
                         )
-                if rb.item_type == "group":
-                    for group in rb.groups:
-                        with app.app_context():
-                            dependants_rb_ids += set(
-                                r.table("recycle_bin")
-                                .get_all(
-                                    [group["id"], "recycled"],
-                                    index=f"owner_group_status",
-                                )
-                                .filter(lambda rb: rb["id"] != recycle_bin_id)
-                                .pluck("id")["id"]
-                                .run(db.conn)
+                        dependants_rb_ids.update(user_deps)
+
+                if rb.item_type == "group" and rb.groups:
+                    group_keys = [[group["id"], "recycled"] for group in rb.groups]
+                    with app.app_context():
+                        group_deps = list(
+                            r.table("recycle_bin")
+                            .get_all(r.args(group_keys), index="owner_group_status")
+                            .filter(lambda rcb: rcb["id"] != recycle_bin_id)
+                            .pluck("id")["id"]
+                            .run(db.conn)
+                        )
+                        dependants_rb_ids.update(group_deps)
+
+                elif rb.item_type == "category" and rb.categories:
+                    category_keys = [[cat["id"], "recycled"] for cat in rb.categories]
+                    with app.app_context():
+                        cat_deps = list(
+                            r.table("recycle_bin")
+                            .get_all(
+                                r.args(category_keys),
+                                index="owner_category_status",
                             )
-                elif rb.item_type == "category":
-                    for category in rb.categories:
-                        with app.app_context():
-                            dependants_rb_ids += set(
-                                r.table("recycle_bin")
-                                .get_all(
-                                    [category["id"], "recycled"],
-                                    index=f"owner_category_status",
-                                )
-                                .filter(lambda rb: rb["id"] != recycle_bin_id)
-                                .pluck("id")["id"]
-                                .run(db.conn)
-                            )
+                            .filter(lambda rcb: rcb["id"] != recycle_bin_id)
+                            .pluck("id")["id"]
+                            .run(db.conn)
+                        )
+                        dependants_rb_ids.update(cat_deps)
+
                 for d_rb_id in dependants_rb_ids:
                     self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
         except Exception as e:
@@ -175,7 +229,6 @@ class RecycleBinDeleteQueue:
                 f"Error processing recycle bin {recycle_bin_id}: {str(e)}",
                 exc_info=True,
             )
-            # Update status back to recycled so it can be retried or manually handled
             try:
                 update_status(recycle_bin_id, user_id, "recycled")
             except Exception as status_error:
@@ -207,7 +260,7 @@ class RecycleBinDeleteQueue:
                     f"Critical error in recycle bin background worker: {str(e)}",
                     exc_info=True,
                 )
-            time.sleep(0.1)  # Add a small sleep to prevent a tight loop
+            time.sleep(0.1)
 
     def stop(self):
         self.stop_event.set()
@@ -302,110 +355,190 @@ def get(recycle_bin_id=None, all_data=None):
         result = r.table("recycle_bin").get(recycle_bin_id).run(db.conn)
 
     if all_data:
-        for domain in result["desktops"] + result["templates"]:
-            category = get_category_data(domain["category"])
-            group = get_group_data(domain["group"])
-            domain["category"] = category
-            domain["group"] = group
+        all_domains = result["desktops"] + result["templates"]
+
+        # Fetch deployment users first so we can collect all category/group IDs
+        # in one pass and avoid a second round-trip
+        deployment_user_ids = list(
+            set(
+                d["user"]
+                for d in result.get("deployments", [])
+                if isinstance(d.get("user"), str)
+            )
+        )
+        if deployment_user_ids:
+            with app.app_context():
+                dep_users = {
+                    u["id"]: u
+                    for u in r.table("users")
+                    .get_all(r.args(deployment_user_ids))
+                    .pluck("id", "username", "category", "group")
+                    .run(db.conn)
+                }
+        else:
+            dep_users = {}
+
+        category_ids = set()
+        group_ids = set()
+        for domain in all_domains:
+            if isinstance(domain.get("category"), str):
+                category_ids.add(domain["category"])
+            if isinstance(domain.get("group"), str):
+                group_ids.add(domain["group"])
+        for user in result.get("users", []):
+            if isinstance(user.get("category"), str):
+                category_ids.add(user["category"])
+            if isinstance(user.get("group"), str):
+                group_ids.add(user["group"])
+        for u in dep_users.values():
+            if isinstance(u.get("category"), str):
+                category_ids.add(u["category"])
+            if isinstance(u.get("group"), str):
+                group_ids.add(u["group"])
+
+        with app.app_context():
+            categories = (
+                {
+                    c["id"]: c
+                    for c in r.table("categories")
+                    .get_all(r.args(list(category_ids)))
+                    .pluck("id", "name")
+                    .run(db.conn)
+                }
+                if category_ids
+                else {}
+            )
+            groups = (
+                {
+                    g["id"]: g
+                    for g in r.table("groups")
+                    .get_all(r.args(list(group_ids)))
+                    .pluck("id", "name")
+                    .run(db.conn)
+                }
+                if group_ids
+                else {}
+            )
+
+        storage_to_domains = defaultdict(list)
+        for domain in all_domains:
+            cat_id = domain.get("category")
+            grp_id = domain.get("group")
+            domain["category"] = categories.get(
+                cat_id, {"id": cat_id, "name": "[Deleted]"}
+            )
+            domain["group"] = groups.get(grp_id, {"id": grp_id, "name": "[Deleted]"})
+            for disk in (
+                domain.get("create_dict", {}).get("hardware", {}).get("disks", [])
+            ):
+                if "storage_id" in disk:
+                    storage_to_domains[disk["storage_id"]].append(domain)
 
         for storage in result["storages"]:
-            storage["domains"] = []
-            for domain in result["desktops"] + result["templates"]:
-                for disk in domain["create_dict"]["hardware"]["disks"]:
-                    if disk["storage_id"] == storage["id"]:
-                        storage["domains"].append(domain["name"])
-                        storage["category"] = domain["category"]
-                        storage["user"] = domain["username"]
+            matches = storage_to_domains.get(storage["id"], [])
+            storage["domains"] = [m["name"] for m in matches]
+            if matches:
+                storage["category"] = matches[0]["category"]
+                storage["user"] = matches[0].get("username")
 
         for deployment in result["deployments"]:
-            user = get_user_data(deployment["user"])
-            category = get_category_data(user["category_id"])
-            group = get_group_data(user["group_id"])
-            user = (
-                r.table("users")
-                .get(deployment["user"])
-                .default({"username": "[Deleted]"})
-            )
-            deployment["user"] = user["username"].run(db.conn)
-            deployment["category"] = category
-            deployment["group"] = group
+            user = dep_users.get(deployment["user"])
+            if user:
+                deployment["user"] = user.get("username", "[Deleted]")
+                deployment["category"] = categories.get(
+                    user.get("category"),
+                    {"id": user.get("category"), "name": "[Deleted]"},
+                )
+                deployment["group"] = groups.get(
+                    user.get("group"), {"id": user.get("group"), "name": "[Deleted]"}
+                )
+            else:
+                deployment["user"] = "[Deleted]"
+                deployment["category"] = {"id": None, "name": "[Deleted]"}
+                deployment["group"] = {"id": None, "name": "[Deleted]"}
 
-        for user in result["users"]:
-            user["category"] = get_category_data(user["category"])["name"]
-            user["group"] = get_group_data(user["group"])["name"]
+        for user in result.get("users", []):
+            cat_id = user.get("category")
+            grp_id = user.get("group")
+            user["category"] = categories.get(
+                cat_id, {"id": cat_id, "name": "[Deleted]"}
+            ).get("name", "[Deleted]")
+            user["group"] = groups.get(grp_id, {"id": grp_id, "name": "[Deleted]"}).get(
+                "name", "[Deleted]"
+            )
     return result
 
 
-@cached(cache=TTLCache(maxsize=50, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_recycle_bin_entries_cutoff_time_surpassed():
     """
-    Retrieve all recycle bin entries that have surpassed the cutoff time. It will consider the global
-    cutoff time or the category cutoff time.
+    Retrieve all recycle bin entries that have surpassed the cutoff time.
+    Uses compound indexes (status_accessed, owner_category_status_accessed)
+    with .between() range scans and union queries for single round-trip.
 
     :return: Recycle bin entries that have surpassed the cutoff time
-    :rtype: list
+    :rtype: set
     """
-    recycle_bin_entries = []
     recycle_bin_cuttoff_time = get_recycle_bin_cuttoff_time()
     recycle_bin_categories_cuttoff_time = get_categories_recycle_bin_cutoff_time()
 
     if not recycle_bin_categories_cuttoff_time:
+        # Simple case: single global cutoff, use status_accessed index
+        cutoff = (
+            datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+        ).timestamp()
         with app.app_context():
-            recycle_bin_entries = list(
+            return set(
                 r.table("recycle_bin")
-                .get_all("recycled", index="status")
-                .filter(
-                    r.row["accessed"]
-                    < (
-                        datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
-                    ).timestamp()
-                )
-                .pluck("id")["id"]
-                .run(db.conn)
-            )
-    else:
-        for category in recycle_bin_categories_cuttoff_time:
-            with app.app_context():
-                recycle_bin_entries += list(
-                    r.table("recycle_bin")
-                    .get_all(
-                        [category["id"], "recycled"], index="owner_category_status"
-                    )
-                    .filter(
-                        r.row["accessed"]
-                        < (
-                            datetime.now()
-                            - timedelta(hours=category["recycle_bin_cutoff_time"])
-                        ).timestamp()
-                    )
-                    .pluck("id")["id"]
-                    .run(db.conn)
-                )
-
-        categories_to_exclude_ids = [
-            category["id"] for category in recycle_bin_categories_cuttoff_time
-        ]
-
-        with app.app_context():
-            recycle_bin_entries += list(
-                r.table("recycle_bin")
-                .get_all("recycled", index="status")
-                .filter(
-                    lambda rb: r.expr(categories_to_exclude_ids)
-                    .contains(rb["owner_category_id"])
-                    .not_()
-                )
-                .filter(
-                    r.row["accessed"]
-                    < (
-                        datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
-                    ).timestamp()
+                .between(
+                    ["recycled", r.minval],
+                    ["recycled", cutoff],
+                    index="status_accessed",
                 )
                 .pluck("id")["id"]
                 .run(db.conn)
             )
 
-    return set(recycle_bin_entries)
+    # Complex case: per-category cutoffs via union query
+    queries = []
+    categories_to_exclude_ids = []
+
+    for cat in recycle_bin_categories_cuttoff_time:
+        cutoff = (
+            datetime.now() - timedelta(hours=cat["recycle_bin_cutoff_time"])
+        ).timestamp()
+        queries.append(
+            r.table("recycle_bin")
+            .between(
+                [cat["id"], "recycled", r.minval],
+                [cat["id"], "recycled", cutoff],
+                index="owner_category_status_accessed",
+            )
+            .pluck("id")["id"]
+        )
+        categories_to_exclude_ids.append(cat["id"])
+
+    # Global cutoff for categories without custom cutoff
+    global_cutoff = (
+        datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+    ).timestamp()
+    queries.append(
+        r.table("recycle_bin")
+        .between(
+            ["recycled", r.minval],
+            ["recycled", global_cutoff],
+            index="status_accessed",
+        )
+        .filter(
+            lambda doc: r.expr(categories_to_exclude_ids)
+            .contains(doc["owner_category_id"])
+            .not_()
+        )
+        .pluck("id")["id"]
+    )
+
+    with app.app_context():
+        return set(r.union(*queries).run(db.conn))
 
 
 def update_status(rb_id, owner_id, status):
@@ -566,28 +699,32 @@ def get_user_recycle_bin_ids(user_id, status):
         )
 
 
+def _count_fields():
+    """RethinkDB merge dict that replaces array fields with pre-computed counts,
+    falling back to .count() for entries created before the migration."""
+    return {
+        "desktops": r.row["desktops_count"].default(r.row["desktops"].count()),
+        "templates": r.row["templates_count"].default(r.row["templates"].count()),
+        "storages": r.row["storages_count"].default(r.row["storages"].count()),
+        "deployments": r.row["deployments_count"].default(r.row["deployments"].count()),
+        "categories": r.row["categories_count"].default(r.row["categories"].count()),
+        "groups": r.row["groups_count"].default(r.row["groups"].count()),
+        "users": r.row["users_count"].default(r.row["users"].count()),
+    }
+
+
 @cached(cache=TTLCache(maxsize=50, ttl=10))
 def get_count(recycle_bin_id):
     with app.app_context():
         return (
             r.table("recycle_bin")
             .get(recycle_bin_id)
-            .merge(
-                {
-                    "desktops": r.row["desktops"].count(),
-                    "templates": r.row["templates"].count(),
-                    "storages": r.row["storages"].count(),
-                    "deployments": r.row["deployments"].count(),
-                    "categories": r.row["categories"].count(),
-                    "groups": r.row["groups"].count(),
-                    "users": r.row["users"].count(),
-                }
-            )
+            .merge(_count_fields())
             .run(db.conn)
         )
 
 
-@cached(cache=TTLCache(maxsize=50, ttl=10))
+@cached(cache=TTLCache(maxsize=50, ttl=30))
 def get_item_count(user_id=None, category_id=None, status=None):
     query = r.table("recycle_bin")
     if user_id:
@@ -603,16 +740,8 @@ def get_item_count(user_id=None, category_id=None, status=None):
         query = query.get_all(status, index="status")
     else:
         query = query.get_all(r.args(["recycled", "deleting"]), index="status")
-    count_query = {
-        "desktops": r.row["desktops"].count(),
-        "templates": r.row["templates"].count(),
-        "storages": r.row["storages"].count(),
-        "deployments": r.row["deployments"].count(),
-        "categories": r.row["categories"].count(),
-        "groups": r.row["groups"].count(),
-        "users": r.row["users"].count(),
-        "last": r.row["logs"][-1],
-    }
+    count_query = _count_fields()
+    count_query["last"] = r.row["last_log"].default(r.row["logs"][-1])
     query = query.merge(count_query).without("logs", "tasks")
     with app.app_context():
         return list(query.run(db.conn))
@@ -629,7 +758,7 @@ def get_user_amount(user_id):
         )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=30))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_old_entries_config():
     with app.app_context():
         try:
@@ -647,7 +776,27 @@ def check_older_than_old_entry_max_time(last):
         return last < (datetime.now() - timedelta(hours=max_time_hours)).timestamp()
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=30))
+def get_old_deleted_entry_ids():
+    """
+    Get IDs of deleted entries older than max_time using server-side filtering
+    on the status_accessed index instead of fetching all entries to Python.
+    """
+    max_time_config = get_old_entries_config()["max_time"]
+    if max_time_config is None:
+        return []
+    cutoff = (datetime.now() - timedelta(hours=int(max_time_config))).timestamp()
+    with app.app_context():
+        return list(
+            r.table("recycle_bin")
+            .between(
+                ["deleted", r.minval], ["deleted", cutoff], index="status_accessed"
+            )
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_default_delete():
     with app.app_context():
         try:
@@ -656,7 +805,7 @@ def get_default_delete():
             return False
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=30))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_delete_action():
     with app.app_context():
         try:
@@ -665,7 +814,7 @@ def get_delete_action():
             return "delete"
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_user_recycle_bin_cutoff_time(user_id):
     """
     Retrieve the user recycle bin cutoff time.
@@ -692,7 +841,7 @@ def get_user_recycle_bin_cutoff_time(user_id):
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_categories_recycle_bin_cutoff_time():
     """
     Retrieve all the categories cutoff time.
@@ -709,7 +858,7 @@ def get_categories_recycle_bin_cutoff_time():
         )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_category_recycle_bin_cuttoff_time(category_id):
     """
     Get the recycle bin cutoff time applied to a category.
@@ -733,7 +882,7 @@ def get_category_recycle_bin_cuttoff_time(category_id):
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
+@cached(cache=TTLCache(maxsize=1, ttl=60))
 def get_recycle_bin_cuttoff_time(category_id=None):
     """
     Get the recycle bin cutoff time for a category or the global cutoff time.
@@ -850,9 +999,9 @@ def add_log(
         "agent_role": agent_role,
     }
     with app.app_context():
-        r.table("recycle_bin").get(id).update({"logs": r.row["logs"].append(logs)}).run(
-            db.conn
-        )
+        r.table("recycle_bin").get(id).update(
+            {"logs": r.row["logs"].append(logs), "last_log": logs}
+        ).run(db.conn)
 
 
 def get_template_dependant_recycle_bin_entries(templates, index):
@@ -1025,6 +1174,14 @@ class RecycleBin(object):
                             "groups": self.groups,
                             "categories": self.categories,
                             "size": self.size,
+                            "desktops_count": 0,
+                            "templates_count": 0,
+                            "storages_count": 0,
+                            "deployments_count": 0,
+                            "users_count": 0,
+                            "groups_count": 0,
+                            "categories_count": 0,
+                            "last_log": None,
                         },
                         return_changes=True,
                     )
@@ -1624,6 +1781,9 @@ class RecycleBin(object):
                                     "status": task.status,
                                 }
                             )
+                            # Throttle RQ task submissions to prevent spike
+                            if len(tasks) % 10 == 0:
+                                time.sleep(0.2)
 
             except Exception as e:
                 raise Error(
@@ -1729,14 +1889,18 @@ class RecycleBin(object):
                 ).run(db.conn)
 
     @classmethod
-    def delete_old_entries(cls, rcb_list):
-        with app.app_context():
-            results = (
-                r.table("recycle_bin")
-                .get_all(r.args(rcb_list))
-                .delete()
-                .run(db.conn, array_limit=500000)
-            )
+    def delete_old_entries(cls, rcb_list, chunk_size=500):
+        if not rcb_list:
+            return
+        rcb_list = list(rcb_list)
+        for i in range(0, len(rcb_list), chunk_size):
+            chunk = rcb_list[i : i + chunk_size]
+            with app.app_context():
+                r.table("recycle_bin").get_all(r.args(chunk)).delete().run(
+                    db.conn, array_limit=200000
+                )
+            if i + chunk_size < len(rcb_list):
+                time.sleep(0.5)
 
     # @classmethod
     # def archive_old_entries(cls, rcb_list):
@@ -1817,13 +1981,19 @@ class RecycleBinDomain(RecycleBin):
         if domain["kind"] == "desktop":
             with app.app_context():
                 r.table("recycle_bin").get(self.id).update(
-                    {"desktops": r.row["desktops"].append(domain)}
+                    {
+                        "desktops": r.row["desktops"].append(domain),
+                        "desktops_count": r.row["desktops_count"].default(0).add(1),
+                    }
                 ).run(db.conn)
             apib.delete_item_bookings("desktop", domain["id"])
         if domain["kind"] == "template":
             with app.app_context():
                 r.table("recycle_bin").get(self.id).update(
-                    {"templates": r.row["templates"].append(domain)}
+                    {
+                        "templates": r.row["templates"].append(domain),
+                        "templates_count": r.row["templates_count"].default(0).add(1),
+                    }
                 ).run(db.conn)
         # Move its disk to recycle_bin
         if not (
@@ -1842,7 +2012,12 @@ class RecycleBinDomain(RecycleBin):
     def add_desktops(self, desktops):
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
-                {"desktops": r.row["desktops"].add(desktops)}
+                {
+                    "desktops": r.row["desktops"].add(desktops),
+                    "desktops_count": r.row["desktops_count"]
+                    .default(0)
+                    .add(len(desktops)),
+                }
             ).run(db.conn)
 
         rcb_storage = RecycleBinStorage(id=self.id, user_id=self.agent_id)
@@ -1969,6 +2144,7 @@ class RecycleBinStorage(RecycleBin):
                 r.table("recycle_bin").get(self.id).update(
                     {
                         "storages": r.row["storages"].append(storage),
+                        "storages_count": r.row["storages_count"].default(0).add(1),
                         "size": r.row["size"]
                         + storage.get("qemu-img-info", {}).get("actual-size", 0),
                     }
@@ -1977,7 +2153,12 @@ class RecycleBinStorage(RecycleBin):
     def add_storages(self, storages):
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
-                {"storages": r.row["storages"].add(storages)}
+                {
+                    "storages": r.row["storages"].add(storages),
+                    "storages_count": r.row["storages_count"]
+                    .default(0)
+                    .add(len(storages)),
+                }
             ).run(db.conn)
 
 
@@ -2001,7 +2182,10 @@ class RecycleBinDeployment(RecycleBin):
     def add_deployment(self, deployment):
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
-                {"deployments": r.row["deployments"].append(deployment)}
+                {
+                    "deployments": r.row["deployments"].append(deployment),
+                    "deployments_count": r.row["deployments_count"].default(0).add(1),
+                }
             ).run(db.conn)
             desktops_ids = list(
                 r.table("domains")
@@ -2029,7 +2213,12 @@ class RecycleBinDeployment(RecycleBin):
     def add_deployments(self, deployments):
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
-                {"deployments": r.row["deployments"].add(deployments)}
+                {
+                    "deployments": r.row["deployments"].add(deployments),
+                    "deployments_count": r.row["deployments_count"]
+                    .default(0)
+                    .add(len(deployments)),
+                }
             ).run(db.conn)
         deployments_ids = [deployment["id"] for deployment in deployments]
         with app.app_context():
@@ -2173,6 +2362,7 @@ class RecycleBinUser(RecycleBin):
                 r.table("recycle_bin").get(self.id).update(
                     {
                         "users": r.row["users"].append(user),
+                        "users_count": r.row["users_count"].default(0).add(1),
                     }
                 ).run(db.conn)
             isard_user_storage_disable_users([user])
@@ -2259,7 +2449,9 @@ class RecycleBinGroup(RecycleBin):
             r.table("recycle_bin").get(self.id).update(
                 {
                     "users": r.row["users"].add(users),
+                    "users_count": r.row["users_count"].default(0).add(len(users)),
                     "groups": r.row["groups"].append(group),
+                    "groups_count": r.row["groups_count"].default(0).add(1),
                 }
             ).run(db.conn)
             r.table("users").get_all(group["id"], index="group").delete().run(db.conn)
@@ -2361,8 +2553,11 @@ class RecycleBinCategory(RecycleBin):
             r.table("recycle_bin").get(self.id).update(
                 {
                     "users": r.row["users"].add(users),
+                    "users_count": r.row["users_count"].default(0).add(len(users)),
                     "groups": r.row["groups"].add(groups),
+                    "groups_count": r.row["groups_count"].default(0).add(len(groups)),
                     "categories": r.row["categories"].append(category),
+                    "categories_count": r.row["categories_count"].default(0).add(1),
                 }
             ).run(db.conn)
             r.table("users").get_all(category["id"], index="category").delete().run(

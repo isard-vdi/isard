@@ -100,14 +100,14 @@ class Scheduler:
                 .run(db.conn)
             )
 
-        if not new_job or (job and job.get("hour") != "01"):
+        if not new_job or (job and job.get("hour") != "23"):
             if job:
                 self.remove_job("admin.recycle_bin_delete_admin")
             self.add_job(
                 "system",
-                "interval",
+                "cron",
                 "recycle_bin_cutoff_time_system_delete",
-                "01",
+                "23",
                 "00",
                 id="system.recycle_bin_cutoff_time_system_delete",
             )
