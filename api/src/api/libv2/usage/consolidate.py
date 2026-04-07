@@ -70,63 +70,62 @@ class ConsolidateConsumption:
             raise Error("bad_request", "Already consolidating %s" % name)
         self.consolidating.append(name)
         self.name = name
-        self.times = {"start": time()}
-        app.logger.info(
-            "====> STARTING Consolidating %s consumptions for date %s <===="
-            % (self.name, get_relative_date(-days_before))
-        )
-
-        if days_before < 1:
-            if self.name in self.consolidating:
-                self.consolidating.remove(self.name)
-            raise Error("bad_request", "days_before must be greater than 1")
-        # days_before = 1 will consolidate yesterday.
-        # Has to be called after midnight to consolidate the previous day
-        self.consolidation_day = get_relative_date(-days_before)
-
-        # Batch size and max threads are set to avoid overloading the DB
-        # Batch size is the number of items to consolidate in a single thread
-        # Max threads is the number of threads to run in parallel
-        # The total number of items to consolidate in parallel is batch_size * max_threads
-        # So if batch_size is 1000 and max_threads is 6, 6000 items will be computed in
-        # parallel. At the end of each thread computation the data will be updated in bulk
-        # in the DB.
-        self.batch_size = 1000  # Computations in batch for each thread
-
-        # Take into account your hardware cpu cores. 1.20 is a factor to avoid overloading.
-        # 1.20 will launch 5 threads in a 6 core cpu (80% of cpu will be used)
-        self.max_threads = ceil(os.cpu_count() / 1.20)
-
-        # Instantiate the Usage class to get the data to consolidate
-        self.Usage = Usage(days_before=days_before)
-        self.times["get_" + self.name + "_log_data"] = time()
-        if not self.Usage.has_data:
+        try:
+            self.times = {"start": time()}
             app.logger.info(
-                "--> No data to consolidate. Skipping date %s" % self.consolidation_day
+                "====> STARTING Consolidating %s consumptions for date %s <===="
+                % (self.name, get_relative_date(-days_before))
             )
+
+            if days_before < 1:
+                raise Error("bad_request", "days_before must be greater than 1")
+            # days_before = 1 will consolidate yesterday.
+            # Has to be called after midnight to consolidate the previous day
+            self.consolidation_day = get_relative_date(-days_before)
+
+            # Batch size and max threads are set to avoid overloading the DB
+            # Batch size is the number of items to consolidate in a single thread
+            # Max threads is the number of threads to run in parallel
+            # The total number of items to consolidate in parallel is batch_size * max_threads
+            # So if batch_size is 1000 and max_threads is 6, 6000 items will be computed in
+            # parallel. At the end of each thread computation the data will be updated in bulk
+            # in the DB.
+            self.batch_size = 1000  # Computations in batch for each thread
+
+            # Take into account your hardware cpu cores. 1.20 is a factor to avoid overloading.
+            # 1.20 will launch 5 threads in a 6 core cpu (80% of cpu will be used)
+            self.max_threads = ceil(os.cpu_count() / 1.20)
+
+            # Instantiate the Usage class to get the data to consolidate
+            self.Usage = Usage(days_before=days_before)
+            self.times["get_" + self.name + "_log_data"] = time()
+            if not self.Usage.has_data:
+                app.logger.info(
+                    "--> No data to consolidate. Skipping date %s"
+                    % self.consolidation_day
+                )
+                return
+            app.logger.info(
+                "--> Got %s %s consumptions for date %s. Starting %s gevent threads with %s items per thread"
+                % (
+                    len(self.Usage.day_data),
+                    self.name,
+                    self.consolidation_day,
+                    ceil(len(self.Usage.day_data) / self.batch_size),
+                    self.batch_size,
+                )
+            )
+            app.logger.info(
+                "--> Got %s %s previous consumptions"
+                % (len(self.Usage.previous_abs_data), self.name)
+            )
+            self.domains = self.get_domains()
+            self.times["get_" + self.name + "_system_items_data"] = time()
+            for consumer in self.Usage.consumer_items:
+                self.process_batches(self.group_day_data_by_item(consumer), consumer)
+        finally:
             if self.name in self.consolidating:
                 self.consolidating.remove(self.name)
-            return
-        app.logger.info(
-            "--> Got %s %s consumptions for date %s. Starting %s gevent threads with %s items per thread"
-            % (
-                len(self.Usage.day_data),
-                self.name,
-                self.consolidation_day,
-                ceil(len(self.Usage.day_data) / self.batch_size),
-                self.batch_size,
-            )
-        )
-        app.logger.info(
-            "--> Got %s %s previous consumptions"
-            % (len(self.Usage.previous_abs_data), self.name)
-        )
-        self.domains = self.get_domains()
-        self.times["get_" + self.name + "_system_items_data"] = time()
-        for consumer in self.Usage.consumer_items:
-            self.process_batches(self.group_day_data_by_item(consumer), consumer)
-        if self.name in self.consolidating:
-            self.consolidating.remove(self.name)
 
     def update_items_consumption(self, items, consumer):
         consumptions = []

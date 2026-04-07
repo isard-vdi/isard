@@ -139,6 +139,7 @@ class Task(RedisBase):
 
             self.job.save()
             for dependent in kwargs.get("dependents", []):
+                dependent.setdefault("user_id", kwargs.get("user_id"))
                 dependent.setdefault("retry", kwargs.get("retry", 0))
                 dependent.setdefault(
                     "retry_intervals", kwargs.get("retry_intervals", 0)

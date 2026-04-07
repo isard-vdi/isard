@@ -323,12 +323,14 @@ class Storage(RethinkCustomBase):
         return None
 
     @classmethod
-    def create_from_path(cls, path):
+    def create_from_path(cls, path, user_id):
         """
         Create Storage from path.
 
         :param path: Path of storage
         :type path: str
+        :param user_id: User ID of the storage owner
+        :type user_id: str
         :return: Storage object
         :rtype: isardvdi_common.storage.Storage
         """
@@ -337,6 +339,10 @@ class Storage(RethinkCustomBase):
             type=path.rsplit(".", 1)[-1],
             directory_path=path.rsplit("/", 1)[0],
             status="ready",
+            user_id=user_id,
+            parent=None,
+            perms=["r"],
+            status_logs=[{"time": int(time()), "status": "created"}],
         )
 
     @classmethod

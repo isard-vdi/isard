@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 184
+release_version = 185
+# release 185: Repair storage records missing user_id, ensure perms and status_logs
 # release 184: Add recycle_bin indexes and pre-computed count fields for performance
 # release 183: Import Google OAuth2 configuration from AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* environment variables
 # release 182: Import SAML configuration from AUTHENTICATION_AUTHENTICATION_SAML_* environment variables
@@ -5400,6 +5401,109 @@ password:s:%s"""
         if version == 174:
             try:
                 r.table(table).index_create("task").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 185:
+            try:
+                # Find storage records missing user_id
+                broken_ids = list(
+                    r.table(table)
+                    .filter(lambda s: s.has_fields("user_id").not_())["id"]
+                    .run(self.conn)
+                )
+                print(
+                    f"--- Found {len(broken_ids)} storage records missing user_id ---"
+                )
+
+                if broken_ids:
+                    # Phase 1: Try to repair from domain relationship
+                    repairable = list(
+                        r.table(table)
+                        .get_all(r.args(broken_ids))
+                        .eq_join("id", r.table("domains"), index="storage_ids")
+                        .pluck({"left": {"id": True}, "right": {"user": True}})
+                        .run(self.conn)
+                    )
+                    repaired_ids = set()
+                    for item in repairable:
+                        r.table(table).get(item["left"]["id"]).update(
+                            {"user_id": item["right"]["user"]}
+                        ).run(self.conn)
+                        repaired_ids.add(item["left"]["id"])
+                    print(
+                        f"--- Repaired {len(repaired_ids)} storage records from domain owner ---"
+                    )
+
+                    # Phase 2: Try to repair backing files by tracing children
+                    # to their domain owners, preferring template owners since
+                    # backing files typically belong to templates
+                    unrepairable_ids = [
+                        sid for sid in broken_ids if sid not in repaired_ids
+                    ]
+                    if unrepairable_ids:
+                        for sid in unrepairable_ids:
+                            # Get children that have a user_id
+                            children = list(
+                                r.table(table)
+                                .get_all(sid, index="parent")
+                                .has_fields("user_id")
+                                .pluck("id", "user_id")
+                                .run(self.conn)
+                            )
+                            if not children:
+                                continue
+
+                            # Find domains that own these child storages
+                            child_ids = [c["id"] for c in children]
+                            child_domains = list(
+                                r.table("domains")
+                                .get_all(r.args(child_ids), index="storage_ids")
+                                .pluck("user", "kind")
+                                .run(self.conn)
+                            )
+
+                            # Prefer the template domain owner (backing files belong to templates)
+                            template_owner = None
+                            any_owner = None
+                            for d in child_domains:
+                                if d.get("kind") == "template":
+                                    template_owner = d["user"]
+                                    break
+                                if any_owner is None:
+                                    any_owner = d["user"]
+
+                            owner = template_owner or any_owner
+                            if owner:
+                                r.table(table).get(sid).update({"user_id": owner}).run(
+                                    self.conn
+                                )
+                                repaired_ids.add(sid)
+                                print(
+                                    f"--- Repaired storage {sid} from {'template' if template_owner else 'child'} domain owner ---"
+                                )
+
+                    # Phase 3: Delete truly orphaned records (no domain, no children with user_id)
+                    still_broken = [
+                        sid for sid in broken_ids if sid not in repaired_ids
+                    ]
+                    if still_broken:
+                        print(
+                            f"--- Deleting {len(still_broken)} unrepairable storage records ---"
+                        )
+                        r.table(table).get_all(r.args(still_broken)).delete().run(
+                            self.conn
+                        )
+
+                # Ensure all records have perms and status_logs
+                r.table(table).filter(lambda s: s.has_fields("perms").not_()).update(
+                    {"perms": ["r", "w"]}
+                ).run(self.conn)
+
+                r.table(table).filter(
+                    lambda s: s.has_fields("status_logs").not_()
+                ).update({"status_logs": []}).run(self.conn)
+
             except Exception as e:
                 print(e)
 

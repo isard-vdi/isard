@@ -217,7 +217,9 @@ def storage_update_parent(storage_id):
             elif storage.status == "orphan":
                 return
             else:
-                storage.parent = Storage.create_from_path(backing_file).id
+                storage.parent = Storage.create_from_path(
+                    backing_file, user_id=task.user_id
+                ).id
         else:
             storage.parent = None
 
