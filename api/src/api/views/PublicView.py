@@ -91,15 +91,14 @@ def api_v3_login_config(category_id=None):
         login_config = Configuration.login or {}
     for key in ("notification_cover", "notification_form"):
         notification = login_config.get(key)
-        if notification:
-            for field in ("title", "description"):
-                if field in notification and notification[field]:
-                    notification[field] = html.unescape(notification[field])
-            button = notification.get("button")
-            if button:
-                for field in ("text", "url"):
-                    if field in button and button[field]:
-                        button[field] = html.unescape(button[field])
+        if not notification:
+            continue
+        for field in ("title", "description"):
+            if notification.get(field):
+                notification[field] = html.unescape(notification[field])
+        button = notification.get("button")
+        if button and button.get("text"):
+            button["text"] = html.unescape(button["text"])
     return (
         json.dumps(login_config),
         200,
@@ -122,5 +121,9 @@ def api_v3_category_logo():
     # Decode base64 data
     file_bytes = base64.b64decode(b64_data)
 
-    # Send as file with correct mimetype
-    return send_file(BytesIO(file_bytes), mimetype=mimetype, as_attachment=False)
+    # Send as file with correct mimetype and CSP to prevent script execution
+    response = send_file(BytesIO(file_bytes), mimetype=mimetype, as_attachment=False)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'none'; style-src 'unsafe-inline'"
+    )
+    return response

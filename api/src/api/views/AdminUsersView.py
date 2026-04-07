@@ -781,7 +781,8 @@ def api_v3_admin_category_insert(payload):
 
     checkDuplicate("categories", category["name"])
     checkDuplicateUID(category["uid"])
-    checkDuplicateCustomURL(category["custom_url_name"])
+    if category.get("custom_url_name"):
+        checkDuplicateCustomURL(category["custom_url_name"])
     if data.get("storage_pool"):
         storage_pool = data.pop("storage_pool")
         add_category_to_storage_pool(storage_pool, category["id"])
