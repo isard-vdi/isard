@@ -348,14 +348,9 @@ func TestSAMLLoadConfig(t *testing.T) {
 				invalidMetadata := filepath.Join(dir, "bad.xml")
 				require.NoError(t, os.WriteFile(invalidMetadata, []byte("not xml"), 0644))
 
-				ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					http.Error(w, "not found", http.StatusInternalServerError)
-				}))
-				t.Cleanup(ts.Close)
-
 				return model.SAMLConfig{
 					MetadataFile: invalidMetadata,
-					MetadataURL:  ts.URL,
+					MetadataURL:  "https://idp.example.com/metadata",
 				}
 			},
 			Expected: expected{Err: "fetch metadata from URL failed"},
@@ -363,14 +358,9 @@ func TestSAMLLoadConfig(t *testing.T) {
 		"should fallback to URL when metadata file does not exist": {
 			NeedTLS: false,
 			Input: func(_, _, _ string) model.SAMLConfig {
-				ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					http.Error(w, "not found", http.StatusInternalServerError)
-				}))
-				t.Cleanup(ts.Close)
-
 				return model.SAMLConfig{
 					MetadataFile: "/nonexistent/metadata.xml",
-					MetadataURL:  ts.URL,
+					MetadataURL:  "https://idp.example.com/metadata",
 				}
 			},
 			Expected: expected{Err: "fetch metadata from URL failed"},
@@ -697,6 +687,25 @@ func TestValidateMetadataURL(t *testing.T) {
 		"should reject an empty scheme": {
 			URL:         "idp.example.com/metadata",
 			ExpectedErr: "metadata URL must use https scheme",
+		},
+		"should reject a loopback IP": {
+			URL:         "https://127.0.0.1/metadata",
+			ExpectedErr: "must not point to this server",
+		},
+		"should accept a private IP that is not this server": {
+			URL: "https://10.255.255.254/metadata",
+		},
+		"should reject a link-local IP": {
+			URL:         "https://169.254.1.1/metadata",
+			ExpectedErr: "must not point to this server",
+		},
+		"should reject the unspecified address": {
+			URL:         "https://0.0.0.0/metadata",
+			ExpectedErr: "must not point to this server",
+		},
+		"should reject a hostname resolving to loopback": {
+			URL:         "https://localhost/metadata",
+			ExpectedErr: "resolves to this server",
 		},
 	}
 

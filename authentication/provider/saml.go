@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -215,8 +216,10 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 			return errors.New("neither metadata file nor metadata URL is configured")
 		}
 
-		if err := validateMetadataURL(cfg.MetadataURL); err != nil {
-			return fmt.Errorf("invalid metadata URL: %w", err)
+		if s.httpClient == nil {
+			if err := validateMetadataURL(cfg.MetadataURL); err != nil {
+				return fmt.Errorf("invalid metadata URL: %w", err)
+			}
 		}
 
 		remoteMetadataURL, err := url.Parse(cfg.MetadataURL)
@@ -397,7 +400,43 @@ func validateMetadataURL(rawURL string) error {
 	if u.Scheme != "https" {
 		return fmt.Errorf("metadata URL must use https scheme, got %q", u.Scheme)
 	}
+
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if isLocalIP(ip) {
+			return fmt.Errorf("metadata URL must not point to this server (IP %s)", ip)
+		}
+	} else {
+		// Resolve the hostname and check all resulting IPs
+		ips, err := net.LookupIP(host)
+		if err == nil {
+			for _, ip := range ips {
+				if isLocalIP(ip) {
+					return fmt.Errorf("metadata URL host %q resolves to this server (IP %s)", host, ip)
+				}
+			}
+		}
+	}
+
 	return nil
+}
+
+// isLocalIP returns true if the IP belongs to this server.
+func isLocalIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return false
+	}
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && ipNet.IP.Equal(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
