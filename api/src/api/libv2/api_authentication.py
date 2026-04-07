@@ -45,7 +45,12 @@ users = ApiUsers()
 provider_config_cache = TTLCache(maxsize=10, ttl=30)
 
 
-def no_sanitize_href(href):
+def _sanitize_href(href):
+    from urllib.parse import urlparse
+
+    parsed = urlparse(href)
+    if parsed.scheme and parsed.scheme not in ("http", "https", "mailto"):
+        return ""
     return href
 
 
@@ -69,7 +74,7 @@ sanitizer = Sanitizer(
             "sup",
             "hr",
         },
-        "sanitize_href": no_sanitize_href,
+        "sanitize_href": _sanitize_href,
     }
 )
 

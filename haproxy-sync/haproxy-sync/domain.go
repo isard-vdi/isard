@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 )
+
+var validDomainRe = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*$`)
 
 func domainPemName(domain string) string {
 	return domain + ".pem"
@@ -97,6 +100,10 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 }
 
 func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) error {
+	if !validDomainRe.MatchString(d) || len(d) > 253 {
+		return fmt.Errorf("invalid domain name: %q", d)
+	}
+
 	pemName := domainPemName(d)
 	certPath := domainCertPath(h.Domains.CertsPath, pemName)
 
