@@ -128,8 +128,8 @@ func (h *HAproxySync) BastionAddSubdomain(ctx context.Context, subdomain string)
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	if subdomain == "" {
-		return ErrMissingSubdomain
+	if err := validateDomain(subdomain); err != nil {
+		return err
 	}
 
 	if ok := h.Bastion.subdomains[subdomain]; ok {
@@ -150,8 +150,8 @@ func (h *HAproxySync) BastionDeleteSubdomain(ctx context.Context, subdomain stri
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	if subdomain == "" {
-		return ErrMissingSubdomain
+	if err := validateDomain(subdomain); err != nil {
+		return err
 	}
 
 	if ok := h.Bastion.subdomains[subdomain]; !ok {
@@ -172,8 +172,8 @@ func (h *HAproxySync) BastionAddIndividualDomain(ctx context.Context, domain str
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	if domain == "" {
-		return ErrMissingDomain
+	if err := validateDomain(domain); err != nil {
+		return err
 	}
 
 	if ok := h.Bastion.individualDomains[domain]; ok {
@@ -194,8 +194,8 @@ func (h *HAproxySync) BastionDeleteIndividualDomain(ctx context.Context, domain 
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	if domain == "" {
-		return ErrMissingDomain
+	if err := validateDomain(domain); err != nil {
+		return err
 	}
 
 	if ok := h.Bastion.individualDomains[domain]; !ok {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
@@ -435,6 +436,46 @@ func TestDomainSync(t *testing.T) {
 			PrepareACME: func(m *acme.MockAcme) {},
 			Domains:     []haproxysync.DomainSyncDomain{},
 			ExpectedErr: "delete ssl crt-list for domain 'old.com': crt-list error",
+		},
+		"should reject domain with path traversal": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
+			PrepareACME:    func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "../../../etc/passwd", Certificate: testPEMData},
+			},
+			ExpectedErr: "invalid domain name",
+		},
+		"should reject empty domain name": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
+			PrepareACME:    func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "", Certificate: testPEMData},
+			},
+			ExpectedErr: "invalid domain name",
+		},
+		"should reject overly long domain": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
+			PrepareACME:    func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: strings.Repeat("a", 254) + ".com", Certificate: testPEMData},
+			},
+			ExpectedErr: "invalid domain name",
+		},
+		"should reject domain with invalid characters": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
+			PrepareACME:    func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "bad space.example.com", Certificate: testPEMData},
+			},
+			ExpectedErr: "invalid domain name",
+		},
+		"should reject wildcard domain": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, _ string) {},
+			PrepareACME:    func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "*.example.com", Certificate: testPEMData},
+			},
+			ExpectedErr: "invalid domain name",
 		},
 	}
 

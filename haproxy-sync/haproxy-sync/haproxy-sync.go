@@ -13,10 +13,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var (
-	ErrMissingSubdomain = errors.New("missing subdomain")
-	ErrMissingDomain    = errors.New("missing domain")
-)
+var ErrInvalidDomain = errors.New("invalid domain name")
 
 type Interface interface {
 	// Check ensures the service is working correctly.

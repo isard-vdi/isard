@@ -60,6 +60,10 @@ func (h *HAProxySyncServer) DomainSync(ctx context.Context, req *haproxysyncv1.D
 
 	result, err := h.haproxysync.DomainSync(ctx, domains)
 	if err != nil {
+		if errors.Is(err, haproxysync.ErrInvalidDomain) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, fmt.Errorf("sync domains: %w", err).Error())
 	}
 
@@ -82,7 +86,7 @@ func (h *HAProxySyncServer) DomainSync(ctx context.Context, req *haproxysyncv1.D
 
 func (h *HAProxySyncServer) BastionAddSubdomain(ctx context.Context, req *haproxysyncv1.BastionAddSubdomainRequest) (*haproxysyncv1.BastionAddSubdomainResponse, error) {
 	if err := h.haproxysync.BastionAddSubdomain(ctx, req.GetDomain()); err != nil {
-		if errors.Is(err, haproxysync.ErrMissingSubdomain) {
+		if errors.Is(err, haproxysync.ErrInvalidDomain) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 
@@ -94,7 +98,7 @@ func (h *HAProxySyncServer) BastionAddSubdomain(ctx context.Context, req *haprox
 
 func (h *HAProxySyncServer) BastionDeleteSubdomain(ctx context.Context, req *haproxysyncv1.BastionDeleteSubdomainRequest) (*haproxysyncv1.BastionDeleteSubdomainResponse, error) {
 	if err := h.haproxysync.BastionDeleteSubdomain(ctx, req.GetDomain()); err != nil {
-		if errors.Is(err, haproxysync.ErrMissingSubdomain) {
+		if errors.Is(err, haproxysync.ErrInvalidDomain) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 
@@ -106,7 +110,7 @@ func (h *HAProxySyncServer) BastionDeleteSubdomain(ctx context.Context, req *hap
 
 func (h *HAProxySyncServer) BastionAddIndividualDomain(ctx context.Context, req *haproxysyncv1.BastionAddIndividualDomainRequest) (*haproxysyncv1.BastionAddIndividualDomainResponse, error) {
 	if err := h.haproxysync.BastionAddIndividualDomain(ctx, req.GetDomain()); err != nil {
-		if errors.Is(err, haproxysync.ErrMissingDomain) {
+		if errors.Is(err, haproxysync.ErrInvalidDomain) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 
@@ -118,7 +122,7 @@ func (h *HAProxySyncServer) BastionAddIndividualDomain(ctx context.Context, req 
 
 func (h *HAProxySyncServer) BastionDeleteIndividualDomain(ctx context.Context, req *haproxysyncv1.BastionDeleteIndividualDomainRequest) (*haproxysyncv1.BastionDeleteIndividualDomainResponse, error) {
 	if err := h.haproxysync.BastionDeleteIndividualDomain(ctx, req.GetDomain()); err != nil {
-		if errors.Is(err, haproxysync.ErrMissingDomain) {
+		if errors.Is(err, haproxysync.ErrInvalidDomain) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 

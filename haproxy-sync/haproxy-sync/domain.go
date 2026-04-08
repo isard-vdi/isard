@@ -5,10 +5,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
+
+	"golang.org/x/net/idna"
 )
 
-var validDomainRe = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*$`)
+// maxDNSNameLength is the maximum length of a DNS domain name in bytes
+// per RFC 1035. The idna Lookup profile does not enforce this on its own.
+const maxDNSNameLength = 253
+
+// validateDomain validates a domain name using the IDNA Lookup profile
+// (RFC 5891) plus an explicit length check. Wildcards are not accepted:
+// any "*" must be expanded to a concrete domain before sync. Returns an
+// error wrapping ErrInvalidDomain so callers can match it with errors.Is.
+func validateDomain(d string) error {
+	if d == "" {
+		return fmt.Errorf("%w: empty", ErrInvalidDomain)
+	}
+
+	if len(d) > maxDNSNameLength {
+		return fmt.Errorf("%w: %q exceeds %d bytes", ErrInvalidDomain, d, maxDNSNameLength)
+	}
+
+	if _, err := idna.Lookup.ToASCII(d); err != nil {
+		return fmt.Errorf("%w: %q: %w", ErrInvalidDomain, d, err)
+	}
+
+	return nil
+}
 
 func domainPemName(domain string) string {
 	return domain + ".pem"
@@ -19,6 +42,12 @@ func domainCertPath(certsPath, pemName string) string {
 }
 
 func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error) {
+	for _, d := range domains {
+		if err := validateDomain(d.Name); err != nil {
+			return DomainSyncResult{}, err
+		}
+	}
+
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
@@ -66,28 +95,30 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 
 	// Remove the extra domains
 	for d := range h.Domains.domains {
-		if !desiredDomains[d] {
-			pemName := domainPemName(d)
-			certPath := domainCertPath(h.Domains.CertsPath, pemName)
-
-			if err := h.haproxy.DelMap(h.Domains.DomainsMapName, d); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("delete domain from HAProxy: %w", err)
-			}
-
-			if err := h.haproxy.DelSslCrtList(h.Domains.CrtListPath, certPath); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("delete ssl crt-list for domain '%s': %w", d, err)
-			}
-
-			if err := h.haproxy.DelSslCert(certPath); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("delete ssl cert for domain '%s': %w", d, err)
-			}
-
-			h.acme.RemoveCert(ctx, d, pemName)
-			certsRemoved += 1
-
-			delete(h.Domains.domains, d)
-			domainsRemoved += 1
+		if desiredDomains[d] {
+			continue
 		}
+
+		pemName := domainPemName(d)
+		certPath := domainCertPath(h.Domains.CertsPath, pemName)
+
+		if err := h.haproxy.DelMap(h.Domains.DomainsMapName, d); err != nil {
+			return DomainSyncResult{}, fmt.Errorf("delete domain from HAProxy: %w", err)
+		}
+
+		if err := h.haproxy.DelSslCrtList(h.Domains.CrtListPath, certPath); err != nil {
+			return DomainSyncResult{}, fmt.Errorf("delete ssl crt-list for domain '%s': %w", d, err)
+		}
+
+		if err := h.haproxy.DelSslCert(certPath); err != nil {
+			return DomainSyncResult{}, fmt.Errorf("delete ssl cert for domain '%s': %w", d, err)
+		}
+
+		h.acme.RemoveCert(ctx, d, pemName)
+		certsRemoved += 1
+
+		delete(h.Domains.domains, d)
+		domainsRemoved += 1
 	}
 
 	return DomainSyncResult{
@@ -100,10 +131,6 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain
 }
 
 func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) error {
-	if !validDomainRe.MatchString(d) || len(d) > 253 {
-		return fmt.Errorf("invalid domain name: %q", d)
-	}
-
 	pemName := domainPemName(d)
 	certPath := domainCertPath(h.Domains.CertsPath, pemName)
 

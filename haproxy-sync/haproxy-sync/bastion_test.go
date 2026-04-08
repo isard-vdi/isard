@@ -323,7 +323,7 @@ func TestAddSubdomain(t *testing.T) {
 				IndividualDomains: []string{},
 			},
 			Subdomain:   "",
-			ExpectedErr: haproxysync.ErrMissingSubdomain.Error(),
+			ExpectedErr: "invalid domain name",
 		},
 		"should skip if subdomain already exists": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
@@ -349,6 +349,30 @@ func TestAddSubdomain(t *testing.T) {
 			Subdomain:   "fail",
 			ExpectedErr: "add subdomain to HAProxy: socket error",
 		},
+		"should reject subdomain with invalid characters": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
+				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
+				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
+			},
+			SyncFirst: &haproxysync.BastionSyncMaps{
+				Subdomains:        []string{},
+				IndividualDomains: []string{},
+			},
+			Subdomain:   "bad space.example.com",
+			ExpectedErr: "invalid domain name",
+		},
+		"should reject wildcard subdomain": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
+				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
+				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
+			},
+			SyncFirst: &haproxysync.BastionSyncMaps{
+				Subdomains:        []string{},
+				IndividualDomains: []string{},
+			},
+			Subdomain:   "*.evil.com",
+			ExpectedErr: "invalid domain name",
+		},
 	}
 
 	for name, tc := range cases {
@@ -373,7 +397,7 @@ func TestAddSubdomain(t *testing.T) {
 			err := svc.BastionAddSubdomain(context.Background(), tc.Subdomain)
 
 			if tc.ExpectedErr != "" {
-				assert.EqualError(err, tc.ExpectedErr)
+				assert.ErrorContains(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
 			}
@@ -415,7 +439,7 @@ func TestDeleteSubdomain(t *testing.T) {
 				IndividualDomains: []string{},
 			},
 			Subdomain:   "",
-			ExpectedErr: haproxysync.ErrMissingSubdomain.Error(),
+			ExpectedErr: "invalid domain name",
 		},
 		"should skip if subdomain does not exist": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
@@ -465,7 +489,7 @@ func TestDeleteSubdomain(t *testing.T) {
 			err := svc.BastionDeleteSubdomain(context.Background(), tc.Subdomain)
 
 			if tc.ExpectedErr != "" {
-				assert.EqualError(err, tc.ExpectedErr)
+				assert.ErrorContains(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
 			}
@@ -507,7 +531,7 @@ func TestAddIndividualDomain(t *testing.T) {
 				IndividualDomains: []string{},
 			},
 			Domain:      "",
-			ExpectedErr: haproxysync.ErrMissingDomain.Error(),
+			ExpectedErr: "invalid domain name",
 		},
 		"should skip if domain already exists": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
@@ -533,6 +557,42 @@ func TestAddIndividualDomain(t *testing.T) {
 			Domain:      "fail.com",
 			ExpectedErr: "add individual domain to HAProxy: socket error",
 		},
+		"should reject domain with invalid characters": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
+				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
+				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
+			},
+			SyncFirst: &haproxysync.BastionSyncMaps{
+				Subdomains:        []string{},
+				IndividualDomains: []string{},
+			},
+			Domain:      "bad space.example.com",
+			ExpectedErr: "invalid domain name",
+		},
+		"should reject wildcard domain": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
+				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
+				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
+			},
+			SyncFirst: &haproxysync.BastionSyncMaps{
+				Subdomains:        []string{},
+				IndividualDomains: []string{},
+			},
+			Domain:      "*.evil.com",
+			ExpectedErr: "invalid domain name",
+		},
+		"should reject path traversal": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
+				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
+				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
+			},
+			SyncFirst: &haproxysync.BastionSyncMaps{
+				Subdomains:        []string{},
+				IndividualDomains: []string{},
+			},
+			Domain:      "../../etc/passwd",
+			ExpectedErr: "invalid domain name",
+		},
 	}
 
 	for name, tc := range cases {
@@ -557,7 +617,7 @@ func TestAddIndividualDomain(t *testing.T) {
 			err := svc.BastionAddIndividualDomain(context.Background(), tc.Domain)
 
 			if tc.ExpectedErr != "" {
-				assert.EqualError(err, tc.ExpectedErr)
+				assert.ErrorContains(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
 			}
@@ -599,7 +659,7 @@ func TestBastionDeleteIndividualDomain(t *testing.T) {
 				IndividualDomains: []string{},
 			},
 			Domain:      "",
-			ExpectedErr: haproxysync.ErrMissingDomain.Error(),
+			ExpectedErr: "invalid domain name",
 		},
 		"should skip if domain does not exist": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
@@ -649,7 +709,7 @@ func TestBastionDeleteIndividualDomain(t *testing.T) {
 			err := svc.BastionDeleteIndividualDomain(context.Background(), tc.Domain)
 
 			if tc.ExpectedErr != "" {
-				assert.EqualError(err, tc.ExpectedErr)
+				assert.ErrorContains(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
 			}
