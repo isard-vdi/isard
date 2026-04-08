@@ -254,15 +254,15 @@ def _decode_data_url(data_url):
             f"Logo MIME type '{mime_type}' not allowed. Allowed: {allowed}"
         )
 
+    if (len(b64_data) * 3) // 4 > MAX_LOGO_SIZE:
+        raise ValueError(
+            f"Logo file too large ({(len(b64_data) * 3) // 4} bytes). Maximum: {MAX_LOGO_SIZE}"
+        )
+
     try:
         file_bytes = base64.b64decode(b64_data)
     except Exception:
         raise ValueError("Invalid base64 data in logo")
-
-    if len(file_bytes) > MAX_LOGO_SIZE:
-        raise ValueError(
-            f"Logo file too large ({len(file_bytes)} bytes). Maximum: {MAX_LOGO_SIZE}"
-        )
 
     detected_mime = _detect_mimetype(file_bytes)
     if mime_type != detected_mime:
