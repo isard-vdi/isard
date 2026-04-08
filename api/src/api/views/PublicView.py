@@ -97,8 +97,10 @@ def api_v3_login_config(category_id=None):
             if notification.get(field):
                 notification[field] = html.unescape(notification[field])
         button = notification.get("button")
-        if button and button.get("text"):
-            button["text"] = html.unescape(button["text"])
+        if button:
+            for field in ("text", "url"):
+                if button.get(field):
+                    button[field] = html.unescape(button[field])
     return (
         json.dumps(login_config),
         200,
