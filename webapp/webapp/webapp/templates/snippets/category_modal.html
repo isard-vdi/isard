@@ -1,0 +1,53 @@
+{#
+#
+#   Copyright © 2026 Simó Albert i Beltran
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" role="dialog"{% if modal_aria_labelledby is defined %} aria-labelledby="{{ modal_aria_labelledby }}"{% endif %} aria-hidden="true">
+    <div class="modal-dialog{{ ' ' + modal_dialog_class if modal_dialog_class is defined else '' }}">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title"{% if modal_aria_labelledby is defined %} id="{{ modal_aria_labelledby }}"{% endif %}>
+                    <i class="fa {{ title_icon }}"></i> {{ title_text }}
+                </h4>
+            </div>
+
+            <div class="modal-body">
+                <form id="{{ modal_id }}-form"{% if form_class is defined %} class="{{ form_class }}"{% endif %}>
+                    <input hidden name="id" id="id">
+                    {% include form_body_template %}
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Save changes</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

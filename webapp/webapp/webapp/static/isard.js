@@ -190,7 +190,61 @@ $(document).ready(function() {
     $('input').iCheck({
         checkboxClass: 'icheckbox_flat-green',
         radioClass: 'iradio_flat-green',
-    })
+    });
+
+    // Read file content on change and store in the companion hidden input
+    $(document).on('change', 'input[type="file"][data-file-content]', function () {
+        var $hidden = $(this).siblings('input[type="hidden"]');
+        var file = this.files[0];
+        if (file) {
+            var accept = $(this).attr('accept');
+            if (accept && accept.indexOf(file.type) === -1) {
+                new PNotify({
+                    text: 'File type ' + file.type + ' not allowed.',
+                    type: 'error',
+                    delay: 3000
+                });
+                $(this).val('');
+                $hidden.val('').trigger('change');
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                $hidden.val(e.target.result).trigger('change');
+            };
+            if (file.type.startsWith('image/')) {
+                reader.readAsDataURL(file);
+            } else {
+                reader.readAsText(file);
+            }
+        } else {
+            $hidden.val('').trigger('change');
+        }
+    });
+
+    // Toggle download link and preview when companion hidden input changes
+    $(document).on('change', 'input[type="hidden"][data-file-content]', function () {
+        var val = $(this).val();
+        $(this).siblings('.file-content-download').toggle(!!val);
+        var $preview = $(this).siblings('.file-content-preview');
+        if ($preview.length) {
+            if (val && val.indexOf('data:') === 0) {
+                $preview.html('<img src="' + val + '" />').show();
+            } else {
+                $preview.empty().hide();
+            }
+        }
+    });
+
+    // Download file content from companion hidden input on click
+    $(document).on('click', '.file-content-download', function () {
+        var content = $(this).siblings('input[type="hidden"]').val();
+        if (!content) return false;
+        var blob = new Blob([content], { type: 'application/octet-stream' });
+        var url = URL.createObjectURL(blob);
+        $(this).attr('href', url);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    });
 });
 
 JSON.unflatten = function(data) {
@@ -374,13 +428,366 @@ function disableFirstOption (id) {
   )
 }
 
+/**
+ * Toggles the visibility of a form section and updates Parsley validation exclusion.
+ * When disabled, the section is hidden and its inputs are excluded from validation.
+ * When enabled, the section is shown and its inputs are included in validation.
+ *
+ * @param {jQuery} $container - The form section container to toggle.
+ * @param {boolean} enabled - Whether the section should be visible and validated.
+ */
+function toggleFormSection ($container, enabled) {
+  $container.toggle(enabled);
+  $container.find(':input').attr('data-parsley-excluded', !enabled);
+  $container.find(':checkbox').trigger('ifChanged');
+  var $form = $container.closest('form');
+  if ($form.length) {
+    var activeElement = document.activeElement;
+    $form.parsley().validate();
+    if (activeElement && document.activeElement !== activeElement) {
+      activeElement.focus();
+    }
+  }
+}
+
+/**
+ * Sets up conditional visibility and required state for provider config fields.
+ *
+ * @param {jQuery} $container - Container element holding the config fields.
+ * @param {string} namePrefix - Bracket-notation prefix for field names.
+ * @param {Object} config - Configuration object with:
+ * @param {Array}  [config.fieldsWithRegex] - Field names that have a regex counterpart
+ *        (derived by replacing 'field' with 'regex' in the name).
+ * @param {Object} [config.fieldVisibility] - Map of field names to visibility conditions
+ *        (checkbox, optional empty field).
+ * @param {Array}  [config.mutualRequired] - Pairs of field names where at least one is required
+ *        (e.g. [['metadata_url', 'metadata_file']]).
+ * @param {Object} [config.externalRequired] - Map of field names to external jQuery checkbox
+ *        elements that control whether the field is required.
+ */
+function setupProviderFieldDependencies ($container, namePrefix, config) {
+  var fieldsWithRegex = config.fieldsWithRegex || [];
+  var fieldVisibility = config.fieldVisibility || {};
+  var mutualRequired = config.mutualRequired || [];
+  var externalRequired = config.externalRequired || {};
+
+  function setRequired ($field, required) {
+    var parsleyField = $field.parsley();
+    if (required) {
+      $field.attr('required', 'required');
+      if (parsleyField) parsleyField.validate();
+    } else {
+      $field.removeAttr('required');
+      if (parsleyField) parsleyField.reset();
+    }
+    $field.closest('.item.form-group').find('.required').toggle(required);
+  }
+
+  function getField (name) {
+    return $container.find("[name='" + namePrefix + "[" + name + "]']");
+  }
+
+  function getFieldSection (name) {
+    return getField(name).closest('.item.form-group');
+  }
+
+  function updateRegexVisibility (fieldName) {
+    var regexName = fieldName.replace('field', 'regex');
+    var fieldVisible = getField(fieldName).attr('data-parsley-excluded') !== 'true';
+    var hasField = fieldVisible && !!getField(fieldName).val();
+    toggleFormSection(getFieldSection(regexName), hasField);
+    setRequired(getField(regexName), hasField);
+  }
+
+  function updateFieldVisibility (fieldName) {
+    var condition = fieldVisibility[fieldName];
+    if (!condition) return;
+    var visible = getField(condition.checkbox).is(':checked');
+    if (condition.empty) {
+      visible = visible && !getField(condition.empty).val();
+    }
+    toggleFormSection(getFieldSection(fieldName), visible);
+    setRequired(getField(fieldName), visible && !condition.optional);
+    if (fieldsWithRegex.indexOf(fieldName) !== -1) {
+      updateRegexVisibility(fieldName);
+    }
+  }
+
+  function updateExternalRequired (fieldName) {
+    var $checkbox = externalRequired[fieldName];
+    var $field = getField(fieldName);
+    var required = $checkbox.is(':checked');
+    setRequired($field, required);
+    $field.attr('data-parsley-excluded', !required && !$field.val());
+    if (fieldsWithRegex.indexOf(fieldName) !== -1) {
+      updateRegexVisibility(fieldName);
+    }
+  }
+
+  function updateMutualRequired (pair) {
+    var $a = getField(pair[0]);
+    var $b = getField(pair[1]);
+    var aVal = $a.val();
+    var bVal = $b.val();
+    setRequired($a, !bVal);
+    setRequired($b, !aVal);
+  }
+
+  // Mutual required pairs
+  $.each(mutualRequired, function (_, pair) {
+    getField(pair[0]).off('input.prov-req').on('input.prov-req', function () {
+      updateMutualRequired(pair);
+    });
+    getField(pair[1]).off('input.prov-req').on('input.prov-req', function () {
+      updateMutualRequired(pair);
+    });
+  });
+
+  // field -> regex visibility
+  $.each(fieldsWithRegex, function (_, fieldName) {
+    getField(fieldName).off('input.prov-req').on('input.prov-req', function () {
+      updateRegexVisibility(fieldName);
+    });
+  });
+
+  // field visibility conditions
+  var checkboxTriggers = {};
+  var inputTriggers = {};
+  $.each(fieldVisibility, function (fieldName, condition) {
+    var cb = condition.checkbox;
+    if (!checkboxTriggers[cb]) checkboxTriggers[cb] = [];
+    checkboxTriggers[cb].push(fieldName);
+    if (condition.empty) {
+      var emp = condition.empty;
+      if (!inputTriggers[emp]) inputTriggers[emp] = [];
+      inputTriggers[emp].push(fieldName);
+    }
+  });
+  $.each(checkboxTriggers, function (trigger, fields) {
+    getField(trigger).off('ifChecked.prov-req ifUnchecked.prov-req ifChanged.prov-req')
+      .on('ifChecked.prov-req ifUnchecked.prov-req ifChanged.prov-req', function () {
+        $.each(fields, function (_, fieldName) {
+          updateFieldVisibility(fieldName);
+        });
+      });
+  });
+  $.each(inputTriggers, function (trigger, fields) {
+    getField(trigger).off('input.prov-req change.prov-req')
+      .on('input.prov-req change.prov-req', function () {
+        $.each(fields, function (_, fieldName) {
+          updateFieldVisibility(fieldName);
+        });
+      });
+  });
+
+  // External checkbox -> field required listeners
+  $.each(externalRequired, function (fieldName, $checkbox) {
+    $checkbox.off('ifChecked.prov-req ifUnchecked.prov-req')
+      .on('ifChecked.prov-req ifUnchecked.prov-req', function () {
+        updateExternalRequired(fieldName);
+      });
+    getField(fieldName).off('input.prov-ext').on('input.prov-ext', function () {
+      var required = $checkbox.is(':checked');
+      $(this).attr('data-parsley-excluded', !required && !$(this).val());
+    });
+  });
+
+  // Set initial state
+  $.each(mutualRequired, function (_, pair) {
+    updateMutualRequired(pair);
+  });
+  $.each(fieldsWithRegex, function (_, fieldName) {
+    updateRegexVisibility(fieldName);
+  });
+  $.each(fieldVisibility, function (fieldName) {
+    updateFieldVisibility(fieldName);
+  });
+  $.each(externalRequired, function (fieldName) {
+    updateExternalRequired(fieldName);
+  });
+}
+
+function samlFieldConfig () {
+  return {
+    fieldsWithRegex: [
+      'field_username', 'field_name', 'field_email', 'field_photo',
+      'field_category', 'field_group', 'field_role'
+    ],
+    fieldVisibility: {
+      auto_register_roles: { checkbox: 'auto_register', optional: true },
+      field_category:      { checkbox: 'guess_category' },
+      group_default:       { checkbox: 'auto_register', optional: true },
+      field_group:         { checkbox: 'auto_register', empty: 'group_default' },
+      role_default:        { checkbox: 'auto_register', optional: true },
+      field_role:          { checkbox: 'auto_register', empty: 'role_default' },
+      role_admin_ids:      { checkbox: 'auto_register', optional: true },
+      role_manager_ids:    { checkbox: 'auto_register', optional: true },
+      role_advanced_ids:   { checkbox: 'auto_register', optional: true },
+      role_user_ids:       { checkbox: 'auto_register', optional: true }
+    },
+    mutualRequired: [
+      ['metadata_url', 'metadata_file']
+    ]
+  };
+}
+
+function ldapFieldConfig () {
+  return {
+    fieldsWithRegex: [
+      'field_username', 'field_name', 'field_email', 'field_photo',
+      'field_category', 'field_group', 'role_list_field'
+    ],
+    fieldVisibility: {
+      auto_register_roles:   { checkbox: 'auto_register', optional: true },
+      field_category:        { checkbox: 'guess_category' },
+      group_default:         { checkbox: 'auto_register', optional: true },
+      field_group:           { checkbox: 'auto_register', empty: 'group_default' },
+      role_default:          { checkbox: 'auto_register', optional: true },
+      role_list_search_base: { checkbox: 'auto_register' },
+      role_list_filter:      { checkbox: 'auto_register' },
+      role_list_use_user_dn: { checkbox: 'auto_register', optional: true },
+      role_list_field:       { checkbox: 'auto_register' },
+      role_admin_ids:        { checkbox: 'auto_register', optional: true },
+      role_manager_ids:      { checkbox: 'auto_register', optional: true },
+      role_advanced_ids:     { checkbox: 'auto_register', optional: true },
+      role_user_ids:         { checkbox: 'auto_register', optional: true }
+    }
+  };
+}
+
+/**
+ * Populates form fields inside a container with values from a data object.
+ * Supports nested objects (via recursion), checkboxes (via iCheck), multi-value
+ * selects (arrays), and standard inputs. Field names use bracket notation
+ * to match nested keys (e.g. "ldap_config[host]").
+ *
+ * @param {jQuery} $container - The container element holding the form fields.
+ * @param {Object} data - Key-value pairs to fill into the form.
+ * @param {string} [prefix] - Optional bracket-notation prefix for nested keys
+ *                             (e.g. "ldap_config"). Used internally during recursion.
+ */
+function fillFormData ($container, data, prefix) {
+  $.each(data, function (key, value) {
+    var fullKey = prefix ? prefix + '[' + key + ']' : key;
+    // Recurse into nested objects to flatten them into bracket-notation keys
+    if ($.isPlainObject(value)) {
+      fillFormData($container, value, fullKey);
+      return;
+    }
+    var $field = $container.find("[name='" + fullKey + "']");
+    if (!$field.length) return;
+    if ($field.is(':checkbox')) {
+      $field.iCheck(value ? 'check' : 'uncheck').iCheck('update').trigger('ifChanged');
+    } else if ($.isArray(value)) {
+      if ($field.is('select[multiple]') && $field.find('option').length) {
+        // Static-option multiselects: select matching options
+        $field.val(value).trigger('change');
+      } else {
+        // Dynamic multiselects: replace options with the provided values
+        $field.empty();
+        $.each(value, function (_, item) {
+          $field.append(new Option(item, item, true, true));
+        });
+        $field.trigger('change');
+      }
+    } else {
+      $field.val(value).trigger('change');
+    }
+  });
+  // Validate form only on the top-level call, after all fields are populated
+  if (!prefix) {
+    var $form = $container.closest('form');
+    if (!$form.length) $form = $container.filter('form');
+    if ($form.length) $form.parsley().validate();
+  }
+}
+
+/**
+ * Resets all form fields inside a container to their default state.
+ * Checkboxes are unchecked via iCheck, multi-selects are emptied, single
+ * selects reset to the first option, and other inputs are restored to their
+ * HTML default value. Parsley validation state is also reset.
+ *
+ * @param {jQuery} $container - The container element holding the form fields.
+ */
+function resetFormData ($container) {
+  $container.find(':checkbox').each(function () {
+    $(this).iCheck('uncheck').iCheck('update').trigger('ifChanged');
+  });
+  $container.find('select[multiple]').each(function () {
+    var $select = $(this);
+    if ($select.find('option').length) {
+      // Static-option multiselects: restore default selected state
+      $select.find('option').each(function () {
+        this.selected = this.defaultSelected;
+      });
+      $select.trigger('change');
+    } else {
+      $select.empty().trigger('change');
+    }
+  });
+  $container.find('select:not([multiple])').each(function () {
+    $(this).prop('selectedIndex', 0).trigger('change');
+  });
+  $container.find(':input:not(:checkbox):not(select):not(button)').each(function () {
+    $(this).val(this.defaultValue).trigger('change');
+  });
+  var $form = $container.closest('form');
+  if (!$form.length) $form = $container.filter('form');
+  if ($form.length) $form.parsley().reset();
+}
+
+/**
+ * Collects form data from all inputs inside a container and returns it as a
+ * nested object. Inputs excluded from Parsley validation or without a name
+ * attribute are skipped. Field names in bracket notation (e.g. "ldap_config[host]")
+ * are parsed into nested object keys (e.g. { ldap_config: { host: "..." } }).
+ *
+ * Supported input types:
+ *  - Checkboxes: collected as booleans.
+ *  - Number inputs: parsed as integers.
+ *  - All others: collected via jQuery .val().
+ *
+ * @note Since jQuery 3.0, .val() returns arrays for multi-selects.
+ *
+ * @param {jQuery} $container - The container element holding the form fields.
+ * @returns {Object} A nested object representing the collected form data.
+ */
+function collectFormData ($container) {
+  var data = {};
+  $container.find(':input').each(function () {
+    var name = $(this).attr("name");
+    if (!name) return;
+    // Skip inputs excluded from validation (hidden form sections)
+    if ($(this).attr('data-parsley-excluded') === 'true') return;
+    // Parse bracket-notation name into an array of keys
+    // e.g. "ldap_config[host]" → ["ldap_config", "host"]
+    var keys = name.replace(/\]/g, '').split('[');
+    var value;
+    if ($(this).is(":checkbox")) {
+      value = $(this).is(":checked");
+    } else if ($(this).attr("type") === "number") {
+      value = parseInt($(this).val(), 10);
+    } else {
+      value = $(this).val();
+    }
+    // Build nested object structure by traversing intermediate keys
+    // e.g. keys ["ldap_config", "host"] → data.ldap_config.host = value
+    var target = data;
+    for (var i = 0; i < keys.length - 1; i++) {
+      if (!(keys[i] in target)) target[keys[i]] = {};
+      target = target[keys[i]];
+    }
+    target[keys[keys.length - 1]] = value;
+  });
+  return data;
+}
+
 function showAndHideByCheckbox (checkboxSelector, divSelector) {
-  divSelector.hide()
-  checkboxSelector.on('ifChecked', function (event) {
-    divSelector.show()
-  })
-  checkboxSelector.on('ifUnchecked', function (event) {
-    divSelector.hide()
+  toggleFormSection(divSelector, false);
+  checkboxSelector.on('ifChanged', function () {
+    var isExcluded = $(this).attr('data-parsley-excluded') === 'true';
+    toggleFormSection(divSelector, $(this).is(':checked') && !isExcluded);
   })
 }
 

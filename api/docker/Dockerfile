@@ -18,6 +18,7 @@ ENV PYTHONPATH /opt/isardvdi:/opt/isardvdi/isardvdi_protobuf
 COPY component/_common/src /opt/isardvdi/isardvdi_common
 COPY pkg/gen/proto/python /opt/isardvdi/isardvdi_protobuf
 COPY pkg/gen/proto/python_old /opt/isardvdi/isardvdi_protobuf_old
+COPY frontend/src/assets/logo.svg /static/default_logo
 
 ENV PYTHONWARNINGS "ignore:Unverified HTTPS request"
 CMD ["python3", "-u", "/api/startv3.py"]

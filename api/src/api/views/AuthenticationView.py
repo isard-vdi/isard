@@ -269,7 +269,7 @@ def edit_provider_config_route(payload, provider):
                 if secret_key in value and not value[secret_key]:
                     del value[secret_key]
 
-    data = _validate_item("provider_config_update", data)
+    data = _validate_item(f"{provider}_config_update", data)
     logout_url = data.get("logout_redirect_url", "")
     if logout_url and urlparse(logout_url).scheme not in ("http", "https"):
         raise Error("bad_request", "Invalid logout redirect URL scheme")

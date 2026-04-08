@@ -1,8 +1,8 @@
 package haproxy
 
 import (
-	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -19,6 +19,12 @@ type Interface interface {
 	AddMap(name, key string) error
 	DelMap(name, key string) error
 	ClearMap(name string) error
+	NewSslCert(certPath string) error
+	SetSslCert(certPath string, pemData []byte) error
+	CommitSslCert(certPath string) error
+	AddSslCrtList(crtListPath, certPath string) error
+	DelSslCrtList(crtListPath, certPath string) error
+	DelSslCert(certPath string) error
 }
 
 var _ Interface = &HAProxy{}
@@ -47,6 +53,24 @@ func NewHAProxy(log *zerolog.Logger, addr string) (*HAProxy, error) {
 	return h, nil
 }
 
+// checkResponse validates that an HAProxy admin socket response indicates success.
+// HAProxy returns error messages as plain text (not socket errors), so a non-empty
+// response that does not match any known success indicator is treated as an error.
+func checkResponse(response string, successIndicators ...string) error {
+	if response == "" {
+		return nil
+	}
+
+	lower := strings.ToLower(response)
+	for _, s := range successIndicators {
+		if strings.Contains(lower, strings.ToLower(s)) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("haproxy error: %s", response)
+}
+
 func (h *HAProxy) exec(command string) (string, error) {
 	h.mux.Lock()
 	defer h.mux.Unlock()
@@ -69,16 +93,15 @@ func (h *HAProxy) exec(command string) (string, error) {
 		return "", fmt.Errorf("set read timeout to HAProxy socket: %w", err)
 	}
 
-	buf := bufio.NewReader(sock)
-	b, err := buf.ReadBytes('\n')
+	b, err := io.ReadAll(sock)
 	if err != nil {
-		return "", fmt.Errorf("read the command respone from HAProxy socket: %w", err)
+		return "", fmt.Errorf("read the command response from HAProxy socket: %w", err)
 	}
 
 	return strings.TrimSpace(string(b)), nil
 }
 
-// ShowVersion returns the HAProxy version
+// ShowVersion returns the HAProxy version.
 func (h *HAProxy) ShowVersion() (string, error) {
 	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-show%20version
 	// show version
@@ -97,7 +120,7 @@ func (h *HAProxy) ShowVersion() (string, error) {
 	return version, nil
 }
 
-// ShowMap returns all entries in a map file
+// ShowMap returns all entries in a map file.
 func (h *HAProxy) ShowMap(name string) ([]string, error) {
 	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-show%20map
 	// show map [[@<ver>] <map>]
@@ -122,11 +145,15 @@ func (h *HAProxy) ShowMap(name string) ([]string, error) {
 		return nil, fmt.Errorf("show map '%s': %w", name, err)
 	}
 
-	// Parse response - format is "0xADDRESS KEY"
-	// We only care about the KEY part
+	if err := checkResponse(raw, "0x"); err != nil {
+		return nil, fmt.Errorf("show map '%s': %w", name, err)
+	}
+
+	// Parse response - format is "0xADDRESS KEY".
+	// We only care about the KEY part.
 	entries := []string{}
 	for _, line := range strings.Split(raw, "\n") {
-		if line == "" {
+		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 
@@ -143,7 +170,7 @@ func (h *HAProxy) ShowMap(name string) ([]string, error) {
 	return entries, nil
 }
 
-// AddMap adds an entry to a map file
+// AddMap adds an entry to a map file.
 func (h *HAProxy) AddMap(name, key string) error {
 	// Since our maps don't have values, we use an underscore as value
 	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-add%20map
@@ -166,7 +193,12 @@ func (h *HAProxy) AddMap(name, key string) error {
 	// On each new line, the first word is the key and the rest of the line is
 	// considered to be the value which can even contains spaces.
 
-	if _, err := h.exec(fmt.Sprintf("add map %s %s _", name, key)); err != nil {
+	raw, err := h.exec(fmt.Sprintf("add map %s %s _", name, key))
+	if err != nil {
+		return fmt.Errorf("add '%s' key to '%s' map: %w", key, name, err)
+	}
+
+	if err := checkResponse(raw); err != nil {
 		return fmt.Errorf("add '%s' key to '%s' map: %w", key, name, err)
 	}
 
@@ -187,7 +219,12 @@ func (h *HAProxy) DelMap(name, key string) error {
 	// this command delete only the listed reference. The reference can be found with
 	// listing the content of the map. Note that if the reference <map> is a name and
 	// is shared with a acl, the entry will be also deleted in the map.
-	if _, err := h.exec(fmt.Sprintf("del map %s %s", name, key)); err != nil {
+	raw, err := h.exec(fmt.Sprintf("del map %s %s", name, key))
+	if err != nil {
+		return fmt.Errorf("delete '%s' key from '%s' map: %w", key, name, err)
+	}
+
+	if err := checkResponse(raw); err != nil {
 		return fmt.Errorf("delete '%s' key from '%s' map: %w", key, name, err)
 	}
 
@@ -208,13 +245,132 @@ func (h *HAProxy) ClearMap(name string) error {
 	// shared with a acl, this acl will be also cleared. By default only the current
 	// version of the map is cleared (the one being matched against). However it is
 	// possible to specify another version using '@' followed by this version.
-	if _, err := h.exec(fmt.Sprintf("clear map %s", name)); err != nil {
+	raw, err := h.exec(fmt.Sprintf("clear map %s", name))
+	if err != nil {
+		return fmt.Errorf("clear map '%s': %w", name, err)
+	}
+
+	if err := checkResponse(raw); err != nil {
 		return fmt.Errorf("clear map '%s': %w", name, err)
 	}
 
 	h.log.Debug().
 		Str("map", name).
 		Msg("cleared map")
+
+	return nil
+}
+
+func (h *HAProxy) AddSslCrtList(crtListPath, certPath string) error {
+	raw, err := h.exec(fmt.Sprintf("add ssl crt-list %s %s", crtListPath, certPath))
+	if err != nil {
+		return fmt.Errorf("add '%s' cert to '%s' crt-list: %w", certPath, crtListPath, err)
+	}
+
+	if err := checkResponse(raw, "Success!", "already exists"); err != nil {
+		return fmt.Errorf("add '%s' cert to '%s' crt-list: %w", certPath, crtListPath, err)
+	}
+
+	h.log.Debug().
+		Str("crt_list", crtListPath).
+		Str("cert", certPath).
+		Msg("added ssl crt-list entry")
+
+	return nil
+}
+
+// NewSslCert creates an empty certificate storage slot in HAProxy's memory.
+func (h *HAProxy) NewSslCert(certPath string) error {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-new%20ssl%20cert
+	raw, err := h.exec(fmt.Sprintf("new ssl cert %s", certPath))
+	if err != nil {
+		return fmt.Errorf("create new ssl cert '%s': %w", certPath, err)
+	}
+
+	if err := checkResponse(raw, "New empty certificate store", "already exists"); err != nil {
+		return fmt.Errorf("create new ssl cert '%s': %w", certPath, err)
+	}
+
+	h.log.Debug().
+		Str("cert", certPath).
+		Msg("created new ssl cert storage")
+
+	return nil
+}
+
+// SetSslCert loads PEM certificate data into an existing certificate storage slot.
+// The pemData is sent as a heredoc payload to HAProxy's admin socket.
+func (h *HAProxy) SetSslCert(certPath string, pemData []byte) error {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-set%20ssl%20cert
+	// The heredoc format: "set ssl cert <path> <<\n<PEM>\n\n"
+	// The socket write appends \n, producing the empty-line terminator HAProxy requires.
+	command := fmt.Sprintf("set ssl cert %s <<\n%s\n", certPath, strings.TrimRight(string(pemData), "\n"))
+	raw, err := h.exec(command)
+	if err != nil {
+		return fmt.Errorf("set ssl cert '%s': %w", certPath, err)
+	}
+
+	if err := checkResponse(raw, "Transaction created", "Transaction updated"); err != nil {
+		return fmt.Errorf("set ssl cert '%s': %w", certPath, err)
+	}
+
+	h.log.Debug().
+		Str("cert", certPath).
+		Msg("loaded ssl cert content")
+
+	return nil
+}
+
+// CommitSslCert commits a previously loaded certificate, making it active.
+func (h *HAProxy) CommitSslCert(certPath string) error {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-commit%20ssl%20cert
+	raw, err := h.exec(fmt.Sprintf("commit ssl cert %s", certPath))
+	if err != nil {
+		return fmt.Errorf("commit ssl cert '%s': %w", certPath, err)
+	}
+
+	if err := checkResponse(raw, "Success!"); err != nil {
+		return fmt.Errorf("commit ssl cert '%s': %w", certPath, err)
+	}
+
+	h.log.Debug().
+		Str("cert", certPath).
+		Msg("committed ssl cert")
+
+	return nil
+}
+
+func (h *HAProxy) DelSslCrtList(crtListPath, certPath string) error {
+	raw, err := h.exec(fmt.Sprintf("del ssl crt-list %s %s", crtListPath, certPath))
+	if err != nil {
+		return fmt.Errorf("delete '%s' cert from '%s' crt-list: %w", certPath, crtListPath, err)
+	}
+
+	if err := checkResponse(raw, "deleted in crtlist"); err != nil {
+		return fmt.Errorf("delete '%s' cert from '%s' crt-list: %w", certPath, crtListPath, err)
+	}
+
+	h.log.Debug().
+		Str("crt_list", crtListPath).
+		Str("cert", certPath).
+		Msg("deleted ssl crt-list entry")
+
+	return nil
+}
+
+func (h *HAProxy) DelSslCert(certPath string) error {
+	raw, err := h.exec(fmt.Sprintf("del ssl cert %s", certPath))
+	if err != nil {
+		return fmt.Errorf("delete '%s' ssl cert: %w", certPath, err)
+	}
+
+	if err := checkResponse(raw, "deleted!"); err != nil {
+		return fmt.Errorf("delete '%s' ssl cert: %w", certPath, err)
+	}
+
+	h.log.Debug().
+		Str("cert", certPath).
+		Msg("deleted ssl cert")
 
 	return nil
 }

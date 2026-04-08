@@ -1,0 +1,30 @@
+enabled:
+  type: boolean
+  required: true
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - value: true
+        other_fields:
+          and:
+            - ldap_config
+migration:
+  type: dict
+  schema: migration
+ldap_config:
+  type: dict
+  schema: ldap_config
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - path: auto_register
+                value: true
+              - path: group_default
+                value: ''
+        other_fields:
+          and:
+            - ldap_config.field_group

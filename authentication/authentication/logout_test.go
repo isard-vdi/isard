@@ -164,6 +164,7 @@ func TestLogout(t *testing.T) {
 			apiMock := sdk.NewMockSdk(t)
 			dbMock := r.NewMock()
 			dbMock.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+			dbMock.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 
 			if tc.PrepareSessions == nil {
 				tc.PrepareSessions = func(s *grpcmock.Server) {}

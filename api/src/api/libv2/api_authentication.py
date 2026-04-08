@@ -24,6 +24,11 @@ import os
 from cachetools import TTLCache, cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.configuration import Configuration
+from isardvdi_common.provider_config import (
+    provider_config_api_to_db,
+    provider_config_db_to_api,
+)
 from rethinkdb import RethinkDB
 
 from api import app
@@ -40,7 +45,12 @@ users = ApiUsers()
 provider_config_cache = TTLCache(maxsize=10, ttl=30)
 
 
-def no_sanitize_href(href):
+def _sanitize_href(href):
+    from urllib.parse import urlparse
+
+    parsed = urlparse(href)
+    if parsed.scheme and parsed.scheme not in ("http", "https", "mailto"):
+        return ""
     return href
 
 
@@ -64,7 +74,7 @@ sanitizer = Sanitizer(
             "sup",
             "hr",
         },
-        "sanitize_href": no_sanitize_href,
+        "sanitize_href": _sanitize_href,
     }
 )
 
@@ -148,18 +158,8 @@ def check_duplicate_policy(category, role, type):
 
 def get_providers():
     providers = {}
-    providers["local"] = not (
-        os.environ.get("AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED") == "false"
-    )
-    providers["google"] = (
-        os.environ.get("AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED") == "true"
-    )
-    providers["saml"] = (
-        os.environ.get("AUTHENTICATION_AUTHENTICATION_SAML_ENABLED") == "true"
-    )
-    providers["ldap"] = (
-        os.environ.get("AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED") == "true"
-    )
+    for provider, configuration in Configuration.auth.items():
+        providers[provider] = configuration.get("enabled")
     return providers
 
 
@@ -232,10 +232,14 @@ def get_provider_config(provider):
             for secret_key in PROVIDER_SENSITIVE_KEYS:
                 if secret_key in value:
                     del value[secret_key]
+            provider_config_db_to_api(value)
     return config
 
 
 def update_provider_config(provider, data):
+    for key, value in data.items():
+        if isinstance(value, dict):
+            provider_config_api_to_db(value)
     with app.app_context():
         r.table("config").get(1).update(
             {"auth": {provider: r.row["auth"][provider].merge(data)}}

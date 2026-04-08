@@ -24,10 +24,6 @@ type Authentication struct {
 	Secret                    string
 	ImpersonateExpirationTime time.Duration        `mapstructure:"impersonate_expiration_time"`
 	Limits                    AuthenticationLimits `mapstructure:"limits"`
-	Local                     AuthenticationLocal
-	LDAP                      AuthenticationLDAP
-	SAML                      AuthenticationSAML
-	Google                    AuthenticationGoogle
 }
 
 type AuthenticationLimits struct {
@@ -36,22 +32,6 @@ type AuthenticationLimits struct {
 	RetryAfter      time.Duration `mapstructure:"retry_after"`
 	IncrementFactor int           `mapstructure:"increment_factor"`
 	MaxTime         time.Duration `mapstructure:"max_time"`
-}
-
-type AuthenticationLocal struct {
-	Enabled bool
-}
-
-type AuthenticationLDAP struct {
-	Enabled bool `mapstructure:"enabled"`
-}
-
-type AuthenticationSAML struct {
-	Enabled bool
-}
-
-type AuthenticationGoogle struct {
-	Enabled bool
 }
 
 type API struct {
@@ -97,18 +77,6 @@ func setDefaults() {
 			"retry_after":      "1m",
 			"increment_factor": 2,
 			"max_time":         "15m",
-		},
-		"local": map[string]interface{}{
-			"enabled": true,
-		},
-		"ldap": map[string]interface{}{
-			"enabled": false,
-		},
-		"saml": map[string]interface{}{
-			"enabled": false,
-		},
-		"google": map[string]interface{}{
-			"enabled": false,
 		},
 	})
 

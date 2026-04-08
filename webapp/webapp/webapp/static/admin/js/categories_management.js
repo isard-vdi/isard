@@ -5,10 +5,72 @@
 * License: AGPLv3
 */
 
+function ajaxPutWithNotice(url, data, entityName, onSuccess) {
+    var notice = new PNotify({
+        text: 'Updating ' + entityName + '...',
+        hide: false,
+        opacity: 1,
+        icon: 'fa fa-spinner fa-pulse'
+    });
+    $.ajax({
+        type: "PUT",
+        url: url,
+        data: JSON.stringify(data),
+        contentType: "application/json",
+        success: function (response) {
+            notice.update({
+                title: 'Updated',
+                text: entityName.charAt(0).toUpperCase() + entityName.slice(1) + ' updated successfully',
+                hide: true,
+                delay: 2000,
+                icon: '',
+                opacity: 1,
+                type: 'success'
+            });
+            if (onSuccess) onSuccess(response);
+        },
+        error: function (data) {
+            notice.update({
+                title: 'ERROR updating ' + entityName,
+                text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 5000,
+                opacity: 1
+            });
+        }
+    });
+}
+
+function validateForm(form) {
+    form.parsley().validate();
+    if (!form.parsley().isValid()) {
+        new PNotify({
+            text: 'Invalid form not sent.',
+            type: 'error',
+            delay: 2000
+        });
+        return false;
+    }
+    return true;
+}
+
 $(document).ready(function () {
     $template_category = $(".template-detail-categories");
     $("#modalEditCategoryForm #span-custom-url").append(location.protocol + '//' + location.host + '/login/form/');
     $("#modalAddCategoryForm #span-custom-url").append(location.protocol + '//' + location.host + '/login/form/');
+
+    window.Parsley.addValidator('providerGloballyDisabled', {
+        validateString: function (value, _, fieldInstance) {
+            var $xContent = fieldInstance.$element.closest('.x_content');
+            var isDisabled = $xContent.find("input[name$='[disabled]']").is(':checked');
+            return isDisabled || value === 'custom';
+        },
+        messages: {
+            en: 'This provider is not globally available. Config Source must be set to Custom or the provider must be disabled.'
+        }
+    });
 
     var categories_table = $('#categories').DataTable({
         "initComplete": function (settings, json) {
@@ -89,37 +151,26 @@ $(document).ready(function () {
                     console.warn(full)
 
                     if (full.authentication) {
-                        if (
-                            full.authentication.local &&
-                            full.authentication.local.enabled !== false &&
-                            full.authentication.local.allowed_domains
-                        ) {
-                            const domainsText = full.authentication.local.allowed_domains.length === 0 ? 'Only users without email will be able to login' : full.authentication.local.allowed_domains.join(', ')
-                            domains += `Local: <span title="local">${domainsText}</span>`
-                        }
-                        if (
-                            full.authentication.google &&
-                            full.authentication.google.enabled !== false &&
-                            full.authentication.google.allowed_domains
-                        ) {
-                            const domainsText = full.authentication.google.allowed_domains.length === 0 ? 'Only users without email will be able to login' : full.authentication.google.allowed_domains.join(', ')
-                            domains += ` Google: <span title="google">${domainsText}</span>`
-                        }
-                        if (
-                            full.authentication.saml &&
-                            full.authentication.saml.enabled !== false &&
-                            full.authentication.saml.allowed_domains
-                        ) {
-                            const domainsText = full.authentication.saml.allowed_domains.length === 0 ? 'Only users without email will be able to login' : full.authentication.saml.allowed_domains.join(', ')
-                            domains += ` SAML: <span title="saml">${domainsText}</span>`
-                        }
-                        if (
-                            full.authentication.ldap &&
-                            full.authentication.ldap.enabled !== false &&
-                            full.authentication.ldap.allowed_domains
-                        ) {
-                            const domainsText = full.authentication.ldap.allowed_domains.length === 0 ? 'Only users without email will be able to login' : full.authentication.ldap.allowed_domains.join(', ')
-                            domains += ` LDAP: <span title="ldap">${domainsText}</span>`
+                        const providers = [
+                            { key: 'local', label: 'Local' },
+                            { key: 'google', label: 'Google' },
+                            { key: 'saml', label: 'SAML' },
+                            { key: 'ldap', label: 'LDAP' },
+                        ];
+                        for (const { key, label } of providers) {
+                            const provider = full.authentication[key];
+                            const restriction = provider?.email_domain_restriction;
+                            if (
+                                provider.disabled !== true &&
+                                restriction &&
+                                restriction.enabled !== false &&
+                                restriction.allowed
+                            ) {
+                                const domainsText = restriction.allowed.length === 0
+                                    ? 'Only users without email will be able to login'
+                                    : restriction.allowed.join(', ');
+                                domains += ` ${label}: <span title="${key}">${domainsText}</span>`;
+                            }
                         }
 
                         return domains
@@ -234,73 +285,18 @@ $(document).ready(function () {
 
     $("#modalAuthentication #send").on('click', function (e) {
         var form = $('#modalAuthenticationForm');
-        form.parsley().validate();
-        if (form.parsley().isValid()) {
-            var formData = form.serializeObject();
-            var data = {};
-            data.authentication = {}
-            if ('local-enabled' in formData) {
-                data["authentication"]["local"] = {
-                    "enabled": formData['local-enabled'] === 'true' ? true : formData['local-enabled'] === 'false' ? false : null,
-                    "allowed_domains": formData['local-domains'] || []
-                };
-            }
-            if ('google-enabled' in formData) {
-                data["authentication"]["google"] = {
-                    "enabled": formData['google-enabled'] === 'true' ? true : formData['google-enabled'] === 'false' ? false : null,
-                    "allowed_domains": formData['google-domains'] || []
-                };
-            }
-            if ('saml-enabled' in formData) {
-                data["authentication"]["saml"] = {
-                    "enabled": formData['saml-enabled'] === 'true' ? true : formData['saml-enabled'] === 'false' ? false : null,
-                    "allowed_domains": formData['saml-domains'] || []
-                };
-            }
-            if ('ldap-enabled' in formData) {
-                data["authentication"]["ldap"] = {
-                    "enabled": formData['ldap-enabled'] === 'true' ? true : formData['ldap-enabled'] === 'false' ? false : null,
-                    "allowed_domains": formData['ldap-domains'] || []
-                };
-            }
-        };
-        var notice = new PNotify({
-            text: 'Updating allowed domains...',
-            hide: false,
-            opacity: 1,
-            icon: 'fa fa-spinner fa-pulse'
-        });
-        $.ajax({
-            type: "PUT",
-            url: "/api/v3/admin/category/" + formData['id'] + "/authentication",
-            data: JSON.stringify(data),
-            contentType: "application/json",
-            success: function (response) {
-                notice.update({
-                    title: 'Updated',
-                    text: 'Authentication updated successfully',
-                    hide: true,
-                    delay: 2000,
-                    icon: '',
-                    opacity: 1,
-                    type: 'success'
-                });
+        if (!validateForm(form)) return;
+        var modal = "#modalAuthentication";
+        var data = collectFormData($(modal + " form"));
+        ajaxPutWithNotice(
+            "/api/v3/admin/category/" + $(modal + " #id").val() + "/authentication",
+            data,
+            "authentication",
+            function () {
                 $('form').each(function () { this.reset(); });
                 $('.modal').modal('hide');
-            },
-            error: function (data) {
-                notice.update({
-                    title: 'ERROR updating authentication',
-                    text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
-                });
             }
-        });
-        
+        );
     });
 
     $('.btn-new-category').on('click', function () {
@@ -367,6 +363,7 @@ $(document).ready(function () {
             // if (!('auto-desktops-enabled' in data)) {
             //     delete data['auto-desktops'];
             // }
+            data = { ...data, ...collectFormData($("#category-permissions-create-panel")) };
             data = JSON.unflatten(data);
             var notice = new PNotify({
                 text: 'Creating...',
@@ -461,6 +458,45 @@ $(document).ready(function () {
             })
         }
     });
+
+    $('#modal-branding #send').on('click', function (e) {
+        const modal = "#modal-branding";
+        const form = $(`${modal} form`);
+        if (!validateForm(form)) return;
+        ajaxPutWithNotice(
+            "/api/v3/admin/category/" + $(`${modal} #id`).val() + "/branding",
+            collectFormData(form).branding,
+            "branding",
+            function () {
+                $('form').each(function () { this.reset(); });
+                $('.modal').modal('hide');
+            }
+        );
+    });
+
+    $('#modal-category-login_notification #send').on('click', function (e) {
+        var form = $('#modal-category-login_notification-form');
+        if (!validateForm(form)) return;
+        var modal = "#modal-category-login_notification";
+        var categoryId = $(modal + " #id").val();
+        var data = collectLoginNotificationData(form, "category_enable_");
+        ajaxPutWithNotice(
+            "/api/v3/admin/category/" + categoryId + "/login_notification",
+            data,
+            "login notification",
+            function () {
+                // Refresh preview
+                $.ajax({
+                    type: "GET",
+                    url: "/api/v3/login_config/" + categoryId,
+                    contentType: "application/json",
+                    success: function (refreshedData) {
+                        renderLoginNotificationPreview(modal + " #category-login-notification-preview", refreshedData);
+                    }
+                });
+            }
+        );
+    });
 });
 
 function renderCategoriesDetailPannel(d) {
@@ -474,6 +510,13 @@ function renderCategoriesDetailPannel(d) {
         $('.template-detail-categories .btn-edit-limits').show()
     }
     if (d.id == "default") { $('.template-detail-categories .btn-delete').hide() }
+    if ($('#user_data').data('role') === 'manager') {
+        ["authentication", "branding", "login_notification"].forEach(function (perm) {
+            $('.template-detail-categories .btn-' + perm).toggle(
+                !!(d.manager_permissions && d.manager_permissions[perm])
+            );
+        });
+    }
     $newPanel = $template_category.clone();
     $newPanel.html(function (i, oldHtml) {
         return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
@@ -486,8 +529,8 @@ function actionsCategoryDetail() {
     $('.btn-edit-category').off('click').on('click', function () {
         var pk = $(this).closest("div").attr("data-pk");
         $("#modalEditCategoryForm")[0].reset();
+        $('#modalEditCategoryForm :checkbox').iCheck('uncheck').iCheck('update');
         $("#modalEditCategoryForm #recycle-bin-cutoff-time-data").hide();
-        $('#maxtime_panel #recycle-bin-cutoff-time-enabled').iCheck('uncheck').iCheck('update');
         $('#modalEditCategoryForm #id').val(pk);
         $('#modalEditCategory').modal({
             backdrop: 'static',
@@ -525,6 +568,7 @@ function actionsCategoryDetail() {
             // autoDesktopsShow('#modalEditCategoryForm', category)
             maxTimeEnabledShow('#modalEditCategoryForm')
             ephemeralDesktopsShow('#modalEditCategoryForm', category)
+            fillFormData($('#modalEditCategoryForm'), { manager_permissions: category.manager_permissions });
         });
 
         $("#modalEditCategory #send").off('click').on('click', function (e) {
@@ -558,6 +602,7 @@ function actionsCategoryDetail() {
                 //     delete data['auto-desktops'];
                 //     data['auto'] = false;
                 // }
+                data = { ...data, ...collectFormData($("#category-permissions-edit-panel")) };
                 data = JSON.unflatten(data);
                 var notice = new PNotify({
                     text: 'Updating category...',
@@ -634,61 +679,129 @@ function actionsCategoryDetail() {
         });
     });
 
+    $("#modalAuthentication").on("hidden.bs.modal", function () {
+        var modal = "#modalAuthentication";
+        resetFormData($(modal + " form"));
+        // Reset Parsley constraint from previous modal opens
+        $(modal + " select[name$='[config_source]']").each(function () {
+          $(this).removeAttr('data-parsley-trigger');
+          var parsleyField = $(this).parsley();
+          parsleyField.removeConstraint('providerGloballyDisabled');
+          parsleyField.reset();
+        });
+    });
+
     $("#categories .btn-authentication").off("click").on("click", function () {
         var pk = $(this).closest("div").attr("data-pk");
         var modal = "#modalAuthentication";
-        $.ajax({
-          type: "GET",
-          url: "/api/v3/admin/authentication/providers",
-          contentType: "application/json",
-          success: function (providers) {
-            $.each(providers, function (key, value) {
-              if (value) {
-                $(modal + " #" + key + "-panel").show();
-                $(modal + " #" + key + "-panel select").attr('disabled', false);
-              } else {
-                $(modal + " #" + key + "-panel").hide();
-                $(modal + " #" + key + "-panel select").attr('disabled', true);
-              }
-            });
-          },
+
+        $(modal + " input[name$='[disabled]']").off("ifChanged").on("ifChanged", function () {
+          var $xContent = $(this).closest(".x_content");
+          var fieldsContainer = $xContent.find(".authentication-provider-settings");
+          toggleFormSection(fieldsContainer, !$(this).is(":checked"));
+          var $configSource = $xContent.find("select[name$='[config_source]']");
+          if ($configSource.length) {
+            $configSource.trigger('change');
+          }
         });
-        $.ajax({
-          type: "GET",
-          url: "/api/v3/admin/category/" + pk,
-          contentType: "application/json",
-          success: function (category) {
-            if (category.is_default) {
-                $(modal + " #default-category-alert").show();
-            } else {
-                $(modal + " #default-category-alert").hide();
-            }
-            $.each(category.authentication, function (key, value) {
-            var enabledValue = value.enabled === null ? "null" : value.enabled.toString();
-              $(modal + " #" + key + "-enabled").val(enabledValue).trigger('change');
-              $(modal + ` .authentication-panel #${key}-domains`).empty();
-              $.each(value.allowed_domains, function (_, domain) {
-                var newOption = new Option(domain, domain, true, true);
-                $(modal + ` .authentication-panel #${key}-domains`).append(newOption);
-              });
-            });
-          },
+        $(modal + " select[name$='[config_source]']").off("change").on("change", function () {
+          var $this = $(this);
+          var $xContent = $this.closest(".x_content");
+          if (!$xContent.find(":checkbox[name$='[disabled]']").is(":checked")) {
+            var configForm = $xContent.find(".provider-config-form");
+            toggleFormSection(configForm, $this.val() === "custom");
+          }
         });
-        $(modal + " .enabled-select").off("change").on("change", function () {
-            if ($(this).val() === "true" || $(this).val() === null) {
-              $(this).parents().eq(3).find(".authentication-panel").show();
-              $(this).parents().eq(3).find(".authentication-panel select").attr('disabled', false);
-            } else {
-              $(this).parents().eq(3).find(".authentication-panel").hide();
-              $(this).parents().eq(3).find(".authentication-panel select").attr('disabled', true);
-            }
-          }).trigger("change");
-        $(modal + "  .authentication-panel select").select2({
+        $(modal + " select[name$='[email_domain_restriction][allowed]']").select2({
           tags: true,
           tokenSeparators: [",", " "],
-          placeholder: "Type one or multiple domains. Empty means any domain",
+          placeholder: "Type one or multiple domains",
           width: "100%",
         });
+
+        $.when(
+          $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/authentication/providers",
+            contentType: "application/json",
+          }),
+          $.ajax({
+            type: "GET",
+            url: `/api/v3/admin/category/${pk}/authentication`,
+            contentType: "application/json",
+          })
+        ).done(function (providersResult, authenticationResult) {
+          var providers = providersResult[0];
+          var authentication = authenticationResult[0];
+
+          // Fill form with current saved data
+          fillFormData($(modal + " form"), { authentication });
+
+          // Apply provider-level constraints
+          $.each(providers, function (provider, enabled) {
+            var $panel = $(modal + " #" + provider + "-panel");
+            var $configSource = $panel.find("select[name$='[config_source]']");
+            var configSourceValue = authentication?.[provider]?.config_source
+            if ($configSource.length) {
+              if (enabled) {
+                if (!configSourceValue) $configSource.val('global').trigger('change');
+                $configSource.closest("[class*='form-group']").show();
+              } else {
+                // Provider is globally disabled: show panel with current data
+                // and add Parsley constraint requiring config_source = "custom"
+                // default value should be custom
+                if (!configSourceValue) {
+                  $configSource.val('custom').trigger('change');
+                  $panel
+                    .find(`:checkbox[name$='authentication[${provider}][disabled]']`)
+                    .iCheck('check')
+                    .iCheck('update')
+                    .trigger('ifChanged');
+                }
+                if ($configSource.val() === "global")
+                {
+                  var parsleyField = $configSource.parsley();
+                  parsleyField.addConstraint('providerGloballyDisabled', true);
+                  parsleyField.validate();
+                  $configSource.closest("[class*='form-group']").show();
+                } else {
+                  $configSource.closest("[class*='form-group']").hide();
+                }
+              }
+            }
+          });
+
+          var providerConfigs = { saml: samlFieldConfig, ldap: ldapFieldConfig };
+          $.each(providerConfigs, function (provider, configFn) {
+            var config = configFn();
+            config.externalRequired = {
+              field_email: $(modal + " [name='authentication[" + provider + "][email_domain_restriction][enabled]']")
+            };
+            setupProviderFieldDependencies(
+              $(modal + " #" + provider + "-panel"),
+              "authentication[" + provider + "][" + provider + "_config]",
+              config
+            );
+          });
+
+          // Make LDAP password required only when no password is set yet
+          var $ldapPassword = $(modal + " [name='authentication[ldap][ldap_config][password]']");
+          var ldapPasswordSet = authentication?.ldap?.ldap_config?.password_set;
+          if (ldapPasswordSet === false) {
+            $ldapPassword.attr('required', 'required');
+            $ldapPassword.closest('.item.form-group').find('.required').show();
+          }
+
+          // Make Google client secret required only when no client secret is set yet
+          var $googleClientSecret = $(modal + " [name='authentication[google][google_config][client_secret]']");
+          var googleClientSecretSet = authentication?.google?.google_config?.client_secret_set;
+          if (googleClientSecretSet === false) {
+            $googleClientSecret.attr('required', 'required');
+            $googleClientSecret.closest('.item.form-group').find('.required').show();
+          }
+
+        });
+
         $(modal + " #id").val(pk);
         $(modal).modal({
             backdrop: "static",
@@ -751,6 +864,79 @@ function actionsCategoryDetail() {
 
         $(modal + " #bastion-domain-panel input").off("change").on("change", function () {
             $(`${modal} #domain-name`).text($(this).val() || "@");
+        });
+
+        $(modal + " #id").val(pk);
+        $(modal).modal({
+            backdrop: "static",
+            keyboard: false,
+        }).modal("show");
+    });
+
+
+    $("#modal-branding").on("hidden.bs.modal", function () {
+        resetFormData($(this).find("form"));
+    });
+
+    $("#categories .btn-branding").off("click").on("click", function () {
+        var pk = $(this).closest("div").attr("data-pk");
+        var $modal = $("#modal-branding");
+        var $form = $modal.find("form");
+
+        // Set up domain enabled checkbox toggle
+        $form.find("input[name='branding[domain][enabled]']").off("ifChanged").on("ifChanged", function () {
+            var settingsContainer = $(this).closest(".x_content").find(".branding-domain-settings");
+            toggleFormSection(settingsContainer, $(this).is(":checked"));
+        }).trigger("ifChanged");
+
+        // Set up certificate source select toggle for custom certificate form
+        $form.find("select[name='branding[domain][certificate_source]']").off("change").on("change", function () {
+            var customCertForm = $(this).closest(".branding-domain-settings").find(".custom-certificate-form");
+            toggleFormSection(customCertForm, $(this).val() === "custom");
+        }).trigger("change");
+
+        // Set up logo enabled checkbox toggle
+        $form.find("input[name='branding[logo][enabled]']").off("ifChanged").on("ifChanged", function () {
+            var settingsContainer = $(this).closest(".x_content").find(".branding-logo-settings");
+            toggleFormSection(settingsContainer, $(this).is(":checked"));
+        }).trigger("ifChanged");
+
+        // Fetch branding data and populate form
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/category/" + pk + "/branding",
+            contentType: "application/json",
+            success: function (data) {
+                fillFormData($form, { branding: data });
+            }
+        });
+
+        $modal.find("#id").val(pk);
+        $modal.modal({
+            backdrop: "static",
+            keyboard: false,
+        }).modal("show");
+    });
+
+
+    $("#modal-category-login_notification").on("hidden.bs.modal", function () {
+        resetFormData($(this).find("form"));
+        $(this).find("#category-login-notification-preview").empty();
+    });
+
+    $("#categories .btn-login_notification").off("click").on("click", function () {
+        var pk = $(this).closest("div").attr("data-pk");
+        var modal = "#modal-category-login_notification";
+
+        // Fetch category login notification data, populate form and preview
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/login_config/" + pk,
+            contentType: "application/json",
+            success: function (data) {
+                populateLoginNotificationForm(modal, data, "category_enable_");
+                renderLoginNotificationPreview(modal + " #category-login-notification-preview", data);
+            }
         });
 
         $(modal + " #id").val(pk);

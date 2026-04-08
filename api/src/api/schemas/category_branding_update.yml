@@ -1,0 +1,57 @@
+domain:
+  type: dict
+  schema:
+    enabled:
+      type: boolean
+      required: true
+      empty: false
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: true
+            other_fields:
+              and:
+                - certificate_source
+                - name
+    name:
+      type: string
+      maxlength: 255
+      empty: false
+      regex: "^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?(\\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?)*$"
+    certificate_source:
+      type: string
+      allowed:
+        - acme
+        - custom
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: custom
+            other_fields:
+              and:
+                - certificate_data
+    certificate_data:
+      type: string
+logo:
+  type: dict
+  schema:
+    enabled:
+      type: boolean
+      required: true
+      empty: false
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: true
+            other_fields:
+              and:
+                - data
+    data:
+      type: string
+      regex: "^data:(image/svg\\+xml|image/png|image/webp);base64,.+$"

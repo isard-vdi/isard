@@ -9,12 +9,18 @@ import (
 )
 
 type Config struct {
+	Local  Local  `rethinkdb:"local"`
 	LDAP   LDAP   `rethinkdb:"ldap"`
 	SAML   SAML   `rethinkdb:"saml"`
 	Google Google `rethinkdb:"google"`
 }
 
+type Local struct {
+	Enabled bool `rethinkdb:"enabled"`
+}
+
 type LDAP struct {
+	Enabled    bool       `rethinkdb:"enabled"`
 	LDAPConfig LDAPConfig `rethinkdb:"ldap_config"`
 }
 
@@ -65,6 +71,7 @@ type LDAPConfig struct {
 }
 
 type SAML struct {
+	Enabled    bool       `rethinkdb:"enabled"`
 	SAMLConfig SAMLConfig `rethinkdb:"saml_config"`
 }
 
@@ -113,6 +120,7 @@ type SAMLConfig struct {
 }
 
 type Google struct {
+	Enabled      bool         `rethinkdb:"enabled"`
 	GoogleConfig GoogleConfig `rethinkdb:"google_config"`
 }
 

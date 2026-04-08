@@ -22,11 +22,11 @@ then
 fi
 cat "$tmp_dir"/*.cfg > /usr/local/etc/haproxy/haproxy.cfg
 
-if [ -f /certs/custom-portal-chain.pem ]
-then
-  sed -i 's/\/chain.pem/\/custom-portal-chain.pem/g' /usr/local/etc/haproxy/haproxy.cfg
+# Generate crt-list for dynamic SSL certificate management.
+if [ -f /certs/custom-portal-chain.pem ]; then
+  echo "/certs/custom-portal-chain.pem" > /certs/crt-list.cfg
 else
-  sed -i 's/\/custom-portal-chain.pem/\/chain.pem/g' /usr/local/etc/haproxy/haproxy.cfg
+  echo "/certs/chain.pem" > /certs/crt-list.cfg
 fi
 
 if [ -n "$ACME_EMAIL" ]; then

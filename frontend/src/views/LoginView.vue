@@ -4,7 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
+import {
+  providersOptions,
+  providersQueryKey
+} from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
 import { getUserNotificationsDisplays, type GetCategoriesResponse } from '@/gen/oas/api'
 import {
@@ -12,7 +15,9 @@ import {
   getCategoriesQueryKey,
   getCategoryOptions,
   getCategoryQueryKey,
-  getLoginConfigOptions
+  getLoginConfigOptions,
+  getLoginConfigByCategoryOptions,
+  getLoginConfigByCategoryQueryKey
 } from '@/gen/oas/api/@tanstack/vue-query.gen'
 import {
   parseToken as parseAuthToken,
@@ -80,17 +85,10 @@ const routeCategory = computed(() => {
  * Data loading
  */
 const {
-  isPending: providersIsPending,
-  isError: providersIsError,
-  error: providersError,
-  data: providers
-} = useQuery(providersOptions())
-
-const {
-  isPending: configIsPending,
-  isError: configIsError,
-  error: configError,
-  data: config
+  isPending: globalConfigIsPending,
+  isError: globalConfigIsError,
+  error: globalConfigError,
+  data: globalConfig
 } = useQuery(getLoginConfigOptions())
 
 const categoriesOpts = computed(() => getCategoriesOptions())
@@ -130,6 +128,91 @@ const {
   queryKey: categoryQueryKey,
   enabled: computed(() => !!routeCategory.value),
   retry: false
+})
+
+const categoriesDropdownModel = ref<GetCategoriesResponse[number] | undefined>(undefined)
+
+const categoryConfigId = computed(() => {
+  if (category.value) {
+    return category.value.id
+  }
+  if (categories.value?.length === 1) {
+    return categories.value[0].id
+  }
+  return undefined
+})
+
+const categoryConfigOpts = computed(() =>
+  getLoginConfigByCategoryOptions({
+    path: {
+      category_id: categoryConfigId.value || ''
+    }
+  })
+)
+const categoryConfigQKey = computed(() =>
+  getLoginConfigByCategoryQueryKey({
+    path: {
+      category_id: categoryConfigId.value || ''
+    }
+  })
+)
+const {
+  isPending: categoryConfigIsPending,
+  isError: categoryConfigIsError,
+  error: categoryConfigError,
+  data: categoryConfig
+} = useQuery({
+  ...categoryConfigOpts.value,
+  queryKey: categoryConfigQKey,
+  enabled: computed(() => !!categoryConfigId.value)
+})
+
+const configIsPending = computed(() =>
+  categoryConfigId.value ? categoryConfigIsPending.value : globalConfigIsPending.value
+)
+const configIsError = computed(() =>
+  categoryConfigId.value ? categoryConfigIsError.value : globalConfigIsError.value
+)
+const configError = computed(() =>
+  categoryConfigId.value ? categoryConfigError.value : globalConfigError.value
+)
+const config = computed(() => (categoryConfigId.value ? categoryConfig.value : globalConfig.value))
+
+const providersCategoryId = computed(() => {
+  if (category.value) {
+    return category.value.id
+  }
+  if (categoriesDropdownModel.value) {
+    return categoriesDropdownModel.value.id
+  }
+  if (categories.value?.length === 1) {
+    return categories.value[0].id
+  }
+  return 'default'
+})
+
+const providersOpts = computed(() =>
+  providersOptions({
+    query: {
+      category_id: providersCategoryId.value
+    }
+  })
+)
+const providersQKey = computed(() =>
+  providersQueryKey({
+    query: {
+      category_id: providersCategoryId.value
+    }
+  })
+)
+const {
+  isPending: providersIsPending,
+  isError: providersIsError,
+  error: providersError,
+  data: providers
+} = useQuery({
+  ...providersOpts.value,
+  queryKey: providersQKey
 })
 
 const isPending = computed(
@@ -226,7 +309,6 @@ const showCategoriesDropdown = computed(() => {
   return display
 })
 
-const categoriesDropdownModel = ref<GetCategoriesResponse[number] | undefined>(undefined)
 const selectedCategory = computed(() => {
   if (category.value) {
     return category.value.id

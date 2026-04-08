@@ -65,3 +65,6 @@ recycle_bin_cutoff_time:
   required: true
   default: null
   coerce: sanitize
+manager_permissions:
+  type: dict
+  schema: manager_permissions

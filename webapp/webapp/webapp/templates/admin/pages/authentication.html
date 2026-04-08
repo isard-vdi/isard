@@ -19,7 +19,7 @@
 
 <div class="clearfix"></div>
 
-<div class="row">
+<div class="row" id="local">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel" id="local_panel">
       <div class="x_title">
@@ -28,7 +28,7 @@
           <i class="fa fa-home"></i> Local
         </h3>
         <ul class="nav navbar-right panel_toolbox">
-          <li><a class="btn btn-edit-config" data-provider="local"><span style="display:none;color: #5499c7; "><i
+          <li><a class="btn btn-edit-config" data-provider="local"><span style="color: #5499c7; "><i
                   class="fa fa-pencil"></i> Update
                 config</span></a>
           <li><a class="collapse-link"><i class="fa fa-chevron-down"></i></a></li>
@@ -37,23 +37,21 @@
         <div class="clearfix"></div>
       </div>
       <div class="x_content">
-        <table id="local-table" class="table">
-          <thead>
-            <tr>
-              <th rowspan="2">Import</th>
-              <th rowspan="2">Export</th>
-              <th rowspan="2">On migration</th>
-              <th rowspan="2">Forced migration</th>
-              <th colspan="6">Notification bar</th>
-            </tr>
-            <tr>
-              <th>Enabled</th>
-              <th>Template</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <h4>Configuration</h4>
+        <form id="form-local-config-show" class="form-horizontal form-label-left">
+          {% with
+            disabled=True,
+            id_prefix="local-config-show-",
+            name="enabled",
+            label="Enabled",
+            type="checkbox"
+          %}
+            {% include '/snippets/form_field.html' %}
+          {% endwith %}
+        </form>
+        {% with provider="local" %}
+          {% include '/snippets/migration_section.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>
@@ -66,7 +64,7 @@
         <h3><i id="google-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
             class="fa fa-google"></i> Google</h3>
         <ul class="nav navbar-right panel_toolbox">
-          <li><a class="btn btn-edit-config" data-provider="google"><span style="display:none;color: #5499c7; "><i
+          <li><a class="btn btn-edit-config" data-provider="google"><span style="color: #5499c7; "><i
                   class="fa fa-pencil"></i> Update
                 config</span></a>
           <li class="collapse"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
@@ -78,29 +76,12 @@
         <h4>Configuration</h4>
         <form id="form-google-config-show" class="form-horizontal form-label-left">
           {% with disabled=True %}
-            {% include '/snippets/google_config_form.html' %}
+            {% include '/snippets/google_config_enable_form.html' %}
           {% endwith %}
         </form>
-      </div>
-      <div class="x_content">
-        <h4>Migration</h4>
-        <table id="google-table" class="table">
-          <thead>
-            <tr>
-              <th rowspan="2">Import</th>
-              <th rowspan="2">Export</th>
-              <th rowspan="2">On migration</th>
-              <th rowspan="2">Forced migration</th>
-              <th colspan="6">Notification bar</th>
-            </tr>
-            <tr>
-              <th>Enabled</th>
-              <th>Template</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {% with provider="google" %}
+          {% include '/snippets/migration_section.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>
@@ -126,29 +107,12 @@
         <h4>Configuration</h4>
         <form id="form-saml-config-show" class="form-horizontal form-label-left">
           {% with disabled=True %}
-            {% include '/snippets/saml_config_form.html' %}
+            {% include '/snippets/saml_config_enable_form.html' %}
           {% endwith %}
         </form>
-      </div>
-      <div class="x_content">
-        <h4>Migration</h4>
-        <table id="saml-table" class="table">
-          <thead>
-            <tr>
-              <th rowspan="2">Import</th>
-              <th rowspan="2">Export</th>
-              <th rowspan="2">On migration</th>
-              <th rowspan="2">Forced migration</th>
-              <th colspan="6">Notification bar</th>
-            </tr>
-            <tr>
-              <th>Enabled</th>
-              <th>Template</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {% with provider="saml" %}
+          {% include '/snippets/migration_section.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>
@@ -161,7 +125,7 @@
         <h3><i id="ldap-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
             class="fa fa-sitemap"></i> LDAP</h3>
         <ul class="nav navbar-right panel_toolbox">
-          <li><a class="btn btn-edit-config" data-provider="ldap"><span style="display:none;color: #5499c7; "><i
+          <li><a class="btn btn-edit-config" data-provider="ldap"><span style="color: #5499c7; "><i
                   class="fa fa-pencil"></i> Update
                 config</span></a>
           <li class="collapse"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a></li>
@@ -172,29 +136,12 @@
         <h4>Configuration</h4>
         <form id="form-ldap-config-show" class="form-horizontal form-label-left">
           {% with disabled=True %}
-            {% include '/snippets/ldap_config_form.html' %}
+            {% include '/snippets/ldap_config_enable_form.html' %}
           {% endwith %}
         </form>
-      </div>
-      <div class="x_content">
-        <h4>Migration</h4>
-        <table id="ldap-table" class="table">
-          <thead>
-            <tr>
-              <th rowspan="2">Import</th>
-              <th rowspan="2">Export</th>
-              <th rowspan="2">On migration</th>
-              <th rowspan="2">Forced migration</th>
-              <th colspan="6">Notification bar</th>
-            </tr>
-            <tr>
-              <th>Enabled</th>
-              <th>Template</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {% with provider="ldap" %}
+          {% include '/snippets/migration_section.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>

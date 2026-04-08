@@ -20,23 +20,7 @@
 */
 
 $(document).ready(function () {
-    $.ajax({
-        type: "GET",
-        url: "/api/v3/admin/authentication/providers",
-        success: function (providers) {
-            $.each(providers, function (provider, enabled) {
-                if (enabled) {
-                    $(`#${provider}-enabled`).css("color", "green");
-                    $(`#${provider}_panel li a.btn span`).show();
-                } else {
-                    $(`#${provider}_panel li.collapse`).find('i').toggleClass('fa-chevron-up fa-chevron-down');
-                    $(`#${provider}_panel table`).hide();
-                    $(`#${provider}_panel h4`).hide();
-                }
-                renderProviderDataTable(provider)
-            });
-        }
-    })
+    $('.btn-edit-config').each(function () { renderProviderDataTable($(this).data('provider')); });
 
     $('.btn-edit-config').on('click', function () {
         var modal = '#modalProviderConfig';
@@ -50,34 +34,13 @@ $(document).ready(function () {
             type: "GET",
             url: `/api/v3/authentication/provider/${provider}`,
             success: function (data) {
-                ['ldap', 'saml', 'google'].forEach(providerType => {
-                    const enabled = provider === providerType;
-                    const $cfg = $(`.${providerType}_config`);
-                    const dataCfg = data?.[`${providerType}_config`] || {};
-
-                    $cfg.toggle(enabled).find(':input').prop('disabled', !enabled);
-
-                    if (!enabled) return;
-
-                    $cfg.find(':input:not(:checkbox)').each(function () {
-                        this.value = dataCfg[this.name.replace(`${providerType}_config_`, '')];
-                    });
-
-                    $cfg.find(':checkbox').each(function () {
-                        dataCfg[this.name.replace(`${providerType}_config_`, '')] &&
-                            $(this).iCheck('check').iCheck('update');
-                    });
+                $(modal + "Form > [class*='_config']").each(function () {
+                    toggleFormSection($(this), $(this).hasClass(provider + '_config'));
                 });
-
-                $(`${modal} #import`).iCheck(data.migration.import ? 'check' : 'uncheck').iCheck('update');
-                $(`${modal} #export`).iCheck(data.migration.export ? 'check' : 'uncheck').iCheck('update');
-                $(`${modal} #force`).iCheck(data.migration.force_migration ? 'check' : 'uncheck').iCheck('update');
-                $(`${modal} #notification_bar`).iCheck(data.migration.notification_bar.enabled ? 'check' : 'uncheck').iCheck('update');
-                $(`${modal} #action_after_migrate`).val(data.migration.action_after_migrate);
-                $(`${modal} #template`).val(data.migration.notification_bar.template);
-                $(`${modal} #level`).val(data.migration.notification_bar.level);
+                fillFormData($(modal + "Form"), data);
+                toggleProviderSections(modal, provider, data.enabled);
                 $(modal + " select#level").trigger("change");
-                $("#modalProviderConfigForm").parsley().validate();
+                addProviderConditionalRequiredListeners(modal);
             }
         });
         $(modal).modal({
@@ -171,64 +134,23 @@ $(document).ready(function () {
     showAndHideByCheckbox($("#export"), $(".force-migration-panel"));
 
     $("#modalProviderConfig #send").on("click", function (e) {
-        var formData = $("#modalProviderConfigForm").serializeObject();
-        data = {
-            "migration": {
-                "provider": formData.provider,
-                "notification_bar": { "enabled": formData.notification_bar == "on" },
-                // "automigration": formData.allow_automigration == "on",
-                "export": formData.export == "on",
-                "import": formData.import == "on",
-                "force_migration": "force" in formData && formData.export == "on",
-                "action_after_migrate": formData.action_after_migrate
-            }
-        };
-        if (formData.notification_bar == "on") {
-            data.migration.notification_bar.level = formData.level;
-            data.migration.notification_bar.template = formData.template;
-        }
-
-        if (["ldap", "saml", "google"].includes(formData.provider)) {
-            for (const key in formData) {
-                if (key.startsWith(`${formData.provider}_config_`)) {
-                    name = key.replace(new RegExp(`^${formData.provider}_config_`),"")
-                    if (formData.provider == "ldap" && name == "port") {
-                        formData[key] = parseInt(formData[key])
-                    }
-                    (data[`${formData.provider}_config`] ??={})[name] = formData[key]
-                }
-            }
-            if(["ldap", "saml"].includes(formData.provider)) {
-                checkboxes = [
-                    "auto_register",
-                    "guess_category",
-                    "save_email"
-                ]
-                if(formData.provider == "ldap"){
-                    checkboxes.push("role_list_use_user_dn");
-                }
-                for (checkbox of checkboxes) {
-                    (data[`${formData.provider}_config`] ??={})[checkbox] = (
-                      formData[`${formData.provider}_config_${checkbox}`] == "on"
-                    )
-                }
-            }
-        }
+        var provider = $("#modalProviderConfigForm #provider").val();
+        var data = collectFormData($("#modalProviderConfigForm"));
         $.ajax({
             type: "PUT",
-            url: `/api/v3/authentication/provider/${formData.provider}`,
+            url: `/api/v3/authentication/provider/${provider}`,
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
-                $(`#${formData.provider} form`).each(function () {
+                $(`#${provider} form`).each(function () {
                     this.reset();
                 });
                 $(".modal").modal("hide");
-                $("#" + formData.provider + "-table").DataTable().ajax.reload().draw();
+                $("#" + provider + "-table").DataTable().ajax.reload().draw();
             },
             error: function (data) {
                 new PNotify({
-                    title: `ERROR editing ${formData.provider} config`,
+                    title: `ERROR editing ${provider} config`,
                     text: data.responseJSON
                         ? data.responseJSON.description
                         : "Something went wrong",
@@ -372,7 +294,22 @@ function populateNotificationTemplate(modal) {
     });
 }
 
+function toggleProviderSections(modal, provider, enabled) {
+    var $configFields = $(modal + "Form ." + provider + "_config .config-fields");
+    toggleFormSection($configFields, enabled);
+    var $migrationSection = $(modal + "Form .migration-section");
+    toggleFormSection($migrationSection, enabled);
+}
+
 function addProviderConfigModalListeners(modal) {
+    // Use ifChecked/ifUnchecked (not ifChanged) so that programmatic cascades
+    // from toggleFormSection (which triggers ifChanged) don't fire this handler
+    // when hiding/showing other provider config sections.
+    $(modal + "Form [name='enabled']").off("ifChecked ifUnchecked")
+        .on("ifChecked ifUnchecked", function () {
+            var provider = $(modal + "Form #provider").val();
+            toggleProviderSections(modal, provider, $(this).is(":checked"));
+        });
     $(modal + " select#template").off("change").on("change", function () {
         $.ajax({
             url: "/api/v3/admin/notifications/template/" + $(this).val(),
@@ -390,20 +327,40 @@ function addProviderConfigModalListeners(modal) {
     });
 }
 
+function addProviderConditionalRequiredListeners(modal) {
+    var providerConfigs = { saml: samlFieldConfig, ldap: ldapFieldConfig };
+    $.each(providerConfigs, function (provider, configFn) {
+        setupProviderFieldDependencies(
+            $(modal + "Form ." + provider + "_config"),
+            provider + "_config",
+            configFn()
+        );
+    });
+}
+
 function renderProviderDataTable(provider) {
     $(`#${provider}-table`).DataTable({
         "ajax": {
             "url": `/api/v3/authentication/provider/${provider}`,
             "type": 'GET',
             "dataSrc": function (json) {
-                for (const key in (json[`${provider}_config`] ??={})) {
-                    if (typeof json[`${provider}_config`][key] == 'boolean') {
-                        $(`#${provider} [name=${provider}_config_${key}]`).iCheck(
-                            json[`${provider}_config`][key] ? 'check' : 'uncheck'
-                        ).iCheck('update');
-                    } else {
-                        $(`#${provider} [name=${provider}_config_${key}]`).val(json[`${provider}_config`][key])
-                    }
+                $(`#${provider}-enabled`).css("color", json["enabled"] ? "green" : "darkgrey");
+                $(`#${provider} .x_content`).toggle(json["enabled"]);
+                $(`#${provider}_panel li.collapse`).find('i')
+                .toggleClass('fa-chevron-up', json["enabled"])
+                .toggleClass('fa-chevron-down', !json["enabled"]);
+                fillFormData($(`#${provider}`), json);
+                $(`#form-${provider}-config-show .config-fields`).toggle(json["enabled"]);
+                $(`#${provider} .migration-section`).toggle(json["enabled"]);
+                var configFns = {
+                    saml: samlFieldConfig
+                };
+                if (configFns[provider]) {
+                    setupProviderFieldDependencies(
+                        $(`#form-${provider}-config-show`),
+                        provider + "_config",
+                        configFns[provider]()
+                    );
                 }
                 return [json.migration];
             }

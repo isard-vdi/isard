@@ -22,8 +22,10 @@ services:
     volumes:
       - /opt/isard/sshkeys/:/sshkeys:rw
       - /opt/isard/certs/viewers:/viewers:ro
+      - /opt/isard/frontend/custom:/static/custom:rw
       - /opt/isard/assets/img/desktops:/api/api/static/assets/img/desktops:rw
       - /opt/isard/config:/usr/local/etc/isardvdi
+      - /opt/isard/frontend/custom/categories:/opt/isard/frontend/custom/categories:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
@@ -61,10 +63,6 @@ services:
       WEBAPP_ADMIN_PWD:
       HTTP_PORT:
       HTTPS_PORT:
-      AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED:
-      AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED:
-      AUTHENTICATION_AUTHENTICATION_SAML_ENABLED:
-      AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED:
       BASTION_ENABLED:
       BASTION_SSH_PORT:
       OPERATIONS_API_ENABLED:

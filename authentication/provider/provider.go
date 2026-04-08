@@ -29,6 +29,8 @@ const (
 type HTTPRequestType string
 
 type LoginArgs struct {
+	Host string
+
 	Token    *string
 	Redirect *string
 
@@ -37,6 +39,8 @@ type LoginArgs struct {
 }
 
 type CallbackArgs struct {
+	Host string
+
 	Oauth2Code *string
 }
 
@@ -55,6 +59,13 @@ type Provider interface {
 type ConfigurableProvider[Cfg any] interface {
 	Provider
 	LoadConfig(ctx context.Context, cfg Cfg) error
+}
+
+// BrandingAwareProvider is implemented by providers that need to handle
+// branding domain changes.
+type BrandingAwareProvider interface {
+	Provider
+	SetBrandingHost(ctx context.Context, categoryID string, host *string) error
 }
 
 type ProviderError struct {

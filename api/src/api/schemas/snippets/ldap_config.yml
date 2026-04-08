@@ -1,0 +1,192 @@
+protocol:
+  empty: false
+  type: string
+host:
+  empty: false
+  type: string
+port:
+  min: 1
+  max: 65535
+  type: integer
+bind_dn:
+  empty: false
+  type: string
+password:
+  empty: false
+  type: string
+base_search:
+  empty: false
+  type: string
+filter:
+  empty: false
+  type: string
+field_uid:
+  empty: false
+  type: string
+regex_uid:
+  empty: false
+  type: string
+field_username:
+  type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_username
+regex_username:
+  empty: false
+  type: string
+  dependencies: field_username
+field_name:
+  type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_name
+regex_name:
+  empty: false
+  type: string
+  dependencies: field_name
+field_email:
+  type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_email
+regex_email:
+  empty: false
+  type: string
+  dependencies: field_email
+field_photo:
+  type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_photo
+regex_photo:
+  empty: false
+  type: string
+  dependencies: field_photo
+auto_register:
+  empty: false
+  type: boolean
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - value: true
+        other_fields:
+          and:
+            - role_list_search_base
+            - role_list_filter
+            - role_list_field
+auto_register_roles:
+  type: list
+  schema:
+    type: string
+    allowed:
+      - admin
+      - manager
+      - advanced
+      - user
+guess_category:
+  empty: false
+  type: boolean
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - value: true
+        other_fields:
+          and:
+            - field_category
+field_category:
+  empty: false
+  type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_category
+regex_category:
+  empty: false
+  type: string
+  dependencies: field_category
+field_group:
+  type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - regex_group
+regex_group:
+  empty: false
+  type: string
+  dependencies: field_group
+group_default:
+  type: string
+role_list_search_base:
+  empty: false
+  type: string
+role_list_filter:
+  empty: false
+  type: string
+role_list_use_user_dn:
+  type: boolean
+role_list_field:
+  type: string
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - not_value: ''
+        other_fields:
+          and:
+            - role_list_regex
+role_list_regex:
+  empty: false
+  type: string
+  dependencies: role_list_field
+role_admin_ids:
+  type: string
+role_manager_ids:
+  type: string
+role_advanced_ids:
+  type: string
+role_user_ids:
+  type: string
+role_default:
+  type: string
+save_email:
+  empty: false
+  type: boolean

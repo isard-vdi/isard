@@ -20,7 +20,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.api_allowed import ApiAllowed
-from ..libv2.api_targets import ApiTargets
+from ..libv2.api_targets import ApiTargets, update_bastion_haproxy_map
 from ..libv2.caches import (
     get_cached_deployment_bookings,
     get_cached_deployment_desktops,
@@ -36,6 +36,16 @@ r = RethinkDB()
 allowed = ApiAllowed()
 quotas = Quotas()
 targets = ApiTargets()
+
+
+def update_haproxy_maps():
+    """
+    Update both the bastion domain map and category branding domain sync for HAProxy.
+    """
+    from ..libv2.api_users import sync_category_branding_domains
+
+    update_bastion_haproxy_map()
+    sync_category_branding_domains()
 
 
 db = RDB(app)

@@ -47,6 +47,7 @@ func TestRequestEmailVerification(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
@@ -73,6 +74,7 @@ func TestRequestEmailVerification(t *testing.T) {
 		"should return an error if the token is invalid": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &token.EmailVerificationRequiredClaims{
@@ -99,6 +101,7 @@ func TestRequestEmailVerification(t *testing.T) {
 		"should return an error if the token isn't of type email-verification-required": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				tkn, err := token.SignCallbackToken("", "local", "default", "")
@@ -111,6 +114,7 @@ func TestRequestEmailVerification(t *testing.T) {
 		"should return an error if the email is invalid": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				tkn, err := token.SignEmailVerificationRequiredToken("", &model.User{
@@ -135,6 +139,7 @@ func TestRequestEmailVerification(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
@@ -227,6 +232,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &token.EmailVerificationClaims{
 					TypeClaims: token.TypeClaims{
 						RegisteredClaims: &jwt.RegisteredClaims{
@@ -260,6 +266,7 @@ func TestVerifyEmail(t *testing.T) {
 		"should return an error if the token is invalid": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &token.EmailVerificationClaims{
@@ -287,6 +294,7 @@ func TestVerifyEmail(t *testing.T) {
 		"should return an error if the token isn't of type email-verification": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				ss, err := token.SignCallbackToken("", "local", "default", "")
@@ -305,6 +313,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("néfix néfix imagine this is an UUID")).Return(nil, errors.New("hello! :D"))
 			},
 			ExpectedErr: "load the user from the DB: hello! :D",
@@ -318,6 +327,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("néfix néfix imagine this is an UUID")).Return([]interface{}{
 					map[string]interface{}{
 						"id":                       "néfix néfix imagine this is an UUID",
@@ -348,6 +358,7 @@ func TestVerifyEmail(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &token.EmailVerificationClaims{
 					TypeClaims: token.TypeClaims{
 						RegisteredClaims: &jwt.RegisteredClaims{

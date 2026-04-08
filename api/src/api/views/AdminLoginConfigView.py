@@ -22,19 +22,18 @@
 import json
 from urllib.parse import urlparse
 
-from flask import request
+from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.category import Category
+from isardvdi_common.configuration import Configuration
 
 from api import app
 
-from ..libv2.login import enable_login_notification, update_login_notification
 from ..libv2.validators import _validate_item
-from .decorators import is_admin
+from .decorators import check_permissions, is_admin
 
 
-@app.route("/api/v3/login_config/notification", methods=["PUT"])
-@is_admin
-def api_v3_login_notification_update(payload):
+def _handle_login_notification_update(category_id=None):
     try:
         data = request.get_json()
     except:
@@ -52,12 +51,46 @@ def api_v3_login_notification_update(payload):
             if button_url and urlparse(button_url).scheme not in ("http", "https"):
                 raise Error("bad_request", "Invalid URL scheme in button URL")
 
-    update_login_notification(data)
+    notification_data = {
+        "notification_cover": data.get("cover", None),
+        "notification_form": data.get("form", None),
+    }
+    if category_id:
+        Category(category_id).login_notification = notification_data
+    else:
+        Configuration.login = notification_data
     return (
         json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
+
+
+def _handle_login_notification_enable(notification_type, category_id=None):
+    data = request.get_json(force=True)
+    enabled = data.get("enabled")
+
+    if enabled is None:
+        raise Error("bad_request", "Enabled field is required")
+
+    notification_key = f"notification_{notification_type}"
+    if category_id:
+        Category(category_id).login_notification = {
+            notification_key: {"enabled": enabled}
+        }
+    else:
+        Configuration.login = {notification_key: {"enabled": enabled}}
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/login_config/notification", methods=["PUT"])
+@is_admin
+def api_v3_login_notification_update(payload):
+    return _handle_login_notification_update()
 
 
 @app.route("/api/v3/login_config/notification/cover/enable", methods=["PUT"])
@@ -73,18 +106,7 @@ def api_v3_login_notification_cover_enable(payload):
     :rtype: Set with Flask response values and data in JSON
 
     """
-    data = request.get_json(force=True)
-    enabled = data.get("enabled")
-
-    if enabled is None:
-        raise Error("bad_request", "Enabled field is required")
-
-    enable_login_notification("cover", enabled)
-    return (
-        json.dumps({}),
-        200,
-        {"Content-Type": "application/json"},
-    )
+    return _handle_login_notification_enable("cover")
 
 
 @app.route("/api/v3/login_config/notification/form/enable", methods=["PUT"])
@@ -105,15 +127,28 @@ def api_v3_login_notification_form_enable(payload):
     :rtype: Set with Flask response values and data in JSON
 
     """
-    data = request.get_json(force=True)
-    enabled = data.get("enabled")
+    return _handle_login_notification_enable("form")
 
-    if enabled is None:
-        raise Error("bad_request", "Enabled field is required")
 
-    enable_login_notification("form", enabled)
-    return (
-        json.dumps({}),
-        200,
-        {"Content-Type": "application/json"},
-    )
+@app.route("/api/v3/admin/category/<category_id>/login_notification", methods=["PUT"])
+@check_permissions("login_notification")
+def api_v3_category_login_notification_update(payload, category_id):
+    return _handle_login_notification_update(category_id)
+
+
+@app.route(
+    "/api/v3/admin/category/<category_id>/login_notification/cover/enable",
+    methods=["PUT"],
+)
+@check_permissions("login_notification")
+def api_v3_category_login_notification_cover_enable(payload, category_id):
+    return _handle_login_notification_enable("cover", category_id)
+
+
+@app.route(
+    "/api/v3/admin/category/<category_id>/login_notification/form/enable",
+    methods=["PUT"],
+)
+@check_permissions("login_notification")
+def api_v3_category_login_notification_form_enable(payload, category_id):
+    return _handle_login_notification_enable("form", category_id)

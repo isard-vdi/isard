@@ -25,7 +25,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		*args.Redirect = validateRedirect(*args.Redirect)
 	}
 
-	// Check if the user sends a token
+	// Check if the user sends a token.
 	if args.Token != nil {
 		typ, err := token.GetTokenType(*args.Token)
 		if err != nil {
@@ -47,10 +47,10 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		}
 	}
 
-	// Get the provider
-	p := a.Provider(prv)
+	// Get the provider.
+	p := a.Provider(prv, categoryID)
 
-	// Log in
+	// Log in.
 	g, secondary, u, redirect, ss, lErr := p.Login(ctx, categoryID, args)
 	if lErr != nil {
 		a.Log.Info().Str("prv", p.String()).Str("ip", remoteAddr).Err(lErr).Msg("login failed")
@@ -58,18 +58,18 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", "", fmt.Errorf("login: %w", lErr)
 	}
 
-	// If the provider forces us to redirect, do it
+	// If the provider forces us to redirect, do it.
 	if redirect != "" {
 		return "", redirect, nil
 	}
 
-	// If the provider returns a token return it
+	// If the provider returns a token return it.
 	if ss != "" {
 		return ss, redirect, nil
 	}
 
 	// Continue with the login process, passing the redirect path that has been
-	// requested by the user
+	// requested by the user.
 	return a.startLogin(ctx, remoteAddr, p, g, secondary, u, *args.Redirect)
 }
 
@@ -79,10 +79,10 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 		return "", "", fmt.Errorf("parse callback state: %w", err)
 	}
 
-	// Get the provider
-	p := a.Provider(claims.Provider)
+	// Get the provider.
+	p := a.Provider(claims.Provider, claims.CategoryID)
 
-	// Callback
+	// Callback.
 	g, secondary, u, redirect, ss, cErr := p.Callback(ctx, claims, args)
 	if cErr != nil {
 		a.Log.Info().Str("prv", p.String()).Str("ip", remoteAddr).Err(cErr).Msg("callback failed")
@@ -94,7 +94,7 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 		redirect = claims.Redirect
 	}
 
-	// If the provider returns a token return it
+	// If the provider returns a token return it.
 	if ss != "" {
 		return ss, redirect, nil
 	}
@@ -111,48 +111,79 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		return "", "", fmt.Errorf("get category: %w", err)
 	}
 
-	categoryAuth, ok := c.Authentication[u.Provider]
+	// Check per-provider category authentication configuration.
+	var (
+		providerConfigured bool
+		providerDisabled   bool
+		emailRestriction   model.CategoryAuthenticationEmailDomainRestriction
+	)
 
-	// If there's specific configuration in the category for this provider, take it into account
-	// Also, never lock out the default admin user, so it can recover fucked up configurations
-	if ok && !isDefaultAdmin(u) {
-		// If the category has this provider disabled, don't let the user in
-		if categoryAuth.Enabled != nil && !*categoryAuth.Enabled {
+	if c.Authentication != nil {
+		switch u.Provider {
+		case types.ProviderLocal:
+			if c.Authentication.Local != nil {
+				providerConfigured = true
+				providerDisabled = c.Authentication.Local.Disabled
+				emailRestriction = c.Authentication.Local.EmailDomainRestriction
+			}
+		case types.ProviderLDAP:
+			if c.Authentication.LDAP != nil {
+				providerConfigured = true
+				providerDisabled = c.Authentication.LDAP.Disabled
+				emailRestriction = c.Authentication.LDAP.EmailDomainRestriction
+			}
+		case types.ProviderSAML:
+			if c.Authentication.SAML != nil {
+				providerConfigured = true
+				providerDisabled = c.Authentication.SAML.Disabled
+				emailRestriction = c.Authentication.SAML.EmailDomainRestriction
+			}
+		case types.ProviderGoogle:
+			if c.Authentication.Google != nil {
+				providerConfigured = true
+				providerDisabled = c.Authentication.Google.Disabled
+				emailRestriction = c.Authentication.Google.EmailDomainRestriction
+			}
+		}
+	}
+
+	// If there's specific configuration in the category for this provider, take it into account.
+	// Also, never lock out the default admin user, so it can recover fucked up configurations.
+	if providerConfigured && !isDefaultAdmin(u) {
+		// If the category has this provider disabled, don't let the user in.
+		if providerDisabled {
 			return "", "", provider.ErrUserDisallowed
 		}
 
-		// If there are allowed domains, check the user is in the allowed domains
-		if categoryAuth.Enabled != nil && *categoryAuth.Enabled && categoryAuth.AllowedDomains != nil && len(*categoryAuth.AllowedDomains) != 0 {
+		// If there are email domain restrictions, check the user is in the allowed domains.
+		if emailRestriction.Enabled {
 			if u.Email != "" {
-				// Parse the email address of the user
+				// Parse the email address of the user.
 				addr, err := mail.ParseAddress(u.Email)
 				if err != nil {
 					return "", "", fmt.Errorf("parse user email address: '%s': %w", u.Email, err)
 				}
 
-				// Check the position of the last @ in the email address
+				// Check the position of the last @ in the email address.
 				// We check for the last @ because `"user@something"@example.com` is a valid address https://stackoverflow.com/a/12355882
 				at := strings.LastIndex(addr.Address, "@")
-				// Get the domain from the email address after the last @
+				// Get the domain from the email address after the last @.
 				domain := u.Email[at+1:]
 
-				// If the domain is not in the allowed domains, return an error
-				if !slices.Contains(*categoryAuth.AllowedDomains, domain) {
+				// If the domain is not in the allowed domains, return an error.
+				if !slices.Contains(emailRestriction.Allowed, domain) {
 					return "", "", provider.ErrUserDisallowed
 				}
 
 			} else {
-				// If the user doesn't have an email, and there are allowed domains, return an error
-				if len(*categoryAuth.AllowedDomains) != 0 {
-					return "", "", provider.ErrUserDisallowed
-				}
+				// If the user doesn't have an email, and the restriction is enabled, return an error.
+				return "", "", provider.ErrUserDisallowed
 			}
-
 		}
 	}
 
-	// Call SaveEmail for user data provisioning provider, due to p is form when ldap and local
-	if !a.Provider(u.Provider).SaveEmail() {
+	// Call SaveEmail for user data provisioning provider, due to p is form when ldap and local.
+	if !a.Provider(u.Provider, u.Category).SaveEmail() {
 		u.Email = ""
 	}
 	providerName := u.Name
@@ -161,26 +192,26 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		return "", "", fmt.Errorf("check if user exists: %w", err)
 	}
 
-	// Remove weird characters from the user and group names
+	// Remove weird characters from the user and group names.
 	normalizeIdentity(g, u)
 
-	// Flag to track if we need to update existing user
+	// Flag to track if we need to update existing user.
 	var needsUpdate bool
 	if uExists {
-		// Check if provider name differs from database name
+		// Check if provider name differs from database name.
 		if dbUser.Name != providerName {
 			needsUpdate = true
 			*u = *dbUser
-			// Keep the provider name
+			// Keep the provider name.
 			u.Name = providerName
 		} else {
-			// Use the existing database user data
+			// Use the existing database user data.
 			*u = *dbUser
 		}
 	}
 
 	if !uExists {
-		// Manual registration
+		// Manual registration.
 		if !p.AutoRegister(u) {
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
 			ss, err := token.SignRegisterToken(a.Secret, u)
@@ -205,7 +236,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 				}
 			}
 
-			// Set the user group to the new group created
+			// Set the user group to the new group created.
 			u.Group = g.ID
 			for _, group := range secondary {
 				u.SecondaryGroups = append(u.SecondaryGroups, group.ID)
@@ -217,7 +248,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 			return "", "", fmt.Errorf("auto register user: %w", err)
 		}
 	} else if needsUpdate {
-		// Update existing user if provider name has changed
+		// Update existing user if provider name has changed.
 		if err := u.Update(ctx, a.DB); err != nil {
 			return "", "", fmt.Errorf("update user: %w", err)
 		}
@@ -227,12 +258,12 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 }
 
 func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *model.User, redirect string) (string, string, error) {
-	// Check if the user is disabled
+	// Check if the user is disabled.
 	if !u.Active {
 		return "", "", provider.ErrUserDisabled
 	}
 
-	// Check if the user needs to acknowledge the disclaimer
+	// Check if the user needs to acknowledge the disclaimer.
 	dscl, err := a.API.AdminUserRequiredDisclaimerAcknowledgement(ctx, u.ID)
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: %w", err)
@@ -246,7 +277,7 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return ss, redirect, nil
 	}
 
-	// TODO: Check if the user needs to migrate themselves
+	// TODO: Check if the user needs to migrate themselves.
 	if false {
 		ss, err := token.SignUserMigrationRequiredToken(a.Secret, u.ID)
 		if err != nil {
@@ -256,7 +287,7 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return ss, redirect, nil
 	}
 
-	// Check if the user has the email verified
+	// Check if the user has the email verified.
 	vfEmail, err := a.API.AdminUserRequiredEmailVerification(ctx, u.ID)
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to verify the email: %w", err)
@@ -283,11 +314,11 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return ss, redirect, nil
 	}
 
-	// Set the last accessed time of the user
+	// Set the last accessed time of the user.
 	u.Accessed = float64(time.Now().Unix())
 
 	// Load the rest of the data of the user from the DB without overriding the data provided by the
-	// login provider
+	// login provider.
 	u2 := &model.User{ID: u.ID}
 	if err := u2.Load(ctx, a.DB); err != nil {
 		return "", "", fmt.Errorf("load user from DB: %w", err)
@@ -296,12 +327,12 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 	u.LoadWithoutOverride(u2)
 	normalizeIdentity(nil, u)
 
-	// Update the user in the DB with the latest data
+	// Update the user in the DB with the latest data.
 	if err := u.Update(ctx, a.DB); err != nil {
 		return "", "", fmt.Errorf("update user in the DB: %w", err)
 	}
 
-	// Create the session
+	// Create the session.
 	sess, err := a.Sessions.New(ctx, &sessionsv1.NewRequest{
 		UserId:     u.ID,
 		RemoteAddr: remoteAddr,
@@ -315,7 +346,7 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return "", "", err
 	}
 
-	// Call API to check if the user has fullpage notifications pending, if so redirect to /notifications/login
+	// Call API to check if the user has fullpage notifications pending, if so redirect to /notifications/login.
 	rsp, err := a.API.AdminUserNotificationsDisplays(ctx, u.ID)
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user has notifications pending: %w", err)
@@ -397,7 +428,7 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 		return "", "", err
 	}
 
-	p := a.Provider(claims.User.Provider)
+	p := a.Provider(claims.User.Provider, categoryID)
 
 	u := &claims.User
 	u.Category = categoryID
@@ -412,12 +443,20 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 		}
 	}
 
-	if claims.RawRoles != nil && len(*claims.RawRoles) != 0 {
-		var err *provider.ProviderError
-		u.Role, err = p.GuessRole(ctx, u, *claims.RawRoles)
-		if err != nil && !errors.Is(err, provider.ErrInvalidIDP) {
-			return "", "", fmt.Errorf("guess role from token: %w", err)
-		}
+	// Always call GuessRole, even with empty rawRoles: when the IdP doesn't
+	// provide role attributes (FieldRole is empty), GuessRole falls back to
+	// RoleDefault. Without this, auto-registered users end up with an empty
+	// role and registration fails.
+	// ErrInvalidIDP is ignored because the provider might not support role
+	// guessing; in that case the role will come from the existing DB user.
+	rawRoles := []string{}
+	if claims.RawRoles != nil {
+		rawRoles = *claims.RawRoles
+	}
+	var roleErr *provider.ProviderError
+	u.Role, roleErr = p.GuessRole(ctx, u, rawRoles)
+	if roleErr != nil && !errors.Is(roleErr, provider.ErrInvalidIDP) {
+		return "", "", fmt.Errorf("guess role from token: %w", roleErr)
 	}
 
 	return a.startLogin(ctx, remoteAddr, p, g, secondary, u, redirect)

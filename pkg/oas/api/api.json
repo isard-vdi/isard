@@ -80,6 +80,37 @@
         "security": []
       }
     },
+    "/api/v3/login_config/{category_id}": {
+      "get": {
+        "operationId": "GetLoginConfigByCategory",
+        "summary": "Get the configuration for the login page for a specific category",
+        "description": "",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "description": "The ID of the category",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetLoginConfigResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/api/v3/user": {
       "get": {
         "operationId": "GetUser",

@@ -6,28 +6,31 @@ import (
 	"fmt"
 	"sync"
 
+	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
 	"gitlab.com/isard/isardvdi/haproxy-sync/cfg"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy"
 
 	"github.com/rs/zerolog"
 )
 
-var (
-	ErrMissingSubdomain = errors.New("missing subdomain")
-	ErrMissingDomain    = errors.New("missing domain")
-)
+var ErrInvalidDomain = errors.New("invalid domain name")
 
 type Interface interface {
-	// Check ensures the service is working correctly
+	// Check ensures the service is working correctly.
 	Check(ctx context.Context) error
+
+	//
+	// DomainSync performs a full synchronization of all the domains that HAProxy needs to accept / manage.
+	//
+	DomainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error)
 
 	//
 	// Bastion
 	//
 
-	// BastionSyncMaps performs a full syncronization of all the maps
+	// BastionSyncMaps performs a full synchronization of all the maps.
 	BastionSyncMaps(ctx context.Context, maps BastionSyncMaps) (BastionSyncMapsResult, error)
-	// BastionGetCurrentMaps returns a the state of all the maps
+	// BastionGetCurrentMaps returns the state of all the maps.
 	BastionGetCurrentMaps(ctx context.Context) (BastionCurrentMaps, error)
 
 	// Bastion Subdomains
@@ -37,6 +40,24 @@ type Interface interface {
 	// Bastion Individual Domains
 	BastionAddIndividualDomain(ctx context.Context, domain string) error
 	BastionDeleteIndividualDomain(ctx context.Context, domain string) error
+}
+
+type DomainSyncDomain struct {
+	Name        string
+	Certificate []byte // PEM. If empty, issued via ACME.
+}
+
+type DomainSyncError struct {
+	Domain string
+	Error  string
+}
+
+type DomainSyncResult struct {
+	DomainsAdded   int
+	DomainsRemoved int
+	CertsIssued    int
+	CertsRemoved   int
+	FailedDomains  []DomainSyncError
 }
 
 type BastionSyncMaps struct {
@@ -62,9 +83,19 @@ type HAproxySync struct {
 	log *zerolog.Logger
 	mux sync.RWMutex
 
+	Domains *HAProxySyncDomains
 	Bastion *HAProxySyncBastion
 
 	haproxy haproxy.Interface
+	acme    acme.Interface
+}
+
+type HAProxySyncDomains struct {
+	DomainsMapName string
+	CrtListPath    string
+	CertsPath      string
+
+	domains map[string]bool
 }
 
 type HAProxySyncBastion struct {
@@ -75,9 +106,15 @@ type HAProxySyncBastion struct {
 	individualDomains map[string]bool
 }
 
-func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface) *HAproxySync {
+func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface, acme acme.Interface) *HAproxySync {
 	return &HAproxySync{
 		log: log,
+
+		Domains: &HAProxySyncDomains{
+			DomainsMapName: cfg.Domains.DomainsMap,
+			CrtListPath:    cfg.Domains.CrtListPath,
+			CertsPath:      cfg.Domains.CertsPath,
+		},
 
 		Bastion: &HAProxySyncBastion{
 			SubdomainsMapName:        cfg.Bastion.SubdomainsMap,
@@ -85,6 +122,7 @@ func Init(log *zerolog.Logger, cfg cfg.HAProxy, haproxy haproxy.Interface) *HApr
 		},
 
 		haproxy: haproxy,
+		acme:    acme,
 	}
 }
 

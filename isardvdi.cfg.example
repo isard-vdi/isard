@@ -174,9 +174,13 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 
 ## Local
 ### Local authentication against isard database
+## DEPRECATED variables after migration 184. Please configure it via
+## administration web interface.
 #AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED=true
 
 ## LDAP
+## DEPRECATED variables after migration 184. Please configure it via
+## administration web interface.
 #AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED=false
 
 ## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_LDAP_* after migration
@@ -250,6 +254,8 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 #AUTHENTICATION_AUTHENTICATION_LDAP_SAVE_EMAIL=true
 
 ## SAML
+## DEPRECATED variables after migration 184. Please configure it via
+## administration web interface.
 #AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=false
 
 ## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_SAML_* after migration
@@ -322,6 +328,8 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 ## Google
 ### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
 ### Authorized redirect URIs: https://domain.tld/authentication/callback
+## DEPRECATED variables after migration 184. Please configure it via
+## administration web interface.
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED=false
 ## DEPRECATED variables after migration 183. Please configure it via
 ## administration web interface.
@@ -379,7 +387,7 @@ DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 DOCKER_IMAGE_TAG=main
 
 # Golang image used for building the Golang microservices images
-GOLANG_BUILD_IMAGE=golang:1.24.3-alpine3.22
+GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22
 # Image used for running the images the Golang microservices images
 GOLANG_RUN_IMAGE=alpine:3.22.0
 

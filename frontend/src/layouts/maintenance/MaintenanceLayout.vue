@@ -62,7 +62,7 @@ const cleanCookiesAndGoToLogin = () => {
         <img
           v-if="!loading && !props.hideLogo"
           class="self-start max-h-[150px]"
-          :src="'/custom/logo.svg'"
+          :src="'/api/v3/logo'"
           alt="IsardVDI logo"
         />
         <Skeleton v-if="loading" class="h-6 w-1/3 mt-[46px] mb-[32px]" />

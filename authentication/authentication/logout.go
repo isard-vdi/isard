@@ -17,7 +17,7 @@ func (a *Authentication) Logout(ctx context.Context, tkn string) (string, error)
 		return "", fmt.Errorf("parse the login token: %w", err)
 	}
 
-	redirect, err := a.Provider(claims.Data.Provider).Logout(ctx, tkn)
+	redirect, err := a.Provider(claims.Data.Provider, claims.Data.CategoryID).Logout(ctx, tkn)
 	if err != nil {
 		return "", fmt.Errorf("provider logout: %w", err)
 	}

@@ -20,7 +20,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 185
+release_version = 186
+# release 186: Split category authentication tri-state boolean into two explicit booleans
+#              Import authentication providers status from AUTHENTICATION_*_ENABLED variables
 # release 185: Repair storage records missing user_id, ensure perms and status_logs
 # release 184: Add recycle_bin indexes and pre-computed count fields for performance
 # release 183: Import Google OAuth2 configuration from AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* environment variables
@@ -1100,6 +1102,28 @@ password:s:%s"""
                     }
                 }
             ).run(self.conn)
+
+        if version == 186:
+            default_config = {
+                "local": "true",
+                "ldap": "false",
+                "saml": "false",
+                "google": "false",
+            }
+            auth_config = {}
+            for config_key, config_value in default_config.items():
+                auth_config[config_key] = {
+                    "enabled": bool(
+                        strtobool(
+                            os.environ.get(
+                                f"AUTHENTICATION_AUTHENTICATION_{config_key.upper()}_ENABLED",
+                                config_value,
+                            )
+                        )
+                    )
+                }
+
+            r.table(table).update({"auth": auth_config}).run(self.conn)
 
         return True
 
@@ -5952,6 +5976,37 @@ password:s:%s"""
                 r.table(table).index_create("bastion_domain").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 186:
+            config_map = {
+                None: {
+                    "disabled": False,
+                    "email_domain_restriction-enabled": False,
+                },
+                False: {
+                    "disabled": True,
+                    "email_domain_restriction-enabled": False,
+                },
+                True: {
+                    "disabled": False,
+                    "email_domain_restriction-enabled": True,
+                },
+            }
+            categories = list(r.table(table).run(self.conn))
+            for category in categories:
+                for provider in category.get("authentication", {}).values():
+                    mapped = config_map[provider.get("enabled", None)]
+                    allowed_domains = provider.get("allowed_domains", [])
+                    provider["disabled"] = mapped["disabled"]
+                    provider["config_source"] = "global"
+                    provider["email_domain_restriction"] = {
+                        "enabled": mapped["email_domain_restriction-enabled"]
+                        and bool(allowed_domains),
+                        "allowed": allowed_domains,
+                    }
+                    provider.pop("allowed_domains", None)
+                    provider.pop("enabled", None)
+            r.table(table).insert(categories, conflict="replace").run(self.conn)
 
         return True
 

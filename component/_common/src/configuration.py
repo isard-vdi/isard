@@ -17,6 +17,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from isardvdi_common.provider_config import (
+    provider_config_api_to_db,
+    provider_config_db_to_api,
+)
 from isardvdi_common.rethink_custom_base_factory import RethinkCustomBase
 
 
@@ -29,6 +33,37 @@ class _ConfigurationMetaClass(RethinkCustomBase):
             args = (1,) + args
         kwargs["id"] = 1
         super().__init__(*args, **kwargs)
+
+    def __getattr__(self, name):
+        """
+        Get an attribute from Configuration.
+
+        When getting the 'auth' attribute, converts provider config fields
+        from DB format (comma-separated strings) to API format (lists).
+        """
+        value = super().__getattr__(name)
+        if name == "auth" and value:
+            for provider_data in value.values():
+                if isinstance(provider_data, dict):
+                    for v in provider_data.values():
+                        if isinstance(v, dict):
+                            provider_config_db_to_api(v)
+        return value
+
+    def __setattr__(self, name, value):
+        """
+        Set an attribute on Configuration.
+
+        When setting the 'auth' attribute, converts provider config fields
+        from API format (lists) to DB format (comma-separated strings).
+        """
+        if name == "auth" and value:
+            for provider_data in value.values():
+                if isinstance(provider_data, dict):
+                    for v in provider_data.values():
+                        if isinstance(v, dict):
+                            provider_config_api_to_db(v)
+        super().__setattr__(name, value)
 
 
 class Configuration(metaclass=_ConfigurationMetaClass):

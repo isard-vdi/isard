@@ -7,12 +7,15 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"regexp"
 	"slices"
+	"sync"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -32,10 +35,14 @@ const (
 	SLORoute      = "/saml/slo"
 )
 
+var _ Provider = &SAML{}
 var _ ConfigurableProvider[model.SAMLConfig] = &SAML{}
+var _ BrandingAwareProvider = &SAML{}
 
 type SAMLConfig struct {
-	Middleware *samlsp.Middleware
+	Middleware          *samlsp.Middleware
+	BrandingMiddlewares map[string]*samlsp.Middleware
+	BrandingHosts       map[string]string
 
 	FieldUID      string
 	ReUID         *regexp.Regexp
@@ -78,18 +85,33 @@ type SAML struct {
 
 	secret     string
 	host       string
+	categoryID *string
 	log        *zerolog.Logger
 	db         r.QueryExecutor
 	httpClient *http.Client
+
+	// validateURL is the SSRF check applied to the metadata URL. Always
+	// initialized in InitSAML; tests that build the struct directly must
+	// set it explicitly (use validateMetadataURL for the real check or a
+	// no-op for bypass).
+	validateURL func(string) error
+
+	brandingMux   sync.RWMutex
+	brandingHosts map[string]string
+	lastModelCfg  *model.SAMLConfig
 }
 
-func InitSAML(secret string, host string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
+func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor, httpClient *http.Client) *SAML {
 	s := &SAML{
-		cfg:    &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
-		secret: secret,
-		host:   host,
-		log:    log,
-		db:     db,
+		cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+		secret:        secret,
+		host:          host,
+		categoryID:    categoryID,
+		log:           log,
+		db:            db,
+		httpClient:    httpClient,
+		validateURL:   validateMetadataURL,
+		brandingHosts: map[string]string{},
 	}
 	return s
 }
@@ -106,6 +128,68 @@ func samlOnError(log *zerolog.Logger) func(http.ResponseWriter, *http.Request, e
 	}
 }
 
+type samlMiddlewareParams struct {
+	host       string
+	categoryID *string
+	key        *rsa.PrivateKey
+	cert       *x509.Certificate
+	metadata   *saml.EntityDescriptor
+	entityID   string
+	sigMethod  string
+	log        *zerolog.Logger
+}
+
+func buildSAMLMiddleware(params samlMiddlewareParams) (*samlsp.Middleware, error) {
+	baseURL, err := url.Parse(fmt.Sprintf("https://%s/authentication", params.host))
+	if err != nil {
+		return nil, fmt.Errorf("parse root URL: %w", err)
+	}
+
+	callbackURL := *baseURL
+	callbackURL.Path = path.Join(baseURL.Path, "/callback")
+
+	middleware, _ := samlsp.New(samlsp.Options{
+		URL:                callbackURL,
+		Key:                params.key,
+		Certificate:        params.cert,
+		IDPMetadata:        params.metadata,
+		DefaultRedirectURI: "/authentication/callback",
+	})
+	middleware.OnError = samlOnError(params.log)
+
+	// Build category-aware SAML endpoint paths.
+	acsSuffix := ACSRoute
+	metadataSuffix := MetadataRoute
+	sloSuffix := SLORoute
+	if params.categoryID != nil {
+		acsSuffix = path.Join("/saml", *params.categoryID, "acs")
+		metadataSuffix = path.Join("/saml", *params.categoryID, "metadata")
+		sloSuffix = path.Join("/saml", *params.categoryID, "slo")
+	}
+
+	acsURL := *baseURL
+	acsURL.Path = path.Join(baseURL.Path, acsSuffix)
+	middleware.ServiceProvider.AcsURL = acsURL
+
+	metadataURL := *baseURL
+	metadataURL.Path = path.Join(baseURL.Path, metadataSuffix)
+	middleware.ServiceProvider.MetadataURL = metadataURL
+
+	sloURL := *baseURL
+	sloURL.Path = path.Join(baseURL.Path, sloSuffix)
+	middleware.ServiceProvider.SloURL = sloURL
+
+	if params.entityID != "" {
+		middleware.ServiceProvider.EntityID = params.entityID
+	}
+
+	if params.sigMethod != "" {
+		middleware.ServiceProvider.SignatureMethod = params.sigMethod
+	}
+
+	return middleware, nil
+}
+
 func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	prvCfg := s.cfg.Cfg()
 
@@ -116,31 +200,30 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	// Middleware setup
 	//
 
-	// Try to load metadata from local file first (if configured)
+	// Try to load metadata from local file first (if configured).
 	if cfg.MetadataFile != "" {
-		s.log.Info().Str("file", cfg.MetadataFile).Msg("attempting to load IdP metadata from local file")
+		s.log.Debug().Str("file", cfg.MetadataFile).Msg("attempting to load IdP metadata from local file")
 
 		data, readErr := os.ReadFile(cfg.MetadataFile)
 		if readErr == nil {
 			metadata, err = samlsp.ParseMetadata(data)
 			if err == nil {
-				s.log.Info().Str("file", cfg.MetadataFile).Msg("successfully loaded IdP metadata from local file")
+				s.log.Debug().Str("file", cfg.MetadataFile).Msg("successfully loaded IdP metadata from local file")
 			} else {
 				s.log.Warn().Err(err).Str("file", cfg.MetadataFile).Msg("failed to parse local metadata file, falling back to URL")
 			}
 		} else {
-			s.log.Info().Err(readErr).Str("file", cfg.MetadataFile).Msg("local metadata file not found, falling back to URL")
+			s.log.Error().Err(readErr).Str("file", cfg.MetadataFile).Msg("local metadata file not found, falling back to URL")
 		}
 	}
 
-	// Fall back to URL fetch if local file didn't work or wasn't configured
+	// Fall back to URL fetch if local file didn't work or wasn't configured.
 	if metadata == nil {
 		if cfg.MetadataURL == "" {
 			return errors.New("neither metadata file nor metadata URL is configured")
 		}
 
-		if err := validateMetadataURL(cfg.MetadataURL); err != nil {
-			s.log.Error().Err(err).Str("url", cfg.MetadataURL).Msg("invalid metadata URL")
+		if err := s.validateURL(cfg.MetadataURL); err != nil {
 			return fmt.Errorf("invalid metadata URL: %w", err)
 		}
 
@@ -153,13 +236,13 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		if httpClient == nil {
 			httpClient = &http.Client{Timeout: 30 * time.Second}
 		}
-		s.log.Info().Str("url", cfg.MetadataURL).Msg("fetching IdP metadata from URL")
+		s.log.Debug().Str("url", cfg.MetadataURL).Msg("fetching IdP metadata from URL")
 		metadata, err = samlsp.FetchMetadata(ctx, httpClient, *remoteMetadataURL)
 		if err != nil {
 			return fmt.Errorf("fetch metadata from URL failed: %w", err)
 		}
 
-		s.log.Info().Str("url", cfg.MetadataURL).Msg("successfully fetched IdP metadata from URL")
+		s.log.Debug().Str("url", cfg.MetadataURL).Msg("successfully fetched IdP metadata from URL")
 	}
 
 	k, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
@@ -172,53 +255,53 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		return fmt.Errorf("parse certificate: %w", err)
 	}
 
-	baseURL, err := url.Parse(fmt.Sprintf("https://%s/authentication", s.host))
-	if err != nil {
-		return fmt.Errorf("parse root URL: %w", err)
-	}
-
-	url := *baseURL
-	url.Path = path.Join(baseURL.Path, "/callback")
-
 	// Set the maximum time between the initial login request and the
-	// response
+	// response.
 	saml.MaxIssueDelay = time.Duration(cfg.MaxIssueDelay)
 
-	middleware, _ := samlsp.New(samlsp.Options{
-		URL:                url,
-		Key:                k.PrivateKey.(*rsa.PrivateKey),
-		Certificate:        k.Leaf,
-		IDPMetadata:        metadata,
-		DefaultRedirectURI: "/authentication/callback",
-	})
-	middleware.OnError = samlOnError(s.log)
-
-	// Configure the full path of the SAML endpoints
-	acsURL := *baseURL
-	acsURL.Path = path.Join(baseURL.Path, ACSRoute)
-	middleware.ServiceProvider.AcsURL = acsURL
-
-	metadataURL := *baseURL
-	metadataURL.Path = path.Join(baseURL.Path, MetadataRoute)
-	middleware.ServiceProvider.MetadataURL = metadataURL
-
-	sloURL := *baseURL
-	sloURL.Path = path.Join(baseURL.Path, SLORoute)
-	middleware.ServiceProvider.SloURL = sloURL
-
-	// Set custom Entity ID if configured, otherwise it defaults to MetadataURL
-	if cfg.EntityID != "" {
-		middleware.ServiceProvider.EntityID = cfg.EntityID
-		s.log.Info().Str("entity_id", cfg.EntityID).Msg("using custom SAML Entity ID")
+	params := samlMiddlewareParams{
+		host:       s.host,
+		categoryID: s.categoryID,
+		key:        k.PrivateKey.(*rsa.PrivateKey),
+		cert:       k.Leaf,
+		metadata:   metadata,
+		entityID:   cfg.EntityID,
+		sigMethod:  cfg.SignatureMethod,
+		log:        s.log,
 	}
 
-	// Enable SAML AuthnRequest signing if configured
+	middleware, err := buildSAMLMiddleware(params)
+	if err != nil {
+		return err
+	}
+
+	if cfg.EntityID != "" {
+		s.log.Debug().Str("entity_id", cfg.EntityID).Msg("using custom SAML Entity ID")
+	}
 	if cfg.SignatureMethod != "" {
-		middleware.ServiceProvider.SignatureMethod = cfg.SignatureMethod
-		s.log.Info().Str("signature_method", cfg.SignatureMethod).Msg("SAML request signing enabled")
+		s.log.Debug().Str("signature_method", cfg.SignatureMethod).Msg("SAML request signing enabled")
 	}
 
 	prvCfg.Middleware = middleware
+
+	// Create branding middlewares for each category branding host.
+	brandingHosts := s.getBrandingHosts()
+	brandingMiddlewares := make(map[string]*samlsp.Middleware, len(brandingHosts))
+	hostMap := make(map[string]string, len(brandingHosts))
+	for catID, bHost := range brandingHosts {
+		bParams := params
+		bParams.host = bHost
+
+		bMW, err := buildSAMLMiddleware(bParams)
+		if err != nil {
+			return fmt.Errorf("build branding middleware for category %s: %w", catID, err)
+		}
+
+		brandingMiddlewares[catID] = bMW
+		hostMap[catID] = bHost
+	}
+	prvCfg.BrandingMiddlewares = brandingMiddlewares
+	prvCfg.BrandingHosts = hostMap
 
 	//
 	// Rest of the configuration
@@ -307,9 +390,17 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 
 	s.cfg.LoadCfg(prvCfg)
 
+	s.brandingMux.Lock()
+	s.lastModelCfg = &cfg
+	s.brandingMux.Unlock()
+
 	return nil
 }
 
+// validateMetadataURL validates that the SAML metadata URL uses HTTPS and
+// does not point to this server (loopback, link-local, unspecified, or any
+// of this server's interface addresses). Fails closed if the hostname
+// cannot be resolved.
 func validateMetadataURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -318,7 +409,46 @@ func validateMetadataURL(rawURL string) error {
 	if u.Scheme != "https" {
 		return fmt.Errorf("metadata URL must use https scheme, got %q", u.Scheme)
 	}
+
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if isLocalIP(ip) {
+			return fmt.Errorf("metadata URL must not point to this server (IP %s)", ip)
+		}
+		return nil
+	}
+
+	// Resolve the hostname and check all resulting IPs. Fail closed on
+	// resolution errors so DNS-based bypass attempts are rejected.
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return fmt.Errorf("resolve metadata URL host %q: %w", host, err)
+	}
+	for _, ip := range ips {
+		if isLocalIP(ip) {
+			return fmt.Errorf("metadata URL host %q resolves to this server (IP %s)", host, ip)
+		}
+	}
+
 	return nil
+}
+
+// isLocalIP returns true if the IP belongs to this server.
+func isLocalIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return false
+	}
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && ipNet.IP.Equal(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
@@ -349,7 +479,8 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
-	sess, err := cfg.Middleware.Session.GetSession(r)
+	mw := s.Middleware(args.Host)
+	sess, err := mw.Session.GetSession(r)
 	if err != nil {
 		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
@@ -470,7 +601,7 @@ func (s *SAML) AutoRegister(u *model.User) bool {
 	return false
 }
 
-func (SAML) String() string {
+func (*SAML) String() string {
 	return types.ProviderSAML
 }
 
@@ -503,7 +634,7 @@ func (s *SAML) Healthcheck() error {
 	return nil
 }
 
-func (s SAML) Logout(context.Context, string) (string, error) {
+func (s *SAML) Logout(context.Context, string) (string, error) {
 	return s.cfg.Cfg().LogoutRedirectURL, nil
 }
 
@@ -534,6 +665,46 @@ func (s *SAML) GuessRole(ctx context.Context, u *types.ProviderUserData, rawRole
 	}, rawRoles)
 }
 
-func (s *SAML) Middleware() *samlsp.Middleware {
-	return s.cfg.Cfg().Middleware
+func (s *SAML) getBrandingHosts() map[string]string {
+	s.brandingMux.RLock()
+	defer s.brandingMux.RUnlock()
+
+	return maps.Clone(s.brandingHosts)
+}
+
+func (s *SAML) SetBrandingHost(ctx context.Context, categoryID string, host *string) error {
+	s.brandingMux.Lock()
+	if host != nil {
+		s.brandingHosts[categoryID] = *host
+	} else {
+		delete(s.brandingHosts, categoryID)
+	}
+	lastCfg := s.lastModelCfg
+	s.brandingMux.Unlock()
+
+	if lastCfg == nil {
+		return nil
+	}
+
+	return s.LoadConfig(ctx, *lastCfg)
+}
+
+func (s *SAML) Middleware(host string) *samlsp.Middleware {
+	cfg := s.cfg.Cfg()
+
+	for catID, bHost := range cfg.BrandingHosts {
+		if bHost == host {
+			if mw := cfg.BrandingMiddlewares[catID]; mw != nil {
+				return mw
+			}
+		}
+	}
+
+	return cfg.Middleware
+}
+
+// SetValidateURL overrides the SSRF check applied to the metadata URL.
+// Intended for testing; production code should use the default (validateMetadataURL).
+func (s *SAML) SetValidateURL(fn func(string) error) {
+	s.validateURL = fn
 }

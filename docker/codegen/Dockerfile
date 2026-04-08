@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine3.20
+FROM golang:1.25.8-alpine3.22
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache python3 npm protoc
@@ -8,7 +8,7 @@ RUN go install github.com/bufbuild/buf/cmd/buf@v1.50.0 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1 && \
     go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1 && \
     go install github.com/ogen-go/ogen/cmd/ogen@v1.4.1 && \
-    go install github.com/vektra/mockery/v2@v2.46.2
+    go install github.com/vektra/mockery/v2@v2.53.6
 
 RUN python3 -m venv /venv && \
     source /venv/bin/activate && \

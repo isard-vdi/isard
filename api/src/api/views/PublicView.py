@@ -4,17 +4,22 @@
 #!flask/bin/python3
 # coding=utf-8
 
+import base64
 import html
 import json
 import os
+from io import BytesIO
 
 from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
+from flask import request, send_file
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.category import Category
+from isardvdi_common.configuration import Configuration
 
 from api import app
 
 from ..libv2.api_users import ApiUsers
-from ..libv2.caches import get_config
 
 users = ApiUsers()
 
@@ -39,21 +44,28 @@ def api_v3_test():
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=20))
+@cached(
+    cache=TTLCache(maxsize=10, ttl=20), key=lambda: hashkey(request.headers.get("Host"))
+)
 @app.route("/api/v3/categories", methods=["GET"])
 def api_v3_categories():
     return (
-        json.dumps(users.CategoriesFrontendGet()),
+        json.dumps(users.CategoriesFrontendGet(request.headers.get("Host"))),
         200,
         {"Content-Type": "application/json"},
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=20))
+@cached(
+    cache=TTLCache(maxsize=10, ttl=20),
+    key=lambda custom_url: hashkey(custom_url, request.headers.get("Host")),
+)
 @app.route("/api/v3/category/<custom_url>", methods=["GET"])
 def api_v3_category(custom_url):
     return (
-        json.dumps(users.category_get_by_custom_url(custom_url)),
+        json.dumps(
+            users.category_get_by_custom_url(custom_url, request.headers.get("Host"))
+        ),
         200,
         {"Content-Type": "application/json"},
     )
@@ -71,21 +83,49 @@ def api_v3_category_custom_url(category_id):
 
 @cached(cache=TTLCache(maxsize=1, ttl=20))
 @app.route("/api/v3/login_config", methods=["GET"])
-def api_v3_login_config():
-    login_config = get_config().get("login", {})
+@app.route("/api/v3/login_config/<category_id>", methods=["GET"])
+def api_v3_login_config(category_id=None):
+    if category_id and Category.exists(category_id):
+        login_config = Category(category_id).login_notification or {}
+    else:
+        login_config = Configuration.login or {}
     for key in ("notification_cover", "notification_form"):
         notification = login_config.get(key)
-        if notification:
-            for field in ("title", "description"):
-                if field in notification and notification[field]:
-                    notification[field] = html.unescape(notification[field])
-            button = notification.get("button")
-            if button:
-                for field in ("text", "url"):
-                    if field in button and button[field]:
-                        button[field] = html.unescape(button[field])
+        if not notification:
+            continue
+        for field in ("title", "description"):
+            if notification.get(field):
+                notification[field] = html.unescape(notification[field])
+        button = notification.get("button")
+        if button:
+            for field in ("text", "url"):
+                if button.get(field):
+                    button[field] = html.unescape(button[field])
     return (
         json.dumps(login_config),
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@cached(
+    cache=TTLCache(maxsize=10, ttl=60), key=lambda: hashkey(request.headers.get("Host"))
+)
+@app.route("/api/v3/logo", methods=["GET"])
+def api_v3_category_logo():
+    # Get logo as base64 data URL
+    data_url = users.get_logo_by_url(request.headers.get("Host"))
+
+    # Parse the data URL
+    header, b64_data = data_url.split(",", 1)
+    mimetype = header.split(":")[1].split(";")[0]
+
+    # Decode base64 data
+    file_bytes = base64.b64decode(b64_data)
+
+    # Send as file with correct mimetype and CSP to prevent script execution
+    response = send_file(BytesIO(file_bytes), mimetype=mimetype, as_attachment=False)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'none'; style-src 'unsafe-inline'"
+    )
+    return response

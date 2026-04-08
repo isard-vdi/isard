@@ -34,6 +34,7 @@ func TestSAMLLogin(t *testing.T) {
 		"should work as expected": {
 			CategoryID: "default",
 			Args: provider.LoginArgs{
+				Host:     "example.com",
 				Redirect: &redirect,
 			},
 			ExpectedSecondary: []*model.Group{},

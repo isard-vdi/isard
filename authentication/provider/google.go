@@ -19,6 +19,7 @@ import (
 )
 
 var _ ConfigurableProvider[model.GoogleConfig] = &Google{}
+var _ BrandingAwareProvider = &Google{}
 
 type Google struct {
 	provider *oauth2Provider
@@ -27,8 +28,10 @@ type Google struct {
 func InitGoogle(cfg cfg.Authentication) *Google {
 	return &Google{
 		&oauth2Provider{
-			provider: types.ProviderGoogle,
-			secret:   cfg.Secret,
+			provider:      types.ProviderGoogle,
+			secret:        cfg.Secret,
+			host:          cfg.Host,
+			brandingHosts: map[string]string{},
 
 			cfg: &cfgManager[oauth2.Config]{
 				cfg: &oauth2.Config{
@@ -36,12 +39,16 @@ func InitGoogle(cfg cfg.Authentication) *Google {
 						"https://www.googleapis.com/auth/userinfo.email",
 						"https://www.googleapis.com/auth/userinfo.profile",
 					},
-					Endpoint:    google.Endpoint,
-					RedirectURL: fmt.Sprintf("https://%s/authentication/callback", cfg.Host),
+					Endpoint: google.Endpoint,
 				},
 			},
 		},
 	}
+}
+
+func (g *Google) SetBrandingHost(_ context.Context, categoryID string, host *string) error {
+	g.provider.setBrandingHost(categoryID, host)
+	return nil
 }
 
 func (g *Google) LoadConfig(_ context.Context, cfg model.GoogleConfig) error {
@@ -59,7 +66,7 @@ func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (
 		redirect = *args.Redirect
 	}
 
-	redirect, err := g.provider.login(categoryID, redirect)
+	redirect, err := g.provider.login(args.Host, categoryID, redirect)
 	if err != nil {
 		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,

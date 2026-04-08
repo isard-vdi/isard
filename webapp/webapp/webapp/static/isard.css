@@ -249,3 +249,74 @@ table.dataTable tr.shown td.details-control > button > i:before {
 .ajaxDisabled {
   cursor: wait !important;
 }
+
+/* File content fields (form_field.html type="file") */
+.file-content-download {
+  display: none;
+  margin-top: 5px;
+}
+
+.file-content-download:not([style*="display: none"]) {
+  display: inline-block;
+}
+.file-content-preview {
+  display: none;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  background: #f5f5f5;
+  max-width: 300px;
+}
+
+.file-content-preview img {
+  max-width: 100%;
+}
+
+/* Form sections hidden by default */
+.provider-config-form,
+.custom-certificate-form,
+.branding-domain-settings,
+.branding-logo-settings {
+  display: none;
+}
+
+/* Hide branding, authentication and login notification buttons for manager role.
+   These buttons are shown via JavaScript if the user has permissions for it. */
+.role-manager .btn-branding,
+.role-manager .btn-authentication,
+.role-manager .btn-login_notification {
+  display: none;
+}
+
+/* Login notification preview panel */
+.preview-panel {
+  background-color: aliceblue;
+}
+.preview-panel .x_panel {
+  border: 1px solid hsl(23, 7%, 83%, 1);
+  border-radius: 12px;
+  color: #56524d;
+  width: 47%;
+  margin-right: 3%;
+}
+.preview-panel #cover_panel {
+  border-color: #bf4a4c;
+}
+.preview-panel #form_panel {
+  border-color: #d8d4d2;
+}
+.preview-panel .x_panel i {
+  padding: 0.5rem;
+}
+.preview-panel .x_panel .notification-body {
+  margin-left: 2.5rem;
+}
+.disabled-preview {
+  opacity: 50%;
+}
+
+/* Initially hidden elements (toggled by JS via jQuery .toggle()) */
+.initially-hidden {
+  display: none;
+}

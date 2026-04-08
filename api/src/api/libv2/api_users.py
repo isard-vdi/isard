@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import base64
 import os
 import time
 import traceback
@@ -29,6 +30,7 @@ import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.category import Category, _detect_mimetype
 from isardvdi_common.configuration import Configuration
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -85,6 +87,8 @@ db.init_app(app)
 
 rb_delete_queue = RecycleBinDeleteQueue()
 
+from haproxy_sync.v1 import haproxy_sync_pb2
+
 from ..libv2.api_user_storage import (
     isard_user_storage_add_user,
     isard_user_storage_update_user,
@@ -105,7 +109,7 @@ from .api_admin import (
 )
 from .api_notify import notify_admin, notify_admins
 from .api_sessions import get_user_session_id, revoke_user_session
-from .api_targets import get_bastion_domain
+from .api_targets import _call_grpc_with_infinite_retry, get_bastion_domain
 from .helpers import (
     _check,
     _parse_desktop,
@@ -166,6 +170,56 @@ def get_secondary_groups_data(secondary_groups):
 def get_category(category_id):
     with app.app_context():
         return r.table("categories").get(category_id).run(db.conn)
+
+
+def sync_category_branding_domains():
+    """
+    Sync category branding domains to HAProxy via DomainSync.
+    Only syncs categories with branding.domain.enabled == True.
+    """
+    with app.app_context():
+        categories = list(
+            r.table("categories")
+            .filter(
+                lambda cat: r.branch(
+                    cat.has_fields({"branding": {"domain": "enabled"}}),
+                    cat["branding"]["domain"]["enabled"] == True,
+                    False,
+                )
+            )
+            .pluck(
+                {
+                    "branding": {
+                        "domain": ["name", "certificate_source", "certificate_data"]
+                    }
+                }
+            )
+            .run(db.conn)
+        )
+
+    domains = []
+    for category in categories:
+        domain_branding = category.get("branding", {}).get("domain", {})
+        name = domain_branding.get("name")
+        if not name:
+            continue
+        certificate = b""
+        if domain_branding.get("certificate_source") == "custom":
+            cert_data = domain_branding.get("certificate_data", "")
+            if cert_data:
+                certificate = (
+                    cert_data.encode("utf-8")
+                    if isinstance(cert_data, str)
+                    else cert_data
+                )
+        domains.append(
+            haproxy_sync_pb2.DomainSyncDomain(name=name, certificate=certificate)
+        )
+
+    _call_grpc_with_infinite_retry(
+        app.haproxy_sync_client.DomainSync,
+        haproxy_sync_pb2.DomainSyncRequest(domains=domains),
+    )
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=10))
@@ -466,11 +520,19 @@ class ApiUsers:
         )
         frontend_show_change_email = Configuration.smtp.get("enabled")
         if payload["provider"] in ["ldap", "saml"]:
-            frontend_show_change_email = (
-                not Configuration.auth.get(payload["provider"], {})
-                .get(f"{payload['provider']}_config", {})
-                .get("save_email")
-            )
+            category_provider = (
+                Category(payload["category_id"]).authentication or {}
+            ).get(payload["provider"], {})
+            if category_provider.get("config_source", "global") == "custom":
+                frontend_show_change_email = not category_provider.get(
+                    f"{payload['provider']}_config", {}
+                ).get("save_email", True)
+            else:
+                frontend_show_change_email = (
+                    not Configuration.auth.get(payload["provider"], {})
+                    .get(f"{payload['provider']}_config", {})
+                    .get("save_email", True)
+                )
 
         isard_user_storage_update_user_quota(payload["user_id"])
         if can_use_bastion(payload):
@@ -1960,8 +2022,26 @@ class ApiUsers:
         else:
             return category[0]
 
-    def category_get_by_custom_url(self, custom_url):
+    def category_get_by_custom_url(self, custom_url, domain=None):
         with app.app_context():
+            if domain and domain != os.environ.get("DOMAIN"):
+                domain_category = list(
+                    r.table("categories")
+                    .filter({"branding": {"domain": {"enabled": True, "name": domain}}})
+                    .pluck("id", "name", "custom_url_name")
+                    .run(db.conn)
+                )
+                if domain_category:
+                    if domain_category[0].get("custom_url_name") != custom_url:
+                        raise Error(
+                            "not_found",
+                            f"Category with custom url {custom_url} not found for domain {domain}",
+                            traceback.format_exc(),
+                        )
+                    return {
+                        "id": domain_category[0]["id"],
+                        "name": domain_category[0]["name"],
+                    }
             category = list(
                 r.table("categories")
                 .filter({"custom_url_name": custom_url})
@@ -1976,6 +2056,58 @@ class ApiUsers:
             )
         else:
             return category[0]
+
+    @classmethod
+    def category_get_branding_by_url(cls, url):
+        with app.app_context():
+            category = list(
+                r.table("categories")
+                .filter({"branding": {"domain": {"name": url, "enabled": True}}})
+                .pluck("id", "branding")
+                .run(db.conn)
+            )
+        if not category:
+            raise Error(
+                "not_found",
+                f"Category with enabled branding domain {url} not found",
+                traceback.format_exc(),
+            )
+        else:
+            return Category(category[0]["id"]).branding
+
+    @classmethod
+    def get_logo_by_url(cls, url):
+        """
+        Get logo as a base64 data URL for the given branding domain URL.
+        Returns logo in the same format as Category.__getattr__ does.
+
+        :param url: The domain URL to look up branding for
+        :return: Base64 data URL string (e.g., "data:image/svg+xml;base64,...")
+        """
+        try:
+            branding_data = cls.category_get_branding_by_url(url)
+            logo = branding_data.get("logo", {})
+
+            # If custom logo is enabled and has data, return it
+            if logo.get("enabled") and logo.get("data"):
+                return logo["data"]
+        except Exception:
+            # If no custom branding found, fall through to default logo
+            pass
+
+        # Return default logo as base64 data URL
+        default_logo_path = "/static/default_logo"
+        try:
+            with open(default_logo_path, "rb") as f:
+                file_bytes = f.read()
+            mimetype = _detect_mimetype(file_bytes)
+            return f"data:{mimetype};base64,{base64.b64encode(file_bytes).decode()}"
+        except Exception:
+            raise Error(
+                "not_found",
+                "Default logo file not found",
+                traceback.format_exc(),
+            )
 
     def category_get_custom_login_url(self, category_id):
         try:
@@ -2001,11 +2133,28 @@ class ApiUsers:
                 .run(db.conn)
             )
 
-    def CategoriesFrontendGet(self):
+    def CategoriesFrontendGet(self, domain=None):
         with app.app_context():
+            if domain and domain != os.environ.get("DOMAIN"):
+                domain_matches = list(
+                    r.table("categories")
+                    .pluck(
+                        {
+                            "id": True,
+                            "name": True,
+                            "custom_url_name": True,
+                            "branding": {"domain": {"enabled", "name"}},
+                        }
+                    )
+                    .filter({"branding": {"domain": {"enabled": True, "name": domain}}})
+                    .order_by("name")
+                    .run(db.conn)
+                )
+                if domain_matches:
+                    return domain_matches
             return list(
                 r.table("categories")
-                .pluck({"id", "name", "frontend", "custom_url_name"})
+                .pluck({"id", "name", "frontend"})
                 .filter({"frontend": True})
                 .order_by("name")
                 .run(db.conn)
