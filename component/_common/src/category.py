@@ -290,4 +290,8 @@ def _detect_mimetype(file_bytes):
         return "image/png"
     if file_bytes[:4] == b"RIFF" and file_bytes[8:12] == b"WEBP":
         return "image/webp"
-    return "image/svg+xml"
+    # Check SVG: XML declaration or <svg> root
+    head = file_bytes[:512].lstrip().lower()
+    if head.startswith(b"<?xml") or head.startswith(b"<svg") or b"<svg" in head[:200]:
+        return "image/svg+xml"
+    return None  # Unknown
