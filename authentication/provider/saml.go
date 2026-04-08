@@ -90,6 +90,12 @@ type SAML struct {
 	db         r.QueryExecutor
 	httpClient *http.Client
 
+	// validateURL is the SSRF check applied to the metadata URL. Always
+	// initialized in InitSAML; tests that build the struct directly must
+	// set it explicitly (use validateMetadataURL for the real check or a
+	// no-op for bypass).
+	validateURL func(string) error
+
 	brandingMux   sync.RWMutex
 	brandingHosts map[string]string
 	lastModelCfg  *model.SAMLConfig
@@ -104,6 +110,7 @@ func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logge
 		log:           log,
 		db:            db,
 		httpClient:    httpClient,
+		validateURL:   validateMetadataURL,
 		brandingHosts: map[string]string{},
 	}
 	return s
@@ -216,10 +223,8 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 			return errors.New("neither metadata file nor metadata URL is configured")
 		}
 
-		if s.httpClient == nil {
-			if err := validateMetadataURL(cfg.MetadataURL); err != nil {
-				return fmt.Errorf("invalid metadata URL: %w", err)
-			}
+		if err := s.validateURL(cfg.MetadataURL); err != nil {
+			return fmt.Errorf("invalid metadata URL: %w", err)
 		}
 
 		remoteMetadataURL, err := url.Parse(cfg.MetadataURL)
@@ -392,6 +397,10 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	return nil
 }
 
+// validateMetadataURL validates that the SAML metadata URL uses HTTPS and
+// does not point to this server (loopback, link-local, unspecified, or any
+// of this server's interface addresses). Fails closed if the hostname
+// cannot be resolved.
 func validateMetadataURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -406,15 +415,18 @@ func validateMetadataURL(rawURL string) error {
 		if isLocalIP(ip) {
 			return fmt.Errorf("metadata URL must not point to this server (IP %s)", ip)
 		}
-	} else {
-		// Resolve the hostname and check all resulting IPs
-		ips, err := net.LookupIP(host)
-		if err == nil {
-			for _, ip := range ips {
-				if isLocalIP(ip) {
-					return fmt.Errorf("metadata URL host %q resolves to this server (IP %s)", host, ip)
-				}
-			}
+		return nil
+	}
+
+	// Resolve the hostname and check all resulting IPs. Fail closed on
+	// resolution errors so DNS-based bypass attempts are rejected.
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return fmt.Errorf("resolve metadata URL host %q: %w", host, err)
+	}
+	for _, ip := range ips {
+		if isLocalIP(ip) {
+			return fmt.Errorf("metadata URL host %q resolves to this server (IP %s)", host, ip)
 		}
 	}
 

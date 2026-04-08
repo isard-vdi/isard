@@ -100,6 +100,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		Input         func(certPath, keyPath, metadataPath string) model.SAMLConfig
 		NeedTLS       bool
 		HTTPClient    *http.Client
+		ValidateURL   func(string) error
 		CategoryID    *string
 		BrandingHosts map[string]string
 		Expected      expected
@@ -342,7 +343,8 @@ func TestSAMLLoadConfig(t *testing.T) {
 			Expected: expected{Err: "load key pair"},
 		},
 		"should fallback to URL when metadata file has invalid XML": {
-			NeedTLS: false,
+			NeedTLS:     false,
+			ValidateURL: func(string) error { return nil },
 			Input: func(_, _, _ string) model.SAMLConfig {
 				dir := t.TempDir()
 				invalidMetadata := filepath.Join(dir, "bad.xml")
@@ -356,7 +358,8 @@ func TestSAMLLoadConfig(t *testing.T) {
 			Expected: expected{Err: "fetch metadata from URL failed"},
 		},
 		"should fallback to URL when metadata file does not exist": {
-			NeedTLS: false,
+			NeedTLS:     false,
+			ValidateURL: func(string) error { return nil },
 			Input: func(_, _, _ string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile: "/nonexistent/metadata.xml",
@@ -375,8 +378,9 @@ func TestSAMLLoadConfig(t *testing.T) {
 			Expected: expected{Err: "invalid metadata URL"},
 		},
 		"should fallback to URL and load config when metadata file does not exist": {
-			NeedTLS:    true,
-			HTTPClient: tlsFallbackServer.Client(),
+			NeedTLS:     true,
+			HTTPClient:  tlsFallbackServer.Client(),
+			ValidateURL: func(string) error { return nil },
 			Input: func(certPath, keyPath, _ string) model.SAMLConfig {
 				return model.SAMLConfig{
 					MetadataFile:    "/nonexistent/metadata.xml",
@@ -546,12 +550,18 @@ func TestSAMLLoadConfig(t *testing.T) {
 				brandingHosts = map[string]string{}
 			}
 
+			validateURL := tc.ValidateURL
+			if validateURL == nil {
+				validateURL = validateMetadataURL
+			}
+
 			s := &SAML{
 				cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 				host:          "sp.example.com",
 				categoryID:    tc.CategoryID,
 				log:           &nopLog,
 				httpClient:    tc.HTTPClient,
+				validateURL:   validateURL,
 				brandingHosts: brandingHosts,
 			}
 
@@ -673,11 +683,13 @@ func TestValidateMetadataURL(t *testing.T) {
 		URL         string
 		ExpectedErr string
 	}{
-		"should accept a valid HTTPS URL": {
-			URL: "https://idp.example.com/metadata",
+		"should accept a valid HTTPS URL with public IP": {
+			// Use an IP literal to avoid relying on DNS in tests.
+			// 203.0.113.1 is in TEST-NET-3 (RFC 5737), reserved for documentation.
+			URL: "https://203.0.113.1/metadata",
 		},
 		"should reject an HTTP URL": {
-			URL:         "http://idp.example.com/metadata",
+			URL:         "http://203.0.113.1/metadata",
 			ExpectedErr: "metadata URL must use https scheme",
 		},
 		"should reject a malformed URL": {
@@ -687,6 +699,10 @@ func TestValidateMetadataURL(t *testing.T) {
 		"should reject an empty scheme": {
 			URL:         "idp.example.com/metadata",
 			ExpectedErr: "metadata URL must use https scheme",
+		},
+		"should reject a hostname that does not resolve": {
+			URL:         "https://nxdomain.invalid/metadata",
+			ExpectedErr: "resolve metadata URL host",
 		},
 		"should reject a loopback IP": {
 			URL:         "https://127.0.0.1/metadata",
