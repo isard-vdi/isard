@@ -2161,6 +2161,7 @@ func TestProviderManagerManage(t *testing.T) {
 
 				m := InitProviderManager(cfg.Authentication{}, log.New("test", "debug"), dbMock)
 				m.httpClient = noNetworkClient
+				m.samlValidateURL = func(string) error { return nil }
 
 				if tc.ReloadInterval > 0 {
 					m.cfgWatcher.reloadInterval = tc.ReloadInterval

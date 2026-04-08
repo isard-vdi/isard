@@ -702,3 +702,9 @@ func (s *SAML) Middleware(host string) *samlsp.Middleware {
 
 	return cfg.Middleware
 }
+
+// SetValidateURL overrides the SSRF check applied to the metadata URL.
+// Intended for testing; production code should use the default (validateMetadataURL).
+func (s *SAML) SetValidateURL(fn func(string) error) {
+	s.validateURL = fn
+}

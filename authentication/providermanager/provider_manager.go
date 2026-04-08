@@ -71,6 +71,11 @@ type ProviderManager struct {
 
 	httpClient *http.Client
 
+	// samlValidateURL overrides the SSRF check on SAML metadata URLs.
+	// nil means use the default (validateMetadataURL). Set to a no-op in tests
+	// that run inside synctest bubbles, where net.LookupIP is not available.
+	samlValidateURL func(string) error
+
 	global                      providerSet
 	categories                  map[string]*providerSet
 	categoriesDisabledProviders map[string]map[string]bool
@@ -361,12 +366,13 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 	}
 
 	enableProvider(ctx, wg, enableProviderParams{
-		log:          log,
-		cfg:          m.cfg,
-		db:           m.db,
-		changesChans: changesChans,
-		categoryID:   categoryID,
-		httpClient:   m.httpClient,
+		log:             log,
+		cfg:             m.cfg,
+		db:              m.db,
+		changesChans:    changesChans,
+		categoryID:      categoryID,
+		httpClient:      m.httpClient,
+		samlValidateURL: m.samlValidateURL,
 	}, scope, prv)
 
 	m.applyStoredBranding(ctx, log, scope, prv, categoryID)
@@ -395,12 +401,13 @@ func (m *ProviderManager) applyStoredBranding(ctx context.Context, log *zerolog.
 }
 
 type enableProviderParams struct {
-	log          *zerolog.Logger
-	cfg          cfg.Authentication
-	db           r.QueryExecutor
-	changesChans *providerChangesChannels
-	categoryID   *string
-	httpClient   *http.Client
+	log             *zerolog.Logger
+	cfg             cfg.Authentication
+	db              r.QueryExecutor
+	changesChans    *providerChangesChannels
+	categoryID      *string
+	httpClient      *http.Client
+	samlValidateURL func(string) error
 }
 
 func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProviderParams, scope *providerSet, p string) {
@@ -438,6 +445,10 @@ func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProvid
 
 	case types.ProviderSAML:
 		saml := provider.InitSAML(params.cfg.Secret, params.cfg.Host, params.categoryID, params.log, params.db, params.httpClient)
+
+		if params.samlValidateURL != nil {
+			saml.SetValidateURL(params.samlValidateURL)
+		}
 
 		watcherCtx, cancel := context.WithCancel(ctx)
 		scope.watcherCancels[p] = cancel
