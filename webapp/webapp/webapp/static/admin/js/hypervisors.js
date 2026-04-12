@@ -172,11 +172,16 @@ $(document).ready(function () {
         var physical_gpus = row.gpus.filter(function (gpu) {
           return row.physical_gpus.includes(gpu);
         });
-        return data.sort().toString() == physical_gpus.sort().toString() ? data.length :
+        var result = data.sort().toString() == physical_gpus.sort().toString() ? data.length :
           `<i title="This hypervisor is assigned to ${data.length} GPUs but there is only ${physical_gpus.length} physical GPUs. These GPUs do not correspond:
              \n${data.filter(gpu => !physical_gpus.includes(gpu))
             .concat(physical_gpus.filter(gpu => !data.includes(gpu)))}" class="fa fa-warning" style="color:red;">
-            ${physical_gpus.length + "/" + data.length}</i>`
+            ${physical_gpus.length + "/" + data.length}</i>`;
+        if (row.gpu_warnings && row.gpu_warnings.length > 0) {
+          var tooltip = row.gpu_warnings.join('&#10;');
+          result += ' <i class="fa fa-microchip" style="color:orange" title="' + tooltip + '"></i>';
+        }
+        return result;
       }
     },
     { "data": "viewer.static", "className": 'group-system', "visible": false },
@@ -625,6 +630,16 @@ $(document).ready(function () {
       row.child(formatHypervisorPanel(row.data())).show();
       tr.addClass('shown');
       $('#status-detail-' + row.data().id).html(row.data().detail);
+      var gpuWarningsDiv = $('#gpu-warnings-' + row.data().id);
+      if (row.data().gpu_warnings && row.data().gpu_warnings.length > 0) {
+        var html = '<div class="alert alert-warning" style="margin-top:10px;">' +
+          '<i class="fa fa-microchip"></i> <strong>GPU Configuration Issues:</strong><ul>';
+        row.data().gpu_warnings.forEach(function(w) { html += '<li>' + w + '</li>'; });
+        html += '</ul></div>';
+        gpuWarningsDiv.html(html);
+      } else {
+        gpuWarningsDiv.html('');
+      }
       tableHypervisorDomains(row.data().id);
       setMountpoints(row.data().id);
       setHypervisorDetailButtonsStatus(row.data().id, row.data().status)
