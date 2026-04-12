@@ -821,11 +821,11 @@ def ensure_sriov_vfs():
                     continue
         except OSError:
             continue
-        # Must support SR-IOV
+        # Must support SR-IOV with multiple VFs (single VF is not vGPU)
         try:
             with open(os.path.join(dev_path, "sriov_totalvfs")) as f:
                 totalvfs = int(f.read().strip())
-            if totalvfs == 0:
+            if totalvfs <= 1:
                 continue
         except (OSError, ValueError):
             continue

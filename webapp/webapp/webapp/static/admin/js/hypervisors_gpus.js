@@ -75,7 +75,13 @@ $(document).ready(function () {
         defaultContent:
           '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>',
       },
-      { data: "name", width: "300px" },
+      { data: "name", width: "300px", render: function (data, type, full) {
+        if (full.gpu_warnings && full.gpu_warnings.length > 0) {
+          var tooltip = full.gpu_warnings.join('&#10;');
+          return data + ' <i class="fa fa-microchip" style="color:orange" title="' + tooltip + '"></i>';
+        }
+        return data;
+      }},
       { data: "description" },
       { data: "physical_device", render: function (data, type, full) {
         return data ? data : `<i class='fa fa-exclamation-triangle' style='color:darkred' title='No physical device assigned'> None</i>`;
