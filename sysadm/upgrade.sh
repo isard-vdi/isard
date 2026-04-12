@@ -304,7 +304,9 @@ version_to_docker_tag() {
   if is_version_tag "$version"; then
     echo "${version//./-}"   # Convert v14.74.4 to v14-74-4
   else
-    echo "$version"          # Keep branch/MR names as-is
+    # Branch/MR: convert '/' to '-' to match Docker image tag constraints
+    # (git refs allow '/' but Docker tags don't; CI applies the same mapping).
+    echo "${version//\//-}"
   fi
 }
 
@@ -666,7 +668,7 @@ else
     echo "Branch/MR names should not contain spaces or shell special characters"
     exit 1
   fi
-  TAG_DASHED="$TAG_VERSION"   # Keep branch/MR names as-is for DOCKER_IMAGE_TAG
+  TAG_DASHED=$(version_to_docker_tag "$TAG_VERSION")   # Normalize '/' -> '-' for Docker image tag
 fi
 
 echo "Git reference: $TAG_VERSION"
