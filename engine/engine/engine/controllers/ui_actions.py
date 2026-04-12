@@ -358,14 +358,76 @@ class UiActions(object):
                         profile=extra_info["profile"],
                     )
 
-                    # Add hugepages memory backing if hypervisor supports it
+                    # PCIe BAR reservation for GPU passthrough with large BARs
+                    if extra_info.get("profile") == "passthrough":
+                        xml = add_qemu_pcie_reserve(xml)
+
+                # --- NUMA node selection ---
+                numa_topo = extra_info.get("numa_topology", {})
+                numa_nodes = numa_topo.get("nodes", {})
+                numa_hp_free = extra_info.get("numa_hugepages_free_kb", {})
+                domain_memory_kb = domain_memory_gb * 1048576
+                target_node = None
+                mem_mode = "preferred"
+                if len(numa_nodes) > 1:
+                    gpu_numa = extra_info.get("gpu_numa_node")
+                    if is_gpu and gpu_numa is not None:
+                        target_node = str(gpu_numa)
+                        # Use strict only if this node has enough hugepages;
+                        # fall back to preferred if the node is short so the
+                        # kernel can pull from a remote node instead of failing.
+                        node_free = numa_hp_free.get(target_node, 0)
+                        if node_free >= domain_memory_kb:
+                            mem_mode = "strict"
+                        else:
+                            mem_mode = "preferred"
+                            if node_free > 0:
+                                log.info(
+                                    f"{id_domain}: GPU NUMA node {target_node} has "
+                                    f"{node_free}KB free < {domain_memory_kb}KB needed, "
+                                    f"using preferred mode (may cross NUMA)"
+                                )
+                    else:
+                        # Pick NUMA node with most free hugepages, or hash-distribute
+                        if numa_hp_free:
+                            candidates = {
+                                n: free_kb
+                                for n, free_kb in numa_hp_free.items()
+                                if n in numa_nodes and free_kb >= domain_memory_kb
+                            }
+                            if candidates:
+                                target_node = max(candidates, key=candidates.get)
+                            else:
+                                valid = {
+                                    n: f
+                                    for n, f in numa_hp_free.items()
+                                    if n in numa_nodes
+                                }
+                                target_node = (
+                                    max(valid, key=valid.get) if valid else "0"
+                                )
+                        else:
+                            node_keys = sorted(numa_nodes.keys())
+                            node_idx = hash(id_domain) % len(node_keys)
+                            target_node = node_keys[node_idx]
+                        mem_mode = "preferred"
+
+                # --- Hugepages assignment ---
+                if is_gpu:
                     hugepages = extra_info.get("hugepages", {})
                     if hugepages.get("mounted"):
-                        if hugepages.get("1G", {}).get("total", 0) > 0:
-                            xml = add_memory_backing(xml, "1", "G")
-                        elif hugepages.get("2M", {}).get("total", 0) > 0:
-                            xml = add_memory_backing(xml, "2", "M")
-
+                        hp_free_kb = extra_info.get("hugepages_free_kb", 0)
+                        if hp_free_kb >= domain_memory_kb:
+                            if hugepages.get("1G", {}).get("total", 0) > 0:
+                                xml = add_memory_backing(xml, "1", "G")
+                            elif hugepages.get("2M", {}).get("total", 0) > 0:
+                                xml = add_memory_backing(xml, "2", "M")
+                        else:
+                            log.warning(
+                                f"GPU desktop {id_domain}: hugepages free "
+                                f"{hp_free_kb}KB < needed {domain_memory_kb}KB, "
+                                f"starting with 4K pages (slower VFIO mapping)"
+                            )
                 else:
                     # Non-GPU: use hugepages as fallback when regular RAM is low
                     hugepages = extra_info.get("hugepages", {})
@@ -375,8 +437,7 @@ class UiActions(object):
                         min_free_kb = (
                             int(extra_info.get("min_free_mem_gb", 0)) * 1048576
                         )
-                        regular_available_kb = mem_available_kb - hp_free_kb
-                        domain_memory_kb = domain_memory_gb * 1048576
+                        regular_available_kb = mem_available_kb
 
                         if regular_available_kb - domain_memory_kb < min_free_kb:
                             if hp_free_kb >= domain_memory_kb:
@@ -384,6 +445,30 @@ class UiActions(object):
                                     xml = add_memory_backing(xml, "1", "G")
                                 elif hugepages.get("2M", {}).get("total", 0) > 0:
                                     xml = add_memory_backing(xml, "2", "M")
+
+                # --- NUMA CPU pinning + IO thread pinning ---
+                if target_node is not None and target_node in numa_nodes:
+                    cpulist = numa_nodes[target_node].get("cpulist", "")
+                    if cpulist:
+                        from io import StringIO
+
+                        from lxml import etree
+
+                        _tree = etree.parse(StringIO(xml))
+                        _vcpu_elem = _tree.xpath("/domain/vcpu")
+                        _vcpus = (
+                            int(_vcpu_elem[0].text)
+                            if _vcpu_elem and _vcpu_elem[0].text
+                            else 1
+                        )
+                        xml = add_numa_pinning(
+                            xml,
+                            int(target_node),
+                            cpulist,
+                            _vcpus,
+                            memory_mode=mem_mode,
+                        )
+                        xml = add_iothread_pinning(xml, cpulist)
 
                 if LOG_LEVEL == "DEBUG":
                     print(f"%%%% DOMAIN: {id_domain} -- action: {action} %%%%")
