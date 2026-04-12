@@ -115,6 +115,9 @@ class HypStats(object):
             for k in self.hyper_stats_history[hyp_id].keys()
             if time.time() - k < minutes * 60
         ]
+        if not minutes_keys:
+            # No samples in this time window yet — return current instant stats
+            return self.get_stats(hyp_id, minutes=0)
         # Get dict of means of all values in cpu_1min_keys dicts
         cpu_minutes_mean = {
             kk: round(
@@ -122,12 +125,16 @@ class HypStats(object):
             )
             for kk in minutes_keys[0]["cpu"].keys()
         }
-        memory_minutes_mean = {
-            kk: round(
-                sum([vv["memory"][kk] for vv in minutes_keys]) / len(minutes_keys), 0
-            )
-            for kk in minutes_keys[0]["memory"].keys()
-        }
+        memory_minutes_mean = {}
+        for kk in minutes_keys[0]["memory"].keys():
+            sample = minutes_keys[0]["memory"][kk]
+            if isinstance(sample, (int, float)):
+                memory_minutes_mean[kk] = round(
+                    sum(vv["memory"][kk] for vv in minutes_keys) / len(minutes_keys), 0
+                )
+            else:
+                # Non-numeric fields (e.g. numa_hugepages_free_kb dict): use latest value
+                memory_minutes_mean[kk] = minutes_keys[-1]["memory"][kk]
         self.remove_old_stats(hyp_id=hyp_id)
         return {"memory": memory_minutes_mean, "cpu": cpu_minutes_mean}
 
@@ -755,8 +762,35 @@ class hyp(object):
 
         old_profile = pci_info.get("vgpu_profile", None)
         if old_profile == new_profile and new_profile != "passthrough":
-            update_table_field("vgpus", gpu_id, "changing_to_profile", False)
-            return
+            # For MIG profiles, verify MIG is actually enabled before skipping.
+            # On first boot the stored profile may be MIG but MIG mode was never
+            # activated (discovery reports MIG capabilities even when disabled).
+            new_is_mig = (
+                pci_info.get("types", {}).get(new_profile, {}).get("mig", False)
+            )
+            if new_is_mig:
+                pci_bdf = pci_info["path"].split("/")[-1]
+                mig_check = execute_commands(
+                    self.hostname,
+                    [
+                        f"nvidia-smi -i {pci_bdf} --query-gpu=mig.mode.current --format=csv,noheader"
+                    ],
+                    port=self.port,
+                    timeout=10,
+                )
+                mig_current = mig_check[0].get("out", "").strip() if mig_check else ""
+                if "Enabled" not in mig_current:
+                    logs.main.info(
+                        f"MIG profile {new_profile} selected but MIG is "
+                        f"{mig_current!r} on {pci_bdf}, enabling MIG mode"
+                    )
+                    # Fall through to MIG transition below
+                else:
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    return
+            else:
+                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                return
         # For passthrough, always re-run driver binding even when old == new,
         # because driver state (vfio-pci) may not survive host/container restarts.
         if old_profile != new_profile or new_profile == "passthrough":
@@ -1168,6 +1202,10 @@ class hyp(object):
                     update_vgpu_created(vgpu_id, vgpu_profile, uuid_create)
                     self.mdevs[pci_id][vgpu_profile][uuid_create]["created"] = True
                     continue
+                if d_uuid.get("mig"):
+                    # MIG instances are created by _execute_mig_transition()
+                    # via nvidia-smi, not by echoing to mdev_supported_types.
+                    continue
                 if uuid_create not in d_mdevs_running.keys():
                     if sub_paths is False:
                         path = base_path
@@ -1200,6 +1238,11 @@ class hyp(object):
                         )
                         self.mdevs[pci_id][vgpu_profile][uuid_create]["created"] = True
                 else:
+                    err_msgs = [
+                        d["err"].strip()
+                        for d in array_out_err
+                        if d.get("err", "").strip()
+                    ]
                     logs.workers.error(
                         f"[{self.id_hyp_rethink}] Failed to create mdevs for PCI {pci_id}: "
                         f"{len(errors)}/{len(cmds)} commands failed"
@@ -1209,11 +1252,49 @@ class hyp(object):
                             logs.workers.error(
                                 f"[{self.id_hyp_rethink}] CMD: {cmds[i][:80]}... / ERROR: {d['err']}"
                             )
+                    # Diagnose and store a user-visible warning
+                    self._diagnose_mdev_failure(pci_id, vgpu_profile, err_msgs)
             else:
                 logs.workers.debug(
                     f"[{self.id_hyp_rethink}] No new mdevs to create for PCI {pci_id} "
                     f"(all already running)"
                 )
+
+    def _diagnose_mdev_failure(self, pci_id, profile, err_msgs):
+        """Diagnose mdev creation failure and store warning in hypervisor detail."""
+        pci_bdf = pci_id.replace("pci_", "").replace("_", ":", 2)
+        pci_bdf = pci_bdf[: len(pci_bdf) - 2] + "." + pci_bdf[-1]
+
+        first_err = err_msgs[0] if err_msgs else ""
+        if "I/O error" in first_err:
+            # VFs exist but nvidia can't bind them — IOMMU issue
+            diagnosis = (
+                f"GPU {pci_bdf}: mdev creation failed (I/O error). "
+                f"SR-IOV VFs exist but nvidia driver cannot bind them. "
+                f"Enable IOMMU in BIOS and add iommu=pt to kernel cmdline, "
+                f"then reboot. Only passthrough mode available until fixed."
+            )
+        elif "nonexistent directory" in first_err:
+            diagnosis = (
+                f"GPU {pci_bdf}: mdev type '{profile}' not found in sysfs. "
+                f"GPU may need SR-IOV VF enablement or MIG mode activation."
+            )
+        elif "Permission denied" in first_err:
+            diagnosis = (
+                f"GPU {pci_bdf}: mdev creation permission denied. "
+                f"Container may lack required privileges."
+            )
+        else:
+            diagnosis = (
+                f"GPU {pci_bdf}: mdev creation failed for profile '{profile}': "
+                f"{first_err[:200]}"
+            )
+
+        logs.workers.warning(f"[{self.id_hyp_rethink}] {diagnosis}")
+
+        # Accumulate for batch write at end of init_nvidia
+        if hasattr(self, "_gpu_warnings"):
+            self._gpu_warnings.append(diagnosis)
 
     def init_nvidia(self):
         """Initialize NVIDIA GPU/vGPU support for this hypervisor.
@@ -1226,6 +1307,23 @@ class hyp(object):
         """
         logs.workers.info(f"[{self.id_hyp_rethink}] Starting NVIDIA initialization...")
         start_time = time.time()
+
+        # Collect GPU warnings from discovery data and mdev creation
+        self._gpu_warnings = []
+        try:
+            if self.hypervisor:
+                nvidia_gpus = self.hypervisor.get("nvidia_gpus", [])
+                if isinstance(nvidia_gpus, str):
+                    import json
+
+                    nvidia_gpus = json.loads(nvidia_gpus)
+                for gpu in nvidia_gpus:
+                    for w in gpu.get("warnings", []):
+                        self._gpu_warnings.append(
+                            f"GPU {gpu.get('pci_bus_id', '?')}: {w}"
+                        )
+        except Exception:
+            pass
 
         # Step 1: Reconcile mdevs with reality (adopt unknown mdevs, update DB)
         logs.workers.info(
@@ -1246,6 +1344,23 @@ class hyp(object):
         logs.workers.info(
             f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Completed in {time.time() - step_start:.2f}s"
         )
+
+        # Write accumulated GPU warnings to DB for admin visibility
+        try:
+            warnings = getattr(self, "_gpu_warnings", [])
+            update_table_field(
+                "hypervisors",
+                self.id_hyp_rethink,
+                "gpu_warnings",
+                warnings,
+                merge_dict=False,
+            )
+            if warnings:
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] GPU warnings stored: {len(warnings)}"
+                )
+        except Exception:
+            pass
 
         logs.workers.info(
             f"[{self.id_hyp_rethink}] NVIDIA initialization completed in {time.time() - start_time:.2f}s"

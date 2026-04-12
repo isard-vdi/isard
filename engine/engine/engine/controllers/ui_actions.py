@@ -362,17 +362,30 @@ class UiActions(object):
                 # --- NUMA node selection ---
                 numa_topo = extra_info.get("numa_topology", {})
                 numa_nodes = numa_topo.get("nodes", {})
+                numa_hp_free = extra_info.get("numa_hugepages_free_kb", {})
+                domain_memory_kb = domain_memory_gb * 1048576
                 target_node = None
                 mem_mode = "preferred"
                 if len(numa_nodes) > 1:
                     gpu_numa = extra_info.get("gpu_numa_node")
                     if is_gpu and gpu_numa is not None:
                         target_node = str(gpu_numa)
-                        mem_mode = "strict"
+                        # Use strict only if this node has enough hugepages;
+                        # fall back to preferred if the node is short so the
+                        # kernel can pull from a remote node instead of failing.
+                        node_free = numa_hp_free.get(target_node, 0)
+                        if node_free >= domain_memory_kb:
+                            mem_mode = "strict"
+                        else:
+                            mem_mode = "preferred"
+                            if node_free > 0:
+                                log.info(
+                                    f"{id_domain}: GPU NUMA node {target_node} has "
+                                    f"{node_free}KB free < {domain_memory_kb}KB needed, "
+                                    f"using preferred mode (may cross NUMA)"
+                                )
                     else:
                         # Pick NUMA node with most free hugepages, or hash-distribute
-                        numa_hp_free = extra_info.get("numa_hugepages_free_kb", {})
-                        domain_memory_kb = domain_memory_gb * 1048576
                         if numa_hp_free:
                             candidates = {
                                 n: free_kb
@@ -392,7 +405,7 @@ class UiActions(object):
                                 )
                         else:
                             node_keys = sorted(numa_nodes.keys())
-                            node_idx = sum(ord(c) for c in id_domain) % len(node_keys)
+                            node_idx = hash(id_domain) % len(node_keys)
                             target_node = node_keys[node_idx]
                         mem_mode = "preferred"
 
@@ -401,12 +414,17 @@ class UiActions(object):
                     hugepages = extra_info.get("hugepages", {})
                     if hugepages.get("mounted"):
                         hp_free_kb = extra_info.get("hugepages_free_kb", 0)
-                        domain_memory_kb = domain_memory_gb * 1048576
                         if hp_free_kb >= domain_memory_kb:
                             if hugepages.get("1G", {}).get("total", 0) > 0:
                                 xml = add_memory_backing(xml, "1", "G")
                             elif hugepages.get("2M", {}).get("total", 0) > 0:
                                 xml = add_memory_backing(xml, "2", "M")
+                        else:
+                            log.warning(
+                                f"GPU desktop {id_domain}: hugepages free "
+                                f"{hp_free_kb}KB < needed {domain_memory_kb}KB, "
+                                f"starting with 4K pages (slower VFIO mapping)"
+                            )
                 else:
                     # Non-GPU: use hugepages as fallback when regular RAM is low
                     hugepages = extra_info.get("hugepages", {})
@@ -417,7 +435,6 @@ class UiActions(object):
                             int(extra_info.get("min_free_mem_gb", 0)) * 1048576
                         )
                         regular_available_kb = mem_available_kb
-                        domain_memory_kb = domain_memory_gb * 1048576
 
                         if regular_available_kb - domain_memory_kb < min_free_kb:
                             if hp_free_kb >= domain_memory_kb:
@@ -430,10 +447,17 @@ class UiActions(object):
                 if target_node is not None and target_node in numa_nodes:
                     cpulist = numa_nodes[target_node].get("cpulist", "")
                     if cpulist:
-                        import re as _re
+                        from io import StringIO
 
-                        _m = _re.search(r"<vcpu[^>]*>(\d+)</vcpu>", xml)
-                        _vcpus = int(_m.group(1)) if _m else 1
+                        from lxml import etree
+
+                        _tree = etree.parse(StringIO(xml))
+                        _vcpu_elem = _tree.xpath("/domain/vcpu")
+                        _vcpus = (
+                            int(_vcpu_elem[0].text)
+                            if _vcpu_elem and _vcpu_elem[0].text
+                            else 1
+                        )
                         xml = add_numa_pinning(
                             xml,
                             int(target_node),

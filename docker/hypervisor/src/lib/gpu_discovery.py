@@ -491,7 +491,7 @@ def discover_gpus():
             if mig_profiles:
                 gpu_info["mig_profiles"] = mig_profiles
 
-        # Check for SR-IOV capability (vGPU cards like A40)
+        # Check for SR-IOV capability (vGPU cards like A40, Blackwell)
         sysfs_pci_id = _normalize_pci_bus_id(gpu["pci_bus_id"]).lower()
         sriov_path = f"/sys/bus/pci/devices/{sysfs_pci_id}/sriov_totalvfs"
         try:
@@ -506,6 +506,47 @@ def discover_gpus():
             gpu_info["sub_paths"] = sorted(sub_paths)
         if path_parent is not None:
             gpu_info["path_parent"] = path_parent
+
+        # Detect misconfiguration: SR-IOV GPUs with VFs but no vGPU profiles
+        warnings = []
+        totalvfs = gpu_info.get("sriov_totalvfs", 0)
+        if totalvfs > 0 and not profiles:
+            numvfs_path = f"/sys/bus/pci/devices/{sysfs_pci_id}/sriov_numvfs"
+            try:
+                with open(numvfs_path) as f:
+                    numvfs = int(f.read().strip())
+            except (OSError, ValueError):
+                numvfs = 0
+            if numvfs == 0:
+                warnings.append(
+                    f"SR-IOV capable ({totalvfs} VFs) but VF creation failed. "
+                    f"Only passthrough and MIG modes available."
+                )
+            else:
+                # VFs exist but no profiles — likely IOMMU issue
+                first_vf = f"/sys/bus/pci/devices/{sysfs_pci_id}/virtfn0"
+                vf_driver = ""
+                if os.path.exists(first_vf):
+                    vf_bdf = os.path.basename(os.path.realpath(first_vf))
+                    drv = f"/sys/bus/pci/devices/{vf_bdf}/driver"
+                    if os.path.exists(drv):
+                        vf_driver = os.path.basename(os.path.realpath(drv))
+                if vf_driver != "nvidia":
+                    warnings.append(
+                        f"SR-IOV VFs created ({numvfs}) but nvidia driver "
+                        f"cannot bind VFs (driver={vf_driver or 'none'}). "
+                        f"vGPU requires IOMMU enabled in BIOS and kernel "
+                        f"(iommu=pt). Only passthrough and MIG modes available."
+                    )
+                else:
+                    warnings.append(
+                        f"SR-IOV VFs active ({numvfs}) and nvidia-bound but "
+                        f"no vGPU profiles found on VFs."
+                    )
+        if warnings:
+            gpu_info["warnings"] = warnings
+            for w in warnings:
+                print(f"  GPU {sysfs_pci_id}: {w}")
 
         gpus.append(gpu_info)
 
@@ -744,6 +785,183 @@ def discover_numa_topology():
     if not nodes:
         return {}
     return {"nodes": nodes}
+
+
+def ensure_sriov_vfs():
+    """Enable SR-IOV virtual functions on GPUs that need them for vGPU.
+
+    Blackwell and newer NVIDIA GPUs expose vGPU mdev types on SR-IOV VFs,
+    not on the physical function (PF).  Without VFs, discover_gpus() finds
+    no vGPU profiles and falls back to MIG.
+
+    For each NVIDIA GPU with sriov_totalvfs > 0 and sriov_numvfs == 0 and
+    no mdev_supported_types on the PF, this enables VFs using the same
+    pci-pf-stub dance that NVIDIA's sriov-manage -e performs:
+
+        unbind nvidia → bind pci-pf-stub → write sriov_numvfs → unbind
+        pci-pf-stub → rebind nvidia
+
+    Must be called before discover_gpus().
+    """
+    pci_dir = "/sys/bus/pci/devices"
+    try:
+        entries = os.listdir(pci_dir)
+    except OSError:
+        return
+
+    for dev in sorted(entries):
+        dev_path = os.path.join(pci_dir, dev)
+        # Only PFs (function 0)
+        if not dev.endswith(".0"):
+            continue
+        # Only NVIDIA
+        try:
+            with open(os.path.join(dev_path, "vendor")) as f:
+                if f.read().strip() != "0x10de":
+                    continue
+        except OSError:
+            continue
+        # Must support SR-IOV
+        try:
+            with open(os.path.join(dev_path, "sriov_totalvfs")) as f:
+                totalvfs = int(f.read().strip())
+            if totalvfs == 0:
+                continue
+        except (OSError, ValueError):
+            continue
+        # Already has VFs enabled
+        try:
+            with open(os.path.join(dev_path, "sriov_numvfs")) as f:
+                if int(f.read().strip()) > 0:
+                    continue
+        except (OSError, ValueError):
+            continue
+        # Already has mdev types on PF (legacy vGPU, not Blackwell)
+        if os.path.isdir(os.path.join(dev_path, "mdev_supported_types")):
+            continue
+
+        print(f"Enabling {totalvfs} SR-IOV VFs on {dev}...")
+        _enable_sriov_for_gpu(dev, totalvfs)
+
+
+def _check_iommu_available():
+    """Check if IOMMU is active (required for SR-IOV VF nvidia binding)."""
+    try:
+        groups = os.listdir("/sys/kernel/iommu_groups")
+        return len(groups) > 0
+    except OSError:
+        return False
+
+
+def _enable_sriov_for_gpu(pci_bdf, totalvfs):
+    """Run the pci-pf-stub dance to enable SR-IOV VFs for one GPU."""
+
+    def _run(cmd):
+        return subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+    if not _check_iommu_available():
+        print(
+            f"  WARNING: IOMMU not active — VFs will be created but nvidia "
+            f"cannot bind them (vGPU mdev creation will fail). "
+            f"Enable IOMMU in BIOS and add iommu=pt to kernel cmdline."
+        )
+
+    # Get vendor:device for pci-pf-stub new_id
+    r = _run(f"lspci -n -s {pci_bdf}")
+    if r.returncode != 0:
+        print(f"  FAILED: lspci for {pci_bdf}: {r.stderr.strip()}")
+        return
+    parts = r.stdout.split()
+    vend_dev = parts[2].replace(":", " ") if len(parts) >= 3 else ""
+    if not vend_dev:
+        print(f"  FAILED: could not parse vendor:device for {pci_bdf}")
+        return
+
+    steps = [
+        # Ensure pci-pf-stub module is loaded
+        ("modprobe pci-pf-stub", False),
+        # Get nvidia unbindLock
+        (f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock", True),
+        # Unbind PF from nvidia
+        (f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind", True),
+        # Register device with pci-pf-stub and bind
+        (f"echo '{vend_dev}' > /sys/bus/pci/drivers/pci-pf-stub/new_id", True),
+        (
+            f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
+            f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
+            False,
+        ),
+        ("sleep 0.5", False),
+        # Create VFs
+        (
+            f"echo {totalvfs} > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs",
+            False,
+        ),
+        # Unbind from pci-pf-stub
+        (f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind", True),
+        (
+            f"echo '{vend_dev}' > /sys/bus/pci/drivers/pci-pf-stub/remove_id",
+            True,
+        ),
+        # Bind all VFs to nvidia driver (enumerate via virtfn symlinks)
+        (
+            f"for vf in /sys/bus/pci/devices/{pci_bdf}/virtfn*/; do "
+            f"vf_bdf=$(basename $(readlink -f $vf)); "
+            f"[ -e /sys/bus/pci/devices/$vf_bdf/driver ] && "
+            f"echo $vf_bdf > /sys/bus/pci/devices/$vf_bdf/driver/unbind 2>/dev/null || true; "
+            f"echo $vf_bdf > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true; "
+            f"done",
+            True,
+        ),
+        # Rebind PF to nvidia
+        (f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/bind", True),
+        ("nvidia-smi -pm 1 2>/dev/null", True),
+    ]
+
+    for cmd, ignore_error in steps:
+        r = _run(cmd)
+        if r.returncode != 0 and not ignore_error:
+            print(f"  FAILED at: {cmd}")
+            print(f"  stderr: {r.stderr.strip()}")
+            return
+
+    # Verify VFs created
+    try:
+        with open(f"/sys/bus/pci/devices/{pci_bdf}/sriov_numvfs") as f:
+            actual = int(f.read().strip())
+        if actual > 0:
+            print(f"  Enabled {actual} VFs on {pci_bdf}")
+        else:
+            print(f"  WARNING: sriov_numvfs still 0 after enablement for {pci_bdf}")
+            return
+    except (OSError, ValueError) as e:
+        print(f"  WARNING: could not verify VFs for {pci_bdf}: {e}")
+        return
+
+    # Verify at least one VF bound to nvidia (required for mdev creation)
+    first_vf = os.path.join(f"/sys/bus/pci/devices/{pci_bdf}", "virtfn0")
+    if os.path.exists(first_vf):
+        vf_bdf = os.path.basename(os.path.realpath(first_vf))
+        driver_link = f"/sys/bus/pci/devices/{vf_bdf}/driver"
+        if os.path.exists(driver_link):
+            driver = os.path.basename(os.path.realpath(driver_link))
+            if driver != "nvidia":
+                print(
+                    f"  WARNING: VF {vf_bdf} bound to '{driver}' instead of "
+                    f"'nvidia' — mdev creation will fail. "
+                    f"Check IOMMU is enabled in BIOS and kernel (iommu=pt)."
+                )
+        else:
+            print(
+                f"  WARNING: VF {vf_bdf} has no driver — mdev creation will "
+                f"fail. Check IOMMU is enabled in BIOS and kernel (iommu=pt)."
+            )
 
 
 if __name__ == "__main__":

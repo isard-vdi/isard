@@ -110,3 +110,6 @@ pci_devices:
 numa_topology:
   type: dict
   default: {}
+gpu_warnings:
+  type: list
+  default: []

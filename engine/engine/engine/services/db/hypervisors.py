@@ -565,6 +565,7 @@ def get_hypers_online(
             "libvirt_warning",  # Include warning state for balancer
             "degraded",  # Include degraded state for webapp display
             "cap_status",  # Include cap_status for balancer operation
+            "gpu_warnings",  # GPU configuration issues for admin display
         )
         .run(r_conn)
     )

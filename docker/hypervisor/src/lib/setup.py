@@ -13,6 +13,7 @@ from gpu_discovery import (
     discover_hugepages,
     discover_numa_topology,
     discover_pci_devices,
+    ensure_sriov_vfs,
 )
 
 DEFAULT_STORAGE_POOL_ID = (
@@ -50,6 +51,8 @@ isard_hyper_vpn_host = os.environ.get("VPN_DOMAIN", "isard-vpn")
 
 
 def SetupHypervisor():
+    ensure_sriov_vfs()
+
     HYPERVISOR = {
         "hyper_id": os.environ.get("HYPER_ID", "isard-hypervisor"),
         "hostname": hostname,

@@ -2378,16 +2378,26 @@ def add_iothread_pinning(xml, cpulist_str):
     else:
         tree.xpath("/domain")[0].insert(0, iothreads_elem)
 
-    # Add <iothreadpin> entries to existing <cputune>
+    # Add <iothreadpin> entries to <cputune> (create if missing)
     cputune = tree.xpath("/domain/cputune")
-    if cputune:
+    if not cputune:
+        cputune_elem = etree.SubElement(tree.getroot(), "cputune")
+        # Insert after memoryBacking or vcpu for proper XML order
+        mem_backing = tree.xpath("/domain/memoryBacking")
+        vcpu_elem = tree.xpath("/domain/vcpu")
+        if mem_backing:
+            mem_backing[0].addnext(cputune_elem)
+        elif vcpu_elem:
+            vcpu_elem[0].addnext(cputune_elem)
+        cputune = [cputune_elem]
+    else:
         # Remove existing iothreadpin entries
         for pin in cputune[0].xpath("iothreadpin"):
             cputune[0].remove(pin)
-        for i in range(1, num_iothreads + 1):
-            pin_elem = etree.SubElement(cputune[0], "iothreadpin")
-            pin_elem.set("iothread", str(i))
-            pin_elem.set("cpuset", cpulist_str)
+    for i in range(1, num_iothreads + 1):
+        pin_elem = etree.SubElement(cputune[0], "iothreadpin")
+        pin_elem.set("iothread", str(i))
+        pin_elem.set("cpuset", cpulist_str)
 
     # Assign iothread to each virtio disk's <driver>
     for i, disk in enumerate(virtio_disks, start=1):
