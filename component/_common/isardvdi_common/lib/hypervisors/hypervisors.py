@@ -23,6 +23,7 @@ import datetime
 import ipaddress
 import logging as log
 import os
+import re
 import socket
 import time
 import traceback
@@ -504,6 +505,29 @@ class HypervisorsProcessed(RethinkSharedConnection):
             r.table("hypervisors").get(hyper_id).update(
                 {"vpn": r.row["vpn"].default({}).merge(vpn_data)}
             ).run(cls._rdb_connection)
+
+    @staticmethod
+    def _normalize_gpu_model(gpu_name, vgpu_profiles=None):
+        """Dash-free model name derivation (mirror of gpu_discovery.normalize_gpu_model).
+
+        Handles both classic time-sliced profile suffixes ("-4Q", "-96Q") and
+        MIG-backed slot-notation suffixes ("-1-3Q", "-4-48Q") so GPUs like the
+        RTX PRO 6000 Blackwell DC produce a dash-free model name.
+        """
+        if vgpu_profiles:
+            profile_name = vgpu_profiles[0]["name"]
+            match = re.match(r"^(.+?)(-\d+-\d+[ABCQ]|-\d+[ABCQ])$", profile_name)
+            if match:
+                model_part = match.group(1)
+            else:
+                model_part = profile_name.rsplit("-", 1)[0]
+            return (
+                model_part.replace("NVIDIA ", "")
+                .replace("GRID ", "")
+                .replace(" ", "")
+                .replace("-", "")
+            )
+        return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
 
     @classmethod
     def enable_hyper(cls, hyper_id, enable=True):

@@ -389,50 +389,131 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
     return gpus
 
 
+def _ensure_sriov_max_vfs(sysfs_pci_id):
+    """Ensure SR-IOV exposes all VFs (sriov_numvfs == sriov_totalvfs).
+
+    On vGPU cards like A16/A40, mdev_supported_types only appears on VFs that
+    are currently bound. If sriov_numvfs is lower than totalvfs at discovery
+    time, sub_paths will be incomplete and the engine caps the mdev pool below
+    hardware capacity. Top it up here so discovery sees every VF.
+    """
+    base = f"/sys/bus/pci/devices/{sysfs_pci_id}"
+    try:
+        with open(f"{base}/sriov_totalvfs") as f:
+            totalvfs = int(f.read().strip())
+        with open(f"{base}/sriov_numvfs") as f:
+            numvfs = int(f.read().strip())
+    except (OSError, ValueError):
+        return
+    if totalvfs <= 0 or numvfs >= totalvfs:
+        return
+    try:
+        with open(f"{base}/sriov_numvfs", "w") as f:
+            f.write(str(totalvfs))
+        log.info(
+            "GPU %s: raised sriov_numvfs %d -> %d to expose all VFs",
+            sysfs_pci_id,
+            numvfs,
+            totalvfs,
+        )
+    except OSError as e:
+        log.warning(
+            "GPU %s: could not raise sriov_numvfs (%d -> %d): %s",
+            sysfs_pci_id,
+            numvfs,
+            totalvfs,
+            e,
+        )
+
+
+def _enumerate_sriov_vf_paths(main_path):
+    """Return sorted list of SR-IOV VF sysfs paths for a PF device.
+
+    Uses the canonical ``virtfnN`` symlinks published by the kernel when
+    SR-IOV is enabled on the PF. Returns an empty list if the PF has no
+    SR-IOV VFs (non-SR-IOV card, or VFs not yet created).
+    """
+    vf_paths = []
+    i = 0
+    while True:
+        link = os.path.join(main_path, f"virtfn{i}")
+        if not os.path.islink(link):
+            break
+        try:
+            vf_bdf = os.path.basename(os.path.realpath(link))
+            vf_paths.append(f"/sys/bus/pci/devices/{vf_bdf}")
+        except OSError:
+            break
+        i += 1
+    return sorted(vf_paths)
+
+
 def _aggregate_subdevice_profiles(pci_bus_id):
-    """For cards like A40 that expose multiple sub-devices, aggregate profiles.
+    """For cards like A40 / Blackwell DC that expose mdev on sub-devices, aggregate.
 
-    Some NVIDIA cards (e.g., A40) don't expose mdev_supported_types on the main
-    PCI device but on sub-devices (e.g., 0000:41:00.4, 0000:41:00.5, etc.).
+    Some NVIDIA cards don't expose ``mdev_supported_types`` on the main PCI
+    device (PF) but on its SR-IOV VFs or on adjacent sub-functions:
 
-    This function checks both the main device and sub-devices, returning
-    aggregated profiles with summed available_instances.
+    - **SR-IOV path (A40, L40, L40S, Blackwell DC)**: VFs are linked from the
+      PF as ``virtfn0`` .. ``virtfnN-1``. We enumerate via those symlinks so
+      VFs landing on function numbers other than 00.X (e.g., 01.X on
+      Blackwell with 48 VFs) are not missed.
+    - **Legacy sub-function path (older A40 configs without SR-IOV)**: VFs
+      share the same bus+slot as the PF (``0000:41:00.4`` alongside
+      ``0000:41:00.0``) but are not SR-IOV. We fall back to scanning
+      ``<base>.N`` when no virtfn symlinks exist.
+
+    This function checks both and returns aggregated profiles with summed
+    ``available_instances``.
 
     Args:
         pci_bus_id: PCI bus ID from nvidia-smi
 
     Returns:
-        tuple: (profiles_list, sub_paths_set or None, path_parent or None)
+        tuple: (profiles_list, sub_paths_list or None, path_parent or None)
     """
     sysfs_pci_id = _normalize_pci_bus_id(pci_bus_id).lower()
     main_path = f"/sys/bus/pci/devices/{sysfs_pci_id}"
 
-    # First try main device
+    # First try main device (pre-Ampere cards like T4)
     main_profiles = _get_vgpu_profiles(pci_bus_id)
     if main_profiles:
         return main_profiles, None, None
 
-    # Check sub-devices (e.g., 0000:41:00.4 for main device 0000:41:00.0)
-    base = sysfs_pci_id.rsplit(".", 1)[0]  # e.g., '0000:41:00'
+    # Ensure every VF is bound so its mdev_supported_types is exposed.
+    # Without this the engine caps the mdev pool below hardware capacity
+    # whenever sriov_numvfs was raised after the original discovery scan.
+    _ensure_sriov_max_vfs(sysfs_pci_id)
+
+    # Prefer SR-IOV enumeration via virtfn* symlinks (authoritative for
+    # Ampere/Ada/Blackwell). Falls through to legacy sub-function scan only
+    # when no virtfn symlinks are present.
+    candidate_paths = _enumerate_sriov_vf_paths(main_path)
+    if not candidate_paths:
+        # Legacy: scan sub-functions with the same bus:device prefix
+        base = sysfs_pci_id.rsplit(".", 1)[0]  # e.g., '0000:41:00'
+        try:
+            for entry in sorted(os.listdir("/sys/bus/pci/devices/")):
+                if entry.startswith(base + ".") and entry != sysfs_pci_id:
+                    candidate_paths.append(f"/sys/bus/pci/devices/{entry}")
+        except OSError:
+            pass
+
     sub_paths = set()
     profile_map = {}  # name -> profile dict with aggregated available_instances
-
-    try:
-        for entry in sorted(os.listdir("/sys/bus/pci/devices/")):
-            if entry.startswith(base + ".") and entry != sysfs_pci_id:
-                sub_profiles = _get_vgpu_profiles(entry)
-                if sub_profiles:
-                    sub_path = f"/sys/bus/pci/devices/{entry}"
-                    sub_paths.add(sub_path)
-                    for p in sub_profiles:
-                        if p["name"] in profile_map:
-                            profile_map[p["name"]]["available_instances"] += p[
-                                "available_instances"
-                            ]
-                        else:
-                            profile_map[p["name"]] = dict(p)
-    except OSError:
-        pass
+    for sub_path in candidate_paths:
+        entry = os.path.basename(sub_path)
+        sub_profiles = _get_vgpu_profiles(entry)
+        if not sub_profiles:
+            continue
+        sub_paths.add(sub_path)
+        for p in sub_profiles:
+            if p["name"] in profile_map:
+                profile_map[p["name"]]["available_instances"] += p[
+                    "available_instances"
+                ]
+            else:
+                profile_map[p["name"]] = dict(p)
 
     if not profile_map:
         return [], None, None
@@ -453,8 +534,29 @@ def normalize_gpu_model(gpu_name, vgpu_profiles=None):
     "BRAND-MODEL-PROFILE" format with dashes as separators.
     """
     if vgpu_profiles:
-        return vgpu_profiles[0]["name"].split("-")[0]
-    return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+        # Extract model from vGPU profile name by removing the profile suffix.
+        # Profile suffix patterns:
+        #   - Simple: "-4Q", "-12A", "-96Q" (digits + letter)
+        #   - With slot: "-1-3Q", "-2-12Q", "-4-48Q" (slot-digits + letter)
+        # The model is everything before the suffix.
+        profile_name = vgpu_profiles[0]["name"]
+        match = re.match(r"^(.+?)(-\d+-\d+[ABCQ]|-\d+[ABCQ])$", profile_name)
+        if match:
+            model_part = match.group(1)
+        else:
+            # Fallback: use rsplit for simple cases
+            model_part = profile_name.rsplit("-", 1)[0]
+        # Strip vendor prefix and remove spaces/dashes so the two code paths
+        # (profile-derived and nvidia-smi-name-derived) produce the same model.
+        result = (
+            model_part.replace("NVIDIA ", "")
+            .replace("GRID ", "")
+            .replace(" ", "")
+            .replace("-", "")
+        )
+        return result
+    result = gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+    return result
 
 
 def discover_gpus():
