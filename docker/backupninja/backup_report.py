@@ -1,44 +1,99 @@
 #!/usr/bin/env python3
 """
 BackupNinja Report Sender
-A standalone script to parse backup execution logs and send JSON reports to IsardVDI API
 
-This script provides parsing of BackupNinja backup logs and sends detailed reports
-to the IsardVDI API at /api/v3/backups when backups are finished.
+Parses the backupninja log of the most recent completed backup session,
+shapes it into a JSON report and POSTs it to the IsardVDI API at
+POST /api/v3/backups with a service-signed JWT.
+
+Design notes:
+  * Each schedule (DB, Redis, …) writes its own SESSION_START / SESSION_END
+    markers and calls this script. One invocation = one report.
+  * Log lines use ISO-8601 timestamps when available (new markers) and fall
+    back to syslog-style "Mon DD HH:MM:SS" (backupninja's own lines).
+  * Year-rollover for syslog-style lines is inferred from the latest ISO
+    timestamp seen, or from the log file's mtime — never from `now()` alone.
+  * If the API POST fails the payload is appended to a replay queue and
+    retried on the next invocation.
 """
 
+from __future__ import annotations
+
+import glob
 import json
 import logging
 import os
 import re
+import socket
+import subprocess
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from isardvdi_common.api_rest import ApiRest
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+LOG_PATH_DEFAULT = "/var/log/backupninja.log"
+QUEUE_DIR_DEFAULT = "/var/log/backupninja.queue"
+BACKUP_ROOT = "/backup"
+SOURCE_ROOT = "/opt/isard"
+
+# Map the numeric handler-name prefix to a logical backup type.
+# Handler filenames are `<prefix>-<type>-<phase>.*` — see run.sh.
+PREFIX_TYPE_RANGES: List[Tuple[int, int, str]] = [
+    (10, 19, "session"),
+    (20, 29, "db"),
+    (30, 39, "redis"),
+    (40, 49, "stats"),
+    (70, 79, "config"),
+    (80, 89, "disks"),
+    (90, 99, "session"),
+]
+
+VALID_SCOPES = {"full", "db", "redis", "stats", "config", "disks"}
+
+SUCCESS_STATUSES = {"SUCCESS", "OK"}
+WARNING_STATUSES = {"WARNING"}
+ERROR_STATUSES = {"ERROR", "FAILED"}
+FATAL_STATUSES = {"FATAL", "CRITICAL"}
+
+
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
+
+
 @dataclass
 class BackupAction:
-    """Represents a single backup action"""
-
     name: str
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     status: str = "UNKNOWN"
     duration: Optional[float] = None
     messages: List[str] = field(default_factory=list)
+    borg_statistics: Optional[Dict[str, Any]] = None
+    compact_results: Optional[Dict[str, Any]] = None
+
+    def classify(self) -> str:
+        """Return 'db' | 'redis' | 'stats' | 'config' | 'disks' | 'other'."""
+        basename = self.name.rsplit("/", 1)[-1]
+        match = re.match(r"(\d+)", basename)
+        if not match:
+            return "other"
+        prefix = int(match.group(1))
+        for lo, hi, kind in PREFIX_TYPE_RANGES:
+            if lo <= prefix <= hi:
+                return kind
+        return "other"
 
 
 @dataclass
 class BackupReport:
-    """Complete backup report"""
-
     timestamp: datetime
     status: str
     total_actions: int
@@ -55,22 +110,28 @@ class BackupReport:
     backup_type_summary: Optional[Dict[str, Any]] = None
     filesystem_metrics: Optional[Dict[str, Any]] = None
     backup_config: Optional[Dict[str, Any]] = None
+    host: Optional[str] = None
+
+    def total_duration(self) -> Optional[int]:
+        total = 0.0
+        for action in self.actions:
+            duration = action.get("duration")
+            if duration and duration > 0:
+                total += duration
+        return int(total) if total > 0 else None
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization"""
-        # Use parsed backup type if available, otherwise fall back to environment variable
-        if self.backup_type:
-            backup_type = self.backup_type
-        else:
-            backup_type = os.getenv("BACKUP_TYPE", "automated")
-            if backup_type not in ["automated", "manual"]:
-                backup_type = "automated"  # Default fallback
+        backup_type = self.backup_type or os.getenv("BACKUP_TYPE", "automated")
+        if backup_type not in ("automated", "manual"):
+            backup_type = "automated"
 
-        # Determine scope - use parsed scope if available, otherwise default to full
-        scope = self.backup_scope if self.backup_scope else "full"
+        scope = self.backup_scope or "full"
+        if scope not in VALID_SCOPES:
+            scope = "full"
 
-        result = {
-            "timestamp": int(self.timestamp.timestamp()),  # Convert to Unix timestamp
+        out: Dict[str, Any] = {
+            "timestamp": int(self.timestamp.timestamp()),
+            "host": self.host or resolve_host_name(),
             "status": self.status,
             "type": backup_type,
             "scope": scope,
@@ -83,1376 +144,998 @@ class BackupReport:
             "fatal_actions": self.fatal_actions,
             "actions": self.actions,
             "summary": self.summary,
-            "duration": self.get_total_duration(),
+            "duration": self.total_duration(),
         }
-
-        # Add backup type summary if available
         if self.backup_type_summary:
-            result["backup_types"] = self.backup_type_summary
-
-        # Add filesystem metrics if available
+            out["backup_types"] = self.backup_type_summary
         if self.filesystem_metrics:
-            result["filesystem_metrics"] = self.filesystem_metrics
-
-        # Add backup configuration if available
+            out["filesystem_metrics"] = self.filesystem_metrics
         if self.backup_config:
-            result["backup_config"] = self.backup_config
+            out["backup_config"] = self.backup_config
+        return out
 
-        return result
 
-    def get_total_duration(self) -> Optional[int]:
-        """Calculate total duration of all backup actions"""
-        if not self.actions:
-            return None
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-        total_duration = 0
-        for action in self.actions:
-            if action.get("duration"):
-                total_duration += action["duration"]
 
-        return int(total_duration) if total_duration > 0 else None
+def resolve_host_name() -> str:
+    """Identifier for the host running backupninja. Honours BACKUP_HOST_NAME."""
+    name = os.environ.get("BACKUP_HOST_NAME")
+    if name:
+        return name
+    try:
+        return socket.gethostname() or "unknown-host"
+    except Exception:
+        return "unknown-host"
+
+
+def format_bytes(value: Any) -> str:
+    """Human-readable size. Accepts int/float/numeric-string, else '0 B'."""
+    try:
+        size = float(value)
+    except (TypeError, ValueError):
+        return "0 B"
+    if size <= 0:
+        return "0 B"
+    for unit in ("B", "K", "M", "G", "T"):
+        if size < 1024.0:
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} P"
+
+
+def parse_iso8601(value: str) -> Optional[datetime]:
+    try:
+        if value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        return datetime.fromisoformat(value)
+    except Exception:
+        return None
+
+
+SYSLOG_RE = re.compile(r"^(\w{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})")
+ISO_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)"
+)
+
+MONTHS = {
+    m: i + 1
+    for i, m in enumerate(
+        [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ]
+    )
+}
+
+
+def line_timestamp(line: str, anchor_year: int) -> Optional[datetime]:
+    """Extract a datetime from the start of `line`.
+
+    Accepts ISO-8601 (preferred) or syslog-style "Mon DD HH:MM:SS". For
+    syslog lines the caller provides an anchor year — typically the year of
+    the most recent ISO timestamp seen so far, or the log file's mtime year.
+    """
+    iso = ISO_RE.match(line)
+    if iso:
+        parsed = parse_iso8601(iso.group(1))
+        if parsed:
+            return parsed
+
+    match = SYSLOG_RE.match(line)
+    if not match:
+        return None
+    month = MONTHS.get(match.group(1))
+    if not month:
+        return None
+    try:
+        return datetime(
+            anchor_year,
+            month,
+            int(match.group(2)),
+            int(match.group(3)),
+            int(match.group(4)),
+            int(match.group(5)),
+        )
+    except ValueError:
+        return None
+
+
+def build_year_anchors(log_lines: List[str], fallback_year: int) -> List[int]:
+    """Return a list the same length as `log_lines` giving the year to use
+    for each syslog-style line. Year changes only when:
+      * an ISO-dated line is seen (absolute year), or
+      * the syslog month wraps from Dec back to Jan.
+    """
+    years: List[int] = [fallback_year] * len(log_lines)
+    current_year = fallback_year
+    prev_month: Optional[int] = None
+
+    for i, line in enumerate(log_lines):
+        iso = ISO_RE.match(line)
+        if iso:
+            parsed = parse_iso8601(iso.group(1))
+            if parsed:
+                current_year = parsed.year
+                prev_month = parsed.month
+                years[i] = current_year
+                continue
+
+        match = SYSLOG_RE.match(line)
+        if match:
+            month = MONTHS.get(match.group(1))
+            if month is not None:
+                # Syslog logs are chronological. If we see Dec then Jan, the
+                # Jan entries belong to the following year.
+                if prev_month is not None and prev_month == 12 and month == 1:
+                    current_year += 1
+                prev_month = month
+        years[i] = current_year
+
+    return years
+
+
+def log_mtime_year(log_path: str) -> int:
+    try:
+        return datetime.fromtimestamp(os.path.getmtime(log_path)).year
+    except OSError:
+        return datetime.now().year
+
+
+# ---------------------------------------------------------------------------
+# Log parsing
+# ---------------------------------------------------------------------------
 
 
 class BackupLogParser:
-    """Parser for BackupNinja log files"""
-
-    def __init__(self, log_path: str = "/var/log/backupninja.log"):
+    def __init__(self, log_path: str = LOG_PATH_DEFAULT) -> None:
         self.log_path = log_path
 
-    def get_recent_logs(self, lines: int = 1000) -> List[str]:
-        """Get recent log lines"""
+    def tail_lines(self, max_lines: int = 2000) -> List[str]:
         try:
-            with open(self.log_path, "r") as f:
-                all_lines = f.readlines()
-
-            # Get the last N lines
-            recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
-            return [line.strip() for line in recent_lines]
-        except Exception as e:
-            logger.error(f"Error reading log file: {e}")
+            with open(self.log_path, "r") as fh:
+                lines = fh.readlines()
+        except OSError as e:
+            logger.error("Cannot read log %s: %s", self.log_path, e)
             return []
+        if len(lines) > max_lines:
+            lines = lines[-max_lines:]
+        return [line.rstrip("\n") for line in lines]
 
-    def find_last_completed_backup(self, log_lines: List[str]) -> List[str]:
-        """Find the most recent completed backup session using session markers"""
-        # Find the last BACKUP_SESSION_END marker
-        session_end_index = -1
-        for i in range(len(log_lines) - 1, -1, -1):
-            if "BACKUP_SESSION_END:" in log_lines[i]:
-                session_end_index = i
-                break
+    def find_last_session(self, log_lines: List[str]) -> List[str]:
+        """Lines between the latest SESSION_START and SESSION_END (inclusive).
 
-        if session_end_index == -1:
-            # No completed backup session found, fall back to old method
-            logger.info("No BACKUP_SESSION_END marker found, using fallback method")
-            return self._find_last_completed_backup_fallback(log_lines)
+        Falls back to the lines between the latest SESSION_START and the
+        latest FINISHED line, and finally to everything after the latest
+        SESSION_START (partial session still running).
+        """
+        end_idx = _last_index(log_lines, "BACKUP_SESSION_END:")
+        start_idx = _last_index(log_lines, "BACKUP_SESSION_START:", up_to=end_idx)
 
-        # Find the corresponding BACKUP_SESSION_START marker
-        session_start_index = -1
-        for i in range(session_end_index - 1, -1, -1):
-            if "BACKUP_SESSION_START:" in log_lines[i]:
-                session_start_index = i
-                break
+        if end_idx is not None and start_idx is not None and start_idx < end_idx:
+            return log_lines[start_idx : end_idx + 1]
 
-        if session_start_index == -1:
-            # No start marker found, fall back to old method
-            logger.info("No BACKUP_SESSION_START marker found, using fallback method")
-            return self._find_last_completed_backup_fallback(log_lines)
+        finished_idx = _last_index(log_lines, "FINISHED:")
+        if (
+            start_idx is not None
+            and finished_idx is not None
+            and start_idx < finished_idx
+        ):
+            return log_lines[start_idx : finished_idx + 1]
 
-        # Extract lines between start and end markers (inclusive)
-        session_lines = log_lines[session_start_index : session_end_index + 1]
+        if start_idx is not None:
+            return log_lines[start_idx:]
 
-        logger.info(
-            f"Found backup session with {len(session_lines)} log lines between markers"
+        return []
+
+    def parse(self) -> Optional[BackupReport]:
+        all_lines = self.tail_lines()
+        if not all_lines:
+            return None
+
+        session_lines = self.find_last_session(all_lines)
+        if not session_lines:
+            logger.info("No backup session markers found; nothing to report.")
+            return None
+
+        anchors = build_year_anchors(session_lines, log_mtime_year(self.log_path))
+        actions = self._parse_actions(session_lines, anchors)
+        self._attach_borg_statistics(session_lines, actions)
+        self._attach_compact_results(session_lines, actions)
+
+        session_info = self._parse_session_markers(session_lines, anchors)
+        backup_type = session_info.get("backup_type")
+        backup_scope = session_info.get("backup_scope") or derive_scope_from_actions(
+            actions
         )
-        return session_lines
+        disk_types = session_info.get("disk_types")
+        session_timestamp = session_info.get("timestamp") or _fallback_timestamp(
+            actions
+        )
 
-    def _find_last_completed_backup_fallback(self, log_lines: List[str]) -> List[str]:
-        """Fallback method for finding completed backup session (improved with SESSION_START detection)"""
-        # Find the last FINISHED line
-        finished_index = -1
-        for i in range(len(log_lines) - 1, -1, -1):
-            if "FINISHED:" in log_lines[i]:
-                finished_index = i
-                break
+        success = sum(1 for a in actions if a.status in SUCCESS_STATUSES)
+        warning = sum(1 for a in actions if a.status in WARNING_STATUSES)
+        error = sum(1 for a in actions if a.status in ERROR_STATUSES)
+        fatal = sum(1 for a in actions if a.status in FATAL_STATUSES)
+        total = len(actions)
 
-        if finished_index == -1:
-            # No completed backup found
-            return []
+        if fatal:
+            overall_status = "CRITICAL"
+            summary = f"Backup completed with {fatal} fatal errors"
+        elif error:
+            overall_status = "ERROR"
+            summary = f"Backup completed with {error} errors"
+        elif warning:
+            overall_status = "WARNING"
+            summary = f"Backup completed with {warning} warnings"
+        elif total == 0:
+            overall_status = "UNKNOWN"
+            summary = "No actions were recorded for this session"
+        else:
+            overall_status = "SUCCESS"
+            summary = f"Backup completed successfully with {total} actions"
 
-        # NEW: Look for BACKUP_SESSION_START markers between here and the start of logs
-        # This is more reliable than date-based matching
-        session_start_index = -1
-        for i in range(finished_index, -1, -1):
-            if "BACKUP_SESSION_START:" in log_lines[i]:
-                session_start_index = i
-                break
+        filesystem_metrics = collect_filesystem_metrics()
+        backup_config = collect_backup_config()
+        backup_types_status = analyze_backup_types_status(actions, backup_config)
+        backup_types_summary = generate_type_summary(actions, filesystem_metrics)
 
-        if session_start_index != -1:
-            # Found a SESSION_START marker, use it as the boundary
-            logger.info(
-                f"Fallback: Found SESSION_START at index {session_start_index}, FINISHED at {finished_index}"
-            )
-            return log_lines[session_start_index : finished_index + 1]
+        return BackupReport(
+            timestamp=session_timestamp or datetime.now(),
+            status=overall_status,
+            total_actions=total,
+            successful_actions=success,
+            failed_actions=error,
+            warning_actions=warning,
+            fatal_actions=fatal,
+            actions=[_action_to_dict(a) for a in actions],
+            summary=summary,
+            backup_type=backup_type,
+            backup_scope=backup_scope,
+            disk_types=disk_types,
+            backup_types_status=backup_types_status,
+            backup_type_summary=backup_types_summary,
+            filesystem_metrics=filesystem_metrics,
+            backup_config=backup_config,
+            host=resolve_host_name(),
+        )
 
-        # If no SESSION_START found, fall back to date-based logic (old method)
-        logger.info("Fallback: No SESSION_START found, using date-based matching")
-        session_lines = []
-        current_date = None
+    # -----------------------------------------------------------------------
+    # Action parsing
+    # -----------------------------------------------------------------------
 
-        for i in range(finished_index, -1, -1):
-            line = log_lines[i]
+    def _parse_actions(
+        self, log_lines: List[str], anchors: List[int]
+    ) -> List[BackupAction]:
+        actions: List[BackupAction] = []
+        current: Optional[BackupAction] = None
 
-            # Extract date from line
-            date_match = re.match(r"(\w{3} \d{2})", line)
-            if date_match:
-                line_date = date_match.group(1)
-                if current_date is None:
-                    current_date = line_date
-                elif line_date != current_date:
-                    # We've gone back to a previous day, stop here
-                    break
-
-            # If this is a "starting action" from a different date, stop
-            if "starting action" in line and current_date and date_match:
-                line_date = date_match.group(1)
-                if line_date != current_date:
-                    break
-
-            session_lines.insert(0, line)
-
-        return session_lines
-
-    def parse_backup_actions(self, log_lines: List[str]) -> List[BackupAction]:
-        """Parse backup actions from log lines with enhanced borg statistics"""
-        actions = []
-        current_action = None
-
-        for line in log_lines:
-            # Starting action
+        for i, line in enumerate(log_lines):
             if ">>>> starting action" in line:
-                match = re.search(r"starting action ([^\s]+)", line)
+                match = re.search(r"starting action (\S+)", line)
                 if match:
-                    action_name = match.group(1)
-                    timestamp_match = re.match(r"(\w{3} \d{2} \d{2}:\d{2}:\d{2})", line)
-                    timestamp = None
-                    if timestamp_match:
-                        timestamp = datetime.strptime(
-                            timestamp_match.group(1), "%b %d %H:%M:%S"
-                        ).replace(year=datetime.now().year)
-
-                    current_action = BackupAction(
-                        name=action_name, start_time=timestamp, status="RUNNING"
+                    current = BackupAction(
+                        name=match.group(1),
+                        start_time=line_timestamp(line, anchors[i]),
+                        status="RUNNING",
                     )
 
-            # Finished action
-            elif "<<<< finished action" in line:
-                match = re.search(r"finished action ([^:]+): (\w+)", line)
-                if match and current_action:
-                    action_name = match.group(1)
-                    status = match.group(2)
-                    current_action.status = status
+            elif "<<<< finished action" in line and current:
+                match = re.search(r"finished action ([^:]+):\s*(\w+)", line)
+                if match:
+                    current.status = match.group(2).upper()
+                    current.end_time = line_timestamp(line, anchors[i])
+                    if current.start_time and current.end_time:
+                        current.duration = (
+                            current.end_time - current.start_time
+                        ).total_seconds()
+                    actions.append(current)
+                    current = None
 
-                    timestamp_match = re.match(r"(\w{3} \d{2} \d{2}:\d{2}:\d{2})", line)
-                    if timestamp_match:
-                        end_time = datetime.strptime(
-                            timestamp_match.group(1), "%b %d %H:%M:%S"
-                        ).replace(year=datetime.now().year)
-                        current_action.end_time = end_time
-                        if current_action.start_time:
-                            current_action.duration = (
-                                end_time - current_action.start_time
-                            ).total_seconds()
-
-                    actions.append(current_action)
-                    current_action = None
-
-            # Warning or error messages
-            elif current_action and (
+            elif current and (
                 "Warning:" in line or "Error:" in line or "Fatal:" in line
             ):
-                current_action.messages.append(line)
+                current.messages.append(line)
 
-        # Parse borg statistics and compact results for actions
-        self._parse_borg_statistics(log_lines, actions)
-        self._parse_compact_results(log_lines, actions)
         return actions
 
-    def _collect_filesystem_metrics(self) -> Dict[str, Any]:
-        """Collect filesystem usage metrics"""
-        import re
-        import subprocess
+    # -----------------------------------------------------------------------
+    # Borg statistics
+    # -----------------------------------------------------------------------
 
-        logger.info("=== STARTING FILESYSTEM METRICS COLLECTION ===")
-        filesystem_metrics = {}
+    def _attach_borg_statistics(
+        self, log_lines: List[str], actions: List[BackupAction]
+    ) -> None:
+        self._attach_structured_stats(log_lines, actions)
+        self._attach_native_stats(log_lines, actions)
 
-        try:
-            # Get filesystem usage with df -h
-            df_result = subprocess.run(
-                ["df", "-h"], capture_output=True, text=True, timeout=10
-            )
-            if df_result.returncode == 0:
-                filesystem_usage = {}
-                for line in df_result.stdout.strip().split("\n")[1:]:  # Skip header
-                    parts = line.split()
-                    if len(parts) >= 6:
-                        filesystem = parts[0]
-                        size = parts[1]
-                        used = parts[2]
-                        avail = parts[3]
-                        use_pct = int(parts[4].replace("%", ""))
-                        mount = parts[5]
+    def _attach_structured_stats(
+        self, log_lines: List[str], actions: List[BackupAction]
+    ) -> None:
+        for line in log_lines:
+            if "BORG_STATS_" not in line or "STATS_JSON:" not in line:
+                continue
+            type_match = re.search(r"BORG_STATS_(\w+):", line)
+            json_match = re.search(r"STATS_JSON:\s*(.+)$", line)
+            if not (type_match and json_match):
+                continue
+            backup_type = type_match.group(1).lower()
+            try:
+                stats_data = json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                continue
+            stats = stats_data.get("stats", {})
+            payload = {
+                "repository": f"/backup/{backup_type}",
+                "backup_type": backup_type,
+                "file_count": stats.get("nfiles"),
+                "original_size": format_bytes(stats.get("original_size", 0)),
+                "compressed_size": format_bytes(stats.get("compressed_size", 0)),
+                "deduplicated_size": format_bytes(stats.get("deduplicated_size", 0)),
+                "original_size_bytes": stats.get("original_size", 0),
+                "compressed_size_bytes": stats.get("compressed_size", 0),
+                "deduplicated_size_bytes": stats.get("deduplicated_size", 0),
+            }
+            for action in actions:
+                if (
+                    action.borg_statistics is None
+                    and backup_type in action.name.lower()
+                    and action.name.lower().endswith("borg.borg")
+                ):
+                    action.borg_statistics = payload
+                    break
 
-                        # Identify key mounts
-                        if mount == "/backup":
-                            filesystem_usage["backup_storage"] = {
-                                "device": filesystem,
-                                "size": size,
-                                "used": used,
-                                "available": avail,
-                                "usage_percent": use_pct,
-                                "mount_point": mount,
-                            }
-                        elif "raid" in filesystem.lower() or mount.startswith("/opt"):
-                            filesystem_usage["source_storage"] = {
-                                "device": filesystem,
-                                "size": size,
-                                "used": used,
-                                "available": avail,
-                                "usage_percent": use_pct,
-                                "mount_point": mount,
-                            }
+    def _attach_native_stats(
+        self, log_lines: List[str], actions: List[BackupAction]
+    ) -> None:
+        i = 0
+        while i < len(log_lines):
+            line = log_lines[i]
+            if "Repository: /backup/" not in line:
+                i += 1
+                continue
+            repo_match = re.search(r"Repository:\s+(/backup/(\w+))", line)
+            if not repo_match:
+                i += 1
+                continue
+            repository = repo_match.group(1)
+            backup_type = repo_match.group(2)
 
-                filesystem_metrics["usage"] = filesystem_usage
-        except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception) as e:
-            logger.warning(f"Failed to collect filesystem usage: {e}")
-
-        try:
-            # Get backup repository sizes with du -sh /backup/*
-            du_backup_result = subprocess.run(
-                ["du", "-sh", "/backup/*"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                shell=True,
-            )
-            if du_backup_result.returncode == 0:
-                backup_sizes = {}
-                for line in du_backup_result.stdout.strip().split("\n"):
-                    if line:
-                        parts = line.split("\t")
-                        if len(parts) >= 2:
-                            size = parts[0]
-                            path = parts[1]
-                            backup_type = path.split("/")[-1]
-                            if backup_type not in ["extract"]:  # Skip extract directory
-                                backup_sizes[backup_type] = size
-
-                filesystem_metrics["backup_sizes"] = backup_sizes
-        except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception) as e:
-            logger.warning(f"Failed to collect backup sizes: {e}")
-
-        try:
-            # Get source data sizes with du -sh /opt/isard/*
-            du_source_result = subprocess.run(
-                ["du", "-sh", "/opt/isard/*"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                shell=True,
-            )
-            if du_source_result.returncode == 0:
-                source_sizes = {}
-                for line in du_source_result.stdout.strip().split("\n"):
-                    if line:
-                        parts = line.split("\t")
-                        if len(parts) >= 2:
-                            size = parts[0]
-                            path = parts[1]
-                            source_type = path.split("/")[-1]
-                            # Only include non-zero sizes
-                            if size not in ["0", "4.0K"]:
-                                source_sizes[source_type] = size
-
-                filesystem_metrics["source_sizes"] = source_sizes
-        except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception) as e:
-            logger.warning(f"Failed to collect source sizes: {e}")
-
-        # Collect borg repository statistics
-        # Note: This runs in the backup environment context where borg may not be accessible
-        # The primary data should come from parsing borg output in backup logs
-        try:
-            backup_repo_stats = {}
-            backup_base_path = "/backup"
-            logger.info(
-                f"Starting borg repository stats collection from {backup_base_path}"
-            )
-
-            # Set up environment for borg commands (copy from backup environment)
-            borg_env = os.environ.copy()
-            borg_env.update(
-                {
-                    "BORG_PASSPHRASE": "",  # Since encryption is set to 'none' in configs
-                    "BORG_RELOCATED_REPO_ACCESS_IS_OK": "yes",
-                    "BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK": "yes",
-                }
-            )
-
-            if os.path.exists(backup_base_path):
-                for repo_name in os.listdir(backup_base_path):
-                    repo_path = os.path.join(backup_base_path, repo_name)
-                    if os.path.isdir(repo_path) and repo_name not in ["extract"]:
-                        try:
-                            # Try to get borg info for this repository with proper environment
-                            borg_info_result = subprocess.run(
-                                ["borg", "info", repo_path, "--json"],
-                                capture_output=True,
-                                text=True,
-                                timeout=15,
-                                env=borg_env,
-                            )
-                            if borg_info_result.returncode == 0:
-                                borg_info = json.loads(borg_info_result.stdout)
-                                if "repository" in borg_info:
-                                    backup_repo_stats[repo_name] = {
-                                        "repository_id": borg_info["repository"].get(
-                                            "id", "N/A"
-                                        )[:16],
-                                        "location": borg_info["repository"].get(
-                                            "location", repo_path
-                                        ),
-                                    }
-
-                                # Get list of archives to find the most recent one
-                                borg_list_result = subprocess.run(
-                                    ["borg", "list", repo_path, "--json"],
-                                    capture_output=True,
-                                    text=True,
-                                    timeout=15,
-                                    env=borg_env,
-                                )
-                                if borg_list_result.returncode == 0:
-                                    archives_data = json.loads(borg_list_result.stdout)
-                                    if (
-                                        "archives" in archives_data
-                                        and archives_data["archives"]
-                                    ):
-                                        # Find the most recent archive (should be the one just created)
-                                        latest_archive = archives_data["archives"][-1]
-                                        archive_name = latest_archive.get("name")
-
-                                        # Get detailed statistics for the latest archive
-                                        borg_info_archive_result = subprocess.run(
-                                            [
-                                                "borg",
-                                                "info",
-                                                f"{repo_path}::{archive_name}",
-                                                "--json",
-                                            ],
-                                            capture_output=True,
-                                            text=True,
-                                            timeout=20,
-                                            env=borg_env,
-                                        )
-
-                                        if borg_info_archive_result.returncode == 0:
-                                            archive_info = json.loads(
-                                                borg_info_archive_result.stdout
-                                            )
-                                            if (
-                                                "archives" in archive_info
-                                                and archive_info["archives"]
-                                            ):
-                                                archive_details = archive_info[
-                                                    "archives"
-                                                ][0]
-                                                backup_repo_stats[repo_name][
-                                                    "latest_archive"
-                                                ] = {
-                                                    "name": archive_name,
-                                                    "start": archive_details.get(
-                                                        "start", "N/A"
-                                                    ),
-                                                    "end": archive_details.get(
-                                                        "end", "N/A"
-                                                    ),
-                                                    "duration": archive_details.get(
-                                                        "duration", 0
-                                                    ),
-                                                    "stats": archive_details.get(
-                                                        "stats", {}
-                                                    ),
-                                                }
-                                                logger.debug(
-                                                    f"Found detailed stats for {repo_name}::{archive_name}"
-                                                )
-                                            else:
-                                                # Fallback to basic archive info without detailed stats
-                                                backup_repo_stats[repo_name][
-                                                    "latest_archive"
-                                                ] = {
-                                                    "name": archive_name,
-                                                    "start": latest_archive.get(
-                                                        "start", "N/A"
-                                                    ),
-                                                    "stats": {},
-                                                }
-                                        else:
-                                            # Fallback if detailed info fails
-                                            backup_repo_stats[repo_name][
-                                                "latest_archive"
-                                            ] = {
-                                                "name": archive_name,
-                                                "start": latest_archive.get(
-                                                    "start", "N/A"
-                                                ),
-                                                "stats": {},
-                                            }
-                                            logger.debug(
-                                                f"Could not get archive details for {repo_name}::{archive_name}: {borg_info_archive_result.stderr}"
-                                            )
-                                else:
-                                    logger.debug(
-                                        f"Could not list archives for {repo_name}: {borg_list_result.stderr}"
-                                    )
-                            else:
-                                logger.debug(
-                                    f"Could not get info for {repo_name}: {borg_info_result.stderr}"
-                                )
-                        except (
-                            subprocess.SubprocessError,
-                            json.JSONDecodeError,
-                            Exception,
-                        ) as e:
-                            logger.debug(f"Could not access borg repo {repo_name}: {e}")
-                            continue
-
-                if backup_repo_stats:
-                    filesystem_metrics["borg_repositories"] = backup_repo_stats
-                    logger.info(
-                        f"Collected borg stats for {len(backup_repo_stats)} repositories"
+            archive_name = None
+            file_count = None
+            sizes: Optional[Tuple[str, str, str]] = None
+            end = min(i + 20, len(log_lines))
+            j = i + 1
+            while j < end:
+                probe = log_lines[j]
+                if "Archive name:" in probe:
+                    m = re.search(r"Archive name:\s*(.+)", probe)
+                    if m:
+                        archive_name = m.group(1).strip()
+                elif "Number of files:" in probe:
+                    m = re.search(r"Number of files:\s*(\d+)", probe)
+                    if m:
+                        file_count = int(m.group(1))
+                elif "This archive:" in probe:
+                    m = re.search(
+                        r"This archive:\s+([0-9.]+\s*[KMG]?B)\s+"
+                        r"([0-9.]+\s*[KMG]?B)\s+([0-9.]+\s*[KMG]?B)",
+                        probe,
                     )
-                else:
-                    logger.warning("No borg repository statistics could be collected")
-        except Exception as e:
-            logger.error(f"Failed to collect borg repository stats: {e}")
-            import traceback
+                    if m:
+                        sizes = (m.group(1), m.group(2), m.group(3))
+                        break
+                j += 1
 
-            logger.error(f"Full traceback: {traceback.format_exc()}")
+            if sizes:
+                payload = {
+                    "repository": repository,
+                    "backup_type": backup_type,
+                    "archive_name": archive_name,
+                    "file_count": file_count,
+                    "original_size": sizes[0],
+                    "compressed_size": sizes[1],
+                    "deduplicated_size": sizes[2],
+                }
+                for action in actions:
+                    if (
+                        action.borg_statistics is None
+                        and backup_type in action.name.lower()
+                        and "borg" in action.name.lower()
+                    ):
+                        action.borg_statistics = payload
+                        break
+            i = j + 1 if sizes else i + 1
 
-        return filesystem_metrics
+    def _attach_compact_results(
+        self, log_lines: List[str], actions: List[BackupAction]
+    ) -> None:
+        for line in log_lines:
+            lowered = line.lower()
+            if "compact succeeded" in lowered or "compaction completed" in lowered:
+                status = "success"
+            elif "compact failed" in lowered or "compaction failed" in lowered:
+                status = "failed"
+            else:
+                continue
+            for action in actions:
+                if action.compact_results is None and "compact" in action.name.lower():
+                    action.compact_results = {
+                        "operation": "compact",
+                        "status": status,
+                        "message": line,
+                    }
+                    break
 
-    def _collect_backup_configuration(self) -> Dict[str, Any]:
-        """Collect backup configuration from environment variables"""
-        logger.info("Collecting backup configuration from environment variables")
+    # -----------------------------------------------------------------------
+    # Session markers
+    # -----------------------------------------------------------------------
 
-        def parse_schedule(schedule_str):
-            """Parse schedule string like 'everyday at 01' to extract hour"""
-            if not schedule_str:
-                return None
-            match = re.search(r"at\s+(\d{1,2})(?::(\d{2}))?", schedule_str)
-            if match:
-                hour = int(match.group(1))
-                minute = int(match.group(2)) if match.group(2) else 0
-                return {"hour": hour, "minute": minute, "text": schedule_str}
-            return None
+    def _parse_session_markers(
+        self, log_lines: List[str], anchors: List[int]
+    ) -> Dict[str, Any]:
+        info: Dict[str, Any] = {}
+        for i, line in enumerate(log_lines):
+            if "BACKUP_SESSION_START:" in line:
+                m = re.search(r"BACKUP_SESSION_START:\s+(\w+)\s+(\S+)\s+backup", line)
+                if m:
+                    backup_type = m.group(1).lower()
+                    scope = m.group(2).lower()
+                    info["backup_type"] = (
+                        backup_type if backup_type in ("automated", "manual") else None
+                    )
+                    info["backup_scope"] = scope if scope in VALID_SCOPES else None
+            if "BACKUP_DISK_TYPES:" in line:
+                m = re.search(r"BACKUP_DISK_TYPES:\s*(.+)$", line)
+                if m and m.group(1).strip():
+                    info["disk_types"] = m.group(1).split()
 
-        backup_config = {
-            "schedule": {
-                "db": parse_schedule(os.getenv("BACKUP_DB_WHEN")),
-                "redis": parse_schedule(os.getenv("BACKUP_REDIS_WHEN")),
-                "stats": parse_schedule(os.getenv("BACKUP_STATS_WHEN")),
-                "config": parse_schedule(os.getenv("BACKUP_CONFIG_WHEN")),
-                "disks": parse_schedule(os.getenv("BACKUP_DISKS_WHEN")),
-            },
-            "enabled": {
-                "db": os.getenv("BACKUP_DB_ENABLED", "false").lower() == "true",
-                "redis": os.getenv("BACKUP_REDIS_ENABLED", "false").lower() == "true",
-                "stats": os.getenv("BACKUP_STATS_ENABLED", "false").lower() == "true",
-                "config": os.getenv("BACKUP_CONFIG_ENABLED", "false").lower() == "true",
-                "disks": os.getenv("BACKUP_DISKS_ENABLED", "false").lower() == "true",
-            },
-            "prune_policies": {
-                "db": os.getenv("BACKUP_DB_PRUNE", ""),
-                "redis": os.getenv("BACKUP_REDIS_PRUNE", ""),
-                "stats": os.getenv("BACKUP_STATS_PRUNE", ""),
-                "config": os.getenv("BACKUP_CONFIG_PRUNE", ""),
-                "disks": os.getenv("BACKUP_DISKS_PRUNE", ""),
-            },
-            "nfs": {
-                "enabled": os.getenv("BACKUP_NFS_ENABLED", "false").lower() == "true",
-                "server": os.getenv("BACKUP_NFS_SERVER", ""),
-                "folder": os.getenv("BACKUP_NFS_FOLDER", ""),
-            },
-            "disks": {
-                "templates_enabled": os.getenv(
-                    "BACKUP_DISKS_TEMPLATES_ENABLED", "false"
-                ).lower()
-                == "true",
-                "groups_enabled": os.getenv(
-                    "BACKUP_DISKS_GROUPS_ENABLED", "false"
-                ).lower()
-                == "true",
-                "media_enabled": os.getenv(
-                    "BACKUP_DISKS_MEDIA_ENABLED", "false"
-                ).lower()
-                == "true",
-            },
-            "email": os.getenv("BACKUP_REPORT_EMAIL", ""),
-            "backup_dir": os.getenv("BACKUP_DIR", "/opt/isard-local/backup"),
+        # Pick the timestamp from SESSION_END (preferred) or FINISHED.
+        for i in range(len(log_lines) - 1, -1, -1):
+            line = log_lines[i]
+            if "BACKUP_SESSION_END:" in line or "FINISHED:" in line:
+                ts = line_timestamp(line, anchors[i])
+                if ts:
+                    info["timestamp"] = ts
+                break
+
+        return info
+
+
+def _last_index(
+    lines: List[str], needle: str, up_to: Optional[int] = None
+) -> Optional[int]:
+    end = len(lines) - 1 if up_to is None else up_to - 1
+    for i in range(end, -1, -1):
+        if needle in lines[i]:
+            return i
+    return None
+
+
+def _fallback_timestamp(actions: List[BackupAction]) -> Optional[datetime]:
+    for action in reversed(actions):
+        if action.end_time:
+            return action.end_time
+        if action.start_time:
+            return action.start_time
+    return None
+
+
+def _action_to_dict(action: BackupAction) -> Dict[str, Any]:
+    out: Dict[str, Any] = {
+        "name": action.name,
+        "status": action.status,
+        "duration": action.duration,
+        "messages": action.messages,
+    }
+    if action.start_time:
+        out["start_time"] = action.start_time.isoformat()
+    if action.end_time:
+        out["end_time"] = action.end_time.isoformat()
+    if action.borg_statistics:
+        out["borg_statistics"] = action.borg_statistics
+    if action.compact_results:
+        out["compact_results"] = action.compact_results
+    return out
+
+
+def derive_scope_from_actions(actions: List[BackupAction]) -> Optional[str]:
+    """If all actions belong to a single logical type, use that as the scope."""
+    kinds = {a.classify() for a in actions if a.classify() not in ("other", "session")}
+    kinds.discard("session")
+    if len(kinds) == 1:
+        only = kinds.pop()
+        if only in VALID_SCOPES:
+            return only
+    if kinds:
+        return "full"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Status analysis
+# ---------------------------------------------------------------------------
+
+
+def analyze_backup_types_status(
+    actions: List[BackupAction], backup_config: Dict[str, Any]
+) -> Dict[str, str]:
+    """Per-type status, including per-sub-source breakdown for disks."""
+
+    status: Dict[str, str] = {
+        t: "not_included" for t in ("db", "redis", "stats", "config", "disks")
+    }
+    per_type: Dict[str, List[BackupAction]] = {t: [] for t in status}
+
+    for action in actions:
+        kind = action.classify()
+        if kind in per_type:
+            per_type[kind].append(action)
+
+    for kind, kind_actions in per_type.items():
+        if not kind_actions:
+            continue
+        status[kind] = _aggregate_status(kind_actions)
+
+    # Disk sub-sources: emit only the enabled ones, since all three share
+    # the same borg repo and we can't tell them apart from action names.
+    disks_cfg = backup_config.get("disks") or {}
+    for sub in ("templates", "groups", "media"):
+        if disks_cfg.get(f"{sub}_enabled"):
+            status[f"disks:{sub}"] = status["disks"]
+
+    return status
+
+
+def _aggregate_status(actions: List[BackupAction]) -> str:
+    has_failed = any(
+        a.status in ERROR_STATUSES or a.status in FATAL_STATUSES for a in actions
+    )
+    if has_failed:
+        return "failed"
+    has_warning = any(a.status in WARNING_STATUSES for a in actions)
+    has_success = any(a.status in SUCCESS_STATUSES for a in actions)
+    if has_warning and not has_success:
+        return "warning"
+    if has_success:
+        return "success"
+    return "not_included"
+
+
+def generate_type_summary(
+    actions: List[BackupAction], filesystem_metrics: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    per_type: Dict[str, List[BackupAction]] = {}
+    for action in actions:
+        kind = action.classify()
+        if kind in ("session", "other"):
+            continue
+        per_type.setdefault(kind, []).append(action)
+
+    out: Dict[str, Any] = {}
+    for kind, kind_actions in per_type.items():
+        summary = {
+            "total_actions": len(kind_actions),
+            "successful": sum(1 for a in kind_actions if a.status in SUCCESS_STATUSES),
+            "warnings": sum(1 for a in kind_actions if a.status in WARNING_STATUSES),
+            "errors": sum(
+                1
+                for a in kind_actions
+                if a.status in ERROR_STATUSES or a.status in FATAL_STATUSES
+            ),
+            "total_duration": sum((a.duration or 0) for a in kind_actions),
+            "actions": [
+                {
+                    "name": a.name.rsplit("/", 1)[-1],
+                    "status": a.status,
+                    "duration": a.duration,
+                }
+                for a in kind_actions
+            ],
         }
 
-        # Calculate main schedule hour (most common among enabled backups)
-        enabled_schedules = []
-        for backup_type, enabled in backup_config["enabled"].items():
-            if enabled and backup_config["schedule"][backup_type]:
-                enabled_schedules.append(backup_config["schedule"][backup_type])
+        borg_stats = next(
+            (a.borg_statistics for a in kind_actions if a.borg_statistics),
+            None,
+        )
+        if not borg_stats and filesystem_metrics:
+            borg_stats = _borg_stats_from_filesystem(kind, filesystem_metrics)
+        if borg_stats:
+            summary["borg_statistics"] = borg_stats
 
-        if enabled_schedules:
-            # Find most common hour
-            hours = [s["hour"] for s in enabled_schedules]
-            main_hour = max(set(hours), key=hours.count)
-            main_schedule = next(s for s in enabled_schedules if s["hour"] == main_hour)
-            backup_config["main_schedule"] = main_schedule
-        else:
-            backup_config["main_schedule"] = None
+        out[kind] = summary
+    return out
 
-        logger.info(f"Collected backup configuration: {backup_config['enabled']}")
-        return backup_config
 
-    def _parse_structured_borg_statistics(
-        self, log_lines: List[str], actions: List[BackupAction]
-    ) -> None:
-        """Parse structured borg statistics from our stats scripts"""
-        for line in log_lines:
-            # Look for structured borg statistics JSON output
-            if "BORG_STATS_" in line and "STATS_JSON:" in line:
-                try:
-                    # Extract the backup type from the log prefix
-                    backup_type_match = re.search(r"BORG_STATS_(\w+):", line)
-                    if not backup_type_match:
-                        continue
+def _borg_stats_from_filesystem(
+    kind: str, filesystem_metrics: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    repos = filesystem_metrics.get("borg_repositories") or {}
+    repo = repos.get(kind)
+    if not repo:
+        return None
+    archive = repo.get("latest_archive") or {}
+    stats = archive.get("stats") or {}
+    if not stats:
+        return None
+    return {
+        "repository": repo.get("location"),
+        "archive_name": archive.get("name"),
+        "file_count": stats.get("nfiles"),
+        "original_size": format_bytes(stats.get("original_size", 0)),
+        "compressed_size": format_bytes(stats.get("compressed_size", 0)),
+        "deduplicated_size": format_bytes(stats.get("deduplicated_size", 0)),
+    }
 
-                    backup_type = backup_type_match.group(1).lower()
 
-                    # Extract the JSON stats
-                    json_match = re.search(r"STATS_JSON: (.+)$", line)
-                    if not json_match:
-                        continue
+# ---------------------------------------------------------------------------
+# Filesystem + configuration collection
+# ---------------------------------------------------------------------------
 
-                    stats_json = json_match.group(1)
-                    stats_data = json.loads(stats_json)
 
-                    # Create borg statistics structure
-                    stats_dict = stats_data.get("stats", {})
-                    borg_stats = {
-                        "repository": f"/backup/{backup_type}",
-                        "backup_type": backup_type,
-                        "file_count": stats_dict.get("nfiles"),
-                        "original_size": self._format_bytes(
-                            stats_dict.get("original_size", 0)
-                        ),
-                        "compressed_size": self._format_bytes(
-                            stats_dict.get("compressed_size", 0)
-                        ),
-                        "deduplicated_size": self._format_bytes(
-                            stats_dict.get("deduplicated_size", 0)
-                        ),
-                        "original_size_bytes": stats_dict.get("original_size", 0),
-                        "compressed_size_bytes": stats_dict.get("compressed_size", 0),
-                        "deduplicated_size_bytes": stats_dict.get(
-                            "deduplicated_size", 0
-                        ),
-                    }
+def collect_filesystem_metrics() -> Dict[str, Any]:
+    metrics: Dict[str, Any] = {}
 
-                    # Find the corresponding borg action to attach the statistics
-                    for action in actions:
-                        action_basename = (
-                            action.name.split("/")[-1].lower()
-                            if "/" in action.name
-                            else action.name.lower()
-                        )
-                        if (
-                            backup_type in action_basename
-                            and "borg.borg" in action_basename
-                            and not hasattr(action, "borg_statistics")
-                        ):
-                            action.borg_statistics = borg_stats
-                            logger.info(f"Attached borg statistics to {action.name}")
-                            break
+    usage = _df_usage()
+    if usage:
+        metrics["usage"] = usage
 
-                except (json.JSONDecodeError, KeyError, AttributeError, Exception) as e:
-                    logger.warning(f"Failed to parse borg statistics from line: {e}")
-                    continue
+    backup_sizes = _du_sizes(BACKUP_ROOT, skip={"extract"})
+    if backup_sizes:
+        metrics["backup_sizes"] = backup_sizes
 
-    def _parse_native_borg_statistics(
-        self, log_lines: List[str], actions: List[BackupAction]
-    ) -> None:
-        """Parse borg statistics from native borg create --stats output"""
-        i = 0
-        while i < len(log_lines):
-            line = log_lines[i]
+    source_sizes = _du_sizes(SOURCE_ROOT, skip=set(), drop_trivial=True)
+    if source_sizes:
+        metrics["source_sizes"] = source_sizes
 
-            # Look for borg repository statistics block (starts with "Repository:")
-            if "Repository: /backup/" in line:
-                try:
-                    # Extract repository path and backup type
-                    repo_match = re.search(r"Repository: (/backup/(\w+))", line)
-                    if not repo_match:
-                        i += 1
-                        continue
+    borg_repos = _borg_repositories(BACKUP_ROOT)
+    if borg_repos:
+        metrics["borg_repositories"] = borg_repos
 
-                    repository = repo_match.group(1)
-                    backup_type = repo_match.group(2)
+    return metrics
 
-                    # Look for the archive name in the next few lines
-                    archive_name = None
-                    for j in range(i + 1, min(i + 5, len(log_lines))):
-                        if "Archive name:" in log_lines[j]:
-                            archive_match = re.search(
-                                r"Archive name: (.+)$", log_lines[j]
-                            )
-                            if archive_match:
-                                archive_name = archive_match.group(1).strip()
-                                break
 
-                    # Look for the statistics section in the following lines
-                    stats_found = False
-                    for j in range(i + 1, min(i + 20, len(log_lines))):
-                        stats_line = log_lines[j]
-
-                        # Look for lines like "This archive: 5.37 kB 2.42 kB 2.42 kB"
-                        archive_stats_match = re.search(
-                            r"This archive:\s+([0-9.]+\s*[KMG]?B)\s+([0-9.]+\s*[KMG]?B)\s+([0-9.]+\s*[KMG]?B)",
-                            stats_line,
-                        )
-
-                        if archive_stats_match:
-                            original_size = archive_stats_match.group(1)
-                            compressed_size = archive_stats_match.group(2)
-                            deduplicated_size = archive_stats_match.group(3)
-
-                            # Look for file count in nearby lines
-                            file_count = None
-                            for k in range(max(0, j - 10), min(j + 5, len(log_lines))):
-                                file_match = re.search(
-                                    r"Number of files:\s+(\d+)", log_lines[k]
-                                )
-                                if file_match:
-                                    file_count = int(file_match.group(1))
-                                    break
-
-                            # Create borg statistics structure
-                            borg_stats = {
-                                "repository": repository,
-                                "backup_type": backup_type,
-                                "archive_name": archive_name,
-                                "file_count": file_count,
-                                "original_size": original_size,
-                                "compressed_size": compressed_size,
-                                "deduplicated_size": deduplicated_size,
-                            }
-
-                            # Find the corresponding borg action to attach the statistics
-                            for action in actions:
-                                if (
-                                    backup_type in action.name.lower()
-                                    and "borg" in action.name.lower()
-                                    and not hasattr(action, "borg_statistics")
-                                ):
-                                    action.borg_statistics = borg_stats
-                                    logger.info(
-                                        f"Attached native borg statistics to {action.name}"
-                                    )
-                                    break
-
-                            stats_found = True
-                            break
-
-                    if stats_found:
-                        i = j + 1  # Skip past the statistics block
-                    else:
-                        i += 1
-
-                except Exception as e:
-                    logger.warning(f"Failed to parse native borg statistics: {e}")
-                    i += 1
-            else:
-                i += 1
-
-    def _collect_basic_filesystem_metrics(self) -> Dict[str, Any]:
-        """Collect basic filesystem usage metrics"""
-        import subprocess
-
-        filesystem_metrics = {}
-
+def _df_usage() -> Dict[str, Any]:
+    try:
+        result = subprocess.run(
+            ["df", "-h"], capture_output=True, text=True, timeout=10, check=False
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.warning("df failed: %s", e)
+        return {}
+    usage: Dict[str, Any] = {}
+    for line in result.stdout.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) < 6:
+            continue
+        device, size, used, avail, pct, mount = parts[:6]
         try:
-            # Get basic filesystem usage with df -h
-            df_result = subprocess.run(
-                ["df", "-h"], capture_output=True, text=True, timeout=10
+            pct_int = int(pct.rstrip("%"))
+        except ValueError:
+            continue
+        entry = {
+            "device": device,
+            "size": size,
+            "used": used,
+            "available": avail,
+            "usage_percent": pct_int,
+            "mount_point": mount,
+        }
+        if mount == "/backup":
+            usage["backup_storage"] = entry
+        elif mount.startswith("/opt") or "raid" in device.lower():
+            usage["source_storage"] = entry
+    return usage
+
+
+def _du_sizes(root: str, skip: set, drop_trivial: bool = False) -> Dict[str, str]:
+    """Per-child directory size under `root`. Uses Python glob (no shell)."""
+    sizes: Dict[str, str] = {}
+    if not os.path.isdir(root):
+        return sizes
+    for path in sorted(glob.glob(os.path.join(root, "*"))):
+        name = os.path.basename(path)
+        if name in skip:
+            continue
+        try:
+            proc = subprocess.run(
+                ["du", "-sh", path],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
             )
-            if df_result.returncode == 0:
-                filesystem_usage = {}
-                for line in df_result.stdout.strip().split("\n")[1:]:  # Skip header
-                    parts = line.split()
-                    if len(parts) >= 6:
-                        filesystem = parts[0]
-                        size = parts[1]
-                        used = parts[2]
-                        avail = parts[3]
-                        use_pct = int(parts[4].replace("%", ""))
-                        mount = parts[5]
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.warning("du failed for %s: %s", path, e)
+            continue
+        line = (proc.stdout or "").strip()
+        if not line:
+            continue
+        size = line.split(None, 1)[0]
+        if drop_trivial and size in {"0", "4.0K"}:
+            continue
+        sizes[name] = size
+    return sizes
 
-                        # Identify key mounts
-                        if mount == "/backup":
-                            filesystem_usage["backup_storage"] = {
-                                "device": filesystem,
-                                "size": size,
-                                "used": used,
-                                "available": avail,
-                                "usage_percent": use_pct,
-                                "mount_point": mount,
-                            }
 
-                if filesystem_usage:
-                    filesystem_metrics["usage"] = filesystem_usage
-        except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception) as e:
-            logger.warning(f"Failed to collect filesystem usage: {e}")
+def _borg_repositories(root: str) -> Dict[str, Any]:
+    if not os.path.isdir(root):
+        return {}
+    env = os.environ.copy()
+    env.setdefault("BORG_PASSPHRASE", "")
+    env.setdefault("BORG_RELOCATED_REPO_ACCESS_IS_OK", "yes")
+    env.setdefault("BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK", "yes")
 
-        return filesystem_metrics
-
-    def _parse_borg_statistics(
-        self, log_lines: List[str], actions: List[BackupAction]
-    ) -> None:
-        """Parse borg repository statistics and attach to relevant actions"""
-        # First, try to parse structured borg statistics from our stats scripts
-        self._parse_structured_borg_statistics(log_lines, actions)
-
-        # Parse native borg statistics from borg create --stats output
-        self._parse_native_borg_statistics(log_lines, actions)
-
-        # Then try original parsing method as fallback
-        i = 0
-        while i < len(log_lines):
-            line = log_lines[i]
-
-            # Look for repository statistics block
-            if "Repository:" in line and "/backup/" in line:
-                repo_match = re.search(r"Repository: (/backup/(\w+))", line)
-                if repo_match:
-                    repository = repo_match.group(1)
-                    backup_type = repo_match.group(2)
-
-                    # Parse the statistics block
-                    stats = {"repository": repository, "backup_type": backup_type}
-                    j = i + 1
-
-                    # Look for statistics in following lines
-                    while j < len(log_lines) and j < i + 20:  # Reasonable limit
-                        stat_line = log_lines[j]
-
-                        if "Archive name:" in stat_line:
-                            archive_match = re.search(r"Archive name: (.+)", stat_line)
-                            if archive_match:
-                                stats["archive_name"] = archive_match.group(1)
-
-                        elif "Archive fingerprint:" in stat_line:
-                            fingerprint_match = re.search(
-                                r"Archive fingerprint: (.+)", stat_line
-                            )
-                            if fingerprint_match:
-                                stats["fingerprint"] = fingerprint_match.group(1)
-
-                        elif "Duration:" in stat_line:
-                            duration_match = re.search(r"Duration: (.+)", stat_line)
-                            if duration_match:
-                                stats["duration_text"] = duration_match.group(1)
-
-                        elif "Number of files:" in stat_line:
-                            files_match = re.search(
-                                r"Number of files: (\d+)", stat_line
-                            )
-                            if files_match:
-                                stats["file_count"] = int(files_match.group(1))
-
-                        elif "This archive:" in stat_line:
-                            size_match = re.search(
-                                r"This archive:\s+([0-9.]+\s+\w+)\s+([0-9.]+\s+\w+)\s+([0-9.]+\s+\w+)",
-                                stat_line,
-                            )
-                            if size_match:
-                                stats["original_size"] = size_match.group(1)
-                                stats["compressed_size"] = size_match.group(2)
-                                stats["deduplicated_size"] = size_match.group(3)
-
-                        elif "All archives:" in stat_line:
-                            size_match = re.search(
-                                r"All archives:\s+([0-9.]+\s+\w+)\s+([0-9.]+\s+\w+)\s+([0-9.]+\s+\w+)",
-                                stat_line,
-                            )
-                            if size_match:
-                                stats["total_original"] = size_match.group(1)
-                                stats["total_compressed"] = size_match.group(2)
-                                stats["total_deduplicated"] = size_match.group(3)
-
-                        elif "Chunk index:" in stat_line:
-                            chunk_match = re.search(
-                                r"Chunk index:\s+(\d+)\s+(\d+)", stat_line
-                            )
-                            if chunk_match:
-                                stats["unique_chunks"] = int(chunk_match.group(1))
-                                stats["total_chunks"] = int(chunk_match.group(2))
-
-                        # End of statistics block
-                        elif "----------" in stat_line and len(stats) > 2:
-                            break
-
-                        j += 1
-
-                    # Find the corresponding borg action and attach statistics
-                    for action in actions:
-                        if (
-                            f"/{backup_type}-borg.borg" in action.name
-                            or f"{backup_type}-borg.borg" in action.name
-                        ):
-                            if not hasattr(action, "borg_statistics"):
-                                action.borg_statistics = stats
-                                break
-
-                    i = j  # Skip ahead
-                    continue
-
-            i += 1
-
-    def _parse_compact_results(
-        self, log_lines: List[str], actions: List[BackupAction]
-    ) -> None:
-        """Parse compact operation results and attach to relevant actions"""
-        for i, line in enumerate(log_lines):
-            # Look for compact operation results
-            if (
-                "compact succeeded" in line.lower()
-                or "compaction completed" in line.lower()
-            ):
-                # Extract any metrics from compact operations
-                compact_info = {
-                    "operation": "compact",
-                    "status": "success",
-                    "message": line,
-                }
-
-                # Find the corresponding compact action
-                for action in actions:
-                    if "compact" in action.name.lower() and not hasattr(
-                        action, "compact_results"
-                    ):
-                        action.compact_results = compact_info
-                        break
-
-            elif (
-                "compact failed" in line.lower() or "compaction failed" in line.lower()
-            ):
-                compact_info = {
-                    "operation": "compact",
-                    "status": "failed",
-                    "message": line,
-                }
-
-                # Find the corresponding compact action
-                for action in actions:
-                    if "compact" in action.name.lower() and not hasattr(
-                        action, "compact_results"
-                    ):
-                        action.compact_results = compact_info
-                        break
-
-    def _categorize_actions_by_type(
-        self, actions: List[BackupAction]
-    ) -> Dict[str, List[BackupAction]]:
-        """Categorize actions by backup type for detailed reporting"""
-        categories = {"db": [], "redis": [], "stats": [], "config": [], "disks": []}
-
-        for action in actions:
-            # Extract backup type from action name
-            action_match = re.search(r"(\d+)-(\w+)-", action.name)
-            if action_match:
-                backup_type = action_match.group(2)
-                if backup_type in categories:
-                    categories[backup_type].append(action)
-
-        return categories
-
-    def _generate_backup_type_summary(
-        self,
-        actions_by_type: Dict[str, List[BackupAction]],
-        filesystem_metrics: Dict[str, Any] = None,
-    ) -> Dict[str, Any]:
-        """Generate summary statistics for each backup type"""
-        type_summary = {}
-
-        for backup_type, type_actions in actions_by_type.items():
-            if not type_actions:
-                continue
-
-            summary = {
-                "total_actions": len(type_actions),
-                "successful": sum(1 for a in type_actions if a.status == "SUCCESS"),
-                "warnings": sum(1 for a in type_actions if a.status == "WARNING"),
-                "errors": sum(1 for a in type_actions if a.status == "ERROR"),
-                "total_duration": sum(a.duration or 0 for a in type_actions),
-                "actions": [],
+    repos: Dict[str, Any] = {}
+    for name in sorted(os.listdir(root)):
+        path = os.path.join(root, name)
+        if not os.path.isdir(path) or name == "extract":
+            continue
+        info = _run_borg_json(["borg", "info", path, "--json"], env)
+        if not info or "repository" not in info:
+            continue
+        entry: Dict[str, Any] = {
+            "repository_id": (info["repository"].get("id") or "")[:16],
+            "location": info["repository"].get("location", path),
+        }
+        archives = _run_borg_json(["borg", "list", path, "--json"], env)
+        if archives and archives.get("archives"):
+            latest = archives["archives"][-1]
+            archive_name = latest.get("name")
+            detail = _run_borg_json(
+                ["borg", "info", f"{path}::{archive_name}", "--json"], env
+            )
+            stats = {}
+            start = latest.get("start", "N/A")
+            end = "N/A"
+            duration = 0
+            if detail and detail.get("archives"):
+                details = detail["archives"][0]
+                stats = details.get("stats", {})
+                start = details.get("start", start)
+                end = details.get("end", end)
+                duration = details.get("duration", duration)
+            entry["latest_archive"] = {
+                "name": archive_name,
+                "start": start,
+                "end": end,
+                "duration": duration,
+                "stats": stats,
             }
+        repos[name] = entry
+    return repos
 
-            # Add borg statistics summary for this backup type
-            borg_stats = None
 
-            # First try to get from individual actions
-            for action in type_actions:
-                if hasattr(action, "borg_statistics") and action.borg_statistics:
-                    borg_stats = action.borg_statistics
-                    break
-
-            # If not found in actions, try to get from filesystem metrics borg repositories
-            if (
-                not borg_stats
-                and filesystem_metrics
-                and "borg_repositories" in filesystem_metrics
-            ):
-                repo_data = filesystem_metrics["borg_repositories"].get(backup_type)
-                if repo_data and "latest_archive" in repo_data:
-                    archive_stats = repo_data["latest_archive"].get("stats", {})
-                    if archive_stats:
-                        borg_stats = {
-                            "repository": repo_data.get("location"),
-                            "archive_name": repo_data["latest_archive"].get("name"),
-                            "file_count": archive_stats.get("nfiles"),
-                            "original_size": self._format_bytes(
-                                archive_stats.get("original_size", 0)
-                            ),
-                            "compressed_size": self._format_bytes(
-                                archive_stats.get("compressed_size", 0)
-                            ),
-                            "deduplicated_size": self._format_bytes(
-                                archive_stats.get("deduplicated_size", 0)
-                            ),
-                            "unique_chunks": archive_stats.get("nunique_chunks"),
-                            "total_chunks": archive_stats.get("nfiles"),
-                        }
-
-            if borg_stats:
-                summary["borg_statistics"] = borg_stats
-
-            # Add action details
-            for action in type_actions:
-                action_info = {
-                    "name": (
-                        action.name.split("/")[-1]
-                        if "/" in action.name
-                        else action.name
-                    ),
-                    "status": action.status,
-                    "duration": action.duration,
-                }
-                summary["actions"].append(action_info)
-
-            type_summary[backup_type] = summary
-
-        return type_summary
-
-    def _format_bytes(self, bytes_value):
-        """Format bytes value to human readable string"""
-        if not bytes_value or bytes_value == 0:
-            return "0 B"
-
-        for unit in ["B", "K", "M", "G", "T"]:
-            if bytes_value < 1024.0:
-                return f"{bytes_value:.1f} {unit}"
-            bytes_value /= 1024.0
-        return f"{bytes_value:.1f} P"
-
-    def parse_finished_summary(self, log_lines: List[str]) -> Optional[Dict[str, Any]]:
-        """Parse the FINISHED summary line and extract session info"""
-        finished_summary = None
-        session_info = None
-
-        # Look for FINISHED summary
-        for line in log_lines:
-            if "FINISHED:" in line:
-                finished_pattern = (
-                    r"(?P<timestamp>\w{3} \d{2} \d{2}:\d{2}:\d{2}) Info: FINISHED: "
-                    r"(?P<actions>\d+) actions run. "
-                    r"(?P<fatal>\d+) fatal. "
-                    r"(?P<error>\d+) error. "
-                    r"(?P<warning>\d+) warning."
-                )
-                match = re.match(finished_pattern, line)
-                if match:
-                    log_dict = match.groupdict()
-                    timestamp = datetime.strptime(
-                        log_dict["timestamp"], "%b %d %H:%M:%S"
-                    ).replace(year=datetime.now().year)
-
-                    finished_summary = {
-                        "timestamp": timestamp,
-                        "total_actions": int(log_dict["actions"]),
-                        "fatal": int(log_dict["fatal"]),
-                        "error": int(log_dict["error"]),
-                        "warning": int(log_dict["warning"]),
-                    }
-                    break
-
-        # Look for session markers to extract backup type and additional info
-        for line in log_lines:
-            if "BACKUP_SESSION_START:" in line:
-                session_pattern = (
-                    r"(?P<timestamp>\w{3} \d{2} \d{2}:\d{2}:\d{2}) Info: BACKUP_SESSION_START: "
-                    r"(?P<type>\w+)\s+(?P<scope>.*?)\s+backup.*"
-                )
-                match = re.match(session_pattern, line)
-                if match:
-                    session_dict = match.groupdict()
-                    session_info = {
-                        "backup_type": session_dict["type"],  # manual or automated
-                        "backup_scope": session_dict[
-                            "scope"
-                        ],  # specific backup type or "all"
-                    }
-                    break
-
-        # Look for disk types information (only relevant for disks backups)
-        disk_types = None
-        for line in log_lines:
-            if "BACKUP_DISK_TYPES:" in line:
-                disk_types_match = re.search(r"BACKUP_DISK_TYPES:(.+)$", line)
-                if disk_types_match:
-                    types_str = disk_types_match.group(1).strip()
-                    if types_str:
-                        disk_types = types_str.split()
-                    break
-
-        # Combine finished summary with session info and disk types
-        if finished_summary:
-            if session_info:
-                finished_summary.update(session_info)
-            if disk_types:
-                finished_summary["disk_types"] = disk_types
-            return finished_summary
-
-        # If no FINISHED line but we have session info, create minimal summary
-        if session_info:
-            # Use session end timestamp if available
-            for line in reversed(log_lines):
-                if "BACKUP_SESSION_END:" in line:
-                    timestamp_match = re.match(r"(\w{3} \d{2} \d{2}:\d{2}:\d{2})", line)
-                    if timestamp_match:
-                        timestamp = datetime.strptime(
-                            timestamp_match.group(1), "%b %d %H:%M:%S"
-                        ).replace(year=datetime.now().year)
-                        session_info["timestamp"] = timestamp
-                        break
-
-            if disk_types:
-                session_info["disk_types"] = disk_types
-
-            return session_info
-
+def _run_borg_json(cmd: List[str], env: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    try:
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=30, env=env, check=False
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.debug("borg cmd failed (%s): %s", " ".join(cmd), e)
+        return None
+    if proc.returncode != 0 or not proc.stdout:
+        return None
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
         return None
 
-    def analyze_backup_types_status(
-        self, actions: List[BackupAction]
-    ) -> Dict[str, str]:
-        """Analyze actions to determine the status of each backup type"""
-        backup_types_status = {}
 
-        # Initialize all backup types as not included
-        all_backup_types = ["db", "redis", "stats", "config", "disks"]
-        for backup_type in all_backup_types:
-            backup_types_status[backup_type] = "not_included"
-
-        # Analyze actions to determine which backup types were attempted and their results
-        for action in actions:
-            action_name = action.name.lower()
-            backup_type = None
-
-            # Determine which backup type this action belongs to
-            if (
-                "db" in action_name
-                or "database" in action_name
-                or "rethink" in action_name
-            ):
-                backup_type = "db"
-            elif "redis" in action_name:
-                backup_type = "redis"
-            elif (
-                "stats" in action_name
-                or "prometheus" in action_name
-                or "loki" in action_name
-            ):
-                backup_type = "stats"
-            elif "config" in action_name:
-                backup_type = "config"
-            elif (
-                "disk" in action_name
-                or "template" in action_name
-                or "group" in action_name
-                or "media" in action_name
-            ):
-                backup_type = "disks"
-
-            if backup_type:
-                # Update status based on action result
-                if action.status in ["ERROR", "FATAL", "FAILED"]:
-                    backup_types_status[backup_type] = "failed"
-                elif action.status in ["SUCCESS"]:
-                    if backup_types_status[backup_type] not in ["failed"]:
-                        backup_types_status[backup_type] = "success"
-                else:  # WARNING or other status
-                    if backup_types_status[backup_type] == "not_included":
-                        backup_types_status[backup_type] = (
-                            "success"  # Treat warnings as success
-                        )
-
-        return backup_types_status
-
-    def generate_report(self) -> Optional[BackupReport]:
-        """Generate complete backup report"""
-        # Get recent logs and find the last completed backup
-        recent_logs = self.get_recent_logs()
-        backup_logs = self.find_last_completed_backup(recent_logs)
-
-        if not backup_logs:
-            logger.info("No completed backup found in recent logs")
+def collect_backup_config() -> Dict[str, Any]:
+    def parse_schedule(raw: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not raw:
             return None
+        m = re.search(r"at\s+(\d{1,2})(?::(\d{2}))?", raw)
+        if not m:
+            return None
+        hour = int(m.group(1))
+        minute = int(m.group(2)) if m.group(2) else 0
+        return {"hour": hour, "minute": minute, "text": raw}
 
-        logger.info(f"Found {len(backup_logs)} log lines for backup session")
+    cfg: Dict[str, Any] = {
+        "schedule": {
+            kind: parse_schedule(os.getenv(f"BACKUP_{kind.upper()}_WHEN"))
+            for kind in ("db", "redis", "stats", "config", "disks")
+        },
+        "enabled": {
+            kind: os.getenv(f"BACKUP_{kind.upper()}_ENABLED", "false").lower() == "true"
+            for kind in ("db", "redis", "stats", "config", "disks")
+        },
+        "prune_policies": {
+            kind: os.getenv(f"BACKUP_{kind.upper()}_PRUNE", "")
+            for kind in ("db", "redis", "stats", "config", "disks")
+        },
+        "nfs": {
+            "enabled": os.getenv("BACKUP_NFS_ENABLED", "false").lower() == "true",
+            "server": os.getenv("BACKUP_NFS_SERVER", ""),
+            "folder": os.getenv("BACKUP_NFS_FOLDER", ""),
+        },
+        "disks": {
+            "templates_enabled": os.getenv(
+                "BACKUP_DISKS_TEMPLATES_ENABLED", "false"
+            ).lower()
+            == "true",
+            "groups_enabled": os.getenv("BACKUP_DISKS_GROUPS_ENABLED", "false").lower()
+            == "true",
+            "media_enabled": os.getenv("BACKUP_DISKS_MEDIA_ENABLED", "false").lower()
+            == "true",
+        },
+        "email": os.getenv("BACKUP_REPORT_EMAIL", ""),
+        "backup_dir": os.getenv("BACKUP_DIR", "/opt/isard-local/backup"),
+    }
 
-        # Parse actions
-        actions = self.parse_backup_actions(backup_logs)
-        finished_summary = self.parse_finished_summary(backup_logs)
-
-        logger.info(
-            f"Parsed {len(actions)} actions and finished_summary: {finished_summary is not None}"
+    enabled_schedules = [
+        cfg["schedule"][k]
+        for k in cfg["enabled"]
+        if cfg["enabled"][k] and cfg["schedule"][k]
+    ]
+    if enabled_schedules:
+        hours = [s["hour"] for s in enabled_schedules]
+        main_hour = max(set(hours), key=hours.count)
+        cfg["main_schedule"] = next(
+            s for s in enabled_schedules if s["hour"] == main_hour
         )
+    else:
+        cfg["main_schedule"] = None
 
-        # Collect basic filesystem metrics
-        filesystem_metrics = self._collect_basic_filesystem_metrics()
+    return cfg
 
-        # Collect backup configuration
-        backup_config = self._collect_backup_configuration()
 
-        # Categorize actions by backup type for detailed reporting
-        actions_by_type = self._categorize_actions_by_type(actions)
-        backup_type_summary = self._generate_backup_type_summary(
-            actions_by_type, filesystem_metrics
-        )
+# ---------------------------------------------------------------------------
+# Sending + retry queue
+# ---------------------------------------------------------------------------
 
-        # Analyze backup types status for UI display
-        backup_types_status = self.analyze_backup_types_status(actions)
 
-        if finished_summary:
-            # Use actual parsed actions count, not FINISHED summary which may only count backup types
-            total_actions = len(actions)
-            fatal_count = sum(1 for a in actions if a.status == "FATAL")
-            error_count = sum(1 for a in actions if a.status in ["ERROR", "FAILED"])
-            warning_count = sum(1 for a in actions if a.status == "WARNING")
-            success_count = sum(1 for a in actions if a.status == "SUCCESS")
+def send_with_queue(
+    report_dict: Dict[str, Any],
+    api_domain: Optional[str] = None,
+    queue_dir: str = QUEUE_DIR_DEFAULT,
+    max_attempts: int = 3,
+) -> bool:
+    """POST the report. On failure, queue it for retry. Then flush the queue.
 
-            # Determine overall status
-            if fatal_count > 0:
-                status = "CRITICAL"
-                summary = f"Backup completed with {fatal_count} fatal errors"
-            elif error_count > 0:
-                status = "ERROR"
-                summary = f"Backup completed with {error_count} errors"
-            elif warning_count > 0:
-                status = "WARNING"
-                summary = f"Backup completed with {warning_count} warnings"
-            else:
-                status = "SUCCESS"
-                summary = f"Backup completed successfully with {total_actions} actions"
+    Returns True if the current report was delivered successfully.
+    """
+    os.makedirs(queue_dir, exist_ok=True)
 
-            # Convert actions to dict format
-            actions_dict = []
-            for action in actions:
-                action_dict = {
-                    "name": action.name,
-                    "status": action.status,
-                    "duration": action.duration,
-                    "messages": action.messages,
-                }
-                if action.start_time:
-                    action_dict["start_time"] = action.start_time.isoformat()
-                if action.end_time:
-                    action_dict["end_time"] = action.end_time.isoformat()
+    api = _build_api(api_domain)
+    delivered = _post_with_retries(api, report_dict, max_attempts)
+    if not delivered:
+        _enqueue(queue_dir, report_dict)
 
-                # Add borg statistics if available
-                if hasattr(action, "borg_statistics") and action.borg_statistics:
-                    action_dict["borg_statistics"] = action.borg_statistics
+    # Try to flush anything queued from previous runs (best-effort).
+    flush_queue(queue_dir, api, max_attempts=1)
 
-                # Add compact results if available
-                if hasattr(action, "compact_results") and action.compact_results:
-                    action_dict["compact_results"] = action.compact_results
+    return delivered
 
-                actions_dict.append(action_dict)
 
-            return BackupReport(
-                timestamp=finished_summary["timestamp"],
-                status=status,
-                total_actions=total_actions,
-                successful_actions=success_count,
-                failed_actions=error_count,
-                warning_actions=warning_count,
-                fatal_actions=fatal_count,
-                actions=actions_dict,
-                summary=summary,
-                backup_type=finished_summary.get("backup_type"),
-                backup_scope=finished_summary.get("backup_scope"),
-                disk_types=finished_summary.get("disk_types"),
-                backup_types_status=backup_types_status,
-                backup_type_summary=backup_type_summary,
-                filesystem_metrics=filesystem_metrics,
-                backup_config=backup_config,
+def _build_api(api_domain: Optional[str]) -> ApiRest:
+    if api_domain and api_domain.startswith("http"):
+        return ApiRest(service="isard-api", base_url=api_domain)
+    return ApiRest(service="isard-api")
+
+
+def _post_with_retries(
+    api: ApiRest, payload: Dict[str, Any], max_attempts: int
+) -> bool:
+    delay = 2.0
+    for attempt in range(1, max_attempts + 1):
+        try:
+            api.post("/backups", data=payload)
+            logger.info("Backup report delivered (attempt %d)", attempt)
+            return True
+        except Exception as e:
+            logger.warning(
+                "Backup report POST failed (attempt %d/%d): %s",
+                attempt,
+                max_attempts,
+                e,
             )
+            if attempt < max_attempts:
+                time.sleep(delay)
+                delay *= 2
+    return False
 
-        elif actions:
-            # Fallback: count from parsed actions
-            success_count = sum(1 for a in actions if a.status == "SUCCESS")
-            warning_count = sum(1 for a in actions if a.status == "WARNING")
-            error_count = sum(1 for a in actions if a.status in ["ERROR", "FAILED"])
-            fatal_count = sum(1 for a in actions if a.status == "FATAL")
 
-            total_actions = len(actions)
+def _enqueue(queue_dir: str, payload: Dict[str, Any]) -> None:
+    name = f"report-{int(time.time())}-{os.getpid()}.json"
+    path = os.path.join(queue_dir, name)
+    try:
+        with open(path, "w") as fh:
+            json.dump(payload, fh)
+        logger.info("Queued backup report for retry: %s", path)
+    except OSError as e:
+        logger.error("Failed to enqueue report %s: %s", path, e)
 
-            # Determine overall status
-            if fatal_count > 0:
-                status = "CRITICAL"
-                summary = f"Backup completed with {fatal_count} fatal errors"
-            elif error_count > 0:
-                status = "ERROR"
-                summary = f"Backup completed with {error_count} errors"
-            elif warning_count > 0:
-                status = "WARNING"
-                summary = f"Backup completed with {warning_count} warnings"
-            else:
-                status = "SUCCESS"
-                summary = f"Backup completed successfully with {total_actions} actions"
 
-            # Get timestamp from last action
-            last_timestamp = datetime.now()
-            for action in reversed(actions):
-                if action.end_time:
-                    last_timestamp = action.end_time
-                    break
-                elif action.start_time:
-                    last_timestamp = action.start_time
-
-            # Convert actions to dict format
-            actions_dict = []
-            for action in actions:
-                action_dict = {
-                    "name": action.name,
-                    "status": action.status,
-                    "duration": action.duration,
-                    "messages": action.messages,
-                }
-                if action.start_time:
-                    action_dict["start_time"] = action.start_time.isoformat()
-                if action.end_time:
-                    action_dict["end_time"] = action.end_time.isoformat()
-
-                # Add borg statistics if available
-                if hasattr(action, "borg_statistics") and action.borg_statistics:
-                    action_dict["borg_statistics"] = action.borg_statistics
-
-                # Add compact results if available
-                if hasattr(action, "compact_results") and action.compact_results:
-                    action_dict["compact_results"] = action.compact_results
-
-                actions_dict.append(action_dict)
-
-            return BackupReport(
-                timestamp=last_timestamp,
-                status=status,
-                total_actions=total_actions,
-                successful_actions=success_count,
-                failed_actions=error_count,
-                warning_actions=warning_count,
-                fatal_actions=fatal_count,
-                actions=actions_dict,
-                summary=summary,
-                backup_type=None,  # Will fall back to environment variable
-                backup_scope=None,  # Will default to "full"
-                disk_types=None,  # No disk types info available in fallback
-                backup_types_status=backup_types_status,
-                backup_type_summary=backup_type_summary,
-                filesystem_metrics=filesystem_metrics,
-                backup_config=backup_config,
-            )
-
+def flush_queue(queue_dir: str, api: ApiRest, max_attempts: int = 1) -> int:
+    """Try to deliver every queued report. Returns the number sent."""
+    if not os.path.isdir(queue_dir):
+        return 0
+    sent = 0
+    for entry in sorted(os.listdir(queue_dir)):
+        if not entry.endswith(".json"):
+            continue
+        path = os.path.join(queue_dir, entry)
+        try:
+            with open(path) as fh:
+                payload = json.load(fh)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("Dropping unreadable queued report %s: %s", path, e)
+            _safe_unlink(path)
+            continue
+        if _post_with_retries(api, payload, max_attempts):
+            _safe_unlink(path)
+            sent += 1
         else:
-            logger.info("No backup actions found in today's logs")
-            return None
+            # Stop at the first failure — avoid hammering the API when it's down.
+            break
+    if sent:
+        logger.info("Flushed %d queued backup reports", sent)
+    return sent
 
 
-# Script execution - called directly by backupninja
-if __name__ == "__main__":
+def _safe_unlink(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError as e:
+        logger.warning("Could not delete %s: %s", path, e)
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def main(argv: Optional[Iterable[str]] = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Parse BackupNinja logs and send report to IsardVDI API"
+        description="Parse BackupNinja logs and send a report to IsardVDI."
+    )
+    parser.add_argument("--log-path", default=LOG_PATH_DEFAULT)
+    parser.add_argument("--api-domain", help="Override API_DOMAIN env var")
+    parser.add_argument("--queue-dir", default=QUEUE_DIR_DEFAULT)
+    parser.add_argument(
+        "--max-attempts", type=int, default=3, help="HTTP retry attempts"
     )
     parser.add_argument(
-        "--log-path",
-        default="/var/log/backupninja.log",
-        help="Path to backupninja log file",
+        "--json", action="store_true", help="Print report as JSON and don't POST"
     )
-    parser.add_argument(
-        "--api-domain", help="Override API domain (defaults to API_DOMAIN env var)"
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output report as JSON instead of sending to API",
-    )
+    args = parser.parse_args(list(argv) if argv is not None else None)
 
-    args = parser.parse_args()
-
-    # Use custom log path if specified
-    log_parser = BackupLogParser(args.log_path)
-    report = log_parser.generate_report()
-
+    report = BackupLogParser(args.log_path).parse()
     if not report:
-        logger.info("No backup report generated")
-        exit(0)
+        logger.info("No backup session available to report.")
+        return 0
+
+    payload = report.to_dict()
 
     if args.json:
-        print(json.dumps(report.to_dict(), indent=2))
-    else:
-        # Send to API using ApiRest directly
-        try:
-            if args.api_domain and args.api_domain.startswith("http"):
-                api = ApiRest(service="isard-api", base_url=args.api_domain)
-            else:
-                api = ApiRest(service="isard-api")
+        print(json.dumps(payload, indent=2, default=str))
+        return 0
 
-            result = api.post("/backups", data=report.to_dict())
-            logger.info("Backup report sent successfully")
-        except Exception as e:
-            logger.error(f"Failed to send backup report: {e}")
-            exit(1)
-else:
-    # Called as module (legacy behavior)
-    log_parser = BackupLogParser()
-    report = log_parser.generate_report()
+    ok = send_with_queue(
+        payload,
+        api_domain=args.api_domain,
+        queue_dir=args.queue_dir,
+        max_attempts=args.max_attempts,
+    )
+    return 0 if ok else 1
 
-    if not report:
-        logger.info("No backup report generated")
-        exit(0)
 
-    # Send to API using ApiRest directly
-    try:
-        api = ApiRest(service="isard-api")
-        result = api.post("/backups", data=report.to_dict())
-        logger.info("Backup report sent successfully")
-    except Exception as e:
-        logger.error(f"Failed to send backup report: {e}")
-        exit(1)
+if __name__ == "__main__":
+    raise SystemExit(main())
