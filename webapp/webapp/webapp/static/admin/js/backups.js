@@ -72,6 +72,13 @@ $(document).ready(function () {
                 }
             },
             {
+                data: 'host',
+                render: function (data, type, row) {
+                    if (!data) return '<span class="text-muted">unknown</span>';
+                    return '<code>' + data + '</code>';
+                }
+            },
+            {
                 data: 'type',
                 render: function (data, type, row) {
                     if (type === 'display') {
@@ -204,22 +211,46 @@ $(document).ready(function () {
     // Refresh button
     $('.btn-refresh-backups').on('click', function () {
         backupsTable.ajax.reload();
+        populateHostFilter();
     });
+
+    // Populate host filter from /api/v3/admin/backups/hosts
+    function populateHostFilter() {
+        $.ajax({
+            url: '/api/v3/admin/backups/hosts',
+            type: 'GET',
+            success: function (hosts) {
+                var $select = $('#filter-host');
+                var current = $select.val();
+                $select.empty();
+                $select.append('<option value="">All Hosts</option>');
+                (hosts || []).forEach(function (host) {
+                    var opt = $('<option>').attr('value', host).text(host);
+                    $select.append(opt);
+                });
+                if (current) {
+                    $select.val(current);
+                }
+            }
+        });
+    }
+    populateHostFilter();
 
     // Clear filters
     $('#clear-filters').on('click', function () {
+        $('#filter-host').val('');
         $('#filter-type').val('');
         $('#filter-status').val('');
         backupsTable.columns().search('').draw();
     });
 
-    // Apply filters
-    $('#filter-type, #filter-status').on('change', function () {
-        var typeFilter = $('#filter-type').val();
-        var statusFilter = $('#filter-status').val();
-
-        backupsTable.column(1).search(typeFilter).draw();
-        backupsTable.column(2).search(statusFilter).draw();
+    // Apply filters. Column indexes correspond to the <thead> order:
+    //   0 Timestamp, 1 Host, 2 Type, 3 Status, 4 Scope, …
+    $('#filter-host, #filter-type, #filter-status').on('change', function () {
+        backupsTable.column(1).search($('#filter-host').val() || '', false, false);
+        backupsTable.column(2).search($('#filter-type').val() || '', false, false);
+        backupsTable.column(3).search($('#filter-status').val() || '', false, false);
+        backupsTable.draw();
     });
 
     // View details button
@@ -237,6 +268,7 @@ $(document).ready(function () {
                 
                 // Basic Information
                 content += '<div class="col-md-6"><h4>Basic Information</h4>';
+                content += '<p><strong>Host:</strong> <code>' + (data.host || 'unknown') + '</code></p>';
                 content += '<p><strong>Timestamp:</strong> ' + (typeof data.timestamp === 'string' ? moment(data.timestamp).format('YYYY-MM-DD HH:mm:ss') : moment.unix(data.timestamp).format('YYYY-MM-DD HH:mm:ss')) + '</p>';
                 content += '<p><strong>Type:</strong> ' + (data.type === 'automated' ? 'Automated' : 'Manual') + '</p>';
                 content += '<p><strong>Status:</strong> ' + data.status + '</p>';
