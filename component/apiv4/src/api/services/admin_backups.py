@@ -28,36 +28,107 @@ from isardvdi_common.connections.rethink_connection_factory import (
 from isardvdi_common.helpers.error_factory import Error
 from rethinkdb import r
 
+UNKNOWN_HOST = "unknown-host"
+
+
+def _retention_per_host():
+    """How many records to keep per host. Configurable via env."""
+    try:
+        value = int(os.environ.get("BACKUP_RETENTION_PER_HOST", "30"))
+    except ValueError:
+        value = 30
+    return max(1, value)
+
+
+def _normalize_timestamp(value):
+    """Return ISO string for a RethinkDB datetime, Unix int, or ISO string."""
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    if isinstance(value, (int, float)):
+        ts = value / 1000 if value > 1e10 else value
+        return datetime.fromtimestamp(ts).isoformat()
+    return value
+
+
+def _normalize_times(item):
+    for key in ("timestamp", "received_at", "created_at", "backup_start_time"):
+        if key in item:
+            item[key] = _normalize_timestamp(item[key])
+    return item
+
+
+def _client_timestamp_to_rdb(value):
+    """Accept Unix int/float/ISO string and return a ReQL time."""
+    if isinstance(value, (int, float)):
+        seconds = value / 1000 if value > 1e10 else value
+        return r.epoch_time(seconds)
+    if isinstance(value, str):
+        try:
+            return r.iso8601(value)
+        except Exception:
+            return r.now()
+    if hasattr(value, "isoformat"):
+        return r.iso8601(value.isoformat())
+    return r.now()
+
+
+def _normalize_check(check):
+    if isinstance(check, dict) and "name" in check and "status" in check:
+        return check
+    if isinstance(check, str):
+        return {"name": check, "status": "success"}
+    return {"name": str(check), "status": "success"}
+
 
 class AdminBackupsService:
 
     @staticmethod
-    def _convert_timestamps(item: dict) -> dict:
-        """Convert datetime/timestamp objects to ISO strings."""
-        for field in ("timestamp", "created_at"):
-            if field in item:
-                if hasattr(item[field], "isoformat"):
-                    item[field] = item[field].isoformat()
-                elif isinstance(item[field], (int, float)):
-                    ts = item[field]
-                    if ts > 1e10:
-                        ts = ts / 1000
-                    item[field] = datetime.fromtimestamp(ts).isoformat()
-        return item
+    def list_backups(host: str = None, limit: int = None) -> list:
+        """List backup records ordered most-recent-first.
+
+        ``host=`` filters to that host's records (using ``UNKNOWN_HOST`` as
+        the fallback for pre-feature rows that lack the field). ``limit=``
+        defaults to ``BACKUP_RETENTION_PER_HOST`` for a single host, or 10×
+        that when listing across all hosts.
+        """
+        if limit is None:
+            limit = _retention_per_host()
+            if not host:
+                limit *= 10
+
+        with RethinkSharedConnection._rdb_context():
+            if host:
+                query = (
+                    r.table("backups")
+                    .filter(lambda row: row["host"].default(UNKNOWN_HOST) == host)
+                    .order_by(r.desc("timestamp"))
+                )
+            else:
+                query = r.table("backups").order_by(r.desc("timestamp"))
+            result = list(
+                query.limit(limit).run(RethinkSharedConnection._rdb_connection)
+            )
+
+        for item in result:
+            _normalize_times(item)
+        return result
 
     @staticmethod
-    def list_backups() -> list:
-        """Get list of backups, ordered by timestamp, limited to 30."""
+    def list_hosts() -> list:
+        """Distinct list of hosts that have ever reported a backup.
+
+        Pre-feature rows that lack the ``host`` field surface as
+        ``UNKNOWN_HOST`` rather than crashing the query.
+        """
         with RethinkSharedConnection._rdb_context():
-            result = list(
+            return sorted(
                 r.table("backups")
-                .order_by(r.desc("timestamp"))
-                .limit(30)
+                .map(lambda row: row["host"].default(UNKNOWN_HOST))
+                .distinct()
                 .run(RethinkSharedConnection._rdb_connection)
             )
-        for item in result:
-            AdminBackupsService._convert_timestamps(item)
-        return result
 
     @staticmethod
     def get_backup(backup_id: str, pluck: str = None) -> dict:
@@ -71,7 +142,7 @@ class AdminBackupsService:
         if not result:
             raise Error("not_found", "Backup not found")
 
-        return AdminBackupsService._convert_timestamps(result)
+        return _normalize_times(result)
 
     @staticmethod
     def insert_backup(data: dict) -> dict:
@@ -91,9 +162,13 @@ class AdminBackupsService:
                 f"Backup scope must be one of: {', '.join(valid_scopes)}",
             )
 
-        # Process details field
+        host = data.get("host") or UNKNOWN_HOST
+        data["host"] = host
+
         if "details" in data and isinstance(data["details"], dict):
             details = data["details"]
+            if "checks" in details and isinstance(details["checks"], list):
+                details["checks"] = [_normalize_check(c) for c in details["checks"]]
             if "warnings" in details and not isinstance(details["warnings"], list):
                 details["warnings"] = [str(details["warnings"])]
             if "time_breakdown" in details and not isinstance(
@@ -101,13 +176,12 @@ class AdminBackupsService:
             ):
                 details["time_breakdown"] = {}
 
-        # Store the original client timestamp as backup_start_time
-        if "timestamp" in data:
-            data["backup_start_time"] = data["timestamp"]
-
-        data["timestamp"] = r.now()
-        if "created_at" not in data:
-            data["created_at"] = r.now()
+        # Preserve the client-supplied timestamp as the authoritative backup
+        # time. Unix ints become RethinkDB datetimes so indexes and ordering
+        # work. ``received_at`` records the server receive time separately.
+        data["timestamp"] = _client_timestamp_to_rdb(data["timestamp"])
+        data["received_at"] = r.now()
+        data.setdefault("created_at", data["received_at"])
 
         with RethinkSharedConnection._rdb_context():
             result = (
@@ -116,37 +190,57 @@ class AdminBackupsService:
                 .run(RethinkSharedConnection._rdb_connection)
             )
 
-        if result.get("inserted") == 1:
-            backup_id = result["generated_keys"][0]
-            AdminBackupsService._cleanup_old_backups()
-            return {
-                "id": backup_id,
-                "status": "success",
-                "message": "Backup record created successfully",
-            }
-        else:
+        if result.get("inserted") != 1:
             raise Error("internal_server", "Failed to create backup record")
 
+        backup_id = result["generated_keys"][0]
+        AdminBackupsService._cleanup_old_backups(host)
+
+        return {
+            "id": backup_id,
+            "status": "success",
+            "message": "Backup record created successfully",
+        }
+
     @staticmethod
-    def _cleanup_old_backups():
-        """Remove old backup records, keeping only the most recent 30."""
+    def _cleanup_old_backups(host: str):
+        """Remove old backup records for ``host``, keeping only the
+        ``BACKUP_RETENTION_PER_HOST`` most recent (default 30).
+        """
+        if not host:
+            host = UNKNOWN_HOST
+        keep = _retention_per_host()
+
         with RethinkSharedConnection._rdb_context():
+            host_filter = lambda row: row["host"].default(UNKNOWN_HOST) == host
             total_count = (
-                r.table("backups").count().run(RethinkSharedConnection._rdb_connection)
+                r.table("backups")
+                .filter(host_filter)
+                .count()
+                .run(RethinkSharedConnection._rdb_connection)
             )
-            if total_count > 30:
-                old_backup_ids = list(
-                    r.table("backups")
-                    .order_by(r.desc("timestamp"))
-                    .skip(30)
-                    .pluck("id")
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-                if old_backup_ids:
-                    ids_to_delete = [b["id"] for b in old_backup_ids]
-                    r.table("backups").get_all(*ids_to_delete).delete().run(
-                        RethinkSharedConnection._rdb_connection
-                    )
+            if total_count <= keep:
+                return 0
+
+            old_ids = [
+                row["id"]
+                for row in r.table("backups")
+                .filter(host_filter)
+                .order_by(r.desc("timestamp"))
+                .skip(keep)
+                .pluck("id")
+                .run(RethinkSharedConnection._rdb_connection)
+            ]
+            if not old_ids:
+                return 0
+
+            result = (
+                r.table("backups")
+                .get_all(*old_ids)
+                .delete()
+                .run(RethinkSharedConnection._rdb_connection)
+            )
+            return result.get("deleted", 0)
 
     @staticmethod
     def get_backup_config() -> dict:
