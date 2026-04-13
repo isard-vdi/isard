@@ -94,18 +94,24 @@
                 <!-- Filters -->
                 <div class="row mb-3">
                     <div class="col-md-3">
+                        <select id="filter-host" class="form-control">
+                            <option value="">All Hosts</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <select id="filter-type" class="form-control">
                             <option value="">All Types</option>
-                            <option value="automatic">Automatic</option>
+                            <option value="automated">Automated</option>
                             <option value="manual">Manual</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <select id="filter-status" class="form-control">
                             <option value="">All Statuses</option>
-                            <option value="success">Success</option>
-                            <option value="failed">Failed</option>
-                            <option value="partial">Partial</option>
+                            <option value="SUCCESS">Success</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                            <option value="CRITICAL">Critical</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -121,6 +127,7 @@
                                 <thead>
                                     <tr>
                                         <th>Timestamp</th>
+                                        <th>Host</th>
                                         <th>Type</th>
                                         <th>Status</th>
                                         <th>Scope</th>
@@ -134,6 +141,7 @@
                                 <tfoot>
                                     <tr>
                                         <th>Timestamp</th>
+                                        <th>Host</th>
                                         <th>Type</th>
                                         <th>Status</th>
                                         <th>Scope</th>
