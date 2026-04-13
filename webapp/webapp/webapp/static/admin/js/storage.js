@@ -39,8 +39,8 @@ $(document).ready(function () {
   storage_ready = createDatatable(tableId, 'ready', function () {
     let searchStorageId = getGroupParam()
     if (searchStorageId) {
-      storage_ready.column(3).search(searchStorageId).draw();
-      $(tableId + ' tfoot input').eq(2).val(searchStorageId);
+      storage_ready.column(4).search(searchStorageId).draw();
+      $(tableId + ' tfoot input').eq(3).val(searchStorageId);
     }
   })
   $(tableId + " tbody").off('click').on('click', 'button', function () {
@@ -92,8 +92,8 @@ $(document).ready(function () {
     storagesOtherTable = createDatatable(tableId, newStatus, function () {
       let searchStorageId = getGroupParam()
       if (searchStorageId) {
-        storagesOtherTable.column(3).search(searchStorageId).draw();
-        $(tableId + ' tfoot input').eq(2).val(searchStorageId);
+        storagesOtherTable.column(4).search(searchStorageId).draw();
+        $(tableId + ' tfoot input').eq(3).val(searchStorageId);
       }
     })
 
