@@ -40,3 +40,9 @@ class BackupReportRequest(BaseModel):
         default=None, description="Backup details with checks, warnings, time_breakdown"
     )
     created_at: Optional[Any] = Field(default=None, description="Creation timestamp")
+
+
+class BackupIntegritySetRequest(BaseModel):
+    """Request body for the weekly borg integrity check toggle."""
+
+    integrity_enabled: bool = Field(description="Enable or disable the weekly run")

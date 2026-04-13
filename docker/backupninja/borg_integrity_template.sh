@@ -25,6 +25,14 @@ if [ "$BACKUP_WHEN" = "disabled" ]; then
     exit 0
 fi
 
+# Check the integrity toggle live from the API. API unreachable or toggle
+# off -> skip the integrity run silently. This lets admins flip the webapp
+# setting without restarting the backupninja container.
+INTEGRITY_ENABLED="$(python3 /usr/local/bin/get_integrity_enabled.py 2>/dev/null)"
+if [ "$INTEGRITY_ENABLED" != "true" ]; then
+    exit 0
+fi
+
 REPO_PATH="/backup/$BACKUP_TYPE"
 LOG_PREFIX="BORG_STATS_${BACKUP_TYPE^^}"
 LOG_FILE="${LOG_FILE:-/var/log/backupninja.log}"
