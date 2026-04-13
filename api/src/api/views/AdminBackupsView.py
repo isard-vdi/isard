@@ -31,6 +31,8 @@ from ..libv2.api_backups import (
     admin_backup_hosts,
     admin_backup_insert,
     admin_backup_list,
+    get_integrity_enabled,
+    set_integrity_enabled,
 )
 from .decorators import is_admin, is_internal_service
 
@@ -87,6 +89,26 @@ def api_v3_backup_report(payload):
         raise Error("bad_request", "Backup report must be a JSON object")
 
     return admin_backup_insert(data)
+
+
+@app.route("/api/v3/admin/backups/integrity", methods=["GET"])
+@is_admin
+def api_v3_admin_backup_integrity_get(payload):
+    """Return the weekly borg integrity check toggle."""
+    return {"integrity_enabled": get_integrity_enabled()}
+
+
+@app.route("/api/v3/admin/backups/integrity", methods=["PUT"])
+@is_admin
+def api_v3_admin_backup_integrity_set(payload):
+    """Enable or disable the weekly borg integrity check."""
+    try:
+        data = request.get_json(force=True)
+    except Exception as e:
+        raise Error("bad_request", "Invalid JSON payload: " + str(e))
+    if not isinstance(data, dict) or "integrity_enabled" not in data:
+        raise Error("bad_request", "Expected JSON object with integrity_enabled")
+    return set_integrity_enabled(data["integrity_enabled"])
 
 
 @app.route("/api/v3/admin/backups/config", methods=["GET"])

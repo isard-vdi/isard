@@ -35,6 +35,32 @@ db.init_app(app)
 
 UNKNOWN_HOST = "unknown-host"
 
+# Integrity check toggle. Stored at config[1].backups.integrity_enabled.
+# Off by default: borg check is an expensive full-repo verification, and we
+# don't want existing deployments to silently inherit a multi-hour nightly
+# job. Admins opt in from the webapp; the backupninja container fetches the
+# value at boot and schedules the integrity scripts for Saturday only.
+INTEGRITY_ENABLED_DEFAULT = False
+
+
+def get_integrity_enabled():
+    with app.app_context():
+        cfg = r.table("config").get(1).run(db.conn) or {}
+    value = (cfg.get("backups") or {}).get("integrity_enabled")
+    if value is None:
+        return INTEGRITY_ENABLED_DEFAULT
+    return bool(value)
+
+
+def set_integrity_enabled(value):
+    if not isinstance(value, bool):
+        raise Error("bad_request", "integrity_enabled must be a boolean")
+    with app.app_context():
+        r.table("config").get(1).update({"backups": {"integrity_enabled": value}}).run(
+            db.conn
+        )
+    return {"integrity_enabled": value}
+
 
 def _retention_per_host():
     """How many records to keep per host. Configurable via env."""

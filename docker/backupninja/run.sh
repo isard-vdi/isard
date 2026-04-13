@@ -14,6 +14,27 @@ umount_nfs() {
     fi
 }
 
+# Derive the `when` clause for a given type's integrity script.
+# Args: <BACKUP_<TYPE>_WHEN value>
+#   - If the backup doesn't touch Saturday -> "disabled" (no install)
+#   - Else -> "saturday at HH[:MM]", reusing the backup's own time slot so
+#     the integrity script runs in the same backupninja cron invocation as
+#     the backup, right after it (alphabetic ordering within a slot:
+#     25-*-integrity.sh runs after 24-*-compact.sh). The admin toggle is
+#     evaluated live at script run time, not here.
+integrity_when_for() {
+    backup_when="$1"
+    hhmm=$(echo "$backup_when" | sed -n 's/.*at[[:space:]]\+\([0-9]\{1,2\}\(:[0-9]\{2\}\)\?\).*/\1/p')
+    if [ -z "$hhmm" ]; then
+        echo "disabled"
+        return
+    fi
+    case "$backup_when" in
+        "everyday at"*|"saturday at"*) echo "saturday at $hhmm" ;;
+        *)                             echo "disabled" ;;
+    esac
+}
+
 # Return the scope name (db|redis|stats|config|disks|full) for a schedule
 # string, based on which BACKUP_*_WHEN variables match it and are enabled.
 scope_for_schedule() {
@@ -92,11 +113,13 @@ if [ "$BACKUP_DB_ENABLED" = "true" ]; then
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
 
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_DB_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+    INTEGRITY_WHEN_DB="$(integrity_when_for "$BACKUP_DB_WHEN")"
+    if [ "$INTEGRITY_WHEN_DB" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_DB" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 #
@@ -116,11 +139,13 @@ if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
 
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_REDIS_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+    INTEGRITY_WHEN_REDIS="$(integrity_when_for "$BACKUP_REDIS_WHEN")"
+    if [ "$INTEGRITY_WHEN_REDIS" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_REDIS" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 #
@@ -140,11 +165,13 @@ if [ "$BACKUP_STATS_ENABLED" = "true" ]; then
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
 
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_STATS_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+    INTEGRITY_WHEN_STATS="$(integrity_when_for "$BACKUP_STATS_WHEN")"
+    if [ "$INTEGRITY_WHEN_STATS" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_STATS" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 #
@@ -164,11 +191,13 @@ if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
 
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+    INTEGRITY_WHEN_CONFIG="$(integrity_when_for "$BACKUP_CONFIG_WHEN")"
+    if [ "$INTEGRITY_WHEN_CONFIG" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_CONFIG" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 #
@@ -215,11 +244,13 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
 
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_DISKS_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+    INTEGRITY_WHEN_DISKS="$(integrity_when_for "$BACKUP_DISKS_WHEN")"
+    if [ "$INTEGRITY_WHEN_DISKS" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_DISKS" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 # Add session start and end markers for automated backups based on 'when' schedules

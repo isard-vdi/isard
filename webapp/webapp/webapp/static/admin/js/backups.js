@@ -236,6 +236,51 @@ $(document).ready(function () {
     }
     populateHostFilter();
 
+    // Integrity check toggle
+    function loadIntegrityToggle() {
+        $.ajax({
+            url: '/api/v3/admin/backups/integrity',
+            type: 'GET',
+            success: function (data) {
+                $('#integrity-enabled').prop('checked', !!(data && data.integrity_enabled));
+            }
+        });
+    }
+    loadIntegrityToggle();
+
+    $('#integrity-save').on('click', function () {
+        var enabled = $('#integrity-enabled').is(':checked');
+        $.ajax({
+            url: '/api/v3/admin/backups/integrity',
+            type: 'PUT',
+            data: JSON.stringify({ integrity_enabled: enabled }),
+            contentType: 'application/json',
+            accept: 'application/json',
+            success: function () {
+                new PNotify({
+                    title: 'Integrity check ' + (enabled ? 'enabled' : 'disabled'),
+                    text: 'Restart the backupninja container to apply.',
+                    hide: true,
+                    delay: 3000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: 'success'
+                });
+            },
+            error: function (xhr) {
+                new PNotify({
+                    title: 'Error saving integrity setting',
+                    text: (xhr.responseJSON && xhr.responseJSON.description) || xhr.statusText,
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-alert-sign',
+                    opacity: 1,
+                    type: 'error'
+                });
+            }
+        });
+    });
+
     // Clear filters
     $('#clear-filters').on('click', function () {
         $('#filter-host').val('');
