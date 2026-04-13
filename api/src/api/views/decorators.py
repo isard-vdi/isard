@@ -283,6 +283,23 @@ def is_admin(f):
     return decorated
 
 
+def is_internal_service(f):
+    """Only accept tokens minted by an internal service (see api_rest.header_auth)."""
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # `session_id` is set at the top level of the JWT claims by
+        # `ApiRest.header_auth`. `get_header_jwt_payload` returns only the
+        # `data` sub-dict (role_id, user_id, …), which never carries
+        # `session_id`, so this check must use the full claims.
+        if get_jwt_payload().get("session_id") != "isardvdi-service":
+            raise Error("forbidden", "Service token required.", traceback.format_exc())
+        kwargs["payload"] = get_header_jwt_payload()
+        return f(*args, **kwargs)
+
+    return decorated
+
+
 def is_admin_or_manager(f):
     @wraps(f)
     def decorated(*args, **kwargs):
