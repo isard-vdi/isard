@@ -8,6 +8,7 @@ import datetime
 import glob
 import ipaddress
 import os
+import re
 import time
 import traceback
 
@@ -549,9 +550,27 @@ class ApiHypervisors:
 
     @staticmethod
     def _normalize_gpu_model(gpu_name, vgpu_profiles=None):
-        """Dash-free model name derivation (same logic as gpu_discovery)."""
+        """Dash-free model name derivation (mirror of gpu_discovery.normalize_gpu_model).
+
+        Handles both classic time-sliced profile suffixes ("-4Q", "-96Q") and
+        MIG-backed slot-notation suffixes ("-1-3Q", "-4-48Q") so GPUs like the
+        RTX PRO 6000 Blackwell DC produce a dash-free model name.
+        """
         if vgpu_profiles:
-            return vgpu_profiles[0]["name"].split("-")[0]
+            profile_name = vgpu_profiles[0]["name"]
+            match = re.match(r"^(.+?)(-\d+-\d+[ABCQ]|-\d+[ABCQ])$", profile_name)
+            if match:
+                model_part = match.group(1)
+            else:
+                model_part = profile_name.rsplit("-", 1)[0]
+            # Strip vendor prefixes and normalize dash-free, same as the
+            # nvidia-smi-name path below, so the two branches agree.
+            return (
+                model_part.replace("NVIDIA ", "")
+                .replace("GRID ", "")
+                .replace(" ", "")
+                .replace("-", "")
+            )
         return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
 
     def _resolve_gpu_models(self, hyper_id, nvidia_gpus):

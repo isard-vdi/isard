@@ -44,7 +44,7 @@ from engine.services.db.domains import (
     get_domains_with_status_in_list,
     update_domain_status,
 )
-from engine.services.db.hypervisors import get_hypervisor
+from engine.services.db.hypervisors import add_vgpu_uuids, get_hypervisor, get_vgpu_full
 from engine.services.lib.functions import (
     SSHTimeoutError,
     calcule_cpu_hyp_stats,
@@ -598,6 +598,19 @@ class hyp(object):
                 f"[{self.id_hyp_rethink}] Updated nvidia info from DB: "
                 f"{len(self.info_nvidia)} GPU cards"
             )
+
+        # Reconcile mdev pools with current sub_paths. Picks up VFs that
+        # appeared after the original discovery (e.g., sriov_numvfs raised
+        # later) without disturbing UUIDs already bound to running domains.
+        for pci_bus, d_vgpu in self.info_nvidia.items():
+            vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
+            try:
+                self.reconcile_vgpu_uuids(vgpu_id, d_vgpu)
+            except Exception as e:
+                logs.workers.error(
+                    f"[{self.id_hyp_rethink}] reconcile_vgpu_uuids failed "
+                    f"for {vgpu_id}: {e}"
+                )
 
         # Re-apply driver binding for GPUs with active passthrough profile.
         # The vfio-pci binding does not survive container/host restarts, so
@@ -1267,12 +1280,24 @@ class hyp(object):
 
         first_err = err_msgs[0] if err_msgs else ""
         if "I/O error" in first_err:
-            # VFs exist but nvidia can't bind them — IOMMU issue
+            # "I/O error" on write to .../create has two common causes on
+            # SR-IOV cards:
+            #   1. The targeted VF already hosts an mdev for that type
+            #      (available_instances=0). Typical on re-runs before the
+            #      reconciler catches up.
+            #   2. IOMMU/VFIO misconfigured so the nvidia driver refuses to
+            #      bind the VFs. Typical on a fresh host without iommu=pt.
+            # The distinguishing signal is whether ANY mdevs exist on the
+            # card right now — if yes, cause (1); if no, cause (2).
             diagnosis = (
                 f"GPU {pci_bdf}: mdev creation failed (I/O error). "
-                f"SR-IOV VFs exist but nvidia driver cannot bind them. "
-                f"Enable IOMMU in BIOS and add iommu=pt to kernel cmdline, "
-                f"then reboot. Only passthrough mode available until fixed."
+                f"Either the target SR-IOV VFs already host mdevs for "
+                f"profile '{profile}' (available_instances=0 — retry after "
+                f"reconciliation) OR the nvidia driver cannot bind the VFs "
+                f"(IOMMU/VFIO misconfigured — enable IOMMU in BIOS and add "
+                f"iommu=pt to kernel cmdline, then reboot). "
+                f"Inspect /sys/bus/pci/devices/<VF>/mdev_supported_types/"
+                f"<type_id>/available_instances to tell them apart."
             )
         elif "nonexistent directory" in first_err:
             diagnosis = (
@@ -2697,9 +2722,13 @@ class hyp(object):
                         path = d_info_gpu["path"]
                     else:
                         if i >= len(sub_paths):
-                            logs.main.warning(
-                                f"sub_paths has only {len(sub_paths)} elements but "
-                                f"total_available is {total_available}. Skipping remaining UUIDs."
+                            logs.workers.error(
+                                f"GPU profile {name} ({d_type['id']}): mdev pool "
+                                f"capped at {len(sub_paths)} (profile max "
+                                f"{total_available}). Likely sriov_numvfs is below "
+                                f"sriov_totalvfs so not every VF exposes "
+                                f"mdev_supported_types. Bump sriov_numvfs and "
+                                f"re-run discovery to recover the missing slots."
                             )
                             break
                         path = sorted(sub_paths)[i]
@@ -2717,6 +2746,74 @@ class hyp(object):
                     }
             d_uuids[name] = d
         return d_uuids
+
+    def reconcile_vgpu_uuids(self, vgpu_id, d_info_gpu):
+        """Top up an existing vgpu row with mdev UUIDs for newly-visible VFs.
+
+        Idempotent and non-destructive: only adds entries for VFs not already
+        present in mdevs[profile]. Existing entries (including those bound to
+        running domains via domain_started/domain_reserved) are left intact.
+
+        Returns the number of mdev entries added across all profiles.
+        """
+        sub_paths = d_info_gpu.get("sub_paths", False)
+        if sub_paths is False:
+            return 0
+        existing = get_vgpu_full(vgpu_id)
+        if not existing:
+            return 0
+        existing_mdevs = existing.get("mdevs") or {}
+        sorted_paths = sorted(sub_paths)
+        additions = {}
+        for name, d_type in d_info_gpu["types"].items():
+            if d_type.get("mig"):
+                continue
+            target = max(
+                d_type.get("max") or d_type.get("available", 1) or 1,
+                d_type.get("available", 1),
+            )
+            cap = min(target, len(sorted_paths))
+            prof_existing = existing_mdevs.get(name, {}) or {}
+            used_pcis = {
+                v.get("pci_mdev_id")
+                for v in prof_existing.values()
+                if isinstance(v, dict)
+            }
+            prof_add = {}
+            for path in sorted_paths:
+                if len(prof_existing) + len(prof_add) >= cap:
+                    break
+                pci_mdev_id = path.split("/")[-1]
+                if pci_mdev_id in used_pcis:
+                    continue
+                prof_add[str(uuid.uuid4())] = {
+                    "pci_mdev_id": pci_mdev_id,
+                    "type_id": d_type["id"],
+                    "created": False,
+                    "domain_started": False,
+                    "domain_reserved": False,
+                }
+            if prof_add:
+                additions[name] = prof_add
+        # Merge in any newly-discovered sub_paths so subsequent reads reflect
+        # current sysfs state.
+        existing_subpaths = set((existing.get("info") or {}).get("sub_paths", []) or [])
+        merged_subpaths = existing_subpaths | set(sorted_paths)
+        sub_paths_update = (
+            sorted(merged_subpaths) if merged_subpaths != existing_subpaths else None
+        )
+        if additions or sub_paths_update is not None:
+            add_vgpu_uuids(vgpu_id, additions, sub_paths=sub_paths_update)
+            total_added = sum(len(v) for v in additions.values())
+            if total_added:
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Reconciled {vgpu_id}: added "
+                    f"{total_added} mdev slots across "
+                    f"{len(additions)} profile(s) (sub_paths now "
+                    f"{len(merged_subpaths)})"
+                )
+            return total_added
+        return 0
 
     def delete_vgpus_devices(
         self, gpu_id, d_uids, info_nvidia, selected_gpu_type, hyp_id

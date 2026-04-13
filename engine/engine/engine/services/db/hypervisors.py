@@ -807,9 +807,13 @@ def get_hypers_gpu_online(
     if exclude_outofmem:
         hypers_online = filter_outofmem_hypers(hypers_online)
 
-    # Check profile format: "NVIDIA-A10-2Q"
+    # Check profile format: "NVIDIA-A10-2Q" or "NVIDIA-RTXPro6000BlackwellDC-1-12Q"
+    # Use split with maxsplit=2 to handle profiles with dashes (e.g., "1-12Q")
     try:
-        gpu_brand, gpu_model, gpu_profile = gpu_brand_model_profile.split("-")
+        parts = gpu_brand_model_profile.split("-", 2)
+        if len(parts) != 3:
+            raise ValueError("Expected 3 parts")
+        gpu_brand, gpu_model, gpu_profile = parts
     except:
         logs.workers.error(
             f"Error parsing gpu_profile: {gpu_brand_model_profile}. Not in format BRAND-MODEL-PROFILE"
@@ -1054,6 +1058,37 @@ def update_vgpu_uuids(vgpu_id, d_uuids):
     rtable = r.table("vgpus")
 
     rtable.filter({"id": vgpu_id}).update({"mdevs": d_uuids}).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
+def get_vgpu_full(vgpu_id):
+    r_conn = new_rethink_connection()
+    try:
+        out = r.table("vgpus").get(vgpu_id).run(r_conn)
+    except ReqlNonExistenceError:
+        out = None
+    close_rethink_connection(r_conn)
+    return out
+
+
+def add_vgpu_uuids(vgpu_id, additions, sub_paths=None):
+    """Non-destructive top-up of an existing vgpu row.
+
+    additions: {profile_name: {uuid: entry_dict}} — only NEW UUIDs.
+    sub_paths: optional updated sub_paths list to merge into info.sub_paths.
+
+    Existing mdev entries (including those with active domain_started /
+    domain_reserved references) are preserved by RethinkDB's deep-merge update.
+    """
+    if not additions and not sub_paths:
+        return
+    r_conn = new_rethink_connection()
+    patch = {}
+    if additions:
+        patch["mdevs"] = additions
+    if sub_paths is not None:
+        patch["info"] = {"sub_paths": list(sub_paths)}
+    r.table("vgpus").get(vgpu_id).update(patch).run(r_conn)
     close_rethink_connection(r_conn)
 
 
