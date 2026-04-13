@@ -30,6 +30,13 @@ from rethinkdb import r
 
 UNKNOWN_HOST = "unknown-host"
 
+# Integrity check toggle. Stored at config[1].backups.integrity_enabled.
+# Off by default: borg check is an expensive full-repo verification, and we
+# don't want existing deployments to silently inherit a multi-hour nightly
+# job. Admins opt in from the webapp; the backupninja container fetches the
+# value at boot and schedules the integrity scripts for Saturday only.
+INTEGRITY_ENABLED_DEFAULT = False
+
 
 def _retention_per_host():
     """How many records to keep per host. Configurable via env."""
@@ -241,6 +248,32 @@ class AdminBackupsService:
                 .run(RethinkSharedConnection._rdb_connection)
             )
             return result.get("deleted", 0)
+
+    @staticmethod
+    def get_integrity_enabled() -> bool:
+        """Return the saved weekly-borg-integrity toggle (default off)."""
+        with RethinkSharedConnection._rdb_context():
+            cfg = (
+                r.table("config")
+                .get(1)
+                .run(RethinkSharedConnection._rdb_connection)
+                or {}
+            )
+        value = (cfg.get("backups") or {}).get("integrity_enabled")
+        if value is None:
+            return INTEGRITY_ENABLED_DEFAULT
+        return bool(value)
+
+    @staticmethod
+    def set_integrity_enabled(value) -> dict:
+        """Persist the weekly-borg-integrity toggle. Schemaless config write."""
+        if not isinstance(value, bool):
+            raise Error("bad_request", "integrity_enabled must be a boolean")
+        with RethinkSharedConnection._rdb_context():
+            r.table("config").get(1).update(
+                {"backups": {"integrity_enabled": value}}
+            ).run(RethinkSharedConnection._rdb_connection)
+        return {"integrity_enabled": value}
 
     @staticmethod
     def get_backup_config() -> dict:

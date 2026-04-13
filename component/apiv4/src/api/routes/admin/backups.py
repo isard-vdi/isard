@@ -21,7 +21,10 @@
 import traceback
 
 from api import admin_router
-from api.schemas.admin_backups import BackupReportRequest
+from api.schemas.admin_backups import (
+    BackupIntegritySetRequest,
+    BackupReportRequest,
+)
 from api.schemas.common import ErrorResponse
 from api.services.admin_backups import AdminBackupsService
 from api.services.error import Error
@@ -96,6 +99,67 @@ async def admin_backup_hosts(request: Request):
             request,
             "internal_server",
             "Failed to list backup hosts",
+            traceback.format_exc(),
+        )
+
+
+# =============================================================================
+# WEEKLY BORG INTEGRITY TOGGLE
+# =============================================================================
+
+
+@admin_router.get(
+    "/admin/backups/integrity",
+    tags=[tag],
+    summary="Get weekly borg integrity check toggle",
+    description=(
+        "Return the saved weekly-borg-integrity toggle. Off by default; "
+        "backupninja containers poll this live before each saturday run."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_backup_integrity_get(request: Request):
+    try:
+        result = {"integrity_enabled": AdminBackupsService.get_integrity_enabled()}
+        return JSONResponse(content=result, status_code=200)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to read integrity toggle",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/backups/integrity",
+    tags=[tag],
+    summary="Enable or disable weekly borg integrity check",
+    description=(
+        "Persist the weekly-borg-integrity toggle. Takes effect on the next "
+        "scheduled run; no container restart required."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def admin_backup_integrity_set(
+    request: Request,
+    data: BackupIntegritySetRequest,
+):
+    try:
+        result = AdminBackupsService.set_integrity_enabled(data.integrity_enabled)
+        return JSONResponse(content=result, status_code=200)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to set integrity toggle",
             traceback.format_exc(),
         )
 
