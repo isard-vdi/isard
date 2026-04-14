@@ -32,7 +32,7 @@ services:
 
   isard-prometheus:
     container_name: isard-prometheus
-    image: prom/prometheus:v2.53.0
+    image: prom/prometheus:v3.5.2
     user: root
     volumes:
       - /opt/isard/stats/prometheus:/prometheus
