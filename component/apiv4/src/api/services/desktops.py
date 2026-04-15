@@ -671,6 +671,10 @@ class DesktopService:
         return DesktopService.get_desktop_networks(desktop_id)
 
     @staticmethod
+    def start_desktop_from_token(token, request):
+        return DesktopDirectViewer.start_desktop(token, request)
+
+    @staticmethod
     def owns_desktop_viewer_by_desktop_id(
         desktop_id: str,
         user_id: str,

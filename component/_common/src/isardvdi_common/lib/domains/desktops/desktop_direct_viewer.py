@@ -362,6 +362,26 @@ class DesktopDirectViewer(RethinkSharedConnection):
         return desktop_id
 
     @classmethod
+    def start_desktop(cls, token, request):
+        """Start a desktop identified by its direct-viewer share token.
+
+        Only triggers an engine start when the desktop is currently stopped
+        or failed; other states are no-ops so the user isn't stuck and
+        repeat clicks stay idempotent.
+        """
+        domain = cls.get_desktop_from_token(token)
+        desktop_id = domain["id"]
+        if domain["status"] in [
+            DesktopStatusEnum.stopped.value,
+            DesktopStatusEnum.failed.value,
+        ]:
+            Logging.logs_domain_start_directviewer(desktop_id, user_request=request)
+            DesktopEvents.desktop_start(desktop_id, wait_seconds=60)
+            payload = Helpers.gen_payload_from_user(domain["user"])
+            Scheduler.add_desktop_timeouts(payload, desktop_id)
+        return desktop_id
+
+    @classmethod
     def desktop_viewer_docs(cls):
         docs_link = os.getenv(
             "FRONTEND_VIEWERS_DOCS_URI",
