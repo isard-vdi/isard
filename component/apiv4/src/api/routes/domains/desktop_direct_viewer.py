@@ -49,6 +49,7 @@ from api.schemas.domains.desktop_direct_viewer import (
     DesktopViewerResponse,
     ViewersDocsResponse,
 )
+from api.schemas.domains.desktops import DesktopNetworksResponse
 from api.services.desktops import DesktopService
 from api.services.error import Error
 from cachetools import TTLCache, cached
@@ -270,6 +271,46 @@ async def log_viewer_click(
         raise
     except Exception:
         log.warning("Direct viewer click logging failed", exc_info=True)
+        return await _timed_not_found(start_time)
+
+
+@direct_viewer_router.get(
+    "/item/desktop/token/{token}/get-networks",
+    tags=[tag],
+    response_model=DesktopNetworksResponse,
+    summary="Get networks of a desktop from a direct viewer token",
+    description=(
+        "Returns the networks information about an IsardVDI desktop "
+        "identified by a direct viewer share token. Requires a direct "
+        "viewer JWT as Authorization bearer."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_desktop_networks_from_token(
+    request: Request,
+    token: str = Path(
+        ...,
+        description="Code provided for the desktop viewer. Mainly defined when generating the share link.",
+    ),
+):
+    start_time = time.time()
+    if direct_viewer_limiter.is_limited(request):
+        log.warning("Direct viewer rate limit exceeded for networks request")
+        return await _timed_not_found(start_time)
+    try:
+        networks = DesktopService.get_desktop_networks_from_token(token)
+        return JSONResponse(
+            content=DesktopNetworksResponse(networks=networks).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        log.warning("Direct viewer networks token lookup failed")
         return await _timed_not_found(start_time)
 
 
