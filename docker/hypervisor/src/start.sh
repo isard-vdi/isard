@@ -18,12 +18,17 @@ report_progress($1, $BOOT_TOTAL, '$2', $3)
 " 2>/dev/null || true
 }
 
-# Will remove hyper on docker shutdown
-remove_hyper()
+# Graceful hypervisor shutdown. Runs in parallel: API unregister +
+# ACPI to all running guests, then drains up to GUEST_SHUTDOWN_TIMEOUT
+# (default 15s), hard-destroys leftovers, and wipes all sysfs mdevs.
+# See lib/shutdown.py. Container must have matching stop_grace_period
+# in docker-compose-parts/hypervisor.yml.
+shutdown_hyper()
 {
-  python3 /src/lib/hypervisor.py delete
+  python3 /src/lib/shutdown.py || true
+  exit 0
 }
-trap remove_hyper SIGTERM SIGINT SIGQUIT
+trap shutdown_hyper SIGTERM SIGINT SIGQUIT
 
 echo "---> Cleaning old libvirt info dirs..."
 rm -rf /run/libvirt/*
@@ -148,6 +153,33 @@ do
   fi
 done
 report_step 5 "Network setup" None
+
+echo "---> Cleaning up leftover qemu processes and mdevs..."
+# Privileged containers run qemu in the host PID namespace; processes
+# survive docker restart.  Kill them so VFs release their mdevs before
+# GPU discovery creates the fresh engine-managed pool.
+STALE_QEMU=$(pgrep -f 'qemu-system' 2>/dev/null || true)
+if [ -n "$STALE_QEMU" ]; then
+    echo "    Killing $(echo "$STALE_QEMU" | wc -w) leftover qemu process(es)..."
+    echo "$STALE_QEMU" | xargs kill -TERM 2>/dev/null || true
+    # Wait up to 10s for graceful exit, then force
+    for i in $(seq 1 20); do
+        pgrep -f 'qemu-system' >/dev/null 2>&1 || break
+        sleep 0.5
+    done
+    # Force kill any survivors
+    pgrep -f 'qemu-system' >/dev/null 2>&1 && {
+        echo "    Force-killing remaining qemu processes..."
+        pkill -9 -f 'qemu-system' 2>/dev/null || true
+        sleep 1
+    }
+fi
+# Wipe all sysfs mdevs now that no qemu holds them
+for uuid in $(ls /sys/bus/mdev/devices/ 2>/dev/null); do
+    echo 1 > /sys/bus/mdev/devices/$uuid/remove 2>/dev/null || true
+done
+MDEV_COUNT=$(ls /sys/bus/mdev/devices/ 2>/dev/null | wc -l)
+echo "    qemu cleanup done (remaining mdevs: $MDEV_COUNT)"
 
 echo "---> Discovering NVIDIA GPUs and hugepages..."
 export LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH:-}

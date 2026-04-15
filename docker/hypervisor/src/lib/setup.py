@@ -166,17 +166,21 @@ def SetupHypervisor():
 
 
 def DeleteHypervisor():
-    ok = False
-    while not ok:
-        try:
-            deleted = apic.delete(
-                "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor")
-            )
-            ok = True
-        except:
-            print("Could not contact api to delete me... retrying...")
-            sleep(1)
-    return deleted
+    """Best-effort API unregister. Bounded: one attempt, logged on failure.
+
+    The old unbounded retry loop blocked shutdown indefinitely if the API
+    was unreachable — docker's stop_grace_period would then SIGKILL us
+    before any cleanup ran. Shutdown is handled by lib/shutdown.py now
+    (with its own timeout-bounded DELETE), so this function is only left
+    as a CLI entry point for manual operator use.
+    """
+    try:
+        return apic.delete(
+            "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor")
+        )
+    except Exception as e:
+        print(f"Could not contact api to delete me: {e}")
+        return False
 
 
 def EnableHypervisor():

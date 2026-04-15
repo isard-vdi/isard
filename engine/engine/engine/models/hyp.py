@@ -1384,6 +1384,46 @@ class hyp(object):
                 logs.workers.warning(
                     f"[{self.id_hyp_rethink}] GPU warnings stored: {len(warnings)}"
                 )
+                # Schedule a retry: orphan mdevs from a prior container lifetime
+                # may still exist during early init. The hypervisor's deferred
+                # cleanup wipes them ~10s after READY, so a retry 30s later will
+                # likely succeed and clear the stale warnings.
+                import threading
+
+                def _retry_mdev_create():
+                    time.sleep(30)
+                    logs.workers.info(
+                        f"[{self.id_hyp_rethink}] Retrying mdev creation after deferred cleanup..."
+                    )
+                    self._gpu_warnings = []
+                    try:
+                        self.create_mdevs_from_uuids()
+                    except Exception as e:
+                        logs.workers.warning(
+                            f"[{self.id_hyp_rethink}] mdev retry failed: {e}"
+                        )
+                    retry_warnings = getattr(self, "_gpu_warnings", [])
+                    update_table_field(
+                        "hypervisors",
+                        self.id_hyp_rethink,
+                        "gpu_warnings",
+                        retry_warnings,
+                        merge_dict=False,
+                    )
+                    if not retry_warnings:
+                        logs.workers.info(
+                            f"[{self.id_hyp_rethink}] GPU warnings cleared after retry"
+                        )
+                    else:
+                        logs.workers.warning(
+                            f"[{self.id_hyp_rethink}] GPU warnings persist after retry: {len(retry_warnings)}"
+                        )
+
+                threading.Thread(
+                    target=_retry_mdev_create,
+                    name=f"mdev-retry-{self.id_hyp_rethink}",
+                    daemon=True,
+                ).start()
         except Exception:
             pass
 
@@ -1990,6 +2030,13 @@ class hyp(object):
 
             # SR-IOV total VFs (needed for passthrough on vGPU cards)
             info_nvidia["sriov_totalvfs"] = gpu.get("sriov_totalvfs", 0)
+
+            # Bootstrap mdev-reset timestamp stamped by the hypervisor on each
+            # (re)start. Reconcile uses it to tell whether it needs to do an
+            # authoritative rebuild of vgpus.mdevs (the hypervisor wiped its
+            # mdev state, so the old DB pool no longer has anything bound).
+            if gpu.get("mdevs_reset_at"):
+                info_nvidia["mdevs_reset_at"] = gpu["mdevs_reset_at"]
 
             # max_gpus is the max of the most-split profile
             info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
@@ -2748,13 +2795,24 @@ class hyp(object):
         return d_uuids
 
     def reconcile_vgpu_uuids(self, vgpu_id, d_info_gpu):
-        """Top up an existing vgpu row with mdev UUIDs for newly-visible VFs.
+        """Reconcile a vgpu row's mdev UUID pool with live VF state.
 
-        Idempotent and non-destructive: only adds entries for VFs not already
-        present in mdevs[profile]. Existing entries (including those bound to
-        running domains via domain_started/domain_reserved) are left intact.
+        Two modes, selected automatically:
 
-        Returns the number of mdev entries added across all profiles.
+        - **Authoritative rebuild** (when the hypervisor has wiped its sysfs
+          mdevs on startup — signalled by ``info_gpu["mdevs_reset_at"]``
+          newer than the row's ``mdevs_last_synced_at``): overwrite
+          ``mdevs`` with a fresh canonical UUID per (VF × profile) slot.
+          Any ``domain_started`` / ``domain_reserved`` UUIDs in the old
+          pool no longer have a bound mdev on the host, so their domains
+          are transitioned to ``Stopped``.
+
+        - **Top-up** (no reset observed): add entries for VFs not already
+          present in ``mdevs[profile]``. Existing entries — including those
+          bound to running domains — are left intact. Idempotent.
+
+        Returns the number of mdev entries added (top-up) or created from
+        scratch (rebuild) across all profiles.
         """
         sub_paths = d_info_gpu.get("sub_paths", False)
         if sub_paths is False:
@@ -2764,6 +2822,18 @@ class hyp(object):
             return 0
         existing_mdevs = existing.get("mdevs") or {}
         sorted_paths = sorted(sub_paths)
+
+        reset_at = d_info_gpu.get("mdevs_reset_at")
+        last_synced_at = existing.get("mdevs_last_synced_at")
+        authoritative = bool(reset_at) and (
+            not last_synced_at or reset_at > last_synced_at
+        )
+
+        if authoritative:
+            return self._rebuild_vgpu_uuids_authoritative(
+                vgpu_id, d_info_gpu, existing, sorted_paths, reset_at
+            )
+
         additions = {}
         for name, d_type in d_info_gpu["types"].items():
             if d_type.get("mig"):
@@ -2814,6 +2884,101 @@ class hyp(object):
                 )
             return total_added
         return 0
+
+    def _rebuild_vgpu_uuids_authoritative(
+        self, vgpu_id, d_info_gpu, existing, sorted_paths, reset_at
+    ):
+        """Wholesale rebuild of vgpus.mdevs after a hypervisor mdev wipe.
+
+        Generates fresh UUIDs for every (VF × profile) slot up to profile
+        cap, replaces ``mdevs`` entirely, and transitions any domain whose
+        old UUID was bound (``domain_started`` or ``domain_reserved``) to
+        ``Stopped`` — those domains no longer have a live mdev on the host.
+        """
+        rebuilt = {}
+        for name, d_type in d_info_gpu["types"].items():
+            if d_type.get("mig"):
+                continue
+            target = max(
+                d_type.get("max") or d_type.get("available", 1) or 1,
+                d_type.get("available", 1),
+            )
+            cap = min(target, len(sorted_paths))
+            prof_new = {}
+            for path in sorted_paths[:cap]:
+                prof_new[str(uuid.uuid4())] = {
+                    "pci_mdev_id": path.split("/")[-1],
+                    "type_id": d_type["id"],
+                    "created": False,
+                    "domain_started": False,
+                    "domain_reserved": False,
+                }
+            if prof_new:
+                rebuilt[name] = prof_new
+        # passthrough is not profile-based; retain its slot if present.
+        passthrough = (existing.get("mdevs") or {}).get("passthrough")
+        if passthrough:
+            rebuilt["passthrough"] = {
+                uid: {
+                    **entry,
+                    "domain_started": False,
+                    "domain_reserved": False,
+                }
+                for uid, entry in passthrough.items()
+                if isinstance(entry, dict)
+            }
+
+        orphaned_domains = []
+        for prof, entries in (existing.get("mdevs") or {}).items():
+            for uid, entry in entries.items():
+                if not isinstance(entry, dict):
+                    continue
+                started = entry.get("domain_started")
+                reserved = entry.get("domain_reserved")
+                if started and isinstance(started, str):
+                    orphaned_domains.append((started, prof, uid, "started"))
+                elif reserved and isinstance(reserved, str):
+                    orphaned_domains.append((reserved, prof, uid, "reserved"))
+
+        add_vgpu_uuids(
+            vgpu_id,
+            rebuilt,
+            sub_paths=sorted_paths,
+            replace_mdevs=True,
+            mdevs_last_synced_at=reset_at,
+        )
+
+        total_created = sum(len(v) for k, v in rebuilt.items() if k != "passthrough")
+        logs.workers.warning(
+            f"[{self.id_hyp_rethink}] Authoritative rebuild of {vgpu_id}: "
+            f"{total_created} fresh mdev slots across "
+            f"{len([k for k in rebuilt if k != 'passthrough'])} profile(s); "
+            f"sub_paths={len(sorted_paths)}; "
+            f"{len(orphaned_domains)} orphaned domain binding(s) "
+            f"(mdev reset at {reset_at})"
+        )
+        for domain_id, prof, uid, kind in orphaned_domains:
+            try:
+                update_domain_status(
+                    "Stopped",
+                    domain_id,
+                    detail=(
+                        f"GPU hypervisor {self.id_hyp_rethink} reset its mdev "
+                        f"state at {reset_at}; bound mdev UUID {uid} "
+                        f"(profile {prof}, {kind}) no longer exists on host."
+                    ),
+                )
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] Stopped domain {domain_id}: "
+                    f"held {kind} mdev {uid} on {vgpu_id} profile {prof} "
+                    f"(hypervisor mdev reset)"
+                )
+            except Exception as e:
+                logs.workers.error(
+                    f"[{self.id_hyp_rethink}] failed to Stop orphaned "
+                    f"domain {domain_id} after mdev reset: {e}"
+                )
+        return total_created
 
     def delete_vgpus_devices(
         self, gpu_id, d_uids, info_nvidia, selected_gpu_type, hyp_id

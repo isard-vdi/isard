@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import urllib.request
+from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
@@ -426,6 +427,114 @@ def _ensure_sriov_max_vfs(sysfs_pci_id):
         )
 
 
+def _reset_sysfs_mdevs(main_path):
+    """Remove every live sysfs mdev currently bound under this GPU's PF.
+
+    Scans both the PF (pre-Ampere cards like T4) and every SR-IOV VF
+    (``virtfn*`` symlinks) for mdev devices under
+    ``mdev_supported_types/<type>/devices/<uuid>`` and writes ``1`` to the
+    corresponding ``/sys/bus/mdev/devices/<uuid>/remove``.
+
+    Why: engine-side reconcile is the single source of truth for which mdev
+    UUIDs exist. Pre-existing mdevs from prior container lifetimes or from
+    NVIDIA vGPU host driver auto-instantiation collide with reconcile-created
+    UUIDs (each VF exposes only one mdev at a time), causing libvirt
+    ``createXML`` to hang for 30s when engine writes a new UUID into an
+    already-occupied ``/create``. Wiping on startup is the bootstrap contract:
+    every hypervisor (re)start comes up with an empty pool.
+    """
+    scan_roots = [main_path]
+    i = 0
+    while True:
+        link = os.path.join(main_path, f"virtfn{i}")
+        if not os.path.islink(link):
+            break
+        try:
+            scan_roots.append(os.path.realpath(link))
+        except OSError:
+            break
+        i += 1
+
+    removed = 0
+    refused = 0
+    for root in scan_roots:
+        mdev_dir = os.path.join(root, "mdev_supported_types")
+        if not os.path.isdir(mdev_dir):
+            continue
+        try:
+            types = os.listdir(mdev_dir)
+        except OSError:
+            continue
+        for type_name in types:
+            devices_dir = os.path.join(mdev_dir, type_name, "devices")
+            if not os.path.isdir(devices_dir):
+                continue
+            try:
+                uuids = os.listdir(devices_dir)
+            except OSError:
+                continue
+            for mdev_uuid in uuids:
+                remove_path = f"/sys/bus/mdev/devices/{mdev_uuid}/remove"
+                try:
+                    with open(remove_path, "w") as f:
+                        f.write("1")
+                    removed += 1
+                except OSError as e:
+                    refused += 1
+                    log.warning(
+                        "GPU %s: could not remove mdev %s on %s: %s "
+                        "(VF may be attached to a running domain; "
+                        "the domain must be stopped before hypervisor restart)",
+                        os.path.basename(main_path),
+                        mdev_uuid,
+                        os.path.basename(root),
+                        e,
+                    )
+    if removed or refused:
+        log.info(
+            "GPU %s: mdev reset — removed=%d refused=%d",
+            os.path.basename(main_path),
+            removed,
+            refused,
+        )
+
+
+def reset_all_mdevs():
+    """Wipe every sysfs mdev on every nvidia-bound PF.
+
+    Walks ``/sys/bus/pci/devices/*`` for entries whose ``driver`` symlink
+    resolves to ``nvidia`` and which expose ``mdev_supported_types`` or
+    ``sriov_totalvfs``, then calls the per-GPU :func:`_reset_sysfs_mdevs`
+    on each. Intended for the shutdown path so the host leaves no live
+    mdevs behind for the next container lifetime.
+
+    Returns the number of PFs scanned. Safe to call even when no qemu
+    is running; unsafe while a VF is attached to a domain (kernel will
+    refuse /remove, warning is logged per refusal).
+    """
+    pf_count = 0
+    try:
+        entries = sorted(os.listdir("/sys/bus/pci/devices/"))
+    except OSError:
+        return 0
+    for bdf in entries:
+        dev = f"/sys/bus/pci/devices/{bdf}"
+        driver_link = os.path.join(dev, "driver")
+        try:
+            driver_name = os.path.basename(os.path.realpath(driver_link))
+        except OSError:
+            continue
+        if driver_name != "nvidia":
+            continue
+        has_mdev = os.path.isdir(os.path.join(dev, "mdev_supported_types"))
+        has_sriov = os.path.isfile(os.path.join(dev, "sriov_totalvfs"))
+        if not (has_mdev or has_sriov):
+            continue
+        _reset_sysfs_mdevs(dev)
+        pf_count += 1
+    return pf_count
+
+
 def _enumerate_sriov_vf_paths(main_path):
     """Return sorted list of SR-IOV VF sysfs paths for a PF device.
 
@@ -478,12 +587,21 @@ def _aggregate_subdevice_profiles(pci_bus_id):
     # First try main device (pre-Ampere cards like T4)
     main_profiles = _get_vgpu_profiles(pci_bus_id)
     if main_profiles:
+        # Clear any pre-existing mdevs on the PF so engine-side reconcile
+        # rebuilds the pool from an empty slate.
+        _reset_sysfs_mdevs(main_path)
         return main_profiles, None, None
 
     # Ensure every VF is bound so its mdev_supported_types is exposed.
     # Without this the engine caps the mdev pool below hardware capacity
     # whenever sriov_numvfs was raised after the original discovery scan.
     _ensure_sriov_max_vfs(sysfs_pci_id)
+
+    # Wipe pre-existing mdevs on every VF. Must happen after
+    # _ensure_sriov_max_vfs (so every VF is present) and before enumeration,
+    # so engine's reconcile later sees empty VFs and its canonical UUIDs are
+    # the only ones that end up bound.
+    _reset_sysfs_mdevs(main_path)
 
     # Prefer SR-IOV enumeration via virtfn* symlinks (authoritative for
     # Ampere/Ada/Blackwell). Falls through to legacy sub-function scan only
@@ -569,6 +687,12 @@ def discover_gpus():
     """
     raw_gpus = _run_nvidia_smi()
 
+    # Single timestamp for this discovery run. Stamped on every GPU so engine
+    # reconcile can tell "this hypervisor came up fresh and wiped its mdevs at
+    # T", triggering an authoritative rebuild of vgpus.mdevs and stopping any
+    # domains still holding now-removed UUIDs.
+    mdevs_reset_at = datetime.now(timezone.utc).isoformat()
+
     gpus = []
     for gpu_index, gpu in enumerate(raw_gpus):
         profiles, sub_paths, path_parent = _aggregate_subdevice_profiles(
@@ -586,6 +710,7 @@ def discover_gpus():
             "mig_mode": mig_mode,
             "model": normalize_gpu_model(gpu["name"], profiles),
             "gpu_uuid": gpu.get("gpu_uuid"),
+            "mdevs_reset_at": mdevs_reset_at,
         }
 
         if mig_mode != "[N/A]":

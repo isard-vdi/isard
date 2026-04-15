@@ -2,6 +2,7 @@ services:
   isard-hypervisor:
     container_name: isard-hypervisor
     image: ${DOCKER_IMAGE_PREFIX}hypervisor:${DOCKER_IMAGE_TAG-latest}
+    stop_grace_period: 25s
     logging:
       driver: "json-file"
       options:

@@ -1071,23 +1071,45 @@ def get_vgpu_full(vgpu_id):
     return out
 
 
-def add_vgpu_uuids(vgpu_id, additions, sub_paths=None):
-    """Non-destructive top-up of an existing vgpu row.
+def add_vgpu_uuids(
+    vgpu_id,
+    additions,
+    sub_paths=None,
+    replace_mdevs=False,
+    mdevs_last_synced_at=None,
+):
+    """Update a vgpu row's mdev pool.
 
-    additions: {profile_name: {uuid: entry_dict}} — only NEW UUIDs.
-    sub_paths: optional updated sub_paths list to merge into info.sub_paths.
+    additions: {profile_name: {uuid: entry_dict}}. In top-up mode (default)
+        these are only NEW UUIDs that get deep-merged into mdevs. In
+        authoritative-rebuild mode (replace_mdevs=True) these fully replace
+        mdevs — any profile/UUID not in ``additions`` is discarded.
+    sub_paths: optional sub_paths list to write into info.sub_paths. Always
+        replaces the existing list when provided.
+    replace_mdevs: when True, replace ``mdevs`` wholesale via ``r.literal``.
+        Used after the hypervisor boot wipes its sysfs mdevs so the DB pool
+        becomes the single source of truth for the fresh VFs.
+    mdevs_last_synced_at: when set, write this timestamp on the row so the
+        next reconcile can tell whether a later hypervisor reset has happened
+        since.
 
-    Existing mdev entries (including those with active domain_started /
-    domain_reserved references) are preserved by RethinkDB's deep-merge update.
+    Top-up mode preserves active ``domain_started`` / ``domain_reserved``
+    bindings by relying on RethinkDB's deep-merge update. Replace mode does
+    NOT preserve them — caller is responsible for transitioning orphaned
+    domains to ``Stopped`` before (or right after) this call.
     """
-    if not additions and not sub_paths:
+    if not additions and sub_paths is None and mdevs_last_synced_at is None:
         return
     r_conn = new_rethink_connection()
     patch = {}
-    if additions:
+    if replace_mdevs:
+        patch["mdevs"] = r.literal(additions or {})
+    elif additions:
         patch["mdevs"] = additions
     if sub_paths is not None:
         patch["info"] = {"sub_paths": list(sub_paths)}
+    if mdevs_last_synced_at is not None:
+        patch["mdevs_last_synced_at"] = mdevs_last_synced_at
     r.table("vgpus").get(vgpu_id).update(patch).run(r_conn)
     close_rethink_connection(r_conn)
 
