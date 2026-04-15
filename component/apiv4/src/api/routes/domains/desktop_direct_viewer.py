@@ -278,6 +278,7 @@ async def log_viewer_click(
     "/item/desktop/token/{token}/get-networks",
     tags=[tag],
     response_model=DesktopNetworksResponse,
+    operation_id="get_networks_from_token",
     summary="Get networks of a desktop from a direct viewer token",
     description=(
         "Returns the networks information about an IsardVDI desktop "
@@ -318,6 +319,7 @@ async def get_desktop_networks_from_token(
     "/item/desktop/token/{token}/start-desktop",
     tags=[tag],
     response_model=SimpleResponse,
+    operation_id="start_desktop_from_token",
     summary="Start a desktop from a direct viewer token",
     description=(
         "Starts an IsardVDI desktop identified by a direct viewer share "
