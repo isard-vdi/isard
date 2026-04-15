@@ -352,47 +352,59 @@ class DesktopDomainHandler:
         )
 
         ## Direct viewer room
+        # Fires whenever a direct-viewer-visible desktop changes status OR
+        # when its guest IP appears while started (so the viewer can pick up
+        # the freshly generated viewer URLs/cookies). This keeps the direct
+        # viewer card in sync when the owner stops/resets the desktop from
+        # elsewhere.
+
         jumperurl = (new_val.additional_properties or {}).get("jumperurl")
         new_viewer = (new_val.additional_properties or {}).get("viewer") or {}
         old_viewer = (old_val.additional_properties or {}).get("viewer") or {}
 
-        if (
-            jumperurl
-            and (not new_val.tag or (new_val.tag and new_val.tag_visible))
-            and new_val.status == DesktopStatusEnum.started.value
+        direct_viewer_visible = jumperurl and (
+            not new_val.tag or new_val.tag and new_val.tag_visible
+        )
+        status_changed = old_val.status != new_val.status
+        guest_ip_became_available = (
+            new_val.status == DesktopStatusEnum.started.value
             and new_viewer.get("passwd")
             and old_viewer.get("guest_ip") != new_viewer.get("guest_ip")
-        ):
-            try:
-                viewers = await asyncio.to_thread(
-                    DesktopDirectViewer.desktop_viewer_from_token,
-                    jumperurl,
-                    start_desktop=False,
-                )
-            except Exception:
-                log.exception(
-                    "desktop_viewer_from_token failed for domain %s", new_val.id
-                )
-                return
-            if viewers is not None:
-                viewer_data = {
-                    "id": viewers.pop("id", None),
-                    "jwt": viewers.pop("jwt", None),
-                    "name": viewers.pop("name", None),
-                    "description": viewers.pop("description", None),
-                    "status": viewers.pop("status"),
-                    "scheduled": viewers.pop("scheduled", None),
-                    "viewers": viewers["viewers"],
-                    "needs_booking": viewers.pop("needs_booking", False),
-                    "next_booking_start": viewers.pop("next_booking_start", None),
-                    "next_booking_end": viewers.pop("next_booking_end", None),
-                }
-                await self.emit(
-                    "directviewer_update",
-                    json_dumps(viewer_data),
-                    namespace="/userspace",
-                    room=new_val.id,
-                )
+        )
+
+        if direct_viewer_visible and (status_changed or guest_ip_became_available):
+            viewer_data = {
+                "id": new_val.id,
+                "status": new_val.status,
+            }
+            if guest_ip_became_available:
+                try:
+                    viewers = DesktopDirectViewer.desktop_viewer_from_token(
+                        new_val.jumperurl, start_desktop=False
+                    )
+                except Exception as e:
+                    print(f"Error in desktop_viewer_from_token: {e}")
+                    viewers = None
+                if viewers is not None:
+                    viewer_data = {
+                        "id": viewers.pop("id", None),
+                        "jwt": viewers.pop("jwt", None),
+                        "name": viewers.pop("name", None),
+                        "description": viewers.pop("description", None),
+                        # Prefer real status over the helper's hard-coded value
+                        "status": new_val.status,
+                        "scheduled": viewers.pop("scheduled", None),
+                        "viewers": viewers["viewers"],
+                        "needs_booking": viewers.pop("needs_booking", False),
+                        "next_booking_start": viewers.pop("next_booking_start", None),
+                        "next_booking_end": viewers.pop("next_booking_end", None),
+                    }
+            await self.emit(
+                "directviewer_update",
+                json_dumps(viewer_data),
+                namespace="/userspace",
+                room=new_val.id,
+            )
 
         ## Deployment rooms handling
 
