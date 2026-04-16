@@ -34,9 +34,12 @@ class DesktopUpdateShareLinkRequest(BaseModel):
 
 
 class DesktopViewerScheduled(BaseModel):
-    shutdown: Union[datetime, Literal[False], None] = Field(
+    shutdown: Union[bool, str] = Field(
         default=False,
-        description="Scheduled shutdown time for the desktop. If False, no shutdown is scheduled. If None, the desktop is not scheduled.",
+        description=(
+            "When a shutdown is scheduled, contains the UTC end time as a "
+            "'%Y-%m-%dT%H:%M%z' string. False when no shutdown is scheduled."
+        ),
     )
 
 
@@ -153,7 +156,8 @@ class DesktopViewerResponse(BaseModel):
     status: DesktopStatusEnum = Field(
         description="Status of the desktop.",
     )
-    scheduled: DesktopViewerScheduled = Field(
+    scheduled: Optional[DesktopViewerScheduled] = Field(
+        default=None,
         description="Scheduled actions for the desktop viewer.",
     )
     viewers: ViewersModel = Field(
