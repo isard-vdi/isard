@@ -414,10 +414,31 @@ HAPROXY_LOGGING=.
 
 # ------ QCOW2 images --------------------------------------------------------
 ## Cluster size used when creating qcow2 disk images
+## Default: 4k (maximum compatibility)
+## Recommended for NFS: 2M (500x less metadata overhead vs 4k)
+## Options: 512, 1k, 2k, 4k, 8k, 16k, 32k, 64k, 128k, 256k, 512k, 1M, 2M
+## WARNING: extended_l2=on requires cluster_size >= 16k
 #QCOW2_CLUSTER_SIZE=4k
 ## Enable use of extended l2 entries when creating qcow2 disk images
+## Default: off
+## Recommended for NFS with cluster_size >= 16k: on (64KB subclusters for better thin provisioning)
 ## Options: on / off
+## WARNING: requires cluster_size >= 16k, requires QEMU >= 5.2 on any host
+## that reads these images. Images with extended_l2 are NOT readable by older QEMU.
 #QCOW2_EXTENDED_L2=off
+## Enable lazy refcounts for better write performance
+## Default: off
+## Recommended for NFS: on (safe with crash-consistent filesystems like XFS/ext4)
+## NOTE: after an ungraceful host crash, qemu will automatically rebuild refcount
+## tables on next image open (qemu-img check -r all). This may slow desktop startup.
+## Options: on / off
+#QCOW2_LAZY_REFCOUNTS=off
+## Preallocation mode for new disks
+## With extended_l2=on, preallocation is also applied to disks with backing files
+## Default: off
+## Recommended for NFS: metadata (reduces fragmentation)
+## Options: off / metadata / falloc / full
+#QCOW2_PREALLOCATION=off
 
 # ------ GPUS --------------------------------------------------------------
 ## ----- NVIDIA
