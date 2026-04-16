@@ -316,10 +316,38 @@ const getFormData = () => ({
 
 const isFormValid = form.useStore((state) => state.isValid)
 
+const interfacesStore = form.useStore((state) => state.values.interfaces)
+
+function getInterfaces(): string[] {
+  return (form.getFieldValue('interfaces') as string[] | undefined) ?? []
+}
+
+function addInterface(ifaceId: string) {
+  const current = getInterfaces()
+  if (current.includes(ifaceId)) return
+  // Only add if the interface is available in the allowed-hardware catalog
+  const available = networksOptions.value.some((iface) => iface.id === ifaceId)
+  if (!available) return
+  form.setFieldValue('interfaces', [...current, ifaceId])
+}
+
+function removeInterface(ifaceId: string) {
+  const current = getInterfaces()
+  if (!current.includes(ifaceId)) return
+  form.setFieldValue(
+    'interfaces',
+    current.filter((id) => id !== ifaceId)
+  )
+}
+
 defineExpose({
   getFormData,
   isValid: isFormValid,
-  limitedFields: computedLimitedHardware
+  limitedFields: computedLimitedHardware,
+  getInterfaces,
+  addInterface,
+  removeInterface,
+  interfaces: interfacesStore
 })
 </script>
 <template>

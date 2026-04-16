@@ -36,6 +36,10 @@
       "edit": {
         "title": "Edit Desktop",
         "subtitle": "Update the desktop settings"
+      },
+      "new-from-media": {
+        "title": "New desktop from media",
+        "subtitle": "Create a desktop from an ISO or floppy"
       }
     },
     "templates": {
@@ -259,6 +263,41 @@
       },
       "success": {
         "message": "Template updated successfully"
+      }
+    },
+    "new-from-media": {
+      "title": "New desktop from media",
+      "subtitle": "Creating from '{media}'",
+      "header": {
+        "cancel": "Cancel",
+        "create": "Create desktop"
+      },
+      "errors": {
+        "title": "Error creating the desktop"
+      },
+      "info": {
+        "title": "Name and description",
+        "description": "Set the name and description of the new desktop."
+      },
+      "os-template": {
+        "title": "Operating system template",
+        "description": "Pick the OS hardware template for the new desktop.",
+        "label": "OS template",
+        "placeholder": "Select a template"
+      },
+      "access": {
+        "title": "Access",
+        "description": "Viewers and credentials for the new desktop."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memory, disk size, boot order and interfaces."
+      },
+      "unsaved-changes": {
+        "title": "Unsaved changes",
+        "description": "You have unsaved changes. If you leave they will be lost.",
+        "stay": "Stay",
+        "leave": "Discard changes"
       }
     },
     "migration": {
@@ -1198,6 +1237,11 @@
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
             }
           }
+        },
+        "wireguard-warning": {
+          "title": "Wireguard interface required",
+          "description": "The selected viewer needs the wireguard network interface to work. Add it to continue.",
+          "add-interface-button": "Add wireguard interface"
         }
       },
       "hardware": {
@@ -1520,6 +1564,29 @@
       "cancel": "Cancel",
       "confirm": "Recreate Desktop"
     },
+    "change-image-modal": {
+      "title": "Change desktop image",
+      "description": "Choose an image for the desktop card preview.",
+      "selected": "Selected",
+      "cancel": "Cancel",
+      "save": "Save",
+      "load-error": "Could not load images",
+      "errors": {
+        "title": "Error changing image",
+        "generic": "There was an error changing the image. Please try again."
+      },
+      "hint": "Pick an existing image or upload a new one (PNG, JPG or GIF, max 5 MB).",
+      "upload": {
+        "label": "Upload image",
+        "uploading": "Uploading…"
+      },
+      "upload-errors": {
+        "title": "Error uploading image",
+        "generic": "Upload failed. Please try again.",
+        "invalid_type": "Invalid file type. Choose a PNG, JPG or GIF.",
+        "too_large": "File is too large. Max size is 5 MB."
+      }
+    },
     "empty": {
       "title": "No {kind} available",
       "description": "Your {kind} will appear here once they are created or assigned to you.",
@@ -1594,7 +1661,8 @@
           "bastion-access": "Bastion access (HTTP / HTTPS / SSH)",
           "networks": "Networks",
           "direct-link": "Direct Link",
-          "recreate": "Recreate"
+          "recreate": "Recreate",
+          "change-image": "Change image"
         },
         "overlay": {
           "expand": "Details",
@@ -1825,6 +1893,9 @@
         "title": "Media creation quota exceeded",
         "description": "Media creation quota exceeded. A media must be deleted in order to upload a new one.",
         "cancel": "Go back to media"
+      },
+      "actions": {
+        "new-from-media": "Create desktop"
       }
     },
     "deployments": {
@@ -2088,6 +2159,12 @@
   "api": {
     "loading": "Loading...",
     "loading-error": "Error loading data",
+    "new-from-media": {
+      "errors": {
+        "generic": "There was an error creating the desktop. Please try again.",
+        "internal_server": "Internal server error while creating the desktop."
+      }
+    },
     "user": {
       "errors": {
         "unauthorized": "Your session has expired. Please log in again.",

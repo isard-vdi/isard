@@ -24,16 +24,37 @@ from isardvdi_common.schemas.domains import DomainViewerEnum
 from pydantic import BaseModel, Field
 
 
+class DomainImageFile(BaseModel):
+    data: str = Field(
+        description=(
+            "Base64-encoded image data (without the 'data:<mime>;base64,' " "prefix)."
+        ),
+    )
+    filename: str = Field(
+        description="Original filename of the uploaded image.",
+    )
+
+
 class DomainImage(BaseModel):
     id: str = Field(
         description="ID of the image to be used for the domain.",
     )
     type: str = Field(
-        description="Type of the image. This string can be either 'stock' or 'custom'.",
+        description="Type of the image. This string can be either 'stock' or 'user'.",
     )
     url: Optional[str] = Field(
         default=None,
         description="URL of the image.",
+    )
+    file: Optional[DomainImageFile] = Field(
+        default=None,
+        exclude=True,
+        description=(
+            "Optional file payload used to upload a new user card on desktop "
+            "edit. When set, the backend saves the image and replaces the "
+            "desktop's card with it (see `isardvdi_common.helpers.cards.Cards.upload`). "
+            "Excluded from JSON serialization (write-only)."
+        ),
     )
 
 
