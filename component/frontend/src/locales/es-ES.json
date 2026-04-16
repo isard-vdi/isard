@@ -1154,7 +1154,8 @@
           "recreate": "Recrear",
           "template": "Convertir en plantilla",
           "change-image": "Cambiar imagen",
-          "storage": "Almacenamiento"
+          "storage": "Almacenamiento",
+          "reset": "Reiniciar"
         },
         "debug-options": {
           "copy-id": "Copiar ID del escritorio"

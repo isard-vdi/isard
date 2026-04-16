@@ -1174,7 +1174,8 @@
           "recreate": "Recrea",
           "template": "Converteix en plantilla",
           "change-image": "Canvia la imatge",
-          "storage": "Emmagatzematge"
+          "storage": "Emmagatzematge",
+          "reset": "Reinicia"
         },
         "debug-options": {
           "copy-id": "Copia l'ID de l'escriptori"

@@ -1603,7 +1603,8 @@
           "direct-link": "Direct Link",
           "recreate": "Recreate",
           "change-image": "Change image",
-          "storage": "Storage"
+          "storage": "Storage",
+          "reset": "Reset"
         },
         "overlay": {
           "expand": "Details",

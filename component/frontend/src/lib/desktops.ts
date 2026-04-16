@@ -10,6 +10,7 @@ export type UserDesktopWithQueue = UserDesktop & { queue?: number }
 export enum DesktopActionsEnum {
   Start = 'desktopStart',
   Stop = 'desktopStop',
+  Reset = 'desktopReset',
   AbortOperation = 'desktopAbortOperation',
   UpdateStatus = 'desktopUpdateStatus',
   // StartNow = 'desktopStartNow',
@@ -31,7 +32,11 @@ export interface DesktopActionsData {
     iconColor: string
   } | null
 }
-export const desktopActionsData = (status: string, needsBooking = false): DesktopActionsData => {
+export const desktopActionsData = (
+  status: string,
+  needsBooking = false,
+  directViewer = false
+): DesktopActionsData => {
   switch (status) {
     case DesktopStatusEnum.STOPPED:
       if (needsBooking) {
@@ -82,6 +87,18 @@ export const desktopActionsData = (status: string, needsBooking = false): Deskto
 
     case DesktopStatusEnum.STARTED:
     case DesktopStatusEnum.WAITING_IP:
+      if (directViewer) {
+        return {
+          actionButton: {
+            icon: 'refresh-cw-01',
+            hierarchy: 'destructive',
+            action: DesktopActionsEnum.Reset,
+            label: 'components.desktops.desktop-card.actions.reset'
+          },
+          viewers: true,
+          text: null
+        }
+      }
       return {
         actionButton: {
           icon: 'stop',
