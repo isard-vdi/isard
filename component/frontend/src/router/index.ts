@@ -349,6 +349,15 @@ const router = createRouter({
         title: 'router.verify-email.title',
         allowedTokenTypes: ['email-verification-required', 'email-verification']
       }
+    },
+    {
+      path: '/frontend/vw/:token',
+      name: 'direct-viewer',
+      component: () => import('../views/DirectViewerView.vue'),
+      meta: {
+        title: 'router.direct-viewer.title',
+        public: true
+      }
     }
   ]
 })

@@ -52,14 +52,16 @@ const selectedViewer = computed<Viewer>(
   () => props.viewers.find((v) => v.id === selectedViewerId.value) || props.viewers[0]
 )
 
-const selectedViewerLabel = computed(() => t(`viewers.${selectedViewer.value.id}`))
+const selectedViewerLabel = computed(() =>
+  selectedViewer.value ? t(`viewers.${selectedViewer.value.id}`) : ''
+)
 
 const selectedViewerTooltipTitle = computed(() =>
-  t(`viewers.tooltip.${selectedViewer.value.id}.title`)
+  selectedViewer.value ? t(`viewers.tooltip.${selectedViewer.value.id}.title`) : ''
 )
 
 const selectedViewerTooltipDescription = computed(() =>
-  t(`viewers.tooltip.${selectedViewer.value.id}.description`)
+  selectedViewer.value ? t(`viewers.tooltip.${selectedViewer.value.id}.description`) : ''
 )
 
 const viewerTooltipDismissed = useLocalStorage('viewer-tooltip-dismissed', false)
@@ -88,7 +90,7 @@ const selectViewer = (viewer: Viewer) => {
 </script>
 
 <template>
-  <ButtonGroup class="min-w-0">
+  <ButtonGroup v-if="selectedViewer" class="min-w-0">
     <!-- TODO: rework component to update loading state dynamically -->
     <Tooltip
       :open="tooltipOpen"
@@ -99,7 +101,7 @@ const selectViewer = (viewer: Viewer) => {
         <Button
           class="min-w-0 overflow-hidden"
           :icon="selectedViewer.loading ? 'loading-02' : ''"
-          icon-class="animate-spin"
+          icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
           :disabled="selectedViewer.loading"
           @click="selectViewer(selectedViewer)"
           ><span class="min-w-0 truncate">{{ selectedViewerLabel }}</span></Button
@@ -135,7 +137,7 @@ const selectViewer = (viewer: Viewer) => {
                       hierarchy="link-gray"
                       :icon="viewer.loading ? 'loading-02' : ''"
                       icon-size="md"
-                      icon-class="animate-spin"
+                      icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
                       :disabled="viewer.loading"
                       @click="selectViewer(viewer)"
                     >
