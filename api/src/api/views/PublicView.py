@@ -81,7 +81,14 @@ def api_v3_category_custom_url(category_id):
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=20))
+login_config_cache = TTLCache(maxsize=32, ttl=20)
+
+
+def clear_login_config_cache():
+    login_config_cache.clear()
+
+
+@cached(login_config_cache)
 @app.route("/api/v3/login_config", methods=["GET"])
 @app.route("/api/v3/login_config/<category_id>", methods=["GET"])
 def api_v3_login_config(category_id=None):

@@ -485,15 +485,7 @@ $(document).ready(function () {
             data,
             "login notification",
             function () {
-                // Refresh preview
-                $.ajax({
-                    type: "GET",
-                    url: "/api/v3/login_config/" + categoryId,
-                    contentType: "application/json",
-                    success: function (refreshedData) {
-                        renderLoginNotificationPreview(modal + " #category-login-notification-preview", refreshedData);
-                    }
-                });
+                $(modal).modal("hide");
             }
         );
     });
