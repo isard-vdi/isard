@@ -2,7 +2,7 @@
 import { useForm } from '@tanstack/vue-form'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
-import { computed, ref, reactive } from 'vue'
+import { computed, ref, reactive, watch } from 'vue'
 
 import { z } from 'zod'
 import {
@@ -23,8 +23,15 @@ import { Switch } from '@/components/ui/switch'
 import { Icon } from '@/components/icon'
 import ViewersSelector from '@/components/domain/ViewersSelector.vue'
 import BastionConfigForm from '@/components/domain/BastionConfigForm.vue'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import {
+  WIREGUARD_REQUIRING_VIEWERS,
+  hasWireguardRequiringViewer,
+  stripWireguardRequiringViewers
+} from '@/lib/viewers'
 
 interface Credentials {
   username: string
@@ -60,6 +67,12 @@ interface Props {
   showCustomDomains?: boolean // Whether to show custom domains in bastion config
   bastion?: Bastion
   viewers?: string[]
+  /** Current network interfaces from the sibling hardware form. Used to warn
+   * the user when an RDP-class viewer is selected without wireguard. */
+  hardwareInterfaces?: string[]
+  /** Called when the user clicks "Add wireguard interface" in the warning
+   * alert. The parent component forwards this to DomainHardwareForm. */
+  onRequestAddInterface?: (ifaceId: string) => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -87,8 +100,15 @@ const props = withDefaults(defineProps<Props>(), {
     },
     customDomains: []
   }),
-  viewers: () => []
+  viewers: () => [],
+  hardwareInterfaces: () => [],
+  onRequestAddInterface: undefined
 })
+
+const emit = defineEmits<{
+  'rdp-viewers-enabled': [enabled: boolean]
+  'bastion-enabled': [enabled: boolean]
+}>()
 
 // Fetch template info when templateId is provided
 const {
@@ -218,6 +238,60 @@ const form = useForm({
   }
 })
 
+// --- Viewer / wireguard coordination ---
+
+const selectedViewers = form.useStore((state) => state.values.viewers)
+
+const hasRdpViewer = computed(() => hasWireguardRequiringViewer(selectedViewers.value ?? []))
+
+const wireguardMissing = computed(() => {
+  if (!hasRdpViewer.value) return false
+  return !(props.hardwareInterfaces ?? []).includes('wireguard')
+})
+
+watch(
+  hasRdpViewer,
+  (enabled) => {
+    emit('rdp-viewers-enabled', enabled)
+  },
+  { immediate: true }
+)
+
+// When the wireguard interface is removed from the hardware form while a
+// wireguard-requiring viewer is selected, strip those viewers. Mirrors the
+// Vue 2 removeWireguardViewers flow.
+watch(
+  () => props.hardwareInterfaces,
+  (newInterfaces, oldInterfaces) => {
+    const had = (oldInterfaces ?? []).includes('wireguard')
+    const has = (newInterfaces ?? []).includes('wireguard')
+    if (had && !has && hasRdpViewer.value) {
+      const current = (form.getFieldValue('viewers') as string[] | undefined) ?? []
+      form.setFieldValue('viewers', stripWireguardRequiringViewers(current))
+    }
+  }
+)
+
+function handleAddWireguardInterface() {
+  props.onRequestAddInterface?.('wireguard')
+}
+
+// --- Bastion coordination ---
+
+const bastionEnabled = ref(false)
+
+function handleBastionEnabled(enabled: boolean) {
+  bastionEnabled.value = enabled
+  emit('bastion-enabled', enabled)
+}
+
+// --- Credentials conditional visibility ---
+
+const showCredentials = computed(() => {
+  // Match Vue 2 behavior: credentials only meaningful for RDP viewers or bastion
+  return hasRdpViewer.value || (props.showBastionConfig && bastionEnabled.value)
+})
+
 const bastionFormRef = ref<InstanceType<typeof BastionConfigForm>>()
 
 const getFormData = () => {
@@ -265,6 +339,7 @@ const showPassword = ref(false)
   <template v-else>
     <FieldGroup>
       <section
+        v-if="showCredentials"
         class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
       >
         <div class="flex flex-row-reverse justify-end items-center gap-2.5">
@@ -371,6 +446,24 @@ const showPassword = ref(false)
             </FieldContent>
             <FieldError :errors="field.state.meta.errors" />
           </form.Field>
+          <Alert v-if="wireguardMissing" variant="default" class="border-warning-500">
+            <FeaturedIconOutline kind="outline" color="warning" />
+            <AlertTitle>{{ t('components.domain.access.wireguard-warning.title') }}</AlertTitle>
+            <AlertDescription>
+              <p class="mb-3">
+                {{ t('components.domain.access.wireguard-warning.description') }}
+              </p>
+              <Button
+                v-if="props.onRequestAddInterface"
+                size="sm"
+                hierarchy="secondary-color"
+                icon="plus"
+                @click="handleAddWireguardInterface"
+              >
+                {{ t('components.domain.access.wireguard-warning.add-interface-button') }}
+              </Button>
+            </AlertDescription>
+          </Alert>
         </div>
       </section>
       <BastionConfigForm
@@ -378,6 +471,7 @@ const showPassword = ref(false)
         ref="bastionFormRef"
         :bastion="bastion"
         :show-custom-domains="showCustomDomains"
+        @bastion-enabled="handleBastionEnabled"
       />
     </FieldGroup>
   </template>

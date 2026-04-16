@@ -54,6 +54,7 @@ const emit = defineEmits<{
   // --- Redirects ---
   editDesktop: [UserDesktop]
   createTemplate: [UserDesktop]
+  changeImage: [UserDesktop]
   // goTo*: [UserDesktop]
 }>()
 
@@ -189,6 +190,7 @@ const headers = [
               @show-direct-link-modal="emit('showDirectLinkModal', row)"
               @show-recreate-modal="emit('showRecreateModal', row)"
               @create-template="emit('createTemplate', row)"
+              @change-image="emit('changeImage', row)"
             />
           </DropdownMenuContent>
         </DropdownMenu>

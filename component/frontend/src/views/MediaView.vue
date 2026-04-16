@@ -11,6 +11,7 @@ import {
 import { MediaStatusEnum, type ErrorResponse } from '@/gen/oas/apiv4'
 import DataTable from '@/components/data-table/DataTable.vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
 import InputField from '@/components/input-field/InputField.vue'
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
@@ -31,6 +32,11 @@ import { AlertModal, QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 
 const { t, d, te } = useI18n()
+const router = useRouter()
+
+const goToNewFromMedia = (mediaId: string) => {
+  router.push({ name: 'new-from-media', params: { mediaId } })
+}
 const queryClient = useQueryClient()
 
 const activeTab = ref<'user' | 'shared'>('user')
@@ -503,6 +509,17 @@ const closeDeleteModal = () => {
                 :side="'top'"
                 :title="t('views.media.tooltip.buttons.download.title')"
               />
+            </Tooltip>
+            <Tooltip v-if="row.status === MediaStatusEnum.DOWNLOADED">
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="plus"
+                  class="aspect-square p-[10px]"
+                  @click="goToNewFromMedia(row.id)"
+                ></Button>
+              </TooltipTrigger>
+              <TooltipContent :side="'top'" :title="t('views.media.actions.new-from-media')" />
             </Tooltip>
             <Tooltip
               v-if="

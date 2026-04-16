@@ -27,6 +27,7 @@ const emit = defineEmits<{
   showRecreateModal: []
   createTemplate: []
   bookDesktop: []
+  changeImage: []
 }>()
 </script>
 
@@ -42,6 +43,17 @@ const emit = defineEmits<{
           icon-size="md"
         >
           {{ t('components.desktops.desktop-card.actions.edit') }}
+        </Button>
+      </DropdownMenuItem>
+      <DropdownMenuItem @click="emit('changeImage')">
+        <Button
+          size="sm"
+          class="mr-2 w-full justify-start"
+          hierarchy="link-gray"
+          icon="image-plus"
+          icon-size="md"
+        >
+          {{ t('components.desktops.desktop-card.actions.change-image') }}
         </Button>
       </DropdownMenuItem>
       <DropdownMenuItem @click="emit('createTemplate')">

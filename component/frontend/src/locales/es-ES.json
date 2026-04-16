@@ -29,6 +29,14 @@
       "new": {
         "title": "Nuevo Escritorio",
         "subtitle": "Crea escritorios virtuales a partir de una plantilla"
+      },
+      "edit": {
+        "title": "Editar escritorio",
+        "subtitle": "Modifica nombre, hardware y opciones de acceso"
+      },
+      "new-from-media": {
+        "title": "Escritorio nuevo desde medio",
+        "subtitle": "Crea un escritorio a partir de un ISO o disquete"
       }
     },
     "templates": {
@@ -53,6 +61,10 @@
           "title": "Entrada de la papelera",
           "subtitle": "Revisa el elemento eliminado y su contenido"
         }
+      },
+      "edit": {
+        "title": "Editar plantilla",
+        "subtitle": "Modifica nombre, hardware y opciones de acceso"
       }
     },
     "media": {
@@ -741,6 +753,105 @@
           "reset-desktop": "Forzar reinicio del escritorio"
         }
       }
+    },
+    "edit-desktop": {
+      "title": "Editar escritorio",
+      "subtitle": "Editando «{name}»",
+      "header": {
+        "cancel": "Cancelar",
+        "save": "Guardar cambios"
+      },
+      "errors": {
+        "title": "Error al guardar el escritorio"
+      },
+      "info": {
+        "title": "Nombre y descripción",
+        "description": "Define el nombre y la descripción del escritorio."
+      },
+      "access": {
+        "title": "Acceso",
+        "description": "Visores, credenciales y configuración del bastion."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memoria, orden de arranque, interfaces y reservables."
+      },
+      "save-confirmation": {
+        "title": "Algunos campos de hardware están restringidos",
+        "description": "Al guardar se aplicarán los cambios restringidos. ¿Continuar?",
+        "cancel": "Cancelar",
+        "confirm": "Guardar de todas formas"
+      },
+      "unsaved-changes": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar. Si sales se perderán.",
+        "stay": "Quedarme",
+        "leave": "Descartar cambios"
+      }
+    },
+    "edit-template": {
+      "title": "Editar plantilla",
+      "subtitle": "Editando «{name}»",
+      "header": {
+        "cancel": "Cancelar",
+        "save": "Guardar cambios"
+      },
+      "errors": {
+        "title": "Error al guardar la plantilla"
+      },
+      "info": {
+        "title": "Nombre y descripción",
+        "description": "Define el nombre y la descripción de la plantilla."
+      },
+      "access": {
+        "title": "Acceso",
+        "description": "Visores y credenciales para los escritorios resultantes."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memoria, orden de arranque, interfaces y reservables."
+      },
+      "unsaved-changes": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar. Si sales se perderán.",
+        "stay": "Quedarme",
+        "leave": "Descartar cambios"
+      }
+    },
+    "new-from-media": {
+      "title": "Escritorio nuevo desde medio",
+      "subtitle": "Creando a partir de «{media}»",
+      "header": {
+        "cancel": "Cancelar",
+        "create": "Crear escritorio"
+      },
+      "errors": {
+        "title": "Error al crear el escritorio"
+      },
+      "info": {
+        "title": "Nombre y descripción",
+        "description": "Define el nombre y la descripción del nuevo escritorio."
+      },
+      "os-template": {
+        "title": "Plantilla del sistema operativo",
+        "description": "Elige la plantilla de hardware del SO para el nuevo escritorio.",
+        "label": "Plantilla SO",
+        "placeholder": "Selecciona una plantilla"
+      },
+      "access": {
+        "title": "Acceso",
+        "description": "Visores y credenciales para el nuevo escritorio."
+      },
+      "hardware": {
+        "title": "Hardware",
+        "description": "vCPU, memoria, tamaño de disco, orden de arranque e interfaces."
+      },
+      "unsaved-changes": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar. Si sales se perderán.",
+        "stay": "Quedarme",
+        "leave": "Descartar cambios"
+      }
     }
   },
   "layouts": {
@@ -1086,7 +1197,8 @@
           "direct-link": "Enlace directo",
           "info": "Información",
           "recreate": "Recrear",
-          "template": "Convertir en plantilla"
+          "template": "Convertir en plantilla",
+          "change-image": "Cambiar imagen"
         },
         "debug-options": {
           "copy-id": "Copiar ID del escritorio"
@@ -1553,6 +1665,11 @@
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
             }
           }
+        },
+        "wireguard-warning": {
+          "title": "Se requiere la interfaz wireguard",
+          "description": "El visor seleccionado necesita la interfaz de red wireguard para funcionar. Añádela para continuar.",
+          "add-interface-button": "Añadir interfaz wireguard"
         }
       },
       "hardware": {
@@ -1668,6 +1785,9 @@
         "title": "Cuota de creación de medios superada",
         "description": "Cuota de creación de medios superada. Debe eliminarse un medio para poder subir uno nuevo.",
         "cancel": "Volver a medios"
+      },
+      "actions": {
+        "new-from-media": "Crear escritorio"
       }
     },
     "deployments": {
@@ -1846,6 +1966,29 @@
         "value": "Cambiar a '{profile}'",
         "label": "Nuevo perfil de GPU"
       }
+    },
+    "change-image-modal": {
+      "title": "Cambiar imagen del escritorio",
+      "description": "Elige una imagen para la vista previa del escritorio.",
+      "selected": "Seleccionada",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "load-error": "No se han podido cargar las imágenes",
+      "errors": {
+        "title": "Error al cambiar la imagen",
+        "generic": "Se ha producido un error al cambiar la imagen. Inténtalo de nuevo."
+      },
+      "hint": "Elige una imagen existente o sube una nueva (PNG, JPG o GIF, máximo 5 MB).",
+      "upload": {
+        "label": "Subir imagen",
+        "uploading": "Subiendo…"
+      },
+      "upload-errors": {
+        "title": "Error al subir la imagen",
+        "generic": "No se ha podido subir. Inténtalo de nuevo.",
+        "invalid_type": "Tipo de archivo no válido. Elige un PNG, JPG o GIF.",
+        "too_large": "El archivo es demasiado grande. Tamaño máximo: 5 MB."
+      }
     }
   },
   "authentication": {
@@ -1972,6 +2115,26 @@
           "title": "Los reservables de los escritorios no son iguales",
           "description": "Todos los escritorios con reservables en un despliegue deben tener los mismos reservables asignados. Por favor, asegúrate de que todos los escritorios con reservables tengan los mismos reservables asignados y vuelve a intentarlo."
         }
+      }
+    },
+    "edit-desktop": {
+      "errors": {
+        "generic": "Se ha producido un error al guardar el escritorio. Inténtalo de nuevo.",
+        "internal_server": "Error interno del servidor al guardar el escritorio.",
+        "desktop_not_stopped": "El escritorio debe estar detenido antes de editarlo."
+      }
+    },
+    "edit-template": {
+      "errors": {
+        "generic": "Se ha producido un error al guardar la plantilla. Inténtalo de nuevo.",
+        "internal_server": "Error interno del servidor al guardar la plantilla.",
+        "new_template_name_exists": "Ya existe una plantilla con ese nombre."
+      }
+    },
+    "new-from-media": {
+      "errors": {
+        "generic": "Se ha producido un error al crear el escritorio. Inténtalo de nuevo.",
+        "internal_server": "Error interno del servidor al crear el escritorio."
       }
     }
   },

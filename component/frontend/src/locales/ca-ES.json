@@ -29,6 +29,14 @@
       "new": {
         "title": "Nou Escriptori",
         "subtitle": "Crea escriptoris virtuals a partir d'una plantilla"
+      },
+      "edit": {
+        "title": "Edita l’escriptori",
+        "subtitle": "Modifica el nom, el maquinari i les opcions d’accés"
+      },
+      "new-from-media": {
+        "title": "Escriptori nou des del mitjà",
+        "subtitle": "Crea un escriptori a partir d’un ISO o disquet"
       }
     },
     "templates": {
@@ -53,6 +61,10 @@
           "title": "Entrada de la paperera",
           "subtitle": "Revisa l'element eliminat i el seu contingut"
         }
+      },
+      "edit": {
+        "title": "Edita la plantilla",
+        "subtitle": "Modifica el nom, el maquinari i les opcions d’accés"
       }
     },
     "media": {
@@ -741,6 +753,105 @@
           "reset-desktop": "Força el reinici de l'escriptori"
         }
       }
+    },
+    "edit-desktop": {
+      "title": "Edita l’escriptori",
+      "subtitle": "Editant «{name}»",
+      "header": {
+        "cancel": "Cancel·la",
+        "save": "Desa els canvis"
+      },
+      "errors": {
+        "title": "Error en desar l’escriptori"
+      },
+      "info": {
+        "title": "Nom i descripció",
+        "description": "Defineix el nom i la descripció de l’escriptori."
+      },
+      "access": {
+        "title": "Accés",
+        "description": "Visualitzadors, credencials i configuració del bastion."
+      },
+      "hardware": {
+        "title": "Maquinari",
+        "description": "vCPU, memòria, ordre d’arrencada, interfícies i reservables."
+      },
+      "save-confirmation": {
+        "title": "Alguns camps de maquinari estan restringits",
+        "description": "En desar s’aplicaran els canvis restringits. Vols continuar?",
+        "cancel": "Cancel·la",
+        "confirm": "Desa igualment"
+      },
+      "unsaved-changes": {
+        "title": "Canvis sense desar",
+        "description": "Tens canvis sense desar. Si surts els perdràs.",
+        "stay": "Quedat",
+        "leave": "Descarta els canvis"
+      }
+    },
+    "edit-template": {
+      "title": "Edita la plantilla",
+      "subtitle": "Editant «{name}»",
+      "header": {
+        "cancel": "Cancel·la",
+        "save": "Desa els canvis"
+      },
+      "errors": {
+        "title": "Error en desar la plantilla"
+      },
+      "info": {
+        "title": "Nom i descripció",
+        "description": "Defineix el nom i la descripció de la plantilla."
+      },
+      "access": {
+        "title": "Accés",
+        "description": "Visualitzadors i credencials per als escriptoris resultants."
+      },
+      "hardware": {
+        "title": "Maquinari",
+        "description": "vCPU, memòria, ordre d’arrencada, interfícies i reservables."
+      },
+      "unsaved-changes": {
+        "title": "Canvis sense desar",
+        "description": "Tens canvis sense desar. Si surts els perdràs.",
+        "stay": "Quedat",
+        "leave": "Descarta els canvis"
+      }
+    },
+    "new-from-media": {
+      "title": "Escriptori nou des del mitjà",
+      "subtitle": "Creant a partir de «{media}»",
+      "header": {
+        "cancel": "Cancel·la",
+        "create": "Crea escriptori"
+      },
+      "errors": {
+        "title": "Error en crear l’escriptori"
+      },
+      "info": {
+        "title": "Nom i descripció",
+        "description": "Defineix el nom i la descripció del nou escriptori."
+      },
+      "os-template": {
+        "title": "Plantilla del sistema operatiu",
+        "description": "Tria la plantilla de maquinari del SO per al nou escriptori.",
+        "label": "Plantilla SO",
+        "placeholder": "Selecciona una plantilla"
+      },
+      "access": {
+        "title": "Accés",
+        "description": "Visualitzadors i credencials per al nou escriptori."
+      },
+      "hardware": {
+        "title": "Maquinari",
+        "description": "vCPU, memòria, mida de disc, ordre d’arrencada i interfícies."
+      },
+      "unsaved-changes": {
+        "title": "Canvis sense desar",
+        "description": "Tens canvis sense desar. Si surts els perdràs.",
+        "stay": "Quedat",
+        "leave": "Descarta els canvis"
+      }
     }
   },
   "layouts": {
@@ -1106,7 +1217,8 @@
           "edit": "Edita",
           "info": "Informació",
           "recreate": "Recrea",
-          "template": "Converteix en plantilla"
+          "template": "Converteix en plantilla",
+          "change-image": "Canvia la imatge"
         },
         "debug-options": {
           "copy-id": "Copia l'ID de l'escriptori"
@@ -1573,6 +1685,11 @@
               "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
             }
           }
+        },
+        "wireguard-warning": {
+          "title": "Cal la interfície wireguard",
+          "description": "El visualitzador seleccionat necessita la interfície de xarxa wireguard per funcionar. Afegeix-la per continuar.",
+          "add-interface-button": "Afegeix la interfície wireguard"
         }
       },
       "hardware": {
@@ -1688,6 +1805,9 @@
         "title": "Quota de creació de mitjans superada",
         "description": "Quota de creació de mitjans superada. Cal eliminar un mitjà per poder pujar-ne un de nou.",
         "cancel": "Torna als mitjans"
+      },
+      "actions": {
+        "new-from-media": "Crea escriptori"
       }
     },
     "deployments": {
@@ -1866,6 +1986,29 @@
         "value": "Canvia a \"{profile}\"",
         "label": "Nou perfil de GPU"
       }
+    },
+    "change-image-modal": {
+      "title": "Canvia la imatge de l’escriptori",
+      "description": "Tria una imatge per a la vista prèvia de l’escriptori.",
+      "selected": "Seleccionat",
+      "cancel": "Cancel·la",
+      "save": "Desa",
+      "load-error": "No s’han pogut carregar les imatges",
+      "errors": {
+        "title": "Error en canviar la imatge",
+        "generic": "Hi ha hagut un error en canviar la imatge. Torna-ho a provar."
+      },
+      "hint": "Tria una imatge existent o puja’n una de nova (PNG, JPG o GIF, màxim 5 MB).",
+      "upload": {
+        "label": "Puja una imatge",
+        "uploading": "Pujant…"
+      },
+      "upload-errors": {
+        "title": "Error en pujar la imatge",
+        "generic": "No s’ha pogut pujar. Torna-ho a provar.",
+        "invalid_type": "Tipus de fitxer no vàlid. Tria un PNG, JPG o GIF.",
+        "too_large": "El fitxer és massa gran. La mida màxima és 5 MB."
+      }
     }
   },
   "authentication": {
@@ -1992,6 +2135,26 @@
           "title": "Els reservables dels escriptoris no son iguals",
           "description": "Tots els escriptoris amb reservables en un desplegament han de tenir els mateixos reservables assignats. Si us plau, assegura't que tots els escriptoris amb reservables tinguin els mateixos reservables assignats i torna-ho a provar."
         }
+      }
+    },
+    "edit-desktop": {
+      "errors": {
+        "generic": "Hi ha hagut un error en desar l’escriptori. Torna-ho a provar.",
+        "internal_server": "Error intern del servidor en desar l’escriptori.",
+        "desktop_not_stopped": "L’escriptori ha d’estar aturat abans d’editar-lo."
+      }
+    },
+    "edit-template": {
+      "errors": {
+        "generic": "Hi ha hagut un error en desar la plantilla. Torna-ho a provar.",
+        "internal_server": "Error intern del servidor en desar la plantilla.",
+        "new_template_name_exists": "Ja existeix una plantilla amb aquest nom."
+      }
+    },
+    "new-from-media": {
+      "errors": {
+        "generic": "Hi ha hagut un error en crear l’escriptori. Torna-ho a provar.",
+        "internal_server": "Error intern del servidor en crear l’escriptori."
       }
     }
   },

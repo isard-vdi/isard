@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { useUserStore } from '@/stores/user'
@@ -15,8 +15,7 @@ import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
 import { CheckboxGroup } from '@/components/checkbox-group'
 import { DesktopCardBase } from '@/components/desktop-card'
 import { DesktopCardHeader } from '@/components/desktop-card'
-import { useForm } from '@tanstack/vue-form'
-import { z } from 'zod'
+import { useDomainInfoForm } from '@/composables/useDomainInfoForm'
 import { DesktopCardSkeleton } from '@/components/desktop-card'
 import { FieldError } from '@/components/ui/field'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -93,7 +92,17 @@ const hardwareFormRef = ref<{
   getFormData: () => Record<string, unknown>
   isValid: boolean
   limitedFields: Record<string, unknown> | null
+  getInterfaces: () => string[]
+  addInterface: (ifaceId: string) => void
+  removeInterface: (ifaceId: string) => void
+  interfaces: { value: string[] }
 } | null>(null)
+
+const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces?.value ?? [])
+
+function handleAddInterfaceFromAccessForm(ifaceId: string) {
+  hardwareFormRef.value?.addInterface(ifaceId)
+}
 const hardwareFormIsValid = computed(() => {
   return hardwareFormRef.value?.isValid ?? true
 })
@@ -150,26 +159,9 @@ const restrictedFieldsDetails = computed(() => {
   )
 })
 
-// Desktop inherited info form (description)
-const description = computed(() => {
-  return templateData.value?.description || ''
-})
-
-const desktopInfoFormSchema = z.object({
-  name: z.string().min(4).max(50),
-  description: z.string().max(255).optional()
-})
-
-const defaultValues = reactive({
-  name: '',
-  description
-})
-
-const desktopInfoForm = useForm({
-  defaultValues,
-  validators: {
-    onChange: desktopInfoFormSchema
-  }
+// Desktop inherited info form (description seeded from template)
+const desktopInfoForm = useDomainInfoForm({
+  description: () => templateData.value?.description
 })
 
 const infoFormValues = desktopInfoForm.useStore((state) => state.values)
@@ -375,6 +367,8 @@ defineExpose({
           ref="accessFormRef"
           :template-id="selectedTemplate?.id"
           :show-bastion-config="false"
+          :hardware-interfaces="hardwareInterfaces"
+          :on-request-add-interface="handleAddInterfaceFromAccessForm"
         />
       </div>
     </div>

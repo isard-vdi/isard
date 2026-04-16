@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Code } from '@/components/code'
 import { Icon, CopyIcon } from '@/components/icon'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 interface BastionHttpHttps {
   enabled?: boolean
@@ -57,6 +57,10 @@ const props = withDefaults(defineProps<Props>(), {
   }),
   showCustomDomains: false
 })
+
+const emit = defineEmits<{
+  'bastion-enabled': [enabled: boolean]
+}>()
 
 const { t } = useI18n()
 
@@ -107,8 +111,18 @@ defineExpose({
   getFormData
 })
 
-const bastionEnabled = ref(false)
+const bastionEnabled = ref(!!(props.bastion?.http?.enabled || props.bastion?.ssh?.enabled))
 const bastionModalDnsAlertOpen = ref(false)
+
+watch(bastionEnabled, (enabled) => {
+  emit('bastion-enabled', enabled)
+  if (!enabled) {
+    // When user disables bastion, clear the inner http/ssh enabled flags so
+    // getFormData() produces { http: null, ssh: null }.
+    form.setFieldValue('http.enabled', false)
+    form.setFieldValue('ssh.enabled', false)
+  }
+})
 
 const addCustomDomain = () => {
   const currentDomains = form.getFieldValue('customDomains') || []
