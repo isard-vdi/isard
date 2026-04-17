@@ -1231,6 +1231,32 @@ class hyp(object):
                         f"echo {uuid_create} > '{path}/mdev_supported_types/{type_id}/create'"
                     )
 
+            # Pre-flight capacity check: if the DB pool has more UUIDs than
+            # the driver-declared max_instance for this profile, creating the
+            # overflow produces EIO and fires a persistent warning. Truncate
+            # up front, flag the overflow entries, and emit ONE aggregated
+            # warning instead. A pool_size <= physical_cap card is unaffected.
+            physical_cap = (
+                d_nvidia.get("types", {}).get(vgpu_profile, {}).get("max") or 0
+            )
+            if physical_cap and len(cmds) > 0:
+                already_realised = sum(
+                    1
+                    for u, info in self.mdevs[pci_id][vgpu_profile].items()
+                    if info.get("created") or u in d_mdevs_running
+                )
+                remaining = max(0, physical_cap - already_realised)
+                if len(cmds) > remaining:
+                    self._warn_gpu_at_capacity(
+                        pci_id,
+                        vgpu_profile,
+                        physical_cap,
+                        already_realised,
+                        len(cmds),
+                        remaining,
+                    )
+                    cmds = cmds[:remaining]
+
             if len(cmds) > 0:
                 logs.workers.info(
                     f"[{self.id_hyp_rethink}] Executing {len(cmds)} mdev create commands for PCI {pci_id}..."
@@ -1272,6 +1298,33 @@ class hyp(object):
                     f"[{self.id_hyp_rethink}] No new mdevs to create for PCI {pci_id} "
                     f"(all already running)"
                 )
+
+    def _warn_gpu_at_capacity(
+        self, pci_id, profile, physical_cap, already_realised, requested, remaining
+    ):
+        """Emit a single 'GPU at profile capacity' warning for an over-sized pool.
+
+        Fires when the DB vGPU pool has more UUIDs for a given (PF, profile)
+        than the nvidia driver's declared ``max_instance`` — i.e. the card
+        cannot host the pool regardless of how many retries we issue. The
+        caller is expected to truncate its create commands; this method only
+        records the diagnostic. No retry is scheduled because retrying a
+        saturated card rewrites the same row every 30s with no new outcome.
+        """
+        pci_bdf = pci_id.replace("pci_", "").replace("_", ":", 2)
+        pci_bdf = pci_bdf[: len(pci_bdf) - 2] + "." + pci_bdf[-1]
+        over = requested - remaining
+        total_requested = already_realised + requested
+        diagnosis = (
+            f"GPU {pci_bdf} at profile '{profile}' capacity: "
+            f"{already_realised + remaining}/{physical_cap} instances in use, "
+            f"DB pool has {total_requested} slots — {over} slot(s) cannot be "
+            f"realised (pool over-sized vs hardware). Reduce pool size or "
+            f"switch to a profile with more instances per GPU."
+        )
+        logs.workers.warning(f"[{self.id_hyp_rethink}] {diagnosis}")
+        if hasattr(self, "_gpu_warnings"):
+            self._gpu_warnings.append(diagnosis)
 
     def _diagnose_mdev_failure(self, pci_id, profile, err_msgs):
         """Diagnose mdev creation failure and store warning in hypervisor detail."""
@@ -1317,9 +1370,13 @@ class hyp(object):
 
         logs.workers.warning(f"[{self.id_hyp_rethink}] {diagnosis}")
 
-        # Accumulate for batch write at end of init_nvidia
+        # Accumulate for batch write at end of init_nvidia. Failures reaching
+        # _diagnose_mdev_failure came from a sysfs write that actually ran, so
+        # they are race-/state-dependent and the 30 s retry may clear them
+        # once deferred cleanup finishes. Mark retry-eligible.
         if hasattr(self, "_gpu_warnings"):
             self._gpu_warnings.append(diagnosis)
+        self._gpu_warnings_retryable = True
 
     def init_nvidia(self):
         """Initialize NVIDIA GPU/vGPU support for this hypervisor.
@@ -1333,8 +1390,13 @@ class hyp(object):
         logs.workers.info(f"[{self.id_hyp_rethink}] Starting NVIDIA initialization...")
         start_time = time.time()
 
-        # Collect GPU warnings from discovery data and mdev creation
+        # Collect GPU warnings from discovery data and mdev creation.
+        # _gpu_warnings_retryable tracks whether any warning could plausibly
+        # clear on a second attempt after deferred mdev cleanup runs. Pure
+        # "GPU at capacity" diagnoses are deterministic and must NOT trigger
+        # the 30 s retry loop.
         self._gpu_warnings = []
+        self._gpu_warnings_retryable = False
         try:
             if self.hypervisor:
                 nvidia_gpus = self.hypervisor.get("nvidia_gpus", [])
@@ -1384,6 +1446,12 @@ class hyp(object):
                 logs.workers.warning(
                     f"[{self.id_hyp_rethink}] GPU warnings stored: {len(warnings)}"
                 )
+                if not getattr(self, "_gpu_warnings_retryable", False):
+                    logs.workers.info(
+                        f"[{self.id_hyp_rethink}] GPU warnings are deterministic "
+                        f"(pool vs hardware capacity); skipping retry."
+                    )
+                    return
                 # Schedule a retry: orphan mdevs from a prior container lifetime
                 # may still exist during early init. The hypervisor's deferred
                 # cleanup wipes them ~10s after READY, so a retry 30s later will
