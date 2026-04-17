@@ -117,6 +117,9 @@
       },
       "subtitle": "Visualiza, restaura o elimina los elementos de la papelera",
       "title": "Papelera"
+    },
+    "disclaimer": {
+      "title": "Aviso legal"
     }
   },
   "views": {
@@ -167,6 +170,11 @@
     "login": {
       "separator": "Otros accesos",
       "select-category": "Selecciona una categoría"
+    },
+    "disclaimer": {
+      "accept": "Aceptar",
+      "reject": "Rechazar",
+      "error": "No se ha podido procesar la aceptación. Inténtalo de nuevo."
     },
     "new-desktop": {
       "desktop-template": "Plantilla",

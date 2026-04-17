@@ -117,6 +117,9 @@
       },
       "subtitle": "Visualitza, restaura o elimina els elements de la paperera",
       "title": "Paperera"
+    },
+    "disclaimer": {
+      "title": "Avís legal"
     }
   },
   "views": {
@@ -167,6 +170,11 @@
     "login": {
       "separator": "Altres accessos",
       "select-category": "Selecciona una categoria"
+    },
+    "disclaimer": {
+      "accept": "Accepta",
+      "reject": "Rebutja",
+      "error": "No s'ha pogut processar l'acceptació. Torna-ho a provar."
     },
     "new-desktop": {
       "desktop-template": "Plantilla",

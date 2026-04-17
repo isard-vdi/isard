@@ -447,6 +447,15 @@ const router = createRouter({
         // full-page load to /export-user with the user's normal login token.
         allowedTokenTypes: ['user-migration-required', 'login']
       }
+    },
+    {
+      path: '/disclaimer',
+      name: 'disclaimer',
+      component: () => import('../views/DisclaimerView.vue'),
+      meta: {
+        title: 'router.disclaimer.title',
+        allowedTokenTypes: ['disclaimer-acknowledgement-required']
+      }
     }
   ]
 })
@@ -568,8 +577,7 @@ function getRedirectForTokenType(type: TokenType) {
     case TokenType.Register:
       return { name: 'register' }
     case TokenType.DisclaimerAcknowledgeRequired:
-      // TODO: Use a new disclaimer page
-      return (window.location.pathname = '/disclaimer')
+      return { name: 'disclaimer' }
     case TokenType.PasswordResetRequired:
     case TokenType.PasswordReset:
       // TODO: Use a new password reset page
