@@ -1156,8 +1156,8 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
   <Modal
     :open="startNowModalDesktopData !== null"
     class="pt-4 min-w-120"
-    :title="t('components.destkop-start-now-modal.title')"
-    :description="t('components.destkop-start-now-modal.description')"
+    :title="t('components.desktop-start-now-modal.title')"
+    :description="t('components.desktop-start-now-modal.description')"
     @close="closeStartNowModal()"
   >
     <form
@@ -1170,7 +1170,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           <template #default="{ field }">
             <Field :data-invalid="isInvalid(field)">
               <FieldLabel :for="field.name">{{
-                t('components.destkop-start-now-modal.select.label')
+                t('components.desktop-start-now-modal.select.label')
               }}</FieldLabel>
 
               <Select
@@ -1184,7 +1184,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                 <!-- TODO: better select component -->
                 <SelectTrigger size="default" class="bg-base-white">
                   <SelectValue
-                    :placeholder="t('components.destkop-start-now-modal.select.placeholder')"
+                    :placeholder="t('components.desktop-start-now-modal.select.placeholder')"
                   />
                 </SelectTrigger>
                 <SelectContent class="left-0 right-0">
@@ -1207,7 +1207,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
 
     <template #footer>
       <Button hierarchy="link-gray" @click="startNowModalDesktopData = null">{{
-        t('components.destkop-start-now-modal.cancel')
+        t('components.desktop-start-now-modal.cancel')
       }}</Button>
 
       <Button
@@ -1223,7 +1223,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           stroke-color="currentColor"
         />
         <Icon v-else name="play" stroke-color="currentColor" />
-        {{ t('components.destkop-start-now-modal.confirm') }}
+        {{ t('components.desktop-start-now-modal.confirm') }}
       </Button>
     </template>
   </Modal>
@@ -1234,24 +1234,24 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     :open="unavailableStartNowModalDesktopData !== null"
     class="pt-4 min-w-120"
     :title="
-      t('components.destkop-gpu-unavailable-modal.title', {
+      t('components.desktop-gpu-unavailable-modal.title', {
         'current-gpu': unavailableStartNowModalDesktopData?.currentGpu,
         name: unavailableStartNowModalDesktopData?.name
       })
     "
-    :description="t('components.destkop-gpu-unavailable-modal.description')"
+    :description="t('components.desktop-gpu-unavailable-modal.description')"
     @close="unavailableStartNowModalDesktopData = null"
   >
     <div class="flex flex-col gap-4 mt-4">
       <Alert class="flex flex-row gap-4 items-center justify-between">
         <div class="flex flex-col gap-2">
           <AlertTitle>{{
-            t('components.destkop-gpu-unavailable-modal.change-and-start.title', {
+            t('components.desktop-gpu-unavailable-modal.change-and-start.title', {
               gpu: unavailableStartNowModalDesktopData?.currentGpu
             })
           }}</AlertTitle>
           <AlertDescription>{{
-            t('components.destkop-gpu-unavailable-modal.change-and-start.subtitle')
+            t('components.desktop-gpu-unavailable-modal.change-and-start.subtitle')
           }}</AlertDescription>
         </div>
         <Button
@@ -1264,7 +1264,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
             }
           "
           >{{
-            t('components.destkop-gpu-unavailable-modal.change-and-start.action-button')
+            t('components.desktop-gpu-unavailable-modal.change-and-start.action-button')
           }}</Button
         >
       </Alert>
@@ -1272,12 +1272,12 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
       <Alert class="flex flex-row gap-4 items-center justify-between">
         <div class="flex flex-col gap-2">
           <AlertTitle>{{
-            t('components.destkop-gpu-unavailable-modal.book.title', {
+            t('components.desktop-gpu-unavailable-modal.book.title', {
               gpu: unavailableStartNowModalDesktopData?.currentGpu
             })
           }}</AlertTitle>
           <AlertDescription>{{
-            t('components.destkop-gpu-unavailable-modal.book.subtitle')
+            t('components.desktop-gpu-unavailable-modal.book.subtitle')
           }}</AlertDescription>
         </div>
         <Button
@@ -1285,14 +1285,14 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           as="a"
           :href="`/booking/desktop/${unavailableStartNowModalDesktopData?.id}`"
           target="_blank"
-          >{{ t('components.destkop-gpu-unavailable-modal.book.action-button') }}</Button
+          >{{ t('components.desktop-gpu-unavailable-modal.book.action-button') }}</Button
         >
       </Alert>
     </div>
 
     <template v-if="false" #footer>
       <Button hierarchy="link-gray" @click="closeRecreateDesktopModal()">{{
-        t('components.destkop-gpu-unavailable-modal.cancel')
+        t('components.desktop-gpu-unavailable-modal.cancel')
       }}</Button>
 
       <Button
@@ -1306,7 +1306,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           name="loading-02"
           stroke-color="currentColor"
         />
-        {{ t('components.destkop-start-now-modal.confirm') }}
+        {{ t('components.desktop-start-now-modal.confirm') }}
       </Button>
     </template>
   </Modal>
@@ -1317,11 +1317,11 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     v-if="changeAndStartModalData !== null"
     :open="changeAndStartModalData !== null"
     class="pt-4 min-w-120"
-    :title="t('components.destkop-gpu-change-and-start-modal.title')"
+    :title="t('components.desktop-gpu-change-and-start-modal.title')"
     @close="closeChangeAndStartModal()"
   >
     <div v-if="true" class="mt-4 flex flex-col gap-4">
-      {{ t('components.destkop-gpu-change-and-start-modal.description') }}
+      {{ t('components.desktop-gpu-change-and-start-modal.description') }}
 
       <!-- TODO: If availableReservables <= 5, show buttons for each gpu, else show a dropdown. -->
       <!-- TODO: use tanstack form -->
@@ -1345,10 +1345,10 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           </EmptyMedia>
         </EmptyHeader>
         <EmptyTitle class="font-semibold">{{
-          t('components.destkop-gpu-change-and-start-modal.empty.title')
+          t('components.desktop-gpu-change-and-start-modal.empty.title')
         }}</EmptyTitle>
         <EmptyDescription class="">{{
-          t('components.destkop-gpu-change-and-start-modal.empty.description', {
+          t('components.desktop-gpu-change-and-start-modal.empty.description', {
             kind: t('domains.desktops', 0)
           })
         }}</EmptyDescription>
@@ -1374,7 +1374,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
             <template #default="{ field }">
               <Field :data-invalid="isInvalid(field)">
                 <FieldLabel :for="field.name">{{
-                  t('components.destkop-gpu-change-and-start-modal.gpu-select.label')
+                  t('components.desktop-gpu-change-and-start-modal.gpu-select.label')
                 }}</FieldLabel>
                 <!--  -->
                 <Select
@@ -1389,7 +1389,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                   <SelectTrigger size="default" class="bg-base-white">
                     <SelectValue
                       :placeholder="
-                        t('components.destkop-gpu-change-and-start-modal.gpu-select.placeholder')
+                        t('components.desktop-gpu-change-and-start-modal.gpu-select.placeholder')
                       "
                     />
                   </SelectTrigger>
@@ -1401,7 +1401,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                         :value="profile.id"
                       >
                         {{
-                          t('components.destkop-gpu-change-and-start-modal.gpu-select.value', {
+                          t('components.desktop-gpu-change-and-start-modal.gpu-select.value', {
                             profile: profile.name
                           })
                         }}
@@ -1421,7 +1421,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                 <Field :data-invalid="isInvalid(field)">
                   <!-- TODO: maybe centralise this select -->
                   <FieldLabel :for="field.name">{{
-                    t('components.destkop-start-now-modal.select.label')
+                    t('components.desktop-start-now-modal.select.label')
                   }}</FieldLabel>
 
                   <Select
@@ -1435,7 +1435,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                     <!-- TODO: better select component -->
                     <SelectTrigger size="default" class="bg-base-white">
                       <SelectValue
-                        :placeholder="t('components.destkop-start-now-modal.select.placeholder')"
+                        :placeholder="t('components.desktop-start-now-modal.select.placeholder')"
                       />
                     </SelectTrigger>
                     <SelectContent class="left-0 right-0">
@@ -1467,7 +1467,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     </div>
     <template #footer>
       <Button hierarchy="link-gray" @click="closeChangeAndStartModal()">{{
-        t('components.destkop-gpu-change-and-start-modal.cancel')
+        t('components.desktop-gpu-change-and-start-modal.cancel')
       }}</Button>
 
       <Button
@@ -1484,7 +1484,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           stroke-color="currentColor"
         />
         <Icon v-else name="play" stroke-color="currentColor" />
-        {{ t('components.destkop-gpu-change-and-start-modal.confirm') }}
+        {{ t('components.desktop-gpu-change-and-start-modal.confirm') }}
       </Button>
       <Button
         v-else
@@ -1500,7 +1500,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           stroke-color="currentColor"
         />
         <Icon v-else name="calendar-plus-02" stroke-color="currentColor" />
-        {{ t('components.destkop-gpu-change-and-start-modal.book') }}
+        {{ t('components.desktop-gpu-change-and-start-modal.book') }}
       </Button>
     </template>
   </Modal>

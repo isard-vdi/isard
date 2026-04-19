@@ -1112,7 +1112,7 @@
       "book": "Erreserbatu mahaigaina",
       "cancel": "Utzi"
     },
-    "destkop-start-now-modal": {
+    "desktop-start-now-modal": {
       "title": "Abiarazi orain",
       "description": "Hautatu noiz arte erabiliko den mahaigaina.",
       "select": {
@@ -1123,7 +1123,7 @@
       "cancel": "Utzi",
       "confirm": "Abiarazi mahaigaina"
     },
-    "destkop-gpu-unavailable-modal": {
+    "desktop-gpu-unavailable-modal": {
       "title": "'{current-gpu}' GPU ez dago erabilgarri '{name}' mahaigainarentzat une honetan.",
       "change-and-start": {
         "title": "Aldatu eta abiarazi",
@@ -1136,7 +1136,7 @@
         "action-button": "Erreserbatu mahaigaina"
       }
     },
-    "destkop-gpu-change-and-start-modal": {
+    "desktop-gpu-change-and-start-modal": {
       "title": "Aldatu eta abiarazi",
       "description": "Aldatu mahaigainaren GPU eta abiarazi berehala.",
       "empty": {

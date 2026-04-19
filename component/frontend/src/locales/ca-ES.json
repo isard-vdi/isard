@@ -1167,7 +1167,7 @@
       "book": "Reserva l'escriptori",
       "cancel": "Cancel·la"
     },
-    "destkop-gpu-unavailable-modal": {
+    "desktop-gpu-unavailable-modal": {
       "title": "La GPU '{current-gpu}' no està disponible per a l'escriptori '{name}' en aquest moment.",
       "book": {
         "action-button": "Reserva l'escriptori",
@@ -1180,7 +1180,7 @@
         "title": "Canvia i inicia"
       }
     },
-    "destkop-start-now-modal": {
+    "desktop-start-now-modal": {
       "cancel": "Cancel·la",
       "confirm": "Inicia l'escriptori",
       "description": "Selecciona fins quan s'utilitzarà l'escriptori",
@@ -1190,7 +1190,7 @@
         "placeholder": "Selecciona fins quan s'utilitzarà"
       }
     },
-    "destkop-gpu-change-and-start-modal": {
+    "desktop-gpu-change-and-start-modal": {
       "title": "Canvia i inicia",
       "book": "Reserva l'escriptori",
       "cancel": "Cancel·la",

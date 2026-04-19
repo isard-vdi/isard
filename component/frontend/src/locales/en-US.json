@@ -1601,7 +1601,7 @@
       "book": "Book desktop",
       "cancel": "Cancel"
     },
-    "destkop-start-now-modal": {
+    "desktop-start-now-modal": {
       "title": "Start",
       "description": "Select until when the desktop will be used.",
       "select": {
@@ -1611,8 +1611,9 @@
       "cancel": "Cancel",
       "confirm": "Start desktop"
     },
-    "destkop-gpu-unavailable-modal": {
+    "desktop-gpu-unavailable-modal": {
       "title": "GPU '{current-gpu}' is not available for desktop '{name}' at the moment.",
+      "description": "You can either book the desktop for later with its current GPU, or change the GPU now and start the desktop immediately.",
       "change-and-start": {
         "title": "Change and start",
         "subtitle": "It can be changed to an available graphic card model now and start it (It could affect the desktop performance)",
@@ -1624,7 +1625,7 @@
         "action-button": "Book desktop"
       }
     },
-    "destkop-gpu-change-and-start-modal": {
+    "desktop-gpu-change-and-start-modal": {
       "title": "Change and Start",
       "description": "Change the desktop GPU and start it immediately.",
       "empty": {
@@ -2102,45 +2103,6 @@
         "minimum-time": "The booking must last at least 5 minutes",
         "past-booking": "Can't create a booking in the past"
       }
-    },
-    "desktop-start-now-modal": {
-      "title": "Start",
-      "description": "Select until when the desktop will be used.",
-      "select": {
-        "label": "End time",
-        "placeholder": "Select until when it will be used"
-      },
-      "cancel": "Cancel",
-      "confirm": "Start desktop"
-    },
-    "desktop-gpu-unavailable-modal": {
-      "title": "GPU '{current-gpu}' is not available for desktop '{name}' at the moment.",
-      "change-and-start": {
-        "title": "Change and start",
-        "subtitle": "It can be changed to an available graphic card model now and start it (It could affect the desktop performance)",
-        "action-button": "Change and start"
-      },
-      "book": {
-        "title": "Book the desktop",
-        "subtitle": "Book the desktop with its current graphic card model checking its planification",
-        "action-button": "Book desktop"
-      }
-    },
-    "desktop-gpu-change-and-start-modal": {
-      "title": "Change and Start",
-      "description": "Change the desktop GPU and start it immediately.",
-      "empty": {
-        "title": "No profiles available",
-        "description": "There are no other GPU profiles currently available."
-      },
-      "gpu-select": {
-        "label": "New GPU profile",
-        "placeholder": "Available GPU Profiles",
-        "value": "Change to '{profile}'"
-      },
-      "cancel": "Cancel",
-      "book": "Book Desktop",
-      "confirm": "Change and Start"
     }
   },
   "authentication": {
