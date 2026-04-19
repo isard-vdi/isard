@@ -892,24 +892,48 @@ def update_vgpu_uuid_domain_action(
         if get_vgpu_uuid_status(mdev_uuid, gpu_id, profile) is not False:
             # if mdev_uuid in rtable.get(gpu_id).pluck({"mdevs":[profile]}).run(r_conn)['mdevs'][profile].keys():
             if action == "domain_reserved":
-                results = (
+                # Atomic compare-and-swap: only reserve if the mdev is still free
+                # (both domain_reserved and domain_started are falsy). Prevents
+                # two concurrent starters from claiming the same UUID — which
+                # libvirt would reject with "mediated device ... is in use by
+                # driver QEMU, domain ...".
+                cas = (
                     rtable.get(gpu_id)
                     .update(
-                        {"mdevs": {profile: {mdev_uuid: {"domain_started": False}}}}
+                        lambda row: r.branch(
+                            (
+                                row["mdevs"][profile][mdev_uuid]["domain_reserved"]
+                                .default(False)
+                                .eq(False)
+                            )
+                            & (
+                                row["mdevs"][profile][mdev_uuid]["domain_started"]
+                                .default(False)
+                                .eq(False)
+                            ),
+                            {
+                                "mdevs": {
+                                    profile: {
+                                        mdev_uuid: {
+                                            "domain_reserved": domain_id,
+                                            "domain_started": False,
+                                        }
+                                    }
+                                }
+                            },
+                            {},
+                        )
                     )
                     .run(r_conn)
                 )
-                results = (
-                    rtable.get(gpu_id)
-                    .update(
-                        {
-                            "mdevs": {
-                                profile: {mdev_uuid: {"domain_reserved": domain_id}}
-                            }
-                        }
+                if cas.get("replaced", 0) != 1:
+                    logs.main.warning(
+                        f"vgpu reserve race: gpu_id={gpu_id} profile={profile} "
+                        f"uuid={mdev_uuid} lost CAS to another starter; "
+                        f"domain_id={domain_id} will be retried/failed by caller"
                     )
-                    .run(r_conn)
-                )
+                    close_rethink_connection(r_conn)
+                    return False
                 if domain_id is not False:
                     results = (
                         r.table("domains")
