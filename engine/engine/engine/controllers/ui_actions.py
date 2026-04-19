@@ -323,42 +323,61 @@ class UiActions(object):
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
-            next_hyp, extra_info = self.manager.pools[
-                pool_id
-            ].balancer.get_next_hypervisor(
-                forced_hyp=forced_hyp,
-                favourite_hyp=favourite_hyp,
-                reservables=reservables,
-                force_gpus=force_gpus,
-                storage_pool_id=storage_pool_id,
-                domain_memory_gb=domain_memory_gb,
-            )
-            if next_hyp is not False:
+            # Loop selection+reservation so we can retry on a lost CAS when two
+            # starters race for the same mdev UUID. Non-GPU paths exit after the
+            # first iteration.
+            next_hyp = False
+            extra_info = {}
+            is_gpu = False
+            max_attempts = 5
+            for attempt in range(max_attempts):
+                next_hyp, extra_info = self.manager.pools[
+                    pool_id
+                ].balancer.get_next_hypervisor(
+                    forced_hyp=forced_hyp,
+                    favourite_hyp=favourite_hyp,
+                    reservables=reservables,
+                    force_gpus=force_gpus,
+                    storage_pool_id=storage_pool_id,
+                    domain_memory_gb=domain_memory_gb,
+                )
+                if next_hyp is False:
+                    break
                 if action == "start_paused_domain":
-                    # in updates start paused doesn't try gpus
                     extra_info = {}
-
                 is_gpu = extra_info.get("nvidia", False) is True
-
-                if is_gpu:
+                if not is_gpu:
+                    break
+                reserved_ok = update_vgpu_uuid_domain_action(
+                    extra_info["gpu_id"],
+                    extra_info["uid"],
+                    "domain_reserved",
+                    domain_id=id_domain,
+                    profile=extra_info["profile"],
+                )
+                if reserved_ok:
                     xml = recreate_xml_if_gpu(
                         xml,
                         extra_info["uid"],
                         pci_bus_id=extra_info.get("pci_bus_id"),
                         is_passthrough=(extra_info.get("profile") == "passthrough"),
                     )
-                    update_vgpu_uuid_domain_action(
-                        extra_info["gpu_id"],
-                        extra_info["uid"],
-                        "domain_reserved",
-                        domain_id=id_domain,
-                        profile=extra_info["profile"],
-                    )
-
-                    # PCIe BAR reservation for GPU passthrough with large BARs
                     if extra_info.get("profile") == "passthrough":
                         xml = add_qemu_pcie_reserve(xml)
-
+                    break
+                log.warning(
+                    f"{id_domain}: vgpu reservation lost CAS on uuid "
+                    f"{extra_info.get('uid')} (attempt {attempt + 1}/{max_attempts}); "
+                    f"re-selecting"
+                )
+            else:
+                update_domain_status(
+                    "Failed",
+                    id_domain,
+                    detail="Could not reserve a free vGPU mdev after retries (concurrent starters)",
+                )
+                return False
+            if next_hyp is not False:
                 # --- NUMA node selection ---
                 numa_topo = extra_info.get("numa_topology", {})
                 numa_nodes = numa_topo.get("nodes", {})

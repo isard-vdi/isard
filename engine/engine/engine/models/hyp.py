@@ -33,6 +33,7 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_created,
     update_vgpu_profile,
+    update_vgpu_uuid_reserved_in_domain,
     update_vgpu_uuid_started_in_domain,
     update_vgpu_uuids,
 )
@@ -2562,6 +2563,7 @@ class hyp(object):
                         "profile": profile,
                         "type_id": info.get("type_id"),
                         "pci_mdev_id": info.get("pci_mdev_id"),
+                        "domain_reserved": info.get("domain_reserved"),
                     }
 
         logs.workers.debug(
@@ -2652,6 +2654,35 @@ class hyp(object):
                     mdev_uuid=uuid,
                     domain_id=False,
                 )
+                # Clear orphan domain_reserved: if the reservation points to a
+                # domain that no longer exists or is in a terminal state, it is
+                # stale (e.g. libvirt rejected the attach and the normal stop
+                # path never fired). Leaving it set blocks the uuid forever.
+                reserved_domain_id = db_info.get("domain_reserved")
+                if reserved_domain_id:
+                    try:
+                        reserved_status = get_domain_status(reserved_domain_id)
+                    except Exception:
+                        reserved_status = None
+                    if reserved_status in (
+                        None,
+                        "Failed",
+                        "Stopped",
+                        "Shutting-down",
+                        "Unknown",
+                    ):
+                        logs.workers.info(
+                            f"[{self.id_hyp_rethink}] Clearing orphan "
+                            f"domain_reserved on mdev {uuid} "
+                            f"(was domain={reserved_domain_id}, status={reserved_status})"
+                        )
+                        update_vgpu_uuid_reserved_in_domain(
+                            hyp_id=self.id_hyp_rethink,
+                            pci_id=db_info["pci_id"],
+                            profile=db_info["profile"],
+                            mdev_uuid=uuid,
+                            domain_id=False,
+                        )
 
         # Remove orphan mdevs (no VM, no matching profile)
         if orphan_uuids:

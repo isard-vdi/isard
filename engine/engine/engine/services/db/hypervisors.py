@@ -1124,6 +1124,16 @@ def update_vgpu_uuid_started_in_domain(hyp_id, pci_id, profile, mdev_uuid, domai
     close_rethink_connection(r_conn)
 
 
+def update_vgpu_uuid_reserved_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    vgpu_id = "-".join([hyp_id, pci_id])
+    rtable.filter({"id": vgpu_id}).update(
+        {"mdevs": {profile: {mdev_uuid: {"domain_reserved": domain_id}}}}
+    ).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
 def reset_vgpu_created_started(hyp_id, pci_id, d_mdevs_running):
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
