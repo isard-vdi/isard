@@ -1147,7 +1147,7 @@
       "book": "Reservar escritorio",
       "cancel": "Cancelar"
     },
-    "destkop-gpu-unavailable-modal": {
+    "desktop-gpu-unavailable-modal": {
       "title": "La GPU '{current-gpu}' no está disponible para el escritorio '{name}' en este momento.",
       "change-and-start": {
         "title": "Cambiar e iniciar",
@@ -1160,7 +1160,7 @@
         "action-button": "Reservar escritorio"
       }
     },
-    "destkop-start-now-modal": {
+    "desktop-start-now-modal": {
       "cancel": "Cancelar",
       "confirm": "Inicia el escritorio",
       "description": "Seleccione hasta cuándo se utilizará el escritorio.",
@@ -1170,7 +1170,7 @@
         "placeholder": "Seleccione hasta cuando se utilizará"
       }
     },
-    "destkop-gpu-change-and-start-modal": {
+    "desktop-gpu-change-and-start-modal": {
       "title": "Cambiar e iniciar",
       "book": "Reservar escritorio",
       "cancel": "Cancelar",
