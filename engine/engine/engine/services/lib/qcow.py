@@ -33,6 +33,20 @@ VDESKTOP_DISK_OPERATINOS = CONFIG_DICT["REMOTEOPERATIONS"][
 
 QCOW2_CLUSTER_SIZE = os.environ.get("QCOW2_CLUSTER_SIZE", "4k")
 QCOW2_EXTENDED_L2 = os.environ.get("QCOW2_EXTENDED_L2", "off")
+QCOW2_LAZY_REFCOUNTS = os.environ.get("QCOW2_LAZY_REFCOUNTS", "off")
+QCOW2_PREALLOCATION = os.environ.get("QCOW2_PREALLOCATION", "off")
+
+if QCOW2_EXTENDED_L2 == "on":
+    _size_str = QCOW2_CLUSTER_SIZE.upper().strip()
+    _multipliers = {"K": 1024, "M": 1024**2}
+    _num = int("".join(c for c in _size_str if c.isdigit()))
+    _unit = "".join(c for c in _size_str if c.isalpha())
+    _cluster_bytes = _num * _multipliers.get(_unit, 1)
+    if _cluster_bytes < 16384:
+        raise ValueError(
+            f"QCOW2_CLUSTER_SIZE={QCOW2_CLUSTER_SIZE} is too small for extended_l2=on "
+            f"(minimum 16k). Either set QCOW2_CLUSTER_SIZE>=16k or QCOW2_EXTENDED_L2=off"
+        )
 
 
 def create_cmds_delete_disk(path_disk, mv_to_extension_deleted=False):
@@ -117,17 +131,21 @@ def create_cmd_disk_from_scratch(
     user_owner="qemu",
     group_owner="qemu",
     extended_l2=QCOW2_EXTENDED_L2,
+    lazy_refcounts=QCOW2_LAZY_REFCOUNTS,
+    preallocation=QCOW2_PREALLOCATION,
 ):
     cmds1 = list()
     path_new_disk = shlex.quote(path_new_disk)
     path_dir = extract_dir_path(path_new_disk)
     touch_test_path = path_dir + "/.touch_test"
-    cmd_qemu_img = "qemu-img create -f {disk_type} -o cluster_size={cluster_size},extended_l2={extended_l2} {file_path} {size_str}".format(
+    cmd_qemu_img = "qemu-img create -f {disk_type} -o cluster_size={cluster_size},extended_l2={extended_l2},lazy_refcounts={lazy_refcounts},preallocation={preallocation} {file_path} {size_str}".format(
         disk_type=disk_type,
         size_str=size_str,
         cluster_size=cluster_size,
         file_path=path_new_disk,
         extended_l2=extended_l2,
+        lazy_refcounts=lazy_refcounts,
+        preallocation=preallocation,
     )
 
     cmds1.append({"title": "mkdir dir", "cmd": "mkdir -p {}".format(path_dir)})
@@ -731,13 +749,20 @@ def create_disk_from_base_cmd(
     basename,
     clustersize=QCOW2_CLUSTER_SIZE,
     extended_l2=QCOW2_EXTENDED_L2,
+    lazy_refcounts=QCOW2_LAZY_REFCOUNTS,
+    preallocation=QCOW2_PREALLOCATION,
 ):
-    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize},extended_l2={extended_l2} -b "{basename}" -F qcow2 "{filename}"'
+    # Preallocation with backing files is supported when extended_l2 is on
+    # (extended L2 entries have subcluster allocation bits that allow this)
+    prealloc_opt = f",preallocation={preallocation}" if extended_l2 == "on" else ""
+    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize},extended_l2={extended_l2},lazy_refcounts={lazy_refcounts}{prealloc_opt} -b "{basename}" -F qcow2 "{filename}"'
     cmd = cmd.format(
         filename=filename,
         basename=basename,
         clustersize=clustersize,
         extended_l2=extended_l2,
+        lazy_refcounts=lazy_refcounts,
+        prealloc_opt=prealloc_opt,
     )
     return cmd
 

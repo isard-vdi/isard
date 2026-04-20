@@ -181,11 +181,32 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
 
     options = ""
     if storage_type == "qcow2":
-        options = f"""cluster_size={
-            environ.get('QCOW2_CLUSTER_SIZE','4k')
-        },extended_l2={
-            environ.get('QCOW2_EXTENDED_L2','off')
-        }"""
+        cluster_size = environ.get("QCOW2_CLUSTER_SIZE", "4k")
+        extended_l2 = environ.get("QCOW2_EXTENDED_L2", "off")
+        lazy_refcounts = environ.get("QCOW2_LAZY_REFCOUNTS", "off")
+        preallocation = environ.get("QCOW2_PREALLOCATION", "off")
+
+        if extended_l2 == "on":
+            _s = cluster_size.upper().strip()
+            _multipliers = {"K": 1024, "M": 1024**2}
+            _num = int("".join(c for c in _s if c.isdigit()))
+            _unit = "".join(c for c in _s if c.isalpha())
+            if _num * _multipliers.get(_unit, 1) < 16384:
+                raise ValueError(
+                    f"QCOW2_CLUSTER_SIZE={cluster_size} is too small for extended_l2=on "
+                    f"(minimum 16k). Either set QCOW2_CLUSTER_SIZE>=16k or QCOW2_EXTENDED_L2=off"
+                )
+
+        options = (
+            f"cluster_size={cluster_size},"
+            f"extended_l2={extended_l2},"
+            f"lazy_refcounts={lazy_refcounts}"
+        )
+
+        # Add preallocation if no backing file, or if extended_l2 is on (which supports
+        # preallocation with backing files via subcluster allocation bits)
+        if not parent_path or extended_l2 == "on":
+            options += f",preallocation={preallocation}"
 
     command = [
         "qemu-img",
