@@ -136,6 +136,7 @@
         "logout": "Tancar sessió",
         "login": "Ves a l'inici de sessió"
       }
+      }
     },
     "login": {
       "separator": "Altres accessos",
