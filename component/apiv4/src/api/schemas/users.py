@@ -319,3 +319,27 @@ class UserOwnsDesktopRequest(BaseModel):
         default=None,
         description="The viewer port to match.",
     )
+
+
+# -- Response models --
+
+
+class UserDesktop(BaseModel):
+    id: str
+    name: str
+    status: str
+    kind: str
+    image: Optional[dict] = None
+    description: Optional[str] = ""
+    tag_visible: Optional[bool] = False
+    accessed: Optional[float] = None
+    user: Optional[str] = None
+    ip: Optional[str] = None
+
+
+class UserVpnData(BaseModel):
+    kind: Optional[str] = None
+    content: Optional[str] = None
+    name: Optional[str] = None
+    ext: Optional[str] = None
+    mime: Optional[str] = None

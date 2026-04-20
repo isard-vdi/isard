@@ -171,6 +171,7 @@ async def get_user_allowed_templates_flat(request: Request, kind: str):
     response_model=UserTemplatesResponse,
     summary="Get user templates",
     description="Returns a list of all templates that belong to the user calling the endpoint.",
+    operation_id="get_user_templates",
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -205,6 +206,7 @@ async def get_user_templates(
     response_model=UserTemplatesPaginationResponse,
     summary="Get user templates",
     description="Returns a list of all templates that belong to the user calling the endpoint.",
+    operation_id="get_user_templates_paginated",
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},

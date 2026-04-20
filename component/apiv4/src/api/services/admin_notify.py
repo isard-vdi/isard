@@ -4,7 +4,9 @@
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import Any, Dict, List, Optional
 
+from api.schemas.admin_notify import DesktopQueueItem
 from api.services.error import Error
 from isardvdi_common.helpers.api_notify import (
     notify_custom,
@@ -18,27 +20,36 @@ class AdminNotifyService:
 
     @staticmethod
     def notify_user_desktop(
-        user_id: str, type: str, msg_code: str = None, params: dict = None
+        user_id: str,
+        type: str,
+        msg_code: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
     ):
         """Send a notification to a user about a desktop."""
         notify_user(user_id, type, msg_code, params or {})
 
     @staticmethod
     def notify_desktop(
-        desktop_id: str, type: str, msg_code: str = None, params: dict = None
+        desktop_id: str,
+        type: str,
+        msg_code: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
     ):
         """Send a notification to a desktop."""
         notify_desktop(desktop_id, type, msg_code, params or {})
 
     @staticmethod
-    def notify_desktop_queue(data: list, hyp_id: str):
-        """Parse desktop queues and notify users."""
+    def notify_desktop_queue(items: List[DesktopQueueItem], hyp_id: str):
+        """Parse desktop queues and notify users. Accepts typed
+        ``DesktopQueueItem`` models directly (not dicts) so the contract
+        checked in :mod:`api.schemas.admin_notify` is preserved all the
+        way down to the service boundary."""
         from isardvdi_common.connections.rethink_connection_factory import (
             RethinkSharedConnection,
         )
         from rethinkdb import r
 
-        desktop_ids = [entry["desktop_id"] for entry in data]
+        desktop_ids = [item.desktop_id for item in items]
 
         with RethinkSharedConnection._rdb_context():
             domains = list(
@@ -50,12 +61,11 @@ class AdminNotifyService:
 
         domain_map = {domain["id"]: domain["user"] for domain in domains}
 
-        users = {}
-        for entry in data:
-            desktop_id = entry["desktop_id"]
-            user_id = domain_map.get(desktop_id)
+        users: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for item in items:
+            user_id = domain_map.get(item.desktop_id)
             if user_id:
-                users.setdefault(user_id, {})[desktop_id] = entry
+                users.setdefault(user_id, {})[item.desktop_id] = item.model_dump()
 
         for user_id, user_desktops in users.items():
             notify_custom("desktops_queue", user_desktops, "/userspace", user_id)

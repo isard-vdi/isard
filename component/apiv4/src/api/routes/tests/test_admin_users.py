@@ -34,7 +34,18 @@ def test_admin_user_exists(monkeypatch, test_client):
 
 def test_admin_list_users(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = [{"id": "user-1", "name": "User 1"}]
+    stub = [
+        {
+            "id": "user-1",
+            "name": "User 1",
+            "provider": "local",
+            "category": "default",
+            "uid": "user1",
+            "username": "user1",
+            "role": "user",
+            "group": "default-default",
+        }
+    ]
     captured = {}
 
     def fake_list(category_id=None):
@@ -49,7 +60,7 @@ def test_admin_list_users(monkeypatch, test_client):
     response = test_client(url="/admin/users", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    assert response.json()[0]["id"] == "user-1"
     # Admin role → category_id=None (global listing)
     assert captured["category_id"] is None
 
@@ -61,7 +72,16 @@ def test_admin_create_user(monkeypatch, test_client):
     def fake_create(payload, data):
         captured["username"] = data["username"]
         captured["role"] = data["role"]
-        return {"id": "user-new"}
+        return {
+            "id": "user-new",
+            "name": "Alice Admin",
+            "provider": "local",
+            "category": "default",
+            "uid": "alice",
+            "username": "alice",
+            "role": "advanced",
+            "group": "default-default",
+        }
 
     monkeypatch.setattr(
         "api.services.admin_users.AdminUsersService.create_user",
@@ -177,7 +197,11 @@ def test_admin_create_group(monkeypatch, test_client):
     def fake_create(payload, data):
         captured["name"] = data["name"]
         captured["parent_category"] = data["parent_category"]
-        return {"id": "group-new"}
+        return {
+            "id": "group-new",
+            "name": "New Group",
+            "parent_category": "default",
+        }
 
     monkeypatch.setattr(
         "api.services.admin_users.AdminUsersService.create_group",

@@ -71,7 +71,8 @@ def test_admin_list_roles_forbidden_for_basic_user(monkeypatch, test_client):
 
 
 def test_admin_get_role_returns_single(monkeypatch, test_client):
-    """GET /admin/role/{id} → AdminRolesService.get_role(role_id) (no payload arg)."""
+    """GET /admin/role/{id} lives in admin/roles.py and calls
+    AdminRolesService.get_role(role_id)."""
     captured = {}
 
     def fake_get_role(role_id):

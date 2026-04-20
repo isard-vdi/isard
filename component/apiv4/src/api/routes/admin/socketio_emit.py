@@ -3,10 +3,10 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
 import traceback
 
 from api import admin_router
+from api.schemas.admin_notify import AdminSocketioEmitRequest
 from api.schemas.common import ErrorResponse
 from api.services.admin_socketio import AdminSocketioService
 from api.services.error import Error
@@ -31,20 +31,10 @@ tag = "admin_socketio"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_emit_socketio(request: Request):
+async def admin_emit_socketio(request: Request, data: AdminSocketioEmitRequest):
     try:
-        try:
-            events = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        if not isinstance(events, list):
-            raise await Error.create(
-                request,
-                "bad_request",
-                "JSON array expected",
-            )
-        AdminSocketioService.emit_events(events)
-        return JSONResponse(content=True, status_code=200)
+        AdminSocketioService.emit_events(data.root)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:

@@ -95,3 +95,162 @@ class AdminHypervisorVirtPoolUpdateData(BaseModel):
 
     id: str = Field(description="Virt pool ID")
     enable_virt_pool: bool = Field(description="Enable or disable the virt pool")
+
+
+# -- Response models --
+
+
+class OrchestratorHypervisorStatsCPU(BaseModel):
+    idle: float
+    iowait: float
+    kernel: float
+    used: float
+    user: float
+
+
+class OrchestratorHypervisorStatsMem(BaseModel):
+    available: int
+    buffers: int
+    cached: int
+    free: int
+    total: int
+    used: int
+    hugepages_total_kb: Optional[int] = None
+    hugepages_free_kb: Optional[int] = None
+    hugepages_used_kb: Optional[int] = None
+
+
+class OrchestratorHypervisorStats(BaseModel):
+    cpu_current: OrchestratorHypervisorStatsCPU
+    cpu_5min: OrchestratorHypervisorStatsCPU
+    cpu_15min: OrchestratorHypervisorStatsCPU
+    cpu_1min: OrchestratorHypervisorStatsCPU
+    mem_stats: OrchestratorHypervisorStatsMem
+    mem_stats_1min: OrchestratorHypervisorStatsMem
+    mem_stats_5min: OrchestratorHypervisorStatsMem
+    mem_stats_15min: OrchestratorHypervisorStatsMem
+    time: float
+    positioned_items: list = []
+
+
+class OrchestratorHypervisorGPU(BaseModel):
+    id: str
+    total_units: int
+    used_units: int
+    free_units: int
+    brand: str
+    model: str
+    profile: str
+
+
+class OrchestratorHypervisor(BaseModel):
+    id: str
+    status: str
+    only_forced: bool = False
+    buffering_hyper: bool = False
+    destroy_time: Optional[str] = None
+    stats: dict = {}
+    orchestrator_managed: bool = False
+    min_free_mem_gb: int = 0
+    gpu_only: bool = False
+    desktops_started: int = 0
+    bookings_end_time: Optional[str] = None
+    gpus: list[OrchestratorHypervisorGPU] = []
+
+
+class OrchestratorManagedHypervisor(BaseModel):
+    id: str
+    info: Optional[dict] = None
+    stats: Optional[dict] = None
+    status: str
+    destroy_time: Optional[str] = None
+    status_time: Optional[str] = None
+    desktops_started: int = 0
+
+
+class DeadRowSetResponse(BaseModel):
+    destroy_time: str
+
+
+class AdminHypervisorCapabilities(BaseModel):
+    disk_operations: bool
+    hypervisor: bool
+
+
+class AdminHypervisorViewer(BaseModel):
+    static: Optional[str] = None
+    proxy_video: Optional[str] = None
+    spice_ext_port: Optional[str] = None
+    html5_ext_port: Optional[str] = None
+    proxy_hyper_host: Optional[str] = None
+
+
+class AdminHypervisor(BaseModel):
+    id: str
+    hostname: str
+    port: str
+    description: str
+    capabilities: AdminHypervisorCapabilities
+    only_forced: bool
+    min_free_mem_gb: int
+    min_free_gpu_mem_gb: int
+    nvidia_enabled: bool
+    force_get_hyp_info: bool
+    buffering_hyper: bool
+    gpu_only: bool
+    isard_hyper_vpn_host: str
+    status: str = "Offline"
+    user: str = ""
+    enabled: bool = False
+    detail: str = ""
+    uri: str = ""
+    status_time: int = 0
+    info: dict = {}
+    cap_status: dict = {}
+    hypervisors_pools: list[str] = []
+    storage_pools: list[str] = []
+    enabled_storage_pools: list[str] = []
+    virt_pools: list[str] = []
+    enabled_virt_pools: list[str] = []
+    prev_status: list = []
+    mountpoints: list = []
+    stats: Optional[dict] = None
+    viewer: Optional[AdminHypervisorViewer] = None
+    viewer_status: Optional[dict] = None
+    vpn: Optional[dict] = None
+    desktops_started: int = 0
+    gpus: list[str] = []
+    physical_gpus: list[str] = []
+    orchestrator_managed: Optional[bool] = None
+    boot_progress: Optional[dict] = None
+    degraded: Optional[dict] = None
+    libvirt_warning: Optional[dict] = None
+    icon: Optional[str] = None
+    isard_static_url: Optional[str] = None
+    isard_video_url: Optional[str] = None
+    isard_proxy_hyper_url: Optional[str] = None
+
+
+# ── Admin-internal bodies ────────────────────────────────────────────────
+
+
+class AdminRegisterVlansRequest(BaseModel):
+    """Body for ``POST /admin/vlans``.
+
+    Sent by ``docker/hypervisor/src/vlans/vlans-db.py``: the hypervisor
+    reports the set of VLAN identifiers it has discovered so the API
+    can upsert the corresponding ``interfaces`` entries.
+    """
+
+    vlans: List[str]
+
+
+class AdminBootProgressRequest(BaseModel):
+    """Body for ``PUT /admin/hypervisor/{hyper_id}/boot_progress``.
+
+    Carries a structured ``{step, total, label, error, timestamp}``
+    payload. Stored verbatim in RethinkDB (``hypervisors.boot_progress``)
+    and consumed by the changefeed / webapp for live progress reporting.
+    """
+
+    boot_progress: Dict[str, Any]

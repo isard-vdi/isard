@@ -4,9 +4,9 @@
 
 import pytest
 from api.schemas.vpn import (
+    AdminVpnConnectionsDisconnectRequest,
     VpnConnectionRequest,
     VpnDisconnectListItem,
-    VpnDisconnectListRequest,
 )
 from pydantic import ValidationError
 
@@ -35,13 +35,13 @@ class TestVpnDisconnectListItem:
             VpnDisconnectListItem(**payload)
 
 
-class TestVpnDisconnectListRequest:
+class TestAdminVpnConnectionsDisconnectRequest:
     """RootModel wrapping a List[VpnDisconnectListItem] — the request
     body IS the list, no wrapper key. Pin the unwrap behavior so a
     future change to a typed wrapper is intentional."""
 
     def test_accepts_list(self):
-        r = VpnDisconnectListRequest(
+        r = AdminVpnConnectionsDisconnectRequest(
             [
                 {"kind": "wireguard", "client_ip": "10.0.0.1"},
                 {"kind": "wireguard", "client_ip": "10.0.0.2"},
@@ -51,9 +51,11 @@ class TestVpnDisconnectListRequest:
         assert r.root[0].client_ip == "10.0.0.1"
 
     def test_accepts_empty_list(self):
-        r = VpnDisconnectListRequest([])
+        r = AdminVpnConnectionsDisconnectRequest([])
         assert r.root == []
 
     def test_invalid_item_propagates(self):
         with pytest.raises(ValidationError):
-            VpnDisconnectListRequest([{"kind": "wireguard"}])  # client_ip missing
+            AdminVpnConnectionsDisconnectRequest(
+                [{"kind": "wireguard"}]
+            )  # client_ip missing

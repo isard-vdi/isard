@@ -5,7 +5,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, RootModel
 
 
 class NotifyUserDesktopRequest(BaseModel):
@@ -27,15 +27,42 @@ class NotifyDesktopRequest(BaseModel):
 
 
 class DesktopQueueItem(BaseModel):
-    """Single desktop queue entry"""
+    """Single desktop queue entry.
+
+    Matches the exact shape produced by
+    ``hyp_worker_thread.get_positioned_items``
+    (``engine/.../hyp_worker_thread.py``): the engine always emits
+    ``desktop_id``, ``event``, ``priority`` and ``position`` — these
+    four fields are the complete contract. Unknown keys are rejected
+    (``extra="forbid"``) so a new field on the engine side surfaces
+    as a 422 here and forces us to update this schema in lockstep
+    rather than silently drifting.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     desktop_id: str
+    event: Optional[str] = None
+    priority: Optional[int] = None
+    position: Optional[int] = None
+
+
+class AdminNotifyDesktopsQueueRequest(RootModel[List[DesktopQueueItem]]):
+    """Top-level JSON array body for ``PUT /admin/notify/desktops/queue/{hyp_id}``."""
+
+    pass
 
 
 class SocketioEmitRequest(BaseModel):
-    """Request to emit a socketio event"""
+    """Single socketio event."""
 
     event: Optional[str] = None
     data: Optional[Any] = None
     namespace: Optional[str] = None
     room: Optional[str] = None
+
+
+class AdminSocketioEmitRequest(RootModel[List[SocketioEmitRequest]]):
+    """Top-level JSON array body for ``POST /admin/socketio``."""
+
+    pass

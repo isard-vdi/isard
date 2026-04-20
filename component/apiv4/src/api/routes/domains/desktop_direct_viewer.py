@@ -132,6 +132,7 @@ async def update_share_link(
     "/item/desktop/token/{token}/get-viewer",
     tags=[tag],
     response_model=DesktopViewerResponse,
+    operation_id="get_desktop_viewer_by_token",
     responses={
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},

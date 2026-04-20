@@ -97,6 +97,18 @@ class MigrationListDeployment(BaseModel):
     user_name: str = Field(..., description="Display name of the user")
 
 
+class MigrationListUser(BaseModel):
+    id: str = Field(..., description="User ID")
+    name: str = Field(..., description="Display name of the user")
+    username: str = Field(..., description="Username of the user")
+    provider: str = Field(..., description="Authentication provider of the user")
+
+
+class MigrationListError(BaseModel):
+    description: str = Field(..., description="Human-readable error description")
+    description_code: str = Field(..., description="Machine-readable error code")
+
+
 class MigrationListItemsResponse(BaseModel):
     """
     Response model for listing items available for migration.
@@ -113,6 +125,13 @@ class MigrationListItemsResponse(BaseModel):
     )
     deployments: list[MigrationListDeployment] = Field(
         ..., description="Deployments available for migration."
+    )
+    users: list[MigrationListUser] = Field(
+        ..., description="Origin user(s) of the migration."
+    )
+    quota_errors: list[MigrationListError] = Field(
+        default_factory=list,
+        description="Quota errors detected during migration validation.",
     )
     action_after_migrate: Literal["none", "disable", "delete"] = Field(
         ...,

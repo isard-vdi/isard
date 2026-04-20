@@ -244,6 +244,7 @@ async def get_desktop_networks(
     summary="Get the details of a desktop",
     tags=[tag],
     description="Gets a desktop details based on the desktop ID",
+    operation_id="get_desktop_details",
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -281,6 +282,7 @@ async def get_desktop_info(
     response_model=DesktopBastionResponse,
     summary="Get desktop bastion configuration",
     description="Returns the bastion configuration for a desktop based on the desktop ID",
+    operation_id="get_desktop_bastion_legacy",
     responses={
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
@@ -777,6 +779,7 @@ async def delete_desktop(
     response_model=DesktopImagesResponse,
     summary="Get available desktop images",
     description="Returns available desktop images (stock and user cards)",
+    operation_id="get_desktop_images",
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -868,6 +871,7 @@ async def delete_user_deployment_desktops(
     response_model=UserDesktopsResponse,
     summary="Get user desktops",
     description="Returns a list of all desktops that belong to the user calling the endpoint.",
+    operation_id="get_user_desktops",
     responses={
         500: {"model": ErrorResponse},
     },
@@ -900,6 +904,7 @@ async def get_user_desktops(request: Request):
     response_model=DesktopsPaginationResponse,
     summary="Get user desktops",
     description="Returns a list of all desktops that belong to the user calling the endpoint.",
+    operation_id="get_user_desktops_paginated",
     responses={
         500: {"model": ErrorResponse},
     },
@@ -1101,6 +1106,7 @@ async def create_desktop_from_media(request: Request, data: CreateDesktopFromMed
     response_model=DomainInfoResponse,
     summary="Get desktop information",
     description="Returns detailed information about a specific desktop.",
+    operation_id="get_desktop_info",
     dependencies=[Depends(owns_domain_id("desktop_id"))],
 )
 async def get_desktop_info(
@@ -1189,6 +1195,7 @@ async def edit_desktop(
     response_model=DesktopGetViewerResponse,
     summary="Get desktop viewer connection string",
     description="Returns the connection string for a specific viewer type for the given desktop.",
+    operation_id="get_desktop_viewer_by_type",
     responses={
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},

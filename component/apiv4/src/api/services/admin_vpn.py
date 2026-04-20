@@ -4,7 +4,9 @@
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import List
 
+from api.schemas.vpn import VpnDisconnectListItem
 from api.services.error import Error
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -106,14 +108,19 @@ class AdminVpnService:
         return True
 
     @staticmethod
-    def reset_connections_list_status(data):
-        """Reset VPN connection status for a list of connections."""
+    def reset_connections_list_status(peers: List[VpnDisconnectListItem]):
+        """Reset VPN connection status for a typed list of peers.
+
+        Accepts ``VpnDisconnectListItem`` models directly so the
+        ``kind`` and ``client_ip`` contract is enforced at the service
+        boundary, not only at the route layer.
+        """
         connection_data = {
             "connected": False,
             "remote_ip": None,
             "remote_port": None,
         }
-        users_vpn_ips = [d["client_ip"] for d in data if d["kind"] == "users"]
+        users_vpn_ips = [p.client_ip for p in peers if p.kind == "users"]
         if len(users_vpn_ips):
             with RethinkSharedConnection._rdb_context():
                 r.table("users").get_all(
@@ -128,7 +135,7 @@ class AdminVpnService:
                     RethinkSharedConnection._rdb_connection
                 )
 
-        hypers_vpn_ips = [d["client_ip"] for d in data if d["kind"] == "hypers"]
+        hypers_vpn_ips = [p.client_ip for p in peers if p.kind == "hypers"]
         if len(hypers_vpn_ips):
             with RethinkSharedConnection._rdb_context():
                 r.table("hypervisors").get_all(

@@ -27,6 +27,7 @@ tag = "cards"
     tags=[tag],
     summary="Get desktop images",
     description="Returns all available desktop images (stock + user).",
+    operation_id="get_desktop_card_images",
     responses={500: {"model": ErrorResponse}},
 )
 async def get_desktop_images(
