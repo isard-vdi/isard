@@ -31,6 +31,7 @@ from api import app
 
 from ..libv2.validators import _validate_item
 from .decorators import check_permissions, is_admin
+from .PublicView import clear_login_config_cache
 
 
 def _handle_login_notification_update(category_id=None):
@@ -51,14 +52,33 @@ def _handle_login_notification_update(category_id=None):
             if button_url and urlparse(button_url).scheme not in ("http", "https"):
                 raise Error("bad_request", "Invalid URL scheme in button URL")
 
-    notification_data = {
-        "notification_cover": data.get("cover", None),
-        "notification_form": data.get("form", None),
-    }
     if category_id:
-        Category(category_id).login_notification = notification_data
+        current = Category(category_id).login_notification or {}
     else:
-        Configuration.login = notification_data
+        current = Configuration.login or {}
+
+    changed = False
+    for position, key in (
+        ("cover", "notification_cover"),
+        ("form", "notification_form"),
+    ):
+        position_data = data.get(position)
+        if position_data is None:
+            continue
+        if "enabled" not in position_data:
+            position_data["enabled"] = current.get(key, {}).get("enabled", False)
+        current[key] = position_data
+        changed = True
+
+    if not changed:
+        return (json.dumps({}), 200, {"Content-Type": "application/json"})
+
+    # Write the full dict — RethinkBase's ORM cache replaces on write.
+    if category_id:
+        Category(category_id).login_notification = current
+    else:
+        Configuration.login = current
+    clear_login_config_cache()
     return (
         json.dumps({}),
         200,
@@ -74,12 +94,22 @@ def _handle_login_notification_enable(notification_type, category_id=None):
         raise Error("bad_request", "Enabled field is required")
 
     notification_key = f"notification_{notification_type}"
+
     if category_id:
-        Category(category_id).login_notification = {
-            notification_key: {"enabled": enabled}
-        }
+        current = Category(category_id).login_notification or {}
     else:
-        Configuration.login = {notification_key: {"enabled": enabled}}
+        current = Configuration.login or {}
+
+    current_notif = current.get(notification_key) or {}
+    current_notif["enabled"] = enabled
+    current[notification_key] = current_notif
+
+    # Write the full dict — RethinkBase's ORM cache replaces on write.
+    if category_id:
+        Category(category_id).login_notification = current
+    else:
+        Configuration.login = current
+    clear_login_config_cache()
     return (
         json.dumps({}),
         200,

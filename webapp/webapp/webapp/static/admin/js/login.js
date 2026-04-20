@@ -49,30 +49,34 @@ $(document).ready(function () {
     enableNotificationBindCheckbox();
 });
 
+var _updatingCheckboxes = false;
+
 function showConfig() {
     $.ajax({
         type: "GET",
         url: "/api/v3/login_config",
     }).done(function (data) {
+        _updatingCheckboxes = true;
         $("#enable_cover_notification_checkbox").iCheck(data.notification_cover?.enabled ? 'check' : 'uncheck');
         $("#enable_form_notification_checkbox").iCheck(data.notification_form?.enabled ? 'check' : 'uncheck');
+        _updatingCheckboxes = false;
         renderLoginNotificationPreview("#LoginNotificationsPanel #preview-panel", data);
     });
 }
 
 enableNotificationBindCheckbox = () => {
     $("#enable_cover_notification_checkbox").on("ifChecked", () => {
-        enableNotificationUpdateStatus("cover", true);
+        if (!_updatingCheckboxes) enableNotificationUpdateStatus("cover", true);
     });
     $("#enable_cover_notification_checkbox").on("ifUnchecked", () => {
-        enableNotificationUpdateStatus("cover", false);
+        if (!_updatingCheckboxes) enableNotificationUpdateStatus("cover", false);
     });
 
     $("#enable_form_notification_checkbox").on("ifChecked", () => {
-        enableNotificationUpdateStatus("form", true);
+        if (!_updatingCheckboxes) enableNotificationUpdateStatus("form", true);
     });
     $("#enable_form_notification_checkbox").on("ifUnchecked", () => {
-        enableNotificationUpdateStatus("form", false);
+        if (!_updatingCheckboxes) enableNotificationUpdateStatus("form", false);
     });
 }
 
