@@ -128,6 +128,7 @@ class TestMigrationListItemsResponse:
         "templates": [],
         "media": [],
         "deployments": [],
+        "users": [],
         "action_after_migrate": "none",
     }
 

@@ -3,13 +3,12 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
 import traceback
 from typing import List, Optional
 
 from api import admin_router
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.schemas.vpn import VpnConnectionRequest
+from api.schemas.vpn import AdminVpnConnectionsDisconnectRequest, VpnConnectionRequest
 from api.services.admin_vpn import AdminVpnService
 from api.services.error import Error
 from fastapi import Request
@@ -164,14 +163,13 @@ async def vpn_connection_reset(request: Request, kind: str):
     description="Disconnects multiple VPN connections from a list.",
     responses={500: {"model": ErrorResponse}},
 )
-async def vpn_connections_disconnect(request: Request):
+async def vpn_connections_disconnect(
+    request: Request,
+    data: AdminVpnConnectionsDisconnectRequest,
+):
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        result = AdminVpnService.reset_connections_list_status(data)
-        return JSONResponse(content=result, status_code=200)
+        AdminVpnService.reset_connections_list_status(data.root)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:

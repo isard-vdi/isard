@@ -21,7 +21,7 @@
 import logging as log
 
 from api.services.error import Error
-from isardvdi_common.connections.api_notifier import notifier_client
+from isardvdi_common.connections.api_notifier import send_deleted_gpu_notification
 from isardvdi_common.lib.bookings.reservables import Reservables
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
 
@@ -224,10 +224,9 @@ class ReservableService:
             )
         for user_items in users_items:
             try:
-                payload = {
-                    "text": "",
-                    "user_id": user_items["user_id"],
-                    "bookings": [
+                send_deleted_gpu_notification(
+                    user_id=user_items["user_id"],
+                    bookings=[
                         {
                             "start": str(booking["start"]),
                             "end": str(booking["end"]),
@@ -235,16 +234,15 @@ class ReservableService:
                         }
                         for booking in user_items.get("bookings", [])
                     ],
-                    "desktops": [
+                    desktops=[
                         {"name": str(desktop["name"])}
                         for desktop in user_items.get("desktops", [])
                     ],
-                    "deployments": [
+                    deployments=[
                         {"name": str(deployment["tag_name"])}
                         for deployment in user_items.get("deployments", [])
                     ],
-                }
-                notifier_client.post("/mail/deleted-gpu", payload)
+                )
             except Exception:
                 log.exception(
                     "Failed to send deleted-gpu notification to user %s",

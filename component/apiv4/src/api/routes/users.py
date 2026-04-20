@@ -29,7 +29,7 @@ from api import (
     register_router,
     token_router,
 )
-from api.schemas.common import ErrorResponse, SimpleResponse
+from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
 from api.schemas.deployments import DeploymentGroup, DeploymentUser
 from api.schemas.users import (
     GroupsUsersCountPutData,
@@ -39,6 +39,7 @@ from api.schemas.users import (
     UserAPIKeyResponse,
     UserAppliedQuotaResponse,
     UserConfigResponse,
+    UserDesktop,
     UserDetailsResponse,
     UserOwnsDesktopRequest,
     UserPasswordPolicyResponse,
@@ -47,6 +48,7 @@ from api.schemas.users import (
     UserSetEmailPutData,
     UserSetLangPutData,
     UserSetPasswordPutData,
+    UserVpnData,
 )
 from api.services.desktops import DesktopService
 from api.services.error import Error
@@ -184,6 +186,7 @@ async def get_user_password_policy(request: Request):
     tags=[tag],
     summary="Get the user vpn",
     description="Returns the VPN for the user.",
+    operation_id="get_user_vpn",
     responses={500: {"description": "Failed to retrieve the user VPN"}},
 )
 async def get_user_vpn(request: Request):
@@ -677,6 +680,7 @@ async def delete_user(request: Request):
     tags=[tag],
     summary="Get user desktops",
     description="Returns a list of desktops for the current user.",
+    operation_id="get_user_desktops_legacy",
     responses={
         200: {"description": "Desktops retrieved successfully"},
         404: {"description": "User not found"},
@@ -710,6 +714,7 @@ async def get_user_desktops(request: Request):
         404: {"description": "Desktop not found"},
         500: {"description": "Failed to retrieve desktop"},
     },
+    response_model=UserDesktop,
 )
 async def get_user_desktop(request: Request, desktop_id: str):
     try:
@@ -717,7 +722,10 @@ async def get_user_desktop(request: Request, desktop_id: str):
             desktop_id=desktop_id,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(content=desktop, status_code=200)
+        return JSONResponse(
+            content=UserDesktop(**desktop).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -738,6 +746,7 @@ async def get_user_desktop(request: Request, desktop_id: str):
         200: {"description": "VPN data retrieved successfully"},
         500: {"description": "Failed to retrieve VPN data"},
     },
+    response_model=UserVpnData,
 )
 async def get_user_vpn_with_os(request: Request, kind: str, os: str):
     try:
@@ -746,7 +755,10 @@ async def get_user_vpn_with_os(request: Request, kind: str, os: str):
             os=os,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(content=vpn_data, status_code=200)
+        return JSONResponse(
+            content=UserVpnData(**vpn_data).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -763,11 +775,13 @@ async def get_user_vpn_with_os(request: Request, kind: str, os: str):
     tags=[tag],
     summary="Get VPN config",
     description="Returns VPN configuration for the user with the specified kind.",
+    operation_id="get_user_vpn_by_kind",
     responses={
         200: {"description": "VPN data retrieved successfully"},
         400: {"description": "Invalid VPN request"},
         500: {"description": "Failed to retrieve VPN data"},
     },
+    response_model=UserVpnData,
 )
 async def get_user_vpn(request: Request, kind: str):
     try:
@@ -781,7 +795,10 @@ async def get_user_vpn(request: Request, kind: str):
             os=False,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(content=vpn_data, status_code=200)
+        return JSONResponse(
+            content=UserVpnData(**vpn_data).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -992,6 +1009,7 @@ async def get_bastion_allowed(request: Request):
         428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
+    response_model=EmptyResponse,
 )
 async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
     try:
@@ -1007,7 +1025,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 role_id=payload.get("role_id"),
                 connection_ip=body.ip,
             )
-            return JSONResponse(content={}, status_code=200)
+            return JSONResponse(content=EmptyResponse().model_dump(), status_code=200)
 
         # Variant 2: guess_ip in body → lookup by guest_ip index.
         if body.ip:
@@ -1017,7 +1035,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 role_id=payload.get("role_id"),
                 guess_ip=body.ip,
             )
-            return JSONResponse(content={}, status_code=200)
+            return JSONResponse(content=EmptyResponse().model_dump(), status_code=200)
 
         # Variant 3: proxy_video + proxy_hyper_host + port → proxies index.
         if not body.proxy_video or not body.proxy_hyper_host or not body.port:
@@ -1035,7 +1053,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
             proxy_hyper_host=body.proxy_hyper_host,
             port=body.port,
         )
-        return JSONResponse(content={}, status_code=200)
+        return JSONResponse(content=EmptyResponse().model_dump(), status_code=200)
     except Error:
         raise
     except Exception:

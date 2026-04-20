@@ -18,9 +18,29 @@ from api.routes.tests.helpers import MockJWT
 
 def test_admin_hypervisors_list(monkeypatch, test_client):
     jwt = MockJWT()
+
+    def _hypervisor(hyper_id, status, enabled):
+        return {
+            "id": hyper_id,
+            "hostname": f"{hyper_id}.local",
+            "port": "22",
+            "description": "",
+            "capabilities": {"disk_operations": True, "hypervisor": True},
+            "only_forced": False,
+            "min_free_mem_gb": 0,
+            "min_free_gpu_mem_gb": 0,
+            "nvidia_enabled": False,
+            "force_get_hyp_info": False,
+            "buffering_hyper": False,
+            "gpu_only": False,
+            "isard_hyper_vpn_host": "",
+            "status": status,
+            "enabled": enabled,
+        }
+
     stub = [
-        {"id": "hyper-1", "status": "Online", "enabled": True},
-        {"id": "hyper-2", "status": "Offline", "enabled": False},
+        _hypervisor("hyper-1", "Online", True),
+        _hypervisor("hyper-2", "Offline", False),
     ]
     captured = {}
 
@@ -36,7 +56,8 @@ def test_admin_hypervisors_list(monkeypatch, test_client):
     response = test_client(url="/admin/hypervisors", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert [h["id"] for h in body] == ["hyper-1", "hyper-2"]
     assert captured["status"] is None
 
 
@@ -225,7 +246,7 @@ def test_admin_hypervisor_started_domains(monkeypatch, test_client):
 
 def test_admin_orchestrator_managed_list(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = [{"id": "hyper-1", "orchestrator_managed": True}]
+    stub = [{"id": "hyper-1", "status": "Online"}]
     monkeypatch.setattr(
         "api.services.admin_hypervisors.AdminHypervisorsService.get_orchestrator_managed_hypervisors",
         staticmethod(lambda: stub),
@@ -238,7 +259,9 @@ def test_admin_orchestrator_managed_list(monkeypatch, test_client):
     )
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert body[0]["id"] == "hyper-1"
+    assert body[0]["status"] == "Online"
 
 
 def test_admin_orchestrator_manage_unset(monkeypatch, test_client):
@@ -287,3 +310,121 @@ def test_admin_orchestrator_manage_set(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert captured == {"hyper_id": "hyper-1", "reset": False}
+
+
+# ─── POST /admin/vlans (Category A3) ─────────────────────────────────────
+
+
+def test_admin_register_vlans_happy_path(test_client):
+    """Typed body ``AdminRegisterVlansRequest`` now replaces the
+    hand-rolled ``data.get("vlans", [])`` read. The handler upserts
+    one ``interfaces`` row per VLAN id into RethinkDB — the mock
+    connection in the ``test_client`` fixture captures the writes.
+    """
+    jwt = MockJWT()
+
+    response = test_client(
+        url="/admin/vlans",
+        method="POST",
+        body={"vlans": ["100", "200"]},
+        jwt=jwt,
+        db_tables_data={"interfaces": []},
+    )
+
+    assert response.status_code == 200
+
+
+def test_admin_register_vlans_empty_list(test_client):
+    """Empty ``vlans`` list is accepted as a no-op. Pins semantics so a
+    future ``min_items=1`` tightening becomes a deliberate breaking
+    change rather than a silent drift."""
+    jwt = MockJWT()
+
+    response = test_client(
+        url="/admin/vlans",
+        method="POST",
+        body={"vlans": []},
+        jwt=jwt,
+        db_tables_data={"interfaces": []},
+    )
+
+    assert response.status_code == 200
+
+
+def test_admin_register_vlans_rejects_missing_field(test_client):
+    jwt = MockJWT()
+
+    response = test_client(
+        url="/admin/vlans",
+        method="POST",
+        body={"not_vlans": ["100"]},
+        jwt=jwt,
+        db_tables_data={"interfaces": []},
+    )
+
+    # apiv4 installs a RequestValidationError handler that reshapes
+    # FastAPI's default 422 into the legacy 400 envelope.
+    assert response.status_code == 400
+
+
+# ─── PUT /admin/hypervisor/{hyper_id}/boot_progress (Category A4) ────────
+
+
+def test_admin_hypervisor_boot_progress_happy_path(test_client):
+    """Typed body ``AdminBootProgressRequest``. ``boot_progress`` is a
+    structured dict (``{step, total, label, error, timestamp}``); the
+    hypervisor caller (``docker/hypervisor/src/lib/progress.py``) now
+    sends the decoded object directly (previously json.dumps'd).
+    """
+    jwt = MockJWT()
+
+    response = test_client(
+        url="/admin/hypervisor/hyper-1/boot_progress",
+        method="PUT",
+        body={
+            "boot_progress": {
+                "step": 2,
+                "total": 5,
+                "label": "libvirt",
+                "error": None,
+                "timestamp": 1700000000,
+            }
+        },
+        jwt=jwt,
+        db_tables_data={"hypervisors": [{"id": "hyper-1"}]},
+    )
+
+    assert response.status_code == 200
+
+
+def test_admin_hypervisor_boot_progress_rejects_string_payload(test_client):
+    """Encoded-string payloads are no longer accepted: the schema
+    tightened to ``Dict[str, Any]`` after migrating ``progress.py`` off
+    ``json.dumps``. Pins the contract."""
+    jwt = MockJWT()
+
+    response = test_client(
+        url="/admin/hypervisor/hyper-1/boot_progress",
+        method="PUT",
+        body={"boot_progress": '{"step": 1}'},
+        jwt=jwt,
+        db_tables_data={"hypervisors": [{"id": "hyper-1"}]},
+    )
+
+    assert response.status_code == 400
+
+
+def test_admin_hypervisor_boot_progress_rejects_missing_field(test_client):
+    jwt = MockJWT()
+
+    response = test_client(
+        url="/admin/hypervisor/hyper-1/boot_progress",
+        method="PUT",
+        body={"other": 1},
+        jwt=jwt,
+        db_tables_data={"hypervisors": [{"id": "hyper-1"}]},
+    )
+
+    # apiv4 installs a RequestValidationError handler that reshapes
+    # FastAPI's default 422 into the legacy 400 envelope.
+    assert response.status_code == 400

@@ -299,3 +299,137 @@ def test_get_user_notification_trigger_display_nested_empty(monkeypatch, test_cl
 
     assert response.status_code == 200
     assert response.json() == {"notifications": {}}
+
+
+# ─── PUT /admin/notify/desktops/queue/{hyp_id} (Category A2) ─────────────
+
+
+def test_admin_notify_desktop_queue_happy_path(monkeypatch, test_client):
+    """Typed body migration (``AdminNotifyDesktopsQueueRequest``). The
+    route now forwards the validated ``List[DesktopQueueItem]`` Pydantic
+    models directly to the service (no dict conversion at the route
+    boundary), preserving the schema contract end-to-end."""
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_notify(items, hyp_id):
+        captured["items"] = items
+        captured["hyp_id"] = hyp_id
+
+    monkeypatch.setattr(
+        "api.services.admin_notify.AdminNotifyService.notify_desktop_queue",
+        staticmethod(fake_notify),
+    )
+
+    response = test_client(
+        url="/admin/notify/desktops/queue/hyper-1",
+        method="PUT",
+        body=[
+            {
+                "desktop_id": "desktop-1",
+                "event": "start_domain",
+                "priority": 10,
+                "position": 1,
+            },
+            {
+                "desktop_id": "desktop-2",
+                "event": "stop_domain",
+                "priority": 20,
+                "position": 2,
+            },
+        ],
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured["hyp_id"] == "hyper-1"
+    items = captured["items"]
+    assert len(items) == 2
+    assert items[0].desktop_id == "desktop-1"
+    assert items[0].event == "start_domain"
+    assert items[1].desktop_id == "desktop-2"
+
+
+def test_admin_notify_desktop_queue_empty_list(monkeypatch, client):
+    """Empty queue is valid — the hypervisor periodically pushes the
+    current state and an empty state is legitimate (no jobs). Pins this
+    so a future ``min_items=1`` tightening becomes a deliberate
+    breaking change.
+
+    Uses the raw ``client`` fixture instead of ``test_client`` because
+    the latter's ``if body:`` check swallows empty lists before they
+    reach httpx.
+    """
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_notify(data, hyp_id):
+        captured["data"] = data
+        captured["hyp_id"] = hyp_id
+
+    monkeypatch.setattr(
+        "api.services.admin_notify.AdminNotifyService.notify_desktop_queue",
+        staticmethod(fake_notify),
+    )
+
+    response = client.request(
+        "PUT",
+        "/api/v4/admin/notify/desktops/queue/hyper-1",
+        headers=jwt.header,
+        json=[],
+    )
+
+    assert response.status_code == 200
+    assert captured["data"] == []
+    assert captured["hyp_id"] == "hyper-1"
+
+
+def test_admin_notify_desktop_queue_rejects_missing_desktop_id(
+    monkeypatch, test_client
+):
+    jwt = MockJWT()
+    monkeypatch.setattr(
+        "api.services.admin_notify.AdminNotifyService.notify_desktop_queue",
+        staticmethod(lambda data, hyp_id: None),
+    )
+
+    response = test_client(
+        url="/admin/notify/desktops/queue/hyper-1",
+        method="PUT",
+        body=[{"priority": 1}],
+        jwt=jwt,
+    )
+
+    # apiv4 installs a RequestValidationError handler that reshapes
+    # FastAPI's default 422 into the legacy 400 envelope.
+    assert response.status_code == 400
+
+
+def test_admin_notify_desktop_queue_rejects_unknown_field(monkeypatch, test_client):
+    """``DesktopQueueItem`` sets ``extra="forbid"`` so any key beyond
+    the four contract fields (``desktop_id``, ``event``, ``priority``,
+    ``position``) must surface as a 400. This locks the contract so a
+    new field added by the engine forces a lockstep schema update here
+    instead of silently drifting."""
+    jwt = MockJWT()
+    monkeypatch.setattr(
+        "api.services.admin_notify.AdminNotifyService.notify_desktop_queue",
+        staticmethod(lambda data, hyp_id: None),
+    )
+
+    response = test_client(
+        url="/admin/notify/desktops/queue/hyper-1",
+        method="PUT",
+        body=[
+            {
+                "desktop_id": "desktop-1",
+                "event": "start_domain",
+                "priority": 10,
+                "position": 1,
+                "unexpected_field": "surprise",
+            }
+        ],
+        jwt=jwt,
+    )
+
+    assert response.status_code == 400

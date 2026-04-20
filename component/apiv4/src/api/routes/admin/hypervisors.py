@@ -19,12 +19,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
-import json
 import traceback
 from typing import Optional
 
 from api import admin_router
 from api.schemas.admin_hypervisors import (
+    AdminBootProgressRequest,
+    AdminHypervisor,
     AdminHypervisorCreateData,
     AdminHypervisorDisksFoundData,
     AdminHypervisorEnableData,
@@ -32,6 +33,10 @@ from api.schemas.admin_hypervisors import (
     AdminHypervisorMediaFoundData,
     AdminHypervisorVirtPoolUpdateData,
     AdminHypervisorWgAddrData,
+    AdminRegisterVlansRequest,
+    DeadRowSetResponse,
+    OrchestratorHypervisor,
+    OrchestratorManagedHypervisor,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin_hypervisors import AdminHypervisorsService
@@ -48,6 +53,7 @@ tag = "admin_hypervisors"
 @admin_router.get(
     "/admin/hypervisors",
     tags=[tag],
+    response_model=list[AdminHypervisor],
     summary="List all hypervisors",
     description="List all hypervisors, optionally filtered by status.",
     responses={
@@ -61,7 +67,10 @@ async def admin_hypervisors_list(
 ):
     try:
         result = AdminHypervisorsService.get_hypervisors(status)
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=[AdminHypervisor(**h).model_dump(mode="json") for h in result],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -208,6 +217,7 @@ async def admin_hypervisor_enable(
 @admin_router.delete(
     "/admin/hypervisor/{hyper_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Remove a hypervisor",
     description="Remove a hypervisor. Stops its domains and waits for engine removal.",
     responses={
@@ -221,8 +231,11 @@ async def admin_hypervisor_delete(
     hyper_id: str = Path(..., description="Hypervisor ID"),
 ):
     try:
-        result = AdminHypervisorsService.remove_hyper(hyper_id)
-        return JSONResponse(content=result, status_code=200)
+        AdminHypervisorsService.remove_hyper(hyper_id)
+        return JSONResponse(
+            content=EmptyResponse().model_dump(),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -349,7 +362,7 @@ async def admin_hypervisor_media_found(
 ):
     try:
         AdminHypervisorsService.update_media_found(data.medias)
-        return JSONResponse(content=True, status_code=200)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -376,7 +389,7 @@ async def admin_hypervisor_disks_found(
 ):
     try:
         AdminHypervisorsService.update_disks_found(data.disks)
-        return JSONResponse(content=True, status_code=200)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -403,7 +416,7 @@ async def admin_hypervisor_media_delete(
 ):
     try:
         AdminHypervisorsService.delete_media(data.medias_paths)
-        return JSONResponse(content=True, status_code=200)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -432,7 +445,7 @@ async def admin_hypervisors_assign_gpus(
 ):
     try:
         AdminHypervisorsService.assign_gpus()
-        return JSONResponse(content=True, status_code=200)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -450,6 +463,7 @@ async def admin_hypervisors_assign_gpus(
 @admin_router.get(
     "/admin/orchestrator/hypervisors",
     tags=[tag],
+    response_model=list[OrchestratorHypervisor],
     summary="List orchestrator hypervisors",
     description="List all hypervisors with orchestrator-specific fields.",
     responses={
@@ -461,7 +475,12 @@ async def admin_orchestrator_hypervisors_list(
 ):
     try:
         result = AdminHypervisorsService.get_orchestrator_hypervisors()
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=[
+                OrchestratorHypervisor(**h).model_dump(mode="json") for h in result
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -476,6 +495,7 @@ async def admin_orchestrator_hypervisors_list(
 @admin_router.get(
     "/admin/orchestrator/hypervisor/{hypervisor_id}",
     tags=[tag],
+    response_model=OrchestratorHypervisor,
     summary="Get orchestrator hypervisor details",
     description="Get orchestrator-specific details for a single hypervisor.",
     responses={
@@ -491,7 +511,10 @@ async def admin_orchestrator_hypervisor_get(
         result = AdminHypervisorsService.get_orchestrator_hypervisors(
             hyp_id=hypervisor_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=OrchestratorHypervisor(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -509,6 +532,7 @@ async def admin_orchestrator_hypervisor_get(
 @admin_router.post(
     "/admin/hypervisors/orchestrator_managed",
     tags=[tag],
+    response_model=list[OrchestratorManagedHypervisor],
     summary="List orchestrator-managed hypervisors",
     description="List only hypervisors that are marked as orchestrator-managed.",
     responses={
@@ -520,7 +544,13 @@ async def admin_orchestrator_managed_list(
 ):
     try:
         result = AdminHypervisorsService.get_orchestrator_managed_hypervisors()
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=[
+                OrchestratorManagedHypervisor(**h).model_dump(mode="json")
+                for h in result
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -538,6 +568,7 @@ async def admin_orchestrator_managed_list(
 @admin_router.post(
     "/admin/orchestrator/hypervisor/{hypervisor_id}/dead_row",
     tags=[tag],
+    response_model=DeadRowSetResponse,
     summary="Set hypervisor dead row timeout",
     description="Set the dead row timeout for an orchestrator-managed hypervisor.",
     responses={
@@ -552,7 +583,10 @@ async def admin_orchestrator_dead_row_set(
 ):
     try:
         result = AdminHypervisorsService.set_hyper_deadrow_time(hypervisor_id)
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=DeadRowSetResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -567,6 +601,7 @@ async def admin_orchestrator_dead_row_set(
 @admin_router.delete(
     "/admin/orchestrator/hypervisor/{hypervisor_id}/dead_row",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Reset hypervisor dead row timeout",
     description="Reset (remove) the dead row timeout for an orchestrator-managed hypervisor.",
     responses={
@@ -580,10 +615,11 @@ async def admin_orchestrator_dead_row_reset(
     hypervisor_id: str = Path(..., description="Hypervisor ID"),
 ):
     try:
-        result = AdminHypervisorsService.set_hyper_deadrow_time(
-            hypervisor_id, reset=True
+        AdminHypervisorsService.set_hyper_deadrow_time(hypervisor_id, reset=True)
+        return JSONResponse(
+            content=EmptyResponse().model_dump(),
+            status_code=200,
         )
-        return JSONResponse(content=result, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -832,14 +868,9 @@ async def admin_hypervisor_started_domains(
     description="Creates network interface entries for discovered VLANs.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_register_vlans(request: Request):
+async def admin_register_vlans(request: Request, data: AdminRegisterVlansRequest):
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        vlans = data.get("vlans", [])
-        await asyncio.to_thread(AdminHypervisorsService.register_vlans, vlans)
+        await asyncio.to_thread(AdminHypervisorsService.register_vlans, data.vlans)
         return JSONResponse(content={}, status_code=200)
     except Error:
         raise
@@ -859,17 +890,16 @@ async def admin_register_vlans(request: Request):
     description="Updates the boot progress data for a hypervisor.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_hypervisor_boot_progress(request: Request, hyper_id: str):
+async def admin_hypervisor_boot_progress(
+    request: Request,
+    hyper_id: str,
+    data: AdminBootProgressRequest,
+):
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        boot_progress = data.get("boot_progress", {})
         await asyncio.to_thread(
             AdminHypervisorsService.update_hyper_boot_progress,
             hyper_id,
-            boot_progress,
+            data.boot_progress,
         )
         return JSONResponse(content={}, status_code=200)
     except Error:

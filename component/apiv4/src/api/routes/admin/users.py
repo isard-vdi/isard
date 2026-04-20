@@ -33,6 +33,7 @@ from api.schemas.admin_users import (
     AdminCheckMigratedData,
     AdminCSVUserEditData,
     AdminDeleteChecksData,
+    AdminGroup,
     AdminGroupCreateData,
     AdminGroupEnrollmentData,
     AdminGroupUpdateData,
@@ -41,10 +42,15 @@ from api.schemas.admin_users import (
     AdminQuotaUpdateData,
     AdminSecondaryGroupsData,
     AdminSecretCreateData,
+    AdminTemplateItem,
+    AdminUser,
     AdminUserCreateData,
     AdminUserDeleteData,
+    AdminUserDeleteResponse,
     AdminUserSearchData,
     AdminUserUpdateData,
+    AutoRegisterResponse,
+    RequiredCheckResponse,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin_socketio import AdminSocketioService
@@ -178,6 +184,7 @@ async def admin_get_user_raw(request: Request, user_id: str):
     tags=[tag],
     summary="List users",
     description="Returns list of users. Admins see all, managers see their category.",
+    response_model=list[AdminUser],
     responses={
         200: {"description": "Users list retrieved"},
         500: {"model": ErrorResponse},
@@ -190,8 +197,9 @@ async def admin_list_users(request: Request):
             if request.token_payload["role_id"] == "manager"
             else None
         )
+        result = AdminUsersService.list_users(category_id=category_id)
         return JSONResponse(
-            content=AdminUsersService.list_users(category_id=category_id),
+            content=[AdminUser(**u).model_dump(mode="json") for u in result],
             status_code=200,
         )
     except Error:
@@ -237,6 +245,7 @@ async def admin_list_users_nav(request: Request, nav: str):
     tags=[tag],
     summary="Create user",
     description="Creates a new user.",
+    response_model=AdminUser,
     responses={
         200: {"description": "User created"},
         400: {"model": ErrorResponse},
@@ -246,7 +255,10 @@ async def admin_list_users_nav(request: Request, nav: str):
 async def admin_create_user(request: Request, data: AdminUserCreateData):
     try:
         result = AdminUsersService.create_user(request.token_payload, data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=AdminUser(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -322,6 +334,7 @@ async def admin_update_users_bulk(request: Request):
     tags=[tag],
     summary="Delete users",
     description="Deletes one or more users.",
+    response_model=AdminUserDeleteResponse,
     responses={
         200: {"description": "Users deleted"},
         428: {"description": "Some users could not be deleted"},
@@ -333,7 +346,10 @@ async def admin_delete_users(request: Request, data: AdminUserDeleteData):
         result, status = AdminUsersService.delete_users(
             request.token_payload, data.model_dump()
         )
-        return JSONResponse(content=result, status_code=status)
+        return JSONResponse(
+            content=AdminUserDeleteResponse(**result).model_dump(mode="json"),
+            status_code=status,
+        )
     except Error:
         raise
     except Exception as e:
@@ -700,6 +716,7 @@ async def admin_get_password_policy(request: Request, user_id: str):
     tags=[tag],
     summary="Reset user password",
     description="Admin resets a user's password.",
+    response_model=EmptyResponse,
     responses={
         200: {"description": "Password reset"},
         500: {"model": ErrorResponse},
@@ -708,7 +725,10 @@ async def admin_get_password_policy(request: Request, user_id: str):
 async def admin_reset_password(request: Request, data: AdminPasswordResetData):
     try:
         AdminUsersService.reset_password(data.model_dump())
-        return JSONResponse(content={}, status_code=200)
+        return JSONResponse(
+            content=EmptyResponse().model_dump(),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -725,6 +745,7 @@ async def admin_reset_password(request: Request, data: AdminPasswordResetData):
     tags=[tag],
     summary="Check password reset required",
     description="Check if a user needs to reset their password.",
+    response_model=RequiredCheckResponse,
     responses={
         200: {"description": "Password reset check result"},
         500: {"model": ErrorResponse},
@@ -733,7 +754,7 @@ async def admin_reset_password(request: Request, data: AdminPasswordResetData):
 async def admin_check_password_reset_required(request: Request, user_id: str):
     try:
         return JSONResponse(
-            content={"required": AdminUsersService.check_password_expiration(user_id)},
+            content=RequiredCheckResponse(required=AdminUsersService.check_password_expiration(user_id)).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
@@ -752,6 +773,7 @@ async def admin_check_password_reset_required(request: Request, user_id: str):
     tags=[tag],
     summary="Check email verification required",
     description="Check if a user needs to verify their email.",
+    response_model=RequiredCheckResponse,
     responses={
         200: {"description": "Email verification check result"},
         500: {"model": ErrorResponse},
@@ -760,7 +782,7 @@ async def admin_check_password_reset_required(request: Request, user_id: str):
 async def admin_check_email_verification(request: Request, user_id: str):
     try:
         return JSONResponse(
-            content={"required": AdminUsersService.check_email_verified(user_id)},
+            content=RequiredCheckResponse(required=AdminUsersService.check_email_verified(user_id)).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
@@ -779,6 +801,7 @@ async def admin_check_email_verification(request: Request, user_id: str):
     tags=[tag],
     summary="Check disclaimer acknowledgement",
     description="Check if a user has acknowledged the disclaimer.",
+    response_model=RequiredCheckResponse,
     responses={
         200: {"description": "Disclaimer acknowledgement check result"},
         500: {"model": ErrorResponse},
@@ -787,9 +810,9 @@ async def admin_check_email_verification(request: Request, user_id: str):
 async def admin_check_disclaimer(request: Request, user_id: str):
     try:
         return JSONResponse(
-            content={
-                "required": AdminUsersService.check_disclaimer_acknowledgement(user_id)
-            },
+            content=RequiredCheckResponse(
+                required=AdminUsersService.check_disclaimer_acknowledgement(user_id)
+            ).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
@@ -919,6 +942,7 @@ async def admin_get_group(request: Request, group_id: str):
     tags=[tag],
     summary="Create group",
     description="Creates a new group.",
+    response_model=AdminGroup,
     responses={
         200: {"description": "Group created"},
         500: {"model": ErrorResponse},
@@ -929,7 +953,10 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
         result = AdminUsersService.create_group(
             request.token_payload, data.model_dump()
         )
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=AdminGroup(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -1574,6 +1601,7 @@ async def admin_check_group_category(
     tags=[tag],
     summary="Get admin templates",
     description="Returns templates allowed for the admin/manager.",
+    response_model=list[AdminTemplateItem],
     responses={
         200: {"description": "Templates retrieved"},
         500: {"model": ErrorResponse},
@@ -1581,8 +1609,9 @@ async def admin_check_group_category(
 )
 async def admin_get_templates(request: Request):
     try:
+        result = AdminUsersService.get_admin_templates(request.token_payload)
         return JSONResponse(
-            content=AdminUsersService.get_admin_templates(request.token_payload),
+            content=[AdminTemplateItem(**t).model_dump(mode="json") for t in result],
             status_code=200,
         )
     except Error:
@@ -1980,6 +2009,7 @@ async def admin_get_user_by_email_category(request: Request, email: str, categor
     tags=[tag],
     summary="Auto register user",
     description="Auto-registers a user based on token payload.",
+    response_model=AutoRegisterResponse,
     responses={
         200: {"description": "User auto-registered"},
         500: {"model": ErrorResponse},
@@ -1992,7 +2022,10 @@ async def admin_auto_register(request: Request):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         user_id = AdminUsersService.auto_register_user(request.token_payload, data)
-        return JSONResponse(content={"id": user_id}, status_code=200)
+        return JSONResponse(
+            content=AutoRegisterResponse(id=user_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:

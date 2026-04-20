@@ -67,7 +67,7 @@ def test_list_user_migration_items(monkeypatch, test_client):
     def fake_list(user_id):
         captured["user_id"] = user_id
         # Route expects {"errors": ..., "items": <MigrationListItemsResponse-shape>}
-        # — the response model requires desktops/templates/media/deployments
+        # — the response model requires desktops/templates/media/deployments/users
         # plus action_after_migrate.
         return {
             "errors": None,
@@ -76,6 +76,7 @@ def test_list_user_migration_items(monkeypatch, test_client):
                 "templates": [],
                 "media": [],
                 "deployments": [],
+                "users": [],
                 "action_after_migrate": "none",
             },
         }
