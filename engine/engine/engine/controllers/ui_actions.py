@@ -429,6 +429,11 @@ class UiActions(object):
                         mem_mode = "preferred"
 
                 # --- Hugepages assignment ---
+                # Flag the slow-VFIO path so the worker can extend its
+                # libvirt createXML timeout for this action (see
+                # LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW). A GPU domain forced
+                # onto 4K-page RAM routinely exceeds the 30s default.
+                expects_slow_createxml = False
                 if is_gpu:
                     hugepages = extra_info.get("hugepages", {})
                     if hugepages.get("mounted"):
@@ -444,6 +449,11 @@ class UiActions(object):
                                 f"{hp_free_kb}KB < needed {domain_memory_kb}KB, "
                                 f"starting with 4K pages (slower VFIO mapping)"
                             )
+                            expects_slow_createxml = True
+                    else:
+                        # GPU start on a host without a mounted hugepages
+                        # pool — 4K-page mapping is the only option.
+                        expects_slow_createxml = True
                 else:
                     # Non-GPU: use hugepages as fallback when regular RAM is low
                     hugepages = extra_info.get("hugepages", {})
@@ -508,6 +518,9 @@ class UiActions(object):
                     dict_action["profile"] = extra_info.get("profile", False)
                     dict_action["vgpu_id"] = extra_info["gpu_id"]
                     dict_action["pci_bus_id"] = extra_info.get("pci_bus_id")
+
+                if expects_slow_createxml:
+                    dict_action["expects_slow_createxml"] = True
 
                 priority = Q_PRIORITY_START
 
