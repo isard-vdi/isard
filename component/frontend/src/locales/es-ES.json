@@ -1439,6 +1439,54 @@
         "rdp-vpn": "RDP VPN"
       }
     },
+    "change-viewer-modal": {
+      "title": "Cambiar visor",
+      "subtitle": "Puedes ver este escritorio desde tu navegador o con un cliente de escritorio remoto.",
+      "badge": {
+        "browser": "Navegador",
+        "application": "Aplicación"
+      },
+      "show-guide": "Ver guía",
+      "confirm": "Cambiar",
+      "cancel": "Cancelar",
+      "bullets": {
+        "browser-vnc": {
+          "0": "Funciona en cualquier navegador moderno",
+          "1": "Latencia media",
+          "2": "Sin audio disponible"
+        },
+        "browser-rdp": {
+          "0": "Funciona en cualquier navegador moderno",
+          "1": "Latencia baja",
+          "2": "Con audio y portapapeles",
+          "3": "Requiere la red WireGuard"
+        },
+        "file-spice": {
+          "0": "Latencia baja con audio",
+          "1": "Conecta con dispositivos externos (USB, etc.)",
+          "2": "Requiere virt-viewer instalado"
+        },
+        "file-rdpgw": {
+          "0": "Latencia baja con audio",
+          "1": "Conecta con dispositivos externos (USB, etc.)",
+          "2": "Mejor experiencia en escritorios Windows",
+          "3": "Requiere la red WireGuard"
+        },
+        "file-rdpvpn": {
+          "0": "Latencia baja con audio",
+          "1": "Conecta dispositivos externos (USB, etc.)",
+          "2": "Mejor experiencia en escritorios Windows",
+          "3": "Requiere acceso VPN con cliente WireGuard"
+        }
+      },
+      "guide-url": {
+        "browser-vnc": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#vnc-browser",
+        "browser-rdp": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#rdp-browser-viewer",
+        "file-spice": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#spice",
+        "file-rdpgw": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#native-rdp",
+        "file-rdpvpn": "https://isard.gitlab.io/isardvdi-docs/es/user/viewers/viewers/#native-rdp"
+      }
+    },
     "domain-hardware-summary": {
       "system": {
         "title": "Sistema"

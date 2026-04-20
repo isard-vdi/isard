@@ -136,7 +136,6 @@
         "logout": "Tancar sessió",
         "login": "Ves a l'inici de sessió"
       }
-      }
     },
     "login": {
       "separator": "Altres accessos",
@@ -1460,21 +1459,46 @@
         "rdp-vpn": "RDP VPN"
       }
     },
-    "domain-hardware-summary": {
-      "system": {
-        "title": "Sistema"
+    "change-viewer-modal": {
+      "title": "Canviar visor",
+      "subtitle": "Pots visualitzar aquest escriptori des del navegador o amb un client d'escriptori remot.",
+      "badge": {
+        "browser": "Navegador",
+        "application": "Aplicació"
       },
-      "networks": {
-        "title": "Xarxes"
+      "show-guide": "Mostra la guia",
+      "confirm": "Canvia",
+      "cancel": "Cancel·la",
+      "bullets": {
+        "browser-vnc": {
+          "0": "Funciona en qualsevol navegador modern",
+          "1": "Latència mitjana",
+          "2": "Sense àudio disponible"
+        },
+        "browser-rdp": {
+          "0": "Funciona en qualsevol navegador modern",
+          "1": "Latència baixa",
+          "2": "Amb àudio i porta-retalls",
+          "3": "Requereix la xarxa WireGuard"
+        },
+        "file-spice": {
+          "0": "Latència baixa amb àudio",
+          "1": "Connecta dispositius externs (USB, etc.)",
+          "2": "Requereix virt-viewer instal·lat"
+        },
+        "file-rdpgw": {
+          "0": "Latència baixa amb àudio",
+          "1": "Connecta dispositius externs (USB, etc.)",
+          "2": "Millor experiència en escriptoris Windows",
+          "3": "Requereix la xarxa WireGuard"
+        },
+        "file-rdpvpn": {
+          "0": "Latència baixa amb àudio",
+          "1": "Connecta dispositius externs (USB, etc.)",
+          "2": "Millor experiència en escriptoris Windows",
+          "3": "Requereix accés VPN amb client WireGuard"
+        }
       },
-      "peripherals": {
-        "title": "Perifèrics"
-      },
-      "reservables": {
-        "title": "Reservables"
-      }
-    },
-    "datatable": {
       "empty": "No hi ha escriptoris disponibles",
       "pagination": {
         "rows": "files",

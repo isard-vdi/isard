@@ -352,6 +352,26 @@ class DesktopDirectViewer(RethinkSharedConnection):
         return desktop
 
     @classmethod
+    def desktop_viewer_data_from_token(cls, token, viewer_type):
+        """Return the connection data for a single viewer type via share token.
+
+        Mirrors ``DesktopService.get_desktop_viewer``
+        """
+        domain = cls.desktop_from_token(token)
+        configured = list(domain["guest_properties"]["viewers"].keys())
+        protocol_key = viewer_type.replace("-", "_")
+        if protocol_key not in configured:
+            raise Error(
+                "not_found",
+                f"Viewer {viewer_type} is not configured for this desktop",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        return cls.desktop_viewer(
+            domain["id"], protocol=viewer_type, get_cookie=True, desktop=domain
+        )
+
+    @classmethod
     def reset_desktop(cls, token, request):
         """_From api/libv2/api_desktops_persistent.py ApiDesktopsPersistent.Reset()_"""
         desktop_id = cls.get_desktop_from_token(token)["id"]

@@ -228,7 +228,6 @@ _VIEWER_PROTOCOLS = {
     "browser-vnc",
     "browser-rdp",
     "file-rdpgw",
-    "file-rdpvpn",
 }
 
 

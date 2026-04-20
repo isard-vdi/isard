@@ -214,6 +214,8 @@
     --badges-violet-600: hsl(261, 84%, 58%, 1);
     --badges-violet-700: hsl(262, 71%, 50%, 1);
     --badges-violet-900: hsl(262, 68%, 35%, 1);
+    --badges-viewer-blue: hsl(173, 41%, 56%, 1);
+    --badges-viewer-violet: hsl(255, 78%, 80%, 1);
     --labs-100: hsl(265, 100%, 90%, 1);
     --labs-200: hsl(271, 76%, 77%, 1);
     --labs-300: hsl(250, 53%, 34%, 1);

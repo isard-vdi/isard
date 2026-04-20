@@ -53,7 +53,6 @@ class ViewerProtocol(str, Enum):
     VNC = "vnc"
     RDP = "rdp"
     RDPGW = "rdpgw"
-    RDPVPN = "rdpvpn"
 
 
 class ScheduledModel(BaseModel):
@@ -120,21 +119,11 @@ class FileRDPGWViewer(BaseModel):
     content: Optional[str] = None
 
 
-class FileRDPVPNViewer(BaseModel):
-    kind: ViewerKind
-    protocol: ViewerProtocol
-    name: Optional[str] = None
-    ext: Optional[str] = None
-    mime: Optional[str] = None
-    content: Optional[str] = None
-
-
 class ViewersModel(BaseModel):
     file_spice: Optional[FileSpiceViewer] = Field(None, alias="file-spice")
     browser_vnc: Optional[BrowserVNCViewer] = Field(None, alias="browser-vnc")
     browser_rdp: Optional[BrowserRDPViewer] = Field(None, alias="browser-rdp")
     file_rdpgw: Optional[FileRDPGWViewer] = Field(None, alias="file-rdpgw")
-    file_rdpvpn: Optional[FileRDPVPNViewer] = Field(None, alias="file-rdpvpn")
 
     model_config = {"populate_by_name": True}
 
@@ -161,7 +150,7 @@ class DesktopViewerResponse(BaseModel):
         description="Scheduled actions for the desktop viewer.",
     )
     viewers: ViewersModel = Field(
-        description="List of available viewers for the desktop.",
+        description="Available viewers for the desktop keyed by viewer ID.",
     )
     image: Optional[Image] = Field(
         default=None,

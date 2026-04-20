@@ -1820,6 +1820,54 @@
         "rdp-vpn": "RDP VPN"
       }
     },
+    "change-viewer-modal": {
+      "title": "Change viewer",
+      "subtitle": "You can view this desktop from your browser or using a remote desktop client.",
+      "badge": {
+        "browser": "Browser",
+        "application": "Application"
+      },
+      "show-guide": "Show guide",
+      "confirm": "Change",
+      "cancel": "Cancel",
+      "bullets": {
+        "browser-vnc": {
+          "0": "Works in any modern browser",
+          "1": "Average latency",
+          "2": "No audio available"
+        },
+        "browser-rdp": {
+          "0": "Works in any modern web browser",
+          "1": "Low latency",
+          "2": "Audio and clipboard support",
+          "3": "Requires WireGuard network"
+        },
+        "file-spice": {
+          "0": "Low latency with audio",
+          "1": "Connects to external devices (USB, etc.)",
+          "2": "Requires virt-viewer installed"
+        },
+        "file-rdpgw": {
+          "0": "Low latency with audio",
+          "1": "Connects to external devices (USB, etc.)",
+          "2": "Best experience on Windows desktops",
+          "3": "Requires WireGuard network"
+        },
+        "file-rdpvpn": {
+          "0": "Low latency with audio",
+          "1": "Connects external devices (USB, etc.)",
+          "2": "Best experience on Windows desktops",
+          "3": "Requires VPN access with WireGuard client"
+        }
+      },
+      "guide-url": {
+        "browser-vnc": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#vnc-browser",
+        "browser-rdp": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#rdp-browser-viewer",
+        "file-spice": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#spice",
+        "file-rdpgw": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#native-rdp",
+        "file-rdpvpn": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/#native-rdp"
+      }
+    },
     "domain-hardware-summary": {
       "system": {
         "title": "System"

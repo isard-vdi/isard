@@ -656,7 +656,17 @@ class DesktopService:
         return direct_viewer
 
     @staticmethod
-    def get_direct_viewer_docs() -> str:
+    def get_desktop_viewer_data_from_token(token, viewer_type, request):
+        Logging.logs_domain_event_directviewer(
+            DesktopDirectViewer.desktop_from_token(token)["id"],
+            action_user=None,
+            viewer_type=viewer_type,
+            user_request=request,
+        )
+        return DesktopDirectViewer.desktop_viewer_data_from_token(token, viewer_type)
+
+    @staticmethod
+    def get_direct_viewer_docs():
         docs_link = DesktopDirectViewer.desktop_viewer_docs()
         return docs_link
 

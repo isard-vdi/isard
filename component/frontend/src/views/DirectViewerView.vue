@@ -31,9 +31,10 @@ import {
   DesktopCardNetworksOverlay
 } from '@/components/desktop-card'
 import { Button } from '@/components/ui/button'
-import { ButtonGroup } from '@/components/ui/button-group'
+import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { Icon } from '@/components/icon'
 import { LoginNotification } from '@/components/login'
+import { ChangeViewerModal } from '@/components/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import LogoSvg from '@/assets/logo.svg?url'
 
@@ -173,6 +174,7 @@ const notificationText = computed<string | null>(() => {
 })
 
 const showNetworkOverlay = ref(false)
+const isViewerChangeModalOpen = ref(false)
 
 const logoSrc = ref('/custom/logo.svg')
 const handleLogoError = () => {
@@ -222,24 +224,13 @@ const handleDesktopAction = (action: DesktopActionsEnum) => {
   }
 }
 
-const resolveViewerKey = (normalizedId: string): string => {
-  if (!desktopViewer.value?.viewers) return normalizedId
-  const rawKeys = Object.keys(desktopViewer.value.viewers)
-  return rawKeys.find((key) => normalizeViewerId(key) === normalizedId) || normalizedId
-}
-
 const openViewer = (viewerId: string) => {
   if (!desktopViewer.value?.viewers) return
+  const viewers = desktopViewer.value.viewers as Record<string, any>
+  const viewer = viewers[viewerId] ?? viewers[viewerId.replace(/-/g, '_')]
+  if (!viewer) return
 
-  const viewers = desktopViewer.value.viewers as ViewersModel
-  const rawKey = resolveViewerKey(viewerId)
-
-  if (viewerId === 'browser-vnc' && viewers['browser-vnc']) {
-    const viewer = viewers['browser-vnc']
-    cookies.set('browser_viewer', viewer.cookie)
-    window.open(viewer.viewer || undefined, '_blank')
-  } else if (viewerId === 'browser-rdp' && (viewers as any)[rawKey]) {
-    const viewer = (viewers as any)[rawKey]
+  if (viewer.kind === 'browser') {
     if (viewer.cookie) {
       cookies.set('browser_viewer', viewer.cookie, VIEWER_COOKIE_OPTS)
     }
@@ -249,14 +240,8 @@ const openViewer = (viewerId: string) => {
       url.searchParams.set('direct', '1')
       window.open(url.toString(), '_blank')
     }
-  } else if (viewerId === 'file-spice' && viewers['file-spice']) {
-    const viewer = viewers['file-spice']
+  } else if (viewer.kind === 'file' && viewer.name && viewer.ext && viewer.mime && viewer.content) {
     downloadFile(viewer.name, viewer.ext, viewer.mime, viewer.content)
-  } else if (viewerId === 'file-rdpgw' && (viewers as any)[rawKey]) {
-    const viewer = (viewers as any)[rawKey]
-    if (viewer.content) {
-      downloadFile(viewer.name, viewer.ext, viewer.mime, viewer.content)
-    }
   }
 }
 
@@ -400,12 +385,28 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
                 >
                   <span class="min-w-0 truncate">{{ activeViewerLabel }}</span>
                 </Button>
+                <template v-if="viewerIds.length > 1">
+                  <ButtonGroupSeparator color="brand-800" />
+                  <Button
+                    icon="settings-02"
+                    class="rounded-l-none"
+                    :aria-label="t('views.direct-viewer.select-viewer')"
+                    @click="isViewerChangeModalOpen = true"
+                  />
+                </template>
               </ButtonGroup>
             </template>
           </DesktopCardBase>
         </template>
       </div>
     </main>
+    <ChangeViewerModal
+      :open="isViewerChangeModalOpen"
+      :available-viewer-ids="viewerIds"
+      :current-viewer-id="activeViewer ?? ''"
+      @close="isViewerChangeModalOpen = false"
+      @change="(id) => (selectedViewerId = id)"
+    />
     <div
       class="absolute bottom-0 left-0 right-0 top-0 -z-10 select-none flex flex-col justify-center items-center pointer-events-none"
     >
