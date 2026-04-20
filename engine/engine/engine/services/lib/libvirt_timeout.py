@@ -41,6 +41,14 @@ from engine.services.log import logs
 # Maximum time (seconds) to wait for a libvirt operation before raising timeout
 LIBVIRT_OPERATION_TIMEOUT = 30
 
+# Extended timeout for libvirt createXML on GPU starts that must fall back to
+# 4K pages (hugepages insufficient for the domain). VFIO mapping of many GiB
+# of 4K-page RAM is orders of magnitude slower than with 2M/1G hugepages and
+# routinely exceeds the default 30s; without this, the worker aborts while
+# QEMU is still legitimately launching, leaving DB state out of sync with
+# reality (mdev held by running QEMU but DB believes uuid is free).
+LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW = 300
+
 # Log a warning if operation takes longer than this (seconds)
 LIBVIRT_OPERATION_WARNING = 10
 
