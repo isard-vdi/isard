@@ -25,6 +25,7 @@ from engine.services.db import (
     get_id_hyp_from_uri,
     get_vgpu,
     get_vgpu_actual_profile,
+    replace_vgpu_profile_mdevs,
     reset_vgpu_created_started,
     update_actual_stats_domain,
     update_actual_stats_hyp,
@@ -816,6 +817,58 @@ class hyp(object):
             # GET RUNNING MDEVS AND DOMAINS FROM HYPERVISOR
             d_mdevs_running = self.get_mdevs_with_domains()
 
+            # Defensive quiesce: destroy any domain whose mdev belongs to
+            # this PCI card, across *all* profiles. remove_uuids covers the
+            # old profile; this loop catches orphan mdevs from prior
+            # profiles or from a stale self.mdevs map. Keeps the card
+            # empty before the driver swap and before the post-switch
+            # pool rebuild. Skipped when old==new (passthrough re-run,
+            # nothing to tear down).
+            if old_profile != new_profile:
+                card_uuids = set()
+                for prof_map in pci_mdevs.values():
+                    card_uuids.update(prof_map.keys())
+                extra_domains = set()
+                for running_uuid, info in d_mdevs_running.items():
+                    if running_uuid in card_uuids and running_uuid not in remove_uuids:
+                        vm_name = info.get("vm_name")
+                        if isinstance(vm_name, str) and vm_name:
+                            extra_domains.add(vm_name)
+                if extra_domains:
+                    pci_bdf_log = pci_info["path"].split("/")[-1]
+                    logs.main.info(
+                        f"Stopping {len(extra_domains)} desktop(s) on "
+                        f"{pci_bdf_log} before switching "
+                        f"{old_profile} -> {new_profile}: "
+                        f"{sorted(extra_domains)}"
+                    )
+                    for domain_id in extra_domains:
+                        try:
+                            self.conn.lookupByName(domain_id).destroy()
+                        except libvirt.libvirtError as e:
+                            if "Domain not found" in str(e):
+                                logs.main.info(f"domain {domain_id} already stopped.")
+                            else:
+                                logs.main.error(
+                                    f"domain {domain_id} on {pci_bdf_log} "
+                                    f"can not be destroyed before profile "
+                                    f"switch: {e}"
+                                )
+                                update_table_field(
+                                    "vgpus", gpu_id, "changing_to_profile", False
+                                )
+                                return False
+                        except Exception as e:
+                            logs.main.error(
+                                f"domain {domain_id} on {pci_bdf_log} "
+                                f"can not be destroyed before profile "
+                                f"switch: {e}"
+                            )
+                            update_table_field(
+                                "vgpus", gpu_id, "changing_to_profile", False
+                            )
+                            return False
+
             # Destroy any PCI passthrough domains using this GPU before driver swap
             if old_profile == "passthrough":
                 pci_bdf = pci_info["path"].split("/")[-1]
@@ -1111,6 +1164,15 @@ class hyp(object):
                         f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
                     ]
                 execute_commands(self.hostname, cmds_driver, port=self.port, timeout=60)
+
+            # Right-size the target profile's mdev map to what the driver
+            # can actually host. Must run *before* we read the pool and
+            # build create commands below, so the sysfs writes match the
+            # DB truth. Safe here because the card is quiesced: all
+            # guests on the old profile (plus any stragglers on other
+            # profiles of this PF) were just destroyed above.
+            if old_profile != new_profile:
+                self._rightsize_profile_pool(gpu_id, pci_id, new_profile)
 
             # CREATE NEW UUIDS
             create_uuids = get_all_mdev_uuids_from_profile(gpu_id, new_profile)
@@ -2892,6 +2954,69 @@ class hyp(object):
                     }
             d_uuids[name] = d
         return d_uuids
+
+    def _rightsize_profile_pool(self, gpu_id, pci_id, profile):
+        """Rebuild ``self.mdevs[pci_id][profile]`` to match hardware capacity.
+
+        The DB pool for a (PF, profile) pair is seeded by ``create_uuids``
+        using ``max(max_instance, available)``, which over-shoots on
+        SR-IOV cards where ``available`` reflects VF count rather than
+        the driver's per-profile ``max_instance``. Once over-sized, the
+        map is never trimmed — ``update_vgpu_uuids`` deep-merges. This
+        helper is called on a profile switch (after all desktops on the
+        card have been destroyed, so no live binding can exist on the
+        target profile) to right-size the map to
+        ``min(max_instance, len(sub_paths))`` using fresh UUIDs with
+        the same schema ``create_uuids`` emits. Skipped for passthrough
+        (single-UUID by construction) and MIG (separate provisioning).
+        """
+        if profile == "passthrough":
+            return
+        pci_info = self.info_nvidia.get(pci_id, {})
+        d_type = pci_info.get("types", {}).get(profile, {})
+        if d_type.get("mig"):
+            return
+        physical_cap = d_type.get("max") or 0
+        sub_paths = pci_info.get("sub_paths", False)
+        sub_paths_cap = len(sub_paths) if sub_paths else None
+        caps = [c for c in (physical_cap, sub_paths_cap) if c]
+        if not caps:
+            return
+        target_size = min(caps)
+
+        current = self.mdevs[pci_id].get(profile, {})
+        if len(current) == target_size:
+            return
+
+        type_id = d_type.get("id")
+        if not type_id:
+            logs.main.warning(
+                f"rightsize skipped for {gpu_id}/{profile}: "
+                f"missing type_id in pci_info"
+            )
+            return
+
+        new_map = {}
+        for i in range(target_size):
+            if sub_paths:
+                path = sorted(sub_paths)[i]
+                pci_mdev_id = path.split("/")[-1]
+            else:
+                pci_mdev_id = pci_info["path"].split("/")[-1]
+            new_map[str(uuid.uuid4())] = {
+                "pci_mdev_id": pci_mdev_id,
+                "type_id": type_id,
+                "created": False,
+                "domain_started": False,
+                "domain_reserved": False,
+            }
+
+        logs.main.info(
+            f"rightsized {profile} pool for {gpu_id}: "
+            f"{len(current)} -> {target_size}"
+        )
+        self.mdevs[pci_id][profile] = new_map
+        replace_vgpu_profile_mdevs(gpu_id, profile, new_map)
 
     def reconcile_vgpu_uuids(self, vgpu_id, d_info_gpu):
         """Reconcile a vgpu row's mdev UUID pool with live VF state.

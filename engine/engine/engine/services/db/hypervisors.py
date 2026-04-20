@@ -1061,6 +1061,22 @@ def update_vgpu_uuids(vgpu_id, d_uuids):
     close_rethink_connection(r_conn)
 
 
+def replace_vgpu_profile_mdevs(vgpu_id, profile, mdevs_for_profile):
+    """Replace the mdev map for a single profile wholesale.
+
+    RethinkDB's default update deep-merges, so callers rebuilding a
+    profile's UUID pool (e.g. a profile switch that right-sizes to
+    driver max_instance) cannot shrink the map with a plain update.
+    ``r.literal`` replaces the target sub-dict verbatim without
+    touching sibling profiles.
+    """
+    r_conn = new_rethink_connection()
+    r.table("vgpus").get(vgpu_id).update(
+        {"mdevs": {profile: r.literal(mdevs_for_profile)}}
+    ).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
 def get_vgpu_full(vgpu_id):
     r_conn = new_rethink_connection()
     try:
