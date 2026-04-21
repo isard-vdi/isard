@@ -156,7 +156,10 @@ export const setToken = (cookies: ReturnType<typeof useCookies>, bearer: string)
 }
 
 export const removeToken = (cookies: ReturnType<typeof useCookies>) => {
-  cookies.remove(authorizationTokenName, cookieOpts)
+  // The `authorization` cookie is set server-side with Secure=true
+  // (authentication/transport/http/http.go). Removal must match that attribute
+  // set or the browser won't delete it.
+  cookies.remove(authorizationTokenName, { path: '/', sameSite: 'strict', secure: true })
   cookies.remove(sessionTokenName, cookieOpts)
 }
 
