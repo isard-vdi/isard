@@ -34,7 +34,8 @@ export default {
       show: false,
       kind: 'renew'
     },
-    isRenewing: false
+    isRenewing: false,
+    isLoggingOut: false
   },
   getters: {
     getSession: (state) => {
@@ -60,6 +61,9 @@ export default {
     },
     getIsRenewing: (state) => {
       return state.isRenewing
+    },
+    getIsLoggingOut: (state) => {
+      return state.isLoggingOut
     }
   },
   mutations: {
@@ -101,6 +105,9 @@ export default {
     },
     setRenewingFlag (state, isRenewing) {
       state.isRenewing = isRenewing
+    },
+    setLoggingOutFlag (state, isLoggingOut) {
+      state.isLoggingOut = isLoggingOut
     }
   },
   actions: {
@@ -194,6 +201,17 @@ export default {
         })
     },
     logout (context, redirect = true) {
+      // Re-entrancy guard: if a logout is already in progress, do nothing.
+      // This prevents the listenCookieChange poller in App.vue from
+      // recursively dispatching logout after setSession(false) clears
+      // cookies, which would race the in-flight navigation to the SAML
+      // IdP logout URL and cancel it (leaving the IdP session alive).
+      // It also protects against double-clicks on the logout button.
+      if (context.getters.getIsLoggingOut) {
+        return
+      }
+      context.commit('setLoggingOutFlag', true)
+
       const bearer = `Bearer ${getCookie(sessionCookieName)}`
       const logoutAxios = axios.create()
       logoutAxios.interceptors.request.use((config) => {
@@ -223,19 +241,25 @@ export default {
               if (url.protocol === 'http:' || url.protocol === 'https:') {
                 window.location = response.data.redirect
               } else {
+                context.commit('setLoggingOutFlag', false)
                 window.location.pathname = '/login'
               }
             } catch {
+              context.commit('setLoggingOutFlag', false)
               window.location.pathname = '/login'
             }
           } else if (redirect) {
+            context.commit('setLoggingOutFlag', false)
             window.location.pathname = '/login'
+          } else {
+            context.commit('setLoggingOutFlag', false)
           }
         }).catch((error) => {
           console.warn('Logout request failed:', error)
           context.commit('setSession', false)
           context.commit('resetStore')
           context.dispatch('closeSocket')
+          context.commit('setLoggingOutFlag', false)
 
           window.location.pathname = '/login'
         })
@@ -243,6 +267,7 @@ export default {
         context.commit('setSession', false)
         context.commit('resetStore')
         context.dispatch('closeSocket')
+        context.commit('setLoggingOutFlag', false)
         window.location.pathname = '/login'
       }
     },

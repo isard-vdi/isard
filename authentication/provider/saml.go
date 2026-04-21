@@ -634,8 +634,45 @@ func (s *SAML) Healthcheck() error {
 	return nil
 }
 
-func (s *SAML) Logout(context.Context, string) (string, error) {
-	return s.cfg.Cfg().LogoutRedirectURL, nil
+func (s *SAML) Logout(ctx context.Context, _ string) (string, error) {
+	cfg := s.cfg.Cfg()
+
+	r, ok := ctx.Value(HTTPRequest).(*http.Request)
+	if !ok {
+		return cfg.LogoutRedirectURL, nil
+	}
+
+	mw := s.Middleware(r.Host)
+	if mw == nil {
+		return cfg.LogoutRedirectURL, nil
+	}
+
+	sp := &mw.ServiceProvider
+
+	sloLocation := sp.GetSLOBindingLocation(saml.HTTPRedirectBinding)
+	if sloLocation == "" {
+		return cfg.LogoutRedirectURL, nil
+	}
+
+	sess, err := mw.Session.GetSession(r)
+	if err != nil {
+		s.log.Warn().Err(err).Msg("failed to get SAML session for SLO, falling back to redirect URL")
+		return cfg.LogoutRedirectURL, nil
+	}
+
+	jwtSess, ok := sess.(samlsp.JWTSessionClaims)
+	if !ok || jwtSess.Subject == "" {
+		s.log.Warn().Msg("SAML session has no NameID for SLO, falling back to redirect URL")
+		return cfg.LogoutRedirectURL, nil
+	}
+
+	logoutURL, err := sp.MakeRedirectLogoutRequest(jwtSess.Subject, "")
+	if err != nil {
+		s.log.Warn().Err(err).Msg("failed to create SAML logout request, falling back to redirect URL")
+		return cfg.LogoutRedirectURL, nil
+	}
+
+	return logoutURL.String(), nil
 }
 
 func (s *SAML) SaveEmail() bool {
