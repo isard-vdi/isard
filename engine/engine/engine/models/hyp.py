@@ -1453,6 +1453,11 @@ class hyp(object):
         logs.workers.info(f"[{self.id_hyp_rethink}] Starting NVIDIA initialization...")
         start_time = time.time()
 
+        # Bump generation so any in-flight mdev-retry thread from a previous
+        # init_nvidia exits on its next tick instead of fighting with us.
+        self._init_nvidia_generation = getattr(self, "_init_nvidia_generation", 0) + 1
+        current_gen = self._init_nvidia_generation
+
         # Collect GPU warnings from discovery data and mdev creation.
         # _gpu_warnings_retryable tracks whether any warning could plausibly
         # clear on a second attempt after deferred mdev cleanup runs. Pure
@@ -1515,46 +1520,102 @@ class hyp(object):
                         f"(pool vs hardware capacity); skipping retry."
                     )
                     return
-                # Schedule a retry: orphan mdevs from a prior container lifetime
-                # may still exist during early init. The hypervisor's deferred
-                # cleanup wipes them ~10s after READY, so a retry 30s later will
-                # likely succeed and clear the stale warnings.
+                # Schedule a bounded retry loop with ramping backoff. Orphan
+                # mdevs from a prior container lifetime may still block the
+                # initial init, and SR-IOV VF settling can take > 78 s on
+                # some cards (empirically observed on isardvdi-office-solaris
+                # 2026-04-21: VFs created at T+0, still blocked at T+78 s,
+                # self-healed sometime later). Dense early attempts catch
+                # fast self-heal; the long tail handles slow driver resets.
+                # Past the full window the state is genuinely stuck.
                 import threading
 
-                def _retry_mdev_create():
-                    time.sleep(30)
-                    logs.workers.info(
-                        f"[{self.id_hyp_rethink}] Retrying mdev creation after deferred cleanup..."
-                    )
-                    self._gpu_warnings = []
-                    try:
-                        self.create_mdevs_from_uuids()
-                    except Exception as e:
-                        logs.workers.warning(
-                            f"[{self.id_hyp_rethink}] mdev retry failed: {e}"
-                        )
-                    retry_warnings = getattr(self, "_gpu_warnings", [])
-                    update_table_field(
-                        "hypervisors",
-                        self.id_hyp_rethink,
-                        "gpu_warnings",
-                        retry_warnings,
-                        merge_dict=False,
-                    )
-                    if not retry_warnings:
-                        logs.workers.info(
-                            f"[{self.id_hyp_rethink}] GPU warnings cleared after retry"
-                        )
-                    else:
-                        logs.workers.warning(
-                            f"[{self.id_hyp_rethink}] GPU warnings persist after retry: {len(retry_warnings)}"
-                        )
+                # (wait_s before each attempt) — total window ~21 min
+                retry_delays = (
+                    10,
+                    20,
+                    30,
+                    40,
+                    55,
+                    70,
+                    85,
+                    100,
+                    120,
+                    180,
+                    240,
+                    300,
+                )
 
-                threading.Thread(
-                    target=_retry_mdev_create,
-                    name=f"mdev-retry-{self.id_hyp_rethink}",
-                    daemon=True,
-                ).start()
+                if getattr(self, "_mdev_retry_active", False):
+                    logs.workers.info(
+                        f"[{self.id_hyp_rethink}] mdev retry thread already "
+                        f"running; not spawning a second one (generation "
+                        f"check will let it pick up the latest state)"
+                    )
+                else:
+                    self._mdev_retry_active = True
+
+                    def _retry_mdev_loop(spawn_gen=current_gen):
+                        try:
+                            for i, delay in enumerate(retry_delays, start=1):
+                                time.sleep(delay)
+                                if self._init_nvidia_generation != spawn_gen:
+                                    logs.workers.info(
+                                        f"[{self.id_hyp_rethink}] init_nvidia "
+                                        f"re-ran (gen {spawn_gen} -> "
+                                        f"{self._init_nvidia_generation}); "
+                                        f"aborting retry loop"
+                                    )
+                                    return
+                                logs.workers.info(
+                                    f"[{self.id_hyp_rethink}] mdev retry "
+                                    f"attempt {i}/{len(retry_delays)} "
+                                    f"after {delay}s backoff..."
+                                )
+                                self._gpu_warnings = []
+                                self._gpu_warnings_retryable = False
+                                try:
+                                    self.create_mdevs_from_uuids()
+                                except Exception as e:
+                                    logs.workers.warning(
+                                        f"[{self.id_hyp_rethink}] "
+                                        f"mdev retry {i} raised: {e}"
+                                    )
+                                rw = getattr(self, "_gpu_warnings", [])
+                                update_table_field(
+                                    "hypervisors",
+                                    self.id_hyp_rethink,
+                                    "gpu_warnings",
+                                    rw,
+                                    merge_dict=False,
+                                )
+                                if not rw:
+                                    logs.workers.info(
+                                        f"[{self.id_hyp_rethink}] GPU "
+                                        f"warnings cleared after retry "
+                                        f"{i}/{len(retry_delays)}"
+                                    )
+                                    return
+                                if not getattr(self, "_gpu_warnings_retryable", False):
+                                    logs.workers.info(
+                                        f"[{self.id_hyp_rethink}] retry {i} "
+                                        f"surfaced deterministic warning; "
+                                        f"aborting loop"
+                                    )
+                                    return
+                            logs.workers.warning(
+                                f"[{self.id_hyp_rethink}] mdev retry "
+                                f"exhausted after {len(retry_delays)} "
+                                f"attempts; warnings persist"
+                            )
+                        finally:
+                            self._mdev_retry_active = False
+
+                    threading.Thread(
+                        target=_retry_mdev_loop,
+                        name=f"mdev-retry-{self.id_hyp_rethink}",
+                        daemon=True,
+                    ).start()
         except Exception:
             pass
 
