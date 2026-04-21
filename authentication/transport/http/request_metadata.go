@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"gitlab.com/isard/isardvdi/authentication/provider"
+
 	"github.com/ogen-go/ogen/middleware"
 )
 
@@ -23,6 +25,7 @@ func RequestMetadataOAS(
 
 	req.Context = context.WithValue(req.Context, requestMetadataRemoteAddrCtxKey, remoteAddr)
 	req.Context = context.WithValue(req.Context, requestMetadataHostCtxKey, req.Raw.Host)
+	req.Context = context.WithValue(req.Context, provider.HTTPRequest, req.Raw)
 
 	return next(req)
 }
