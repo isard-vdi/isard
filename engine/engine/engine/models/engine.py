@@ -648,7 +648,11 @@ class Engine(object):
                             #       format(domain_id,old_status,new_status,new_detail))
                             pass
 
-                    if new_domain is True and new_status == "CreatingDiskFromScratch":
+                    if (
+                        new_domain is True
+                        and new_status == "CreatingDiskFromScratch"
+                        and not _CREATE_DISK_VIA_TASK
+                    ):
                         self._submit_action(ui.creating_disk_from_scratch, domain_id)
 
                     if (

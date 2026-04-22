@@ -1304,6 +1304,27 @@ class DesktopsProcessed(RethinkSharedConnection):
         else:
             disks = []
 
+        # Task-based path: allocate the scratch storage up-front so engine
+        # restart cleanup can trace the in-flight task via storage_ids.
+        pending_storage = None
+        pending_size = None
+        if _CREATE_DISK_VIA_TASK and disks:
+            pending_size = disks[0]["size"]
+            pending_storage = Storage.new_dict(
+                user_id=payload["user_id"],
+                pool_usage="desktop",
+                parent_id=None,
+            )
+            pending_storage.status_logs = [
+                {"time": int(time.time()), "status": "created"}
+            ]
+            disks[0].update(
+                {
+                    "storage_id": pending_storage.id,
+                    "file": pending_storage.path,
+                }
+            )
+
         if data["hardware"].get("reservables", {"vgpus": None}).get("vgpus") == [
             "None"
         ]:
@@ -1379,6 +1400,12 @@ class DesktopsProcessed(RethinkSharedConnection):
         )
         with cls._rdb_context():
             r.table("domains").insert(domain).run(cls._rdb_connection)
+
+        if _CREATE_DISK_VIA_TASK and pending_storage is not None:
+            pending_storage.enqueue_disk_creation_chain_for_domain(
+                domain_id=domain["id"],
+                size=pending_size,
+            )
         return domain["id"]
 
     @classmethod
