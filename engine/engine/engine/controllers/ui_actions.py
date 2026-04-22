@@ -1521,7 +1521,12 @@ class UiActions(object):
                 )
                 return False
             xml_from = template["xml"]
-            parents_chain = template.get("parents", []) + domain.get("parents", [])
+            # apiv4's Pydantic DomainModel omits ``parents`` on non-persistent
+            # inserts, leaving it ``None`` in the DB. ``None + []`` TypeErrors;
+            # coerce both sides to a list to survive either shape.
+            parents_chain = (template.get("parents") or []) + (
+                domain.get("parents") or []
+            )
             # when creating template from domain, the domain would be inserted as a parent while template is creating
             # parent_chain never can't have id_domain as parent
             if id_domain in parents_chain:
