@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import base64
+import glob
 import os
 import time
 import traceback
@@ -2092,10 +2093,20 @@ class ApiUsers:
             if logo.get("enabled") and logo.get("data"):
                 return logo["data"]
         except Exception:
-            # If no custom branding found, fall through to default logo
+            # If no custom branding found, fall through to static/logo
             pass
 
-        # Return default logo as base64 data URL
+        # Try static logo first (mounted at /static/custom/logo.<ext>)
+        static_logo_paths = sorted(glob.glob("/static/custom/logo.*"))
+        try:
+            with open(static_logo_paths[0], "rb") as f:
+                file_bytes = f.read()
+            mimetype = _detect_mimetype(file_bytes)
+            return f"data:{mimetype};base64,{base64.b64encode(file_bytes).decode()}"
+        except Exception:
+            pass
+
+        # Fall back to default logo as base64 data URL
         default_logo_path = "/static/default_logo"
         try:
             with open(default_logo_path, "rb") as f:
