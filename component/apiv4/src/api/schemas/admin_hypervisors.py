@@ -18,7 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -56,6 +56,7 @@ class AdminHypervisorEnableData(BaseModel):
     """Request body for enabling/disabling a hypervisor."""
 
     enabled: bool = True
+    numa_topology: Optional[Dict[str, Any]] = None
 
 
 # ── Hypervisor Internal (hyper-to-api) ───────────────────────────────────
