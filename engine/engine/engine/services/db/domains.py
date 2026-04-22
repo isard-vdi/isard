@@ -51,19 +51,64 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if only_domain_id:
-        results = (
+        candidates = list(
             rtable.get_all(only_domain_id, index="id")
             .filter(lambda d: r.expr(status_to_delete).contains(d["status"]))
-            .delete()
             .run(r_conn)
         )
     else:
-        results = (
+        candidates = list(
             rtable.get_all(r.args(status_to_delete), index="status")
             .filter({"kind": kind})
-            .delete()
             .run(r_conn)
         )
+
+    # Skip any candidate whose first disk points at a storage with an
+    # active task. That signals task-based disk creation is in flight
+    # (apiv4 pre-created the storage and kicked off the RQ chain) and
+    # deleting the domain would orphan the storage row and the qcow2.
+    storage_ids = [
+        sid
+        for domain in candidates
+        for sid in [
+            (
+                (domain.get("create_dict") or {})
+                .get("hardware", {})
+                .get("disks", [{}])[0]
+                .get("storage_id")
+            )
+        ]
+        if sid
+    ]
+    active_storage_ids = set()
+    if storage_ids:
+        active_storage_ids = set(
+            row["id"]
+            for row in r.table("storage")
+            .get_all(r.args(list(set(storage_ids))), index="id")
+            .filter(lambda s: s.has_fields("task") & (s["task"] != None))  # noqa: E711
+            .pluck("id")
+            .run(r_conn)
+        )
+
+    domains_to_delete = [
+        d["id"]
+        for d in candidates
+        if (
+            (d.get("create_dict") or {})
+            .get("hardware", {})
+            .get("disks", [{}])[0]
+            .get("storage_id")
+        )
+        not in active_storage_ids
+    ]
+
+    if domains_to_delete:
+        results = (
+            rtable.get_all(r.args(domains_to_delete), index="id").delete().run(r_conn)
+        )
+    else:
+        results = {"deleted": 0, "errors": 0, "skipped": 0, "inserted": 0}
     close_rethink_connection(r_conn)
     return results
 

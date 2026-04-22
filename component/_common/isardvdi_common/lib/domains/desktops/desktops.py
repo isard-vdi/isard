@@ -436,6 +436,41 @@ class DesktopsProcessed(RethinkSharedConnection):
             {"extension": "qcow2", "parent": parent_disk}
         ]
 
+        # When creation is routed through the storage task system, allocate the
+        # storage row before inserting the domain so ``disks[0].storage_id`` is
+        # populated at insert time. That lets engine restart cleanup trace the
+        # in-flight task via the ``storage_ids`` index and avoid deleting a
+        # legitimately-in-progress Creating domain.
+        pending_storage = None
+        if _CREATE_DISK_VIA_TASK:
+            parent_storage_id = (
+                template.get("create_dict", {})
+                .get("hardware", {})
+                .get("disks", [{}])[0]
+                .get("storage_id")
+            )
+            if not parent_storage_id:
+                raise Error(
+                    "precondition_required",
+                    f"Template {template['id']} has no storage_id on disk 0; "
+                    "cannot create via storage task.",
+                    description_code="template_no_storage_id",
+                )
+            pending_storage = Storage.new_dict(
+                user_id=user_id,
+                pool_usage="desktop",
+                parent_id=parent_storage_id,
+            )
+            pending_storage.status_logs = [
+                {"time": int(time.time()), "status": "created"}
+            ]
+            create_dict["hardware"]["disks"][0].update(
+                {
+                    "storage_id": pending_storage.id,
+                    "file": pending_storage.path,
+                }
+            )
+
         # Parse media info to have full media info (name and description) in create_dict
         try:
             create_dict = Helpers._parse_media_info(create_dict)
@@ -517,25 +552,9 @@ class DesktopsProcessed(RethinkSharedConnection):
                 with cls._rdb_context():
                     r.table("domains").insert(valid_desktop).run(cls._rdb_connection)
 
-            if _CREATE_DISK_VIA_TASK:
-                parent_storage_id = (
-                    template.get("create_dict", {})
-                    .get("hardware", {})
-                    .get("disks", [{}])[0]
-                    .get("storage_id")
-                )
-                if not parent_storage_id:
-                    raise Error(
-                        "precondition_required",
-                        f"Template {template['id']} has no storage_id on disk 0; "
-                        "cannot create via storage task.",
-                        description_code="template_no_storage_id",
-                    )
-                Storage.create_new_storage_for_domain(
+            if _CREATE_DISK_VIA_TASK and pending_storage is not None:
+                pending_storage.enqueue_disk_creation_chain_for_domain(
                     domain_id=valid_desktop["id"],
-                    user_id=user_id,
-                    pool_usage="desktop",
-                    parent_id=parent_storage_id,
                 )
         if image:
             image_data = image
