@@ -4,7 +4,6 @@
 # License: AGPLv3
 
 
-import os
 import pprint
 import queue
 import threading
@@ -12,13 +11,6 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from time import sleep
-
-# When enabled, apiv4 enqueues a storage.create task chain at desktop
-# creation time and the engine's SSH-based disk dispatch is skipped.
-# See docs and isardvdi.cfg.example.
-_CREATE_DISK_VIA_TASK = (
-    os.environ.get("CREATE_DISK_VIA_TASK", "false").lower() == "true"
-)
 
 from engine.config import (
     POLLING_INTERVAL_BACKGROUND,
@@ -45,10 +37,7 @@ from engine.services.db.db import (
     update_table_dict,
     update_table_field,
 )
-from engine.services.db.domains import (
-    update_domain_start_after_created,
-    update_domain_status,
-)
+from engine.services.db.domains import update_domain_status
 from engine.services.db.hypervisors import update_all_hyps_status
 from engine.services.db.storage_pool import get_storage_pool_ids
 from engine.services.lib.functions import (
@@ -653,20 +642,6 @@ class Engine(object):
                             #       format(domain_id,old_status,new_status,new_detail))
                             pass
 
-                    if (
-                        new_domain is True
-                        and new_status == "CreatingDiskFromScratch"
-                        and not _CREATE_DISK_VIA_TASK
-                    ):
-                        self._submit_action(ui.creating_disk_from_scratch, domain_id)
-
-                    if (
-                        new_domain is True
-                        and new_status == "Creating"
-                        and not _CREATE_DISK_VIA_TASK
-                    ):
-                        self._submit_action(ui.creating_disks_from_template, domain_id)
-
                     # apiv4 edit (routes/domains/desktops.py PUT .../edit
                     # → parse_domain_update) flips status to "Updating".
                     # The engine validates the new XML and moves to
@@ -681,23 +656,6 @@ class Engine(object):
                         self._submit_action(
                             ui.updating_from_create_dict, domain_id, True
                         )
-
-                    if (
-                        new_domain is True
-                        and new_status == "CreatingAndStarting"
-                        and not _CREATE_DISK_VIA_TASK
-                    ):
-
-                        def _creating_and_starting(domain_id):
-                            update_domain_start_after_created(domain_id)
-                            ui.creating_disks_from_template(domain_id)
-
-                        self._submit_action(_creating_and_starting, domain_id)
-
-                        # INFO TO DEVELOPER
-                        # recoger template de la que hay que derivar
-                        # verificar que realmente es una template
-                        # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
                     if (
                         old_status

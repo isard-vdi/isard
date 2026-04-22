@@ -19,7 +19,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
-import os
 import time
 import traceback
 import uuid
@@ -43,10 +42,6 @@ from rethinkdb import r
 from socketio import RedisManager
 
 socketio = RedisManager(socketio_url(), write_only=True)
-
-_CREATE_DISK_VIA_TASK = (
-    os.environ.get("CREATE_DISK_VIA_TASK", "false").lower() == "true"
-)
 
 
 class DesktopsNonpersistentProcessed(RethinkSharedConnection):
@@ -132,8 +127,8 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
 
         parent_disk = resolve_parent_disk(template)
         # Capture the template's parent storage id BEFORE the disks array
-        # is replaced below — the CREATE_DISK_VIA_TASK path needs it as
-        # backing for the new storage, and overwriting first would hide it.
+        # is replaced below — the storage-task chain needs it as backing
+        # for the new storage, and overwriting first would hide it.
         parent_storage_id = (
             template.get("create_dict", {})
             .get("hardware", {})
@@ -146,32 +141,28 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             {"extension": "qcow2", "parent": parent_disk}
         ]
 
-        # Task-based creation: pre-allocate the storage so disks[0] already
-        # carries storage_id/file at insert time. Engine restart cleanup
-        # needs this to trace the in-flight task.
-        pending_storage = None
-        if _CREATE_DISK_VIA_TASK:
-            if not parent_storage_id:
-                raise Error(
-                    "precondition_required",
-                    f"Template {template_id} has no storage_id on disk 0; "
-                    "cannot create non-persistent desktop via storage task.",
-                    description_code="template_no_storage_id",
-                )
-            pending_storage = Storage.new_dict(
-                user_id=user_id,
-                pool_usage="desktop",
-                parent_id=parent_storage_id,
+        # Pre-allocate the storage so disks[0] already carries
+        # storage_id/file at insert time. Engine restart cleanup needs
+        # this to trace the in-flight task via the storage_ids index.
+        if not parent_storage_id:
+            raise Error(
+                "precondition_required",
+                f"Template {template_id} has no storage_id on disk 0; "
+                "cannot create non-persistent desktop via storage task.",
+                description_code="template_no_storage_id",
             )
-            pending_storage.status_logs = [
-                {"time": int(time.time()), "status": "created"}
-            ]
-            create_dict["hardware"]["disks"][0].update(
-                {
-                    "storage_id": pending_storage.id,
-                    "file": pending_storage.path,
-                }
-            )
+        pending_storage = Storage.new_dict(
+            user_id=user_id,
+            pool_usage="desktop",
+            parent_id=parent_storage_id,
+        )
+        pending_storage.status_logs = [{"time": int(time.time()), "status": "created"}]
+        create_dict["hardware"]["disks"][0].update(
+            {
+                "storage_id": pending_storage.id,
+                "file": pending_storage.path,
+            }
+        )
         create_dict = Helpers._parse_media_info(create_dict)
 
         template["create_dict"]["hardware"]["interfaces"] = [
@@ -234,20 +225,18 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             **new_desktop,
         ).model_dump()
 
-        if _CREATE_DISK_VIA_TASK:
-            # Preserve the CreatingAndStarting status (the one Creating*
-            # value the frontend collapsing keeps) while flagging the
-            # domain for engine's auto-start after libvirt define. Set
-            # after model_dump because DomainModel drops unknown fields.
-            new_desktop["start_after_created"] = True
+        # Preserve the CreatingAndStarting status (the one Creating* value
+        # the frontend collapsing keeps) while flagging the domain for
+        # engine's auto-start after libvirt define. Set after model_dump
+        # because DomainModel drops unknown fields.
+        new_desktop["start_after_created"] = True
 
         with cls._rdb_context():
             r.table("domains").insert(new_desktop).run(cls._rdb_connection)
 
-        if _CREATE_DISK_VIA_TASK and pending_storage is not None:
-            pending_storage.enqueue_disk_creation_chain_for_domain(
-                domain_id=new_desktop["id"],
-            )
+        pending_storage.enqueue_disk_creation_chain_for_domain(
+            domain_id=new_desktop["id"],
+        )
         return new_desktop["id"]
 
     @classmethod
