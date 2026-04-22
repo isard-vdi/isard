@@ -1453,32 +1453,71 @@ class Storage(RethinkCustomBase):
     ):
         """
         Create a new storage owned by a domain and enqueue the full RQ chain
-        that builds the qcow2 on the storage worker and wires it back to the
-        domain row via core_worker feedback.
-
-        Chain: create -> domain_change_storage -> qemu_img_info_backing_chain
-               -> storage_update.
-
-        Pass parent_id for a template-derived (backing-file) disk, or leave
-        it None together with an explicit size for a scratch disk.
+        in one shot. For callers that need to inject the storage's id/path
+        into the domain row *before* inserting the domain (so engine restart
+        cleanup can trace the in-flight task via the ``storage_ids`` index),
+        call ``Storage.new_dict`` + ``enqueue_disk_creation_chain_for_domain``
+        directly instead of this convenience wrapper.
 
         :return: Tuple with the new storage and the root task ID
         :rtype: Tuple[isardvdi_common.models.storage.Storage, str]
         """
-        if parent_id is not None:
-            if not Storage.exists(parent_id):
+        storage = Storage.new_dict(
+            user_id=user_id,
+            pool_usage=pool_usage,
+            parent_id=parent_id,
+            format=storage_type,
+        )
+        storage.status_logs = [{"time": int(time()), "status": "created"}]
+        storage.enqueue_disk_creation_chain_for_domain(
+            domain_id=domain_id,
+            size=size,
+            priority=priority,
+            retry=retry,
+        )
+        return (storage, storage.task)
+
+    def enqueue_disk_creation_chain_for_domain(
+        self,
+        domain_id,
+        size=None,
+        priority="default",
+        retry: int = 0,
+    ):
+        """
+        Enqueue the chain that builds the qcow2 file on a storage worker and
+        wires the resulting storage back into the domain row via core_worker
+        feedback. The storage row must already exist (``Storage.new_dict``).
+
+        Chain:
+            domain_creating_disk  (core — root)
+              -> create  (storage.{pool}.{priority})
+                -> qemu_img_info_backing_chain
+                  -> storage_update
+                    -> domain_change_storage
+                      -> update_status  (FAILED/CANCELED → "Failed")
+
+        Pass ``size`` as a qemu-img size string for scratch disks (no
+        parent). For template-derived disks the backing file determines
+        sizing and ``size`` can be left as ``None``.
+
+        :return: Root task ID
+        :rtype: str
+        """
+        if self.parent:
+            if not Storage.exists(self.parent):
                 raise Exception(
                     "not_found",
-                    f"Parent storage {parent_id} not found",
+                    f"Parent storage {self.parent} not found",
                 )
-            storage_parent = Storage(parent_id)
+            storage_parent = Storage(self.parent)
             if storage_parent.status != "ready":
                 raise Exception(
                     "precondition_required",
                     "Parent storage is not ready",
                     "storage_not_ready",
                 )
-            if storage_parent.type != storage_type:
+            if storage_parent.type != self.type:
                 raise Exception(
                     "precondition_required",
                     "Parent storage type does not match",
@@ -1495,25 +1534,17 @@ class Storage(RethinkCustomBase):
                 )
             parent_args = {}
 
-        storage = Storage.new_dict(
-            user_id=user_id,
-            pool_usage=pool_usage,
-            parent_id=parent_id,
-            format=storage_type,
-        )
-        storage.status_logs = [{"time": int(time()), "status": "created"}]
-
         create_kwargs = {
-            "storage_path": storage.path,
-            "storage_type": storage.type,
+            "storage_path": self.path,
+            "storage_type": self.type,
             **parent_args,
         }
         if size is not None:
             create_kwargs["size"] = size
 
-        storage.set_maintenance("create")
-        storage.create_task(
-            user_id=user_id,
+        self.set_maintenance("create")
+        self.create_task(
+            user_id=self.user_id,
             queue="core",
             task="domain_creating_disk",
             retry=retry,
@@ -1521,17 +1552,17 @@ class Storage(RethinkCustomBase):
             job_kwargs={"kwargs": {"domain_id": domain_id}},
             dependents=[
                 {
-                    "queue": f"storage.{storage.pool.id}.{priority}",
+                    "queue": f"storage.{self.pool.id}.{priority}",
                     "task": "create",
                     "job_kwargs": {"kwargs": create_kwargs},
                     "dependents": [
                         {
-                            "queue": f"storage.{storage.pool.id}.{priority}",
+                            "queue": f"storage.{self.pool.id}.{priority}",
                             "task": "qemu_img_info_backing_chain",
                             "job_kwargs": {
                                 "kwargs": {
-                                    "storage_id": storage.id,
-                                    "storage_path": storage.path,
+                                    "storage_id": self.id,
+                                    "storage_path": self.path,
                                 }
                             },
                             "dependents": [
@@ -1545,7 +1576,7 @@ class Storage(RethinkCustomBase):
                                             "job_kwargs": {
                                                 "kwargs": {
                                                     "domain_id": domain_id,
-                                                    "storage_id": storage.id,
+                                                    "storage_id": self.id,
                                                 },
                                             },
                                             "dependents": [
@@ -1561,7 +1592,7 @@ class Storage(RethinkCustomBase):
                                                                             domain_id
                                                                         ],
                                                                         "storage": [
-                                                                            storage.id
+                                                                            self.id
                                                                         ],
                                                                     },
                                                                 },
@@ -1571,7 +1602,7 @@ class Storage(RethinkCustomBase):
                                                                             domain_id
                                                                         ],
                                                                         "storage": [
-                                                                            storage.id
+                                                                            self.id
                                                                         ],
                                                                     },
                                                                 },
@@ -1590,7 +1621,7 @@ class Storage(RethinkCustomBase):
             ],
         )
 
-        return (storage, storage.task)
+        return self.task
 
     def abort_operations(
         self,

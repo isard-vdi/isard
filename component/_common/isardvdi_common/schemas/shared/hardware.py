@@ -79,6 +79,15 @@ class GuestProperties(BaseModel):
 class DiskTemplate(BaseModel):
     extension: str
     parent: str
+    # ``storage_id`` and ``file`` are populated by apiv4 at desktop-insert
+    # time when task-based disk creation pre-allocates the storage, so
+    # engine restart cleanup can trace the in-flight task via the
+    # ``storage_ids`` multi-index. Declared optional here so Pydantic
+    # preserves them through ``model_dump`` — stripping them would open a
+    # ~2s window where the domain appears unlinked and
+    # ``delete_incomplete_creating_domains`` would clobber it.
+    storage_id: Optional[str] = None
+    file: Optional[str] = None
 
 
 class DiskStorage(BaseModel):
