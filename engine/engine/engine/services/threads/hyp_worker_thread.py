@@ -57,7 +57,7 @@ from engine.services.threads.threads import (
     RETRIES_HYP_IS_ALIVE,
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE,
     TIMEOUT_QUEUES,
-    launch_action_disk,
+    launch_delete_disk_action,
     launch_delete_media,
     launch_killall_curl,
 )
@@ -433,7 +433,6 @@ class HypWorkerThread(threading.Thread):
             "shutdown_domain": self._handle_shutdown_domain,
             "stop_domain": self._handle_stop_domain,
             "reset_domain": self._handle_reset_domain,
-            "create_disk": lambda a, t, i: self._handle_disk_action(a, t, i, "create"),
             "delete_disk": lambda a, t, i: self._handle_disk_action(a, t, i, "delete"),
             "add_media_hot": lambda a, t, i: None,  # Placeholder as in original
             "killall_curl": self._handle_killall_curl,
@@ -1794,11 +1793,16 @@ class HypWorkerThread(threading.Thread):
         )
 
     def _handle_disk_action(self, action, action_time, intervals, operation_type):
-        """Handle disk actions (create or delete)"""
+        """Handle delete_disk action.
+
+        Phase B removed the SSH-based create_disk / create_disk_from_scratch
+        paths; disk creation runs entirely through the storage task chain
+        dispatched by apiv4 now. Only delete_disk remains here.
+        """
         t = time.time()
         try:
             # Launch disk action
-            launch_action_disk(
+            launch_delete_disk_action(
                 action, self.hostname, user=self.h.user, port=self.h.port
             )
             intervals.append({f"{operation_type}_disk": round(time.time() - t, 3)})

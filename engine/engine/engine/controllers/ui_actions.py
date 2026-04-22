@@ -6,8 +6,6 @@
 import os
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-
-# from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
 
 from cachetools import TTLCache, cached
@@ -33,7 +31,6 @@ from engine.services.db import (
     insert_domain,
     remove_dict_new_template_from_domain,
     remove_disk_template_created_list_in_domain,
-    update_domain_dict_hardware,
     update_domain_status,
     update_origin_and_parents_to_new_template,
     update_table_field,
@@ -42,17 +39,13 @@ from engine.services.db import (
 )
 from engine.services.db.storage_pool import get_category_storage_pool_id
 from engine.services.lib.qcow import (
-    add_cmds_if_custom,
-    create_cmd_disk_from_scratch,
     create_cmds_delete_disk,
-    create_cmds_disk_from_base,
     get_host_disk_operations_from_path,
     get_path_to_disk,
 )
 from engine.services.lib.storage import (
     create_storage,
     get_storage_id_filename,
-    insert_storage,
     update_storage_deleted_domain,
 )
 from engine.services.log import *
@@ -1191,142 +1184,6 @@ class UiActions(object):
             )
             return False
 
-    def creating_disk_from_scratch(self, id_new):
-        dict_domain = get_domain(id_new)
-        if dict_domain is None:
-            log.error(
-                "CREATING_DISK_FROM_SCRATCH: Domain {} not found in database. Not creating any disk.".format(
-                    id_new
-                )
-            )
-            return False
-        pool_id = get_category_storage_pool_id(dict_domain.get("category"))
-        if pool_id is None:
-            log.error(
-                "CREATING_DISK_FROM_SCRATCH: No storage pool available for domain {} in category {}. Not creating any disk.".format(
-                    id_new,
-                    dict_domain.get("category"),
-                )
-            )
-            return False
-        dict_to_create = dict_domain["create_dict"]
-
-        if "disks" in dict_to_create["hardware"].keys():
-            if len(dict_to_create["hardware"]["disks"]) > 0:
-                # for index_disk in range(len(dict_to_create['hardware']['disks'])):
-                #     relative_path = dict_to_create['hardware']['disks'][index_disk]['file']
-                #     path_new_file, path_selected = get_path_to_disk(relative_path, pool=pool_id)
-                #     # UPDATE PATH IN DOMAIN
-                #     dict_to_create['hardware']['disks'][index_disk]['file'] = new_file
-                #     dict_to_create['hardware']['disks'][index_disk]['path_selected'] = path_selected
-
-                path_new_disk, path_selected = get_path_to_disk(
-                    category_id=dict_domain.get("category"),
-                    extension=dict_to_create["hardware"]["disks"][0]["extension"],
-                )
-                # UPDATE PATH IN DOMAIN
-
-                d_update_domain = {"hardware": {"disks": [{}]}}
-                if len(dict_to_create["hardware"]["disks"]) > 0:
-                    ## supplementary disks
-                    for i, dict_other_disk in enumerate(
-                        dict_to_create["hardware"]["disks"][1:]
-                    ):
-                        path_other_disk, path_other_disk_selected = get_path_to_disk(
-                            relative_path=dict_other_disk["file"],
-                            category_id=dict_domain.get("category"),
-                            type_path=dict_other_disk["type_path"],
-                        )
-                        d_update_domain["hardware"]["disks"].append({})
-                        d_update_domain["hardware"]["disks"][i + 1][
-                            "file"
-                        ] = path_other_disk
-                        d_update_domain["hardware"]["disks"][i + 1][
-                            "path_selected"
-                        ] = path_other_disk_selected
-                        d_update_domain["hardware"]["disks"][i + 1]["bus"] = (
-                            dict_other_disk.get("bus", "virtio")
-                        )
-                        if dict_other_disk.get("readonly", True) is True:
-                            d_update_domain["hardware"]["disks"][i + 1][
-                                "readonly"
-                            ] = True
-                        else:
-                            pass
-                            # TODO
-                            # update_media_write_access_by_domain(id_media,id_domain)
-
-                d_update_domain["hardware"]["disks"][0]["file"] = path_new_disk
-                d_update_domain["hardware"]["disks"][0]["path_selected"] = path_selected
-                d_update_domain["hardware"]["disks"][0]["size"] = dict_to_create[
-                    "hardware"
-                ]["disks"][0]["size"]
-                bus = dict_to_create["hardware"]["disks"][0].get("bus", "virtio")
-                if bus not in BUS_TYPES:
-                    bus = "virtio"
-                d_update_domain["hardware"]["disks"][0]["bus"] = bus
-                update_domain_dict_hardware(id_new, d_update_domain)
-                # update_domain_dict_create_dict(id_new, d_update_domain)
-                storage_id = create_storage(
-                    d_update_domain["hardware"]["disks"][0],
-                    dict_domain.get("user"),
-                    force_parent=None,
-                )
-                update_table_field("domains", id_new, "create_dict", d_update_domain)
-
-                size_str = dict_to_create["hardware"]["disks"][0]["size"]
-
-                hyp_to_disk_create = get_host_disk_operations_from_path(
-                    self.manager,
-                    pool=pool_id,
-                    type_path="desktop",
-                )
-
-                cmds = create_cmd_disk_from_scratch(
-                    path_new_disk=path_new_disk, size_str=size_str
-                )
-
-                action = {}
-                action["type"] = "create_disk_from_scratch"
-                action["disk_path"] = path_new_disk
-                action["index_disk"] = 0
-                action["domain"] = id_new
-                action["ssh_commands"] = cmds
-                action["storage_id"] = storage_id
-                try:
-                    update_domain_status(
-                        status="CreatingDiskFromScratch",
-                        id_domain=id_new,
-                        hyp_id=False,
-                        detail="Creating disk commands are launched in hypervisor {} ({} operations in queue)".format(
-                            hyp_to_disk_create,
-                            self.manager.q_disk_operations[hyp_to_disk_create].qsize(),
-                        ),
-                    )
-                    self.manager.q_disk_operations[hyp_to_disk_create].put(action)
-
-                except Exception as e:
-                    logs.exception_id.debug("0013")
-                    update_domain_status(
-                        status="Failed",
-                        id_domain=id_new,
-                        hyp_id=False,
-                        detail="Creating disk operation failed when insert action in queue for disk operations",
-                    )
-                    log.error(
-                        "Creating disk operation failed when insert action in queue for disk operations. Exception: {}".format(
-                            e
-                        )
-                    )
-
-        else:
-            update_domain_status(
-                status="CreatingDomain",
-                id_domain=id_new,
-                hyp_id=False,
-                detail="Creating domain withouth disks",
-            )
-
     def force_deleting(self, domain_id, old_status):
         if old_status in ["Started", "Shutting-down", "Stopping", "Paused"]:
             hyp_id = get_domain_hyp_started(domain_id)
@@ -1345,134 +1202,6 @@ class UiActions(object):
         else:
             log.error(f"domain {domain_id} does not exist in table domain")
         return result
-
-    def creating_disks_from_template(self, id_new):
-        dict_domain = get_domain(id_new)
-        if dict_domain is None:
-            log.error(
-                "CREATING_DISKS_FROM_TEMPLATE: Domain {} not found in database. Not creating any disk.".format(
-                    id_new
-                )
-            )
-            return False
-        persistent = dict_domain.get("persistent", True)
-        if persistent:
-            path_type = "desktop"
-        else:
-            path_type = "volatile"
-        if "create_dict" in dict_domain.keys():
-            dict_to_create = dict_domain["create_dict"]
-
-        pool_id = get_category_storage_pool_id(dict_domain.get("category"))
-        if pool_id is None:
-            log.error(
-                "CREATING_DISKS_FROM_TEMPLATE: No storage pool available for domain {} in category {}. Not creating any disk.".format(
-                    id_new,
-                    dict_domain.get("category"),
-                )
-            )
-            return False
-        # INFO TO DEVELOPER DEBERÍA SER UN FOR PARA CADA DISCO
-        # y si el disco no tiene backing_chain, crear un disco vacío
-        # del tamaño que marcase
-        # d['hardware']['disks'][0]['size']
-        # el backing_file debería estar asociado a cada disco:
-        # d['hardware']['disks'][0]['backing_file']
-
-        for index_disk in range(len(dict_to_create["hardware"]["disks"])):
-            new_file, path_selected = get_path_to_disk(
-                category_id=dict_domain.get("category"),
-                type_path=path_type,
-                extension=dict_to_create["hardware"]["disks"][index_disk].pop(
-                    "extension"
-                ),
-            )
-            # UPDATE PATH IN DOMAIN
-            dict_to_create["hardware"]["disks"][index_disk]["file"] = new_file
-            dict_to_create["hardware"]["disks"][index_disk][
-                "path_selected"
-            ] = path_selected
-            create_storage(
-                dict_to_create["hardware"]["disks"][index_disk], dict_domain.get("user")
-            )
-
-        update_table_field("domains", id_new, "create_dict", dict_to_create)
-        update_table_field(
-            "storage",
-            dict_to_create["hardware"]["disks"][index_disk]["storage_id"],
-            "perms",
-            ["r", "w"],
-        )
-
-        # TODO: REVISAR SI RELAMENTE ES NECESARIO o esta acción responde a versiones antiguas de nuestras funciones de creación
-        hardware_update = {}
-        hardware_update["disks"] = dict_to_create["hardware"]["disks"]
-        update_domain_dict_hardware(id_new, hardware_update)
-        ##################
-
-        for index_disk in range(len(dict_to_create["hardware"]["disks"])):
-            disk = dict_to_create["hardware"]["disks"][index_disk]
-            insert_storage(disk, perms=["r"])
-            backing_file = dict_to_create["hardware"]["disks"][index_disk]["parent"]
-            new_file = dict_to_create["hardware"]["disks"][index_disk]["file"]
-            path_selected = dict_to_create["hardware"]["disks"][index_disk][
-                "path_selected"
-            ]
-            hyp_to_disk_create = get_host_disk_operations_from_path(
-                self.manager,
-                pool=pool_id,
-                type_path=path_type,
-            )
-            # This is only needed if we don't want volatile desktops to be created in
-            # shared storage, and create it locally in hypervisor
-            # if persistent is False:
-            #     print(f"desktop not persistent, forced hyp: {hyp_to_disk_create}")
-            #     update_domain_forced_hyp(id_domain=id_new, hyp_id=hyp_to_disk_create)
-
-            cmds = create_cmds_disk_from_base(path_base=backing_file, path_new=new_file)
-            log.debug(
-                "commands to disk create to launch in disk_operations: \n{}".format(
-                    "\n".join(cmds)
-                )
-            )
-            action = {}
-            action["type"] = "create_disk"
-            action["disk_path"] = new_file
-            action["index_disk"] = index_disk
-            action["domain"] = id_new
-            action["storage_id"] = disk.get("storage_id")
-
-            if index_disk == 0:
-                cmds += add_cmds_if_custom(id_domain=id_new, path_new=new_file)
-            action["ssh_commands"] = cmds
-
-            try:
-                update_domain_status(
-                    status="CreatingDisk",
-                    id_domain=id_new,
-                    hyp_id=False,
-                    detail="Creating disk operation is launched in hypervisor {} ({} operations in queue)".format(
-                        hyp_to_disk_create,
-                        self.manager.q_disk_operations[hyp_to_disk_create].qsize(),
-                    ),
-                )
-                self.manager.q_disk_operations[hyp_to_disk_create].put(
-                    action, Q_LONGOPERATIONS_PRIORITY_CREATE_DISK_FROM_TEMPLATE
-                )
-
-            except Exception as e:
-                logs.exception_id.debug("0015")
-                update_domain_status(
-                    status="Failed",
-                    id_domain=id_new,
-                    hyp_id=False,
-                    detail="Creating disk operation failed when insert action in queue for disk operations",
-                )
-                log.error(
-                    "Creating disk operation failed when insert action in queue for disk operations. Exception: {}".format(
-                        e
-                    )
-                )
 
     def creating_and_test_xml_start(
         self,
