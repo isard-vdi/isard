@@ -677,7 +677,11 @@ class Engine(object):
                             ui.updating_from_create_dict, domain_id, True
                         )
 
-                    if new_domain is True and new_status == "CreatingAndStarting":
+                    if (
+                        new_domain is True
+                        and new_status == "CreatingAndStarting"
+                        and not _CREATE_DISK_VIA_TASK
+                    ):
 
                         def _creating_and_starting(domain_id):
                             update_domain_start_after_created(domain_id)

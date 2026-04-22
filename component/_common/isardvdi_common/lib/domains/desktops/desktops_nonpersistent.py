@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import os
 import time
 import traceback
 import uuid
@@ -34,6 +35,7 @@ from isardvdi_common.helpers.desktop_nonpersistent_events import (
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.scheduler import Scheduler
+from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.models.domain import DomainModel
 from isardvdi_common.models.storage import Storage
@@ -41,6 +43,10 @@ from rethinkdb import r
 from socketio import RedisManager
 
 socketio = RedisManager(socketio_url(), write_only=True)
+
+_CREATE_DISK_VIA_TASK = (
+    os.environ.get("CREATE_DISK_VIA_TASK", "false").lower() == "true"
+)
 
 
 class DesktopsNonpersistentProcessed(RethinkSharedConnection):
@@ -124,19 +130,48 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         if not group:
             raise Error("not_found", "NewNonPersistent: group id not found.")
 
-        storage_id = template["create_dict"]["hardware"]["disks"][0]["storage_id"]
-        if not Storage.exists(storage_id):
-            raise Error(
-                "not_found",
-                "Template storage not found",
-                description_code="storage_not_found",
-            )
-        parent_disk = Storage(storage_id).path
+        parent_disk = resolve_parent_disk(template)
+        # Capture the template's parent storage id BEFORE the disks array
+        # is replaced below — the CREATE_DISK_VIA_TASK path needs it as
+        # backing for the new storage, and overwriting first would hide it.
+        parent_storage_id = (
+            template.get("create_dict", {})
+            .get("hardware", {})
+            .get("disks", [{}])[0]
+            .get("storage_id")
+        )
 
         create_dict = template["create_dict"]
         create_dict["hardware"]["disks"] = [
             {"extension": "qcow2", "parent": parent_disk}
         ]
+
+        # Task-based creation: pre-allocate the storage so disks[0] already
+        # carries storage_id/file at insert time. Engine restart cleanup
+        # needs this to trace the in-flight task.
+        pending_storage = None
+        if _CREATE_DISK_VIA_TASK:
+            if not parent_storage_id:
+                raise Error(
+                    "precondition_required",
+                    f"Template {template_id} has no storage_id on disk 0; "
+                    "cannot create non-persistent desktop via storage task.",
+                    description_code="template_no_storage_id",
+                )
+            pending_storage = Storage.new_dict(
+                user_id=user_id,
+                pool_usage="desktop",
+                parent_id=parent_storage_id,
+            )
+            pending_storage.status_logs = [
+                {"time": int(time.time()), "status": "created"}
+            ]
+            create_dict["hardware"]["disks"][0].update(
+                {
+                    "storage_id": pending_storage.id,
+                    "file": pending_storage.path,
+                }
+            )
         create_dict = Helpers._parse_media_info(create_dict)
 
         template["create_dict"]["hardware"]["interfaces"] = [
@@ -199,8 +234,20 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             **new_desktop,
         ).model_dump()
 
+        if _CREATE_DISK_VIA_TASK:
+            # Preserve the CreatingAndStarting status (the one Creating*
+            # value the frontend collapsing keeps) while flagging the
+            # domain for engine's auto-start after libvirt define. Set
+            # after model_dump because DomainModel drops unknown fields.
+            new_desktop["start_after_created"] = True
+
         with cls._rdb_context():
             r.table("domains").insert(new_desktop).run(cls._rdb_connection)
+
+        if _CREATE_DISK_VIA_TASK and pending_storage is not None:
+            pending_storage.enqueue_disk_creation_chain_for_domain(
+                domain_id=new_desktop["id"],
+            )
         return new_desktop["id"]
 
     @classmethod
