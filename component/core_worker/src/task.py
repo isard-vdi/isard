@@ -446,15 +446,24 @@ _DOMAIN_CREATE_TO_CREATING_DOMAIN = frozenset(
 )
 
 
-def domain_creating_disk(domain_id):
-    """Advance a domain from ``Creating`` to ``CreatingDisk`` at the start of
-    the task-based creation chain.
+_DOMAIN_CREATING_TO_CREATING_DISK = frozenset(
+    {
+        "Creating",
+        "CreatingDiskFromScratch",
+    }
+)
 
-    Runs as the chain root so the change-feed emits an intermediate status
-    while the storage worker is still producing the qcow2 — the frontend's
-    ``parse_frontend_desktop_status`` collapses this to ``Creating`` for
-    display, but the extra DB write gives admins a distinct signal.
-    Leaves any status other than ``Creating`` untouched.
+
+def domain_creating_disk(domain_id):
+    """Advance a domain from its initial create status to ``CreatingDisk``
+    at the start of the task-based creation chain.
+
+    Template-from-template and desktop-from-media both land here: apiv4
+    inserts with ``Creating`` for the former and ``CreatingDiskFromScratch``
+    for the latter; either one flips to ``CreatingDisk`` so the change-feed
+    emits an intermediate signal while the storage worker is still
+    producing the qcow2. ``parse_frontend_desktop_status`` collapses this
+    to ``Creating`` for end-user display. Leaves any other status alone.
 
     :param domain_id: Domain ID
     :type domain_id: str
@@ -462,7 +471,7 @@ def domain_creating_disk(domain_id):
     if not Domain.exists(domain_id):
         return
     domain = Domain(domain_id)
-    if domain.status == "Creating":
+    if domain.status in _DOMAIN_CREATING_TO_CREATING_DISK:
         domain.status = "CreatingDisk"
 
 
