@@ -1514,35 +1514,42 @@ class Storage(RethinkCustomBase):
         storage.set_maintenance("create")
         storage.create_task(
             user_id=user_id,
-            queue=f"storage.{storage.pool.id}.{priority}",
-            task="create",
+            queue="core",
+            task="domain_creating_disk",
             retry=retry,
             retry_intervals=15,
-            job_kwargs={"kwargs": create_kwargs},
+            job_kwargs={"kwargs": {"domain_id": domain_id}},
             dependents=[
                 {
                     "queue": f"storage.{storage.pool.id}.{priority}",
-                    "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": storage.id,
-                            "storage_path": storage.path,
-                        }
-                    },
+                    "task": "create",
+                    "job_kwargs": {"kwargs": create_kwargs},
                     "dependents": [
                         {
-                            "queue": "core",
-                            "task": "storage_update",
+                            "queue": f"storage.{storage.pool.id}.{priority}",
+                            "task": "qemu_img_info_backing_chain",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": storage.id,
+                                    "storage_path": storage.path,
+                                }
+                            },
                             "dependents": [
                                 {
                                     "queue": "core",
-                                    "task": "domain_change_storage",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "domain_id": domain_id,
-                                            "storage_id": storage.id,
-                                        },
-                                    },
+                                    "task": "storage_update",
+                                    "dependents": [
+                                        {
+                                            "queue": "core",
+                                            "task": "domain_change_storage",
+                                            "job_kwargs": {
+                                                "kwargs": {
+                                                    "domain_id": domain_id,
+                                                    "storage_id": storage.id,
+                                                },
+                                            },
+                                        }
+                                    ],
                                 }
                             ],
                         }

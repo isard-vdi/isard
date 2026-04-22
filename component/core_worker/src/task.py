@@ -44,11 +44,16 @@ _DOMAIN_PRE_READY_STATUSES = frozenset(
         "DiskNew",
         "Failed",
         "Unknown",
-        "CreatingDisk",
-        "CreatingDiskFromScratch",
+        # Creating / CreatingDisk / CreatingDiskFromScratch /
+        # CreatingAndStarting are handled by the Phase A task chain —
+        # ``domain_change_storage`` (the trailing dependent of
+        # ``storage_update``) transitions them to ``CreatingDomain`` so
+        # engine's libvirt-define can run. Promoting them here would
+        # short-circuit the chain and leave the domain at ``Stopped``
+        # with no libvirt XML, so non-persistent desktops never
+        # auto-start.
         "CreatingDomain",
         "CreatingDomainFromDisk",
-        "CreatingAndStarting",
         "CreatingTemplate",
         "CreatingTemplateDisk",
         "TemplateDiskCreated",
@@ -439,6 +444,26 @@ _DOMAIN_CREATE_TO_CREATING_DOMAIN = frozenset(
         "CreatingDiskFromScratch",
     }
 )
+
+
+def domain_creating_disk(domain_id):
+    """Advance a domain from ``Creating`` to ``CreatingDisk`` at the start of
+    the task-based creation chain.
+
+    Runs as the chain root so the change-feed emits an intermediate status
+    while the storage worker is still producing the qcow2 — the frontend's
+    ``parse_frontend_desktop_status`` collapses this to ``Creating`` for
+    display, but the extra DB write gives admins a distinct signal.
+    Leaves any status other than ``Creating`` untouched.
+
+    :param domain_id: Domain ID
+    :type domain_id: str
+    """
+    if not Domain.exists(domain_id):
+        return
+    domain = Domain(domain_id)
+    if domain.status == "Creating":
+        domain.status = "CreatingDisk"
 
 
 def domain_change_storage(domain_id, storage_id):
