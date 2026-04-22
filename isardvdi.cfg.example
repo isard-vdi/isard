@@ -441,6 +441,18 @@ HAPROXY_LOGGING=.
 ## Options: off / metadata / falloc / full
 #QCOW2_PREALLOCATION=off
 
+## Create new desktop qcow2 disks via the storage task system instead of
+## the engine's SSH-to-hypervisor path. Enables a new flow where apiv4
+## enqueues a chain (create → qemu_img_info_backing_chain → storage_update
+## → domain_change_storage) on the storage worker and the engine only runs
+## libvirt define after the disk is ready. Off by default; flip to true
+## once storage workers are deployed on every pool that serves desktops.
+## Applies to the persistent desktop "from template" path today; other
+## flows (deployments, non-persistent, upload-disk, template creation)
+## still go through the engine SSH path until migrated.
+## Options: true / false
+#CREATE_DISK_VIA_TASK=false
+
 # ------ GPUS --------------------------------------------------------------
 ## ----- NVIDIA
 ## GPU discovery is automatic via nvidia-smi at hypervisor startup.
