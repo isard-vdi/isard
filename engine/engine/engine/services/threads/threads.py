@@ -13,11 +13,7 @@ from engine.services.db import (
     update_all_domains_status,
     update_disk_template_created,
 )
-from engine.services.db.domains import (
-    get_domain_status,
-    update_domain_parents,
-    update_domain_status,
-)
+from engine.services.db.domains import get_domain_status, update_domain_status
 from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.hypervisors import (
     get_hyp_hostname_from_id,
@@ -34,7 +30,6 @@ from engine.services.lib.functions import (
 )
 from engine.services.lib.qcow import (
     create_cmds_disk_template_from_domain,
-    extract_list_backing_chain,
     verify_output_cmds1_template_from_domain,
     verify_output_cmds2,
     verify_output_cmds3,
@@ -159,138 +154,6 @@ def launch_delete_media(action, hostname, user, port, final_status="Deleted"):
         log.error("failed deleting media {}".format(id_media))
         update_status_media_from_path(path, "FailedDeleted")
         return False
-
-
-def launch_action_disk(action, hostname, user, port, from_scratch=False):
-    disk_path = action["disk_path"]
-    id_domain = action["domain"]
-    index_disk = action["index_disk"]
-    array_out_err = execute_commands(
-        hostname, ssh_commands=action["ssh_commands"], user=user, port=port
-    )
-
-    logs.main.debug("#COMANDS EXECUTED IN LAUNCH ACTION DISK")
-    logs.main.debug(pprint.pformat(action["ssh_commands"]))
-    logs.main.debug("#RESULT OF COMMANDS: OUTPUT AND ERROR ")
-    logs.main.debug(pprint.pformat(array_out_err))
-
-    if action["type"] in ["create_disk", "create_disk_from_scratch"]:
-        if not any(command.get("err") for command in array_out_err):
-            ##TODO: TEST WITH MORE THAN ONE DISK, 2 list_backing_chain must be created
-            log.debug(
-                "all operations creating disk {} for new domain {} runned ok".format(
-                    disk_path, id_domain
-                )
-            )
-            out_cmd_backing_chain = array_out_err[-1]["out"]
-
-            list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
-            if id_domain is not False:
-                if from_scratch is False:
-                    update_domain_parents(id_domain)
-                # Create find task to update storage qemu-img-info
-                storage_id = action.get("storage_id")
-                if storage_id and Storage.exists(storage_id):
-                    try:
-                        domain_dict = get_domain(id_domain)
-                        user_id = domain_dict.get("user") if domain_dict else None
-                        if user_id:
-                            Storage(storage_id).find(user_id, blocking=False)
-                    except Exception as e:
-                        log.debug(
-                            f"Could not create find task for storage {storage_id}: {e}"
-                        )
-            update_storage_status(action.get("storage_id"), "ready")
-            ##INFO TO DEVELOPER
-            # ahora ya se puede llamar a starting paused
-            if id_domain is not False:
-                # update parents if have
-                # update_domain_parents(id_domain)
-                # Only go to next step if status not changed while queuing
-                if get_domain_status(id_domain) in [
-                    "CreatingDisk",
-                    "CreatingDiskFromScratch",
-                ]:
-                    update_domain_status(
-                        "CreatingDomain",
-                        id_domain,
-                        None,
-                        detail="new disk created, now go to creating desktop and testing if desktop start",
-                    )
-        else:
-            log.error(
-                "operations creating disk {} for new domain {} failed.".format(
-                    disk_path, id_domain
-                )
-            )
-            log.error(
-                "\n".join(
-                    [
-                        "cmd: {} / out: {} / err: {}".format(
-                            action["ssh_commands"][i],
-                            array_out_err[i]["out"],
-                            array_out_err[i]["err"],
-                        )
-                        for i in range(len(action["ssh_commands"]))
-                    ]
-                )
-            )
-            if id_domain is not False:
-                update_domain_status(
-                    "Failed",
-                    id_domain,
-                    detail="new disk create operation failed, details in logs",
-                )
-
-    elif action["type"] == "delete_disk":
-        if len(array_out_err[0]["err"]) > 0:
-            log.error(
-                "disk from domain {} not found, or permission denied or access to data problems".format(
-                    id_domain
-                )
-            )
-            log.error("ERROR: {}".format(array_out_err[0]["err"]))
-            if action.get("not_change_status", False) is False:
-                detail = "delete disk operation failed, disk not found: {}".format(
-                    array_out_err[0]["err"]
-                )
-                update_domain_status("DiskDeleted", id_domain, detail=detail)
-                log.info(detail)
-        elif len(array_out_err[1]["err"]) > 0:
-            log.error(
-                "disk from domain {} found, but erase command fail".format(id_domain)
-            )
-            log.error("ERROR: {}".format(array_out_err[0]["err"]))
-            if action.get("not_change_status", False) is False:
-                update_domain_status(
-                    "DiskDeleted", id_domain, detail="delete disk command failed"
-                )
-                log.info(f"domain {id_domain}: delete disk command failed")
-        elif len(array_out_err[2]["out"]) > 0:
-            log.error(
-                "disk from domain {} found, erase command not failed with error message, but disk is in directory.".format(
-                    id_domain
-                )
-            )
-            log.error("ERROR: {}".format(array_out_err[0]["out"]))
-            if action.get("not_change_status", False) is False:
-                update_domain_status(
-                    "DiskDeleted",
-                    id_domain,
-                    detail="delete disk operation failed, disk in directory can not erase",
-                )
-        else:
-            log.info("disk {} from domain {} erased".format(disk_path, id_domain))
-            update_storage_status(action.get("storage_id"), "deleted")
-
-            if action.get("not_change_status", False) is False:
-                # No find task needed for deleted storage - status already updated to "deleted"
-                update_domain_status(
-                    "DiskDeleted",
-                    id_domain,
-                    detail="delete disk operation run ok",
-                    storage_id=action.get("storage_id"),
-                )
 
 
 def launch_action_create_template_disk(action, hostname, user, port):

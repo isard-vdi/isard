@@ -579,33 +579,6 @@ def update_domain_dict_create_dict(id, create_dict):
     return results
 
 
-def update_domain_dict_hardware(domain_id, domain_dict, xml=False):
-    """Update domain xml.
-
-    NOTE: No longer writes hardware to root - field is deprecated.
-    The domain_dict parameter is kept for signature compatibility but ignored.
-
-    Args:
-        domain_id: The domain ID
-        domain_dict: DEPRECATED - Hardware dictionary (ignored, kept for compatibility)
-        xml: Optional XML string to update
-    """
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    update_dict = {}
-    if xml is not False:
-        update_dict["xml"] = xml
-
-    if update_dict:
-        results = rtable.get(domain_id).update(update_dict).run(r_conn)
-    else:
-        results = {}
-
-    close_rethink_connection(r_conn)
-    return results
-
-
 def remove_domain_viewer_values(domain_id):
     with rethink_conn() as conn:
         try:

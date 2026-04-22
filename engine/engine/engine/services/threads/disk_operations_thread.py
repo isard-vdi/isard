@@ -10,7 +10,6 @@ from engine.services.log import log, logs
 from engine.services.threads.threads import (
     TIMEOUT_QUEUES,
     launch_action_create_template_disk,
-    launch_action_disk,
     launch_delete_disk_action,
 )
 
@@ -54,8 +53,6 @@ class DiskOperationsThread(threading.Thread):
         # Warning: increasing workers from this values could cause rethinkdb to saturate
         # number of connections
         self.executors = {
-            "create_disk": LimitedThreadPoolExecutor(max_workers=5),
-            "create_disk_from_scratch": LimitedThreadPoolExecutor(max_workers=5),
             "delete_disk": LimitedThreadPoolExecutor(max_workers=5),
             "create_template_disk_from_domain": LimitedThreadPoolExecutor(
                 max_workers=2
@@ -122,13 +119,7 @@ class DiskOperationsThread(threading.Thread):
 
     def handle_action(self, action):
         try:
-            if action["type"] == "create_disk":
-                launch_action_disk(action, self.hostname, self.user, self.port)
-            elif action["type"] == "create_disk_from_scratch":
-                launch_action_disk(
-                    action, self.hostname, self.user, self.port, from_scratch=True
-                )
-            elif action["type"] == "delete_disk":
+            if action["type"] == "delete_disk":
                 launch_delete_disk_action(action, self.hostname, self.user, self.port)
             elif action["type"] == "create_template_disk_from_domain":
                 log.info(
