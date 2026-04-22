@@ -4,6 +4,7 @@
 # License: AGPLv3
 
 
+import os
 import pprint
 import queue
 import threading
@@ -11,6 +12,13 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from time import sleep
+
+# When enabled, apiv4 enqueues a storage.create task chain at desktop
+# creation time and the engine's SSH-based disk dispatch is skipped.
+# See docs and isardvdi.cfg.example.
+_CREATE_DISK_VIA_TASK = (
+    os.environ.get("CREATE_DISK_VIA_TASK", "false").lower() == "true"
+)
 
 from engine.config import (
     POLLING_INTERVAL_BACKGROUND,
@@ -643,7 +651,11 @@ class Engine(object):
                     if new_domain is True and new_status == "CreatingDiskFromScratch":
                         self._submit_action(ui.creating_disk_from_scratch, domain_id)
 
-                    if new_domain is True and new_status == "Creating":
+                    if (
+                        new_domain is True
+                        and new_status == "Creating"
+                        and not _CREATE_DISK_VIA_TASK
+                    ):
                         self._submit_action(ui.creating_disks_from_template, domain_id)
 
                     # apiv4 edit (routes/domains/desktops.py PUT .../edit

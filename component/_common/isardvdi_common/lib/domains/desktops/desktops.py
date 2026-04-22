@@ -22,6 +22,7 @@ import asyncio
 import copy
 import json
 import logging as log
+import os
 import time
 import traceback
 import uuid
@@ -56,6 +57,7 @@ from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.lib.domains.templates.templates import TemplatesProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.user import User
 from isardvdi_common.schemas.domains import (
     DesktopFromTemplate,
@@ -68,6 +70,10 @@ from socketio import RedisManager
 from ....schemas.domains import DesktopFromTemplate, DesktopStatusEnum, DomainStatus
 
 socketio = RedisManager(socketio_url(), write_only=True)
+
+_CREATE_DISK_VIA_TASK = (
+    os.environ.get("CREATE_DISK_VIA_TASK", "false").lower() == "true"
+)
 
 
 class DesktopsProcessed(RethinkSharedConnection):
@@ -510,6 +516,27 @@ class DesktopsProcessed(RethinkSharedConnection):
             else:
                 with cls._rdb_context():
                     r.table("domains").insert(valid_desktop).run(cls._rdb_connection)
+
+            if _CREATE_DISK_VIA_TASK:
+                parent_storage_id = (
+                    template.get("create_dict", {})
+                    .get("hardware", {})
+                    .get("disks", [{}])[0]
+                    .get("storage_id")
+                )
+                if not parent_storage_id:
+                    raise Error(
+                        "precondition_required",
+                        f"Template {template['id']} has no storage_id on disk 0; "
+                        "cannot create via storage task.",
+                        description_code="template_no_storage_id",
+                    )
+                Storage.create_new_storage_for_domain(
+                    domain_id=valid_desktop["id"],
+                    user_id=user_id,
+                    pool_usage="desktop",
+                    parent_id=parent_storage_id,
+                )
         if image:
             image_data = image
             if not image_data.get("file"):
