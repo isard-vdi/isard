@@ -432,9 +432,20 @@ def send_storage_socket_user(event, storage_id):
     )
 
 
+_DOMAIN_CREATE_TO_CREATING_DOMAIN = frozenset(
+    {
+        "Creating",
+        "CreatingDisk",
+        "CreatingDiskFromScratch",
+    }
+)
+
+
 def domain_change_storage(domain_id, storage_id):
     """
-    Change a domain's storage.
+    Wire a storage into a domain's first disk and, when the domain is in
+    a pre-libvirt creation status, advance it to ``CreatingDomain`` so the
+    engine's libvirt-define handler takes over.
 
     :param domain_id: Domain ID
     :type domain_id: str
@@ -443,10 +454,19 @@ def domain_change_storage(domain_id, storage_id):
     """
     if not Domain.exists(domain_id):
         return
+    if not Storage.exists(storage_id):
+        return
     domain = Domain(domain_id)
+    storage = Storage(storage_id)
     c_dict = domain.create_dict
-    c_dict["hardware"]["disks"][0]["storage_id"] = storage_id
+    disk = c_dict["hardware"]["disks"][0]
+    disk["storage_id"] = storage_id
+    disk["file"] = storage.path
+    disk["parent"] = storage.parent
     domain.create_dict = c_dict
+
+    if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN:
+        domain.status = "CreatingDomain"
 
 
 def _valid_storage_pool(storage, new_path):
