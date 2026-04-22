@@ -42,6 +42,7 @@ class DomainKindEnum(str, Enum):
 # Common domain status enums for both desktop and template domains
 class DomainStatusEnum(str, Enum):
     creating = "Creating"
+    creating_disk = "CreatingDisk"
     starting_paused = "StartingPaused"
     stopped = "Stopped"
     failed = "Failed"
@@ -51,6 +52,7 @@ class DomainStatusEnum(str, Enum):
 
 class DesktopStatusEnum(str, Enum):
     creating = DomainStatusEnum.creating.value
+    creating_disk = DomainStatusEnum.creating_disk.value
     creating_and_starting = "CreatingAndStarting"
     starting = "Starting"
     starting_paused = DomainStatusEnum.starting_paused.value
