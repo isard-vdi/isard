@@ -1017,13 +1017,12 @@ def _probe_libvirt_numa_cells():
     if not xml:
         return None
 
-    from io import StringIO
+    # Stdlib xml.etree — the hypervisor image does not ship lxml.
+    import xml.etree.ElementTree as ET
 
-    from lxml import etree
-
-    tree = etree.parse(StringIO(xml))
+    root = ET.fromstring(xml)
     cells = []
-    for cell in tree.xpath("/capabilities/host/topology/cells/cell"):
+    for cell in root.findall("./host/topology/cells/cell"):
         try:
             cell_id = int(cell.get("id"))
         except (TypeError, ValueError):
@@ -1031,7 +1030,7 @@ def _probe_libvirt_numa_cells():
         mem_elem = cell.find("memory")
         memory_kb = int(mem_elem.text) if mem_elem is not None and mem_elem.text else 0
         cpus = set()
-        for cpu in cell.xpath("cpus/cpu"):
+        for cpu in cell.findall("./cpus/cpu"):
             try:
                 cpus.add(int(cpu.get("id")))
             except (TypeError, ValueError):
