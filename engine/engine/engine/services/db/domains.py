@@ -16,7 +16,6 @@ from engine.services.db import (
     rethink_conn,
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
-from engine.services.lib.storage import update_storage_deleted_domain
 from engine.services.log import logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -312,7 +311,6 @@ def update_domain_status(
     hyp_id=None,
     detail="",
     keep_hyp_id=False,
-    storage_id=None,
 ):
     if DEBUG_CHANGES:
         thread_name = threading.currentThread().name
@@ -408,16 +406,6 @@ def update_domain_status(
                     .update(d_update, return_changes=True)
                     .run(conn)
                 )
-
-        if status == "DiskDeleted":
-            try:
-                update_storage_deleted_domain(
-                    storage_id, results.get("changes", [{}])[0].get("new_val")
-                )
-            except Exception as e:
-                logs.main.error("Exception in update_storage_deleted_domain")
-                logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
-                logs.main.error("Exception message: {}".format(e))
 
         if status == "Failed":
             remove_fieds_when_stopped(id_domain)
@@ -1150,15 +1138,6 @@ def insert_domain(dict_domain):
     rtable = r.table("domains")
 
     result = rtable.insert(dict_domain).run(r_conn)
-    close_rethink_connection(r_conn)
-    return result
-
-
-def remove_domain(id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    result = rtable.get(id).delete().run(r_conn)
     close_rethink_connection(r_conn)
     return result
 

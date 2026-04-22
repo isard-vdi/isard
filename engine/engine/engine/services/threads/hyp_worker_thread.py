@@ -1682,29 +1682,16 @@ class HypWorkerThread(threading.Thread):
             update_vgpu_info_if_stopped(action["id_domain"])
 
             # Handle post-stop actions
-            check_if_delete = action.get("delete_after_stopped", False)
             if action.get("not_change_status", False) is False:
-                if check_if_delete:
-                    update_domain_status("Stopped", action["id_domain"], hyp_id="")
-                    update_domain_status("Deleting", action["id_domain"], hyp_id="")
-                    log_action(
-                        self.hyp_id,
-                        action["id_domain"],
-                        action["type"],
-                        intervals,
-                        time.time() - action_time,
-                        "Stopped and Deleting",
-                    )
-                else:
-                    update_domain_status("Stopped", action["id_domain"], hyp_id="")
-                    log_action(
-                        self.hyp_id,
-                        action["id_domain"],
-                        action["type"],
-                        intervals,
-                        time.time() - action_time,
-                        "Stopped",
-                    )
+                update_domain_status("Stopped", action["id_domain"], hyp_id="")
+                log_action(
+                    self.hyp_id,
+                    action["id_domain"],
+                    action["type"],
+                    intervals,
+                    time.time() - action_time,
+                    "Stopped",
+                )
         except Exception as e:
             logs.exception_id.debug("0065")
             if action.get("not_change_status", False) is False:

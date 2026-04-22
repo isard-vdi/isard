@@ -29,7 +29,6 @@ from engine.services.db import (
     get_domain_hyp_started,
     get_hypers_ids_with_status,
     get_if_all_disk_template_created,
-    remove_domain,
     update_domain_history_from_id_domain,
 )
 from engine.services.db.db import (
@@ -665,64 +664,24 @@ class Engine(object):
                             "CreatingAndStarting",
                         ]
                         and new_status == "CreatingDomain"
-                    ) or (
-                        new_domain is True and new_status == "CreatingDomainFromDisk"
                     ):
                         logs.changes.debug(
                             "llamo a creating_and_test_xml con domain id {}".format(
                                 domain_id
                             )
                         )
-                        if (
-                            new_status == "CreatingDomain"
-                            or new_status == "CreatingDomainFromDisk"
-                        ):
-                            self._submit_action(
-                                ui.creating_and_test_xml_start,
-                                domain_id,
-                                creating_from_create_dict=True,
-                                ssl=True,
-                                start_paused=False,
-                            )
+                        self._submit_action(
+                            ui.creating_and_test_xml_start,
+                            domain_id,
+                            creating_from_create_dict=True,
+                            ssl=True,
+                            start_paused=False,
+                        )
 
                     if old_status == "Stopped" and new_status == "CreatingTemplate":
                         self._submit_action(
                             ui.create_template_disks_from_domain, domain_id
                         )
-
-                    if (
-                        old_status not in ["Started", "Shutting-down"]
-                        and new_status == "Deleting"
-                    ):
-                        # or \
-                        #     old_status == 'Failed' and new_status == "Deleting" or \
-                        #     old_status == 'Downloaded' and new_status == "Deleting":
-                        self._submit_action(ui.deleting_disks_from_domain, domain_id)
-
-                    if (
-                        old_status == "DeletingDomainDisk"
-                        and new_status == "DiskDeleted"
-                    ):
-
-                        def _disk_deleted_action(domain_id):
-                            logs.changes.debug(
-                                "disk deleted, mow remove domain form database"
-                            )
-                            remove_domain(domain_id)
-                            if get_domain(domain_id) is None:
-                                logs.changes.info(
-                                    "domain {} deleted from database".format(domain_id)
-                                )
-                            else:
-                                update_domain_status(
-                                    "Failed",
-                                    domain_id,
-                                    detail="domain {} can not be deleted from database".format(
-                                        domain_id
-                                    ),
-                                )
-
-                        self._submit_action(_disk_deleted_action, domain_id)
 
                     if (
                         old_status == "CreatingTemplateDisk"
@@ -858,23 +817,6 @@ class Engine(object):
                                     )
 
                         self._submit_action(_stopped_storage_refresh, domain_id)
-
-                    if (
-                        old_status == "Started" and new_status == "StoppingAndDeleting"
-                    ) or (
-                        old_status == "Suspended"
-                        and new_status == "StoppingAndDeleting"
-                    ):
-
-                        def _stopping_and_deleting_action(domain_id):
-                            hyp_started = get_domain_hyp_started(domain_id)
-                            ui.stop_domain(
-                                id_domain=domain_id,
-                                hyp_id=hyp_started,
-                                delete_after_stopped=True,
-                            )
-
-                        self._submit_action(_stopping_and_deleting_action, domain_id)
 
                     if new_domain is False and new_status == "ForceDeleting":
                         self._submit_action(ui.force_deleting, domain_id, old_status)
