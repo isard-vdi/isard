@@ -98,6 +98,7 @@ const handleClick = (event: MouseEvent) => {
       >
         <slot>
           <Icon
+            v-if="iconName"
             :name="iconName"
             :size="iconSize"
             :class="cn('group-[[data-state=indeterminate]]/indicator:hidden')"

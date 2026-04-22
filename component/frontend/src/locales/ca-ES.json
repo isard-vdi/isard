@@ -39,10 +39,6 @@
       "edit": {
         "title": "Edita l’escriptori",
         "subtitle": "Modifica el nom, el maquinari i les opcions d’accés"
-      },
-      "new-from-media": {
-        "title": "Escriptori nou des del mitjà",
-        "subtitle": "Crea un escriptori a partir d’un ISO o disquet"
       }
     },
     "templates": {
@@ -71,7 +67,11 @@
     },
     "media": {
       "title": "Mitjans",
-      "subtitle": "Crea i gestiona mitjans propis o utilitza mitjans aliens per crear nous escriptoris"
+      "subtitle": "Crea i gestiona mitjans propis o utilitza mitjans d'altres per crear nous escriptoris",
+      "new-desktop-from-media": {
+        "title": "Escriptori nou des d'un mitjà",
+        "subtitle": "Crea un escriptori nou des d'un mitjà d'instal·lació"
+      }
     },
     "deployments": {
       "title": "Desplegaments",
@@ -382,6 +382,7 @@
         }
       },
       "go-to-desktops": "Ves als escriptoris",
+      "go-to-media": "Ves als mitjans",
       "desktop-created": {
         "title": "Escriptori creat correctament",
         "description": "Pots iniciar-lo ara o tornar als teus escriptoris."
@@ -578,6 +579,9 @@
           },
           "stop-download": {
             "title": "Aturar descàrrega"
+          },
+          "create-desktop": {
+            "title": "Crea un escriptori des del mitjà"
           }
         },
         "unavailable": "Contingut multimedia no disponible. Si us plau, torna-ho a provar més tard."
@@ -855,39 +859,11 @@
         "leave": "Descarta els canvis"
       }
     },
-    "new-from-media": {
-      "title": "Escriptori nou des del mitjà",
-      "subtitle": "Creant a partir de «{media}»",
-      "header": {
-        "cancel": "Cancel·la",
-        "create": "Crea escriptori"
-      },
-      "errors": {
-        "title": "Error en crear l’escriptori"
-      },
-      "info": {
-        "title": "Nom i descripció",
-        "description": "Defineix el nom i la descripció del nou escriptori."
-      },
+    "new-desktop-from-media": {
       "os-template": {
-        "title": "Plantilla del sistema operatiu",
-        "description": "Tria la plantilla de maquinari del SO per al nou escriptori.",
-        "label": "Plantilla SO",
+        "title": "Plantilla de sistema operatiu",
+        "description": "Selecciona la plantilla de sistema operatiu per a la instal·lació",
         "placeholder": "Selecciona una plantilla"
-      },
-      "access": {
-        "title": "Accés",
-        "description": "Visualitzadors i credencials per al nou escriptori."
-      },
-      "hardware": {
-        "title": "Maquinari",
-        "description": "vCPU, memòria, mida de disc, ordre d’arrencada i interfícies."
-      },
-      "unsaved-changes": {
-        "title": "Canvis sense desar",
-        "description": "Tens canvis sense desar. Si surts els perdràs.",
-        "stay": "Quedat",
-        "leave": "Descarta els canvis"
       }
     },
     "forgot-password": {
@@ -1456,7 +1432,8 @@
       "storage-unavailable-modal": {
         "title": "Emmagatzematge no disponible",
         "description": "L'emmagatzematge de creació no està disponible actualment i no es poden crear escriptoris. Si us plau, torni-ho a provar més tard.",
-        "go-to-desktops": "Tornar als escriptoris"
+        "go-to-desktops": "Torna als escriptoris",
+        "go-to-media": "Torna als mitjans"
       },
       "fields": {
         "ip": {
@@ -1840,8 +1817,9 @@
         },
         "wireguard-warning": {
           "title": "Cal la interfície wireguard",
-          "description": "El visualitzador seleccionat necessita la interfície de xarxa wireguard per funcionar. Afegeix-la per continuar.",
-          "add-interface-button": "Afegeix la interfície wireguard"
+          "description": "El visor seleccionat necessita la interfície de xarxa wireguard per funcionar. Afegeix-la per continuar.",
+          "add-interface-button": "Afegeix la interfície wireguard",
+          "no-permission-description": "El visor seleccionat necessita la interfície de xarxa wireguard per funcionar, però no tens permís per utilitzar-la. Contacta amb l'administrador."
         }
       },
       "hardware": {
@@ -1957,9 +1935,6 @@
         "title": "Quota de creació de mitjans superada",
         "description": "Quota de creació de mitjans superada. Cal eliminar un mitjà per poder pujar-ne un de nou.",
         "cancel": "Torna als mitjans"
-      },
-      "actions": {
-        "new-from-media": "Crea escriptori"
       }
     },
     "deployments": {
@@ -2252,26 +2227,6 @@
           "title": "Els reservables dels escriptoris no son iguals",
           "description": "Tots els escriptoris amb reservables en un desplegament han de tenir els mateixos reservables assignats. Si us plau, assegura't que tots els escriptoris amb reservables tinguin els mateixos reservables assignats i torna-ho a provar."
         }
-      }
-    },
-    "edit-desktop": {
-      "errors": {
-        "generic": "Hi ha hagut un error en desar l’escriptori. Torna-ho a provar.",
-        "internal_server": "Error intern del servidor en desar l’escriptori.",
-        "desktop_not_stopped": "L’escriptori ha d’estar aturat abans d’editar-lo."
-      }
-    },
-    "edit-template": {
-      "errors": {
-        "generic": "Hi ha hagut un error en desar la plantilla. Torna-ho a provar.",
-        "internal_server": "Error intern del servidor en desar la plantilla.",
-        "new_template_name_exists": "Ja existeix una plantilla amb aquest nom."
-      }
-    },
-    "new-from-media": {
-      "errors": {
-        "generic": "Hi ha hagut un error en crear l’escriptori. Torna-ho a provar.",
-        "internal_server": "Error intern del servidor en crear l’escriptori."
       }
     }
   },

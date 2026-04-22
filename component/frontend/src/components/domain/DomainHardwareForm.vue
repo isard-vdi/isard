@@ -2,7 +2,7 @@
 import { revalidateLogic, useForm } from '@tanstack/vue-form'
 import { useI18n } from 'vue-i18n'
 import { InputField } from '@/components/input-field'
-import { reactive, computed, ref } from 'vue'
+import { reactive, computed, ref, watch } from 'vue'
 import { z } from 'zod'
 import {
   Field,
@@ -42,11 +42,16 @@ interface LimitedHardwareValue {
 
 type LimitedHardware = Record<string, LimitedHardwareValue>
 
+const emit = defineEmits<{
+  'update:interfaces': [interfaces: string[]]
+}>()
+
 interface Props {
   loading?: boolean
   templateId?: string // Optional template ID to load hardware from
   desktopId?: string // Optional desktop ID to load hardware from
   showDiskSize?: boolean // Show disk size field (e.g. when creating from media)
+  showPeripherals?: boolean // Show peripherals section (ISOs/floppies). Set to false when creating from media.
   // Also allow sending the default hardware values directly though props
   vcpus?: number
   memory?: number
@@ -68,6 +73,7 @@ const props = withDefaults(defineProps<Props>(), {
   templateId: undefined,
   desktopId: undefined,
   showDiskSize: false,
+  showPeripherals: true,
   diskSize: 1,
   vcpus: 2,
   memory: 4,
@@ -357,8 +363,12 @@ const getFormData = () => ({
   ...(props.showDiskSize ? { diskSize: form.getFieldValue('diskSize') } : {}),
   videos: form.getFieldValue('videos'),
   bootOrder: form.getFieldValue('bootOrder'),
-  isos: form.getFieldValue('isos'),
-  floppies: form.getFieldValue('floppies'),
+  ...(props.showPeripherals
+    ? {
+        isos: form.getFieldValue('isos'),
+        floppies: form.getFieldValue('floppies')
+      }
+    : {}),
   interfaces: form.getFieldValue('interfaces'),
   reservables: {
     vgpus: form.getFieldValue('reservables.vgpus')
@@ -393,6 +403,14 @@ function removeInterface(ifaceId: string) {
   )
 }
 
+const wireguardAvailable = computed(() =>
+  networksOptions.value.some((iface) => iface.id === 'wireguard')
+)
+
+watch(interfacesStore, (newInterfaces) => {
+  emit('update:interfaces', [...(newInterfaces as string[])])
+})
+
 defineExpose({
   getFormData,
   isValid: isFormValid,
@@ -400,7 +418,8 @@ defineExpose({
   getInterfaces,
   addInterface,
   removeInterface,
-  interfaces: interfacesStore
+  interfaces: interfacesStore,
+  wireguardAvailable
 })
 </script>
 <template>
@@ -670,6 +689,7 @@ defineExpose({
         </div>
       </section>
       <section
+        v-if="props.showPeripherals"
         class="grid gap-1.5 items-start border-b border-gray-300 pb-7 md:grid-cols-[280px_1FR] md:gap-0"
       >
         <div class="flex flex-row-reverse justify-end items-center gap-2.5">
@@ -856,7 +876,7 @@ defineExpose({
             <!-- Add modal -->
             <SelectNetworksModal
               :open="showNetworksModal"
-              :selected-networks="interfaces"
+              :selected-networks="field.state.value as string[]"
               :available-networks="networksOptions"
               @close="showNetworksModal = false"
               @save="handleSaveNetworks"

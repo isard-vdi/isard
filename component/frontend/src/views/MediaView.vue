@@ -6,7 +6,8 @@ import {
   startMediaDownloadMutation,
   abortMediaDownloadMutation,
   deleteMediaMutation,
-  checkQuotaNewMediaOptions
+  checkQuotaNewMediaOptions,
+  checkQuotaNewDesktopOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { MediaStatusEnum, type ErrorResponse } from '@/gen/oas/apiv4'
 import DataTable from '@/components/data-table/DataTable.vue'
@@ -34,9 +35,6 @@ import { QUOTA_STALE_TIME } from '@/lib/constants'
 const { t, d, te } = useI18n()
 const router = useRouter()
 
-const goToNewFromMedia = (mediaId: string) => {
-  router.push({ name: 'new-from-media', params: { mediaId } })
-}
 const queryClient = useQueryClient()
 
 const activeTab = ref<'user' | 'shared'>('user')
@@ -56,6 +54,27 @@ const openNewMediaModal = async () => {
   } catch {
     checkQuotaIsPending.value = false
     showQuotaExceededModal.value = true
+  }
+}
+
+const checkDesktopQuotaIsPending = ref(false)
+const showDesktopQuotaExceededModal = ref(false)
+
+const handleCreateDesktopFromMedia = async (mediaId: string) => {
+  checkDesktopQuotaIsPending.value = true
+  try {
+    await queryClient.fetchQuery({
+      ...checkQuotaNewDesktopOptions(),
+      staleTime: QUOTA_STALE_TIME
+    })
+    checkDesktopQuotaIsPending.value = false
+    router.push({
+      name: 'new-desktop-from-media',
+      params: { mediaId }
+    })
+  } catch {
+    checkDesktopQuotaIsPending.value = false
+    showDesktopQuotaExceededModal.value = true
   }
 }
 
@@ -308,7 +327,13 @@ const sharedHeaders = computed(() => [
     key: 'status',
     name: t('views.media.data-table.headers.status'),
     sortable: true,
-    width: 'minmax(max-content, 250px)'
+    width: '200px'
+  },
+  {
+    key: 'actions',
+    name: '',
+    sortable: false,
+    width: 'max-content'
   }
 ])
 
@@ -481,13 +506,28 @@ const closeDeleteModal = () => {
           <div class="text-sm font-normal">{{ row.group_name }}</div>
         </template>
         <template #cell-actions="{ row }">
-          <div class="flex items-center justify-end w-full h-full gap-4">
-            <Tooltip v-if="row.status === MediaStatusEnum.DOWNLOADING">
+          <div class="flex items-center justify-end w-full h-full gap-6">
+            <Tooltip v-if="row.status === MediaStatusEnum.DOWNLOADED">
+              <TooltipTrigger as-child>
+                <Button
+                  hierarchy="secondary-gray"
+                  icon="monitor-01"
+                  class="aspect-square p-2.5"
+                  :disabled="checkDesktopQuotaIsPending"
+                  @click="handleCreateDesktopFromMedia(row.id)"
+                ></Button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                :title="t('views.media.tooltip.buttons.create-desktop.title')"
+              />
+            </Tooltip>
+            <Tooltip v-if="row.status === MediaStatusEnum.DOWNLOADING && activeTab === 'user'">
               <TooltipTrigger as-child>
                 <Button
                   hierarchy="secondary-gray"
                   icon="stop"
-                  class="aspect-square p-[10px]"
+                  class="aspect-square p-2.5"
                   @click="handleAbortClick(row.id)"
                 ></Button>
               </TooltipTrigger>
@@ -496,12 +536,12 @@ const closeDeleteModal = () => {
                 :title="t('views.media.tooltip.buttons.stop-download.title')"
               />
             </Tooltip>
-            <Tooltip v-if="row.status === MediaStatusEnum.DOWNLOAD_FAILED">
+            <Tooltip v-if="row.status === MediaStatusEnum.DOWNLOAD_FAILED && activeTab === 'user'">
               <TooltipTrigger as-child>
                 <Button
                   hierarchy="secondary-gray"
                   icon="refresh-cw-01"
-                  class="aspect-square p-[10px]"
+                  class="aspect-square p-2.5"
                   @click="handleDownloadMedia(row.id)"
                 ></Button>
               </TooltipTrigger>
@@ -510,28 +550,18 @@ const closeDeleteModal = () => {
                 :title="t('views.media.tooltip.buttons.download.title')"
               />
             </Tooltip>
-            <Tooltip v-if="row.status === MediaStatusEnum.DOWNLOADED">
-              <TooltipTrigger as-child>
-                <Button
-                  hierarchy="secondary-gray"
-                  icon="plus"
-                  class="aspect-square p-[10px]"
-                  @click="goToNewFromMedia(row.id)"
-                ></Button>
-              </TooltipTrigger>
-              <TooltipContent :side="'top'" :title="t('views.media.actions.new-from-media')" />
-            </Tooltip>
             <Tooltip
               v-if="
-                row.status === MediaStatusEnum.DOWNLOADED ||
-                row.status === MediaStatusEnum.DOWNLOAD_FAILED
+                activeTab === 'user' &&
+                (row.status === MediaStatusEnum.DOWNLOADED ||
+                  row.status === MediaStatusEnum.DOWNLOAD_FAILED)
               "
             >
               <TooltipTrigger as-child>
                 <Button
                   hierarchy="secondary-gray"
                   icon="trash-04"
-                  class="aspect-square p-[10px]"
+                  class="aspect-square p-2.5"
                   @click="handleDeleteClick(row.id, row.name)"
                 ></Button>
               </TooltipTrigger>
@@ -602,6 +632,16 @@ const closeDeleteModal = () => {
     @close="showQuotaExceededModal = false"
   />
   <NewMediaModal :open="showNewMediaModal" @close="showNewMediaModal = false" />
+
+  <!-- Desktop Quota Exceeded Modal -->
+  <QuotaExceededModal
+    :open="showDesktopQuotaExceededModal"
+    :title="t('components.desktops.quota-exceeded-modal.title')"
+    :description="t('components.desktops.quota-exceeded-modal.description')"
+    :cancel-label="t('components.desktops.quota-exceeded-modal.cancel')"
+    :cancel-to="{ name: 'media' }"
+    @close="showDesktopQuotaExceededModal = false"
+  />
 
   <!-- Action Error Modal -->
   <AlertModal

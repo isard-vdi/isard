@@ -39,10 +39,6 @@
       "edit": {
         "title": "Editar escritorio",
         "subtitle": "Modifica nombre, hardware y opciones de acceso"
-      },
-      "new-from-media": {
-        "title": "Escritorio nuevo desde medio",
-        "subtitle": "Crea un escritorio a partir de un ISO o disquete"
       }
     },
     "templates": {
@@ -71,7 +67,11 @@
     },
     "media": {
       "title": "Medios",
-      "subtitle": "Crea y gestiona medios propios o utiliza medios ajenos para crear nuevos escritorios"
+      "subtitle": "Crea y gestiona medios propios o utiliza medios ajenos para crear nuevos escritorios",
+      "new-desktop-from-media": {
+        "title": "Nuevo escritorio desde un medio",
+        "subtitle": "Crear un nuevo escritorio desde un medio de instalación"
+      }
     },
     "deployments": {
       "title": "Despliegues",
@@ -382,6 +382,7 @@
         }
       },
       "go-to-desktops": "Ir a mis escritorios",
+      "go-to-media": "Ir a mis medios",
       "desktop-created": {
         "title": "Escritorio creado correctamente",
         "description": "Puedes iniciarlo ahora o volver a tus escritorios."
@@ -578,6 +579,9 @@
           },
           "stop-download": {
             "title": "Parar descarga"
+          },
+          "create-desktop": {
+            "title": "Crear escritorio desde el medio"
           }
         },
         "unavailable": "Contenido multimedia no disponible. Por favor, inténtalo más tarde."
@@ -773,6 +777,13 @@
         "loading": "Error al cargar los despliegues:"
       }
     },
+    "new-desktop-from-media": {
+      "os-template": {
+        "title": "Plantilla de sistema operativo",
+        "description": "Selecciona la plantilla de sistema operativo para la instalación",
+        "placeholder": "Selecciona una plantilla"
+      }
+    },
     "direct-viewer": {
       "title": "Visor directo",
       "connecting-to": "Accede al escritorio",
@@ -853,56 +864,6 @@
         "description": "Tienes cambios sin guardar. Si sales se perderán.",
         "stay": "Quedarme",
         "leave": "Descartar cambios"
-      }
-    },
-    "new-from-media": {
-      "title": "Escritorio nuevo desde medio",
-      "subtitle": "Creando a partir de «{media}»",
-      "header": {
-        "cancel": "Cancelar",
-        "create": "Crear escritorio"
-      },
-      "errors": {
-        "title": "Error al crear el escritorio"
-      },
-      "info": {
-        "title": "Nombre y descripción",
-        "description": "Define el nombre y la descripción del nuevo escritorio."
-      },
-      "os-template": {
-        "title": "Plantilla del sistema operativo",
-        "description": "Elige la plantilla de hardware del SO para el nuevo escritorio.",
-        "label": "Plantilla SO",
-        "placeholder": "Selecciona una plantilla"
-      },
-      "access": {
-        "title": "Acceso",
-        "description": "Visores y credenciales para el nuevo escritorio."
-      },
-      "hardware": {
-        "title": "Hardware",
-        "description": "vCPU, memoria, tamaño de disco, orden de arranque e interfaces."
-      },
-      "unsaved-changes": {
-        "title": "Cambios sin guardar",
-        "description": "Tienes cambios sin guardar. Si sales se perderán.",
-        "stay": "Quedarme",
-        "leave": "Descartar cambios"
-      }
-    },
-    "forgot-password": {
-      "title": "Restablecer contraseña",
-      "invalid-email": "Introduce una dirección de correo válida",
-      "title-sent": "Correo enviado",
-      "description": "Introduce tu dirección de correo y te enviaremos un enlace para restablecerla.",
-      "email-label": "Correo",
-      "email-placeholder": "nombre{'@'}ejemplo.com",
-      "error-generic": "Se ha producido un error. Inténtalo de nuevo.",
-      "email-sent": "Si tu dirección de correo existe en nuestra base de datos, recibirás un enlace de recuperación de contraseña en breve.",
-      "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundos.",
-      "go-login": "Volver al inicio de sesión",
-      "buttons": {
-        "reset": "Enviar enlace de restablecimiento"
       }
     }
   },
@@ -1436,7 +1397,8 @@
       "storage-unavailable-modal": {
         "title": "Almacenamiento no disponible",
         "description": "El almacenamiento de creación no está disponible actualmente y no se pueden crear escritorios. Por favor, inténtelo más tarde.",
-        "go-to-desktops": "Volver a escritorios"
+        "go-to-desktops": "Volver a escritorios",
+        "go-to-media": "Volver a medios"
       },
       "fields": {
         "ip": {
@@ -1847,7 +1809,8 @@
         "wireguard-warning": {
           "title": "Se requiere la interfaz wireguard",
           "description": "El visor seleccionado necesita la interfaz de red wireguard para funcionar. Añádela para continuar.",
-          "add-interface-button": "Añadir interfaz wireguard"
+          "add-interface-button": "Añadir interfaz wireguard",
+          "no-permission-description": "El visor seleccionado necesita la interfaz de red wireguard para funcionar, pero no tienes permiso para usarla. Contacta con el administrador para que te la habilite."
         }
       },
       "hardware": {
@@ -1963,9 +1926,6 @@
         "title": "Cuota de creación de medios superada",
         "description": "Cuota de creación de medios superada. Debe eliminarse un medio para poder subir uno nuevo.",
         "cancel": "Volver a medios"
-      },
-      "actions": {
-        "new-from-media": "Crear escritorio"
       }
     },
     "deployments": {
@@ -2269,12 +2229,6 @@
         "generic": "Se ha producido un error al guardar la plantilla. Inténtalo de nuevo.",
         "internal_server": "Error interno del servidor al guardar la plantilla.",
         "new_template_name_exists": "Ya existe una plantilla con ese nombre."
-      }
-    },
-    "new-from-media": {
-      "errors": {
-        "generic": "Se ha producido un error al crear el escritorio. Inténtalo de nuevo.",
-        "internal_server": "Error interno del servidor al crear el escritorio."
       }
     }
   },
