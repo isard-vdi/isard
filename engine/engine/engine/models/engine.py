@@ -628,7 +628,12 @@ class Engine(object):
                     ):
                         old_status = c["old_val"]["status"]
                         new_status = c["new_val"]["status"]
-                        new_detail = c["new_val"]["detail"]
+                        # ``detail`` is optional: apiv4's Pydantic schemas
+                        # (DesktopFromTemplate, DomainModel) do not declare
+                        # it, so rows inserted through those paths omit the
+                        # field entirely and pluck yields no key. Default
+                        # to None so the change-handler keeps flowing.
+                        new_detail = c["new_val"].get("detail")
                         domain_id = c["new_val"]["id"]
                         logs.changes.debug("domain_id: {}".format(domain_id))
                         # if engine is stopped/restarting or not hypervisors online
@@ -695,7 +700,12 @@ class Engine(object):
                         # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
                     if (
-                        old_status in ["CreatingDisk", "CreatingDiskFromScratch"]
+                        old_status
+                        in [
+                            "CreatingDisk",
+                            "CreatingDiskFromScratch",
+                            "CreatingAndStarting",
+                        ]
                         and new_status == "CreatingDomain"
                     ) or (
                         new_domain is True and new_status == "CreatingDomainFromDisk"
