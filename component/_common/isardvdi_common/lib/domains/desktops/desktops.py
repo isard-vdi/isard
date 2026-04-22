@@ -22,7 +22,6 @@ import asyncio
 import copy
 import json
 import logging as log
-import os
 import time
 import traceback
 import uuid
@@ -70,10 +69,6 @@ from socketio import RedisManager
 from ....schemas.domains import DesktopFromTemplate, DesktopStatusEnum, DomainStatus
 
 socketio = RedisManager(socketio_url(), write_only=True)
-
-_CREATE_DISK_VIA_TASK = (
-    os.environ.get("CREATE_DISK_VIA_TASK", "false").lower() == "true"
-)
 
 
 class DesktopsProcessed(RethinkSharedConnection):
@@ -436,40 +431,36 @@ class DesktopsProcessed(RethinkSharedConnection):
             {"extension": "qcow2", "parent": parent_disk}
         ]
 
-        # When creation is routed through the storage task system, allocate the
-        # storage row before inserting the domain so ``disks[0].storage_id`` is
-        # populated at insert time. That lets engine restart cleanup trace the
-        # in-flight task via the ``storage_ids`` index and avoid deleting a
-        # legitimately-in-progress Creating domain.
-        pending_storage = None
-        if _CREATE_DISK_VIA_TASK:
-            parent_storage_id = (
-                template.get("create_dict", {})
-                .get("hardware", {})
-                .get("disks", [{}])[0]
-                .get("storage_id")
+        # Allocate the storage row before inserting the domain so
+        # ``disks[0].storage_id`` is populated at insert time. That lets
+        # engine restart cleanup trace the in-flight task via the
+        # ``storage_ids`` index and avoid deleting a legitimately-in-progress
+        # Creating domain.
+        parent_storage_id = (
+            template.get("create_dict", {})
+            .get("hardware", {})
+            .get("disks", [{}])[0]
+            .get("storage_id")
+        )
+        if not parent_storage_id:
+            raise Error(
+                "precondition_required",
+                f"Template {template['id']} has no storage_id on disk 0; "
+                "cannot create via storage task.",
+                description_code="template_no_storage_id",
             )
-            if not parent_storage_id:
-                raise Error(
-                    "precondition_required",
-                    f"Template {template['id']} has no storage_id on disk 0; "
-                    "cannot create via storage task.",
-                    description_code="template_no_storage_id",
-                )
-            pending_storage = Storage.new_dict(
-                user_id=user_id,
-                pool_usage="desktop",
-                parent_id=parent_storage_id,
-            )
-            pending_storage.status_logs = [
-                {"time": int(time.time()), "status": "created"}
-            ]
-            create_dict["hardware"]["disks"][0].update(
-                {
-                    "storage_id": pending_storage.id,
-                    "file": pending_storage.path,
-                }
-            )
+        pending_storage = Storage.new_dict(
+            user_id=user_id,
+            pool_usage="desktop",
+            parent_id=parent_storage_id,
+        )
+        pending_storage.status_logs = [{"time": int(time.time()), "status": "created"}]
+        create_dict["hardware"]["disks"][0].update(
+            {
+                "storage_id": pending_storage.id,
+                "file": pending_storage.path,
+            }
+        )
 
         # Parse media info to have full media info (name and description) in create_dict
         try:
@@ -552,10 +543,9 @@ class DesktopsProcessed(RethinkSharedConnection):
                 with cls._rdb_context():
                     r.table("domains").insert(valid_desktop).run(cls._rdb_connection)
 
-            if _CREATE_DISK_VIA_TASK and pending_storage is not None:
-                pending_storage.enqueue_disk_creation_chain_for_domain(
-                    domain_id=valid_desktop["id"],
-                )
+            pending_storage.enqueue_disk_creation_chain_for_domain(
+                domain_id=valid_desktop["id"],
+            )
         if image:
             image_data = image
             if not image_data.get("file"):
@@ -1304,11 +1294,13 @@ class DesktopsProcessed(RethinkSharedConnection):
         else:
             disks = []
 
-        # Task-based path: allocate the scratch storage up-front so engine
-        # restart cleanup can trace the in-flight task via storage_ids.
+        # Allocate the scratch storage up-front so engine restart cleanup
+        # can trace the in-flight task via storage_ids. ISO-only desktops
+        # (no disk_size, disks=[]) skip this — they have no qcow2 to
+        # create.
         pending_storage = None
         pending_size = None
-        if _CREATE_DISK_VIA_TASK and disks:
+        if disks:
             pending_size = disks[0]["size"]
             pending_storage = Storage.new_dict(
                 user_id=payload["user_id"],
@@ -1401,7 +1393,7 @@ class DesktopsProcessed(RethinkSharedConnection):
         with cls._rdb_context():
             r.table("domains").insert(domain).run(cls._rdb_connection)
 
-        if _CREATE_DISK_VIA_TASK and pending_storage is not None:
+        if pending_storage is not None:
             pending_storage.enqueue_disk_creation_chain_for_domain(
                 domain_id=domain["id"],
                 size=pending_size,
