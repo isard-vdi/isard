@@ -472,6 +472,19 @@ def domain_change_storage(domain_id, storage_id):
     a pre-libvirt creation status, advance it to ``CreatingDomain`` so the
     engine's libvirt-define handler takes over.
 
+    Used in two flows:
+      * the task-based create chain — finalizes a freshly-created qcow2
+        by linking it to the domain and flipping the status forward.
+      * the storage recreate chain — swaps a domain from its old storage
+        to a newly-rebuilt one.
+
+    In the create flow, when the upstream chain failed the storage row
+    is left at a non-"ready" status; raising here propagates the failure
+    to the trailing ``update_status`` dependent, which marks the domain
+    and storage as ``Failed``. The recreate flow never puts the domain
+    in a create allow-list status, so its ordering (storage still
+    "non_existing" when this task runs) is unaffected.
+
     :param domain_id: Domain ID
     :type domain_id: str
     :param storage_id: Storage ID
@@ -483,6 +496,13 @@ def domain_change_storage(domain_id, storage_id):
         return
     domain = Domain(domain_id)
     storage = Storage(storage_id)
+
+    if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN and storage.status != "ready":
+        raise Exception(
+            f"Cannot finalize domain {domain_id}: storage {storage_id} is "
+            f"not ready (status={storage.status!r})."
+        )
+
     c_dict = domain.create_dict
     disk = c_dict["hardware"]["disks"][0]
     disk["storage_id"] = storage_id
