@@ -78,6 +78,8 @@ type SAMLConfig struct {
 	LogoutRedirectURL string
 
 	SaveEmail bool
+
+	AllowInsecureTLS bool
 }
 
 type SAML struct {
@@ -193,6 +195,21 @@ func buildSAMLMiddleware(params samlMiddlewareParams) (*samlsp.Middleware, error
 func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	prvCfg := s.cfg.Cfg()
 
+	if s.httpClient == nil {
+		s.httpClient = &http.Client{Timeout: 30 * time.Second}
+	}
+	tr, _ := s.httpClient.Transport.(*http.Transport)
+	if tr == nil {
+		tr = &http.Transport{}
+		s.httpClient.Transport = tr
+	}
+	if cfg.AllowInsecureTLS {
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	} else {
+		tr.TLSClientConfig = nil
+	}
+	tr.CloseIdleConnections()
+
 	var metadata *saml.EntityDescriptor
 	var err error
 
@@ -232,12 +249,8 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 			return fmt.Errorf("parse metadata URL: %w", err)
 		}
 
-		httpClient := s.httpClient
-		if httpClient == nil {
-			httpClient = &http.Client{Timeout: 30 * time.Second}
-		}
 		s.log.Debug().Str("url", cfg.MetadataURL).Msg("fetching IdP metadata from URL")
-		metadata, err = samlsp.FetchMetadata(ctx, httpClient, *remoteMetadataURL)
+		metadata, err = samlsp.FetchMetadata(ctx, s.httpClient, *remoteMetadataURL)
 		if err != nil {
 			return fmt.Errorf("fetch metadata from URL failed: %w", err)
 		}
@@ -387,6 +400,11 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	prvCfg.LogoutRedirectURL = cfg.LogoutRedirectURL
 
 	prvCfg.SaveEmail = cfg.SaveEmail
+
+	prvCfg.AllowInsecureTLS = cfg.AllowInsecureTLS
+	if cfg.AllowInsecureTLS {
+		s.log.Warn().Msg("SAML: TLS certificate verification is DISABLED (allow_insecure_tls=true). Use only for testing or with trusted self-signed certificates.")
+	}
 
 	s.cfg.LoadCfg(prvCfg)
 
@@ -625,7 +643,7 @@ func (s *SAML) Healthcheck() error {
 		}
 	}
 
-	resp, err := http.Get(bindingLocation)
+	resp, err := s.httpClient.Get(bindingLocation)
 	if err != nil {
 		return fmt.Errorf("unable to get the SAML binding location: %w", err)
 	}

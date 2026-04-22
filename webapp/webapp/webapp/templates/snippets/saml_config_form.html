@@ -38,6 +38,18 @@
 {% endwith %}
 
 {% with
+  name="allow_insecure_tls",
+  label="Allow insecure TLS certificates",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+<p class="help-block text-warning">
+  <strong>INSECURE</strong> — only enable for testing or with trusted self-signed certificates. Disables TLS certificate validation when fetching IdP metadata or running the healthcheck.
+</p>
+
+{% with
   name="entity_id",
   label="Entity ID",
   required=false

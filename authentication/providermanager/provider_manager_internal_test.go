@@ -3,7 +3,6 @@ package providermanager
 import (
 	"context"
 	"errors"
-	"net/http"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -19,18 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-var noNetworkClient = &http.Client{
-	Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
-		return nil, errors.New("no network in tests")
-	}),
-}
-
-type roundTripperFunc func(*http.Request) (*http.Response, error)
-
-func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
-}
 
 func TestProviderManagerProviders(t *testing.T) {
 	t.Parallel()
@@ -2160,8 +2147,7 @@ func TestProviderManagerManage(t *testing.T) {
 				tc.PrepareDB(dbMock)
 
 				m := InitProviderManager(cfg.Authentication{}, log.New("test", "debug"), dbMock)
-				m.httpClient = noNetworkClient
-				m.samlValidateURL = func(string) error { return nil }
+				m.samlValidateURL = func(string) error { return errors.New("no network in tests") }
 
 				if tc.ReloadInterval > 0 {
 					m.cfgWatcher.reloadInterval = tc.ReloadInterval
