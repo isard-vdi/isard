@@ -183,7 +183,38 @@ def DeleteHypervisor():
         return False
 
 
+def _refresh_numa_topology_with_libvirt():
+    """Re-run NUMA discovery now that libvirtd is up and publish to the API.
+
+    SetupHypervisor() runs before libvirtd starts, so its numa_topology is
+    sysfs-only with libvirt_numa_ok=False. This runs at enable time and
+    publishes the validated topology (libvirt_numa_ok=True when libvirt's
+    NUMA view matches sysfs, False otherwise — engine gates <numatune> on
+    that flag).
+    """
+    try:
+        topo = discover_numa_topology(probe_libvirt=True)
+    except Exception as e:
+        print(f"NUMA refresh: discovery failed: {e}")
+        return
+    if not topo:
+        return
+    hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
+    try:
+        apic.update(
+            "hypervisor/" + hyper_id,
+            data={"numa_topology": json.dumps(topo), "enabled": True},
+        )
+        print(
+            f"NUMA refresh: libvirt_numa_ok={topo.get('libvirt_numa_ok')} "
+            f"reason={topo.get('reason')} nodes={list(topo.get('nodes', {}).keys())}"
+        )
+    except Exception as e:
+        print(f"NUMA refresh: failed to update hypervisor record: {e}")
+
+
 def EnableHypervisor():
+    _refresh_numa_topology_with_libvirt()
     data = {"enabled": True}
     ok = False
     while not ok:

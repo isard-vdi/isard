@@ -378,123 +378,145 @@ class UiActions(object):
                 )
                 return False
             if next_hyp is not False:
-                # --- NUMA node selection ---
-                numa_topo = extra_info.get("numa_topology", {})
-                numa_nodes = numa_topo.get("nodes", {})
-                numa_hp_free = extra_info.get("numa_hugepages_free_kb", {})
-                domain_memory_kb = domain_memory_gb * 1048576
-                target_node = None
-                mem_mode = "preferred"
-                if len(numa_nodes) > 1:
-                    gpu_numa = extra_info.get("gpu_numa_node")
-                    if is_gpu and gpu_numa is not None:
-                        target_node = str(gpu_numa)
-                        # Use strict only if this node has enough hugepages;
-                        # fall back to preferred if the node is short so the
-                        # kernel can pull from a remote node instead of failing.
-                        node_free = numa_hp_free.get(target_node, 0)
-                        if node_free >= domain_memory_kb:
-                            mem_mode = "strict"
-                        else:
-                            mem_mode = "preferred"
-                            if node_free > 0:
-                                log.info(
-                                    f"{id_domain}: GPU NUMA node {target_node} has "
-                                    f"{node_free}KB free < {domain_memory_kb}KB needed, "
-                                    f"using preferred mode (may cross NUMA)"
-                                )
-                    else:
-                        # Pick NUMA node with most free hugepages, or hash-distribute
-                        if numa_hp_free:
-                            candidates = {
-                                n: free_kb
-                                for n, free_kb in numa_hp_free.items()
-                                if n in numa_nodes and free_kb >= domain_memory_kb
-                            }
-                            if candidates:
-                                target_node = max(candidates, key=candidates.get)
-                            else:
-                                valid = {
-                                    n: f
-                                    for n, f in numa_hp_free.items()
-                                    if n in numa_nodes
-                                }
-                                target_node = (
-                                    max(valid, key=valid.get) if valid else "0"
-                                )
-                        else:
-                            node_keys = sorted(numa_nodes.keys())
-                            node_idx = hash(id_domain) % len(node_keys)
-                            target_node = node_keys[node_idx]
-                        mem_mode = "preferred"
-
-                # --- Hugepages assignment ---
                 # Flag the slow-VFIO path so the worker can extend its
                 # libvirt createXML timeout for this action (see
                 # LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW). A GPU domain forced
                 # onto 4K-page RAM routinely exceeds the 30s default.
+                # Declared before the try block below so it stays visible
+                # even if the optimization block bails out.
                 expects_slow_createxml = False
-                if is_gpu:
-                    hugepages = extra_info.get("hugepages", {})
-                    if hugepages.get("mounted"):
-                        hp_free_kb = extra_info.get("hugepages_free_kb", 0)
-                        if hp_free_kb >= domain_memory_kb:
-                            if hugepages.get("1G", {}).get("total", 0) > 0:
-                                xml = add_memory_backing(xml, "1", "G")
-                            elif hugepages.get("2M", {}).get("total", 0) > 0:
-                                xml = add_memory_backing(xml, "2", "M")
-                        else:
-                            log.warning(
-                                f"GPU desktop {id_domain}: hugepages free "
-                                f"{hp_free_kb}KB < needed {domain_memory_kb}KB, "
-                                f"starting with 4K pages (slower VFIO mapping)"
-                            )
-                            expects_slow_createxml = True
-                    else:
-                        # GPU start on a host without a mounted hugepages
-                        # pool — 4K-page mapping is the only option.
-                        expects_slow_createxml = True
-                else:
-                    # Non-GPU: use hugepages as fallback when regular RAM is low
-                    hugepages = extra_info.get("hugepages", {})
-                    if hugepages.get("mounted"):
-                        mem_available_kb = extra_info.get("mem_available_kb", 0)
-                        hp_free_kb = extra_info.get("hugepages_free_kb", 0)
-                        min_free_kb = (
-                            int(extra_info.get("min_free_mem_gb", 0)) * 1048576
-                        )
-                        regular_available_kb = mem_available_kb
 
-                        if regular_available_kb - domain_memory_kb < min_free_kb:
+                # --- NUMA / hugepages optimizations (best-effort) ---
+                # A failure anywhere in this block (bad topology data,
+                # unexpected XML shape, missing fields) must never stop the
+                # domain from starting — we fall back to the pre-optimization
+                # XML and log a warning.
+                _xml_before_opts = xml
+                try:
+                    # --- NUMA node selection ---
+                    # Only trust numa_topology when the hypervisor confirmed
+                    # libvirt sees the same cells as sysfs. When that check
+                    # failed (or the flag is missing on older images) we skip
+                    # pinning — libvirt would otherwise reject <numatune>
+                    # with "NUMA node X is unavailable".
+                    numa_topo = extra_info.get("numa_topology", {}) or {}
+                    libvirt_numa_ok = bool(numa_topo.get("libvirt_numa_ok"))
+                    numa_nodes = numa_topo.get("nodes", {}) if libvirt_numa_ok else {}
+                    numa_hp_free = extra_info.get("numa_hugepages_free_kb", {})
+                    domain_memory_kb = domain_memory_gb * 1048576
+                    target_node = None
+                    mem_mode = "preferred"
+                    if len(numa_nodes) > 1:
+                        gpu_numa = extra_info.get("gpu_numa_node")
+                        if is_gpu and gpu_numa is not None:
+                            target_node = str(gpu_numa)
+                            # Use strict only if this node has enough hugepages;
+                            # fall back to preferred if the node is short so the
+                            # kernel can pull from a remote node instead of failing.
+                            node_free = numa_hp_free.get(target_node, 0)
+                            if node_free >= domain_memory_kb:
+                                mem_mode = "strict"
+                            else:
+                                mem_mode = "preferred"
+                                if node_free > 0:
+                                    log.info(
+                                        f"{id_domain}: GPU NUMA node {target_node} has "
+                                        f"{node_free}KB free < {domain_memory_kb}KB needed, "
+                                        f"using preferred mode (may cross NUMA)"
+                                    )
+                        else:
+                            # Pick NUMA node with most free hugepages, or hash-distribute
+                            if numa_hp_free:
+                                candidates = {
+                                    n: free_kb
+                                    for n, free_kb in numa_hp_free.items()
+                                    if n in numa_nodes and free_kb >= domain_memory_kb
+                                }
+                                if candidates:
+                                    target_node = max(candidates, key=candidates.get)
+                                else:
+                                    valid = {
+                                        n: f
+                                        for n, f in numa_hp_free.items()
+                                        if n in numa_nodes
+                                    }
+                                    target_node = (
+                                        max(valid, key=valid.get) if valid else "0"
+                                    )
+                            else:
+                                node_keys = sorted(numa_nodes.keys())
+                                node_idx = hash(id_domain) % len(node_keys)
+                                target_node = node_keys[node_idx]
+                            mem_mode = "preferred"
+
+                    # --- Hugepages assignment ---
+                    if is_gpu:
+                        hugepages = extra_info.get("hugepages", {})
+                        if hugepages.get("mounted"):
+                            hp_free_kb = extra_info.get("hugepages_free_kb", 0)
                             if hp_free_kb >= domain_memory_kb:
                                 if hugepages.get("1G", {}).get("total", 0) > 0:
                                     xml = add_memory_backing(xml, "1", "G")
                                 elif hugepages.get("2M", {}).get("total", 0) > 0:
                                     xml = add_memory_backing(xml, "2", "M")
+                            else:
+                                log.warning(
+                                    f"GPU desktop {id_domain}: hugepages free "
+                                    f"{hp_free_kb}KB < needed {domain_memory_kb}KB, "
+                                    f"starting with 4K pages (slower VFIO mapping)"
+                                )
+                                expects_slow_createxml = True
+                        else:
+                            # GPU start on a host without a mounted hugepages
+                            # pool — 4K-page mapping is the only option.
+                            expects_slow_createxml = True
+                    else:
+                        # Non-GPU: use hugepages as fallback when regular RAM is low
+                        hugepages = extra_info.get("hugepages", {})
+                        if hugepages.get("mounted"):
+                            mem_available_kb = extra_info.get("mem_available_kb", 0)
+                            hp_free_kb = extra_info.get("hugepages_free_kb", 0)
+                            min_free_kb = (
+                                int(extra_info.get("min_free_mem_gb", 0)) * 1048576
+                            )
+                            regular_available_kb = mem_available_kb
 
-                # --- NUMA CPU pinning + IO thread pinning ---
-                if target_node is not None and target_node in numa_nodes:
-                    cpulist = numa_nodes[target_node].get("cpulist", "")
-                    if cpulist:
-                        from io import StringIO
+                            if regular_available_kb - domain_memory_kb < min_free_kb:
+                                if hp_free_kb >= domain_memory_kb:
+                                    if hugepages.get("1G", {}).get("total", 0) > 0:
+                                        xml = add_memory_backing(xml, "1", "G")
+                                    elif hugepages.get("2M", {}).get("total", 0) > 0:
+                                        xml = add_memory_backing(xml, "2", "M")
 
-                        from lxml import etree
+                    # --- NUMA CPU pinning + IO thread pinning ---
+                    if target_node is not None and target_node in numa_nodes:
+                        cpulist = numa_nodes[target_node].get("cpulist", "")
+                        if cpulist:
+                            from io import StringIO
 
-                        _tree = etree.parse(StringIO(xml))
-                        _vcpu_elem = _tree.xpath("/domain/vcpu")
-                        _vcpus = (
-                            int(_vcpu_elem[0].text)
-                            if _vcpu_elem and _vcpu_elem[0].text
-                            else 1
-                        )
-                        xml = add_numa_pinning(
-                            xml,
-                            int(target_node),
-                            cpulist,
-                            _vcpus,
-                            memory_mode=mem_mode,
-                        )
-                        xml = add_iothread_pinning(xml, cpulist)
+                            from lxml import etree
+
+                            _tree = etree.parse(StringIO(xml))
+                            _vcpu_elem = _tree.xpath("/domain/vcpu")
+                            _vcpus = (
+                                int(_vcpu_elem[0].text)
+                                if _vcpu_elem and _vcpu_elem[0].text
+                                else 1
+                            )
+                            xml = add_numa_pinning(
+                                xml,
+                                int(target_node),
+                                cpulist,
+                                _vcpus,
+                                memory_mode=mem_mode,
+                            )
+                            xml = add_iothread_pinning(xml, cpulist)
+                except Exception as _opt_err:
+                    log.warning(
+                        f"NUMA/hugepages optimizations failed for {id_domain}: "
+                        f"{_opt_err}; starting without them"
+                    )
+                    xml = _xml_before_opts
 
                 if LOG_LEVEL == "DEBUG":
                     print(f"%%%% DOMAIN: {id_domain} -- action: {action} %%%%")

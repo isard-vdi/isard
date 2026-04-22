@@ -894,6 +894,14 @@ class ApiHypervisors:
         else:
             return {"status": True, "msg": "Hypervisor disabled", "data": {}}
 
+    def update_hyper_numa_topology(self, hyper_id, numa_topology):
+        if not isinstance(numa_topology, dict):
+            return
+        with app.app_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"numa_topology": numa_topology}
+            ).run(db.conn)
+
     def update_boot_progress(self, hyper_id, progress_data):
         with app.app_context():
             r.table("hypervisors").get(hyper_id).update(

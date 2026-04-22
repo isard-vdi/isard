@@ -949,16 +949,150 @@ def discover_hugepages():
     return result
 
 
-def discover_numa_topology():
+def _expand_cpulist(cpulist):
+    """Expand a "0-3,8,10-11" string into a sorted set of ints."""
+    result = set()
+    if not cpulist:
+        return result
+    for part in cpulist.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            lo, hi = part.split("-", 1)
+            try:
+                result.update(range(int(lo), int(hi) + 1))
+            except ValueError:
+                continue
+        else:
+            try:
+                result.add(int(part))
+            except ValueError:
+                continue
+    return result
+
+
+def _get_libvirt_capabilities_xml():
+    """Return libvirt host capabilities XML, or None if libvirt is unavailable.
+
+    Prefers the Python binding (faster, no subprocess). Falls back to `virsh
+    capabilities` — the hypervisor container ships `virsh` but not the Python
+    `libvirt` module.
+    """
+    try:
+        import libvirt  # noqa: PLC0415
+
+        conn = libvirt.open("qemu:///system")
+        try:
+            return conn.getCapabilities()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        result = subprocess.run(
+            ["virsh", "capabilities"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return result.stdout
+    except Exception as e:
+        log.warning("NUMA: virsh capabilities failed: %s", e)
+        return None
+
+
+def _probe_libvirt_numa_cells():
+    """Parse <cells> from libvirt host capabilities.
+
+    Returns:
+        list of {"id": int, "memory_kb": int, "cpus": set(int)} or None if
+        libvirt capabilities are unreachable.
+    """
+    xml = _get_libvirt_capabilities_xml()
+    if not xml:
+        return None
+
+    from io import StringIO
+
+    from lxml import etree
+
+    tree = etree.parse(StringIO(xml))
+    cells = []
+    for cell in tree.xpath("/capabilities/host/topology/cells/cell"):
+        try:
+            cell_id = int(cell.get("id"))
+        except (TypeError, ValueError):
+            continue
+        mem_elem = cell.find("memory")
+        memory_kb = int(mem_elem.text) if mem_elem is not None and mem_elem.text else 0
+        cpus = set()
+        for cpu in cell.xpath("cpus/cpu"):
+            try:
+                cpus.add(int(cpu.get("id")))
+            except (TypeError, ValueError):
+                continue
+        cells.append({"id": cell_id, "memory_kb": memory_kb, "cpus": cpus})
+    return cells
+
+
+def _validate_libvirt_numa(sysfs_nodes, libvirt_cells):
+    """Compare libvirt's NUMA view against sysfs.
+
+    Returns (ok: bool, reason: str). The reason is a short machine-readable
+    token, useful in logs and DB queries.
+    """
+    if not libvirt_cells:
+        return False, "libvirt_empty_cells"
+    if len(libvirt_cells) != len(sysfs_nodes):
+        return False, "cell_count_mismatch"
+
+    ids = [c["id"] for c in libvirt_cells]
+    if len(set(ids)) != len(ids):
+        return False, "duplicate_cell_ids"
+
+    sysfs_ids = {int(n) for n in sysfs_nodes.keys()}
+    if set(ids) != sysfs_ids:
+        return False, "cell_id_mismatch"
+
+    # Each cell's cpu set must match the corresponding sysfs cpulist.
+    for cell in libvirt_cells:
+        sys_cpulist = sysfs_nodes.get(str(cell["id"]), {}).get("cpulist", "")
+        sys_cpus = _expand_cpulist(sys_cpulist)
+        if cell["cpus"] != sys_cpus:
+            return False, "cpu_mismatch"
+
+    # Per-cell memory must look per-node, not a flat "every cell owns all RAM"
+    # (a libvirt-in-container bug we've seen on some hosts).
+    mems = [c["memory_kb"] for c in libvirt_cells]
+    if len(mems) >= 2 and len(set(mems)) == 1:
+        return False, "flat_cell_memory"
+
+    return True, "ok"
+
+
+def discover_numa_topology(probe_libvirt=False):
     """Discover per-NUMA-node CPU list and hugepages from sysfs.
 
     Reads /sys/devices/system/node/node* to build a map of which CPUs and
     hugepages belong to each NUMA node. The cpulist values are static hardware
     topology; the hugepages counts are a snapshot from discovery time.
 
+    When `probe_libvirt=True` (call post-libvirt-start) the sysfs view is
+    cross-checked against libvirt's own host capabilities (<cells>). Only when
+    both views agree does the result advertise `libvirt_numa_ok: True` — the
+    engine gates NUMA pinning on that flag, because libvirt will reject any
+    <numatune> block referencing a cell it doesn't believe in.
+
     Returns:
         dict: {
-            "nodes": {
+            "libvirt_numa_ok": bool,
+            "reason": str,       # "ok" | "libvirt_unreachable" | "cpu_mismatch" | ...
+            "nodes": {           # always populated from sysfs, for diagnostics
                 "0": {
                     "cpulist": "0-15,32-47",
                     "hugepages": {"1G": {"total": 168, "free": 105}, "2M": {...}}
@@ -1011,7 +1145,48 @@ def discover_numa_topology():
 
     if not nodes:
         return {}
-    return {"nodes": nodes}
+
+    # Cross-check with libvirt if a connection was provided. Single-cell hosts
+    # don't need NUMA pinning at all, so treat them as "ok" regardless.
+    if len(nodes) < 2:
+        return {"libvirt_numa_ok": True, "reason": "single_cell", "nodes": nodes}
+
+    if not probe_libvirt:
+        return {
+            "libvirt_numa_ok": False,
+            "reason": "libvirt_unreachable",
+            "nodes": nodes,
+        }
+
+    try:
+        libvirt_cells = _probe_libvirt_numa_cells()
+    except Exception as e:
+        log.warning("NUMA: libvirt capabilities probe failed: %s", e)
+        return {
+            "libvirt_numa_ok": False,
+            "reason": "libvirt_probe_error",
+            "nodes": nodes,
+        }
+    if libvirt_cells is None:
+        return {
+            "libvirt_numa_ok": False,
+            "reason": "libvirt_unreachable",
+            "nodes": nodes,
+        }
+
+    ok, reason = _validate_libvirt_numa(nodes, libvirt_cells)
+    if not ok:
+        log.warning(
+            "NUMA: libvirt view inconsistent with sysfs (%s). "
+            "sysfs_nodes=%s libvirt_cells=%s",
+            reason,
+            {k: v.get("cpulist") for k, v in nodes.items()},
+            [
+                {"id": c["id"], "memory_kb": c["memory_kb"], "n_cpus": len(c["cpus"])}
+                for c in libvirt_cells
+            ],
+        )
+    return {"libvirt_numa_ok": ok, "reason": reason, "nodes": nodes}
 
 
 def ensure_sriov_vfs():

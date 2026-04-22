@@ -204,6 +204,18 @@ def api_v3_hypervisor(hyper_id=False):
         return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
 
     if request.method == "PUT":
+        # Hypervisor may refresh its self-detected NUMA topology at enable time
+        # (libvirt isn't running during the initial POST), so accept the field
+        # here as an optional side-channel update alongside enable/disable.
+        numa_topology_raw = request.form.get("numa_topology")
+        if numa_topology_raw is not None:
+            try:
+                api_hypervisors.update_hyper_numa_topology(
+                    hyper_id, json.loads(numa_topology_raw)
+                )
+            except (ValueError, TypeError) as e:
+                log.warning(f"Ignoring invalid numa_topology for {hyper_id}: {e}")
+
         enable = request.form.get("enabled", default=True, type=bool)
         if enable:
             log.warning("Enabling hypervisor: " + hyper_id)
