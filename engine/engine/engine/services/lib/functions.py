@@ -1125,23 +1125,6 @@ def update_status_db_from_running_domains(hyp_obj):
 
 
 def clean_intermediate_status(reason="engine is restarting", only_domain_id=None):
-    # Here only to remember the status that apply to each action
-    # status_to_delete = [
-    #     "Creating",
-    #     "CreatingAndStarting",
-    #     "CreatingDiskFromScratch",
-    # ]
-    # status_to_failed = [
-    #     "Updating",
-    #     "Deleting",
-    #     "DiskDeleted",
-    #     "CreatingDomain",
-    #     "DeletingDomainDisk",
-    #     "StartingDomainDisposable",
-    # ]
-    # status_to_stopped = ["Starting"]
-    # status_to_started = ["Stopping", "Shutting-down"]
-
     delete_incomplete_creating_domains(only_domain_id=only_domain_id)
 
     fail_incomplete_creating_domains(

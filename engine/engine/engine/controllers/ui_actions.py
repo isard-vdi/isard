@@ -89,13 +89,6 @@ class UiActions(object):
         log.info("Backend uiactions created")
         self.manager = manager
 
-    def action_from_api(self, action, parameters):
-        if action == "start_domain":
-            if "ssl" in parameters.keys() and parameters["ssl"] == False:
-                ssl_spice = False
-            if "domain_id" in parameters.keys():
-                self.start_domain_from_id(parameters["domain_id"], ssl_spice)
-
     ### STARTING DOMAIN
     def start_domain_from_id(self, id_domain, ssl=True, starting_paused=False):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
@@ -621,11 +614,10 @@ class UiActions(object):
         else:
             self.stop_domain(id, hyp_id)
 
-    def shutdown_domain(self, id_domain, hyp_id, delete_after_stopped=False):
+    def shutdown_domain(self, id_domain, hyp_id):
         action = {
             "type": "shutdown_domain",
             "id_domain": id_domain,
-            "delete_after_stopped": delete_after_stopped,
         }
 
         self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_SHUTDOWN)
@@ -635,13 +627,10 @@ class UiActions(object):
 
         return True
 
-    def stop_domain(
-        self, id_domain, hyp_id, delete_after_stopped=False, not_change_status=False
-    ):
+    def stop_domain(self, id_domain, hyp_id, not_change_status=False):
         action = {
             "type": "stop_domain",
             "id_domain": id_domain,
-            "delete_after_stopped": delete_after_stopped,
             "not_change_status": not_change_status,
         }
         self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_STOP)
@@ -658,46 +647,6 @@ class UiActions(object):
         self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_STOP)
         logs.main.debug(f"desktop {id_domain} added to queue to be reset in {hyp_id}")
         return True
-
-    def delete_domain(self, id_domain):
-        pass
-
-    # quitar también las estadísticas y eventos
-
-    def delete_template(self, id_template):
-        pass
-
-    # return false si hay alguna derivada
-
-    def update_template(
-        self, id_template, name, description, cpu, ram, id_net=None, force_server=None
-    ):
-        pass
-
-    def update_domain(
-        self,
-        id_old,
-        id_new,
-        # user,
-        # category,
-        # group,
-        name,
-        description,
-        cpu,
-        ram,
-        id_net=None,
-        force_server=None,
-        # only_cmds=False,
-        # path_to_disk_dir=None,
-        disk_filename=None,
-    ):
-        # INFO TO DEVELOPER: ojo al renombrar el id del dominio, Hay que eliminar y recrear el
-        # dominio en rethink y cambiar el nombre del fichero que me lo pasará ui
-        # la ui siempre me pasa todoas
-        # si id_old == id_new solo update, si no eliminar y rehacer disco
-        pass
-
-        # alberto: comentar con josep maria,
 
     def updating_from_create_dict(self, id_domain, ssl=True):
         """Transition a desktop from Updating back to Stopped after an edit.
@@ -800,7 +749,15 @@ class UiActions(object):
     # yo crearía el disco con una ruta relativa respecto a una variable de configuración
     # y el path que se guarda en el disco podría ser relativo, aunque igual no vale la pena...
 
-    def deleting_disks_from_domain(self, id_domain, not_change_status=False):
+    def deleting_disks_from_domain(self, id_domain):
+        """Enqueue delete_disk SSH actions for every disk of ``id_domain``.
+
+        Invoked only by ``force_deleting`` on the apiv4-driven
+        ``ForceDeleting`` flow; domain-row removal is handled by the
+        caller after the dispatch. The old Deleting / DeletingDomainDisk /
+        DiskDeleted status-driven path is gone (apiv4 never writes those
+        statuses to desktop rows).
+        """
         try:
             dict_domain = get_domain(id_domain)
             if dict_domain is None:
@@ -914,40 +871,28 @@ class UiActions(object):
                         disk_path, mv_to_extension_deleted=mv_to_extension_deleted
                     )
 
-                    action = dict()
-                    action["id_domain"] = id_domain
-                    action["not_change_status"] = not_change_status
-                    action["type"] = "delete_disk"
-                    action["disk_path"] = disk_path
-                    action["domain"] = id_domain
-                    action["ssh_commands"] = cmds
-                    action["index_disk"] = index_disk
-                    action["storage_id"] = (
-                        dict(
-                            enumerate(
-                                dict_domain.get("create_dict", {})
-                                .get("hardware", {})
-                                .get("disks", [])
+                    action = {
+                        "id_domain": id_domain,
+                        "type": "delete_disk",
+                        "disk_path": disk_path,
+                        "domain": id_domain,
+                        "ssh_commands": cmds,
+                        "index_disk": index_disk,
+                        "storage_id": (
+                            dict(
+                                enumerate(
+                                    dict_domain.get("create_dict", {})
+                                    .get("hardware", {})
+                                    .get("disks", [])
+                                )
                             )
-                        )
-                        .get(index_disk, {})
-                        .get("storage_id")
-                    )
+                            .get(index_disk, {})
+                            .get("storage_id")
+                        ),
+                    }
 
                     try:
-                        if not_change_status is False:
-                            update_domain_status(
-                                status="DeletingDomainDisk",
-                                id_domain=id_domain,
-                                hyp_id=next_hyp,
-                                detail="Domain disk {} queued in hypervisor {} to be deleted".format(
-                                    disk_path, next_hyp
-                                ),
-                            )
-                        else:
-                            update_storage_deleted_domain(
-                                action["storage_id"], dict_domain
-                            )
+                        update_storage_deleted_domain(action["storage_id"], dict_domain)
                         log.info(
                             "DELETE_DOMAIN_DISKS: Domain {} disk {} queued in hypervisor {} to be deleted".format(
                                 id_domain, disk_path, next_hyp
@@ -957,15 +902,6 @@ class UiActions(object):
                         wait_for_disks_to_be_deleted = True
                     except Exception as e:
                         logs.exception_id.debug("0011")
-                        if not_change_status is False:
-                            update_domain_status(
-                                status="Stopped",
-                                id_domain=id_domain,
-                                hyp_id=False,
-                                detail="Domain disk {} failed to be queued in hypervisor {} to be deleted".format(
-                                    disk_path, next_hyp
-                                ),
-                            )
                         log.error(
                             "DELETE_DOMAIN_DISKS: Unable to enqueue disk {} to be deleted in hypervisor {}. Exception: {}".format(
                                 disk_path, next_hyp, e
@@ -1191,7 +1127,7 @@ class UiActions(object):
             if hyp_id is not None and hyp_id is not False:
                 self.stop_domain(domain_id, hyp_id, not_change_status=True)
 
-        self.deleting_disks_from_domain(domain_id, not_change_status=True)
+        self.deleting_disks_from_domain(domain_id)
 
         result = delete_domain(domain_id)
         log.info(
