@@ -525,28 +525,33 @@ class Storage(RethinkCustomBase):
                     f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
                     "storage_invalid_status_for_move",
                 )
-        elif self.status != "ready" and action != "delete":
+        elif self.status != "ready" and action not in ("create", "delete"):
             raise Exception(
                 "precondition_required",
                 f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
                 "storage_not_ready",
             )
-        domains = self.domains
-        if any(domain.status != "Stopped" for domain in domains):
-            raise Exception(
-                "precondition_required",
-                f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
-                "desktops_not_stopped",
-            )
-        if len(self.children) > 0:
-            raise Exception(
-                "precondition_required",
-                f"Storage {self.id} has children storages that depend on it as backing file",
-                "storage_has_children",
-            )
-        for domain in self.domains:
-            domain.current_action = action
-            domain.status = "Maintenance"
+        # "create" is a fresh-storage action — the domain being wired in
+        # is the whole point, and by construction it is not yet Stopped
+        # (it is in a Creating* state) and the storage has no children.
+        # Skip the two invariants that only apply to pre-existing storage.
+        if action != "create":
+            domains = self.domains
+            if any(domain.status != "Stopped" for domain in domains):
+                raise Exception(
+                    "precondition_required",
+                    f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
+                    "desktops_not_stopped",
+                )
+            if len(self.children) > 0:
+                raise Exception(
+                    "precondition_required",
+                    f"Storage {self.id} has children storages that depend on it as backing file",
+                    "storage_has_children",
+                )
+            for domain in self.domains:
+                domain.current_action = action
+                domain.status = "Maintenance"
         self.status = "maintenance"
 
     def set_ready(self):
@@ -1429,6 +1434,120 @@ class Storage(RethinkCustomBase):
                         }
                     ],
                 },
+            ],
+        )
+
+        return (storage, storage.task)
+
+    @classmethod
+    def create_new_storage_for_domain(
+        cls,
+        domain_id,
+        user_id,
+        pool_usage,
+        parent_id=None,
+        size=None,
+        storage_type="qcow2",
+        priority="default",
+        retry: int = 0,
+    ):
+        """
+        Create a new storage owned by a domain and enqueue the full RQ chain
+        that builds the qcow2 on the storage worker and wires it back to the
+        domain row via core_worker feedback.
+
+        Chain: create -> domain_change_storage -> qemu_img_info_backing_chain
+               -> storage_update.
+
+        Pass parent_id for a template-derived (backing-file) disk, or leave
+        it None together with an explicit size for a scratch disk.
+
+        :return: Tuple with the new storage and the root task ID
+        :rtype: Tuple[isardvdi_common.models.storage.Storage, str]
+        """
+        if parent_id is not None:
+            if not Storage.exists(parent_id):
+                raise Exception(
+                    "not_found",
+                    f"Parent storage {parent_id} not found",
+                )
+            storage_parent = Storage(parent_id)
+            if storage_parent.status != "ready":
+                raise Exception(
+                    "precondition_required",
+                    "Parent storage is not ready",
+                    "storage_not_ready",
+                )
+            if storage_parent.type != storage_type:
+                raise Exception(
+                    "precondition_required",
+                    "Parent storage type does not match",
+                )
+            parent_args = {
+                "parent_path": storage_parent.path,
+                "parent_type": storage_parent.type,
+            }
+        else:
+            if not size:
+                raise Exception(
+                    "bad_request",
+                    "Scratch disk creation requires a size",
+                )
+            parent_args = {}
+
+        storage = Storage.new_dict(
+            user_id=user_id,
+            pool_usage=pool_usage,
+            parent_id=parent_id,
+            format=storage_type,
+        )
+        storage.status_logs = [{"time": int(time()), "status": "created"}]
+
+        create_kwargs = {
+            "storage_path": storage.path,
+            "storage_type": storage.type,
+            **parent_args,
+        }
+        if size is not None:
+            create_kwargs["size"] = size
+
+        storage.set_maintenance("create")
+        storage.create_task(
+            user_id=user_id,
+            queue=f"storage.{storage.pool.id}.{priority}",
+            task="create",
+            retry=retry,
+            retry_intervals=15,
+            job_kwargs={"kwargs": create_kwargs},
+            dependents=[
+                {
+                    "queue": f"storage.{storage.pool.id}.{priority}",
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": storage.id,
+                            "storage_path": storage.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "domain_change_storage",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "domain_id": domain_id,
+                                            "storage_id": storage.id,
+                                        },
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                }
             ],
         )
 
