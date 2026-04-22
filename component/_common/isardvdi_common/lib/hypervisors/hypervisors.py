@@ -545,6 +545,15 @@ class HypervisorsProcessed(RethinkSharedConnection):
             return {"status": True, "msg": "Hypervisor disabled", "data": {}}
 
     @classmethod
+    def update_hyper_numa_topology(cls, hyper_id, numa_topology):
+        if not isinstance(numa_topology, dict):
+            return
+        with cls._rdb_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"numa_topology": numa_topology}
+            ).run(cls._rdb_connection)
+
+    @classmethod
     def remove_hyper(cls, hyper_id, restart=True):
         try:
             with cls._rdb_context():
