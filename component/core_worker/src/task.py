@@ -440,6 +440,7 @@ def send_storage_socket_user(event, storage_id):
 _DOMAIN_CREATE_TO_CREATING_DOMAIN = frozenset(
     {
         "Creating",
+        "CreatingAndStarting",
         "CreatingDisk",
         "CreatingDiskFromScratch",
     }
