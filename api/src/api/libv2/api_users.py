@@ -217,7 +217,7 @@ def sync_category_branding_domains():
             haproxy_sync_pb2.DomainSyncDomain(name=name, certificate=certificate)
         )
 
-    _call_grpc_with_infinite_retry(
+    return _call_grpc_with_infinite_retry(
         app.haproxy_sync_client.DomainSync,
         haproxy_sync_pb2.DomainSyncRequest(domains=domains),
     )
