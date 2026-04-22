@@ -1548,6 +1548,38 @@ class Storage(RethinkCustomBase):
                                                     "storage_id": storage.id,
                                                 },
                                             },
+                                            "dependents": [
+                                                {
+                                                    "queue": "core",
+                                                    "task": "update_status",
+                                                    "job_kwargs": {
+                                                        "kwargs": {
+                                                            "statuses": {
+                                                                JobStatus.FAILED: {
+                                                                    "Failed": {
+                                                                        "domain": [
+                                                                            domain_id
+                                                                        ],
+                                                                        "storage": [
+                                                                            storage.id
+                                                                        ],
+                                                                    },
+                                                                },
+                                                                JobStatus.CANCELED: {
+                                                                    "Failed": {
+                                                                        "domain": [
+                                                                            domain_id
+                                                                        ],
+                                                                        "storage": [
+                                                                            storage.id
+                                                                        ],
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                }
+                                            ],
                                         }
                                     ],
                                 }
