@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"regexp"
@@ -62,6 +63,8 @@ type LDAPConfig struct {
 	RoleDefault     model.Role
 
 	SaveEmail bool
+
+	AllowInsecureTLS bool
 }
 
 type LDAP struct {
@@ -185,6 +188,11 @@ func (l *LDAP) LoadConfig(_ context.Context, cfg model.LDAPConfig) error {
 
 	prvCfg.SaveEmail = cfg.SaveEmail
 
+	prvCfg.AllowInsecureTLS = cfg.AllowInsecureTLS
+	if cfg.AllowInsecureTLS {
+		l.log.Warn().Msg("LDAP: TLS certificate verification is DISABLED (allow_insecure_tls=true). Use only for testing or with trusted self-signed certificates.")
+	}
+
 	l.cfg.LoadCfg(prvCfg)
 
 	return nil
@@ -193,9 +201,18 @@ func (l *LDAP) LoadConfig(_ context.Context, cfg model.LDAPConfig) error {
 func (l *LDAP) newConn() (*ldap.Conn, error) {
 	cfg := l.cfg.Cfg()
 
-	conn, err := ldap.DialURL(fmt.Sprintf("%s://%s:%d", cfg.Protocol, cfg.Host, cfg.Port))
+	url := fmt.Sprintf("%s://%s:%d", cfg.Protocol, cfg.Host, cfg.Port)
+
+	var opts []ldap.DialOpt
+	if cfg.AllowInsecureTLS && cfg.Protocol == "ldaps" {
+		opts = append(opts, ldap.DialWithTLSConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
+	}
+
+	conn, err := ldap.DialURL(url, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("connect to the LDAP server: : %w", err)
+		return nil, fmt.Errorf("connect to the LDAP server: %w", err)
 	}
 
 	if err := conn.Bind(cfg.BindDN, cfg.Password); err != nil {

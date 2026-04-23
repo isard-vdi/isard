@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 186
+release_version = 187
+# release 187: Add allow_insecure_tls field to LDAP and SAML provider configs
 # release 186: Split category authentication tri-state boolean into two explicit booleans
 #              Import authentication providers status from AUTHENTICATION_*_ENABLED variables
 # release 185: Repair storage records missing user_id, ensure perms and status_logs
@@ -1124,6 +1125,16 @@ password:s:%s"""
                 }
 
             r.table(table).update({"auth": auth_config}).run(self.conn)
+
+        if version == 187:
+            r.table(table).update(
+                {
+                    "auth": {
+                        "ldap": {"ldap_config": {"allow_insecure_tls": False}},
+                        "saml": {"saml_config": {"allow_insecure_tls": False}},
+                    }
+                }
+            ).run(self.conn)
 
         return True
 

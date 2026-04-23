@@ -172,3 +172,6 @@ logout_redirect_url:
 save_email:
   empty: false
   type: boolean
+allow_insecure_tls:
+  empty: false
+  type: boolean

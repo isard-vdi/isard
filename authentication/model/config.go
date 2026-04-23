@@ -68,6 +68,8 @@ type LDAPConfig struct {
 	RoleDefault     Role                `rethinkdb:"role_default"`
 
 	SaveEmail bool `rethinkdb:"save_email"`
+
+	AllowInsecureTLS bool `rethinkdb:"allow_insecure_tls"`
 }
 
 type SAML struct {
@@ -117,6 +119,8 @@ type SAMLConfig struct {
 	LogoutRedirectURL string `rethinkdb:"logout_redirect_url"`
 
 	SaveEmail bool `rethinkdb:"save_email"`
+
+	AllowInsecureTLS bool `rethinkdb:"allow_insecure_tls"`
 }
 
 type Google struct {

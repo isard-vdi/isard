@@ -99,7 +99,6 @@ func TestSAMLLoadConfig(t *testing.T) {
 	cases := map[string]struct {
 		Input         func(certPath, keyPath, metadataPath string) model.SAMLConfig
 		NeedTLS       bool
-		HTTPClient    *http.Client
 		ValidateURL   func(string) error
 		CategoryID    *string
 		BrandingHosts map[string]string
@@ -379,7 +378,6 @@ func TestSAMLLoadConfig(t *testing.T) {
 		},
 		"should fallback to URL and load config when metadata file does not exist": {
 			NeedTLS:     true,
-			HTTPClient:  tlsFallbackServer.Client(),
 			ValidateURL: func(string) error { return nil },
 			Input: func(certPath, keyPath, _ string) model.SAMLConfig {
 				return model.SAMLConfig{
@@ -424,6 +422,8 @@ func TestSAMLLoadConfig(t *testing.T) {
 					LogoutRedirectURL: "https://idp.example.com/logout",
 
 					SaveEmail: true,
+
+					AllowInsecureTLS: true,
 				}
 			},
 			Expected: expected{
@@ -456,6 +456,27 @@ func TestSAMLLoadConfig(t *testing.T) {
 					SaveEmail: true,
 				},
 			},
+		},
+		"should fail to fetch metadata from self-signed URL when allow_insecure_tls is false": {
+			NeedTLS:     true,
+			ValidateURL: func(string) error { return nil },
+			Input: func(certPath, keyPath, _ string) model.SAMLConfig {
+				return model.SAMLConfig{
+					MetadataFile: "/nonexistent/metadata.xml",
+					MetadataURL:  tlsFallbackServer.URL,
+					KeyFile:      keyPath,
+					CertFile:     certPath,
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+
+					AllowInsecureTLS: false,
+				}
+			},
+			Expected: expected{Err: "fetch metadata from URL failed"},
 		},
 		"should use category-specific SAML endpoint paths when categoryID is set": {
 			NeedTLS:    true,
@@ -560,7 +581,6 @@ func TestSAMLLoadConfig(t *testing.T) {
 				host:          "sp.example.com",
 				categoryID:    tc.CategoryID,
 				log:           &nopLog,
-				httpClient:    tc.HTTPClient,
 				validateURL:   validateURL,
 				brandingHosts: brandingHosts,
 			}
@@ -672,6 +692,18 @@ func TestSAMLLoadConfig(t *testing.T) {
 			s.brandingMux.RLock()
 			assert.NotNil(s.lastModelCfg)
 			s.brandingMux.RUnlock()
+
+			// InsecureSkipVerify tracks AllowInsecureTLS.
+			assert.NotNil(s.httpClient)
+			require.NotNil(t, s.httpClient.Transport)
+			tr, ok := s.httpClient.Transport.(*http.Transport)
+			require.True(t, ok, "httpClient.Transport should be *http.Transport")
+			if input.AllowInsecureTLS {
+				require.NotNil(t, tr.TLSClientConfig)
+				assert.True(tr.TLSClientConfig.InsecureSkipVerify)
+			} else if tr.TLSClientConfig != nil {
+				assert.False(tr.TLSClientConfig.InsecureSkipVerify)
+			}
 		})
 	}
 }
@@ -1155,6 +1187,63 @@ func TestSAMLMiddleware(t *testing.T) {
 				assert.Equal(cfg.Middleware, mw)
 			}
 		})
+	}
+}
+
+func TestSAMLLoadConfigTogglesInsecureTransport(t *testing.T) {
+	// NOTE: not parallel because LoadConfig writes to the
+	// package-level saml.MaxIssueDelay global variable.
+
+	nopLog := zerolog.Nop()
+	certPath, keyPath, _ := prepareSAMLFiles(t)
+
+	tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(testSAMLMetadata))
+	}))
+	t.Cleanup(tlsServer.Close)
+
+	s := &SAML{
+		cfg:           &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+		host:          "sp.example.com",
+		log:           &nopLog,
+		validateURL:   func(string) error { return nil },
+		brandingHosts: map[string]string{},
+	}
+
+	base := model.SAMLConfig{
+		MetadataFile:  "/nonexistent/metadata.xml",
+		MetadataURL:   tlsServer.URL,
+		KeyFile:       keyPath,
+		CertFile:      certPath,
+		RegexUID:      ".*",
+		RegexUsername: ".*",
+		RegexName:     ".*",
+		RegexEmail:    ".*",
+		RegexPhoto:    ".*",
+	}
+
+	// First load: flag ON — must succeed and install insecure transport.
+	onCfg := base
+	onCfg.AllowInsecureTLS = true
+	require.NoError(t, s.LoadConfig(context.Background(), onCfg))
+	require.NotNil(t, s.httpClient)
+	require.NotNil(t, s.httpClient.Transport)
+	tr, ok := s.httpClient.Transport.(*http.Transport)
+	require.True(t, ok)
+	assert.True(t, tr.TLSClientConfig.InsecureSkipVerify)
+
+	// Second load: flag OFF — InsecureSkipVerify must be cleared and the fetch
+	// must fail against the self-signed server.
+	offCfg := base
+	offCfg.AllowInsecureTLS = false
+	err := s.LoadConfig(context.Background(), offCfg)
+	assert.ErrorContains(t, err, "fetch metadata from URL failed")
+	require.NotNil(t, s.httpClient)
+	tr, ok = s.httpClient.Transport.(*http.Transport)
+	require.True(t, ok)
+	if tr.TLSClientConfig != nil {
+		assert.False(t, tr.TLSClientConfig.InsecureSkipVerify)
 	}
 }
 
