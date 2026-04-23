@@ -468,29 +468,6 @@ def get_domain_hyp_started(id_domain):
     return results.get("hyp_started")
 
 
-def get_custom_dict_from_domain(id_domain):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = rtable.get(id_domain).pluck("custom").run(r_conn)
-    close_rethink_connection(r_conn)
-    if results is None:
-        return False
-    if "custom" not in results.keys():
-        return False
-    if len(results["custom"]) == 0:
-        return False
-
-    return results["custom"]
-
-
-def update_custom_all_dict(id_domain, d_custom):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = rtable.get(id_domain).update({"custom": d_custom}).run(r_conn)
-    close_rethink_connection(r_conn)
-    return results
-
-
 def get_domain_hyp_started_and_status_and_detail(id_domain):
     with rethink_conn() as conn:
         try:
