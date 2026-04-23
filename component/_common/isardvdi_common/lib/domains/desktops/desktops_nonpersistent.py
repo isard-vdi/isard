@@ -216,6 +216,10 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
             "accessed": int(time.time()),
             "persistent": False,
             "from_template": template["id"],
+            # Ancestor chain, inclusive of the direct template. Required
+            # for template-disable cascade, which filters via
+            # ``get_all(template_id, index="parents").filter(persistent=False)``.
+            "parents": (template.get("parents") or []) + [template["id"]],
             "tag": False,
         }
 

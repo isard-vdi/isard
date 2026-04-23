@@ -1186,17 +1186,17 @@ class UiActions(object):
                 )
                 return False
             xml_from = template["xml"]
-            # apiv4's Pydantic DomainModel omits ``parents`` on non-persistent
-            # inserts, leaving it ``None`` in the DB. ``None + []`` TypeErrors;
-            # coerce both sides to a list to survive either shape.
-            parents_chain = (template.get("parents") or []) + (
-                domain.get("parents") or []
-            )
-            # when creating template from domain, the domain would be inserted as a parent while template is creating
-            # parent_chain never can't have id_domain as parent
-            if id_domain in parents_chain:
-                for i in range(parents_chain.count("a")):
-                    parents_chain.remove(id_domain)
+            # Ancestor chain: template's chain plus the template itself
+            # as the immediate parent. apiv4 already writes this at insert
+            # time, so the ``update_table_field`` below is idempotent —
+            # but we keep it for compatibility with other writers (apiv3,
+            # downloads, upgrade migrations) that may leave the field
+            # empty or stale.
+            parents_chain = (template.get("parents") or []) + [id_template]
+            # Self-reference safety: a domain must never list itself as
+            # an ancestor (can happen during template-from-domain if the
+            # two rows briefly share an id).
+            parents_chain = [p for p in parents_chain if p != id_domain]
 
             update_table_field("domains", id_domain, "parents", parents_chain)
 
