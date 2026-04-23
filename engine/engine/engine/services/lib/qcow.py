@@ -13,10 +13,6 @@ from uuid import uuid4
 
 from engine.services.db import get_hyp_hostname_user_port_from_id
 from engine.services.db.db import get_pool, get_pools_from_hyp
-from engine.services.db.domains import (
-    get_custom_dict_from_domain,
-    update_custom_all_dict,
-)
 from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import (
     backing_chain_cmd,
@@ -66,93 +62,6 @@ def create_cmds_delete_disk(path_disk, mv_to_extension_deleted=False):
 
     cmd = 'ls -l "{}"'.format(path_disk)
     cmds.append(cmd)
-
-    return cmds
-
-
-# def check_upload_folder():
-
-
-def create_cmds_custom_fd(path_new_disk, d_vars_to_flopy):
-    """
-    create floppy disk to customize vars, for example: username:test, hostname:remote01
-    add two files with filename as key, and bash echo string content as value
-    in floppy formated as vfat (ms-dos)
-    """
-    cmds = list()
-
-    path_dir = shlex.quote(extract_dir_path(path_new_disk))
-    path_custom_fd = shlex.quote(f"{path_new_disk}.custom.fd")
-    cmds.append({"title": "mkdir_domain_disk_dir", "cmd": f"mkdir -p {path_dir}"})
-    cmds.append({"title": "mknod loop0", "cmd": "mknod /dev/loop0 b 7 0"})
-    cmds.append({"title": "force detach loop device", "cmd": "losetup -d /dev/loop0"})
-    cmds.append(
-        {
-            "title": "create floppy disk image",
-            "cmd": f"dd bs=512 count=2880 if=/dev/zero of={path_custom_fd}",
-        }
-    )
-    cmds.append(
-        {
-            "title": "create floppy disk with custom parameters",
-            "cmd": f"mkfs.vfat {path_custom_fd}",
-        }
-    )
-    cmds.append(
-        {
-            "title": "attach floppy to loop device loop0",
-            "cmd": f"losetup /dev/loop0 {path_custom_fd}",
-        }
-    )
-    cmds.append({"title": "force umount /mnt", "cmd": "umount /mnt"})
-    cmds.append({"title": "mount in /mnt loop0 device", "cmd": "mount /dev/loop0 /mnt"})
-
-    # adding vars to files
-    for k, v in d_vars_to_flopy.items():
-        v = shlex.quote(str(v))
-        path_filename = shlex.quote("/mnt/" + str(k))
-        if k != "path_custom_fd":
-            cmds.append(
-                {
-                    "title": f"add filename {path_filename} to floppy with value {v}",
-                    "cmd": f"echo {v} > {path_filename}",
-                }
-            )
-
-        ## OJO HARDCODEADO PARA CTTI PLANTILLA LINKAT
-        if str(k) == "remote_computer":
-            log.info(f"PARALINKAT remote_computer: {k}")
-            path_filename = "/mnt/hostname"
-            cmds.append(
-                {
-                    "title": f"add filename {path_filename} to floppy with value {v}",
-                    "cmd": f"echo {v} > {path_filename}",
-                }
-            )
-
-        ## OJO HARDCODEADO PARA CTTI PLANTILLA LINKAT
-        if str(k) == "user":
-            log.info(f"PARALINKAT user: {k}")
-            path_filename = "/mnt/username"
-            cmds.append(
-                {
-                    "title": f"add filename {path_filename} to floppy with value {v}",
-                    "cmd": f"echo {v} > {path_filename}",
-                }
-            )
-
-    cmds.append({"title": "umount mnt", "cmd": "umount /mnt"})
-    cmds.append({"title": "detach loop0", "cmd": "losetup -d /dev/loop0"})
-
-    # CODIGO PARA DEBUGAR
-    try:
-        print("#### commands to floppy")
-        for c in cmds:
-            print("#" + c["title"])
-            print(c["cmd"])
-    except Exception as e:
-        logs.exception_id.debug("0051")
-        print(e)
 
     return cmds
 
