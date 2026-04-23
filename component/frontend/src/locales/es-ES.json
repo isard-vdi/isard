@@ -80,7 +80,11 @@
     },
     "deployment": {
       "title": "Gestión de despliegues",
-      "subtitle": "Consulta los detalles del despliegue y revisa el estado de los usuarios"
+      "subtitle": "Consulta los detalles del despliegue y revisa el estado de los usuarios",
+      "view": {
+        "title": "Despliegue",
+        "subtitle": "Interactúa rápidamente con los escritorios del despliegue"
+      }
     },
     "deployment-videowall": {
       "title": "Videowall",
@@ -793,6 +797,35 @@
         "title-invisible": "Hacer invisibles los escritorios del usuario",
         "description-visible": "El usuario verá y podrá utilizar sus escritorios del despliegue.",
         "description-invisible": "El usuario dejará de ver sus escritorios del despliegue."
+      }
+    },
+    "view-deployment": {
+      "sections": {
+        "desktops": {
+          "title": "Escritorios",
+          "actions": {
+            "stop-all": {
+              "label": "Parar todos",
+              "tooltip": "Parar todos los escritorios en el despliegue"
+            },
+            "book": {
+              "tooltip": "Reservar despliegue"
+            },
+            "collapse": "Colapsar el panel de escritorios",
+            "expand": "Expandir el panel de escritorios"
+          }
+        },
+        "viewer": {
+          "actions": {
+            "close": "Cerrar visor",
+            "maximize": "Maximizar visor"
+          },
+          "empty": {
+            "title": "Ningún escritorio seleccionado",
+            "description": "Inicia y selecciona un escritorio desde la barra lateral para verlo aquí",
+            "not-available": "Visor no disponible"
+          }
+        }
       }
     },
     "new-deployment": {
@@ -2298,6 +2331,12 @@
         },
         "cancel": "Cancelar",
         "confirm": "Confirmar"
+      },
+      "desktop-card": {
+        "view": "Ver",
+        "viewing": "Viendo",
+        "viewers": "Visores",
+        "not-available": "El escritorio debe estar iniciado para poder verlo"
       }
     },
     "change-image-modal": {

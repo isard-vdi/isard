@@ -432,7 +432,14 @@ const enterVideowall = () => {
               <Button
                 icon="arrow-circle-broken-right"
                 hierarchy="secondary-color"
-                @click="handleNotImplemented"
+                :as="RouterLink"
+                :to="{
+                  name: 'view-deployment',
+                  params: {
+                    deploymentId: row.deployment_id,
+                    userId: row.id
+                  }
+                }"
               >
                 {{ t('views.deployment.buttons.enter') }}
               </Button>

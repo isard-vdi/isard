@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import {
   getAllSharedDeploymentsOptions,
   getUserDetailsOptions
@@ -218,7 +219,11 @@ const handleNotImplemented = () => alert('not implemented yet')
                 hierarchy="secondary-color"
                 size="sm"
                 class="shrink-0"
-                @click="handleNotImplemented"
+                :as="RouterLink"
+                :to="{
+                  name: 'view-deployment',
+                  params: { deploymentId: deployment.id }
+                }"
               >
                 {{ t('views.deployment.buttons.enter') }}
               </Button>

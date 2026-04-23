@@ -483,6 +483,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
                     "description",
                     "tag_visible",
                     "user",
+                    "user_permissions",
                     # TODO: Add a resources field to deployments and return it here
                 )
                 .run(cls._rdb_connection)

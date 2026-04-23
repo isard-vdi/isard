@@ -80,7 +80,11 @@
     },
     "deployment": {
       "title": "Gestió de desplegaments",
-      "subtitle": "Consulta els detalls del desplegament i revisa l'estat dels usuaris"
+      "subtitle": "Consulta els detalls del desplegament i revisa l'estat dels usuaris",
+      "view": {
+        "title": "Desplegament",
+        "subtitle": "Interactua ràpidament amb els escriptoris del desplegament"
+      }
     },
     "deployment-videowall": {
       "title": "Videowall",
@@ -793,6 +797,35 @@
         "title-invisible": "Fes invisibles els escriptoris de l'usuari",
         "description-visible": "L'usuari veurà i podrà utilitzar els seus escriptoris del desplegament.",
         "description-invisible": "L'usuari deixarà de veure els seus escriptoris del desplegament."
+      }
+    },
+    "view-deployment": {
+      "sections": {
+        "desktops": {
+          "title": "Escriptoris",
+          "actions": {
+            "stop-all": {
+              "label": "Atura'ls tots",
+              "tooltip": "Atura tots els escriptoris del desplegament"
+            },
+            "book": {
+              "tooltip": "Reserva el desplegament"
+            },
+            "collapse": "Col·lapsa el panell d'escriptoris",
+            "expand": "Expandeix el panell d'escriptoris"
+          }
+        },
+        "viewer": {
+          "actions": {
+            "close": "Tanca el visor",
+            "maximize": "Maximitza el visor"
+          },
+          "empty": {
+            "title": "Cap escriptori seleccionat",
+            "description": "Inicia i selecciona un escriptori des de la barra lateral per veure'l aquí",
+            "not-available": "Visor no disponible"
+          }
+        }
       }
     },
     "new-deployment": {
@@ -2286,6 +2319,12 @@
         },
         "cancel": "Cancel·la",
         "confirm": "Confirma"
+      },
+      "desktop-card": {
+        "view": "Veure",
+        "viewing": "Veient",
+        "viewers": "Visors",
+        "not-available": "L'escriptori ha d'estar iniciat per poder-lo veure"
       }
     },
     "change-image-modal": {

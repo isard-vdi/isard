@@ -253,6 +253,17 @@ const router = createRouter({
                 subtitle: 'router.deployment.subtitle'
               }
             },
+
+            {
+              path: 'view/:deploymentId/:userId?',
+              name: 'view-deployment',
+              meta: {
+                title: 'router.deployment.view.title',
+                subtitle: 'router.deployment.view.subtitle',
+                allowedRoles: ['admin', 'manager', 'advanced', 'user'] as Role[]
+              },
+              component: () => import('../views/ViewDeploymentView.vue')
+            },
             {
               path: ':deploymentId/videowall',
               name: 'deployment-videowall',
