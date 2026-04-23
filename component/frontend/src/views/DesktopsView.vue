@@ -107,6 +107,7 @@ import { Label } from '@/components/ui/label'
 import { AlertModal, Modal, QuotaExceededModal } from '@/components/modal'
 import BookingChangeAndStartModal from '@/components/booking/BookingChangeAndStartModal.vue'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { RecreateDesktopConfirmationModal } from '@/components/recreate-desktop-confirmation-modal'
 import {
   Select,
   SelectContent,
@@ -394,23 +395,6 @@ const recreateDesktopModalDesktopData = ref<{
   id: string
   name: string
 } | null>(null)
-
-const {
-  mutate: recreateDesktop,
-  mutateAsync: recreateDesktopAsync,
-  isPending: recreateDesktopIsPending,
-  isError: recreateDesktopIsError,
-  error: recreateDesktopError
-} = useMutation({
-  ...recreateDesktopMutation(),
-  onSuccess: () => {
-    closeRecreateDesktopModal()
-  }
-})
-
-const closeRecreateDesktopModal = () => {
-  recreateDesktopModalDesktopData.value = null
-}
 
 // --------------------------------------------------
 
@@ -1063,39 +1047,13 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
   />
 
   <!-- Recreate modal -->
-  <AlertModal
-    :open="recreateDesktopModalDesktopData !== null"
-    level="warning"
-    size="lg"
-    :title="
-      t('components.recreate-desktop-confirmation-modal.title', {
-        name: recreateDesktopModalDesktopData?.name
-      })
-    "
-    :description="t('components.recreate-desktop-confirmation-modal.description')"
-    @close="closeRecreateDesktopModal()"
-  >
-    <!-- TODO: Recreate modal component -->
-    <template #footer>
-      <Button hierarchy="link-gray" @click="closeRecreateDesktopModal()">{{
-        t('components.recreate-desktop-confirmation-modal.cancel')
-      }}</Button>
 
-      <Button
-        hierarchy="destructive"
-        :disabled="recreateDesktopIsPending"
-        @click="recreateDesktop({ path: { desktop_id: recreateDesktopModalDesktopData!.id } })"
-      >
-        <Icon
-          v-if="recreateDesktopIsPending"
-          class="motion-safe:animate-[spin_2s_linear_infinite]"
-          name="loading-02"
-          stroke-color="currentColor"
-        />
-        {{ t('components.recreate-desktop-confirmation-modal.confirm') }}
-      </Button>
-    </template>
-  </AlertModal>
+  <RecreateDesktopConfirmationModal
+    v-if="recreateDesktopModalDesktopData !== null"
+    :open="recreateDesktopModalDesktopData !== null"
+    :desktop="recreateDesktopModalDesktopData"
+    @close="recreateDesktopModalDesktopData = null"
+  />
 
   <!-- Stop all modal -->
   <AlertModal
