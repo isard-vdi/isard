@@ -509,6 +509,12 @@ class DesktopsProcessed(RethinkSharedConnection):
             "forced_hyp": template.get("forced_hyp", False),
             "favourite_hyp": template.get("favourite_hyp", False),
             "from_template": template["id"],
+            # Ancestor chain: template's own chain plus the template itself
+            # as the immediate parent. Required for the
+            # ``get_all(template_id, index="parents")`` lookups used by
+            # template-disable cascade, deployment stats and recycle-bin
+            # dependant purges.
+            "parents": (template.get("parents") or []) + [template["id"]],
             "tag": False,
             "tag_visible": False,
             "booking_id": False,
