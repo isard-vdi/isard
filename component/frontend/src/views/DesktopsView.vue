@@ -126,14 +126,15 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ViewerSelect } from '@/components/viewer-select'
 
+import { useFetchAndOpenViewer } from '@/composables/useFetchAndOpenViewer'
+
 const { t, d } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const notificationModalStore = useNotificationModalStore()
 
-const cookies = vueuseCookies(['viewerToken', 'browser_viewer', sessionTokenName])
-const localStorage = vueuseLocalStorage('viewers', '')
+const { mutate: fetchAndOpenViewer, preferedViewers } = useFetchAndOpenViewer()
 
 const {
   isPending: desktopsIsPending,
@@ -406,14 +407,6 @@ const bastionModalData = ref<BastionModalData | null>(null)
 
 // --------------------------------------------------
 
-const preferedViewers = computed(() => {
-  // TODO: move this to the card component
-  if (localStorage.value) {
-    return JSON.parse(localStorage.value)
-  }
-  return {}
-})
-
 const anyDesktopStarted = computed(() => {
   return !!desktops.value?.desktops.some((desktop) =>
     [
@@ -425,75 +418,6 @@ const anyDesktopStarted = computed(() => {
     ].includes(desktop.status)
   )
 })
-
-// In-flight de-dup: a SPICE viewer download triggers `virt-viewer` to open
-// a new SPICE session, and SPICE servers don't multiplex by default — a
-// second viewer kicks the first. Coalesce overlapping clicks for the same
-// (desktop, viewer_type) so a double-click produces one .vv, not two.
-const viewerFetchInflight = new Map<string, Promise<void>>()
-
-const fetchAndOpenViewer = (
-  desktopId: string,
-  viewer: GetDesktopViewerData['path']['viewer_type']
-): Promise<void> => {
-  // TODO: use a mutation
-  const key = `${desktopId}:${viewer}`
-  const existing = viewerFetchInflight.get(key)
-  if (existing) return existing
-
-  const run = async () => {
-    const { error, data } = await getDesktopViewer({
-      path: {
-        desktop_id: desktopId,
-        viewer_type: viewer
-      }
-    })
-
-    if (error) {
-      console.error('Error fetching desktop info:', error)
-      return
-    }
-
-    // store prefered viewer in localStorage
-    const updatedPreferedViewers = {
-      ...preferedViewers.value,
-      [desktopId]: viewer
-    }
-    localStorage.value = JSON.stringify(updatedPreferedViewers)
-
-    if (data.kind === 'browser') {
-      const cookieOpts: CookieSetOptions = {
-        path: '/',
-        sameSite: 'strict'
-      }
-
-      if (data.protocol === 'rdp') {
-        cookies.set('viewerToken', cookies.get(sessionTokenName), cookieOpts)
-      }
-      cookies.set('browser_viewer', data.cookie, cookieOpts)
-
-      window.open(data.viewer || undefined, '_blank')
-    } else if (data.kind === 'file') {
-      // TODO: check if this can be done without creating an element
-      const el = document.createElement('a')
-      el.setAttribute(
-        'href',
-        `data:${data.mime};charset=utf-8,${encodeURIComponent(data.content || '')}`
-      )
-      el.setAttribute('download', `${data.name}.${data.ext}`)
-      el.style.display = 'none'
-      document.body.appendChild(el)
-      el.click()
-      document.body.removeChild(el)
-    }
-  }
-
-  const promise = run().finally(() => {
-    viewerFetchInflight.delete(key)
-  })
-  viewerFetchInflight.set(key, promise)
-  return promise
-}
 
 // --------------------------------------------------
 
@@ -1309,7 +1233,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           })
         "
         @desktop-fetch-booking="fetchMaxBookingDate(routeDesktop.id)"
-        @open-viewer="fetchAndOpenViewer(routeDesktop.id, $event)"
+        @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: routeDesktop.id, viewer })"
         @show-networks-modal="
           networksModalData = {
             id: routeDesktop.id,
@@ -1547,7 +1471,9 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
             (dktp) => submitDesktopUpdateStatus({ path: { desktop_id: dktp.id } })
           "
           @desktop-fetch-booking="(dktp) => fetchMaxBookingDate(dktp.id)"
-          @open-viewer="(data) => fetchAndOpenViewer(data.dktp.id, data.viewer)"
+          @open-viewer="
+            (data) => fetchAndOpenViewer({ desktopId: data.dktp.id, viewer: data.viewer })
+          "
           @show-networks-modal="
             (dktp) => {
               networksModalData = {
@@ -1604,7 +1530,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                 // handleStartNow(dktp)
                 fetchMaxBookingDate(dktp.id)
               "
-              @open-viewer="fetchAndOpenViewer(dktp.id, $event)"
+              @open-viewer="(viewer) => fetchAndOpenViewer({ desktopId: dktp.id, viewer })"
               @show-networks-modal="
                 networksModalData = {
                   id: dktp.id,
