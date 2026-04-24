@@ -1,7 +1,7 @@
 #
 # old frontend
 #
-FROM node:18.20-alpine AS old-frontend
+FROM oven/bun:1.3-alpine AS old-frontend
 
 ARG SRC_VERSION_ID
 ARG SRC_VERSION_LINK
@@ -14,9 +14,10 @@ RUN apk add --no-cache \
 WORKDIR /build
 
 COPY old-frontend/package.json /build
-COPY old-frontend/yarn.lock /build
+COPY old-frontend/bun.lock /build
+COPY old-frontend/.npmrc /build
 
-RUN yarn install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 WORKDIR /
 
@@ -24,25 +25,29 @@ COPY old-frontend /build
 
 WORKDIR /build
 
-RUN yarn build
+RUN bun run build
 
 #
 # frontend
 #
-FROM oven/bun:1.1.24-alpine AS frontend
+FROM oven/bun:1.3-alpine AS frontend
 
 WORKDIR /build
 
-COPY frontend/package.json /build
-COPY frontend/bun.lockb /build
+COPY component/frontend/package.json /build
+COPY component/frontend/bun.lock* /build
 
 RUN bun install --frozen-lockfile
 
 WORKDIR /
 
-COPY frontend /build
+COPY component/frontend /build
 
 WORKDIR /build
+
+# Generated API clients (src/gen/oas/) are tracked in git and copied
+# via COPY above. If codegen runs in CI, the gen-protobuf stage
+# produces fresh files that override these committed versions.
 
 # TODO: Run the typecheck here too!
 RUN bun run build-only
@@ -50,7 +55,7 @@ RUN bun run build-only
 #
 # spice-ts
 #
-FROM oven/bun:1.1.24-alpine AS spice-ts
+FROM oven/bun:1.3-alpine AS spice-ts
 
 WORKDIR /build
 
@@ -84,7 +89,8 @@ COPY docker/static/noVNC /usr/share/nginx/html/viewer/noVNC
 COPY --from=spice-ts /build/dist /usr/share/nginx/html/viewer/spice-ts
 
 # Frontend
-COPY frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
+COPY component/frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
+COPY component/frontend/src/assets/logo-collapsed.svg /usr/share/nginx/html/default_logo-collapsed.svg
 COPY --from=frontend /build/dist /usr/share/nginx/html/frontend
 
 # Old frontend

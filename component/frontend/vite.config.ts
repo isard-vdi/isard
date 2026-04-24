@@ -1,0 +1,43 @@
+import { defineConfig } from 'vite'
+
+import vue from '@vitejs/plugin-vue'
+import vueDevTools from 'vite-plugin-vue-devtools'
+import tailwindcss from '@tailwindcss/vite'
+import path from 'node:path'
+
+import svgLoader from 'vite-svg-loader'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  base: '/frontend',
+  server: {
+    allowedHosts: true
+  },
+  plugins: [
+    vue(),
+    vueDevTools(),
+    tailwindcss(),
+    svgLoader({
+      defaultImport: 'url'
+    })
+  ],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
+  define: {
+    // vue-i18n 9 has two message compilers. The default `compileToFunction`
+    // path uses `new Function()` (blocked by our CSP: `script-src 'self'`).
+    // Setting `__INTLIFY_JIT_COMPILATION__: true` selects the AST-based
+    // `compile()` path instead, which is CSP-safe. The flag name is
+    // counter-intuitive — "JIT" here means the safe path.
+    __INTLIFY_JIT_COMPILATION__: true,
+    __INTLIFY_DROP_MESSAGE_COMPILER__: false
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
+  }
+})

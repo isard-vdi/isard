@@ -1,0 +1,29 @@
+{
+  "frontend_toggler": {
+    "to_vue2": "Přepnout na starší rozhraní",
+    "no_equivalent": "Bez ekvivalentu ve starším rozhraní"
+  },
+  "router": {
+    "maintenance": {
+      "title": "Údržba"
+    },
+    "verify-email": {
+      "title": "Ověřit e-mail"
+    }
+  },
+  "views": {
+    "verify-email": {
+      "title": "E-mailová adresa musí být ověřena systémem IsardVDI",
+      "description": "Zadejte svou e-mailovou adresu pro získání ověřovacího odkazu.",
+      "email-label": "E-mailová adresa",
+      "email-placeholder": "jmeno{'@'}priklad.cz",
+      "invalid-email": "Zadejte platnou e-mailovou adresu",
+      "error-generic": "Došlo k chybě. Zkuste to prosím znovu.",
+      "success": "Ověřovací e-mail byl odeslán. Zkontrolujte prosím svou schránku.",
+      "buttons": {
+        "verify": "Odeslat ověřovací e-mail",
+        "logout": "Odhlásit se"
+      }
+    }
+  }
+}

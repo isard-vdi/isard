@@ -1,0 +1,1973 @@
+{
+  "frontend_toggler": {
+    "to_vue2": "Canviar a la interfície antiga",
+    "no_equivalent": "Sense equivalent a la interfície antiga"
+  },
+  "router": {
+    "login": {
+      "title": "Iniciar sessió"
+    },
+    "register": {
+      "title": "Registre"
+    },
+    "migration": {
+      "title": "Migració"
+    },
+    "notifications": {
+      "title": "Notificacions"
+    },
+    "maintenance": {
+      "title": "Manteniment"
+    },
+    "profile": {
+      "title": "Perfil",
+      "subtitle": "Gestiona el teu perfil i preferències"
+    },
+    "desktops": {
+      "title": "Escriptoris",
+      "subtitle": "Crea i comença a treballar al moment amb molts tipus d'escriptoris virtuals",
+      "new": {
+        "title": "Nou Escriptori",
+        "subtitle": "Crea escriptoris virtuals a partir d'una plantilla"
+      }
+    },
+    "templates": {
+      "title": "Plantilles",
+      "subtitle": "Crea i gestiona plantilles d'escriptoris",
+      "new": {
+        "title": "Nova Plantilla",
+        "subtitle": "Crea una nova plantilla a partir d'un escriptori existent"
+      },
+      "edit": {
+        "title": "Edita Plantilla",
+        "subtitle": "Actualitza la configuració de la plantilla"
+      },
+      "duplicate": {
+        "title": "Duplica Plantilla",
+        "subtitle": "Crea una nova plantilla duplicant-ne una existent"
+      },
+      "recycle-bin": {
+        "title": "Paperera de reciclatge",
+        "subtitle": "Veu, restaura o elimina elements a la teva paperera",
+        "entry": {
+          "title": "Entrada de la paperera",
+          "subtitle": "Revisa l'element eliminat i el seu contingut"
+        }
+      }
+    },
+    "media": {
+      "title": "Mitjans",
+      "subtitle": "Crea i gestiona mitjans propis o utilitza mitjans aliens per crear nous escriptoris"
+    },
+    "deployments": {
+      "title": "Desplegaments",
+      "subtitle": "Crea i gestiona múltiples escriptoris per a diferents usuaris",
+      "new": {
+        "title": "Nou Desplegament",
+        "subtitle": "Crea un nou desplegament seleccionant els escriptoris que vols incloure-hi"
+      }
+    },
+    "deployment": {
+      "title": "Gestió de desplegaments",
+      "subtitle": "Consulta els detalls del desplegament i revisa l'estat dels usuaris"
+    },
+    "shared-deployments": {
+      "title": "Compartits amb tu",
+      "subtitle": "Comença a treballar amb desplegaments creats per a tu"
+    }
+  },
+  "views": {
+    "login": {
+      "separator": "Altres accessos",
+      "select-category": "Selecciona una categoria"
+    },
+    "new-desktop": {
+      "desktop-template": "Plantilla",
+      "step-1": {
+        "title": "Selecciona una plantilla",
+        "description": "Tens diferents plantilles per utilitzar",
+        "tabs": {
+          "my-templates": "Les teves plantilles",
+          "shared-templates": "Compartides amb tu"
+        },
+        "buttons": {
+          "next": {
+            "label": "Següent"
+          }
+        }
+      },
+      "header": {
+        "cancel": "Cancel·la",
+        "previous": "Anterior"
+      },
+      "step-2": {
+        "title": "Configura el teu escriptori",
+        "description": "Pots editar el nom, la imatge i el maquinari de l'escriptori",
+        "buttons": {
+          "change-template": {
+            "label": "Canvia la plantilla"
+          },
+          "create-desktop": {
+            "label": "Crea l'escriptori",
+            "disabled-tooltip": {
+              "title": "Has d'omplir tots els camps obligatoris per crear l'escriptori",
+              "description": "Si us plau, revisa el formulari per errors"
+            }
+          }
+        },
+        "preview": {
+          "title": "Previsualització",
+          "description": "Així és com es veurà el teu escriptori. Aquestes dades es poden editar"
+        },
+        "desktop-information": {
+          "title": "Informació de l'escriptori",
+          "description": "Proporciona un nom i una descripció per identificar el teu escriptori"
+        },
+        "desktop-kind": {
+          "title": "Tipus d'escriptori",
+          "description": "Selecciona el tipus d'escriptori que vols crear",
+          "persistent": {
+            "title": "Persistent",
+            "description": "Un escriptori persistent guarda tots els canvis i fitxers de forma permanent."
+          },
+          "nonpersistent": {
+            "title": "Temporal",
+            "description": "Un escriptori temporal descarta tots els canvis i fitxers quan s'atura. Només es permet un escriptori temporal per plantilla."
+          }
+        },
+        "access": {
+          "title": "Resum d'accés",
+          "description": "Aquest és un resum dels mètodes d'accés disponibles per al teu escriptori",
+          "show-access-customization": "Canvia l'accés",
+          "hide-access-customization": "Amaga l'accés"
+        },
+        "all-access": {
+          "title": "Configuració de tot l'accés",
+          "description": "Configuració de seguretat i accés"
+        },
+        "hardware-limited": {
+          "title": "Maquinari limitat",
+          "description": "Els valors de maquinari següents han estat limitats per permisos d'usuari:"
+        },
+        "hardware-summary": {
+          "title": "Resum del maquinari",
+          "description": "Aquest és un resum del maquinari heretat de la plantilla. S'utilitzarà per al teu escriptori",
+          "show-hardware-customization": "Canvia el maquinari",
+          "hide-hardware-customization": "Amaga el maquinari"
+        },
+        "all-hardware": {
+          "title": "Tot el maquinari",
+          "description": "El maquinari es pot editar mitjançant el formulari següent"
+        }
+      },
+      "creating": {
+        "title": "S'està creant l'escriptori",
+        "description": "El teu escriptori s'està creant, pot trigar uns quants minuts"
+      },
+      "success": {
+        "title": "L'escriptori s'ha creat correctament",
+        "description": "Pots iniciar l'escriptori ara o anar a la pàgina d'escriptoris",
+        "go-to-desktops": "Vés als meus escriptoris"
+      }
+    },
+    "migration": {
+      "title": "Migració d'usuari",
+      "subtitle": "Migrar \"{old_user_name}\" (autenticació {old_user_provider}) a \"{new_user_name}\" (autenticació {new_user_provider})",
+      "notification": {
+        "title": "Informació important al realitzar una migració:",
+        "description": {
+          "delete_user": "L'usuari anterior \"{old_user_name}\" (autenticació {old_user_provider}) serà eliminat.",
+          "user_description": "Els escriptoris iniciats s'aturaran. \nLa paperera de l'usuari s'eliminarà. \nLes reserves de l'usuari s'eliminaran. \nEls escriptoris temporals seran ELIMINATS \nEls recursos (com ara xarxes, RAM, CPU, GPUS) no permesos per al nou usuari seran eliminats o restricts.",
+          "description": "Els escriptoris iniciats s'aturaran. \nLa paperera de l'usuari s'eliminarà. \nLes reserves de l'usuari s'eliminaran. \nEls escriptoris temporals seran ELIMINATS \nLa llista de co-propietaris en els desplegaments serà eliminada. \nEls escriptoris pertanyents a altres usuaris en els desplegaments migrats romandran intactes. \nEls recursos (com ara xarxes, RAM, CPU, GPUS) no permesos per al nou usuari seran eliminats o restricts. \nSi l'usuari de destí té algun nom coincident, els elements migrats tindran '(migrat)' afegit al seu nom.",
+          "footer": "El procés de migració és irreversible."
+        }
+      },
+      "form": {
+        "accept": {
+          "title": "Entenc i accepto els riscos associats amb el procés de migració",
+          "required": "Has de marcar aquesta casella per continuar"
+        },
+        "submit": "Confirmar migració"
+      },
+      "error": {
+        "title": "Hi han hagut errors en el procés de migració:"
+      },
+      "success": {
+        "title": "Migració completada",
+        "description": {
+          "ok": "Els teus elements s'han migrat correctament al nou compte. Ara pots tornar a la pàgina principal.",
+          "error": "Hi ha hagut errors durant el procés i alguns dels teus elements no pogut migrat al nou compte. Si us plau, contacta amb un administrador. Ara pots tornar a la pàgina principal."
+        },
+        "progress": {
+          "desktops-progress": "Migrant escriptoris...",
+          "desktops-ok": "Escriptoris migrats",
+          "desktops-error": "Escriptoris no migrats",
+          "templates-progress": "Migrant plantilles...",
+          "templates-ok": "Plantilles migrades",
+          "templates-error": "Plantilles no migrades",
+          "media-progress": "Migrant mitjans...",
+          "media-ok": "Mitjans migrats",
+          "media-error": "Mitjans no migrats",
+          "deployments-progress": "Migrant desplegaments...",
+          "deployments-ok": "Desplegaments migrats",
+          "deployments-error": "Desplegaments no migrats",
+          "recycle-bin-progress": "Buidant la paperera...",
+          "recycle-bin-ok": "Paperera buidada"
+        },
+        "buttons": {
+          "ok": "OK",
+          "logout": "Tancar sessió"
+        },
+        "errors": {
+          "generic": "Hi ha hagut un error mentre es migraven els teus {type}, si us plau, contacta amb un administrador."
+        }
+      }
+    },
+    "recycle-bin": {
+      "title": "Paperera de reciclatge",
+      "table-title": "Llista d'elements eliminats pendents de ser restaurats o eliminats permanentment. Fes clic per veure més detalls sobre cada entrada",
+      "alert": {
+        "title": "Atenció",
+        "empty-after": "Els elements de la paperera s'eliminaran permanentment després d'estar dins durant {time}.",
+        "infinite": "Els elements de la paperera no s'eliminaran automàticament.",
+        "immediately": "Els elements s'eliminaran de la paperera permanentment de manera immediata."
+      },
+      "empty": {
+        "title": "La paperera és buida",
+        "description": "Els elements que eliminis apareixeran aquí fins que es restaurin o s'eliminin permanentment."
+      },
+      "empty-recycle-bin": "Buida la paperera",
+      "columns": {
+        "name": "Nom",
+        "size": "Mida",
+        "content": "Contingut",
+        "deleted-at": "Esborrat el",
+        "deleted-by": "Esborrat per",
+        "actions": "Accions"
+      },
+      "actions": {
+        "restore": "Restaura",
+        "delete-permanently": "Elimina permanentement"
+      },
+      "filters": {
+        "search": {
+          "placeholder": "Cerca entrades a la paperera..."
+        }
+      },
+      "error": {
+        "title": "Error carregant dades de la paperera",
+        "generic": "S'ha produït un error",
+        "restore-failed": "Error en restaurar l'element",
+        "delete-failed": "Error en eliminar l'element"
+      },
+      "entry": {
+        "banner": {
+          "alt": "Bàner de l'entrada de la paperera",
+          "title": "Detalls de l'element eliminat",
+          "description": "Revisa el contingut d'aquest element eliminat abans de restaurar-lo o eliminar-lo permanentment.",
+          "deleted-on": "Esborrat el",
+          "total-size": "Mida total",
+          "unknown-size": "Mida desconeguda",
+          "unknown-date": "Data desconeguda"
+        },
+        "tabs": {
+          "desktops": "Escriptoris",
+          "deployments": "Desplegaments",
+          "templates": "Plantilles",
+          "storages": "Emmagatzematge"
+        },
+        "filters": {
+          "search": {
+            "placeholder": "Cerca elements en aquesta entrada..."
+          }
+        },
+        "tables": {
+          "common": {
+            "name": "Nom",
+            "owner": "Propietari",
+            "category": "Categoria",
+            "group": "Grup",
+            "accessed": "Últim accés"
+          },
+          "deployments": {
+            "deployment-desktop": "Escriptori"
+          },
+          "storages": {
+            "id": "ID d'emmagatzematge",
+            "path": "Ruta",
+            "status": "Estat",
+            "format": "Format",
+            "size": "Mida",
+            "used": "Usat",
+            "total": "Total",
+            "parent": "Disc pare",
+            "owner": "Propietari",
+            "domains": "Dominis"
+          }
+        },
+        "empty": {
+          "title": "No s'han trobat elements",
+          "description": "Prova de canviar la pestanya o ajustar la cerca."
+        }
+      }
+    },
+    "register": {
+      "title": "Registre"
+    },
+    "notifications": {
+      "title": "Notificacions",
+      "no-notifications": "No hi ha notificacions pendents",
+      "go-to-desktops": "Ves als meus escriptoris"
+    },
+    "desktops": {
+      "new-desktop": "Escriptori nou",
+      "stop-all": "Atura tots els escriptoris",
+      "stop-all-tooltip": {
+        "title": "No hi ha escriptoris iniciats ara mateix"
+      },
+      "filters": {
+        "kind": {
+          "all": "Tots",
+          "deployment": "Desplegament | Desplegaments",
+          "nonpersistent": "Temporal | Temporals",
+          "persistent": "Persistent | Persistents"
+        },
+        "search": {
+          "placeholder": "Cerca els escriptoris"
+        },
+        "status": {
+          "all": "Tots",
+          "started": "Iniciats",
+          "stopped": "Aturats"
+        }
+      },
+      "go-to-desktops": "Ves als escriptoris",
+      "desktop-created": {
+        "title": "Escriptori creat correctament",
+        "description": "Pots iniciar-lo ara o tornar als teus escriptoris."
+      },
+      "desktop-updated": {
+        "title": "Escriptori actualitzat correctament",
+        "description": "@:views.desktops.desktop-created.description"
+      }
+    },
+    "templates": {
+      "new-template": "Nova plantilla",
+      "filters": {
+        "search": {
+          "placeholder": "Cerca"
+        }
+      },
+      "table": {
+        "headers": {
+          "name": "Nom",
+          "description": "Descripció",
+          "owner": "Propietari"
+        },
+        "actions": {
+          "edit": "Edita la plantilla",
+          "hide": "Amaga la plantilla",
+          "show": "Fes la plantilla visible",
+          "update-alloweds": "Actualitza permisos",
+          "template-to-desktop": "Converteix en escriptori",
+          "delete": "Esborra la plantilla",
+          "duplicate": "Duplica la plantilla",
+          "info": "Informació"
+        }
+      }
+    },
+    "new-template": {
+      "header": {
+        "cancel": "Cancel·la",
+        "create-template": "Crea la plantilla",
+        "next": "Següent",
+        "previous": "Anterior"
+      },
+      "stepper-steps": {
+        "select-desktop": "Selecciona l'escriptori",
+        "configure-template": "Configura la plantilla"
+      },
+      "select": {
+        "title": "Selecciona un escriptori per crear una plantilla a partir d'ell",
+        "desktop-not-stopped": "L'escriptori ha d'estar aturat per crear una plantilla."
+      },
+      "form": {
+        "title": "Configura la teva plantilla",
+        "subtitle": "Pots editar el nom de la plantilla, la imatge i qui la pot utilitzar.",
+        "sections": {
+          "preview": {
+            "title": "Previsualització",
+            "subtitle": "Edita la plantilla i els seus permisos. Aquesta és la informació que es mostrarà un cop creada.",
+            "fields": {
+              "name": {
+                "label": "Nom",
+                "placeholder": "Introdueix el nom de la plantilla",
+                "default": "Plantilla {desktop_name}"
+              },
+              "description": {
+                "label": "Descripció",
+                "placeholder": "Introdueix la descripció de la plantilla (opcional)"
+              }
+            }
+          },
+          "visibility": {
+            "title": "Visibilitat",
+            "subtitle": "Edita les diferents opcions de visibilitat per a aquesta plantilla",
+            "label": "Visible per a altres usuaris"
+          },
+          "alloweds": {
+            "title": "Grups i Usuaris permesos",
+            "subtitle": "Aquesta plantilla es compartirà amb {groups} i {users}.",
+            "button": "Gestiona usuaris i grups"
+          },
+          "hardware": {
+            "title": "Resum de maquinari",
+            "subtitle": "Aquest és un resum del maquinari heretat que s'utilitzarà per a la teva plantilla."
+          }
+        },
+        "errors": {
+          "title": "Hi ha hagut un error en crear la plantilla",
+          "fields": {
+            "name": {
+              "exists": "Si us plau, tria un nom diferent."
+            }
+          }
+        }
+      }
+    },
+    "profile": {
+      "personal-info": {
+        "title": "Informació personal",
+        "fields": {
+          "profile-image": "Imatge decorativa del perfil",
+          "name": "Nom",
+          "email": "Correu electrònic",
+          "language": "Idioma"
+        }
+      },
+      "security": {
+        "title": "Seguretat",
+        "actions": {
+          "change-password": "Canvia la contrasenya",
+          "verify-email": "Verifica / Canvia el correu",
+          "api-key": "Clau API",
+          "reset-vpn": "Restableix la VPN",
+          "download-vpn": "Descarrega la VPN"
+        }
+      },
+      "information": {
+        "title": "Informació",
+        "fields": {
+          "username": "Nom d'usuari",
+          "authentication": "Autenticació",
+          "category": "Categoria",
+          "group": "Grup",
+          "role": "Rol",
+          "secondary-groups": "Grups secundaris"
+        },
+        "actions": {
+          "view-quota": "Veure quota"
+        }
+      },
+      "migrations": {
+        "title": "Migracions",
+        "actions": {
+          "export-user": "Exporta l'usuari",
+          "import-user": "Importa l'usuari"
+        }
+      },
+      "storage": {
+        "title": "Emmagatzematge d'Usuari",
+        "fields": {
+          "user-storage-link": "La teva URL d'emmagatzematge d'usuari"
+        },
+        "actions": {
+          "manage-user-storage": "Obre l'emmagatzematge"
+        }
+      },
+      "email-verified": "Correu verificat",
+      "email-not-verified": "Correu no verificat",
+      "no-data": "No hi ha dades d'usuari disponibles"
+    },
+    "media": {
+      "data-table": {
+        "headers": {
+          "name": "Nom",
+          "description": "Descripció",
+          "status": "Estat",
+          "progress": "Progrés",
+          "kind": "Tipus",
+          "date": "Data de creació",
+          "size": "Mida",
+          "user": "Usuari",
+          "category": "Categoria",
+          "group": "Grup"
+        }
+      },
+      "status": {
+        "downloading": "Descarregant",
+        "downloaded": "Descarregat",
+        "deleting": "Esborrant",
+        "downloadfailed": "Descàrrega fallida",
+        "downloadfailedinvalidformat": "Format no vàlid",
+        "downloadstarting": "Iniciant descàrrega",
+        "downloadaborting": "Abortant descàrrega",
+        "resetdownloading": "Reiniciant descàrrega",
+        "maintenance": "Manteniment",
+        "download": "Descàrrega pendent",
+        "unknown": "Estat desconegut"
+      },
+      "filters": {
+        "search": {
+          "placeholder": "Cerca un mitjà"
+        }
+      },
+      "tooltip": {
+        "buttons": {
+          "allowed": {
+            "title": "Canviar permisos"
+          },
+          "delete": {
+            "title": "Esborrar mitjà"
+          },
+          "new-desktop": {
+            "title": "Crear nou escriptori"
+          },
+          "download": {
+            "title": "Descarregar mitjà"
+          },
+          "stop-download": {
+            "title": "Aturar descàrrega"
+          }
+        },
+        "unavailable": "Contingut multimedia no disponible. Si us plau, torna-ho a provar més tard."
+      },
+      "delete-confirmation-modal": {
+        "title": "Esborrar el mitjà '{name}'",
+        "subtitle": "Aquesta acció no es pot desfer i es perdran totes les dades associades.",
+        "cancel": "Cancel·la",
+        "confirm": "Esborrar"
+      }
+    },
+    "deployments": {
+      "data-table": {
+        "headers": {
+          "visibility": "Visibilitat",
+          "name": "Desplegament",
+          "description": "Descripció",
+          "started-desktops": "Iniciats",
+          "visible-desktops": "Visibles",
+          "total-users": "Usuaris"
+        }
+      },
+      "table-title": "Fes clic en un desplegable per veure i gestionar els detalls",
+      "filters": {
+        "search": {
+          "placeholder": "Cercar desplegaments"
+        },
+        "status": {
+          "all": "Tots",
+          "started": "Iniciats",
+          "visible": "Visibles"
+        }
+      },
+      "dropdown": {
+        "buttons": {
+          "edit": "Editar desplegament",
+          "download-viewer": "Descarregar enllaços directes",
+          "recreate": "Recrear desplegament",
+          "reserve": "Reservar",
+          "delete": "Eliminar desplegament"
+        }
+      },
+      "visibility": {
+        "visible": "Visible",
+        "hidden": "Ocult"
+      },
+      "empty": {
+        "subtitle": "Crea un desplegament per començar a proporcionar escriptoris als teus usuaris"
+      }
+    },
+    "deployment": {
+      "banner": {
+        "alt": "Banner del desplegament",
+        "users": "Usuaris",
+        "started": "Iniciats",
+        "visible": "Visibles"
+      },
+      "search-placeholder": "Cercar usuari",
+      "buttons": {
+        "users-and-groups": "Usuaris i grups",
+        "videowall": "Videowall",
+        "stop-all": "Atural's tots",
+        "enter": "Entra",
+        "stop": "Atura"
+      },
+      "data-table": {
+        "headers": {
+          "visible": "Visible",
+          "last-access": "Últim accés",
+          "user": "Usuari",
+          "started-desktops": "Escriptoris arrencats",
+          "actions": "Accions"
+        }
+      },
+      "tooltips": {
+        "videowall": "Videowall",
+        "resources": "Recursos",
+        "delete": "Elimina"
+      },
+      "recreate-modal": {
+        "title": "Recrear desplegament '{name}'",
+        "description": "Restableix els escriptoris a l'estat inicial en què es van crear. Només els escriptoris eliminats es restabliran",
+        "button": "Recrear desplegament"
+      }
+    },
+    "new-deployment": {
+      "title": "Nou Desplegament",
+      "subtitle": "Crea un nou desplegament seleccionant els escriptoris que vols incloure-hi i assignant-li un nom.",
+      "steps": {
+        "configuration": {
+          "title": "Configuració"
+        },
+        "select-desktops": {
+          "title": "Escriptoris",
+          "add-desktop": "Afegeix un escriptori",
+          "add-desktop-max": "@:views.new-deployment.steps.select-desktops.add-desktop {current} / {max}",
+          "errors": {
+            "no-desktops": "Almenys un escriptori ha d'estar afegit al desplegament."
+          }
+        }
+      },
+      "header": {
+        "cancel": "Cancel·la",
+        "previous": "Anterior",
+        "next": "Següent",
+        "create-deployment": "Crea el desplegament"
+      }
+    },
+    "shared-deployments": {
+      "error": {
+        "loading": "Error en carregar els desplegaments:"
+      }
+    }
+  },
+  "layouts": {
+    "login": {
+      "title": "Iniciar sessió",
+      "works-with": "Funciona amb"
+    },
+    "single-page": {
+      "go-back": "Torna enrere",
+      "logout": "Tanca la sessió"
+    },
+    "maintenance": {
+      "title": "En manteniment",
+      "description": "El servei d'IsardVDI tornarà a estar disponible en una estona. Disculpeu les molèsties.",
+      "button": "Anar al login"
+    }
+  },
+  "components": {
+    "quota-exceeded-modal": {
+      "go-to-profile": "Veure quota"
+    },
+    "metric-item": {
+      "labels": {
+        "low": "Baix",
+        "medium": "Mitjà",
+        "high": "Alt"
+      }
+    },
+    "recycle-bin": {
+      "permanent-delete-modal": {
+        "title": "Elimina permanentment {name}",
+        "description": "Aquesta acció no es pot desfer.",
+        "cancel": "Cancel·la",
+        "confirm": "Elimina",
+        "unknown-item": "aquest element"
+      },
+      "restore-modal": {
+        "title": "Restaura {name}",
+        "description": "Aquest element tornarà a estar disponible.",
+        "cancel": "Cancel·la",
+        "confirm": "Restaura",
+        "unknown-item": "aquest element",
+        "errors": {
+          "generic": "S'ha produït un error en restaurar l'element. Torna-ho a provar.",
+          "unable_to_restore_user": "No es pot restaurar. L'usuari \"{user}\" ha estat eliminat.",
+          "unable_to_restore_category": "No es pot restaurar. La categoria associada ha estat eliminada.",
+          "unable_to_restore_group": "No es pot restaurar. El grup associat ha estat eliminat.",
+          "parent_template_not_found": "No es pot restaurar. La plantilla pare ja no existeix."
+        }
+      },
+      "empty-modal": {
+        "title": "Buida la paperera",
+        "description": "Això eliminarà definitivament totes les entrades de la paperera. Aquesta acció és irreversible",
+        "cancel": "Cancel·la",
+        "confirm": "Buida",
+        "error": "Error en buidar la paperera"
+      }
+    },
+    "profile": {
+      "api-key-modal": {
+        "title": "Clau API",
+        "alert": {
+          "expired": "La teva antiga clau API ha caducat. Necessitaràs generar-ne una de nova per continuar utilitzant l'API d'IsardVDI amb aplicacions externes. Pots generar-ne una de nova a continuació.",
+          "regenerated": "La teva antiga clau API ha estat eliminada. A continuació pots copiar la nova.",
+          "expired-title": "Clau API caducada",
+          "error-title": "La sol·licitud ha fallat",
+          "error-fetch": "No s'ha pogut carregar l'estat de la teva clau API. Torna-ho a provar.",
+          "error-generate": "No s'ha pogut generar la clau API. Torna-ho a provar.",
+          "error-expire": "No s'ha pogut caducar la clau API. Torna-ho a provar.",
+          "valid-title": "Clau API activa",
+          "valid-description": "La teva clau API és vàlida fins el {date}. Després d'aquesta data, caducarà i no podràs utilitzar-la més."
+        },
+        "errors": {
+          "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
+          "not_found": "No s'ha pogut trobar la teva clau API.",
+          "internal_server": "Ha ocorregut un error intern del servidor. Si us plau, intenta-ho més tard."
+        },
+        "new-key": {
+          "title": "Genera una nova clau API",
+          "description": "Pots generar una nova clau API per utilitzar amb aplicacions externes que integren l'API d'IsardVDI.",
+          "warning": "Només podràs veure la clau API una vegada, així que assegura't de guardar-la en un lloc segur.",
+          "buttons": {
+            "generate": "Genera",
+            "expiration-label": "Data de caducitat",
+            "show": "Mostra la clau",
+            "copy": "Copia la clau",
+            "key-copied": "Clau copiada al porta-retalls"
+          }
+        },
+        "existing-key": {
+          "description-1": "La teva clau API és vàlida fins el {date}. Després d'això, caducarà i no podràs utilitzar-la més.",
+          "description-2": "Pots fer-la caducar ara per generar-ne una de nova.",
+          "description-expired": "La teva clau API està caducada. Prem el botó per eliminar-la i generar-ne una de nova.",
+          "buttons": {
+            "expire": "Caduca",
+            "delete": "Elimina",
+            "expire-tooltip": "Caduca la clau API existent"
+          }
+        }
+      },
+      "email-verification-modal": {
+        "title": "Canviar correu",
+        "description": "Escriu el vostre nou correu. Rebreu un missatge de verificació per confirmar el canvi.",
+        "email-label": "Correu electrònic",
+        "email-placeholder": "nom{'@'}exemple.com",
+        "invalid-email": "Escriu un correu vàlid",
+        "error-generic": "Ha ocorregut un error en actualitzar el correu. Si us plau, intenteu-ho de nou.",
+        "errors": {
+          "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
+          "not_found": "El recurs sol·licitat no s'ha trobat.",
+          "internal_server": "Ha ocorregut un error intern del servidor. Si us plau, intenta-ho més tard.",
+          "email_already_in_use": "Aquest correu ja està en ús",
+          "invalid_email": "El format del correu és invàlid"
+        },
+        "buttons": {
+          "cancel": "Cancel·la",
+          "verify": "Actualitza i verifica"
+        }
+      },
+      "import-user-modal": {
+        "title": "Importar usuari",
+        "description": "Importa els elements d'un altre usuari a aquest compte",
+        "instructions-title": "Com obtenir un codi de migració",
+        "migration-instructions1": "Per començar, necessiteu un codi de migració de l'usuari que voleu importar.",
+        "migration-instructions2": "Si no en teniu cap, primer heu d'iniciar sessió en el compte que voleu migrar, cliqueu \"Exporta usuari\" al perfil i seguiu les instruccions indicades.",
+        "migration-instructions3": "Un cop tingueu el codi de migració, enganxeu-lo al camp de sota.",
+        "token-label": "Codi de migració",
+        "placeholder": "Introdueix el codi de migració",
+        "migrate-tooltip": "Ves a la pàgina de migració per continuar el procés",
+        "buttons": {
+          "migrate": "Inicia la migració"
+        },
+        "errors": {
+          "title": "Error d'importació",
+          "generic": "S'ha produït un error en importar l'usuari. Torna-ho a provar.",
+          "unknown": "S'ha produït un error",
+          "migration_not_found": "El token de migració no existeix",
+          "token_expired": "El token proporcionat ha expirat",
+          "invalid_token": "El token proporcionat no és vàlid",
+          "no_items_to_migrate": "No hi ha elements per migrar",
+          "multiple_migrations_found_target_user": "Hi ha múltiples migracions per al nou usuari",
+          "same_user_migration": "No pots migrar al mateix compte. Quan obtinguis el token, has de tancar la sessió i tornar a iniciar-la amb el nou compte",
+          "different_category_migration": "No pots migrar a un compte d'una categoria diferent",
+          "role_migration_admin": "No pots migrar des d'un compte d'administrador",
+          "role_migration_user": "No pots migrar a un compte d'usuari des d'un compte amb un rol més alt",
+          "migration_desktop_quota_error": "L'usuari té més escriptoris que la quota del nou usuari",
+          "migration_template_quota_error": "L'usuari té més plantilles que la quota del nou usuari",
+          "migration_media_quota_error": "L'usuari té més mitjans que la quota del nou usuari",
+          "migration_deployments_quota_error": "L'usuari té més desplegaments que la quota del nou usuari"
+        }
+      },
+      "password-modal": {
+        "title": "Canviar la contrasenya",
+        "current-password": {
+          "label": "Contrasenya actual",
+          "placeholder": "Contrasenya actual"
+        },
+        "new-password": {
+          "label": "Contrasenya nova",
+          "placeholder": "Contrasenya nova"
+        },
+        "confirm-new-password": {
+          "label": "Confirma la contrasenya",
+          "placeholder": "Contrasenya nova"
+        },
+        "buttons": {
+          "update": "Actualitza",
+          "cancel": "Canceŀla"
+        },
+        "errors": {
+          "required": "Aquest camp és obligatori",
+          "mismatch": "Les contrasenyes no son iguals",
+          "password_character_length": "La contrasenya ha de tenir com a mínim {num} caràcter(s)",
+          "password_uppercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en majúscula",
+          "password_lowercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en minúscula",
+          "password_digits": "La contrasenya ha de tenir com a mínim {num} número(s)",
+          "password_special_characters": "La contrasenya ha de tenir com a mínim {num} caràcter(s) especials: !{'@'}{'#'}$%^&*()-_=+[]{'{'}{'}'}{'|'};:'\",.<>/?",
+          "password_already_used": "Aquesta contrasenya ja s'ha utilitzat abans",
+          "password_username": "La contrasenya no pot contenir el nom d'usuari",
+          "wrong_password_entered": "La contrasenya introduïda és incorrecta"
+        }
+      },
+      "quota-modal": {
+        "title": "Quota",
+        "description": "Aquí podeu comprovar l'ús dels vostres recursos.",
+        "total_size": "S'estan utilitzant un {0} de l'espai d'emmagatzematge.",
+        "storage_current_usage": "Ús actual de l'emmagatzematge",
+        "restriction_title": "Restricció aplicada",
+        "restriction_description": "La restricció que s'aplica és",
+        "restrictions": {
+          "user_quota": "Quota d'usuari",
+          "group_quota": "Quota de grup",
+          "category_quota": "Quota de categoria"
+        },
+        "metrics": {
+          "desktops": "Escriptoris persistents",
+          "volatile": "Escriptoris temporals",
+          "media": "Mitjans",
+          "memory": "Memòria utilitzada (GB)",
+          "running": "Escriptoris en execució",
+          "templates": "Plantilles",
+          "vcpus": "vCPUs utilitzades",
+          "total-disk-size": "Mida de disc utilitzada",
+          "total-media-size": "Mida de mitjans utilitzada",
+          "total-size": "Mida utilitzada (GB)",
+          "unit": "Mida de unitat personal (MB)",
+          "deployments_total": "Desplegaments",
+          "deployment_desktops": "Màxim d'escriptoris per desplegament",
+          "deployment_users": "Màxim d'usuaris per desplegament",
+          "started_deployment_desktops": "Escriptoris en execució del desplegament"
+        }
+      },
+      "reset-vpn-modal": {
+        "title": "Restablir les claus VPN",
+        "description": "Vols restablir les claus VPN? Hauràs de descarregar un nou fitxer VPN",
+        "cancel": "Cancel·la",
+        "confirm": "Restableix la VPN",
+        "errors": {
+          "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
+          "internal_server": "No s'han pogut restablir les claus VPN per un error del servidor. Si us plau, intenta-ho més tard.",
+          "generic": "No s'han pogut restablir les claus VPN. Si us plau, intenta-ho de nou."
+        }
+      }
+    },
+    "email-verification-modal": {
+      "title": "Canviar correu",
+      "description": "Escriu el vostre nou correu. Rebreu un missatge de verificació per confirmar el canvi.",
+      "email-label": "Correu electrònic",
+      "email-placeholder": "nom{'@'}exemple.com",
+      "invalid-email": "Escriu un correu vàlid",
+      "error-generic": "Ha ocorregut un error en actualitzar el correu. Si us plau, intenteu-ho de nou.",
+      "errors": {
+        "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
+        "not_found": "El recurs sol·licitat no s'ha trobat.",
+        "internal_server": "Ha ocorregut un error intern del servidor. Si us plau, intenta-ho més tard.",
+        "email_already_in_use": "Aquest correu ja està en ús",
+        "invalid_email": "El format del correu és invàlid"
+      },
+      "buttons": {
+        "cancel": "Cancel·la",
+        "verify": "Actualitza i verifica"
+      }
+    },
+    "login": {
+      "login-provider-form": {
+        "category": "Categoria",
+        "username": "Nom d'usuari",
+        "password": "Contrasenya",
+        "forgot-password": "Has oblidat la contrasenya?",
+        "login": "Iniciar sessió"
+      },
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Iniciar sessió amb SAML",
+          "google": "Iniciar sessió amb Google"
+        }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Selecciona una categoria",
+        "not-found": "No s'ha trobat cap categoria"
+      },
+      "login-category-select": {
+        "logged-in-as": "Has iniciat sessió com a {name}",
+        "logout": "Tancar sessió"
+      }
+    },
+    "migration": {
+      "migration-item-table": {
+        "name": "Nom"
+      },
+      "migration-item-box": {
+        "quota_exceeded": "Les quotes de '{type}' es superaran"
+      }
+    },
+    "register": {
+      "register-form": {
+        "code": "Codi de registre",
+        "register": "Registrar-se",
+        "cancel": "Cancel·lar"
+      }
+    },
+    "sidebar": {
+      "collapse": "Col·lapsa el menú",
+      "expand": "Expandeix el menú",
+      "desktops": "Escriptoris",
+      "templates": "Plantilles",
+      "media": "Mitjans",
+      "deployments": {
+        "title": "Desplegaments",
+        "shared-deployments": "Compartits amb tu"
+      },
+      "user-deployments": "Els meus desplegaments",
+      "bookings": {
+        "title": "Reserves",
+        "summary": "Resum",
+        "planning": "Planificació"
+      },
+      "help": {
+        "title": "Ajuda",
+        "docs": "Documentació",
+        "viewers": "Visors"
+      },
+      "recycle-bin": "Paperera",
+      "administration": "Administració",
+      "profile": "Vés al teu perfil",
+      "logout": "Tanca la sessió",
+      "websockets-on": "Actualitzacions en temps real activades",
+      "websockets-off": "Actualitzacions en temps real desactivades"
+    },
+    "not-enough-advanced-time-modal": {
+      "title": "No hi ha prou temps d'antelació",
+      "description": "Has de reservar aquest escriptori amb antelació per utilitzar-lo. Vés a la pàgina de reserves per programar la teva sessió.",
+      "book": "Reserva l'escriptori",
+      "cancel": "Cancel·la"
+    },
+    "destkop-gpu-unavailable-modal": {
+      "title": "La GPU '{current-gpu}' no està disponible per a l'escriptori '{name}' en aquest moment.",
+      "book": {
+        "action-button": "Reserva l'escriptori",
+        "title": "Reserva l'escriptori",
+        "subtitle": "Reserva l'escriptori amb el seu model de targeta gràfica actual comprovant la seva planificació"
+      },
+      "change-and-start": {
+        "action-button": "Canvia i inicia",
+        "subtitle": "Es pot canviar a un model de targeta gràfica disponible ara i iniciar-lo (Això podria afectar el rendiment de l'escriptori)",
+        "title": "Canvia i inicia"
+      }
+    },
+    "destkop-start-now-modal": {
+      "cancel": "Cancel·la",
+      "confirm": "Inicia l'escriptori",
+      "description": "Selecciona fins quan s'utilitzarà l'escriptori",
+      "title": "Iniciar",
+      "select": {
+        "label": "Hora de finalització",
+        "placeholder": "Selecciona fins quan s'utilitzarà"
+      }
+    },
+    "destkop-gpu-change-and-start-modal": {
+      "title": "Canvia i inicia",
+      "book": "Reserva l'escriptori",
+      "cancel": "Cancel·la",
+      "confirm": "Canvia i inicia",
+      "description": "Canvieu la GPU de l'escriptori i inicieu-lo immediatament.",
+      "empty": {
+        "description": "No hi ha altres perfils de GPU disponibles actualment",
+        "title": "No hi ha perfils disponibles"
+      },
+      "gpu-select": {
+        "placeholder": "Perfils de GPU disponibles",
+        "value": "Canvia a \"{profile}\"",
+        "label": "Nou perfil de GPU"
+      }
+    },
+    "desktops": {
+      "desktop-card": {
+        "ip-address": "Adreça IP: {ip}",
+        "actions": {
+          "bastion": "Bastió",
+          "book": "Reserva",
+          "delete": "Esborra",
+          "direct-link": "Enllaç directe",
+          "edit": "Edita",
+          "info": "Informació",
+          "recreate": "Recrea",
+          "template": "Converteix en plantilla"
+        },
+        "debug-options": {
+          "copy-id": "Copia l'ID de l'escriptori"
+        },
+        "notification-bar": {
+          "booking-ends": "La reserva acaba el {date} a les {time}",
+          "needs-booking": "Aquest escriptori necessita una reserva per iniciar-se",
+          "next-booking": "Propera reserva: {date} a les {time}",
+          "no-next-booking": "No hi ha properes reserves programades",
+          "shutdown": "L'escriptori s'apagarà el {date} a les {time}",
+          "queue-position": "Posició a la cua: {position}",
+          "maintenance": {
+            "default": "Una operació de manteniment està en curs",
+            "resize": "La mida del disc d'aquest escriptori s'està incrementant",
+            "virt_win_reg": "S'està editant el registre",
+            "move": "El disc d'aquest escriptori s'està movent",
+            "sparsify": "El disc d'aquest escriptori s'està escurçant"
+          }
+        },
+        "status": {
+          "notCreated": {
+            "action": "Crear"
+          },
+          "creating": {
+            "text": "Creant",
+            "action": "Creant"
+          },
+          "failed": {
+            "text": "Fallat",
+            "action": "Reintentar"
+          },
+          "started": {
+            "text": "Iniciat",
+            "action": "Atura"
+          },
+          "starting": {
+            "text": "Iniciant",
+            "action": "Iniciant"
+          },
+          "stopped": {
+            "text": "Aturat",
+            "action": "Iniciar",
+            "start-now": "Iniciar"
+          },
+          "stopping": {
+            "text": "Aturant",
+            "action": "Aturant"
+          },
+          "waitingip": {
+            "text": "Esperant IP",
+            "action": "Atura"
+          },
+          "readyCreation": {
+            "text": "Llest per a crear"
+          },
+          "working": {
+            "text": "Esperant",
+            "action": "treballant"
+          },
+          "shutting-down": {
+            "text": "Aturant",
+            "action": "Forçar aturada"
+          },
+          "downloading": {
+            "text": "Descarregant"
+          },
+          "forcedeleting": {
+            "text": "Esborrant",
+            "action": "Esborrant"
+          },
+          "paused": {
+            "text": "Pausat",
+            "action": "Aturar"
+          },
+          "reset": {
+            "text": "Reiniciar",
+            "action": "Reiniciant"
+          },
+          "updating": {
+            "text": "Processant",
+            "action": "Processant"
+          },
+          "maintenance": {
+            "text": "En manteniment",
+            "action": "Cancel·lar operació"
+          },
+          "unknown": {
+            "text": "Temporalment no disponible"
+          },
+          "downloadfailed": {
+            "text": "Baixada fallida"
+          }
+        }
+      },
+      "direct-viewer-modal": {
+        "title": "Enllaç d'accés directe",
+        "enable-access": "Habilita l'accés directe",
+        "disable-confirmation": {
+          "title": "Desactivar l'enllaç d'accés directe?",
+          "description": "L'enllaç actual deixarà de funcionar. Si tornes a habilitar l'accés directe en el futur, es generarà un nou enllaç i l'anterior ja no serà vàlid.",
+          "cancel": "Cancel·la",
+          "confirm": "Desactiva"
+        }
+      },
+      "data-table": {
+        "headers": {
+          "name": "Nom",
+          "description": "Descripció",
+          "status": "Estat",
+          "actions": "Accions",
+          "viewers": "Visors"
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Quota de creació d'escriptoris superada",
+        "description": "Quota de creació d'escriptoris superada. Cal eliminar un escriptori per crear-ne un de nou.",
+        "go-to-profile": "Comprovar la quota",
+        "cancel": "Tornar als escriptoris"
+      },
+      "start-quota-exceeded-modal": {
+        "title": "Quota d'arrencada d'escriptoris superada",
+        "description": "S'ha arribat al nombre màxim d'escriptoris en execució. Cal aturar un escriptori per iniciar-ne un de nou.",
+        "cancel": "Tornar als escriptoris"
+      },
+      "storage-unavailable-modal": {
+        "title": "Emmagatzematge no disponible",
+        "description": "L'emmagatzematge de creació no està disponible actualment i no es poden crear escriptoris. Si us plau, torni-ho a provar més tard.",
+        "go-to-desktops": "Tornar als escriptoris"
+      },
+      "fields": {
+        "ip": {
+          "title-full": "@:components.domain-info-modal.fields.ip.title de l'@:domains.desktops"
+        }
+      }
+    },
+    "empty": {
+      "clear-filters": "Neteja els filtres",
+      "description": "Els teus {kind} apareixeran aquí un cop es creïn o se t'assignin.",
+      "title": "No hi ha {kind} disponibles"
+    },
+    "empty-search": {
+      "title": "No s'ha trobat cap resultat"
+    },
+    "recreate-desktop-confirmation-modal": {
+      "cancel": "Cancel·la",
+      "confirm": "Recreeu l'escriptori",
+      "description": "Recrear l'escriptori eliminarà tots els canvis que hagis fet i el restaurarà a l'estat original de la seva plantilla\nAquesta acció no es pot desfer.",
+      "title": "Recrear l'escriptori \"{name}\""
+    },
+    "stop-all-desktops-confirmation-modal": {
+      "cancel": "Cancel·la",
+      "confirm": "Atura'ls tots",
+      "description": "Aquesta acció aturarà tots els escriptoris iniciats. Estàs segur/a que vols continuar?",
+      "title": "Atura tots els escriptoris",
+      "force": "Força l'aturada dels escriptoris"
+    },
+    "desktop-networks-modal": {
+      "title": "Xarxes de l'escriptori '{name}'"
+    },
+    "domain-info-modal": {
+      "desktop": {
+        "description-prefix": "Aquests són els detalls de l'escriptori",
+        "fields": {
+          "id": "ID de l'escriptori",
+          "template": {
+            "id": "ID de la plantilla",
+            "title": "Plantilla"
+          }
+        }
+      },
+      "template": {
+        "description-prefix": "Aquests són els detalls de la plantilla",
+        "fields": {
+          "id": "ID de la plantilla"
+        }
+      },
+      "title": "Informació",
+      "fields": {
+        "description": {
+          "title": "Descripció"
+        },
+        "hardware": {
+          "ram": "{ram} GB RAM",
+          "title": "Maquinari",
+          "vcpu": "{vcpu} vCPU"
+        },
+        "ip": {
+          "title": "Adreça IP"
+        },
+        "peripherals": {
+          "title": "Perifèrics"
+        },
+        "reservables": {
+          "title": "Reservables"
+        },
+        "status": {
+          "title": "Estat"
+        },
+        "system": {
+          "title": "Sistema"
+        },
+        "viewers": {
+          "fullscreen-disabled": "Pantalla completa desactivada",
+          "fullscreen-enabled": "Pantalla completa activada",
+          "title": "Visors"
+        }
+      }
+    },
+    "domain-access-summary": {
+      "credentials": {
+        "title": "Credencials"
+      },
+      "viewers": {
+        "title": "Visors"
+      },
+      "bastion": {
+        "title": "Bastió"
+      }
+    },
+    "viewers-selector": {
+      "browser-viewers": {
+        "label": "Visors de navegador",
+        "info": "Aquests visors permeten connectar-te directament des del navegador web. No cal cap programari addicional.",
+        "rdp-browser": "RDP al navegador",
+        "vnc-browser": "VNC al navegador"
+      },
+      "file-viewers": {
+        "label": "Visors de fitxer",
+        "info": "Aquests visors requereixen descarregar un fitxer per connectar-te a l'escriptori. Cal un programari específic per fer-los servir.",
+        "rdp": "RDP",
+        "spice": "SPICE",
+        "rdp-vpn": "RDP VPN"
+      }
+    },
+    "domain-hardware-summary": {
+      "system": {
+        "title": "Sistema"
+      },
+      "networks": {
+        "title": "Xarxes"
+      },
+      "peripherals": {
+        "title": "Perifèrics"
+      },
+      "reservables": {
+        "title": "Reservables"
+      }
+    },
+    "datatable": {
+      "empty": "No hi ha escriptoris disponibles",
+      "pagination": {
+        "rows": "files",
+        "showing": "Per pàgina:",
+        "previous": "Anterior",
+        "next": "Següent"
+      }
+    },
+    "delete-confirmation-modal": {
+      "cancel": "Cancel·la",
+      "title": "Esborra {kind} '{name}'",
+      "confirm": {
+        "permanent": "Esborra permanentment",
+        "recycle-bin": "Envia a la paperera"
+      },
+      "description": {
+        "permanent": {
+          "title": "Aquesta acció no es pot desfer i es perdran totes les dades associades."
+        },
+        "recycle-bin": {
+          "subtitle": "Els elements de la paperera s'eliminaran permanentment després de: {hours} hores.",
+          "title": "Envia l'element a la paperera (el seu emmagatzematge encara comptarà en la quota de l'usuari fins que s'elimini permanentment).",
+          "infinite-subtitle": "Els elements de la paperera no s'eliminaran automàticament."
+        }
+      }
+    },
+    "bastion-info-modal": {
+      "description": "Utilitzeu la informació següent per connectar-vos a l'escriptori mitjançant el bastió.",
+      "title": "Informació del bastió per a l'escriptori '{name}'",
+      "fields": {
+        "http": {
+          "title": "HTTP / HTTPS",
+          "custom-domain": {
+            "less-details": "Menys detalls",
+            "more-details": "Més detalls",
+            "placeholder": "elmeuescriptori.example.com",
+            "title": "Nom de domini personalitzat",
+            "alert": {
+              "description": "Afegeix un registre CNAME al teu proveïdor de DNS que apunti a: {cname-url}",
+              "title": "Pots utilitzar el teu propi nom de domini per accedir a aquest escriptori mitjançant el bastió."
+            }
+          }
+        },
+        "ssh": {
+          "title": "SSH",
+          "authorized-keys": {
+            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+            "title": "Claus SSH autoritzades (una per línia)"
+          }
+        },
+        "target-id": {
+          "title": "ID de bastió"
+        }
+      }
+    },
+    "templates": {
+      "template-type": {
+        "owned": "Les teves plantilles",
+        "shared": "Plantilles compartides amb tu"
+      },
+      "change-visibility-confirmation-modal": {
+        "hide": {
+          "title": "Amaga la plantilla '{name}'",
+          "description": "Amagar la plantilla la farà invisible perquè altres usuaris puguin crear escriptoris a partir d'ella. Qualsevol escriptori temporal creat a partir d'aquesta plantilla serà eliminat.",
+          "confirm": "Amaga la plantilla"
+        },
+        "show": {
+          "title": "Fes visible la plantilla '{name}'",
+          "description": "Fer visible la plantilla permetrà que altres usuaris creïn escriptoris a partir d'ella.",
+          "confirm": "Fes visible la plantilla"
+        },
+        "cancel": "Cancel·la"
+      },
+      "delete-confirmation-modal": {
+        "title": "Esborra la plantilla '{name}'",
+        "subtitle": "Aquesta acció no es pot desfer i es perdran totes les dades associades.",
+        "fields": {
+          "dependency": {
+            "alert": {
+              "title": "Avís de dependència",
+              "description": "Els següents escriptoris i plantilles depenen d'aquesta plantilla i seran eliminats. Aquesta acció no es pot desfer i es perdran totes les dades associades.",
+              "pending": "Hi ha alguns elements que depenen d'aquesta plantilla que no són teus. Si us plau, contacta amb un administrador per esborrar aquesta plantilla."
+            },
+            "datatable": {
+              "headers": {
+                "kind": "Tipus",
+                "name": "Nom",
+                "user": "Usuari"
+              }
+            }
+          }
+        },
+        "cancel": "Cancel·la",
+        "confirm": "Esborra la plantilla",
+        "debug-options": {
+          "copy-id": "Copia l'ID"
+        }
+      },
+      "convert-to-desktop-modal": {
+        "title": "Converteix la plantilla '{name}' en un escriptori",
+        "form": {
+          "name": {
+            "label": "Nou nom",
+            "description": "Pots canviar el nom de la plantilla ara per donar un nom diferent a l'escriptori."
+          }
+        },
+        "alert": {
+          "title": "Conversió bloquejada",
+          "description": {
+            "duplicated": "Aquesta plantilla és una còpia d'una altra plantilla i no pot ser convertida a escriptori. Contacta amb un administrador.",
+            "dependencies": "Aquesta plantilla té dependències i no pot ser convertida a escriptori. Contacta amb un administrador.",
+            "pending": "@:components.templates.convert-to-desktop-modal.alert.description.dependencies",
+            "error": "Hi ha hagut un error comprovant les dependències d'aquesta plantilla. Torna-ho a provar mes tard o contacta amb un administrador si el problema persisteix."
+          }
+        },
+        "cancel": "Cancel·la",
+        "confirm": "Converteix en escriptori",
+        "debug-options": {
+          "copy-id": "@:components.templates.delete-confirmation-modal.debug-options.copy-id"
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Quota de creació de plantilles superada",
+        "description": "Quota de creació de plantilles superada. Cal eliminar una plantilla per crear-ne una de nova.",
+        "cancel": "Torna a les plantilles",
+        "go-to-profile": "Comprova la teva quota"
+      },
+      "datatable": {
+        "debug-options": {
+          "copy-id": "Copia l'ID de la plantilla"
+        }
+      }
+    },
+    "domain": {
+      "info": {
+        "name": {
+          "label": "Nom",
+          "placeholder": "Introdueix el nom de l'escriptori"
+        },
+        "description": {
+          "label": "Descripció",
+          "placeholder": "Introdueix la descripció de l'escriptori (opcional)"
+        }
+      },
+      "access": {
+        "sections": {
+          "credentials": "Credencials",
+          "viewers": "Visors",
+          "bastion": "Bastió",
+          "bastion-configuration": "Configuració del bastió"
+        },
+        "credentials": {
+          "username": {
+            "label": "Nom d'usuari",
+            "placeholder": "Introdueix el nom d'usuari"
+          },
+          "password": {
+            "label": "Contrasenya",
+            "placeholder": "Introdueix la contrasenya",
+            "help": "AVÍS: La contrasenya es desarà sense xifrar a la base de dades."
+          }
+        },
+        "fullscreen": {
+          "label": "Activa la pantalla completa per defecte",
+          "description": "Si s'activa, el visor s'obrirà en pantalla completa."
+        },
+        "viewers": {
+          "label": "Visors"
+        },
+        "bastion": {
+          "label": "Bastió activat",
+          "description": "Permet l'accés a l'escriptori a través d'un host bastió.",
+          "http-https": {
+            "label": "HTTP / HTTPS",
+            "description": "Accedeix a l'escriptori amb un navegador web o un visor RDP compatible amb connexions HTTP/HTTPS.",
+            "http-port": {
+              "label": "Port HTTP",
+              "placeholder": "Introdueix el port HTTP"
+            },
+            "https-port": {
+              "label": "Port HTTPS",
+              "placeholder": "Introdueix el port HTTPS"
+            },
+            "custom-domains": {
+              "label": "Nom de domini personalitzat (opcional)",
+              "placeholder": "elmeescriptori.exemple.com",
+              "empty": "No s'han afegit dominis personalitzats",
+              "add": "Afegeix un domini personalitzat",
+              "more-details": "Més detalls",
+              "less-details": "Menys detalls",
+              "alert": {
+                "title": "Pots fer servir el teu propi nom de domini per accedir a aquest escriptori a través del bastió.",
+                "description": "Afegeix un registre CNAME al teu proveïdor de DNS apuntant a: {cname-url}",
+                "cname-example": "00000000-0000-0000-0000.000000000000.exemple.com"
+              }
+            }
+          },
+          "ssh": {
+            "label": "SSH",
+            "description": "Fes servir un client SSH per connectar-te a l'escriptori a través de l'host bastió.",
+            "port": {
+              "label": "Port SSH",
+              "placeholder": "Introdueix el port SSH"
+            },
+            "authorized-keys": {
+              "label": "Claus SSH autoritzades (una per línia)",
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+            }
+          }
+        }
+      },
+      "hardware": {
+        "vcpus": {
+          "label": "vCPUs",
+          "placeholder": "Introdueix el nombre de vCPUs"
+        },
+        "memory": {
+          "label": "Memòria (GB)",
+          "placeholder": "Introdueix la quantitat de memòria en GB"
+        },
+        "disk-bus": {
+          "label": "Bus de disc",
+          "placeholder": "Selecciona un tipus de bus de disc"
+        },
+        "disk-size": {
+          "label": "Mida del disc (GB)",
+          "placeholder": "Introdueix la mida en GB"
+        },
+        "videos": {
+          "label": "Vídeos",
+          "placeholder": "Selecciona un tipus de vídeo"
+        },
+        "boot-order": {
+          "label": "Arrencada",
+          "placeholder": "Selecciona el dispositiu d'arrencada"
+        },
+        "isos": {
+          "label": "ISOs",
+          "placeholder": "Selecciona ISOs"
+        },
+        "floppies": {
+          "label": "Disquets",
+          "placeholder": "Selecciona disquets"
+        },
+        "vgpus": {
+          "label": "vGPU",
+          "placeholder": "Selecciona una vGPU"
+        },
+        "hardwareGroups": {
+          "hardware": "Maquinari",
+          "system": "Sistema",
+          "peripherals": "Perifèrics",
+          "reservables": "Reservables"
+        },
+        "networks": {
+          "label": "Xarxes",
+          "placeholder": "Selecciona xarxes",
+          "modal": {
+            "title": "Configura les xarxes",
+            "description": "Afegeix, elimina o reordena les xarxes assignades a aquest domini",
+            "selected": "Xarxes seleccionades",
+            "drop-here": "Arrossega xarxes aquí",
+            "available": "Xarxes disponibles",
+            "empty-selected": "Arrossega xarxes aquí o prem + per afegir-ne",
+            "empty-available": "Totes les xarxes estan seleccionades",
+            "cancel": "Cancel·la",
+            "save": "Desa"
+          }
+        },
+        "limited": {
+          "warning": {
+            "title": "Restriccions aplicades",
+            "subtitle": "Aquest valor ha estat limitat pels permisos d'usuari."
+          },
+          "restricted": "Valor restringit: {old_value} → Establert a: {new_value}",
+          "quota": "Aquest valor supera la teva quota"
+        }
+      }
+    },
+    "media": {
+      "media-type": {
+        "owned": "Els meus mitjans",
+        "shared": "Mitjans compartits"
+      },
+      "new": {
+        "button": "Nou mitjà",
+        "title": "Nou mitjà",
+        "submit": "Crea el mitjà",
+        "fields": {
+          "name": {
+            "label": "Nom",
+            "placeholder": "Introdueix el nom del mitjà"
+          },
+          "url": {
+            "label": "URL",
+            "placeholder": "https://exemple.com/mitja.iso"
+          },
+          "description": {
+            "label": "Descripció",
+            "placeholder": "Introdueix la descripció del mitjà"
+          },
+          "kind": {
+            "label": "Tipus",
+            "placeholder": "Selecciona el tipus de mitjà",
+            "options": {
+              "iso": "ISO CD/DVD",
+              "floppy": "Floppy"
+            }
+          }
+        },
+        "validation": {
+          "invalid-url": "Introdueix una URL vàlida",
+          "min-length": "Ha de tenir almenys {min} caràcters",
+          "max-length": "Ha de tenir com a màxim {max} caràcters",
+          "https-required": "URL del mitjà ha de començar amb https://"
+        },
+        "errors": {
+          "duplicated_name": "Ja existeix un mitjà amb aquest nom. Si us plau, tria un nom diferent."
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Quota de creació de mitjans superada",
+        "description": "Quota de creació de mitjans superada. Cal eliminar un mitjà per poder pujar-ne un de nou.",
+        "cancel": "Torna als mitjans"
+      }
+    },
+    "deployments": {
+      "form-sections": {
+        "preview": {
+          "title": "Previsualització",
+          "subtitle": "Així es mostrarà el desplegament als usuaris. Edita-ho per fer-lo més fàcil d'identificar."
+        },
+        "info": {
+          "title": "Informació del desplegament",
+          "subtitle": "Edita el nom i la descripció del desplegament.",
+          "fields": {
+            "name": {
+              "label": "Nom",
+              "placeholder": "Introdueix el nom del desplegament"
+            },
+            "description": {
+              "label": "Descripció",
+              "placeholder": "Introdueix la descripció del desplegament (opcional)"
+            }
+          }
+        },
+        "visibility": {
+          "title": "Visibilitat del desplegament",
+          "subtitle": "Edita les diferents opcions de visibilitat per aquest desplegament",
+          "fields": {
+            "visible": {
+              "label": "Visible per als usuaris"
+            }
+          }
+        },
+        "alloweds": {
+          "title": "Grups i Usuaris permesos",
+          "subtitle": "Aquest desplegament es compartirà amb {groups} i {users}.",
+          "fields": {
+            "alloweds": {
+              "button": "Gestiona usuaris i grups"
+            }
+          }
+        },
+        "other-options": {
+          "title": "Altres opcions del desplegament",
+          "fields": {
+            "create-owner-desktop": {
+              "label": "Crea un escriptori per al propietari del desplegament",
+              "description": "Si està habilitat, s'crearà automàticament un escriptori per al propietari del desplegament."
+            }
+          }
+        },
+        "user-permissions": {
+          "title": "Permisos d'usuari",
+          "subtitle": "Edita els permisos per als usuaris d'aquest desplegament. Aquests permisos s'aplicaran a tots els escriptoris d'aquest desplegament i no podran ser modificats en escriptoris individuals.",
+          "fields": {
+            "recreate": {
+              "label": "Permet als usuaris recrear escriptoris dins del desplegament",
+              "description": "Si està habilitat, els usuaris podran restaurar el seu escriptori a l'estat original de la plantilla."
+            }
+          }
+        }
+      },
+
+      "form-desktop-card": {
+        "header": {
+          "title": "Escriptori {index}",
+          "title-name": "@:components.deployments.form-desktop-card.header.title ({desktop-name})",
+          "buttons": {
+            "change-template": "Canvia la plantilla",
+            "delete-desktop": "Esborra l'escriptori"
+          }
+        },
+        "sections": {
+          "preview": {
+            "title": "Previsualització",
+            "subtitle": "Així es mostrarà l'escriptori. Edita el seu nom i descripció per fer-lo més fàcil d'identificar.",
+            "fields": {
+              "name": {
+                "label": "Nom",
+                "placeholder": "Introdueix el nom de l'escriptori"
+              },
+              "description": {
+                "label": "Descripció",
+                "placeholder": "Introdueix la descripció de l'escriptori (opcional)"
+              }
+            }
+          },
+          "hardware": {
+            "title": "Maquinari",
+            "subtitle": "Aquí pots editar la configuració de maquinari i accés que s'utilitzarà per a l'escriptori.",
+            "button": "Edita la configuració del maquinari i accés"
+          }
+        }
+      },
+      "form-delete-desktop-modal": {
+        "title": "Esborra l'escriptori '{desktop-name}' del desplegament",
+        "description": "Aquesta acció eliminarà l'escriptori '{desktop-name}' del desplegament. L'escriptori serà eliminat i totes les seves dades associades es perdran. Aquesta acció no es pot desfer.",
+        "cancel": "Cancel·la",
+        "confirm": "Esborra'l"
+      },
+      "form-select-template-modal": {
+        "add": {
+          "title": "Afegeix un escriptori al desplegament",
+          "description": "Selecciona una plantilla per crear un nou escriptori i afegir-lo al desplegament."
+        },
+        "replace": {
+          "title": "Canvia la plantilla de l'escriptori '{desktop-name}'",
+          "description": "Aquesta acció canviarà la plantilla de l'escriptori '{desktop-name}' a la nova plantilla seleccionada.",
+          "alert": {
+            "title": "Avís",
+            "description": "Canviar la plantilla d'un escriptori eliminarà tots els canvis fets i restaurarà l'estat de la nova plantilla. Aquesta acció no es pot desfer."
+          }
+        },
+        "cancel": "Cancel·la"
+      },
+      "form-update-hardware-modal": {
+        "title": "Edita la configuració de maquinari i accés per l'escriptori '{desktop-name}'",
+        "description": "Aquesta és la configuració de maquinari i accés que s'utilitzarà per l'escriptori '{desktop-name}'. Edita-la per adaptar-la a les teves necessitats.",
+        "cancel": "Cancel·la",
+        "confirm": "Desa els canvis"
+      },
+      "quota-exceeded-modal": {
+        "title": "Quota de creació de desplegaments superada",
+        "description": "Quota de creació de desplegaments superada. Cal eliminar un desplegament per crear-ne un de nou.",
+        "go-to-profile": "Comprova la teva quota",
+        "cancel": "Torna als desplegaments"
+      },
+      "download-csv-modal": {
+        "title": "Descarregar CSV de visors directes de '{name}'",
+        "options": {
+          "keep-urls": {
+            "title": "Mantenir URLs",
+            "description": "Mantenir els enllaços i descarregar l'arxiu CSV."
+          },
+          "regenerate-urls": {
+            "title": "Regenerar URLs",
+            "description": "Restablir els enllaços del desplegament i descarregar l'arxiu CSV (els enllaços generats anteriorment deixaran d'estar disponibles)."
+          }
+        },
+        "cancel": "Cancel·la",
+        "confirm": "Confirma"
+      }
+    }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "S'ha produït un error",
+        "missing_category": "Fa falta seleccionar una categoria",
+        "invalid_credentials": "Usuari o contrasenya incorrecta",
+        "user_disabled": "L'usuari està deshabilitat",
+        "user_disallowed": "L'usuari no pot utilitzar IsardVDI",
+        "rate_limit_date": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}",
+        "rate_limit": "S'han produït massa intents d'inici de sessió. Torni-ho a provar mes tard"
+      }
+    }
+  },
+  "api": {
+    "user": {
+      "errors": {
+        "unauthorized": "La teva sessió ha expirat. Si us plau, inicia sessió de nou.",
+        "not_found": "El recurs sol·licitat no s'ha trobat.",
+        "internal_server": "Ha ocorregut un error intern del servidor. Si us plau, intenta-ho més tard.",
+        "email_already_in_use": "Aquest correu ja està en ús",
+        "invalid_email": "El format del correu és invàlid"
+      }
+    },
+    "user_migration": {
+      "errors": {
+        "unknown": "S'ha produït un error",
+        "token_expired": "El token proporcionat ha expirat",
+        "invalid_token": "El token proporcionat no és vàlid",
+        "no_items_to_migrate": "No hi ha elements per migrar",
+        "multiple_migrations_found_target_user": "Hi ha múltiples migracions per al nou usuari",
+        "same_user_migration": "No pots migrar al mateix compte. Quan obtinguis el token, has de tancar la sessió i tornar a iniciar-la amb el nou compte",
+        "different_category_migration": "No pots migrar a un compte d'una categoria diferent",
+        "role_migration_admin": "No pots migrar des d'un compte d'administrador",
+        "role_migration_user": "No pots migrar a un compte d'usuari des d'un compte amb un rol més alt",
+        "migration_desktop_quota_error": "L'usuari té més escriptoris que la quota del nou usuari",
+        "migration_template_quota_error": "L'usuari té més plantilles que la quota del nou usuari",
+        "migration_media_quota_error": "L'usuari té més mitjans que la quota del nou usuari",
+        "migration_deployments_quota_error": "L'usuari té més desplegaments que la quota del nou usuari"
+      }
+    },
+    "register": {
+      "errors": {
+        "unauthorized": "Sessió expirada",
+        "forbidden": "El domini de correu electrònic que està intentant utilitzar no és autoritzat per a la seva categoria.",
+        "not_found": "Codi no trobat",
+        "conflict": "L'usuari ja existeix",
+        "internal_server": "Error en el servidor"
+      }
+    },
+    "new-desktop": {
+      "errors": {
+        "generic": {
+          "title": "Error en crear l'escriptori",
+          "description": "Hi ha hagut un error en crear l'escriptori. Si us plau, torna-ho a provar."
+        },
+        "internal_server": {
+          "title": "Error intern del servidor",
+          "description": "Hi ha hagut un error intern del servidor en crear l'escriptori. Si us plau, torna-ho a provar."
+        },
+        "new_desktop_name_exists": {
+          "title": "El nom de l'escriptori ja existeix",
+          "description": "Ja existeix un escriptori amb el mateix nom. Si us plau, tria un nom diferent."
+        },
+        "desktop_new_user_quota_exceeded": {
+          "title": "Quota d'usuari superada",
+          "description": "Has superat la teva quota de creació d'escriptoris. Has d'eliminar un escriptori per poder crear-ne un de nou."
+        },
+        "no_storage_pool_available": {
+          "title": "No hi ha emmagatzematge disponible",
+          "description": "No hi ha emmagatzematge disponible per crear l'escriptori. Contacta amb un administrador o torna-ho a provar més tard."
+        },
+        "temporal_new_reservable": {
+          "title": "Els escriptoris temporals no poden tenir reservables",
+          "description": "Els escriptoris temporals no poden tenir reservables assignats. Elimina els reservables i torna-ho a provar."
+        }
+      }
+    },
+    "new-template": {
+      "errors": {
+        "new_template_name_exists": "Ja existeix una plantilla amb aquest nom. Si us plau, tria un nom diferent."
+      }
+    },
+    "new-media": {
+      "errors": {
+        "generic": {
+          "title": "Error en crear el mitjà",
+          "description": "Hi ha hagut un error en crear el mitjà. Si us plau, torna-ho a provar."
+        },
+        "duplicated_name": {
+          "title": "El nom del mitjà ja existeix",
+          "description": "Ja existeix un mitjà amb aquest nom. Si us plau, tria un nom diferent."
+        },
+        "quota_exceeded": {
+          "title": "Quota superada",
+          "description": "Has superat la quota de creació de mitjans. Has d'eliminar un mitjà per poder crear-ne un de nou."
+        },
+        "media_url_not_valid": {
+          "title": "URL del mitjà no vàlida",
+          "description": "La URL del mitjà proporcionada no és vàlida. Revisa la URL i torna-ho a provar."
+        },
+        "media_url_bad_format": {
+          "title": "Format d'URL no vàlid",
+          "description": "La URL del mitjà proporcionada no compleix els requeriments de format."
+        }
+      }
+    },
+    "new-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error en crear el desplegament",
+          "description": "Hi ha hagut un error en crear el desplegament. Si us plau, torna-ho a provar mes tard."
+        },
+        "new_desktop_name_exists": {
+          "title": "Un o més usuaris tenen un escriptori amb aquest nom",
+          "description": "Els següents usuaris ja tenen un escriptori amb el nom {desktop_name}. Si us plau, tria un nom diferent."
+        },
+        "duplicated_name": {
+          "title": "El nom del desplegament ja existeix",
+          "description": "Ja existeix un desplegament amb el nom {deployment_name}. Si us plau, tria un nom diferent."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Els reservables dels escriptoris no son iguals",
+          "description": "Tots els escriptoris amb reservables en un desplegament han de tenir els mateixos reservables assignats. Si us plau, assegura't que tots els escriptoris amb reservables tinguin els mateixos reservables assignats i torna-ho a provar."
+        }
+      }
+    }
+  },
+  "domains": {
+    "desktops": "escriptori | escriptoris",
+    "templates": "plantilla | plantilles",
+    "media": "mitjà | mitjans",
+    "deployments": "desplegament | desplegaments",
+    "with-article": {
+      "desktops": "l'escriptori | els escriptoris",
+      "templates": "la plantilla | les plantilles",
+      "media": "el mitjà | els mitjans",
+      "deployments": "el desplegament | els desplegaments"
+    },
+    "capitalized": {
+      "desktops": "@.capitalize:domains.desktops",
+      "templates": "@.capitalize:domains.templates",
+      "media": "@.capitalize:domains.media",
+      "deployments": "@.capitalize:domains.deployments"
+    }
+  },
+  "viewers": {
+    "file-spice": "SPICE",
+    "browser-vnc": "VNC al navegador",
+    "file-rdpvpn": "RDP VPN",
+    "browser-rdp": "RDP al navegador",
+    "file-rdpgw": "RDP",
+    "tooltip-dismiss": "No tornis a mostrar",
+    "tooltip": {
+      "browser-vnc": {
+        "title": "VNC al navegador",
+        "description": "Connecta't a l'escriptori amb el protocol VNC directament des del navegador. No cal cap programari client."
+      },
+      "browser-rdp": {
+        "title": "RDP al navegador",
+        "description": "Connecta't a l'escriptori amb el protocol RDP directament des del navegador. No cal cap programari client."
+      },
+      "file-rdpgw": {
+        "title": "RDP",
+        "description": "Connecta't a l'escriptori amb el protocol RDP a través d'una passarel·la. Descarrega i obre el fitxer de connexió amb un client RDP."
+      },
+      "file-rdpvpn": {
+        "title": "RDP VPN",
+        "description": "Connecta't a l'escriptori amb el protocol RDP a través d'una VPN. Descarrega i obre el fitxer de connexió amb un client RDP."
+      },
+      "file-spice": {
+        "title": "SPICE",
+        "description": "Connecta't a l'escriptori amb el protocol SPICE, optimitzat per a màquines virtuals. Descarrega i obre el fitxer de connexió amb un client SPICE."
+      }
+    }
+  },
+  "users": {
+    "count": {
+      "users": "{n} usuaris | {n} usuari | {n} usuaris",
+      "groups": "{n} grups | {n} grup | {n} grups",
+      "categories": "{n} categories | {n} categoria | {n} categories"
+    }
+  },
+  "forms": {
+    "validation": {
+      "required": "Aquest camp és obligatori"
+    },
+    "common": {
+      "cancel": "Cancel·lar"
+    },
+    "import": {
+      "modal": {
+        "title": "Importar usuari",
+        "description": "Importa els elements d'un altre usuari a aquest compte",
+        "instructions-title": "Com obtenir un codi de migració",
+        "migration-instructions1": "Per començar, necessiteu un codi de migració de l'usuari que voleu importar.",
+        "migration-instructions2": "Si no en teniu cap, primer heu d'iniciar sessió en el compte que voleu migrar, cliqueu \"Exporta usuari\" al perfil i seguiu les instruccions indicades.",
+        "migration-instructions3": "Un cop tingueu el codi de migració, enganxeu-lo al camp de sota.",
+        "token-label": "Codi de migració",
+        "placeholder": "Introdueix el codi de migració",
+        "migrate-tooltip": "Ves a la pàgina de migració per continuar el procés",
+        "error": "S'ha produït un error en importar l'usuari. Torneu-ho a provar.",
+        "error-title": "Error d'importació",
+        "buttons": {
+          "migrate": "Inicia la migració"
+        }
+      }
+    },
+    "password": {
+      "modal": {
+        "title": "Canviar la contrasenya",
+        "current-password": {
+          "label": "Contrasenya actual",
+          "placeholder": "Contrasenya actual"
+        },
+        "new-password": {
+          "label": "Contrasenya nova",
+          "placeholder": "Contrasenya nova"
+        },
+        "confirm-new-password": {
+          "label": "Confirma la contrasenya",
+          "placeholder": "Contrasenya nova"
+        },
+        "buttons": {
+          "update": "Actualitza",
+          "cancel": "Canceŀla"
+        },
+        "errors": {
+          "required": "Aquest camp és obligatori",
+          "mismatch": "Les contrasenyes no son iguals"
+        }
+      }
+    }
+  },
+  "common": {
+    "units": {
+      "mb": "MB",
+      "gb": "GB"
+    }
+  }
+}

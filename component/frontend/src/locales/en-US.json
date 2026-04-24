@@ -1,0 +1,2047 @@
+{
+  "frontend_toggler": {
+    "to_vue2": "Switch to legacy interface",
+    "no_equivalent": "No legacy equivalent"
+  },
+  "router": {
+    "login": {
+      "title": "Login"
+    },
+    "register": {
+      "title": "Register"
+    },
+    "migration": {
+      "title": "Migration"
+    },
+    "notifications": {
+      "title": "Notifications"
+    },
+    "maintenance": {
+      "title": "Maintenance"
+    },
+    "verify-email": {
+      "title": "Verify Email"
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Manage your user profile and settings"
+    },
+    "desktops": {
+      "title": "Desktops",
+      "subtitle": "Start and work instantly with many kinds of virtual desktops",
+      "new": {
+        "title": "New Desktop",
+        "subtitle": "Create a new virtual desktop from a template"
+      },
+      "edit": {
+        "title": "Edit Desktop",
+        "subtitle": "Update the desktop settings"
+      }
+    },
+    "templates": {
+      "title": "Templates",
+      "subtitle": "Create and manage desktop templates",
+      "new": {
+        "title": "New Template",
+        "subtitle": "Create a new template from an existing desktop"
+      },
+      "edit": {
+        "title": "Edit Template",
+        "subtitle": "Update the template settings"
+      },
+      "duplicate": {
+        "title": "Duplicate Template",
+        "subtitle": "Create a new template by duplicating an existing one"
+      }
+    },
+    "media": {
+      "title": "Media",
+      "subtitle": "Create and manage proprietary media or use external media to create new desktops"
+    },
+    "recycle-bin": {
+      "title": "Recycle bin",
+      "subtitle": "View, restore or delete items in your recycle bin",
+      "entry": {
+        "title": "Recycle bin entry",
+        "subtitle": "Review the deleted item and its contents"
+      }
+    },
+    "deployments": {
+      "title": "Deployments",
+      "subtitle": "Create and manage multiple desktops for different users",
+      "new": {
+        "title": "New Deployment",
+        "subtitle": "Create a new deployment by selecting the desktops you want to include in it"
+      }
+    },
+    "deployment": {
+      "title": "Deployment management",
+      "subtitle": "View deployment details and review user status"
+    },
+    "shared-deployments": {
+      "title": "Shared with you",
+      "subtitle": "Start working with deployments created for you"
+    }
+  },
+  "views": {
+    "verify-email": {
+      "title": "The email address must be verified by IsardVDI",
+      "description": "Enter your email address to receive a verification link.",
+      "email-label": "Email",
+      "email-placeholder": "name{'@'}example.com",
+      "invalid-email": "Enter a valid email address",
+      "error-generic": "An error occurred. Please try again.",
+      "success": "A verification email has been sent. Please check your inbox.",
+      "buttons": {
+        "verify": "Send verification email",
+        "logout": "Log out"
+      }
+    },
+    "login": {
+      "separator": "Other logins",
+      "select-category": "Select a category"
+    },
+    "new-desktop": {
+      "desktop-template": "Template",
+      "step-1": {
+        "title": "Select a template",
+        "description": "You have different templates to use",
+        "buttons": {
+          "next": {
+            "label": "Next"
+          }
+        }
+      },
+      "header": {
+        "cancel": "Cancel",
+        "previous": "Previous"
+      },
+      "step-2": {
+        "title": "Configure your desktop",
+        "buttons": {
+          "change-template": {
+            "label": "Change template"
+          },
+          "create-desktop": {
+            "label": "Create desktop",
+            "disabled-tooltip": {
+              "title": "You must fill all the required fields to create the desktop",
+              "description": "Please check the form for any errors"
+            }
+          }
+        },
+        "description": "You can edit the desktop name, image and hardware",
+        "preview": {
+          "title": "Preview",
+          "description": "This is how your desktop will look like. This data can be edited"
+        },
+        "desktop-information": {
+          "title": "@:domains.capitalized.desktops Information",
+          "description": "Provide a name and description for your desktop to help identify it"
+        },
+        "desktop-kind": {
+          "title": "Desktop Kind",
+          "description": "Select the kind of desktop you want to create",
+          "persistent": {
+            "title": "Persistent",
+            "description": "A persistent desktop saves all changes and files permanently."
+          },
+          "nonpersistent": {
+            "title": "Temporary",
+            "description": "A temporary desktop discards all changes and files when stopped. Only one temporary desktop is allowed per template."
+          }
+        },
+        "access": {
+          "title": "Access summary",
+          "description": "This is a sumary of the access methods available for your desktop",
+          "show-access-customization": "Change access",
+          "hide-access-customization": "Hide access"
+        },
+        "all-access": {
+          "title": "All access configuration",
+          "description": "Security and access configuration"
+        },
+        "hardware-limited": {
+          "title": "Hardware limited",
+          "description": "The following hardware values have been limited due to user permissions:"
+        },
+        "hardware-summary": {
+          "title": "Hardware summary",
+          "description": "This is a sumary of the template inherited hardware. It will be used for your desktop",
+          "show-hardware-customization": "Change hardware",
+          "hide-hardware-customization": "Hide hardware"
+        },
+        "all-hardware": {
+          "title": "All the hardware",
+          "description": "The hardware can be edited through the following form"
+        }
+      },
+      "creating": {
+        "title": "Creating desktop",
+        "description": "Your desktop is being created, this might take a few moments"
+      },
+      "success": {
+        "title": "Desktop created successfully",
+        "description": "You can start the desktop now or go to the desktops page",
+        "go-to-desktops": "Go to desktops"
+      }
+    },
+    "edit-desktop": {
+      "header": {
+        "cancel": "Cancel",
+        "save": "Save changes"
+      },
+      "sections": {
+        "info": {
+          "title": "Desktop information",
+          "description": "Update the name and description of the desktop"
+        },
+        "access": {
+          "title": "Desktop access",
+          "description": "Configure how the desktop will be accessed"
+        },
+        "hardware": {
+          "title": "Hardware configuration",
+          "description": "Adjust the hardware resources assigned to the desktop"
+        }
+      },
+      "errors": {
+        "load": "Failed to load the desktop",
+        "submit": "Failed to update the desktop"
+      },
+      "success": {
+        "message": "Desktop updated successfully"
+      }
+    },
+    "edit-template": {
+      "header": {
+        "cancel": "Cancel",
+        "save": "Save changes"
+      },
+      "sections": {
+        "info": {
+          "title": "Template information",
+          "description": "Update the name and description of the template"
+        },
+        "access": {
+          "title": "Template access",
+          "description": "Configure how desktops created from this template will be accessed"
+        },
+        "hardware": {
+          "title": "Hardware configuration",
+          "description": "Adjust the hardware resources assigned to the template"
+        }
+      },
+      "errors": {
+        "load": "Failed to load the template",
+        "submit": "Failed to update the template"
+      },
+      "success": {
+        "message": "Template updated successfully"
+      }
+    },
+    "migration": {
+      "title": "User migration",
+      "subtitle": "Migrate \"{old_user_name}\" ({old_user_provider} authentication) to \"{new_user_name}\" ({new_user_provider} authentication)",
+      "notification": {
+        "title": "Important information when performing a migration:",
+        "description": {
+          "delete_user": "The previous user \"{old_user_name}\" ({old_user_provider} authentication) will be deleted.",
+          "user_description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted.",
+          "description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nThe list of co-owners in deployments will be deleted. \nDesktops belonging to other users in migrated deployments will remain intact. \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted. \nIf the destiny user has any matching name, the migrated items will have '(migrated)' added to their name.",
+          "footer": "The migration process is irreversible."
+        }
+      },
+      "form": {
+        "accept": {
+          "title": "I understand and accept the risks associated with the migration process",
+          "required": "You must check this box to continue"
+        },
+        "submit": "Confirm migration"
+      },
+      "error": {
+        "title": "There were errors in the migration process:"
+      },
+      "success": {
+        "title": "Migration completed",
+        "description": {
+          "ok": "Your items have been successfully migrated to the new account. You can now go back to the main page.",
+          "error": "There were some errors during the process and some of your items haven't been migrated to the new account. Please contact an administrator. You can now go back to the main page."
+        },
+        "progress": {
+          "desktops-progress": "Migrating desktops...",
+          "desktops-ok": "Desktops migrated",
+          "desktops-error": "Desktops not migrated",
+          "templates-progress": "Migrating templates...",
+          "templates-ok": "Templates migrated",
+          "templates-error": "Templates not migrated",
+          "media-progress": "Migrating media...",
+          "media-ok": "Media migrated",
+          "media-error": "Media not migrated",
+          "deployments-progress": "Migrating deployments...",
+          "deployments-ok": "Deployments migrated",
+          "deployments-error": "Deployments not migrated",
+          "recycle-bin-progress": "Emptying recycle bin...",
+          "recycle-bin-ok": "Recycle bin emptied"
+        },
+        "buttons": {
+          "ok": "OK",
+          "logout": "Logout"
+        },
+        "errors": {
+          "generic": "There was an error while migrating your {type}, please contact an administrator."
+        }
+      }
+    },
+    "recycle-bin": {
+      "title": "Recycle Bin",
+      "table-title": "List of deleted items pending to be restored or permanently deleted. Click an entry to see more details about the entry",
+      "alert": {
+        "title": "Attention",
+        "empty-after": "Items in the recycle bin are permanently deleted after remaining here for {time}.",
+        "infinite": "Items in the recycle bin are not automatically deleted.",
+        "immediately": "Items in the recycle bin will be permanently deleted immediately."
+      },
+      "empty": {
+        "title": "Recycle bin is empty",
+        "description": "Items you delete will appear here until they are restored or permanently deleted."
+      },
+      "empty-recycle-bin": "Empty recycle bin",
+      "columns": {
+        "name": "Name",
+        "size": "Size",
+        "content": "Content",
+        "deleted-at": "Deleted at",
+        "deleted-by": "Deleted by",
+        "actions": "Actions"
+      },
+      "actions": {
+        "restore": "Restore",
+        "delete-permanently": "Delete permanently"
+      },
+      "filters": {
+        "search": {
+          "placeholder": "Search recycle bin entries..."
+        }
+      },
+      "error": {
+        "title": "Error retrieving recycle bin data",
+        "generic": "Something went wrong",
+        "restore-failed": "Failed to restore item",
+        "delete-failed": "Failed to delete item"
+      },
+      "entry": {
+        "banner": {
+          "alt": "Recycle bin entry banner",
+          "title": "Deleted item details",
+          "description": "Review the contents of this deleted item before restoring or deleting it permanently.",
+          "deleted-on": "Deleted on",
+          "total-size": "Total size",
+          "unknown-size": "Unknown size",
+          "unknown-date": "Unknown date"
+        },
+        "tabs": {
+          "desktops": "Desktops",
+          "deployments": "Deployments",
+          "templates": "Templates",
+          "storages": "Storage"
+        },
+        "filters": {
+          "search": {
+            "placeholder": "Search items in this entry..."
+          }
+        },
+        "tables": {
+          "common": {
+            "name": "Name",
+            "owner": "Owner",
+            "category": "Category",
+            "group": "Group",
+            "accessed": "Last accessed"
+          },
+          "deployments": {
+            "deployment-desktop": "Desktop"
+          },
+          "storages": {
+            "id": "Storage ID",
+            "path": "Path",
+            "status": "Status",
+            "format": "Format",
+            "size": "Size",
+            "used": "Used",
+            "total": "Total",
+            "parent": "Parent disk",
+            "owner": "Owner",
+            "domains": "Domains"
+          }
+        },
+        "empty": {
+          "title": "No items found",
+          "description": "Try changing the tab or adjusting your search."
+        }
+      }
+    },
+    "register": {
+      "title": "Sign Up"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "no-notifications": "No notifications pending",
+      "go-to-desktops": "Go to desktops"
+    },
+    "desktops": {
+      "new-desktop": "New desktop",
+      "stop-all": "Stop all desktops",
+      "stop-all-tooltip": {
+        "title": "There are no started desktops now"
+      },
+      "filters": {
+        "search": {
+          "placeholder": "Search desktops"
+        },
+        "kind": {
+          "all": "All",
+          "persistent": "Persistent | Persistents",
+          "nonpersistent": "Temporary | Temporaries",
+          "deployment": "Deployment | Deployments"
+        },
+        "status": {
+          "all": "All",
+          "started": "Started",
+          "stopped": "Stopped"
+        }
+      },
+      "go-to-desktops": "Go to desktops",
+      "desktop-created": {
+        "title": "Desktop created successfully",
+        "description": "You can start it now or go back to your desktops page."
+      },
+      "desktop-updated": {
+        "title": "Desktop updated successfully",
+        "description": "@:views.desktops.desktop-created.description"
+      }
+    },
+    "templates": {
+      "new-template": "New Template",
+      "filters": {
+        "search": {
+          "placeholder": "Search"
+        }
+      },
+      "table": {
+        "headers": {
+          "name": "Name",
+          "description": "Description",
+          "owner": "Owner"
+        },
+        "actions": {
+          "edit": "Edit Template",
+          "hide": "Hide Template",
+          "show": "Make Template Visible",
+          "update-alloweds": "Update Alloweds",
+          "template-to-desktop": "Convert to Desktop",
+          "delete": "Delete Template",
+          "duplicate": "Duplicate Template",
+          "info": "Information"
+        }
+      }
+    },
+    "new-template": {
+      "header": {
+        "cancel": "Cancel",
+        "create-template": "Create Template",
+        "next": "Next",
+        "previous": "Previous"
+      },
+      "stepper-steps": {
+        "select-desktop": "Select Desktop",
+        "configure-template": "Configure Template"
+      },
+      "select": {
+        "title": "Select a desktop to create a template from",
+        "desktop-not-stopped": "Desktop must be stopped to create a template."
+      },
+      "form": {
+        "title": "Configure your template",
+        "subtitle": "You can edit the template's name, image and who can use it.",
+        "sections": {
+          "preview": {
+            "title": "Preview",
+            "subtitle": "Edit the template and its permisions. This is the information that will be shown once created.",
+            "fields": {
+              "name": {
+                "label": "Name",
+                "placeholder": "Enter template name",
+                "default": "Template {desktop_name}"
+              },
+              "description": {
+                "label": "Description",
+                "placeholder": "Enter template description (optional)"
+              }
+            }
+          },
+          "visibility": {
+            "title": "Visibility",
+            "subtitle": "Edit the different visibility options for this template",
+            "label": "Visible to other users"
+          },
+          "alloweds": {
+            "title": "Allowed Groups and Users",
+            "subtitle": "This template will be shared with {groups} and {users}.",
+            "button": "Manage users and groups"
+          },
+          "hardware": {
+            "title": "Hardware Summary",
+            "subtitle": "This is a sumary of the inherited hardware that will be used for your template."
+          }
+        },
+        "errors": {
+          "title": "There was an error creating the template",
+          "fields": {
+            "name": {
+              "exists": "Please choose a different name."
+            }
+          }
+        }
+      }
+    },
+    "profile": {
+      "personal-info": {
+        "title": "Personal Information",
+        "fields": {
+          "profile-image": "Profile decorative image",
+          "name": "Name",
+          "email": "Email",
+          "language": "Language"
+        }
+      },
+      "security": {
+        "title": "Security",
+        "actions": {
+          "change-password": "Change Password",
+          "verify-email": "Verify / Change Email",
+          "api-key": "API Key",
+          "reset-vpn": "Reset VPN",
+          "download-vpn": "Download VPN"
+        }
+      },
+      "information": {
+        "title": "Information",
+        "fields": {
+          "username": "Username",
+          "authentication": "Authentication",
+          "category": "Category",
+          "group": "Group",
+          "role": "Role",
+          "secondary-groups": "Secondary groups"
+        },
+        "actions": {
+          "view-quota": "View quota"
+        }
+      },
+      "migrations": {
+        "title": "Migrations",
+        "actions": {
+          "export-user": "Export User",
+          "import-user": "Import User"
+        }
+      },
+      "storage": {
+        "title": "Storage",
+        "fields": {
+          "user-storage-link": "Your user storage URL"
+        },
+        "actions": {
+          "manage-user-storage": "Open Storage"
+        }
+      },
+      "email-verified": "Email verified",
+      "email-not-verified": "Email not verified",
+      "no-data": "No user data available"
+    },
+    "media": {
+      "data-table": {
+        "headers": {
+          "name": "Name",
+          "description": "Description",
+          "status": "Status",
+          "progress": "Progress",
+          "kind": "Kind",
+          "date": "Date of creation",
+          "size": "Size",
+          "user": "User",
+          "category": "Category",
+          "group": "Group"
+        }
+      },
+      "status": {
+        "downloading": "Downloading",
+        "downloaded": "Downloaded",
+        "deleting": "Deleting",
+        "downloadfailed": "Download failed",
+        "downloadfailedinvalidformat": "Invalid format",
+        "downloadstarting": "Download starting",
+        "downloadaborting": "Download aborting",
+        "resetdownloading": "Reseting download",
+        "maintenance": "Maintenance",
+        "download": "Pending download",
+        "unknown": "Unknown status"
+      },
+      "filters": {
+        "search": {
+          "placeholder": "Search media"
+        }
+      },
+      "tooltip": {
+        "buttons": {
+          "allowed": {
+            "title": "Change allowed"
+          },
+          "delete": {
+            "title": "Delete media"
+          },
+          "new-desktop": {
+            "title": "Create new desktop"
+          },
+          "download": {
+            "title": "Download media"
+          },
+          "stop-download": {
+            "title": "Stop download"
+          }
+        },
+        "unavailable": "The media is currently unavailable. Please try again later.",
+        "invalid-format": "The downloaded file is not a valid ISO/floppy image. Delete this entry and try a different URL."
+      },
+      "delete-confirmation-modal": {
+        "title": "Delete media '{name}'",
+        "subtitle": "This action cannot be undone and all its associated data will be lost.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      },
+      "action-error-modal": {
+        "title": "Action failed",
+        "download": "Could not start the media download.",
+        "abort": "Could not abort the download.",
+        "delete": "Could not delete the media.",
+        "fallback": "Unexpected error.",
+        "close": "Close"
+      }
+    },
+    "deployments": {
+      "data-table": {
+        "headers": {
+          "visibility": "Visibility",
+          "name": "Deployment",
+          "description": "Description",
+          "started-desktops": "Started",
+          "visible-desktops": "Visible",
+          "total-users": "Users"
+        }
+      },
+      "table-title": "Click on a deployment to view and manage details",
+      "filters": {
+        "search": {
+          "placeholder": "Search deployments"
+        },
+        "status": {
+          "all": "All",
+          "started": "Started",
+          "visible": "Visible"
+        }
+      },
+      "dropdown": {
+        "buttons": {
+          "edit": "Edit deployment",
+          "download-viewer": "Download direct links",
+          "recreate": "Recreate deployment",
+          "reserve": "Reserve",
+          "delete": "Delete deployment"
+        }
+      },
+      "visibility": {
+        "visible": "Visible",
+        "hidden": "Hidden"
+      },
+      "empty": {
+        "subtitle": "Create a deployment to start providing desktops to your users"
+      }
+    },
+    "deployment": {
+      "banner": {
+        "alt": "Deployment banner",
+        "users": "Users",
+        "started": "Started",
+        "visible": "Visible"
+      },
+      "search-placeholder": "Search user",
+      "buttons": {
+        "users-and-groups": "Users and groups",
+        "videowall": "Videowall",
+        "stop-all": "Stop all",
+        "enter": "Enter",
+        "stop": "Stop"
+      },
+      "data-table": {
+        "headers": {
+          "visible": "Visible",
+          "last-access": "Last access",
+          "user": "User",
+          "started-desktops": "Started desktops",
+          "actions": "Actions"
+        }
+      },
+      "tooltips": {
+        "videowall": "Videowall",
+        "resources": "Resources",
+        "delete": "Delete"
+      },
+      "recreate-modal": {
+        "title": "Recreate deployment '{name}'",
+        "description": "Restores desktops to the initial state in which they were created. Only deleted desktops will be restored",
+        "button": "Recreate deployment"
+      }
+    },
+    "new-deployment": {
+      "title": "New Deployment",
+      "subtitle": "Create a new deployment by selecting the desktops you want to include in it and assigning a name to it.",
+      "steps": {
+        "configuration": {
+          "title": "Configuration"
+        },
+        "select-desktops": {
+          "title": "Desktops",
+          "add-desktop": "Add desktop",
+          "add-desktop-max": "@:views.new-deployment.steps.select-desktops.add-desktop {current} / {max}",
+          "errors": {
+            "no-desktops": "At least one desktop must be added to the deployment."
+          }
+        }
+      },
+      "header": {
+        "cancel": "Cancel",
+        "previous": "Previous",
+        "next": "Next",
+        "create-deployment": "Create Deployment"
+      }
+    },
+    "shared-deployments": {
+      "error": {
+        "loading": "Error loading deployments:"
+      }
+    }
+  },
+  "layouts": {
+    "login": {
+      "title": "Login",
+      "works-with": "Works with"
+    },
+    "single-page": {
+      "go-back": "Go back",
+      "logout": "Logout"
+    },
+    "maintenance": {
+      "title": "Under maintenance",
+      "description": "The IsardVDI service will be available again in a few minutes. Sorry for the inconvenience.",
+      "button": "Go to login"
+    }
+  },
+  "components": {
+    "quota-exceeded-modal": {
+      "go-to-profile": "Check your quota"
+    },
+    "metric-item": {
+      "labels": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      }
+    },
+    "recycle-bin": {
+      "permanent-delete-modal": {
+        "title": "Delete permanently {name}",
+        "description": "This action cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Delete",
+        "unknown-item": "this item"
+      },
+      "restore-modal": {
+        "title": "Restore {name}",
+        "description": "This item will become available again.",
+        "cancel": "Cancel",
+        "confirm": "Restore",
+        "unknown-item": "this item",
+        "errors": {
+          "generic": "An error occurred while restoring the item. Please try again.",
+          "unable_to_restore_user": "Cannot restore. User \"{user}\" has been deleted.",
+          "unable_to_restore_category": "Cannot restore. The associated category has been deleted.",
+          "unable_to_restore_group": "Cannot restore. The associated group has been deleted.",
+          "parent_template_not_found": "Cannot restore. The parent template no longer exists."
+        }
+      },
+      "empty-modal": {
+        "title": "Empty recycle bin",
+        "description": "This will permanently delete all the entries in the recycle bin. This action is irreversible",
+        "cancel": "Cancel",
+        "confirm": "Empty",
+        "error": "Error emptying recycle bin"
+      }
+    },
+    "profile": {
+      "api-key-modal": {
+        "title": "API key",
+        "alert": {
+          "expired": "Your old API key expired. You will need to generate a new one to continue using the IsardVDI API with external applications. You can generate a new one below.",
+          "regenerated": "Your old API key was deleted. Below you can copy the new one.",
+          "expired-title": "API key expired",
+          "error-title": "Request failed",
+          "error-fetch": "Could not load your API key status. Please try again.",
+          "error-generate": "Could not generate the API key. Please try again.",
+          "error-expire": "Could not expire the API key. Please try again.",
+          "valid-title": "API key active",
+          "valid-description": "Your API key is valid until {date}. After that date, it will expire and you will not be able to use it anymore."
+        },
+        "errors": {
+          "unauthorized": "Your session has expired. Please log in again.",
+          "not_found": "Your API key could not be found.",
+          "internal_server": "An internal server error occurred. Please try again later."
+        },
+        "new-key": {
+          "title": "Generate a new API key",
+          "description": "You can generate a new API key to use with external applications that integrate with the IsardVDI API.",
+          "warning": "You will only be able to see the API key once, so make sure to store it in a safe place.",
+          "buttons": {
+            "generate": "Generate",
+            "expiration-label": "Expiration date",
+            "show": "Show key",
+            "copy": "Copy key",
+            "key-copied": "Key copied to clipboard"
+          }
+        },
+        "existing-key": {
+          "description-1": "Your API Key is valid until {date}. After that, it will expire and you will not be able to use it anymore.",
+          "description-2": "You can expire it now to generate a new one.",
+          "description-expired": "Your API key is expired. Click the button below to clear it and generate a new one.",
+          "buttons": {
+            "expire": "Expire",
+            "delete": "Delete",
+            "expire-tooltip": "Expire the existing key"
+          }
+        }
+      },
+      "reset-vpn-modal": {
+        "title": "Reset VPN keys",
+        "description": "Reset VPN keys? You will have to download a new VPN file",
+        "cancel": "Cancel",
+        "confirm": "Reset VPN",
+        "errors": {
+          "unauthorized": "Your session has expired. Please log in again.",
+          "internal_server": "We couldn't reset your VPN keys due to a server error. Please try again later.",
+          "generic": "We couldn't reset your VPN keys. Please try again."
+        }
+      },
+      "email-verification-modal": {
+        "title": "Change email",
+        "description": "Enter your new email address. You'll receive a verification email to confirm the change.",
+        "email-label": "Email address",
+        "email-placeholder": "name{'@'}example.com",
+        "invalid-email": "Enter a valid email address",
+        "error-generic": "An error occurred while updating your email. Please try again.",
+        "errors": {
+          "unauthorized": "Your session has expired. Please log in again.",
+          "not_found": "The requested resource was not found.",
+          "internal_server": "An internal server error occurred. Please try again later.",
+          "email_already_in_use": "This email address is already in use",
+          "invalid_email": "The email format is invalid"
+        },
+        "buttons": {
+          "cancel": "Cancel",
+          "verify": "Update and verify"
+        }
+      },
+      "import-user-modal": {
+        "title": "Import user",
+        "description": "Import another user's items to this account",
+        "instructions-title": "How to get a migration token",
+        "migration-instructions1": "To start, you need a migration token from the account you wish to import.",
+        "migration-instructions2": "If you don't have one, you first have to log in to the account you want to migrate, click \"Export User\" on the profile page, and follow the instructions.",
+        "migration-instructions3": "Once you have the token, paste it in the field below.",
+        "token-label": "Migration token",
+        "placeholder": "Enter the migration token",
+        "migrate-tooltip": "Go to the migration page to continue the process",
+        "buttons": {
+          "migrate": "Start migration"
+        },
+        "errors": {
+          "title": "Import error",
+          "generic": "There was an error importing the user. Please try again.",
+          "unknown": "An error has ocurred",
+          "migration_not_found": "Migration token not found",
+          "token_expired": "The token you provided has expired",
+          "invalid_token": "The token you provided is invalid",
+          "no_items_to_migrate": "There are no items to migrate",
+          "multiple_migrations_found_target_user": "There are multiple migrations for the new user",
+          "same_user_migration": "You can't migrate to the same account. When obtaining the token, you must log out and log in with the new account",
+          "different_category_migration": "You can't migrate to an account from a different category",
+          "role_migration_admin": "You can't migrate from an admin account",
+          "role_migration_user": "You can't migrate to a user account from an account with a higher role",
+          "migration_desktop_quota_error": "The user has more desktops than the new user quota",
+          "migration_template_quota_error": "The user has more templates than the new user quota",
+          "migration_media_quota_error": "The user has more media than the new user quota",
+          "migration_deployments_quota_error": "The user has more deployments than the new user quota"
+        }
+      },
+      "password-modal": {
+        "title": "Change password",
+        "current-password": {
+          "label": "Current password",
+          "placeholder": "Current password"
+        },
+        "new-password": {
+          "label": "New password",
+          "placeholder": "New password"
+        },
+        "confirm-new-password": {
+          "label": "Confirm new password",
+          "placeholder": "New password"
+        },
+        "buttons": {
+          "update": "Update",
+          "cancel": "Cancel"
+        },
+        "errors": {
+          "required": "This field is required",
+          "mismatch": "Passwords do not match",
+          "password_character_length": "Password must be at least {num} characters long",
+          "password_uppercase": "Password must have at least {num} uppercase character(s)",
+          "password_lowercase": "Password must have at least {num} lowercase character(s)",
+          "password_digits": "Password must have at least {num} number(s)",
+          "password_special_characters": "Password must have at least {num} special character(s): !{'@'}{'#'}$%^&*()-_=+[]{'{'}{'}'}{'|'};:'\",.<>/?",
+          "password_already_used": "This password has already been used in the past",
+          "password_username": "Password can not contain your own username",
+          "wrong_password_entered": "Wrong password entered"
+        }
+      },
+      "quota-modal": {
+        "title": "Quota",
+        "description": "You can check your resource usage here.",
+        "total_size": "Using {0} of the storage space.",
+        "storage_current_usage": "Storage Current Usage",
+        "restriction_title": "Applied restriction",
+        "restriction_description": "The restriction being applied is",
+        "restrictions": {
+          "user_quota": "User quota",
+          "group_quota": "Group quota",
+          "category_quota": "Category quota"
+        },
+        "metrics": {
+          "desktops": "Persistent desktops",
+          "volatile": "Temporal desktops",
+          "media": "Media",
+          "memory": "Used memory (GB)",
+          "running": "Running desktops",
+          "templates": "Templates",
+          "vcpus": "Used vCPUs",
+          "total-disk-size": "Used disk size",
+          "total-media-size": "Used media size",
+          "total-size": "Used size (GB)",
+          "unit": "Personal unit size (MB)",
+          "deployments_total": "Deployments",
+          "deployment_desktops": "Max desktops per deployment",
+          "deployment_users": "Màxim d'usuaris per desplegament",
+          "started_deployment_desktops": "Running deployment desktops"
+        }
+      }
+    },
+    "templates": {
+      "template-type": {
+        "owned": "Owned Templates",
+        "shared": "Shared Templates"
+      },
+      "change-visibility-confirmation-modal": {
+        "hide": {
+          "title": "Hide template '{name}'",
+          "description": "Hiding the template will make it invisible for other users to create desktops from it. Any temporary desktops created from this template will be deleted.",
+          "confirm": "Hide Template"
+        },
+        "show": {
+          "title": "Make template '{name}' visible",
+          "description": "Making the template visible will allow other users to create desktops from it.",
+          "confirm": "Make Template Visible"
+        },
+        "cancel": "Cancel"
+      },
+      "delete-confirmation-modal": {
+        "title": "Delete template '{name}'",
+        "subtitle": "This action cannot be undone and all its associated data will be lost.",
+        "fields": {
+          "dependency": {
+            "alert": {
+              "title": "Dependency warning",
+              "description": "The following desktops and templates depend on this template and will be deleted. This action cannot be undone and all its associated data will be lost.",
+              "pending": "There are some items that depend on this template that are not yours. Please contact an administrator to delete this template."
+            },
+            "datatable": {
+              "headers": {
+                "kind": "Kind",
+                "name": "Name",
+                "user": "User"
+              }
+            }
+          }
+        },
+        "cancel": "Cancel",
+        "confirm": "Delete Template",
+        "debug-options": {
+          "copy-id": "Copy ID"
+        }
+      },
+      "convert-to-desktop-modal": {
+        "title": "Convert template '{name}' to a desktop",
+        "form": {
+          "name": {
+            "label": "New Name",
+            "description": "You can rename the template now to give the desktop a different name."
+          }
+        },
+        "alert": {
+          "title": "Conversion blocked",
+          "description": {
+            "duplicated": "This template is a duplicate of another template and cannot be converted to a desktop. Please contact an administrator.",
+            "dependencies": "This template has derivatives and cannot be converted to a desktop. Please contact an administrator.",
+            "pending": "@:components.templates.convert-to-desktop-modal.alert.description.dependencies",
+            "error": "There was an error checking the dependencies of this template. Please try again later or contact an administrator if the problem persists."
+          }
+        },
+        "cancel": "Cancel",
+        "confirm": "Convert to Desktop",
+        "debug-options": {
+          "copy-id": "@:components.templates.delete-confirmation-modal.debug-options.copy-id"
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Template creation quota exceeded",
+        "description": "Template creation quota exceeded. A template must be deleted in order to create a new one.",
+        "cancel": "Go back to templates",
+        "go-to-profile": "Check your quota"
+      },
+      "datatable": {
+        "debug-options": {
+          "copy-id": "Copy Template ID"
+        }
+      }
+    },
+    "domain": {
+      "info": {
+        "name": {
+          "label": "Name",
+          "placeholder": "Enter desktop name"
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "Enter desktop description (optional)"
+        }
+      },
+      "access": {
+        "sections": {
+          "credentials": "Credentials",
+          "viewers": "Viewers",
+          "bastion": "Bastion",
+          "bastion-configuration": "Bastion configuration"
+        },
+        "credentials": {
+          "username": {
+            "label": "Username",
+            "placeholder": "Enter username"
+          },
+          "password": {
+            "label": "Password",
+            "placeholder": "Enter password",
+            "help": "WARNING: The password will be stored unencrypted in the database."
+          }
+        },
+        "fullscreen": {
+          "label": "Enable fullscreen by default",
+          "description": "If enabled, the viewer will start in fullscreen mode."
+        },
+        "viewers": {
+          "label": "Viewers"
+        },
+        "bastion": {
+          "label": "Bastion enabled",
+          "description": "Enable access to the desktop via a bastion host.",
+          "http-https": {
+            "label": "HTTP / HTTPS",
+            "description": "Access the desktop using a web browser or an RDP viewer that supports HTTP/HTTPS connections.",
+            "http-port": {
+              "label": "HTTP Port",
+              "placeholder": "Enter HTTP port"
+            },
+            "https-port": {
+              "label": "HTTPS Port",
+              "placeholder": "Enter HTTPS port"
+            },
+            "custom-domains": {
+              "label": "Custom domain name (Optional)",
+              "placeholder": "mydesktop.example.com",
+              "empty": "No custom domains added",
+              "add": "Add custom domain",
+              "more-details": "More details",
+              "less-details": "Less details",
+              "alert": {
+                "title": "You can use your own domain name to access this desktop via bastion.",
+                "description": "Add a CNAME record to your DNS provider pointing to: {cname-url}",
+                "cname-example": "00000000-0000-0000-0000.000000000000.example.com"
+              }
+            }
+          },
+          "ssh": {
+            "label": "SSH",
+            "description": "Use an SSH client to connect to the desktop via the bastion host.",
+            "port": {
+              "label": "SSH Port",
+              "placeholder": "Enter SSH port"
+            },
+            "authorized-keys": {
+              "label": "Authorized SSH Keys (one per line)",
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+            }
+          }
+        }
+      },
+      "hardware": {
+        "vcpus": {
+          "label": "vCPUs",
+          "placeholder": "Enter number of vCPUs"
+        },
+        "memory": {
+          "label": "Memory (GB)",
+          "placeholder": "Enter amount of memory in GB"
+        },
+        "disk-bus": {
+          "label": "Disk bus",
+          "placeholder": "Select a disk bus type"
+        },
+        "disk-size": {
+          "label": "Disk size (GB)",
+          "placeholder": "Enter size in GB"
+        },
+        "videos": {
+          "label": "Videos",
+          "placeholder": "Select a video type"
+        },
+        "boot-order": {
+          "label": "Boot",
+          "placeholder": "Select boot device"
+        },
+        "isos": {
+          "label": "ISOs",
+          "placeholder": "Select ISOs"
+        },
+        "floppies": {
+          "label": "Floppies",
+          "placeholder": "Select floppies"
+        },
+        "vgpus": {
+          "label": "vGPU",
+          "placeholder": "Select a vgpu"
+        },
+        "hardwareGroups": {
+          "hardware": "Hardware",
+          "system": "System",
+          "peripherals": "Peripherals",
+          "reservables": "Reservables"
+        },
+        "networks": {
+          "label": "Networks",
+          "placeholder": "Select networks",
+          "modal": {
+            "title": "Configure Networks",
+            "description": "Add, delete or reorder the networks assigned to this domain",
+            "selected": "Selected Networks",
+            "drop-here": "Drop networks here",
+            "available": "Available Networks",
+            "empty-selected": "Drag networks here or click + to add",
+            "empty-available": "All networks are selected",
+            "cancel": "Cancel",
+            "save": "Save"
+          }
+        },
+        "limited": {
+          "warning": {
+            "title": "Restrictions applied",
+            "subtitle": "This value has been limited due to user permissions."
+          },
+          "restricted": "Restricted value: {old_value} → Set to: {new_value}",
+          "quota": "This value exceeds your quota"
+        }
+      }
+    },
+    "form": {
+      "validation": {
+        "required": "The field {field} is required",
+        "min-length": "The field {field} must be at least {min} characters long",
+        "min-array-length": "The field {field} must have at least {min} items",
+        "max-array-length": "The field {field} must have at most {max} items",
+        "max-length": "The field {field} must be at most {max} characters long",
+        "min-value": "The field {field} must be at least {min}",
+        "max-value": "The field {field} must be at most {max}",
+        "type": {
+          "string": "The field {field} must be a string",
+          "number": "The field {field} must be a number",
+          "integer": "The field {field} must be an integer",
+          "boolean": "The field {field} must be true or false",
+          "array": "The field {field} must be an array",
+          "email": "The field {field} must be a valid email address"
+        },
+        "invalid-format": "The field {field} has an invalid format",
+        "multiple-of": "The field {field} must match at least one of the allowed formats",
+        "unrecognized-keys": "The field {field} has unrecognized keys: {keys}",
+        "invalid-union": "The field {field} must match at least one of the allowed formats",
+        "invalid-key": "The field {field} has an invalid key",
+        "invalid-element": "The field {field} has an invalid element",
+        "invalid-value": "The field {field} has an invalid value",
+        "unique": "The field {field} must be unique"
+      }
+    },
+    "login": {
+      "login-provider-form": {
+        "category": "Category",
+        "username": "Username",
+        "password": "Password",
+        "forgot-password": "Forgot password?",
+        "login": "Login"
+      },
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Login with SAML",
+          "google": "Login with Google"
+        }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Select a category",
+        "not-found": "No category found"
+      },
+      "login-category-select": {
+        "logged-in-as": "Logged in as {name}",
+        "logout": "Logout"
+      }
+    },
+    "migration": {
+      "migration-item-table": {
+        "name": "Name"
+      },
+      "migration-item-box": {
+        "quota_exceeded": "'{type}' quotas will be exceeded"
+      }
+    },
+    "register": {
+      "register-form": {
+        "code": "Sign up code",
+        "register": "Sign up",
+        "cancel": "Cancel"
+      }
+    },
+    "sidebar": {
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar",
+      "desktops": "Desktops",
+      "templates": "Templates",
+      "media": "Media",
+      "deployments": {
+        "title": "Deployments",
+        "shared-deployments": "Shared with you"
+      },
+      "user-deployments": "My Deployments",
+      "bookings": {
+        "title": "Bookings",
+        "summary": "Summary",
+        "planning": "Planning"
+      },
+      "help": {
+        "title": "Help",
+        "docs": "Documentation",
+        "viewers": "Viewers"
+      },
+      "recycle-bin": "Recycle bin",
+      "administration": "Administration",
+      "profile": "Go to profile",
+      "logout": "Logout",
+      "websockets-on": "Realtime updates activated",
+      "websockets-off": "Realtime updates deactivated"
+    },
+    "session-modal": {
+      "title": "Session expired",
+      "description": {
+        "renew": "The session is about to expire. It can be renewed to continue working without interruption.",
+        "max-renew-time": "The session has expired and cannot be renewed anymore. Please log in again.",
+        "max-time": "The session has expired and has reached its maximum renewals. Please log in again.",
+        "error-renew": "There was an error renewing the session. Please log in again."
+      },
+      "options": {
+        "renew": "Renew current session",
+        "logout": "Logout",
+        "go-to-login": "Go to login"
+      }
+    },
+    "datatable": {
+      "empty": "No desktops available",
+      "pagination": {
+        "rows": "rows",
+        "showing": "Showing",
+        "previous": "Previous",
+        "next": "Next"
+      }
+    },
+    "delete-confirmation-modal": {
+      "title": "Delete {kind} '{name}'",
+      "description": {
+        "recycle-bin": {
+          "title": "Send item to recycle bin (its storage will still be considered in the user quota until permanently removed).",
+          "subtitle": "The items in the recycle bin will be permanently deleted after: {hours} hours.",
+          "infinite-subtitle": "Items in the recycle bin are not automatically deleted."
+        },
+        "permanent": {
+          "title": "This action cannot be undone and all its associated data will be lost."
+        }
+      },
+      "cancel": "Cancel",
+      "confirm": {
+        "recycle-bin": "Send to Recycle Bin",
+        "permanent": "Delete Permanently"
+      }
+    },
+    "domain-info-modal": {
+      "desktop": {
+        "description-prefix": "This are the details of the desktop",
+        "fields": {
+          "id": "Desktop ID",
+          "template": {
+            "id": "Template ID",
+            "title": "Origin template"
+          }
+        }
+      },
+      "template": {
+        "description-prefix": "This are the details of the template",
+        "fields": {
+          "id": "Template ID"
+        }
+      },
+      "title": "Information",
+      "fields": {
+        "description": {
+          "title": "Description"
+        },
+        "status": {
+          "title": "Status"
+        },
+        "ip": {
+          "title": "IP Address"
+        },
+        "hardware": {
+          "title": "Hardware",
+          "vcpu": "{vcpu} vCPU",
+          "ram": "{ram} GB RAM"
+        },
+        "system": {
+          "title": "System"
+        },
+        "viewers": {
+          "title": "Viewers",
+          "fullscreen-enabled": "Fullscreen enabled",
+          "fullscreen-disabled": "Fullscreen disabled"
+        },
+        "peripherals": {
+          "title": "Peripherals"
+        },
+        "reservables": {
+          "title": "Reservables"
+        }
+      }
+    },
+    "desktop-networks-modal": {
+      "title": "Networks for desktop '{name}'"
+    },
+    "stop-all-desktops-confirmation-modal": {
+      "title": "Stop all desktops",
+      "description": "This action will stop all your running desktops. Are you sure you want to proceed?",
+      "force": "Force stop desktops",
+      "cancel": "Cancel",
+      "confirm": "Stop all"
+    },
+    "bastion-info-modal": {
+      "title": "Bastion info for desktop '{name}'",
+      "description": "Use the following information to connect to the desktop via the bastion host.",
+      "fields": {
+        "target-id": {
+          "title": "Bastion target ID"
+        },
+        "http": {
+          "title": "HTTP / HTTPS",
+          "custom-domain": {
+            "title": "Custom domain name",
+            "placeholder": "mydesktop.example.com",
+            "more-details": "More details",
+            "less-details": "Less details",
+            "alert": {
+              "title": "You can use your own domain name to access this desktop via bastion.",
+              "description": "Add a CNAME record to your DNS provider pointing to: {cname-url}"
+            }
+          }
+        },
+        "ssh": {
+          "title": "SSH",
+          "authorized-keys": {
+            "title": "Authorized SSH Keys (one per line)",
+            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+          }
+        }
+      }
+    },
+    "recreate-desktop-confirmation-modal": {
+      "title": "Recreate desktop '{name}'",
+      "description": "Recreating the desktop will delete will delete all changes you made to it and restore it to its original template state.\nThis action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Recreate Desktop"
+    },
+    "empty": {
+      "title": "No {kind} available",
+      "description": "Your {kind} will appear here once they are created or assigned to you.",
+      "clear-filters": "Clear filters"
+    },
+    "empty-search": {
+      "title": "No results found"
+    },
+    "not-enough-advanced-time-modal": {
+      "title": "Not enough advanced time",
+      "description": "You need to book this desktop in advance to use it. Please go to the booking page to schedule your session.",
+      "book": "Book desktop",
+      "cancel": "Cancel"
+    },
+    "destkop-start-now-modal": {
+      "title": "Start",
+      "description": "Select until when the desktop will be used.",
+      "select": {
+        "label": "End time",
+        "placeholder": "Select until when it will be used"
+      },
+      "cancel": "Cancel",
+      "confirm": "Start desktop"
+    },
+    "destkop-gpu-unavailable-modal": {
+      "title": "GPU '{current-gpu}' is not available for desktop '{name}' at the moment.",
+      "change-and-start": {
+        "title": "Change and start",
+        "subtitle": "It can be changed to an available graphic card model now and start it (It could affect the desktop performance)",
+        "action-button": "Change and start"
+      },
+      "book": {
+        "title": "Book the desktop",
+        "subtitle": "Book the desktop with its current graphic card model checking its planification",
+        "action-button": "Book desktop"
+      }
+    },
+    "destkop-gpu-change-and-start-modal": {
+      "title": "Change and Start",
+      "description": "Change the desktop GPU and start it immediately.",
+      "empty": {
+        "title": "No profiles available",
+        "description": "There are no other GPU profiles currently available."
+      },
+      "gpu-select": {
+        "label": "New GPU profile",
+        "placeholder": "Available GPU Profiles",
+        "value": "Change to '{profile}'"
+      },
+      "cancel": "Cancel",
+      "book": "Book Desktop",
+      "confirm": "Change and Start"
+    },
+    "desktops": {
+      "desktop-card": {
+        "notification-bar": {
+          "needs-booking": "This desktop needs booking to be started",
+          "booking-ends": "Booking ends on {date} at {time}",
+          "next-booking": "Next booking: {date} at {time}",
+          "no-next-booking": "No next booking scheduled",
+          "shutdown": "Desktop will shut down on {date} at {time}",
+          "queue-position": "Position in queue: {position}"
+        },
+        "ip-address": "IP Address: {ip}",
+        "actions": {
+          "info": "Info",
+          "edit": "Edit",
+          "template": "Template it",
+          "delete": "Delete",
+          "book": "Book",
+          "bastion": "Bastion",
+          "direct-link": "Direct Link",
+          "recreate": "Recreate"
+        },
+        "status": {
+          "notCreated": {
+            "action": "Create"
+          },
+          "creating": {
+            "text": "Creating",
+            "action": "Creating"
+          },
+          "creatingandstarting": {
+            "text": "Creating and Starting",
+            "action": "Creating and Starting"
+          },
+          "failed": {
+            "text": "Failed",
+            "action": "Retry"
+          },
+          "started": {
+            "text": "Started",
+            "action": "Stop"
+          },
+          "starting": {
+            "text": "Starting",
+            "action": "Starting"
+          },
+          "stopped": {
+            "text": "Stopped",
+            "action": "Start",
+            "start-now": "Start"
+          },
+          "stopping": {
+            "text": "Stopping",
+            "action": "Stopping"
+          },
+          "waitingip": {
+            "text": "Waiting IP",
+            "action": "Stop"
+          },
+          "readyCreation": {
+            "text": "Ready for creation"
+          },
+          "working": {
+            "text": "Waiting",
+            "action": "working"
+          },
+          "shutting-down": {
+            "text": "Stopping",
+            "action": "Force stop"
+          },
+          "downloading": {
+            "text": "Downloading"
+          },
+          "downloadfailed": {
+            "text": "Download failed"
+          },
+          "forcedeleting": {
+            "text": "Deleting",
+            "action": "Deleting"
+          },
+          "paused": {
+            "text": "Paused",
+            "action": "Stop"
+          },
+          "reset": {
+            "text": "Reset",
+            "action": "Resetting"
+          },
+          "updating": {
+            "text": "Processing",
+            "action": "Processing"
+          },
+          "maintenance": {
+            "text": "In maintenance",
+            "action": "Cancel operation"
+          },
+          "unknown": {
+            "text": "Temporarily unavailable"
+          }
+        },
+        "debug-options": {
+          "copy-id": "Copy Desktop ID"
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Desktop creation quota exceeded",
+        "description": "Desktop creation quota exceeded. A desktop must be deleted in order to create a new one.",
+        "go-to-profile": "Check your quota",
+        "cancel": "Go back to desktops"
+      },
+      "start-quota-exceeded-modal": {
+        "title": "Desktop start quota exceeded",
+        "description": "You have reached the maximum number of running desktops. A desktop must be stopped in order to start a new one.",
+        "cancel": "Go back to desktops"
+      },
+      "storage-unavailable-modal": {
+        "title": "Storage unavailable",
+        "description": "The creation storage is currently unavailable and desktops cannot be created. Please try again later.",
+        "go-to-desktops": "Go back to desktops"
+      },
+      "direct-viewer-modal": {
+        "title": "Direct access link",
+        "enable-access": "Enable direct access",
+        "disable-confirmation": {
+          "title": "Disable direct access link?",
+          "description": "The current link will stop working. If you enable direct access again in the future, a new link will be generated and the previous one will no longer be valid.",
+          "cancel": "Cancel",
+          "confirm": "Disable"
+        }
+      },
+      "data-table": {
+        "headers": {
+          "name": "Name",
+          "description": "Description",
+          "status": "Status",
+          "actions": "Actions",
+          "viewers": "Viewers"
+        }
+      },
+      "fields": {
+        "ip": {
+          "title-full": "@:domains.desktops @:components.domain-info-modal.fields.ip.title"
+        }
+      }
+    },
+    "stepper": {
+      "navigation": {
+        "next": "Next",
+        "go-back": "Go back"
+      }
+    },
+    "domain-access-summary": {
+      "credentials": {
+        "title": "Credentials"
+      },
+      "viewers": {
+        "title": "Viewers"
+      },
+      "bastion": {
+        "title": "Bastion"
+      }
+    },
+    "viewers-selector": {
+      "browser-viewers": {
+        "label": "Browser Viewers",
+        "info": "These viewers allow you to connect directly from your web browser. No additional software is needed.",
+        "rdp-browser": "RDP Browser",
+        "vnc-browser": "VNC Browser"
+      },
+      "file-viewers": {
+        "label": "File Viewers",
+        "info": "These viewers require you to download a file to connect to the desktop. Specific software is needed to use them.",
+        "rdp": "RDP",
+        "spice": "SPICE",
+        "rdp-vpn": "RDP VPN"
+      }
+    },
+    "domain-hardware-summary": {
+      "system": {
+        "title": "System"
+      },
+      "networks": {
+        "title": "Networks"
+      },
+      "peripherals": {
+        "title": "Peripherals"
+      },
+      "reservables": {
+        "title": "Reservables"
+      }
+    },
+    "date-picker": {
+      "today": "Today",
+      "cancel": "Cancel",
+      "apply": "Apply"
+    },
+    "media": {
+      "media-type": {
+        "owned": "My media",
+        "shared": "Shared media"
+      },
+      "new": {
+        "button": "New media",
+        "title": "New Media",
+        "submit": "Create media",
+        "fields": {
+          "name": {
+            "label": "Name",
+            "placeholder": "Enter media name"
+          },
+          "url": {
+            "label": "URL",
+            "placeholder": "https://example.com/media.iso"
+          },
+          "description": {
+            "label": "Description",
+            "placeholder": "Enter media description"
+          },
+          "kind": {
+            "label": "Type",
+            "placeholder": "Select media type",
+            "options": {
+              "iso": "ISO CD/DVD",
+              "floppy": "Floppy"
+            }
+          }
+        },
+        "validation": {
+          "invalid-url": "Please enter a valid URL",
+          "min-length": "Must be at least {min} characters",
+          "max-length": "Must be at most {max} characters",
+          "https-required": "Invalid media URL: HTTPS required"
+        },
+        "errors": {
+          "duplicated_name": "A media with this name already exists. Please choose a different name."
+        }
+      },
+      "quota-exceeded-modal": {
+        "title": "Media creation quota exceeded",
+        "description": "Media creation quota exceeded. A media must be deleted in order to upload a new one.",
+        "cancel": "Go back to media"
+      }
+    },
+    "deployments": {
+      "form-sections": {
+        "preview": {
+          "title": "Preview",
+          "subtitle": "This is how the deployment will look like to the users. Edit it to make it easier to identify."
+        },
+        "info": {
+          "title": "Deployment information",
+          "subtitle": "Edit the deployment name and description.",
+          "fields": {
+            "name": {
+              "label": "Name",
+              "placeholder": "Enter deployment name",
+              "errors": {
+                "exists": "Please choose a different name."
+              }
+            },
+            "description": {
+              "label": "Description",
+              "placeholder": "Enter deployment description (optional)"
+            }
+          }
+        },
+        "visibility": {
+          "title": "Deployment visibility",
+          "subtitle": "Edit the different visibility options for this deployment",
+          "fields": {
+            "visible": {
+              "label": "Visible to the users"
+            }
+          }
+        },
+        "alloweds": {
+          "title": "Allowed Groups and Users",
+          "subtitle": "This deployment will be shared with {groups} and {users}.",
+          "fields": {
+            "alloweds": {
+              "button": "Manage users and groups"
+            }
+          }
+        },
+        "other-options": {
+          "title": "Other options",
+          "fields": {
+            "create-owner-desktop": {
+              "label": "Create a desktop for the deployment owner",
+              "description": "If enabled, a desktop will be automatically created for the deployment owner."
+            }
+          }
+        },
+        "user-permissions": {
+          "title": "User permissions",
+          "subtitle": "Edit the permissions for users in this deployment. These permissions will be applied to all desktops in the deployment and cannot be edited in individual desktops.",
+          "fields": {
+            "recreate": {
+              "label": "Allow users to recreate desktops in the deployment",
+              "description": "If enabled, users will be able to restore their desktop to its original template state."
+            }
+          }
+        }
+      },
+      "form-desktop-card": {
+        "header": {
+          "title": "Desktop {index}",
+          "title-name": "@:components.deployments.form-desktop-card.header.title ({desktop-name})",
+          "buttons": {
+            "change-template": "Change template",
+            "delete-desktop": "Delete desktop"
+          }
+        },
+        "sections": {
+          "preview": {
+            "title": "Preview",
+            "subtitle": "This is how the desktop will look like. Edit its name and description to make it easier to identify.",
+            "fields": {
+              "name": {
+                "label": "Name",
+                "placeholder": "Enter desktop name",
+                "errors": {
+                  "exists": "Please choose a different name."
+                }
+              },
+              "description": {
+                "label": "Description",
+                "placeholder": "Enter desktop description (optional)"
+              }
+            }
+          },
+          "hardware": {
+            "title": "Hardware",
+            "subtitle": "Here you can edit the hardware and access configuration that will be used for the desktop.",
+            "button": "Edit hardware and access configuration"
+          }
+        }
+      },
+      "form-delete-desktop-modal": {
+        "title": "Delete desktop '{desktop-name}' from deployment",
+        "description": "This action will delete the desktop '{desktop-name}' from the deployment. The desktop will be deleted and all its associated data will be lost. This action cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      },
+      "form-select-template-modal": {
+        "add": {
+          "title": "Add a desktop to the deployment",
+          "description": "Select a template to create a new desktop and add it to the deployment."
+        },
+        "replace": {
+          "title": "Change template for desktop '{desktop-name}'",
+          "description": "This action will change the template of the desktop '{desktop-name}' to the new selected template.",
+          "alert": {
+            "title": "Warning",
+            "description": "Changing the template of a desktop will delete all changes you made to it and restore it to the new template state. This action cannot be undone."
+          }
+        },
+        "cancel": "Cancel"
+      },
+      "form-update-hardware-modal": {
+        "title": "Edit hardware and access configuration for desktop '{desktop-name}'",
+        "description": "This is the hardware and access configuration that will be used for the desktop '{desktop-name}'. Edit it to fit your needs.",
+        "cancel": "Cancel",
+        "confirm": "Save changes"
+      },
+      "quota-exceeded-modal": {
+        "title": "Deployment creation quota exceeded",
+        "description": "Deployment creation quota exceeded. A deployment must be deleted in order to create a new one.",
+        "go-to-profile": "Check your quota",
+        "cancel": "Go back to deployments"
+      },
+      "download-csv-modal": {
+        "title": "Download direct viewer CSV for '{name}'",
+        "options": {
+          "keep-urls": {
+            "title": "Keep URLs",
+            "description": "Keep the links and download the CSV file."
+          },
+          "regenerate-urls": {
+            "title": "Regenerate URLs",
+            "description": "Reset the deployment links and download the CSV file (previously generated links will no longer be available)."
+          }
+        },
+        "cancel": "Cancel",
+        "confirm": "Confirm"
+      }
+    }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "An error has ocurred",
+        "missing_category": "A category needs to be selected",
+        "invalid_credentials": "Incorrect user or password",
+        "user_disabled": "The user is disabled",
+        "user_disallowed": "The user can't use IsardVDI",
+        "rate_limit_date": "Too many login attempts, please try again at {time}",
+        "rate_limit": "Too many login attempts, please try again later"
+      }
+    }
+  },
+  "api": {
+    "loading": "Loading...",
+    "loading-error": "Error loading data",
+    "user": {
+      "errors": {
+        "unauthorized": "Your session has expired. Please log in again.",
+        "not_found": "The requested resource was not found.",
+        "internal_server": "An internal server error occurred. Please try again later.",
+        "email_already_in_use": "This email address is already in use",
+        "invalid_email": "The email format is invalid"
+      }
+    },
+    "user_migration": {
+      "errors": {
+        "unknown": "An error has ocurred",
+        "token_expired": "The token you provided has expired",
+        "invalid_token": "The token you provided is invalid",
+        "no_items_to_migrate": "There are no items to migrate",
+        "multiple_migrations_found_target_user": "There are multiple migrations for the new user",
+        "same_user_migration": "You can't migrate to the same account. When obtaining the token, you must log out and log in with the new account",
+        "different_category_migration": "You can't migrate to an account from a different category",
+        "role_migration_admin": "You can't migrate from an admin account",
+        "role_migration_user": "You can't migrate to a user account from an account with a higher role",
+        "migration_desktop_quota_error": "The user has more desktops than the new user quota",
+        "migration_template_quota_error": "The user has more templates than the new user quota",
+        "migration_media_quota_error": "The user has more media than the new user quota",
+        "migration_deployments_quota_error": "The user has more deployments than the new user quota"
+      }
+    },
+    "register": {
+      "errors": {
+        "unauthorized": "Session expired",
+        "forbidden": "The email domain you are trying to use is not authorized for your category.",
+        "not_found": "Code not found",
+        "conflict": "User already exists",
+        "internal_server": "Server error"
+      }
+    },
+    "new-desktop": {
+      "errors": {
+        "generic": {
+          "title": "Error creating desktop",
+          "description": "There was an error while creating your desktop, please try again."
+        },
+        "internal_server": {
+          "title": "Internal server error",
+          "description": "There was an internal server error while creating your desktop, please try again."
+        },
+        "new_desktop_name_exists": {
+          "title": "Desktop name already exists",
+          "description": "A desktop with the same name already exists. Please choose a different name."
+        },
+        "desktop_new_user_quota_exceeded": {
+          "title": "User quota exceeded",
+          "description": "You've exceeded your desktop creation quota. You must delete a desktop in order to create a new one."
+        },
+        "no_storage_pool_available": {
+          "title": "No storage pool available",
+          "description": "There is no storage pool available to create the desktop. Please contact an administrator or try again later."
+        },
+        "temporal_new_reservable": {
+          "title": "Temporal desktops cannot have reservables",
+          "description": "Temporal desktops cannot have reservables assigned. Please remove the reservables and try again."
+        }
+      }
+    },
+    "new-template": {
+      "errors": {
+        "new_template_name_exists": "A template with this name already exists. Please choose a different name."
+      }
+    },
+    "new-media": {
+      "errors": {
+        "generic": {
+          "title": "Error creating media",
+          "description": "There was an error while creating your media, please try again."
+        },
+        "duplicated_name": {
+          "title": "Media name already exists",
+          "description": "A media with this name already exists. Please choose a different name."
+        },
+        "quota_exceeded": {
+          "title": "Quota exceeded",
+          "description": "You've exceeded your media creation quota. You must delete a media in order to create a new one."
+        },
+        "media_url_not_valid": {
+          "title": "Invalid media URL",
+          "description": "The provided media URL is not valid. Please check the URL and try again."
+        },
+        "media_url_bad_format": {
+          "title": "Invalid media URL format",
+          "description": "The provided media URL does not meet the requirements."
+        }
+      }
+    },
+    "new-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error creating deployment",
+          "description": "There was an error while creating your deployment, please try again."
+        },
+        "new_desktop_name_exists": {
+          "title": "One or more users have a desktop with this name",
+          "description": "The following users already have a desktop with the name {desktop_name}. Please choose a different name."
+        },
+        "duplicated_name": {
+          "title": "Deployment name already exists",
+          "description": "A deployment with the name {deployment_name} already exists. Please choose a different name."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Desktop reservables are not equal",
+          "description": "All desktops with reservables in a deployment must have the same reservables assigned. Please make sure all desktops with reservables have the same reservables assigned and try again."
+        }
+      }
+    }
+  },
+  "domains": {
+    "desktops": "desktop | desktops",
+    "templates": "template | templates",
+    "media": "media | media",
+    "deployments": "deployment | deployments",
+    "with-article": {
+      "desktops": "the desktop | the desktops",
+      "templates": "the template | the templates",
+      "media": "the media | the media",
+      "deployments": "the deployment | the deployments"
+    },
+    "capitalized": {
+      "desktops": "@.capitalize:domains.desktops",
+      "templates": "@.capitalize:domains.templates",
+      "media": "@.capitalize:domains.media",
+      "deployments": "@.capitalize:domains.deployments"
+    }
+  },
+  "viewers": {
+    "browser-vnc": "VNC Browser",
+    "browser-rdp": "RDP Browser",
+    "file-rdpgw": "RDP",
+    "file-rdpvpn": "RDP VPN",
+    "file-spice": "SPICE",
+    "tooltip-dismiss": "Don't show again",
+    "tooltip": {
+      "browser-vnc": {
+        "title": "VNC Browser",
+        "description": "Connect to the desktop using the VNC protocol directly in your browser. No client software required."
+      },
+      "browser-rdp": {
+        "title": "RDP Browser",
+        "description": "Connect to the desktop using the RDP protocol directly in your browser. No client software required."
+      },
+      "file-rdpgw": {
+        "title": "RDP",
+        "description": "Connect to the desktop using the RDP protocol via a gateway. Download and open the connection file with an RDP client."
+      },
+      "file-rdpvpn": {
+        "title": "RDP VPN",
+        "description": "Connect to the desktop using the RDP protocol over a VPN. Download and open the connection file with an RDP client."
+      },
+      "file-spice": {
+        "title": "SPICE",
+        "description": "Connect to the desktop using the SPICE protocol, optimized for virtual machines. Download and open the connection file with a SPICE client."
+      }
+    }
+  },
+  "users": {
+    "TODO": "rename this key",
+    "count": {
+      "users": "{n} users | {n} user | {n} users",
+      "groups": "{n} groups | {n} group | {n} groups",
+      "categories": "{n} categories | {n} category | {n} categories"
+    }
+  },
+  "forms": {
+    "validation": {
+      "required": "This field is required"
+    },
+    "common": {
+      "cancel": "Cancel"
+    }
+  },
+  "common": {
+    "units": {
+      "mb": "MB",
+      "gb": "GB"
+    }
+  }
+}
