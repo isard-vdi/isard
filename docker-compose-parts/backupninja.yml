@@ -62,6 +62,10 @@ services:
       - BACKUP_HOST_NAME=${BACKUP_HOST_NAME-${HOSTNAME}}
       # How many report records to keep per host in the API (default 30).
       - BACKUP_RETENTION_PER_HOST=${BACKUP_RETENTION_PER_HOST-30}
+      # Preflight threshold: minimum free percentage required on the
+      # backup target for a session to start. Below this the preflight
+      # script fails fast and the report is marked CRITICAL (default 10).
+      - BACKUP_MIN_FREE_PERCENT=${BACKUP_MIN_FREE_PERCENT-10}
 
       # NFS
       - BACKUP_NFS_ENABLED=${BACKUP_NFS_ENABLED-false}
