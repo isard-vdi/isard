@@ -1,0 +1,30 @@
+services:
+  isard-socketio:
+    image: ${DOCKER_IMAGE_PREFIX}socketio:${DOCKER_IMAGE_TAG:-latest}
+    container_name: isard-socketio
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.31
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5000)); s.close()"]
+      start_period: 30s
+      interval: 5s
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      DEBUG_WEBSOCKETS:
+      API_ISARDVDI_SECRET:
+      LOG_LEVEL:
+      PYTHONUNBUFFERED: 1
+      RETHINKDB_HOST: ${RETHINKDB_HOST:-isard-db}
+      RETHINKDB_PORT: ${RETHINKDB_PORT:-28015}
+      RETHINKDB_DB: ${RETHINKDB_DB:-isard}
+      REDIS_HOST:
+      REDIS_PORT:
+      REDIS_PASSWORD:

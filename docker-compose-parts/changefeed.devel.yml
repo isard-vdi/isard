@@ -1,0 +1,5 @@
+services:
+  isard-changefeed:
+    volumes:
+      - ${BUILD_ROOT_PATH}/component/changefeed/src:/opt/isardvdi/isardvdi_changefeed
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common

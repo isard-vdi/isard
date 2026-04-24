@@ -1,0 +1,6 @@
+services:
+  isard-change-handler:
+    volumes:
+      - ${BUILD_ROOT_PATH}/component/change-handler/src:/opt/isardvdi/isardvdi_change-handler
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common
+      - ${BUILD_ROOT_PATH}/pkg/gen/proto/python:/opt/isardvdi/isardvdi_protobuf
