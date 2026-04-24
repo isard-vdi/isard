@@ -16,6 +16,7 @@ from shlex import quote
 from time import sleep
 
 import humanfriendly as hf
+from changefeed_subscribers import TABLE_TO_SUBSCRIBER
 from engine.config import CONFIG_DICT
 from engine.services.db import (
     delete_domain,
@@ -47,7 +48,8 @@ from engine.services.lib.qcow import (
 )
 from engine.services.lib.storage import create_storage, update_storage_status
 from engine.services.log import logs
-from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.redis_stream import RedisStreamConsumer
 from rethinkdb import r
 
 URL_DOWNLOAD_INSECURE_SSL = True
@@ -74,10 +76,10 @@ class DownloadThread(threading.Thread, object):
         threading.Thread.__init__(self)
         self.name = "_".join([table, id_down])
         self.table = table
-        self.path = shlex.quote(path)
-        self.path_selected = shlex.quote(path_selected)
+        self.path = path
+        self.path_selected = path_selected
         self.id = id_down
-        self.url = shlex.quote(url)
+        self.url = url
         self.dict_header = dict_header
         self.stop = False
         self.finalished_threads = finalished_threads
@@ -186,9 +188,7 @@ class DownloadThread(threading.Thread, object):
                     f"?export=download&{confirm}"
                     f"&id={file_google_drive_id}"
                 )
-                curl_cmd = (
-                    f"curl -Lb {cookie_file} {google_drive_url_to_file} -o {self.path}"
-                )
+                curl_cmd = f"curl -Lb {cookie_file} {google_drive_url_to_file} -o {shlex.quote(self.path)}"
                 cmds_google = (
                     f"curl -c {cookie_file} -s -L {quote(url_download)};"
                     f"{curl_cmd};"
@@ -204,7 +204,7 @@ class DownloadThread(threading.Thread, object):
                     f"{self.user}@{self.hostname}",
                     "/bin/bash",
                     "-c",
-                    f"mkdir -p '{path_dir}'; {cmds_google}",
+                    f"mkdir -p {shlex.quote(path_dir)}; {cmds_google}",
                 ]
             else:
                 logs.downloads.error(
@@ -237,14 +237,18 @@ class DownloadThread(threading.Thread, object):
                 )
                 return False
 
-            curl_cmd = f"curl {insecure_option} -L --max-redirs 5 --connect-timeout 30 --no-netrc -o '{self.path}' {headers} {quote(self.url)}"
+            curl_cmd = (
+                f"curl {insecure_option} -L --max-redirs 5 "
+                f"--connect-timeout 30 --no-netrc "
+                f"-o {shlex.quote(self.path)} {headers} {shlex.quote(self.url)}"
+            )
             ssh_command = [
                 "ssh",
                 "-oBatchMode=yes",
                 "-p",
                 self.port,
                 f"{self.user}@{self.hostname}",
-                f"mkdir -p '{dirname(self.path)}'; {curl_cmd}",
+                f"mkdir -p {shlex.quote(dirname(self.path))}; {curl_cmd}",
             ]
 
         logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
@@ -368,7 +372,7 @@ class DownloadThread(threading.Thread, object):
                     "-p",
                     self.port,
                     f"{self.user}@{self.hostname}",
-                    f"file -b --mime-type '{self.path}'",
+                    f"file -b --mime-type {shlex.quote(self.path)}",
                 ]
 
                 logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
@@ -403,11 +407,6 @@ class DownloadThread(threading.Thread, object):
                 else:
                     update_to_status = "Downloaded"
 
-                    total_size = d_progress["total"]
-                    if total_size == "0" or not total_size:
-                        total_bytes = 0
-                    else:
-                        total_bytes = hf.parse_size(total_size + "iB")
                     update_table_dict(
                         self.table,
                         self.id,
@@ -417,7 +416,9 @@ class DownloadThread(threading.Thread, object):
                             "progress": {
                                 "received": d_progress["total"],
                                 "total_percent": 100,
-                                "total_bytes": total_bytes,
+                                "total_bytes": hf.parse_size(
+                                    d_progress["total"] + "iB"
+                                ),
                             },
                         },
                     )
@@ -471,28 +472,32 @@ class DownloadChangesThread(threading.Thread):
             return False
 
     def get_file_path(self, dict_changes):
-        table = dict_changes["table"]
+        table = dict_changes.table
         if table == "domains":
             type_path_selected = "desktop"
-            disk = dict_changes["create_dict"]["hardware"]["disks"][0]
+            disk = (
+                (dict_changes.create_dict or {})
+                .get("hardware", {})
+                .get("disks", [{}])[0]
+            )
             relative_path = None
             extension = disk.get(
                 "extension", disk.get("file", "qcow2").rsplit(".", 1)[-1]
             )
         else:
             type_path_selected = "media"
-            relative_path = dict_changes["id"]
-            extension = dict_changes["kind"]
+            relative_path = dict_changes.id
+            extension = dict_changes.kind
 
-        pool_id = get_category_storage_pool_id(dict_changes["category"])
+        pool_id = get_category_storage_pool_id(dict_changes.category)
         if pool_id is None:
             logs.downloads.error(
-                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes['category']}"
+                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes.category}"
             )
             return
         new_file_path, path_selected = get_path_to_disk(
             relative_path=relative_path,
-            category_id=dict_changes["category"],
+            category_id=dict_changes.category,
             type_path=type_path_selected,
             extension=extension,
         )
@@ -510,9 +515,7 @@ class DownloadChangesThread(threading.Thread):
         if new_file_path in self.download_threads.keys():
             self.download_threads[new_file_path].stop = True
         else:
-            update_status_table(
-                dict_changes["table"], "DownloadFailed", dict_changes["id"]
-            )
+            update_status_table(dict_changes.table, "DownloadFailed", dict_changes.id)
         # and delete partial download
         cmds = create_cmds_delete_disk(new_file_path)
 
@@ -526,7 +529,7 @@ class DownloadChangesThread(threading.Thread):
             )
 
             action = dict()
-            action["id_media"] = dict_changes["id"]
+            action["id_media"] = dict_changes.id
             action["path"] = new_file_path
             action["type"] = "delete_media"
             action["final_status"] = final_status
@@ -539,16 +542,16 @@ class DownloadChangesThread(threading.Thread):
             logs.downloads.error("next hypervisor fail: " + str(e))
 
     def delete_media(self, dict_changes):
-        table = dict_changes["table"]
-        id_down = dict_changes["id"]
+        table = dict_changes.table
+        id_down = dict_changes.id
         d_media = get_media(id_down)
         cmds = create_cmds_delete_disk(d_media["path_downloaded"])
 
         # change for other pools when pools are implemented in all media
-        pool_id = get_category_storage_pool_id(dict_changes["category"])
+        pool_id = get_category_storage_pool_id(dict_changes.category)
         if pool_id is None:
             logs.downloads.error(
-                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes['category']}"
+                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes.category}"
             )
             return
         next_hyp = self.manager.diskoperations_pools[
@@ -582,41 +585,37 @@ class DownloadChangesThread(threading.Thread):
             dict_changes
         )
 
-        table = dict_changes["table"]
-        id_down = dict_changes["id"]
+        table = dict_changes.table
+        id_down = dict_changes.id
         header_dict = {}
 
-        # all disk downloads create a desktop
+        # url_web / url_isard are declared on MediaRow, but DomainsRow
+        # keeps them in additional_properties. Check both.
+        props = dict_changes.additional_properties or {}
+        url_web = getattr(dict_changes, "url_web", None) or props.get("url-web")
+        url_isard = getattr(dict_changes, "url_isard", None) or props.get("url-isard")
 
-        if dict_changes.get("url-web", False) is not False:
-            url = dict_changes["url-web"]
-
-        elif dict_changes.get("url-isard", False) is not False:
+        if url_web:
+            url = url_web
+        elif url_isard:
             if self.url_code is False:
                 if self.get_url_resources_and_code() is False:
                     logs.downloads.error(
-                        f"not url_code, isard installation not registered"
-                        f" to IsardVDI Downloads Service"
+                        "not url_code, isard installation not registered"
+                        " to IsardVDI Downloads Service"
                     )
                     return False
-            url_base = self.url_resources
-
-            subdir_url = "storage"
-            if len(subdir_url) > 0:
-                url_base = url_base + "/" + subdir_url
-
-            url_isard = dict_changes["url-isard"]
+            url_base = self.url_resources + "/storage"
             url = url_base + "/" + table + "/" + url_isard
             if len(self.url_code) > 0:
                 header_dict["Authorization"] = self.url_code
         else:
             logs.downloads.error(
-                (
-                    "web-url or isard-url must be keys in dictionary for domain {}"
-                    + " to download disk file from internet. "
-                ).format(id_down)
+                "web-url or isard-url must be keys in dictionary for %s"
+                " to download disk file from internet. Skipping.",
+                id_down,
             )
-            exit()
+            return False
 
         if new_file_path in self.finalished_threads:
             if new_file_path in self.download_threads.keys():
@@ -625,12 +624,20 @@ class DownloadChangesThread(threading.Thread):
 
         storage_id = None
         if table == "domains":
-            d_update_domain = dict_changes["create_dict"]
+            d_update_domain = dict_changes.create_dict
+            if not d_update_domain or "hardware" not in d_update_domain:
+                logs.downloads.error(
+                    f"Domain {id_down} has no create_dict.hardware, cannot proceed with download"
+                )
+                update_domain_status(
+                    "DownloadFailed", id_down, detail="Missing create_dict.hardware"
+                )
+                return
             d_update_domain["hardware"]["disks"][0]["path_selected"] = path_selected
             d_update_domain["hardware"]["disks"][0]["file"] = new_file_path
             storage_id = create_storage(
                 d_update_domain["hardware"]["disks"][0],
-                get_domain(dict_changes.get("id")).get("user"),
+                get_domain(dict_changes.id).get("user"),
                 force_parent=None,
             )
             d_update_domain["hardware"]["disks"][0] = {"storage_id": storage_id}
@@ -670,10 +677,10 @@ class DownloadChangesThread(threading.Thread):
             )
 
     def execute(self, action, dict_changes, extra=None):
-        pool_id = get_category_storage_pool_id(dict_changes["category"])
+        pool_id = get_category_storage_pool_id(dict_changes.category)
         if pool_id is None:
             logs.downloads.error(
-                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes['category']}"
+                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes.category}"
             )
             return
         next_diskop = self.manager.diskoperations_pools[
@@ -686,7 +693,7 @@ class DownloadChangesThread(threading.Thread):
                 {"action": action, "item": dict_changes}
             )
             logs.downloads.error(
-                f"DOWNLOAD: No disk operations active for pool {pool_id} to execute action {action} with id {dict_changes['id']}, storing in pending list. Actual list has {len(self.storage_pending[pool_id])} items"
+                f"DOWNLOAD: No disk operations active for pool {pool_id} to execute action {action} with id {dict_changes.id}, storing in pending list. Actual list has {len(self.storage_pending[pool_id])} items"
             )
         else:
             if action == "start_download":
@@ -697,21 +704,21 @@ class DownloadChangesThread(threading.Thread):
                 self.abort_download(dict_changes, final_status="DownloadFailed")
             elif action == "delete_media":
                 self.delete_media(dict_changes)
-            elif action == "remove_media":
-                remove_media(dict_changes)
             elif action == "remove_download_thread":
                 self.remove_download_thread(dict_changes)
             else:
                 logs.downloads.error(
-                    f"DOWNLOAD: action {action} not implemented for id {dict_changes['id']}"
+                    f"DOWNLOAD: action {action} not implemented for id {dict_changes.id}"
                 )
-            # Remove item from self.storage_pending
+            pending = self.storage_pending.get(pool_id, [])
+            entry = {"action": action, "item": dict_changes}
             try:
-                self.storage_pending[pool_id].remove(
-                    {"action": action, "item": dict_changes}
+                pending.remove(entry)
+            except ValueError:
+                logs.downloads.warning(
+                    f"DOWNLOAD: no pending entry to remove for action "
+                    f"{action} id {dict_changes.id} in pool {pool_id}"
                 )
-            except:
-                pass
 
     def restart_pending_downloads(self):
         for pool_id in self.storage_pending.keys():
@@ -729,167 +736,169 @@ class DownloadChangesThread(threading.Thread):
                     f"DOWNLOAD: Unable to restart pending {len(self.storage_pending[pool_id])} downloads for pool {pool_id}. No disk operations available"
                 )
 
+    # Statuses that the old RethinkDB changefeed watched with include_initial=True
+    DOWNLOAD_STATUSES = [
+        "Downloaded",
+        "DownloadFailed",
+        "DownloadStarting",
+        "Downloading",
+        "Download",
+        "DownloadAborting",
+        "ResetDownloading",
+    ]
+
+    def _recover_initial_state(self):
+        """Query DB for items in active download states — replaces include_initial=True."""
+        r_conn = new_rethink_connection()
+        try:
+            for table, pluck_fields in [
+                ("media", ["id", "kind", "url-isard", "url-web", "status", "category"]),
+                (
+                    "domains",
+                    ["id", "create_dict", "url-isard", "url-web", "status", "category"],
+                ),
+            ]:
+                items = list(
+                    r.table(table)
+                    .get_all(r.args(self.DOWNLOAD_STATUSES), index="status")
+                    .pluck(*pluck_fields)
+                    .run(r_conn)
+                )
+                for item in items:
+                    item["table"] = table
+                    logs.downloads.debug(
+                        f"DOWNLOAD RECOVERY ({table}): {item['id']} status={item['status']}"
+                    )
+                    subscriber = TABLE_TO_SUBSCRIBER.get(table)
+                    if subscriber is None:
+                        continue
+                    envelope = subscriber.parse_dict(
+                        {"old_val": None, "new_val": item, "table": table}
+                    )
+                    self._process_change(envelope.change)
+        finally:
+            from engine.services.db.db import close_rethink_connection
+
+            close_rethink_connection(r_conn)
+
     def run(self):
         self.tid = get_tid()
         logs.downloads.debug("RUN-DOWNLOAD-THREAD-------------------------------------")
         self.downloads_with_storage_pending = {}
-        self.r_conn = new_rethink_connection()
         if self.stop is False:
-            for c in (
-                r.table("media")
-                .get_all(
-                    r.args(
-                        [
-                            "Downloaded",
-                            "DownloadFailed",
-                            "DownloadStarting",
-                            "Downloading",
-                            "Download",
-                            "DownloadAborting",
-                            "ResetDownloading",
-                        ]
-                    ),
-                    index="status",
-                )
-                .pluck("id", "kind", "url-isard", "url-web", "status", "category")
-                .merge({"table": "media"})
-                .changes(include_initial=True)
-                .union(
-                    r.table("domains")
-                    .get_all(
-                        r.args(
-                            [
-                                "Downloaded",
-                                "DownloadFailed",
-                                "DownloadStarting",
-                                "Downloading",
-                                "Download",
-                                "DownloadAborting",
-                                "ResetDownloading",
-                            ]
-                        ),
-                        index="status",
-                    )
-                    .pluck(
-                        "id",
-                        "create_dict",
-                        "url-isard",
-                        "url-web",
-                        "status",
-                        "category",
-                    )
-                    .merge({"table": "domains"})
-                    .changes(include_initial=True)
-                )
-                .union(
-                    r.table("engine")
-                    # .pluck("threads", "status_all_threads")
-                    .merge({"table": "engine"}).changes()
-                )
-                .run(self.r_conn)
+            # Recover items with active download states (replaces include_initial=True)
+            self._recover_initial_state()
+
+            stop_event = threading.Event()
+            self._stop_event = stop_event
+            consumer = RedisStreamConsumer(
+                streams=["stream:media", "stream:domains", "stream:engine"],
+                group="engine-downloads",
+            )
+
+            def handler(data):
+                table = data.get("table")
+                subscriber = TABLE_TO_SUBSCRIBER.get(table)
+                if subscriber is None:
+                    return
+                envelope = subscriber.parse_dict(data)
+                self._process_change(envelope.change)
+
+            consumer.run(handler, stop_event=stop_event)
+            logs.downloads.debug("finished thread download changes")
+
+    def _process_change(self, change):
+        """Process a single media/domains/engine change."""
+        if self.stop:
+            if hasattr(self, "_stop_event"):
+                self._stop_event.set()
+            return
+
+        new_val = change.new_val
+        old_val = change.old_val
+
+        if new_val is not None and new_val.table == "engine":
+            engine_props = new_val.additional_properties or {}
+            if engine_props.get("status_all_threads") == "Stopping":
+                if hasattr(self, "_stop_event"):
+                    self._stop_event.set()
+                return
+            self.restart_pending_downloads()
+            return
+        if old_val is not None and old_val.table == "engine":
+            return
+
+        # Filter: only process download-related statuses
+        new_status = new_val.status if new_val is not None else None
+        old_status = old_val.status if old_val is not None else None
+        if (
+            new_status not in self.DOWNLOAD_STATUSES
+            and old_status not in self.DOWNLOAD_STATUSES
+        ):
+            return
+
+        logs.downloads.debug("DOWNLOAD CHANGES DETECTED:")
+        logs.downloads.debug(pprint.pformat(change))
+        self.restart_pending_downloads()
+
+        if new_val is not None and old_val is None:
+            if new_val.status == "DownloadStarting":
+                self.execute("start_download", new_val)
+            if new_val.status == "Downloading":
+                if new_val.table == "media":
+                    self.reset_downloading("media", new_val)
+                elif new_val.table == "domains":
+                    self.reset_downloading("domains", new_val)
+
+        if old_val is not None and new_val is None:
+            if old_val.status in ["DownloadAborting"]:
+                self.execute("remove_download_thread", old_val)
+
+        if old_val is not None and new_val is not None:
+            if (
+                old_val.status == "DownloadFailed"
+                and new_val.status == "DownloadStarting"
             ):
-                if self.stop:
-                    break
-                if c.get("new_val", None) and c["new_val"].get("table") == "engine":
-                    if c["new_val"]["status_all_threads"] == "Stopping":
-                        break
-                    self.restart_pending_downloads()
-                    continue
-                if (
-                    c.get("old_val", None) is not None
-                    and c["old_val"]["table"] == "engine"
-                ):
-                    continue
-                if (
-                    c.get("new_val", None) is not None
-                    and c["new_val"]["table"] == "engine"
-                ):
-                    continue
+                self.execute("start_download", new_val)
 
-                logs.downloads.debug("DOWNLOAD CHANGES DETECTED:")
-                logs.downloads.debug(pprint.pformat(c))
-                self.restart_pending_downloads()
+            elif old_val.status == "Downloaded" and new_val.status == "Deleting":
+                if new_val.table == "media":
+                    self.execute("delete_media", new_val)
 
-                if c.get("new_val", None) and c.get("old_val", None) == None:
-                    if c["new_val"]["status"] == "DownloadStarting":
-                        self.execute("start_download", c["new_val"])
-                    if c["new_val"]["status"] == "Downloading":
-                        if c["new_val"]["table"] == "media":
-                            self.reset_downloading("media", c["new_val"])
-                        elif c["new_val"]["table"] == "domains":
-                            self.reset_downloading("domains", c["new_val"])
+            elif old_val.status == "DownloadFailed" and new_val.status == "Deleting":
+                if new_val.table == "media":
+                    self.execute("delete_media", new_val)
 
-                if c.get("old_val", None) and not c.get("new_val", None):
-                    if c["old_val"]["status"] in ["DownloadAborting"]:
-                        self.execute("remove_download_thread", c["old_val"])
+            elif old_val.status == "Downloading" and new_val.status == "DownloadFailed":
+                pass
 
-                if c.get("old_val", None) and c.get("new_val", None):
-                    if (
-                        c["old_val"]["status"] == "DownloadFailed"
-                        and c["new_val"]["status"] == "DownloadStarting"
-                    ):
-                        self.execute("start_download", c["new_val"])
+            elif (
+                old_val.status == "DownloadStarting" and new_val.status == "Downloading"
+            ):
+                pass
 
-                    elif (
-                        c["old_val"]["status"] == "Downloaded"
-                        and c["new_val"]["status"] == "Deleting"
-                    ):
-                        if c["new_val"]["table"] == "media":
-                            self.execute("delete_media", c["new_val"])
+            elif old_val.status == "Downloading" and new_val.status == "Downloaded":
+                pass
 
-                    elif (
-                        c["old_val"]["status"] == "Deleting"
-                        and c["new_val"]["status"] == "Deleted"
-                    ):
-                        if c["new_val"]["table"] == "media":
-                            self.execute("remove_media", c["new_val"]["id"])
+            elif (
+                old_val.status == "Downloading" and new_val.status == "DownloadAborting"
+            ):
+                self.execute("abort_download", new_val)
 
-                    elif (
-                        c["old_val"]["status"] == "DownloadFailed"
-                        and c["new_val"]["status"] == "Deleting"
-                    ):
-                        if c["new_val"]["table"] == "media":
-                            self.execute("delete_media", c["new_val"]["id"])
-
-                    elif (
-                        c["old_val"]["status"] == "Downloading"
-                        and c["new_val"]["status"] == "DownloadFailed"
-                    ):
-                        pass
-
-                    elif (
-                        c["old_val"]["status"] == "DownloadStarting"
-                        and c["new_val"]["status"] == "Downloading"
-                    ):
-                        pass
-
-                    elif (
-                        c["old_val"]["status"] == "Downloading"
-                        and c["new_val"]["status"] == "Downloaded"
-                    ):
-                        pass
-
-                    elif (
-                        c["old_val"]["status"] == "Downloading"
-                        and c["new_val"]["status"] == "DownloadAborting"
-                    ):
-                        self.execute("abort_download", c["new_val"])
-
-                    elif (
-                        c["old_val"]["status"] == "Downloading"
-                        and c["new_val"]["status"] == "ResetDownloading"
-                    ):
-                        self.execute(
-                            "abort_download_final_status_download_failed",
-                            c["new_val"],
-                        )
+            elif (
+                old_val.status == "Downloading" and new_val.status == "ResetDownloading"
+            ):
+                self.execute(
+                    "abort_download_final_status_download_failed",
+                    new_val,
+                )
 
     def reset_downloading(self, kind, dict_changes):
         if kind == "domains":
-            update_domain_status("ResetDownloading", dict_changes["id"])
+            update_domain_status("ResetDownloading", dict_changes.id)
             self.abort_download(dict_changes, final_status="DownloadFailed")
         elif kind == "media":
-            update_status_table("media", "ResetDownloading", dict_changes["id"])
+            update_status_table("media", "ResetDownloading", dict_changes.id)
             self.abort_download(dict_changes, final_status="DownloadFailed")
 
             # update_table_field(

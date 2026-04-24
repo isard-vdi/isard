@@ -1,3 +1,4 @@
+import threading
 import time
 from datetime import datetime
 
@@ -14,6 +15,50 @@ from engine.services.log import log, logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
+# ─── Ephemeral hypervisor thread status (engine-process RAM) ────────────────
+#
+# thread_status used to be a RethinkDB column on the hypervisors table but was
+# only ever read by this engine process and always reset to Stopped on boot by
+# update_all_hyps_status(), so its DB persistence was architecturally
+# meaningless. It is now engine-process RAM only — on restart the dict starts
+# empty, which correctly represents "no worker / disk_operations threads are
+# running in this process yet". The lock guards the small number of writer
+# threads (orchestrator main loop, hyp worker threads, disk operations
+# threads).
+
+_thread_status_ram = {}
+_thread_status_lock = threading.Lock()
+
+_DEFAULT_THREAD_STATUS = {"worker": "Stopped", "disk_operations": "Stopped"}
+
+
+def get_hyp_thread_status(hyp_id):
+    """Return a snapshot (copy) of the hypervisor's thread status from engine RAM.
+
+    If the hypervisor has never had a thread launched in this engine process,
+    returns the default Stopped/Stopped dict so callers can always treat the
+    result as a populated dict.
+    """
+    with _thread_status_lock:
+        return dict(_thread_status_ram.get(hyp_id, _DEFAULT_THREAD_STATUS))
+
+
+def remove_hyp_thread_status(hyp_id):
+    """Drop a hypervisor's thread status from engine RAM.
+
+    Called when the hypervisor row is deleted from the database so stale
+    entries don't pile up across the lifetime of the engine process.
+    """
+    with _thread_status_lock:
+        _thread_status_ram.pop(hyp_id, None)
+
+
+def _set_hyp_thread_type_status(hyp_id, thread_type, status):
+    """Atomically set a single thread_type ('worker' or 'disk_operations') for a hyp."""
+    with _thread_status_lock:
+        entry = _thread_status_ram.setdefault(hyp_id, dict(_DEFAULT_THREAD_STATUS))
+        entry[thread_type] = status
+
 
 def get_hypervisor(hyp_id):
     r_conn = new_rethink_connection()
@@ -29,90 +74,97 @@ def get_hypervisor(hyp_id):
 
 
 def update_hyp_thread_status(thread_type, hyp_id, status):
-    if thread_type in ["worker", "disk_operations"] and status in [
-        "Started",
-        "Stopped",
-        "Starting",
-        "Stopping",
-        "Deleting",
-    ]:
-        with rethink_conn() as conn:
-            result = (
-                r.table("hypervisors")
-                .get(hyp_id)
-                .update({"thread_status": {thread_type: status}})
-                .run(conn)
-            )
+    """Update the engine-process RAM copy of a hypervisor's thread status.
 
-        if status != "Started":
-            try:
-                with rethink_conn() as conn:
-                    d = (
-                        r.table("hypervisors")
-                        .get(hyp_id)
-                        .pluck("thread_status", "status", "capabilities")
-                        .run(conn)
-                    )
-            except:
-                # hypervisor not found. It is weird that it happens.
-                return False
-            status_hyp = d["status"]
-            if status_hyp == "Online":
-                update_hyp_status(
-                    hyp_id,
-                    "Offline",
-                    f"thread {thread_type} is not Started. Status of thread: {status}",
-                )
-            elif status_hyp == "Deleting":
-                ko_disk_operations = False
-                if d["capabilities"].get("disk_operations", False) is True:
-                    if d["thread_status"].get("disk_operations", "") == "Stopped":
-                        ko_disk_operations = True
-                elif d["capabilities"].get("disk_operations", True) is False:
-                    ko_disk_operations = True
+    thread_status is NOT persisted to the database — see the module-level
+    comment on _thread_status_ram. This function still performs the DB-side
+    effects that depend on the new state (auto-transition the hypervisor to
+    Offline when a thread dies, delete the row when all threads are Stopped
+    and the hypervisor is in Deleting state). Those side effects read
+    'status' and 'capabilities' from the DB (which ARE persisted) and the
+    up-to-date thread_status from RAM.
+    """
+    if thread_type not in ("worker", "disk_operations"):
+        return False
+    if status not in ("Started", "Stopped", "Starting", "Stopping", "Deleting"):
+        return False
 
-                ko_worker = False
-                if d["capabilities"].get("hypervisor", False) is True:
-                    if d["thread_status"].get("worker", "") == "Stopped":
-                        ko_worker = True
-                elif d["capabilities"].get("hypervisor", True) is False:
-                    ko_worker = True
+    _set_hyp_thread_type_status(hyp_id, thread_type, status)
+    ts = get_hyp_thread_status(hyp_id)
 
-                if ko_worker is True and ko_disk_operations is True:
-                    cleanup_hypervisor_gpus(hyp_id)
-                    with rethink_conn() as conn:
-                        return r.table("hypervisors").get(hyp_id).delete().run(conn)
-
-        elif status == "Started":
+    if status != "Started":
+        try:
             with rethink_conn() as conn:
                 d = (
                     r.table("hypervisors")
                     .get(hyp_id)
-                    .pluck("thread_status", "status", "capabilities")
+                    .pluck("status", "capabilities")
                     .run(conn)
                 )
+        except Exception:
+            # hypervisor not found. It is weird that it happens.
+            return False
+        if not d:
+            return False
+        status_hyp = d.get("status")
+        if status_hyp == "Online":
+            update_hyp_status(
+                hyp_id,
+                "Offline",
+                f"thread {thread_type} is not Started. Status of thread: {status}",
+            )
+        elif status_hyp == "Deleting":
+            caps = d.get("capabilities", {}) or {}
 
-            ok_disk_operations = False
-            if d["capabilities"].get("disk_operations", False) is True:
-                if d["thread_status"].get("disk_operations", "") == "Started":
-                    ok_disk_operations = True
-            elif d["capabilities"].get("disk_operations", True) is False:
+            ko_disk_operations = False
+            if caps.get("disk_operations", False) is True:
+                if ts.get("disk_operations", "") == "Stopped":
+                    ko_disk_operations = True
+            elif caps.get("disk_operations", True) is False:
+                ko_disk_operations = True
+
+            ko_worker = False
+            if caps.get("hypervisor", False) is True:
+                if ts.get("worker", "") == "Stopped":
+                    ko_worker = True
+            elif caps.get("hypervisor", True) is False:
+                ko_worker = True
+
+            if ko_worker and ko_disk_operations:
+                cleanup_hypervisor_gpus(hyp_id)
+                remove_hyp_thread_status(hyp_id)
+                with rethink_conn() as conn:
+                    return r.table("hypervisors").get(hyp_id).delete().run(conn)
+
+    elif status == "Started":
+        try:
+            with rethink_conn() as conn:
+                d = r.table("hypervisors").get(hyp_id).pluck("capabilities").run(conn)
+        except Exception:
+            return True
+        if not d:
+            return True
+        caps = d.get("capabilities", {}) or {}
+
+        ok_disk_operations = False
+        if caps.get("disk_operations", False) is True:
+            if ts.get("disk_operations", "") == "Started":
                 ok_disk_operations = True
+        elif caps.get("disk_operations", True) is False:
+            ok_disk_operations = True
 
-            ok_worker = False
-            if d["capabilities"].get("hypervisor", False) is True:
-                if d["thread_status"].get("worker", "") == "Started":
-                    ok_worker = True
-            elif d["capabilities"].get("hypervisor", True) is False:
+        ok_worker = False
+        if caps.get("hypervisor", False) is True:
+            if ts.get("worker", "") == "Started":
                 ok_worker = True
+        elif caps.get("hypervisor", True) is False:
+            ok_worker = True
 
-            if ok_worker is True and ok_disk_operations is True:
-                logs.workers.info(
-                    f"All threads for hyp are started in hypervisor: {hyp_id}"
-                )
-        return result
-    else:
-        return False
+        if ok_worker and ok_disk_operations:
+            logs.workers.info(
+                f"All threads for hyp are started in hypervisor: {hyp_id}"
+            )
+    return True
 
 
 def update_hyp_status(id, status, detail="", uri=""):
@@ -457,11 +509,15 @@ def get_hypers_enabled_with_capabilities_status():
 
     hypers = list(
         rtable.filter({"enabled": True})
-        .pluck("capabilities", "status", "id", "thread_status")
+        .pluck("capabilities", "status", "id")
         .run(r_conn)
     )
 
     close_rethink_connection(r_conn)
+    # thread_status lives in engine-process RAM, not the DB — merge it in here
+    # so callers that expect d_hyp["thread_status"] keep working unchanged.
+    for h in hypers:
+        h["thread_status"] = get_hyp_thread_status(h["id"])
     return hypers
 
 
@@ -482,18 +538,20 @@ def get_hyp_hostname_user_port_from_id(id):
         return False
 
 
-def update_all_hyps_status(reset_status="Offline", reset_thread_status="Stopped"):
+def update_all_hyps_status(reset_status="Offline"):
+    """Reset the DB-persisted hypervisor state on engine boot and clear RAM.
+
+    thread_status is engine-process RAM only (see module-level comment); on
+    boot the in-memory dict is wiped, which correctly represents "no worker /
+    disk_operations threads running in this process yet". The DB update only
+    touches fields that ARE persisted.
+    """
     r_conn = new_rethink_connection()
-    d_reset_thread_status = {
-        "worker": reset_thread_status,
-        "disk_operations": reset_thread_status,
-    }
     results = (
         r.table("hypervisors")
         .update(
             {
                 "status": reset_status,
-                "thread_status": d_reset_thread_status,
                 "degraded": {"is_degraded": False, "reason": None, "since": None},
                 "libvirt_warning": None,
             }
@@ -501,6 +559,8 @@ def update_all_hyps_status(reset_status="Offline", reset_thread_status="Stopped"
         .run(r_conn)
     )
     close_rethink_connection(r_conn)
+    with _thread_status_lock:
+        _thread_status_ram.clear()
     return results
 
 

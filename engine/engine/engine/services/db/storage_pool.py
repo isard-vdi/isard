@@ -18,7 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from cachetools import TTLCache, cached
-from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb import r
 
 from .db import rethink

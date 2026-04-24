@@ -21,8 +21,8 @@ services:
     - /opt/isard/logs/engine:/isard/logs:rw
     - /opt/isard-local/.ipython:/root/.ipython:rw
 
-  isard-api:
-    container_name: isard-api
+  isard-apiv4:
+    container_name: isard-apiv4
     depends_on:
       isard-engine:
         condition: service_started
@@ -31,7 +31,7 @@ services:
       LOG_LEVEL: DEBUG
       PYTHONUNBUFFERED: 1
     volumes:
-    - ./api/src:/api:rw
+    - ./component/apiv4/src:/app:rw
     - /opt/isard-local/.ipython:/root/.ipython:rw
 
 version: '3.5'

@@ -55,8 +55,8 @@ from engine.services.lib.status import get_next_disk, get_next_hypervisor
 from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
-from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
-from isardvdi_common.domain import Domain
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.models.domain import Domain
 from rethinkdb import r
 from tabulate import tabulate
 
@@ -467,6 +467,23 @@ class Engine(object):
                     return False
 
     class DomainsChangesThread(threading.Thread):
+        # Engine-side consumer of the `domains` + `engine` changefeeds.
+        #
+        # The changefeed service ALSO watches `domains` and publishes to
+        # Redis (so change-handler can emit SocketIO events to the
+        # frontend). That means a single DB mutation fans out to two
+        # independent consumers: this thread (for engine state transitions)
+        # and change-handler (for UI notifications). Ordering between the
+        # two is not coordinated — don't rely on UI updates before or
+        # after engine actions.
+        #
+        # This thread intentionally stays on direct RethinkDB .changes():
+        # moving to the shared Redis stream would still leave two
+        # consumers (just with extra hops), and the engine needs the full
+        # row for decisions, not the summarized payload the changefeed
+        # service publishes. See migration/ENGINE_CHANGE_HANDLING.md for
+        # the long-term plan (converge to a single stream with consumer
+        # groups).
         def __init__(self, name, parent):
             threading.Thread.__init__(self)
             self.manager = parent
@@ -628,6 +645,21 @@ class Engine(object):
 
                     if new_domain is True and new_status == "Creating":
                         self._submit_action(ui.creating_disks_from_template, domain_id)
+
+                    # apiv4 edit (routes/domains/desktops.py PUT .../edit
+                    # → parse_domain_update) flips status to "Updating".
+                    # The engine validates the new XML and moves to
+                    # "Stopped" (or "Failed" if invalid). Ported from
+                    # apiv4-and-websockets. Without this handler the
+                    # desktop is stuck in "Updating" forever after every
+                    # edit.
+                    if (
+                        old_status in ["Stopped", "Failed", "Downloaded"]
+                        and new_status == "Updating"
+                    ):
+                        self._submit_action(
+                            ui.updating_from_create_dict, domain_id, True
+                        )
 
                     if new_domain is True and new_status == "CreatingAndStarting":
 
@@ -811,8 +843,11 @@ class Engine(object):
                         "CreatingDomain",
                     ] and new_status in ["Stopped"]:
 
-                        def _stopped_storage_find(domain_id):
-                            # Create storage find tasks to update qemu-img info
+                        def _stopped_storage_refresh(domain_id):
+                            # Refresh qemu-img-info on each attached storage after the
+                            # VM stops. Uses check_backing_chain (qemu_img_info_backing_chain
+                            # + storage_update) instead of the heavier find() — we only
+                            # need a fresh qemu-img-info dict, not a filesystem walk.
                             if Domain.exists(domain_id):
                                 try:
                                     domain = Domain(domain_id)
@@ -822,17 +857,19 @@ class Engine(object):
                                             storage, "readonly", False
                                         ):
                                             try:
-                                                storage.find(user_id, blocking=False)
+                                                storage.check_backing_chain(
+                                                    user_id, blocking=False, retry=1
+                                                )
                                             except Exception as e:
                                                 logs.main.debug(
-                                                    f"Could not create find task for storage {storage.id}: {e}"
+                                                    f"Could not create qemu-img-info refresh task for storage {storage.id}: {e}"
                                                 )
                                 except Exception as e:
                                     logs.main.debug(
-                                        f"Could not create storage find tasks for domain {domain_id}: {e}"
+                                        f"Could not create qemu-img-info refresh tasks for domain {domain_id}: {e}"
                                     )
 
-                        self._submit_action(_stopped_storage_find, domain_id)
+                        self._submit_action(_stopped_storage_refresh, domain_id)
 
                     if (
                         old_status == "Started" and new_status == "StoppingAndDeleting"

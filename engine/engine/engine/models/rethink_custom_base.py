@@ -21,7 +21,7 @@ import threading
 from abc import ABC
 
 from engine.services.db import new_rethink_connection
-from isardvdi_common.rethink_base import RethinkBase
+from isardvdi_common.connections.rethink_base import RethinkBase
 
 
 class _ThreadLocalConnection:

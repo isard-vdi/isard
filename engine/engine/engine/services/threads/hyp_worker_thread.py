@@ -60,7 +60,7 @@ from engine.services.threads.threads import (
     launch_delete_media,
     launch_killall_curl,
 )
-from isardvdi_common.api_rest import ApiRest
+from isardvdi_common.connections.api_rest import ApiRest
 from libvirt import (
     VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
     VIR_DOMAIN_START_PAUSED,
@@ -69,7 +69,7 @@ from libvirt import (
 )
 from requests.exceptions import ReadTimeout as requests_ReadTimeout
 
-api_client = ApiRest("isard-api")
+api_client = ApiRest("isard-apiv4")
 
 
 ITEMS_STATUS_MAP = {
@@ -2059,7 +2059,7 @@ class HypWorkerThread(threading.Thread):
         if positioned_items:
             try:
                 api_client.put(
-                    f"/notify/desktops/queue/{self.hyp_id}",
+                    f"/admin/notify/desktops/queue/{self.hyp_id}",
                     data=positioned_items,
                     timeout=0.0000000001,  # Very small timeout as in original code
                 )
