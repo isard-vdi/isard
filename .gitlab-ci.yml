@@ -340,6 +340,33 @@ unit-test-changefeed:
         path: component/changefeed/src/coverage.xml
       junit: component/changefeed/src/report.xml
 
+unit-test-webapp:
+  <<: *python-test-base
+  rules:
+    - changes:
+        - webapp/**/*
+        - component/_common/**/*
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git > /dev/null
+    - pip install -q -r webapp/docker/requirements.txt
+    - pip install -q -r webapp/docker/test.requirements.txt
+  variables:
+    PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
+    PYTHONPATH: "${CI_PROJECT_DIR}/webapp/webapp:${CI_PROJECT_DIR}/component/_common"
+    USAGE: "test"
+    API_ISARDVDI_SECRET: "ci-test-secret"
+  script:
+    - cd webapp/webapp
+    - python -m pytest tests/ -q --tb=short --junitxml=report.xml --cov=webapp --cov-report=term --cov-report=xml:coverage.xml
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: webapp/webapp/coverage.xml
+      junit: webapp/webapp/report.xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
+
 unit-test-common:
   # isardvdi_common/lib transitively pulls in apiv4 + change-handler +
   # socketio deps (interval math, html sanitizer, etc.), so the full
