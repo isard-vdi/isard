@@ -130,7 +130,7 @@ $('#btn-edit-reset-date').on('click', function () {
 
 
   $.ajax({
-    url: `/api/v3/admin/usage/reset_date`,
+    url: `/api/v4/admin/usage/reset_date`,
     type: 'GET'
   }).done(function (data) {
     $.each(data, function (key, value) {
@@ -191,7 +191,7 @@ $('#modalEditResetDates #send').on('click', function (e) {
 
   $.ajax({
     type: 'PUT',
-    url: "/api/v3/admin/usage/reset_dates",
+    url: "/api/v4/admin/usage/reset_dates",
     dataType: "json",
     async: false,
     contentType: "Application/json",
@@ -241,7 +241,7 @@ $('#btn-view-graph').on('click', function (e) {
       success: function (resp) {
         $.ajax({
           type: "GET",
-          url: `/api/v3/admin/usage/credits/${data.consumer}/${data.itemType}/${it.id}/${data.grouping.id}/${data.startDate}/${data.endDate}`,
+          url: `/api/v4/admin/usage/credits/${data.consumer}/${data.itemType}/${it.id}/${data.grouping.id}/${data.startDate}/${data.endDate}`,
           dataType: 'json',
           contentType: "application/json",
           success: function (limits) {
@@ -464,7 +464,7 @@ $('tbody').on('click', 'button', function (e) {
       .on("pnotify.confirm", function () {
         $.ajax({
           type: "PUT",
-          url: `/api/v3/admin/usage/unify/${consumer_id}/item_name`,
+          url: `/api/v4/admin/usage/unify/${consumer_id}/item_name`,
           dataType: 'json',
           contentType: "application/json",
           success: function (data) {
@@ -817,7 +817,7 @@ function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
 function showResetDate() {
   $('.reset_date_value').empty()
   $.ajax({
-    url: `/api/v3/admin/usage/reset_date/${selectedRows.startDate}/${selectedRows.endDate}`,
+    url: `/api/v4/admin/usage/reset_date/${selectedRows.startDate}/${selectedRows.endDate}`,
     type: 'GET'
   }).done(function (data) {
     $('.reset_date_value').html(data.join(', '));

@@ -85,7 +85,7 @@ $(document).ready(function () {
         $("#checkbox_edit_error").hide();
         $.ajax({
           type: "POST",
-          url: "/api/v3/hypervisor",
+          url: "/api/v4/admin/hypervisor",
           data: form,
           processData: false,
           contentType: false,
@@ -123,7 +123,7 @@ $(document).ready(function () {
 
   table = $('#hypervisors').DataTable({
     "ajax": {
-      "url": "/api/v3/hypervisors",
+      "url": "/api/v4/admin/hypervisors",
       "contentType": "application/json",
       "type": 'GET'
     },
@@ -214,7 +214,7 @@ $(document).ready(function () {
       "render": function (data, type, full, meta) {
         if ("capabilities" in full && "disk_operations" in full.capabilities) {
           if (full.capabilities.disk_operations) {
-            if ("cap_status" in full && "disk_operations" in full.cap_status) {
+            if (full.cap_status && "disk_operations" in full.cap_status) {
               if (full.cap_status.disk_operations) {
                 return renderBoolean(true, type);
               } else {
@@ -233,7 +233,7 @@ $(document).ready(function () {
       "render": function (data, type, full, meta) {
         if ("capabilities" in full && "hypervisor" in full.capabilities) {
           if (full.capabilities.hypervisor) {
-            if ("cap_status" in full && "hypervisor" in full.cap_status) {
+            if (full.cap_status && "hypervisor" in full.cap_status) {
               if (full.cap_status.hypervisor) {
                 return renderBoolean(true, type);
               } else {
@@ -269,7 +269,7 @@ $(document).ready(function () {
       // RAM
       "targets": 10,
       "render": function (data, type, full, meta) {
-        if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
+        if (!full.stats) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
         if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
         var ms = full.stats.mem_stats
         var mem_used = ms.used != null ? ms.used : (ms.total - ms.available)
@@ -288,7 +288,7 @@ $(document).ready(function () {
       "targets": 11,
       "render": function (data, type, full, meta) {
         if (full.info) {
-          if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
+          if (!full.stats || !full.stats.cpu_1min) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
           return full.info.cpu_cores + "c/" + full.info.cpu_cores * full.info.threads_x_core + "th " + renderProgress(Math.round(full.stats.cpu_1min.used), 20, 40)
         }
       }
@@ -343,6 +343,7 @@ $(document).ready(function () {
       "targets": 16,
       "render": function (data, type, full, meta) {
         // Certificate expiration check disabled
+        if (!full.viewer) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
         return full.viewer.proxy_video + ' (' + full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')'
         // if ("viewer_status" in full) {
         //   title = "HTML5 cert: " + full.viewer_status.html5 + " days\nSpice cert: " + full.viewer_status.spice + " days\nStatic cert: " + full.viewer_status.static + " days"
@@ -379,7 +380,7 @@ $(document).ready(function () {
       // Last Action
       "targets": 22,
       "render": function (data, type, full, meta) {
-        if (!("stats" in full)) {
+        if (!full.stats) {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
         }
         if (!("last_action" in full.stats)) {
@@ -405,7 +406,7 @@ $(document).ready(function () {
       // Action time
       "targets": 23,
       "render": function (data, type, full, meta) {
-        if (!("stats" in full)) {
+        if (!full.stats) {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
         }
         if (!("last_action" in full.stats)) {
@@ -430,7 +431,7 @@ $(document).ready(function () {
       // Action intervals
       "targets": 24,
       "render": function (data, type, full, meta) {
-        if (!("stats" in full)) {
+        if (!full.stats) {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
         }
         if (!("last_action" in full.stats)) {
@@ -458,7 +459,7 @@ $(document).ready(function () {
       // Queued actions
       "targets": 25,
       "render": function (data, type, full, meta) {
-        if (!("stats" in full)) {
+        if (!full.stats) {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
         }
         if (!("positioned_items" in full.stats)) {
@@ -483,16 +484,15 @@ $(document).ready(function () {
     }
     ],
     "rowCallback": function (row, data, dataIndex) {
-      if (!("stats" in data)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
+      if (!data.stats || !data.stats.mem_stats) {
+        $(row).css({ "background-color": "white" })
+        return
+      }
       if (!("min_free_mem_gb" in data)) { data.min_free_mem_gb = 0 }
       var mem_used = data.stats.mem_stats.used != null ? data.stats.mem_stats.used : (data.stats.mem_stats.total - data.stats.mem_stats.available)
       var perc = data.stats.mem_stats.total > 0 ? mem_used * 100 / data.stats.mem_stats.total : 0
-      if ('stats' in data) {
-        if (data.stats.mem_stats.total - mem_used - data.min_free_mem_gb * 1024 * 1024 <= 0) {
-          $(row).css({ "background-color": "#FFCCCB" })
-        } else {
-          $(row).css({ "background-color": "white" })
-        }
+      if (data.stats.mem_stats.total - mem_used - data.min_free_mem_gb * 1024 * 1024 <= 0) {
+        $(row).css({ "background-color": "#FFCCCB" })
       } else {
         $(row).css({ "background-color": "white" })
       }
@@ -529,7 +529,7 @@ $(document).ready(function () {
         success: function () {
           if (data.enabled && data.orchestrator_managed) {
             $.ajax({
-              url: '/api/v3/orchestrator/hypervisor/' + pk + '/manage',
+              url: '/api/v4/admin/orchestrator/hypervisor/' + pk + '/manage',
               type: 'DELETE',
               contentType: 'application/json'
             });
@@ -597,7 +597,7 @@ $(document).ready(function () {
     var pk = $btn.closest('.actions-buttons').attr('data-pk');
     var data = table.row('#' + pk).data();
     $.ajax({
-      url: '/api/v3/orchestrator/hypervisor/' + pk + '/manage',
+      url: '/api/v4/admin/orchestrator/hypervisor/' + pk + '/manage',
       type: data.orchestrator_managed ? 'DELETE' : 'POST',
       contentType: 'application/json',
       complete: function () {
@@ -716,20 +716,24 @@ function update_engine_status() {
   setTimeout(update_engine_status, interval);
 }
 
+function hypervisorAddUpdateSocketHandle(data) {
+  var data = JSON.parse(data);
+  data = { ...table.row("#" + data.id).data(), ...data }
+  new_hyper = dtUpdateInsert(table, data, false);
+  table.draw(false)
+  if (new_hyper) { tablepools.draw(false); }
+  setHypervisorDetailButtonsStatus(data.id, data.status)
+  if ("orchestrator_managed" in data) {
+    if (data.orchestrator_managed) {
+      new_hyper = dtUpdateInsert(orchestrator_hypers_table, data, false);
+      orchestrator_hypers_table.draw(false)
+    }
+  }
+}
+
 function socketio_on() {
   socket.on('hyper_data', function (data) {
-    var data = JSON.parse(data);
-    data = { ...table.row("#" + data.id).data(), ...data }
-    new_hyper = dtUpdateInsert(table, data, false);
-    table.draw(false)
-    if (new_hyper) { tablepools.draw(false); }
-    setHypervisorDetailButtonsStatus(data.id, data.status)
-    if ("orchestrator_managed" in data) {
-      if (data.orchestrator_managed) {
-        new_hyper = dtUpdateInsert(orchestrator_hypers_table, data, false);
-        orchestrator_hypers_table.draw(false)
-      }
-    }
+    hypervisorAddUpdateSocketHandle(data)
   });
 
   socket.on('hyper_deleted', function (data) {
@@ -747,55 +751,6 @@ function socketio_on() {
     });
     tablepools.ajax.reload()
   });
-
-  socket.on('add_form_result', function (data) {
-    var data = JSON.parse(data);
-    if (data.result) {
-      $("#modalAddHyper #modalAdd")[0].reset();
-      $("#modalAddHyper").modal('hide');
-      $("#modalEditHyper #modalEdit")[0].reset();
-      $("#modalEditHyper").modal('hide');
-    }
-    new PNotify({
-      title: data.title,
-      text: data.text,
-      hide: true,
-      delay: 4000,
-      icon: 'fa fa-' + data.icon,
-      opacity: 1,
-      type: data.type
-    });
-    table.ajax.reload()
-    orchestrator_hypers_table.ajax.reload()
-    tablepools.ajax.reload()
-  });
-
-  socket.on('result', function (data) {
-    var data = JSON.parse(data);
-    new PNotify({
-      title: data.title,
-      text: data.text,
-      hide: true,
-      delay: 4000,
-      icon: 'fa fa-' + data.icon,
-      opacity: 1,
-      type: data.type
-    });
-  });
-}
-
-function renderName(data) {
-  return '<div class="block_content" > \
-          <h4 class="title" style="height: 4px; margin-top: 0px;"> \
-          <a>' + data.hostname + '</a> \
-          </h4> \
-          <p class="excerpt" >' + data.description + '</p> \
-          </div>';
-}
-
-
-function formatHypervisorData(data) {
-  return data;
 }
 
 function formatHypervisorPanel(d) {
@@ -871,7 +826,7 @@ function actionsHyperDetail() {
         success: function (hyp) {
           if (data["enabled"] && data["orchestrator_managed"]) {
             $.ajax({
-              url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+              url: "/api/v4/admin/orchestrator/hypervisor/" + pk + "/manage",
               type: "DELETE",
               accept: "application/json",
               contentType: "application/json",
@@ -898,7 +853,7 @@ function actionsHyperDetail() {
               },
             });
             $.ajax({
-              url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+              url: "/api/v4/admin/orchestrator/hypervisor/" + pk + "/manage",
               type: "DELETE",
               accept: "application/json",
               contentType: "application/json",
@@ -932,7 +887,7 @@ function actionsHyperDetail() {
 
     }).get().on('pnotify.confirm', function () {
       $.ajax({
-        url: "/api/v3/hypervisor/" + pk,
+        url: "/api/v4/admin/hypervisor/" + pk,
         type: "DELETE",
         accept: "application/json",
         contentType: "application/json",
@@ -984,7 +939,7 @@ function actionsHyperDetail() {
 
     }).get().on('pnotify.confirm', function () {
       $.ajax({
-        url: "/api/v3/hypervisor/stop/" + pk,
+        url: "/api/v4/admin/hypervisor/stop/" + pk,
         type: "PUT",
         accept: "application/json",
         contentType: "application/json",
@@ -1199,7 +1154,7 @@ function actionsHyperDetail() {
       });
       if (!data["only_forced"] && data["orchestrator_managed"]) {
         $.ajax({
-          url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+          url: "/api/v4/admin/orchestrator/hypervisor/" + pk + "/manage",
           type: "DELETE",
           accept: "application/json",
           success: function (data) {
@@ -1312,7 +1267,7 @@ function actionsHyperDetail() {
       type = ""
       type = data["orchestrator_managed"] ? "DELETE" : "POST";
       $.ajax({
-        url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+        url: "/api/v4/admin/orchestrator/hypervisor/" + pk + "/manage",
         type: type,
         contentType: "application/json",
         success: function (data) {

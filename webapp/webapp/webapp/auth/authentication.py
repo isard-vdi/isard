@@ -19,17 +19,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
-import logging
 
 import requests
 from flask import render_template, request
 from flask_login import LoginManager, UserMixin
+from isardvdi_common.connections.api_rest import ApiRest
 from rethinkdb import RethinkDB
 
 from webapp import app
 
-from .._common.api_rest import ApiRest
-from .._common.tokens import get_jwt_payload
 from ..views.decorators import maintenance
 
 login_manager = LoginManager()
@@ -54,11 +52,7 @@ class User(UserMixin):
 
 
 def get_authenticated_user():
-    """Check if session is authenticated by jwt.
-
-    Validates the JWT locally to avoid triggering LogsUsers entries
-    from internal webapp-to-API calls, then fetches user data via
-    service token.
+    """Check if session is authenticated by jwt
 
     :returns: User object if authenticated
     """
@@ -67,30 +61,13 @@ def get_authenticated_user():
     if not auth:
         return None
 
-    parts = auth.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        return None
-
-    try:
-        payload = get_jwt_payload(parts[1])
-    except Exception:
-        client_ip = request.remote_addr
-        logging.info(f"Authentication failed for client IP: {client_ip}")
-        return None
-
-    if payload.get("kid") != "isardvdi":
-        return None
-
-    user_id = payload.get("data", {}).get("user_id")
-    if not user_id:
-        return None
-
-    try:
-        user = ApiRest().get(f"/admin/user/{user_id}/raw")
-        if user:
-            return User(user)
-    except Exception:
-        pass
+    response = requests.get(
+        "http://isard-apiv4:5000/api/v4/item/user/get-details",
+        headers={"Authorization": auth},
+        timeout=5,
+    )
+    if response.status_code == 200:
+        return User(json.loads(response.text))
     return None
 
 

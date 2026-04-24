@@ -69,9 +69,17 @@
                         </div>
                         {% if type == 'quota' %}
                         <div class="col-xs-4 form-group"
+                            title="Max users per deployment">
+                            <label>Deploy users</label>
+                            <input id="{{ type }}-deployment_users" name="{{ type }}-deployment_users"
+                                class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5"
+                                pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                        <div class="col-xs-4 form-group"
                             title="Amount of desktops that can be created in each deployment">
-                            <label>Deploy desktops</label>
-                            <input id="{{ type }}-deployment_desktops" name="{{ type }}-deployment_desktops"
+                            <label>Deploy users</label>
+                            <input id="{{ type }}-deployment_users" name="{{ type }}-deployment_users"
                                 class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5"
                                 pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
                                 type="number" />

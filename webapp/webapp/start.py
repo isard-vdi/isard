@@ -20,14 +20,20 @@
 import os
 
 from waitress import serve
-from webapp._common import log
 
 from webapp import app
 
 if __name__ == "__main__":
-    debug = os.environ.get("USAGE", "production") == "devel"
+    reload_enabled = os.environ.get("USAGE", "production") == "devel"
+    debug_enabled = os.environ.get("LOG_LEVEL", "INFO") == "DEBUG"
 
-    if debug:
-        app.run(host="0.0.0.0", port=5000, debug=debug)
+    if reload_enabled or debug_enabled:
+        app.run(
+            host="0.0.0.0",
+            port=5000,
+            debug=debug_enabled,
+            use_debugger=debug_enabled,
+            use_reloader=reload_enabled,
+        )
     else:
         serve(app, listen="0.0.0.0:5000")

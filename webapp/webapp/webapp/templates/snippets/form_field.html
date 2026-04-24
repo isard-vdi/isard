@@ -19,26 +19,70 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #}
-<div class="item form-group">
-  <label
-    for="{{ id_prefix }}{{ name }}"
-    class="control-label col-sm-3 col-xs-12"
-  >
-    {{ label }}
-    {% if required is not false %}
-      <span class="required">*</span>
-    {% endif %}
-  </label>
-  <div class="col-sm-9 col-xs-12">
-    <input
-      id="{{ id_prefix }}{{ name }}"
-      name="{{ name }}"
-      type="{{ type if type else 'text' }}"
-      placeholder="{{ placeholder }}"
-      class="form-control"
-      data-parsley-trigger="change"
-      {{ '' if required is false or type == 'checkbox' else 'required' }}
-      {{ 'disabled' if disabled else '' }}
-    />
+{% with field_name = name_prefix ~ '[' ~ name ~ ']' if name_prefix else name %}
+  <div class="item form-group">
+    <label
+      for="{{ id_prefix }}{{ name }}"
+      class="control-label col-sm-3 col-xs-12"
+    >
+      {{ label }}
+      <span class="required{% if required is false %} initially-hidden{% endif %}">*</span>
+    </label>
+    <div class="col-sm-9 col-xs-12">
+      {% if type == 'file' %}
+        <input
+          type="hidden"
+          name="{{ field_name }}"
+          data-file-content
+        />
+        <input
+          id="{{ id_prefix }}{{ name }}"
+          class="form-control"
+          type="file"
+          data-file-content
+          {{ 'accept="' ~ accept ~ '"' if accept else '' }}
+        />
+        {% if preview %}
+          <div class="file-content-preview">
+          </div>
+        {% else %}
+          <a class="btn btn-default btn-sm file-content-download" download="{{ name }}.pem">
+            <i class="fa fa-download"></i> Download
+          </a>
+        {% endif %}
+      {% else %}
+        <{{ 'select' if type == 'select' else 'input' }}
+          id="{{ id_prefix }}{{ name }}"
+          name="{{ field_name }}"
+          class="form-control"
+          {% if type != 'select' %}
+            type="{{ type if type else 'text' }}"
+            data-parsley-trigger="change"
+            placeholder="{{ placeholder }}"
+            {% if value is defined and value is not none %}
+              value="{{ value }}"
+            {% endif %}
+            {% if pattern %}
+              pattern="{{ pattern }}"
+            {% endif %}
+            {% if autocomplete %}
+              autocomplete="{{ autocomplete }}"
+            {% endif %}
+          {% endif %}
+          {{ '' if required is false or type == 'checkbox' else 'required' }}
+          {{ 'disabled' if disabled else '' }}
+          {{ 'multiple' if multiple else '' }}
+          {{ 'accept="' ~ accept ~ '"' if accept else '' }}
+        {% if type == 'select' %}
+        >
+          {% for value, label in (options or {}).items() %}
+            <option value="{{ value }}" {{ 'selected' if selected_all else '' }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        />
+        {% endif %}
+      {% endif %}
+    </div>
   </div>
-</div>
+{% endwith %}

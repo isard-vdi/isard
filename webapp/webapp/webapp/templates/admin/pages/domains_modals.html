@@ -357,11 +357,35 @@
          <div class="modal-footer">
             <ul class="nav navbar-left panel_toolbox">
                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+               <li><button id="xmlSectionsDownload" type="button" class="btn btn-default"><i class="fa fa-download"></i> Download XML</button></li>
+               <li><button id="xmlSectionsSaveVirtInstall" type="button" class="btn btn-warning"><i class="fa fa-plus-circle"></i> Save as virt_install</button></li>
             </ul>
             <ul class="nav navbar-right panel_toolbox">
                <button id="xmlSectionsValidate" type="button" class="btn btn-info">Validate</button>
                <button id="xmlSectionsSave" type="button" class="btn btn-success">Update</button>
             </ul>
+         </div>
+      </div>
+   </div>
+</div>
+
+<!-- virt_install name prompt modal -->
+<div class="modal fade" id="modalVirtInstallName" tabindex="-1" role="dialog" aria-hidden="true">
+   <div class="modal-dialog modal-sm">
+      <div class="modal-content">
+         <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title"><i class="fa fa-plus-circle"></i> Save as virt_install</h4>
+         </div>
+         <div class="modal-body">
+            <div class="form-group">
+               <label for="virtInstallName">Template name</label>
+               <input type="text" class="form-control" id="virtInstallName" placeholder="e.g. win10Virtio_custom">
+            </div>
+         </div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button id="virtInstallNameConfirm" type="button" class="btn btn-warning">Save</button>
          </div>
       </div>
    </div>

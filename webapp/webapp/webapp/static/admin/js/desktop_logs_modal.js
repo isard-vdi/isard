@@ -194,8 +194,12 @@
             autoWidth: false,
             searching: false,
             ajax: {
-                url: '/api/v3/admin/logs_desktops/desktop/' + encodeURIComponent(desktopId),
-                type: 'POST'
+                url: '/api/v4/admin/logs_desktops',
+                type: 'POST',
+                data: function(d) {
+                    d.filter_field = 'desktop_id';
+                    d.filter_value = desktopId;
+                }
             },
             columns: columns,
             columnDefs: [
@@ -278,13 +282,14 @@
 
     function loadDirectViewerLogs(desktopId) {
         var formData = 'draw=1&start=0&length=100000&order[0][column]=1&order[0][dir]=desc';
+        formData += '&filter_field=desktop_id&filter_value=' + encodeURIComponent(desktopId);
         var cols = ['', 'starting_time', 'stopping_time', '', 'starting_by', 'stopping_by', 'owner_user_name', 'request_ip', 'request_agent_browser', 'events'];
         cols.forEach(function(col, i) {
             formData += '&columns[' + i + '][data]=' + encodeURIComponent(col);
         });
 
         $.ajax({
-            url: '/api/v3/admin/logs_desktops/desktop/' + encodeURIComponent(desktopId),
+            url: '/api/v4/admin/logs_desktops',
             type: 'POST',
             data: formData,
             success: function(resp) {
@@ -347,12 +352,13 @@
 
     function downloadDesktopLogsCsv($btn, columns) {
         var formData = 'draw=1&start=0&length=100000&order[0][column]=1&order[0][dir]=desc';
+        formData += '&filter_field=desktop_id&filter_value=' + encodeURIComponent(currentDesktopId);
         columns.forEach(function(col, i) {
             formData += '&columns[' + i + '][data]=' + encodeURIComponent(col.data || '');
         });
 
         $.ajax({
-            url: '/api/v3/admin/logs_desktops/desktop/' + encodeURIComponent(currentDesktopId),
+            url: '/api/v4/admin/logs_desktops',
             type: 'POST',
             data: formData,
             success: function(resp) {

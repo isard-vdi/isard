@@ -94,8 +94,13 @@ function renewSession(sessionCookie) {
 function setAjaxHeader() {
     let sessionCookie = getCookie('isardvdi_session')
     $.ajaxSetup({
-        url: "/api/v3",
+        url: "/api/v4",
         beforeSend: function (jqXHR, settings) {
+            // Set JSON content-type for POST/PUT requests that send JSON strings
+            if ((settings.type === "POST" || settings.type === "PUT") &&
+                typeof settings.data === "string" && settings.data.startsWith("{")) {
+                jqXHR.setRequestHeader("Content-Type", "application/json");
+            }
             let sessionData = jwtDecode(sessionCookie)
             let timeDrift = Number(localStorage.getItem('auth_time_drift')) || 0;
             // Check session expiration with fallback logic
@@ -113,9 +118,8 @@ function setAjaxHeader() {
                 sessionCookie = getCookie('isardvdi_session')
             }
             jqXHR.setRequestHeader('Authorization', 'Bearer ' + sessionCookie)
-            // TODO: remove url check
             if (settings.url.split("/")[1] == 'admin') {
-                settings.url = "/api/v3" + settings.url
+                settings.url = "/api/v4" + settings.url
             }
             $("body").css("cursor", "wait");
             $("#send:not(:disabled)").addClass('ajaxDisabled').prop('disabled', true);

@@ -32,7 +32,7 @@ columns = [
     },
     {
         "data": "icon", "render": function (data, type, full, meta) {
-            img_url = location.protocol + '//' + document.domain + ':' + location.port + full.image.url
+            img_url = full.image && full.image.url ? location.protocol + '//' + document.domain + ':' + location.port + full.image.url : ''
             if (! "booking_id" in full) {
                 booking_id = false
             } else {
@@ -229,7 +229,7 @@ $(document).ready(function() {
 
                     $.ajax({
                         type: "POST",
-                        url:"/api/v3/persistent_desktop/bulk",
+                        url:"/api/v4/items/desktops/bulk-create",
                         data: JSON.stringify({name, template_id, description, allowed}),
                         contentType: "application/json",
                         error: function(data) {
@@ -409,7 +409,7 @@ $(document).ready(function() {
 
             $.ajax({
                 type: 'PUT',
-                url: '/api/v3/domain/bulk',
+                url: '/api/v4/items/desktops/bulk-edit',
                 data: JSON.stringify(data),
                 contentType: 'application/json',
                 success: function (data) {
@@ -466,7 +466,7 @@ $(document).ready(function() {
 
                     $.ajax({
                         type: "POST",
-                        url:"/api/v3/template",
+                        url:"/api/v4/item/template",
                         data: JSON.stringify({name, desktop_id, allowed, description, enabled}),
                         contentType: "application/json",
                         error: function(data) {
@@ -767,7 +767,7 @@ $(document).ready(function() {
                 var notify = new PNotify();
                $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/multiple_actions",
+                    url:"/api/v4/admin/multiple_actions",
                     data: JSON.stringify({'ids':ids, 'action':action}),
                     contentType: "application/json",
                     accept: "application/json",
@@ -785,11 +785,12 @@ $(document).ready(function() {
                     },
                     success: function() {
                         notify.update({
-                            title: 'Processing',
-                            text: `Processing action: ${action} on ${ids.length} desktop(s)`,
-                            hide: false,
-                            type: 'info',
-                            icon: 'fa fa-spinner fa-pulse',
+                            title: `Action queued: ${action}`,
+                            text: `Queued ${action} on ${ids.length} desktop(s). Rows will refresh as the operation progresses.`,
+                            hide: true,
+                            delay: 4000,
+                            type: 'success',
+                            icon: 'fa fa-success',
                             opacity: 1
                         });
                         $('#mactions option[value="none"]').prop("selected", true);
@@ -824,7 +825,7 @@ $(document).ready(function() {
                                     var notify = new PNotify()
                                     $.ajax({
                                         type: "POST",
-                                        url:"/api/v3/admin/multiple_actions",
+                                        url:"/api/v4/admin/multiple_actions",
                                         data: JSON.stringify({'ids':ids, 'action':action}),
                                         contentType: "application/json",
                                         accept: "application/json",
@@ -842,11 +843,12 @@ $(document).ready(function() {
                                         },
                                         success: function() {
                                             notify.update({
-                                                title: 'Processing',
-                                                text: `Processing action: ${action} ${ids.length} desktops`,
-                                                type: 'info',
-                                                hide: false,
-                                                icon: 'fa fa-spinner fa-pulse',
+                                                title: `Action queued: ${action}`,
+                                                text: `Queued ${action} on ${ids.length} desktops. Rows will refresh as the operation progresses.`,
+                                                type: 'success',
+                                                hide: true,
+                                                delay: 4000,
+                                                icon: 'fa fa-success',
                                                 opacity: 1
                                             });
                                             $('#mactions option[value="none"]').prop("selected",true);
@@ -921,7 +923,7 @@ $(document).ready(function() {
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 $.ajax({
                     type: "GET",
-                    url:"/api/v3/admin/domain/" + domain_id+ "/details",
+                    url:"/api/v4/admin/domain/" + domain_id+ "/details",
                     success: function (data) {
                         $('#status-detail-'+domain_id).text(data.detail.replace(/\"/g,''));
                         $('#description-'+domain_id).text(data.description);
@@ -982,7 +984,7 @@ $(document).ready(function() {
                 }else{
                     $.ajax({
                         type: "GET",
-                        url:"/api/v3/admin/domain/" + data['id'] + "/viewer_data",
+                        url:"/api/v4/admin/domain/" + data['id'] + "/viewer_data",
                         success: function (resp) {
                             checkReservablesAndStart(resp.create_dict.reservables, data['id'], data['booking_id'])
                         }
@@ -991,8 +993,8 @@ $(document).ready(function() {
                 break;
             case 'btn-stop':
                 $.ajax({
-                    type: "GET",
-                    url: '/api/v3/desktop/stop/' + data["id"],
+                    type: "PUT",
+                    url: '/api/v4/item/desktop/' + data["id"] + '/stop',
                     contentType: "application/json",
                     cache: false,
                     error: function(data) {
@@ -1040,8 +1042,8 @@ $(document).ready(function() {
                 break;
             case 'btn-update':
                 $.ajax({
-                    type: "GET",
-                    url: '/api/v3/desktop/updating/' + data["id"],
+                    type: "PUT",
+                    url: '/api/v4/item/desktop/' + data["id"] + '/retry',
                     contentType: "application/json",
                     cache: false,
                     error: function(data) {
@@ -1077,7 +1079,7 @@ $(document).ready(function() {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: "GET",
-                        url: '/api/v3/admin/domain/storage/' + data["id"],
+                        url: '/api/v4/admin/domain/storage/' + data["id"],
                         contentType: "application/json",
                         cache: false,
                         error: function (data) {
@@ -1095,7 +1097,7 @@ $(document).ready(function() {
                             $.each(storageList, function (index, storage) {
                                 $.ajax({
                                     type: "PUT",
-                                    url: "/api/v3/storage/" + storage.id + "/abort_operations",
+                                    url: "/api/v4/item/storage/" + storage.id + "/abort-operations",
                                     contentType: "application/json",
                                     cache: false,
                                     error: function (data) {
@@ -1134,25 +1136,29 @@ $(document).ready(function() {
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 
+function desktopAddUpdateSocketHandle(data) {
+    var data = JSON.parse(data);
+    if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
+        try {
+            if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
+                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
+            }
+        } catch {
+            return
+        }
+    }
+    data = {...domains_table.row("#"+data.id).data(),...data}
+    if ((!($('#filter-section #category').val()) || $('#filter-section #category').val().includes(data['category']))) {
+        dtUpdateInsert(domains_table, data, false);
+    }
+    setDomainDetailButtonsStatus(data.id, data.status, data.server);
+    $('#domains tr.active .form-check-input').prop("checked", true);
+}
+
 function socketio_on(){
     startClientVpnSocket(socket)
     socket.on('desktop_data', function(data){
-        var data = JSON.parse(data);
-        if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
-            try {
-                if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
-                    viewerButtonsIP(data.id,data['viewer']['guest_ip'])
-                }
-            } catch {
-                return
-            }
-        }
-        data = {...domains_table.row("#"+data.id).data(),...data}
-        if ((!($('#filter-section #category').val()) || $('#filter-section #category').val().includes(data['category']))) {
-            dtUpdateInsert(domains_table, data, false);
-        }
-        setDomainDetailButtonsStatus(data.id, data.status, data.server);
-        $('#domains tr.active .form-check-input').prop("checked", true);
+        desktopAddUpdateSocketHandle(data)
     });
 
     socket.on('desktop_delete', function(data){
@@ -1164,106 +1170,10 @@ function socketio_on(){
         }
     });
 
-    socket.on ('result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $('.modal').modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-
-    socket.on('add_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalAddFromBuilder #modalAdd")[0].reset();
-            $("#modalAddFromBuilder").modal('hide');
-            $("#modalAddFromMedia #modalAdd")[0].reset();
-            $("#modalAddFromMedia").modal('hide');
-            $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
-            $("#modalTemplateDesktop").modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-
-    socket.on('adds_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalAddDesktop #modalAdd")[0].reset();
-            $("#modalAddDesktop").modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-
-    socket.on('edit_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalEdit")[0].reset();
-            $("#modalEditDesktop").modal('hide');
-            $("#modalBulkEditForm")[0].reset();
-            $("#modalBulkEdit").modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-    socket.on('desktop_action', function (data) {
-        PNotify.removeAll();
-        var data = JSON.parse(data);
-        if (data.status === 'failed') {
-            new PNotify({
-                title: `ERROR: ${data.action} on ${data.count} desktop(s).`,
-                text: data.msg,
-                hide: false,
-                icon: 'fa fa-warning',
-                opacity: 1,
-                type: 'error'
-            });
-        } else if (data.status === 'completed') {
-            new PNotify({
-                title: `Action Succeeded: ${data.action}`,
-                text: `The action "${data.action}" completed on ${data.count} desktop(s).`,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-            });
-        }
-    });
 }
 function setDesktopTemplateTree(desktop_id) {
     $.ajax({
-        url: "/api/v3/admin/domain/template_tree/" + desktop_id,
+        url: "/api/v4/admin/domain/template_tree/" + desktop_id,
         type: 'GET',
         contentType: 'application/json',
         success: function(data) {
@@ -1329,7 +1239,7 @@ function actionsDomainDetail(){
         });
         $.ajax({
             type: "POST",
-            url:"/api/v3/admin/table/domains",
+            url:"/api/v4/admin/table/domains",
             data: JSON.stringify({
                 'id': pk,
                 'pluck': ["server", "server_autostart"]
@@ -1431,7 +1341,7 @@ function actionsDomainDetail(){
     function changeOwner(pk, data) {
         $.ajax({
             type: "PUT",
-            url: `/api/v3/desktop/owner/${pk}/${data['new_owner']}`,
+            url: `/api/v4/item/desktop/${pk}/change-owner/${data['new_owner']}`,
             contentType: 'application/json',
             success: function () {
                 $('form').each(function () { this.reset() });
@@ -1510,7 +1420,7 @@ function actionsDomainDetail(){
             }).get().on('pnotify.confirm', function() {
                 $.ajax({
                     type: "DELETE",
-                    url:"/api/v3/desktop/" + pk,
+                    url:"/api/v4/item/desktop/" + pk,
                     success: function(data)
                     {
                         new PNotify({
@@ -1539,10 +1449,10 @@ function actionsDomainDetail(){
         // setModalUser()
         // setQuotaTableDefaults('#edit-users-quota','users',pk)
         $.ajax({
-            url: '/api/v3/desktop/jumperurl/' + pk,
+            url: '/api/v4/item/desktop/' + pk + '/get-share-link',
             type: 'GET',
         }).done(function(data) {
-            if(data.jumperurl != false){
+            if(data.link){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
                 //NOTE: With this it will fire ifChecked event, and generate new key
@@ -1551,7 +1461,7 @@ function actionsDomainDetail(){
                 //$('#jumperurl-check').iCheck('check');
                 $('#jumperurl-check').prop('checked',true).iCheck('update');
 
-                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.jumperurl);
+                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.link);
             }else{
                 $('#jumperurl-check').iCheck('update')[0].unchecked;
                 $('#jumperurl').hide();
@@ -1565,12 +1475,12 @@ function actionsDomainDetail(){
         if($('#jumperurl').val()==''){
             pk=$('#modalJumperurlForm #id').val();
             $.ajax({
-                url: '/api/v3/desktop/jumperurl_reset/' + pk,
+                url: '/api/v4/item/desktop/' + pk + '/update-share-link',
                 type: 'PUT',
                 contentType: "application/json",
-                data: JSON.stringify({"disabled" : false}),
+                data: JSON.stringify({"enabled" : true}),
                 success: function(data) {
-                    $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
+                    $('#jumperurl').val(data.link ? location.protocol + '//' + location.host+'/vw/'+data.link : '');
                 }
             })
             $('#jumperurl').show();
@@ -1598,10 +1508,10 @@ function actionsDomainDetail(){
             }).get().on('pnotify.confirm', function() {
                 pk=$('#modalJumperurlForm #id').val();
                 $.ajax({
-                    url: '/api/v3/desktop/jumperurl_reset/' + pk,
+                    url: '/api/v4/item/desktop/' + pk + '/update-share-link',
                     type: 'PUT',
                     contentType: "application/json",
-                    data: JSON.stringify({"disabled" : true}),
+                    data: JSON.stringify({"enabled" : false}),
                     success: function(data) {
                         $('#jumperurl').val('');
                     }
@@ -1630,7 +1540,7 @@ function actionsDomainDetail(){
         }).modal('show');
         $.ajax({
             type: "POST",
-            url:"/api/v3/admin/table/domains",
+            url:"/api/v4/admin/table/domains",
             data: JSON.stringify({
                 'id': pk,
                 'pluck': "forced_hyp"
@@ -1660,7 +1570,7 @@ function actionsDomainDetail(){
             pk=$('#modalForcedhypForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/table/domains",
+                url:"/api/v4/admin/table/domains",
                 data: JSON.stringify({
                     'id': pk,
                     'pluck': "forced_hyp"
@@ -1697,7 +1607,7 @@ function actionsDomainDetail(){
         data=$('#modalForcedhypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: `/api/v3/domain/${data["id"]}`,
+            url: `/api/v4/item/desktop/${data["id"]}/edit`,
             data: JSON.stringify({
                 ...( ! ("forced_hyp"  in data) && {"forced_hyp": false} ),
                 ...( "forced_hyp" in data && {"forced_hyp": [data.forced_hyp]} ),
@@ -1740,7 +1650,7 @@ function actionsDomainDetail(){
         }).modal('show');
         $.ajax({
             type: "POST",
-            url:"/api/v3/admin/table/domains",
+            url:"/api/v4/admin/table/domains",
             data: JSON.stringify({
                 'id': pk,
                 'pluck': "favourite_hyp"
@@ -1767,7 +1677,7 @@ function actionsDomainDetail(){
             pk=$('#modalFavouriteHypForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/table/domains",
+                url:"/api/v4/admin/table/domains",
                 data: JSON.stringify({
                     'id': pk,
                     'pluck': "favourite_hyp"
@@ -1803,7 +1713,7 @@ function actionsDomainDetail(){
         data=$('#modalFavouriteHypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: `/api/v3/domain/${data["id"]}`,
+            url: `/api/v4/item/desktop/${data["id"]}/edit`,
             data: JSON.stringify({
                 ...( ! ("favourite_hyp"  in data) && {"favourite_hyp": false} ),
                 ...( "favourite_hyp" in data && {"favourite_hyp": [data.favourite_hyp]} ),
@@ -1842,7 +1752,7 @@ function actionsDomainDetail(){
         let autostart=$('#modalServerForm #autostart').prop('checked')
         $.ajax({
             type: "PUT",
-            url: `/api/v3/domain/${data["id"]}`,
+            url: `/api/v4/item/desktop/${data["id"]}/edit`,
             data: JSON.stringify({
                 'server': server,
                 'server_autostart': server ? autostart : false
@@ -1883,7 +1793,7 @@ function HypervisorsDropdown(selected) {
     $("#modalForcedhypForm #forced_hyp").empty();
     $.ajax({
         type: "POST",
-        url:"/api/v3/admin/table/hypervisors",
+        url:"/api/v4/admin/table/hypervisors",
         data: JSON.stringify({
             'pluck':['id','hostname']
         }),
@@ -1905,7 +1815,7 @@ function HypervisorsFavDropdown(selected) {
     $("#modalFavouriteHypForm #favourite_hyp").empty();
     $.ajax({
         type: "POST",
-        url:"/api/v3/admin/table/hypervisors",
+        url:"/api/v4/admin/table/hypervisors",
         data: JSON.stringify({
             'pluck':['id','hostname']
         }),
@@ -1926,7 +1836,7 @@ function HypervisorsFavDropdown(selected) {
 function setDefaultsTemplate(id) {
     $.ajax({
         type: "GET",
-        url:"/api/v3/domain/info/" + id,
+        url:"/api/v4/item/desktop/" + id + "/get-info",
         success: function(data)
         {
             $('.template-id').val(id);
@@ -2068,7 +1978,7 @@ function renderAction(data){
                 })
                 $.ajax({
                     type: 'PUT',
-                    url: '/api/v3/domain/'+data["id"],
+                    url: '/api/v4/item/desktop/'+data["id"]+'/edit',
                     data: JSON.stringify(data),
                     contentType: 'application/json',
                     error: function(data) {
@@ -2208,8 +2118,8 @@ function renderAction(data){
 
         function startDesktop(domain_id) {
             $.ajax({
-                type: "GET",
-                url: '/api/v3/desktop/start/' + domain_id,
+                type: "PUT",
+                url: '/api/v4/item/desktop/' + domain_id + '/start',
                 contentType: "application/json",
                 cache: false,
                 error: function(data) {
@@ -2286,7 +2196,7 @@ function renderAction(data){
             $.ajax({
                 type: "GET",
                 async: false,
-                url:"/api/v3/admin/userschema",
+                url:"/api/v4/admin/userschema",
                 success: function (data) {
                     return data.category
                 }
@@ -2303,7 +2213,7 @@ function renderAction(data){
                     $.ajax({
                         type: "GET",
                         async: false,
-                        url:"/api/v3/admin/userschema",
+                        url:"/api/v4/admin/userschema",
                         success: function (d) {
                             $.each(d[item], function(pos, it) {
                                 if (item=='category') { var value = it.id } else { var value = it.name }
@@ -2327,7 +2237,7 @@ function renderAction(data){
                     $.ajax({
                         type: "GET",
                         async: false,
-                        url:"/api/v3/admin/domains/"+item+"/desktop",
+                        url:"/api/v4/admin/domains/"+item+"/desktop",
                         contentType: 'application/json',
                         success: function (data) {
                             data = JSON.parse(data)
@@ -2347,7 +2257,7 @@ function renderAction(data){
                     $.ajax({
                         type: "POST",
                         async: false,
-                        url:"/api/v3/admin/table/hypervisors",
+                        url:"/api/v4/admin/table/hypervisors",
                         data: JSON.stringify({
                             'pluck':['id','hostname']
                         }),
@@ -2379,7 +2289,7 @@ function renderAction(data){
                     $.ajax({
                         type: "GET",
                         async: false,
-                        url:"/api/v3/admin/domains/"+item+"/desktop",
+                        url:"/api/v4/admin/domains/"+item+"/desktop",
                         success: function (data) {
                             data = JSON.parse(data)
                             $.each(data, function(pos, field) {

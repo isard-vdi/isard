@@ -24,9 +24,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         disabled = typeof disabled !== 'undefined' ? disabled : false;
         id = typeof id !== 'undefined' ? id : false; //Missing id will get current user/category/group
         if(id == false){
-            url='/api/v3/quota/'+kind;
+            url='/api/v4/admin/quota/'+kind;
         }else{
-            url='/api/v3/quota/'+kind+'/'+id;
+            url='/api/v4/admin/quota/'+kind+'/'+id;
         }
         $.ajax({
             url: url,
@@ -44,7 +44,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
             $(parentid+"#quota-total_size").removeAttr("max");
             $(parentid+"#quota-total_soft_size").removeAttr("max");
             $(parentid+"#quota-deployments_total").removeAttr("max");
-            $(parentid+"#quota-deployment_desktops").removeAttr("max");
+            $(parentid+"#quota-deployment_users").removeAttr("max");
             $(parentid+"#quota-started_deployment_desktops").removeAttr("max");
 
             // ONLY FOR KIND=USER
@@ -89,7 +89,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
                 $(parentid+"#quota-total_size").val(usrquota.quota.total_size);
                 $(parentid+"#quota-total_soft_size").val(usrquota.quota.total_soft_size);
                 $(parentid+"#quota-deployments_total").val(usrquota.quota.deployments_total);
-                $(parentid+"#quota-deployment_desktops").val(usrquota.quota.deployment_desktops);
+                $(parentid+"#quota-deployment_users").val(usrquota.quota.deployment_users);
                 $(parentid+"#quota-started_deployment_desktops").val(usrquota.quota.started_deployment_desktops);
             }else{
                 $(parentid+"#unlimited").iCheck('check');
@@ -112,9 +112,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         disabled = typeof disabled !== 'undefined' ? disabled : false;
         id = typeof id !== 'undefined' ? id : false;
         if(id == false){
-            url='/api/v3/quota/'+kind;
+            url='/api/v4/admin/quota/'+kind;
         }else{
-            url='/api/v3/quota/'+kind+'/'+id;
+            url='/api/v4/admin/quota/'+kind+'/'+id;
         }
         $.ajax({
             url: url,
@@ -168,7 +168,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         $(parentid+"total_size").removeAttr("disabled");
         $(parentid+"total_soft_size").removeAttr("disabled");
         $(parentid+"deployments_total").removeAttr("disabled");
-        $(parentid+"deployment_desktops").removeAttr("disabled");
+        $(parentid+"deployment_users").removeAttr("disabled");
         $(parentid+"started_deployment_desktops").removeAttr("disabled");
     }
 
@@ -185,7 +185,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         $(parentid+"total_size").attr("disabled", true);
         $(parentid+"total_soft_size").attr("disabled", true);
         $(parentid+"deployments_total").attr("disabled", true);
-        $(parentid+"deployment_desktops").attr("disabled", true);
+        $(parentid+"deployment_users").attr("disabled", true);
         $(parentid+"started_deployment_desktops").attr("disabled", true);
     }
 
@@ -221,7 +221,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
     //~ Used in users.js
     function setQuotaTableDefaults(div_id,table,id){
         $.ajax({
-            url: '/api/v3/admin/table/'+table,
+            url: '/api/v4/admin/table/'+table,
             type: 'POST',
             data: {'id':id},
         }).done(function(domain) {

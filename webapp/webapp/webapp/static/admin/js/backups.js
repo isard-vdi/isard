@@ -41,7 +41,7 @@ $(document).ready(function () {
     // Initialize DataTable with standard IsardVDI pattern
     var backupsTable = $('#backups-table').DataTable({
         ajax: {
-            url: '/api/v3/admin/backups',
+            url: '/api/v4/admin/backups',
             type: 'GET',
             dataSrc: ""
         },
@@ -230,7 +230,7 @@ $(document).ready(function () {
 
     function showBackupDetails(backupId) {
         $.ajax({
-            url: '/api/v3/admin/backups/' + backupId,
+            url: '/api/v4/admin/backups/' + backupId,
             type: 'GET',
             success: function (data) {
                 var content = '<div class="row">';
@@ -577,7 +577,7 @@ function loadBackupDashboard() {
 
 function loadLatestBackupStatus() {
     $.ajax({
-        url: '/api/v3/admin/backups',
+        url: '/api/v4/admin/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {
@@ -645,7 +645,7 @@ function loadLatestBackupStatus() {
 
 function loadStorageStatus() {
     $.ajax({
-        url: '/api/v3/admin/backups',
+        url: '/api/v4/admin/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {
@@ -707,7 +707,7 @@ function loadStorageStatus() {
 
 function loadBackupScheduleStatus() {
     $.ajax({
-        url: '/api/v3/admin/backups',
+        url: '/api/v4/admin/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {

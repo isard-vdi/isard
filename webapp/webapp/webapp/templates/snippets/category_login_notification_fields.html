@@ -1,0 +1,35 @@
+{#
+#
+#   Copyright © 2026 Simó Albert i Beltran
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+<div class="row">
+  <div class="col-md-6 col-sm-6 col-xs-12">
+    <input id="category_enable_cover_notification_checkbox" type="checkbox">
+    <label for="category_enable_cover_notification_checkbox">Enable left login notification</label>
+  </div>
+  <div class="col-md-6 col-sm-6 col-xs-12">
+    <input id="category_enable_form_notification_checkbox" type="checkbox">
+      <label for="category_enable_form_notification_checkbox">Enable right login notification</label>
+  </div>
+</div>
+<hr>
+<div class="x_panel preview-panel" id="category-login-notification-preview"></div>
+<hr>
+{% include '/snippets/login_notification_fields.html' %}

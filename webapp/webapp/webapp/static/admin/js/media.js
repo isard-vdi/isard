@@ -101,7 +101,7 @@ $(document).ready(function() {
 
     $.ajax({
         type: "GET",
-        url: "/api/v3/media/status",
+        url: "/api/v4/media/status",
         success: function (data) {
             $('#status').removeAttr('disabled')
             let notShownStatus = ['Downloaded']
@@ -159,7 +159,7 @@ $(document).ready(function() {
         let pk = $('#modalChangeOwnerMediaForm #id').val()
         $.ajax({
             type: "PUT",
-            url:`/api/v3/media/owner/${pk}/${data['new_owner']}`,
+            url:`/api/v4/item/media/${pk}/change-owner/${data['new_owner']}`,
             contentType: 'application/json',
             success: function(data)
             {
@@ -209,7 +209,7 @@ $(document).ready(function() {
                 })
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/media",
+                    url:"/api/v4/item/media",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     error: function (data) {
@@ -253,7 +253,7 @@ $(document).ready(function() {
 
             $.ajax({
                 type: 'DELETE',
-                url: '/api/v3/media/'+media_id,
+                url: '/api/v4/item/media/'+media_id,
                 error: function(data) {
                     notice.update({
                         title: 'ERROR deleting media',
@@ -278,7 +278,7 @@ $(document).ready(function() {
         if( $("#media_physical").length != 0){
             var media_physical=$('#media_physical').DataTable( {
               "ajax": {
-              "url": "/api/v3/admin/storage/physical/media",
+              "url": "/api/v4/admin/storage/physical/media",
                       "contentType": "application/json",
                       "type": 'GET',
               },
@@ -313,7 +313,7 @@ $(document).ready(function() {
                     $.ajax({
                       type: "GET",
                       url:
-                        "/api/v3/admin/storage/physical/storage_host",
+                        "/api/v4/admin/storage/physical/storage_host",
                       contentType: "application/json",
                       success: function (storage_host) {
                         $.ajax({
@@ -342,81 +342,28 @@ $(document).ready(function() {
     function socketio_on(){
         socket.on('media_add', function(data){
             var data = JSON.parse(data);
-            data = {...mediaReady.row("#"+data.id).data(),...data}
-            dtUpdateInsert(mediaReady,data,false);
+            data = {...mediaOtherTable.row("#"+data.id).data(),...data}
+            dtUpdateInsert(mediaOtherTable,data,false);
         });
 
         socket.on('media_update', function(data){
             var data = JSON.parse(data);
-            data = {...mediaReady.row("#"+data.id).data(),...data}
-            row = mediaOtherTable.row('#'+data.id).remove().draw();
-            dtUpdateInsert(mediaReady,data,false);
+            if (data.status == 'Downloaded') {
+                data = {...mediaReady.row("#"+data.id).data(),...data}
+                dtUpdateInsert(mediaReady,data,false);
+                mediaOtherTable.row('#'+data.id).remove().draw();
+            } else {
+                data = {...mediaOtherTable.row("#"+data.id).data(),...data}
+                dtUpdateInsert(mediaOtherTable,data,false);
+            }
         });
     
         socket.on('media_delete', function(data){
             var data = JSON.parse(data);
-            var row = mediaReady.row('#'+data.id).remove().draw();
-            new PNotify({
-                    title: "Media deleted",
-                    text: "Media "+data.name+" has been deleted",
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-success',
-                    opacity: 1,
-                    type: 'success'
-            });
+            mediaReady.row('#'+data.id).remove().draw();
             if ('status' in data){
                 handleStatusChange({target: {value: newStatus}})
             }
-        });
-    
-        socket.on('result', function (data) {
-            var data = JSON.parse(data);
-            new PNotify({
-                    title: data.title,
-                    text: data.text,
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-'+data.icon,
-                    opacity: 1,
-                    type: data.type
-            });
-        });
-    
-        socket.on('add_form_result', function (data) {
-            var data = JSON.parse(data);
-            if(data.result){
-                $("#modalAddMediaForm")[0].reset();
-                $("#modalAddMedia").modal('hide');
-                $("#modalAddFromMedia #modalAdd")[0].reset();
-                $("#modalAddFromMedia").modal('hide');
-            }
-            new PNotify({
-                    title: data.title,
-                    text: data.text,
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-'+data.icon,
-                    opacity: 1,
-                    type: data.type
-            });
-        });
-    
-        socket.on('edit_form_result', function (data) {
-            var data = JSON.parse(data);
-            if(data.result){
-                $("#modalEdit")[0].reset();
-                $("#modalEditDesktop").modal('hide');
-            }
-            new PNotify({
-                    title: data.title,
-                    text: data.text,
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-'+data.icon,
-                    opacity: 1,
-                    type: data.type
-            });
         });
     }
 })
@@ -425,7 +372,7 @@ $(document).ready(function() {
 function createDatatable(tableId, status, initCompleteFn = null) {
     return $(tableId).DataTable({
         ajax: {
-            url: `/api/v3/admin/media/${status}`,
+            url: `/api/v4/admin/media/${status}`,
             contentType: 'application/json',
             type: 'GET',
         },
@@ -566,7 +513,7 @@ function showRowDetails(table, tr, row) {
         childTable = $('#cl' + id).DataTable({
             dom: "t",
             ajax: {
-                url: "/api/v3/admin/media/domains/" + id,
+                url: "/api/v4/admin/media/domains/" + id,
                 contentType: "application/json",
                 type: "GET",
             },
@@ -617,7 +564,7 @@ function showActions(table ,tr, row, button) {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: "PUT",
-                    url: '/api/v3/media/check/' + data['id'],
+                    url: '/api/v4/item/media/' + data['id'] + '/check',
                     error: function (data) {
                         new PNotify({
                             title: "ERROR checking the media status",
@@ -649,7 +596,7 @@ function showActions(table ,tr, row, button) {
         case 'btn-task':
             $.ajax({
                 type: 'GET',
-                url: '/api/v3/task/' + data.task,
+                url: '/api/v4/task/' + data.task,
                 contentType: 'application/json',
                 success: function (result) {
                     element.html('<i class="fa fa-tasks"></i>')
@@ -686,7 +633,7 @@ function showActions(table ,tr, row, button) {
             }).modal('show');
             $.ajax({
                 type: "GET",
-                url: "/api/v3/media/desktops/"+data['id'],
+                url: "/api/v4/item/media/"+data['id']+"/get-desktops",
             }).done(function(domains) {
                 $('#table_modal_media_delete tbody').empty()
                 $.each(domains, function(key, value) {
@@ -713,8 +660,8 @@ function showActions(table ,tr, row, button) {
                     addclass: 'pnotify-center'
                 }).get().on('pnotify.confirm', function() {
                     $.ajax({
-                        type: "POST",
-                        url:"/api/v3/media/abort/" + data['id'],
+                        type: "PUT",
+                        url:"/api/v4/item/media/" + data['id'] + "/abort",
                     });
                 }).on('pnotify.cancel', function() {
                 });
@@ -738,8 +685,8 @@ function showActions(table ,tr, row, button) {
                     addclass: 'pnotify-center'
                 }).get().on('pnotify.confirm', function() {
                     $.ajax({
-                        type: "POST",
-                        url:"/api/v3/media/download/" + data['id'],
+                        type: "PUT",
+                        url:"/api/v4/item/media/" + data['id'] + "/download",
                     });
                 }).on('pnotify.cancel', function() {
                 });
@@ -900,7 +847,7 @@ function modal_add_install_datatables(){
 
     modal_add_install = $('#modal_add_install').DataTable({
         "ajax": {
-            "url": "/api/v3/media/installs",
+            "url": "/api/v4/items/media/installs",
             "dataSrc": ""
         },
         "scrollY":        "125px",
@@ -952,7 +899,7 @@ function modal_add_install_datatables(){
                 })
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/desktop/from/media",
+                    url:"/api/v4/item/desktop/from-media",
                     contentType: "application/json",
                     data: JSON.stringify(data),
                     error: function(data){

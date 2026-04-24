@@ -11,7 +11,8 @@ RUN pip install -r requirements.txt --break-system-package && \
 COPY webapp/webapp /isard
 
 RUN cd /isard/webapp && yarn install
-COPY component/_common/src /isard/webapp/_common
+ENV PYTHONPATH /opt/isardvdi
+COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
 EXPOSE 5000
 COPY webapp/docker/healthcheck.js /
 HEALTHCHECK --interval=12s --timeout=12s --start-period=30s \

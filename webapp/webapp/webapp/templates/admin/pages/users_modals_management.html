@@ -968,7 +968,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-globe"></i> Allowed Domains
+                    <i class="fa fa-key"></i> Authentication
                 </h4>
             </div>
 
@@ -976,123 +976,18 @@
             <div class="modal-body">
                 <form id="modalAuthenticationForm" class="form-horizontal form-label-left">
                     <input hidden name="id" id="id">
-                    <div class="x_panel">
-                        <div class="x_title">
-                            <h4><i class="fa fa-user"></i> Local</h4>
-                            <div class="clearfix"></div>
-                        </div>
-                        <div class="x_content" id="local-panel" style="display:none;">
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
-                                    for="local-enabled">Enabled</label>
-                                <div class="col-md-9 col-sm-9 col-xs-12">
-                                    <select id="local-enabled" name="local-enabled" class="enabled-select form-control">
-                                        <option value="null">Enable auth method</option>
-                                        <option value="false">Disable auth method</option>
-                                        <option value="true">Restrict auth method to the selected domains</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="item form-group authentication-panel">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="local-domains">Allowed
-                                    Domains</label>
-                                <div class="col-md-9 col-sm-9 col-xs-12">
-                                    <select id="local-domains" name="local-domains[]" class="tags-select roundbox"
-                                        multiple="multiple" style="width: 100%;">
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="x_panel" id="google-panel" style="display:none;">
-                        <div class="x_title">
-                            <h4><i class="fa fa-google"></i> Google</h4>
-                            <div class="clearfix"></div>
-                        </div>
-                        <div class="x_content">
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
-                                    for="google-enabled">Enabled</label>
-                                <div class="col-md-9 col-sm-9 col-xs-12">
-                                    <select id="google-enabled" name="google-enabled" class="enabled-select form-control">
-                                        <option value="null">Enable auth method</option>
-                                        <option value="false">Disable auth method</option>
-                                        <option value="true">Restrict auth method to the selected domains</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="item form-group authentication-panel">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="google-domains">Allowed
-                                    Domains</label>
-                                <div class="col-md-9 col-sm-9 col-xs-12">
-                                    <select id="google-domains" name="google-domains[]" class="tags-select roundbox"
-                                        multiple="multiple" style="width: 100%;">
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="x_panel" id="ldap-panel" style="display:none;">
-                        <div class="x_title">
-                            <h4><i class="fa fa-sitemap"></i> LDAP</h4>
-                            <div class="clearfix"></div>
-                        </div>
-                        <div class="x_content">
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
-                                    for="ldap-enabled">Enabled</label>
-                                <div class="col-md-9 col-sm-9 col-xs-12">
-                                    <select id="ldap-enabled" name="ldap-enabled" class="enabled-select form-control">
-                                        <option value="null">Enable auth method</option>
-                                        <option value="false">Disable auth method</option>
-                                        <option value="true">Restrict auth method to the selected domains</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="item form-group authentication-panel">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ldap-domains">Allowed
-                                    Domains</label>
-                                <div class="col-md-9 col-sm-9 col-xs-12">
-                                    <select id="ldap-domains" name="ldap-domains[]" class="tags-select roundbox"
-                                        multiple="multiple" style="width: 100%;">
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="x_panel" id="saml-panel" style="display:none;">
-                        <div class="x_title">
-                            <h4><i class="fa fa-lock"></i> SAML</h4>
-                            <div class="clearfix"></div>
-                        </div>
-                        <div class="x_content">
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
-                                    for="saml-enabled">Enabled</label>
-                                <div class="col-md-9 col-sm-9 col-xs-12">
-                                    <select id="saml-enabled" name="saml-enabled" class="enabled-select form-control">
-                                        <option value="null">Enable auth method</option>
-                                        <option value="false">Disable auth method</option>
-                                        <option value="true">Restrict auth method to the selected domains</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="item form-group authentication-panel">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="saml-domains">Allowed
-                                    Domains</label>
-                                <div class="col-md-9 col-sm-9 col-xs-12">
-                                    <select id="saml-domains" name="saml-domains[]" class="tags-select roundbox"
-                                        multiple="multiple" style="width: 100%;">
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="x_panel" id="default-category-alert" style="display:none;">
-                        <div class="alert alert-info">
-                            <i class="fa fas fa-info-circle"></i> The default category will always have the default admin enabled in local authentication.
-                        </div>
-                    </div>
+                    {% with provider="local" %}
+                        {% include '/snippets/category_authentication_form.html' %}
+                    {% endwith %}
+                    {% with provider="google" %}
+                        {% include '/snippets/category_authentication_form.html' %}
+                    {% endwith %}
+                    {% with provider="saml" %}
+                        {% include '/snippets/category_authentication_form.html' %}
+                    {% endwith %}
+                    {% with provider="ldap" %}
+                        {% include '/snippets/category_authentication_form.html' %}
+                    {% endwith %}
                 </form>
             </div>
 
@@ -1108,6 +1003,10 @@
         </div>
     </div>
 </div>
+
+{% include '/snippets/category_branding_form.html' %}
+
+{% include '/snippets/category_login_notification_form.html' %}
 
 <div class="modal fade" id="modalDeleteCategory" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
@@ -1817,6 +1716,9 @@
                             </select>
                         </div>
                     </div>
+                    {% with id_prefix = "category-permissions-create-" %}
+                        {% include '/snippets/category_permissions_form.html' %}
+                    {% endwith %}
                 </form>
             </div>
 
@@ -1857,7 +1759,7 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-                <form id="modalEditCategoryForm" class="form-inline form-label-left">
+                <form id="modalEditCategoryForm" class="form-horizontal">
                     <input hidden id="id" name="id" />
                     <div class="row">
                         <div class="x_panel">
@@ -2051,6 +1953,9 @@
                             </select>
                         </div>
                     </div>
+                    {% with id_prefix = "category-permissions-edit-" %}
+                        {% include '/snippets/category_permissions_form.html' %}
+                    {% endwith %}
                 </form>
             </div>
 

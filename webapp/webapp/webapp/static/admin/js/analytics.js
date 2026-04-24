@@ -115,7 +115,7 @@ $(document).ready(function () {
         switch (item) {
             case ("category"):
                 $.ajax({
-                    url: '/api/v3/admin/userschema',
+                    url: '/api/v4/admin/userschema',
                     type: 'GET',
                     contentType: 'application/json',
                     dataType: 'json',
@@ -165,7 +165,7 @@ $(document).ready(function () {
         }
 
         $.ajax({
-            url: '/api/v3/analytics/storage',
+            url: '/api/v4/analytics/storage',
             type: 'POST',
             data: JSON.stringify(data),
             contentType: 'application/json',
@@ -242,7 +242,7 @@ $(document).ready(function () {
             };
         }
         $.ajax({
-            url: '/api/v3/analytics/resources/count',
+            url: '/api/v4/analytics/resources/count',
             type: 'POST',
             data: JSON.stringify(data),
             contentType: 'application/json',
@@ -273,7 +273,7 @@ $(document).ready(function () {
             }
         }
         $.ajax({
-            url: '/api/v3/analytics/suggested_removals',
+            url: '/api/v4/analytics/suggested_removals',
             type: 'POST',
             data: JSON.stringify(data),
             contentType: 'application/json',
@@ -369,7 +369,7 @@ $(document).ready(function () {
     function deleteDesktops(ids) {
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/multiple_actions",
+            url: "/api/v4/admin/multiple_actions",
             data: JSON.stringify({ 'ids': ids, 'action': 'delete' }),
             success: function () {
                 location.reload()
@@ -400,13 +400,4 @@ $(document).ready(function () {
         })
         adminShowIdCol(table)
     }
-
-    // function socketio_on(){
-    //     socket.on('desktop_delete', function(data){
-    //         var data = JSON.parse(data);
-    //         if(!typeof($('#unusedDesktopsTable').DataTable().row('#'+data.id).id())=='undefined'){
-    //             $('#unusedDesktopsTable').DataTable().row('#'+data.id).remove().draw();
-    //         }
-    //     });
-    // }
 })

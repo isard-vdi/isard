@@ -45,7 +45,7 @@ function initDomainSearchModal(expectedKind) {
         }
 
         $.ajax({
-            url: `/api/v3/admin/domain/search-info/${domainId}`,
+            url: `/api/v4/admin/domain/search-info/${domainId}`,
             type: "GET",
             contentType: "application/json",
         }).done(function (data) {

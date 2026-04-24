@@ -42,8 +42,8 @@ class loadConfig:
 
             app.config["SESSION_COOKIE_NAME"] = "isard-admin"
 
-            app.config.setdefault("LOG_LEVEL", os.environ["LOG_LEVEL"])
-            app.debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
+            app.config.setdefault("LOG_LEVEL", os.environ.get("LOG_LEVEL", "INFO"))
+            app.debug = os.environ.get("LOG_LEVEL", "INFO") == "DEBUG"
         except Exception as e:
             print("Loading environment vars failed")
             print(e)

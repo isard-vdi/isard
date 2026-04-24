@@ -368,7 +368,7 @@
 
         $.ajax({
             type: 'GET',
-            url: '/api/v3/admin/domain/' + encodeURIComponent(domainId) + '/info',
+            url: '/api/v4/item/desktop/' + encodeURIComponent(domainId) + '/get-info',
             contentType: 'application/json',
             success: function(data) {
                 showContent(data);
@@ -397,8 +397,8 @@
         e.preventDefault();
         var domainId = $(this).data('id');
         $.ajax({
-            type: 'GET',
-            url: '/api/v3/desktop/start/' + domainId,
+            type: 'PUT',
+            url: '/api/v4/item/desktop/' + domainId + '/start',
             success: function() {
                 new PNotify({ title: 'Starting', text: 'Desktop is starting...', type: 'success', hide: true, delay: 2000 });
                 showDomainInfo(domainId);
@@ -414,8 +414,8 @@
         e.preventDefault();
         var domainId = $(this).data('id');
         $.ajax({
-            type: 'GET',
-            url: '/api/v3/desktop/stop/' + domainId,
+            type: 'PUT',
+            url: '/api/v4/item/desktop/' + domainId + '/stop',
             success: function() {
                 new PNotify({ title: 'Stopping', text: 'Desktop is stopping...', type: 'success', hide: true, delay: 2000 });
                 showDomainInfo(domainId);
@@ -442,7 +442,7 @@
         }).get().on('pnotify.confirm', function() {
             $.ajax({
                 type: 'DELETE',
-                url: '/api/v3/desktop/' + domainId,
+                url: '/api/v4/item/desktop/' + domainId,
                 success: function() {
                     new PNotify({ title: 'Deleted', text: 'Desktop deleted', type: 'success', hide: true, delay: 2000 });
                     $('#' + MODAL_ID).modal('hide');

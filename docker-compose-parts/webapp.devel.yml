@@ -3,5 +3,5 @@ services:
     user: root
     volumes:
       - ${BUILD_ROOT_PATH}/webapp/webapp:/isard:rw
-      - ${BUILD_ROOT_PATH}/component/_common/src:/isard/webapp/_common
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common
     command: sh -c "yarn --cwd /isard/webapp install && python3 -u start.py"

@@ -39,7 +39,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
             $.ajax({
                 type: 'DELETE',
-                url: `/api/v3/admin/notifications/data`,
+                url: `/api/v4/admin/notifications/data`,
                 contentType: 'application/json',
                 success: function (data) {
                     new PNotify({
@@ -73,7 +73,7 @@ function populateStatusSelect() {
     var statusSelect = $('#status');
     $('#status').empty();
     $.ajax({
-        url: '/api/v3/admin/notifications/statuses',
+        url: '/api/v4/admin/notifications/statuses',
         type: 'GET',
         success: function (statuses) {
             statusSelect.empty();
@@ -94,7 +94,7 @@ function populateStatusSelect() {
 function renderNotificationsLogsDatatable(table, status, user_id) {
     table.DataTable({
         "ajax": {
-            url: '/api/v3/admin/notifications/data/' + status + "/" + user_id,
+            url: '/api/v4/admin/notifications/data/status/' + status + "/user/" + user_id,
             type: 'GET',
         },
         "sAjaxDataProp": "",
@@ -168,7 +168,7 @@ function renderNotificationsLogsDatatable(table, status, user_id) {
 function renderNotificationUsersDatatable(status) {
     $('#notifications-users-table').DataTable({
         "ajax": {
-            url: '/api/v3/admin/notifications/data/user/' + status,
+            url: '/api/v4/admin/notifications/data/by_status/' + status,
             type: 'GET',
         },
         "sAjaxDataProp": "",
@@ -250,7 +250,7 @@ function addDeleteButtonListeners() {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: 'DELETE',
-                        url: `/api/v3/admin/notifications/data/${data.user_id}`,
+                        url: `/api/v4/admin/notifications/data/${data.user_id}`,
                         contentType: 'application/json',
                         success: function (data) {
                             new PNotify({
@@ -301,7 +301,7 @@ function addDetailDeleteButtonListeners() {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: 'DELETE',
-                        url: `/api/v3/admin/notifications/data/${data.id}`,
+                        url: `/api/v4/admin/notifications/data/${data.id}`,
                         contentType: 'application/json',
                         success: function (data) {
                             new PNotify({

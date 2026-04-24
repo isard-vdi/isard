@@ -24,7 +24,7 @@ function connection_lost(){
 $(document).ready(function() {
   $.ajax({
     type: "GET",
-    url:"/api/v3/admin/quotas",
+    url:"/api/v4/admin/quotas",
     success: function (data) {
         drawUserQuota(data)
     }

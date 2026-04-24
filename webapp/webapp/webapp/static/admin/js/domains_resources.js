@@ -92,7 +92,7 @@ $(document).ready(function () {
                 $('#modalRemotevpn #modalRemotevpnForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/admin/table/remotevpn",
+                    url: "/api/v4/admin/table/remotevpn",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -141,7 +141,7 @@ $(document).ready(function () {
             case 'btn-download':
                 $.ajax({
                     type: "GET",
-                    url: "/api/v3/remote_vpn/" + data['id'] + "/config/" + getOS(),
+                    url: "/api/v4/remote_vpn/" + data['id'] + "/config/" + getOS(),
                     success: function (data) {
                         var el = document.createElement('a')
                         var content = data.content
@@ -274,7 +274,7 @@ $(document).ready(function () {
                 $('#modalQosNet #modalQosNetForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/admin/table/qos_net",
+                    url: "/api/v4/admin/table/qos_net",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -450,7 +450,7 @@ $(document).ready(function () {
                 $('#modalQosDisk .modal-footer button#send').text("Edit Disk QoS");
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/admin/table/qos_disk",
+                    url: "/api/v4/admin/table/qos_disk",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -547,7 +547,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/qos_disk",
+                    url: "/api/v4/qos_disk",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -603,7 +603,7 @@ $(document).ready(function () {
                 data['name'] = $('#modalQosDiskForm #name').val();
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v3/qos_disk",
+                    url: "/api/v4/qos_disk",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -732,7 +732,7 @@ $(document).ready(function () {
                 $('#modalInterfaces #modalInterfacesForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v3/admin/table/interfaces",
+                    url: "/api/v4/admin/table/interfaces",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -1139,7 +1139,7 @@ $(document).ready(function () {
 
     $.ajax({
         type: 'GET',
-        url: "/api/v3/admin/bastion/",
+        url: "/api/v4/bastion",
         contentType: 'application/json',
         success: function (data) {
             if (data['bastion_enabled_in_cfg'] === true) {
@@ -1189,7 +1189,7 @@ $(document).ready(function () {
                         text: 'Delete', click: function (notice) {
                             $.ajax({
                                 type: "DELETE",
-                                url: "/api/v3/admin/bastion/disallowed",
+                                url: "/api/v4/bastion/disallowed",
                                 accept: "application/json",
                             }).done(() => {
                                 new PNotify({
@@ -1234,7 +1234,7 @@ $(document).ready(function () {
         $('#modalEditBastion #modalEditBastionForm').parsley();
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/bastion/",
+            url: "/api/v4/bastion",
             contentType: "application/json",
             accept: "application/json",
             success: function (response) {
@@ -1253,7 +1253,7 @@ $(document).ready(function () {
             console.log(data)
             $.ajax({
                 type: "PUT",
-                url: "/api/v3/admin/bastion/config",
+                url: "/api/v4/bastion/config",
                 data: JSON.stringify({
                     "enabled": "bastion-enabled" in data,
                     "bastion_domain": data["bastion-domain"],
@@ -1291,6 +1291,73 @@ $(document).ready(function () {
 
 
 
+    // virt_install table
+    virtinstall_table = $('#table-virt-install').DataTable({
+        "ajax": {
+            "url": "/admin/table/virt_install",
+            "contentType": "application/json",
+            "type": 'POST',
+            "data": function (d) { return JSON.stringify({ 'order_by': 'name', 'without': ['xml'] }) }
+        },
+        "sAjaxDataProp": "",
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
+        "columns": [
+            {
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
+                "defaultContent": ''
+            },
+            { "data": "id" },
+            { "data": "name" },
+            { "data": "icon" },
+            { "data": "vers" },
+            {
+                "className": 'actions-control',
+                "orderable": false,
+                "data": null,
+                "width": "91px",
+                "defaultContent": '<button id="btn-xml" class="btn btn-xs" type="button" data-placement="top" title="Edit XML"><i class="fa fa-file-code-o" style="color:darkblue"></i></button> \
+                                    <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top" title="Delete"><i class="fa fa-times" style="color:darkred"></i></button>'
+            },
+        ],
+        "order": [[2, 'asc']]
+    });
+
+    $('#table-virt-install').find(' tbody').on('click', 'button', function () {
+        var data = virtinstall_table.row($(this).parents('tr')).data();
+        switch ($(this).attr('id')) {
+            case 'btn-xml':
+                openXmlSections(data.id, 'virt_install');
+                break;
+            case 'btn-delete':
+                new PNotify({
+                    title: 'Confirmation Needed',
+                    text: "Are you sure you want to delete virt_install: " + data.name + "?",
+                    hide: false,
+                    opacity: 0.9,
+                    confirm: { confirm: true },
+                    buttons: { closer: false, sticker: false },
+                    history: { history: false },
+                    addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function () {
+                    $.ajax({
+                        type: "DELETE",
+                        url: "/admin/table/virt_install/" + data["id"],
+                        contentType: "application/json",
+                        success: function (data) {
+                            virtinstall_table.ajax.reload();
+                        }
+                    });
+                }).on('pnotify.cancel', function () {});
+                break;
+        }
+    });
+
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 
@@ -1316,38 +1383,11 @@ function socketio_on() {
             case 'remotevpn':
                 dtUpdateInsert(remotevpn_table, dict['data'], false);
                 break;
+            case 'virt_install':
+                dtUpdateInsert(virtinstall_table, dict['data'], false);
+                break;
         }
 
-    });
-
-    socket.on('vpn', function (data) {
-        var data = JSON.parse(data);
-        if (data['kind'] == 'url') {
-            window.open(data['url'], '_blank');
-        }
-        if (data['kind'] == 'file') {
-            var vpnFile = new Blob([data['content']], { type: data['mime'] });
-            var a = document.createElement('a');
-            a.download = data['name'] + '.' + data['ext'];
-            a.href = window.URL.createObjectURL(vpnFile);
-            var ev = document.createEvent("MouseEvents");
-            ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-            a.dispatchEvent(ev);
-        }
-    });
-
-    socket.on('result', function (data) {
-        var data = JSON.parse(data);
-        new PNotify({
-            title: data.title,
-            text: data.text,
-            hide: true,
-            delay: 4000,
-            icon: 'fa fa-' + data.icon,
-            opacity: 1,
-            type: data.type
-        });
-        //users_table.ajax.reload()
     });
 
     socket.on('delete', function (data) {
@@ -1373,6 +1413,9 @@ function socketio_on() {
                 break;
             case 'remotevpn':
                 var row = remotevpn_table.row('#' + data.id).remove().draw();
+                break;
+            case 'virt_install':
+                var row = virtinstall_table.row('#' + data.id).remove().draw();
                 break;
         }
         new PNotify({
@@ -1437,7 +1480,7 @@ function populateDropdown(table, dropdown_id, selected_id, custom) {
     pluck = ['id', 'name', 'description']
     $.ajax({
         type: "POST",
-        url: "/api/v3/admin/table/" + table,
+        url: "/api/v4/admin/table/" + table,
         data: JSON.stringify({ 'pluck': pluck }),
         contentType: "application/json",
         accept: "application/json",
