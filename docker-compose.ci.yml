@@ -313,6 +313,30 @@ services:
         echo $$? > /tmp/.ec; } 2>&1 | tee /ci-results/unit-test-apiv4.log
         exit $$(cat /tmp/.ec)
 
+  unit-test-webapp:
+    image: python:3.13-slim
+    profiles: [unit-test]
+    working_dir: /app
+    volumes: *source
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /ci-results
+        { cp -r /build/webapp/webapp/. /app/ &&
+        cp /build/webapp/docker/requirements.txt /app/requirements.txt &&
+        echo "" >> /app/requirements.txt &&
+        cat /build/webapp/docker/test.requirements.txt >> /app/requirements.txt &&
+        mkdir -p /opt/isardvdi &&
+        cp -r /build/component/_common/isardvdi_common /opt/isardvdi/isardvdi_common &&
+        apt-get update && apt-get install -y git &&
+        pip install --no-cache-dir -r /app/requirements.txt --break-system-package &&
+        export PYTHONPATH=$$PYTHONPATH:/opt/isardvdi:/app &&
+        export USAGE=test &&
+        pytest tests/ -q --tb=short --cov=webapp --cov-report=term
+        echo $$? > /tmp/.ec; } 2>&1 | tee /ci-results/unit-test-webapp.log
+        exit $$(cat /tmp/.ec)
+
   check-codegen-freshness:
     image: alpine:3.20
     profiles: [unit-test]
