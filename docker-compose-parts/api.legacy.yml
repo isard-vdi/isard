@@ -1,3 +1,0 @@
-services:
-  isard-api:
-    restart: unless-stopped

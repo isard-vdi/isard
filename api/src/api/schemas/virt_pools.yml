@@ -1,7 +1,0 @@
-enable_virt_pool:
-  type: boolean
-  required: true
-id:
-  type: string
-  required: true
-  coerce: sanitize

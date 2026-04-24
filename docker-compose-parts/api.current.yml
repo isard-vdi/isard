@@ -1,5 +1,0 @@
-services:
-  isard-api:
-    depends_on:
-      isard-engine:
-        condition: service_healthy
