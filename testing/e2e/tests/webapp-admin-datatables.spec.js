@@ -46,8 +46,8 @@ async function expectDataTableReady(page, tableSelector) {
 }
 
 test.describe('Admin datatables — users page', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories)
     await bridgeAdminSession(page)
   })
 
@@ -82,8 +82,8 @@ test.describe('Admin datatables — users page', () => {
 })
 
 test.describe('Admin datatables — hypervisors page', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories)
     await bridgeAdminSession(page)
   })
 
@@ -103,8 +103,8 @@ test.describe('Admin datatables — hypervisors page', () => {
 })
 
 test.describe('Admin datatables — domains pages', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories)
     await bridgeAdminSession(page)
   })
 

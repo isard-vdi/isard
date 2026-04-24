@@ -124,8 +124,8 @@ function consoleCollector(page) {
 }
 
 test.describe('Flask admin — domains render pages', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories)
     await bridgeAdminSession(page)
   })
 
@@ -155,8 +155,8 @@ test.describe('Flask admin — domains render pages', () => {
 })
 
 test.describe('Flask admin — Recyclebin sub-pages', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories)
     await bridgeAdminSession(page)
   })
 
@@ -179,8 +179,8 @@ test.describe('Flask admin — Recyclebin sub-pages', () => {
 })
 
 test.describe('Flask admin — users render pages', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories)
     await bridgeAdminSession(page)
   })
 
@@ -203,8 +203,8 @@ test.describe('Flask admin — users render pages', () => {
 })
 
 test.describe('Flask admin — top-level pages', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories)
     await bridgeAdminSession(page)
   })
 

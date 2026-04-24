@@ -20,7 +20,7 @@ test.describe('Vue 3 Bookings summary', () => {
 
   test('summary view renders without error for admin', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
@@ -29,7 +29,7 @@ test.describe('Vue 3 Bookings summary', () => {
       if (msg.type() === 'error') consoleErrors.push(msg.text())
     })
 
-    await loginHelpers.login(page, users.admin, categories, summaryURL)
+    await loginHelpers.login(page, adminPerWorker, categories, summaryURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
 
     expect(page.url()).toContain(summaryURL)
@@ -48,14 +48,19 @@ test.describe('Vue 3 Bookings summary', () => {
         !e.includes('Failed to load resource') &&
         !e.includes('favicon') &&
         !e.includes('socket.io') &&
-        !e.includes('net::ERR_FAILED'),
+        !e.includes('net::ERR_FAILED') &&
+        // [WDS] Disconnected! is webpack-dev-server HMR noise from the
+        // co-served Vue 2 old-frontend; sockjs-node is the same dev-server's
+        // CORS-blocked keepalive. Both unrelated to Vue 3 functionality.
+        !e.includes('[WDS]') &&
+        !e.includes('sockjs-node'),
     )
     expect(fatalErrors, `Console errors:\n${fatalErrors.join('\n')}`).toHaveLength(0)
   })
 
   test('summary view hits /items/bookings and gets 200', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
@@ -64,7 +69,7 @@ test.describe('Vue 3 Bookings summary', () => {
       { timeout: 15000 },
     )
 
-    await loginHelpers.login(page, users.admin, categories, summaryURL)
+    await loginHelpers.login(page, adminPerWorker, categories, summaryURL)
     const response = await bookingsResponsePromise
 
     expect(response.status()).toBe(200)

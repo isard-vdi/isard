@@ -4,8 +4,8 @@ import { commonHelpers } from '../fixtures/common.js'
 const mediaURL = '/frontend/media'
 
 test.describe('Vue 3 Media view', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories, mediaURL)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories, mediaURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
     expect(page.url()).toContain(mediaURL)
   })

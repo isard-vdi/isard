@@ -16,7 +16,7 @@ test.describe('Vue 3 Booking view', () => {
 
   test('booking view loads for admin on a reservable desktop', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
@@ -25,7 +25,7 @@ test.describe('Vue 3 Booking view', () => {
       if (msg.type() === 'error') consoleErrors.push(msg.text())
     })
 
-    await loginHelpers.login(page, users.admin, categories, bookingURL)
+    await loginHelpers.login(page, adminPerWorker, categories, bookingURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
 
     expect(page.url()).toContain(bookingURL)
@@ -45,14 +45,19 @@ test.describe('Vue 3 Booking view', () => {
         !e.includes('Failed to load resource') &&
         !e.includes('favicon') &&
         !e.includes('socket.io') &&
-        !e.includes('net::ERR_FAILED'),
+        !e.includes('net::ERR_FAILED') &&
+        // [WDS] Disconnected! is webpack-dev-server HMR noise from the
+        // co-served Vue 2 old-frontend; sockjs-node is the same dev-server's
+        // CORS-blocked keepalive. Both unrelated to Vue 3 functionality.
+        !e.includes('[WDS]') &&
+        !e.includes('sockjs-node'),
     )
     expect(fatalErrors, `Console errors:\n${fatalErrors.join('\n')}`).toHaveLength(0)
   })
 
   test('booking view fetches priority + item bookings', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
@@ -69,7 +74,7 @@ test.describe('Vue 3 Booking view', () => {
       { timeout: 15000 },
     )
 
-    await loginHelpers.login(page, users.admin, categories, bookingURL)
+    await loginHelpers.login(page, adminPerWorker, categories, bookingURL)
 
     const [priority, itemBookings] = await Promise.all([priorityPromise, itemBookingsPromise])
     expect(priority.status()).toBe(200)
@@ -78,11 +83,11 @@ test.describe('Vue 3 Booking view', () => {
 
   test('calendar container is rendered', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
-    await loginHelpers.login(page, users.admin, categories, bookingURL)
+    await loginHelpers.login(page, adminPerWorker, categories, bookingURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
 
     // BookingCalendar.vue wraps vue-cal which adds a `.vuecal` root element.
@@ -92,7 +97,7 @@ test.describe('Vue 3 Booking view', () => {
 
   test('booking view with unknown desktop id shows error surface', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
@@ -101,7 +106,7 @@ test.describe('Vue 3 Booking view', () => {
     // leaking router.titles or redirecting to /login.
     const unknownURL = '/frontend/bookings/desktop/00000000-0000-0000-0000-000000000000'
 
-    await loginHelpers.login(page, users.admin, categories, unknownURL)
+    await loginHelpers.login(page, adminPerWorker, categories, unknownURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
 
     expect(page.url()).not.toMatch(/\/login(\/|$|\?)/)

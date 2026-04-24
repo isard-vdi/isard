@@ -7,8 +7,8 @@ import { test, expect } from '../fixtures/login.js'
 const desktopsURL = '/frontend/desktops'
 
 test.describe('Desktop lifecycle (Slax)', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories, desktopsURL)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories, desktopsURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
   })
 

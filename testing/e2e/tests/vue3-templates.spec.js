@@ -5,8 +5,8 @@ const templatesURL = '/frontend/templates'
 const newTemplateURL = '/frontend/templates/new'
 
 test.describe('Vue 3 Templates view', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories, templatesURL)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories, templatesURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
     expect(page.url()).toContain(templatesURL)
   })

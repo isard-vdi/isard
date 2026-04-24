@@ -31,7 +31,7 @@ test.describe('Vue 3 navigation smoke', () => {
   for (const route of authedRoutes) {
     test(`${route.name} loads without error`, async ({
       page,
-      users,
+      adminPerWorker,
       categories,
       loginHelpers,
     }) => {
@@ -40,7 +40,7 @@ test.describe('Vue 3 navigation smoke', () => {
         if (msg.type() === 'error') consoleErrors.push(msg.text())
       })
 
-      await loginHelpers.login(page, users.admin, categories, route.path)
+      await loginHelpers.login(page, adminPerWorker, categories, route.path)
 
       await page.waitForLoadState('networkidle', { timeout: 15000 })
 
@@ -58,7 +58,12 @@ test.describe('Vue 3 navigation smoke', () => {
           !e.includes('Failed to load resource') &&
           !e.includes('favicon') &&
           !e.includes('socket.io') &&
-          !e.includes('net::ERR_FAILED'),
+          !e.includes('net::ERR_FAILED') &&
+          // [WDS] Disconnected! is webpack-dev-server HMR noise from the
+          // co-served Vue 2 old-frontend; sockjs-node is the same dev-server's
+          // CORS-blocked keepalive. Both unrelated to Vue 3 functionality.
+          !e.includes('[WDS]') &&
+          !e.includes('sockjs-node'),
       )
       expect(fatalErrors, `Console errors on ${route.name}:\n${fatalErrors.join('\n')}`).toHaveLength(0)
     })
