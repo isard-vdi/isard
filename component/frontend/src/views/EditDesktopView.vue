@@ -1,0 +1,222 @@
+<script setup lang="ts">
+import { ref, computed, reactive, watch } from 'vue'
+import { useRoute, RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { z } from 'zod'
+import { useForm } from '@tanstack/vue-form'
+
+import {
+  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions,
+  editDesktopApiV4ItemDesktopDesktopIdEditPutMutation,
+  getUserDesktopsApiV4ItemUserDesktopsGetQueryKey
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
+import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
+import { Button } from '@/components/ui/button'
+import { InputField } from '@/components/input-field'
+import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
+import router from '@/router'
+
+const { t } = useI18n()
+const route = useRoute()
+const queryClient = useQueryClient()
+
+const desktopId = computed(() => route.params.desktopId as string)
+
+const {
+  isPending: desktopLoading,
+  isError: desktopLoadError,
+  data: desktopData
+} = useQuery({
+  ...getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+    path: { desktop_id: desktopId.value }
+  }),
+  enabled: computed(() => !!desktopId.value)
+})
+
+const desktopInfoFormSchema = z.object({
+  name: z.string().min(4).max(50),
+  description: z.string().max(255).optional()
+})
+
+const defaultValues = reactive({
+  name: '',
+  description: ''
+})
+
+const desktopInfoForm = useForm({
+  defaultValues,
+  validators: {
+    onChange: desktopInfoFormSchema
+  }
+})
+
+const infoValid = desktopInfoForm.useStore((state) => state.isValid)
+
+watch(
+  desktopData,
+  (data) => {
+    if (!data) return
+    desktopInfoForm.setFieldValue('name', data.name)
+    desktopInfoForm.setFieldValue('description', data.description || '')
+  },
+  { immediate: true }
+)
+
+const accessFormRef = ref<{
+  getFormData: () => Record<string, unknown>
+  isValid: boolean
+} | null>(null)
+const hardwareFormRef = ref<{
+  getFormData: () => Record<string, unknown>
+  isValid: boolean
+  limitedFields: Record<string, unknown> | null
+} | null>(null)
+const hardwareFormIsValid = computed(() => hardwareFormRef.value?.isValid ?? true)
+const accessFormIsValid = computed(() => accessFormRef.value?.isValid ?? true)
+
+const areFormsValid = computed(
+  () => infoValid.value && hardwareFormIsValid.value && accessFormIsValid.value
+)
+
+const submitError = ref<string | null>(null)
+
+const { mutate: submitEdit, isPending: submitPending } = useMutation({
+  ...editDesktopApiV4ItemDesktopDesktopIdEditPutMutation(),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: getUserDesktopsApiV4ItemUserDesktopsGetQueryKey() })
+    router.push({ name: 'desktops' })
+  },
+  onError: (error) => {
+    submitError.value = 'description_code' in error ? error.description_code : 'submit'
+  }
+})
+
+const handleSubmit = () => {
+  if (!areFormsValid.value) return
+  submitError.value = null
+
+  const accessSettings = accessFormRef.value?.getFormData() as Record<string, unknown> | undefined
+  const hardwareSettings = hardwareFormRef.value?.getFormData() as
+    | Record<string, unknown>
+    | undefined
+
+  submitEdit({
+    path: { desktop_id: desktopId.value },
+    body: {
+      name: desktopInfoForm.getFieldValue('name'),
+      description: desktopInfoForm.getFieldValue('description'),
+      guest_properties: {
+        credentials: accessSettings?.credentials,
+        fullscreen: accessSettings?.fullscreen,
+        viewers: accessSettings?.viewers
+      },
+      hardware: {
+        vcpus: hardwareSettings?.vcpus,
+        memory: hardwareSettings?.memory,
+        disk_bus: hardwareSettings?.diskBus,
+        videos: [hardwareSettings?.videos],
+        boot_order: [hardwareSettings?.bootOrder],
+        interfaces: hardwareSettings?.interfaces,
+        isos: hardwareSettings?.isos,
+        floppies: hardwareSettings?.floppies
+      },
+      reservables: hardwareSettings?.reservables as { vgpus?: string[] } | undefined
+    }
+  })
+}
+</script>
+
+<template>
+  <header class="flex flex-col md:flex-row items-center max-w-480 w-full mx-auto mb-8 gap-4">
+    <div class="flex flex-row items-center gap-4 w-full">
+      <Button
+        :as="RouterLink"
+        :to="{ name: 'desktops' }"
+        hierarchy="link-color"
+        icon="arrow-left"
+        class="pb-6 pt-0 pl-0"
+      >
+        {{ t('views.edit-desktop.header.cancel') }}
+      </Button>
+    </div>
+    <div class="flex flex-row items-center justify-end gap-4 w-full">
+      <Button class="min-w-32" :disabled="!areFormsValid || submitPending" @click="handleSubmit">
+        {{ t('views.edit-desktop.header.save') }}
+      </Button>
+    </div>
+  </header>
+
+  <main class="max-w-320 w-full mx-auto flex flex-col gap-[24px]">
+    <Alert v-if="desktopLoadError" variant="destructive">
+      <AlertTitle>{{ t('views.edit-desktop.errors.load') }}</AlertTitle>
+    </Alert>
+    <Alert v-if="submitError" variant="destructive">
+      <AlertTitle>{{ t('views.edit-desktop.errors.submit') }}</AlertTitle>
+      <AlertDescription>{{ submitError }}</AlertDescription>
+    </Alert>
+
+    <template v-if="desktopLoading">
+      <Skeleton class="w-full h-40" />
+      <Skeleton class="w-full h-40" />
+    </template>
+    <template v-else-if="desktopData">
+      <section>
+        <h3 class="text-lg font-semibold text-gray-warm-900">
+          {{ t('views.edit-desktop.sections.info.title') }}
+        </h3>
+        <p class="text-sm font-regular mb-6">
+          {{ t('views.edit-desktop.sections.info.description') }}
+        </p>
+        <div class="flex flex-col gap-3">
+          <desktopInfoForm.Field v-slot="{ field }" name="name">
+            <InputField
+              :id="field.name"
+              :name="field.name"
+              :model-value="field.state.value"
+              maxlength="50"
+              @update:model-value="(value) => field.handleChange(String(value))"
+              @input="field.handleChange(String(($event.target as HTMLInputElement).value))"
+              @blur="field.handleBlur"
+            />
+          </desktopInfoForm.Field>
+          <desktopInfoForm.Field v-slot="{ field }" name="description">
+            <Textarea
+              :model-value="field.state.value"
+              maxlength="255"
+              class="bg-base-white resize-none"
+              @update:model-value="(value) => field.handleChange(String(value))"
+            />
+          </desktopInfoForm.Field>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="text-lg font-semibold text-gray-warm-900">
+          {{ t('views.edit-desktop.sections.access.title') }}
+        </h3>
+        <p class="text-sm font-regular mb-6">
+          {{ t('views.edit-desktop.sections.access.description') }}
+        </p>
+        <DomainAccessForm
+          ref="accessFormRef"
+          :desktop-id="desktopId"
+          :show-bastion-config="false"
+        />
+      </section>
+
+      <section>
+        <h3 class="text-lg font-semibold text-gray-warm-900">
+          {{ t('views.edit-desktop.sections.hardware.title') }}
+        </h3>
+        <p class="text-sm font-regular mb-6">
+          {{ t('views.edit-desktop.sections.hardware.description') }}
+        </p>
+        <DomainHardwareForm ref="hardwareFormRef" :desktop-id="desktopId" />
+      </section>
+    </template>
+  </main>
+</template>
