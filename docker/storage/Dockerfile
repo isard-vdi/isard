@@ -32,7 +32,7 @@ RUN useradd -ms /bin/bash v2v
 ENV PYTHONPATH /opt/isardvdi
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/utils"
 COPY pkg/gen/proto/python_old /opt/isardvdi/isardvdi_protobuf_old
-COPY component/_common/src /opt/isardvdi/isardvdi_common
+COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
 COPY docker/storage/task /opt/isardvdi/isardvdi_task
 COPY docker/storage/init.sh /init.sh
 RUN mkdir /utils

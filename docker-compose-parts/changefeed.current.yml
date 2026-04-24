@@ -1,6 +1,6 @@
 #
 #   IsardVDI - Open Source KVM Virtual Desktops based on KVM Linux and dockers
-#   Copyright (C) 2023 Simó Albert i Beltran
+#   Copyright (C) 2025 Simó Albert i Beltran
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -17,11 +17,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 services:
-  isard-core_worker:
+  isard-changefeed:
     depends_on:
-      isard-apiv4:
-        condition: service_healthy
       isard-db:
+        condition: service_healthy
+      isard-engine:
         condition: service_healthy
       isard-redis:
         condition: service_healthy

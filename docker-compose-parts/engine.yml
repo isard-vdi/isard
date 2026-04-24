@@ -22,7 +22,11 @@ services:
       - /etc/localtime:/etc/localtime:ro
     depends_on:
       - isard-db
+      - isard-redis
     environment:
+      REDIS_HOST:
+      REDIS_PORT:
+      REDIS_PASSWORD:
       API_ISARDVDI_SECRET:
       DOMAIN:
       ENGINE_DISK_BALANCER:
@@ -31,6 +35,8 @@ services:
       LOG_LEVEL:
       QCOW2_CLUSTER_SIZE:
       QCOW2_EXTENDED_L2:
+      QCOW2_LAZY_REFCOUNTS:
+      QCOW2_PREALLOCATION:
       RETHINKDB_DB:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
@@ -124,3 +130,9 @@ services:
       # configuration to rethinkdb via migration 183
       AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID:
       AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET:
+      # Transitional AUTHENTICATION_*_ENABLED variables to import authentication providers status
+      # configuration to rethinkdb bia migration 184
+      AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED:
+      AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED:
+      AUTHENTICATION_AUTHENTICATION_SAML_ENABLED:
+      AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED:
