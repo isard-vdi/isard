@@ -1232,57 +1232,86 @@ func TestHandleCategoryDisabledProviderChange(t *testing.T) {
 	}
 }
 
-func TestIsProvidersEmpty(t *testing.T) {
+func TestIsScopeEmpty(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Providers map[string]provider.Provider
-		Expected  bool
+		Scope    *providerSet
+		Expected bool
 	}{
 		"should return true when only unknown and external": {
-			Providers: map[string]provider.Provider{
-				types.ProviderUnknown:  &provider.Unknown{},
-				types.ProviderExternal: provider.InitExternal(nil),
+			Scope: &providerSet{
+				providers: map[string]provider.Provider{
+					types.ProviderUnknown:  &provider.Unknown{},
+					types.ProviderExternal: provider.InitExternal(nil),
+				},
+				formCustomSubProviders: map[string]bool{},
 			},
 			Expected: true,
 		},
 		"should return true when form has no sub-providers": {
-			Providers: map[string]provider.Provider{
-				types.ProviderUnknown:  &provider.Unknown{},
-				types.ProviderExternal: provider.InitExternal(nil),
-				types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log.New("test", "debug"), nil, nil),
+			Scope: &providerSet{
+				providers: map[string]provider.Provider{
+					types.ProviderUnknown:  &provider.Unknown{},
+					types.ProviderExternal: provider.InitExternal(nil),
+					types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log.New("test", "debug"), nil, nil),
+				},
+				formCustomSubProviders: map[string]bool{},
 			},
 			Expected: true,
 		},
-		"should return false when form has sub-providers": {
-			Providers: map[string]provider.Provider{
-				types.ProviderUnknown:  &provider.Unknown{},
-				types.ProviderExternal: provider.InitExternal(nil),
-				types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log.New("test", "debug"), provider.InitLocal(nil), nil),
+		"should return true when form has only inherited sub-providers": {
+			Scope: &providerSet{
+				providers: map[string]provider.Provider{
+					types.ProviderUnknown:  &provider.Unknown{},
+					types.ProviderExternal: provider.InitExternal(nil),
+					types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log.New("test", "debug"), provider.InitLocal(nil), nil),
+				},
+				formCustomSubProviders: map[string]bool{},
+			},
+			Expected: true,
+		},
+		"should return false when form has a custom sub-provider": {
+			Scope: &providerSet{
+				providers: map[string]provider.Provider{
+					types.ProviderUnknown:  &provider.Unknown{},
+					types.ProviderExternal: provider.InitExternal(nil),
+					types.ProviderForm:     provider.InitForm(cfg.Authentication{}, log.New("test", "debug"), provider.InitLocal(nil), nil),
+				},
+				formCustomSubProviders: map[string]bool{types.ProviderLocal: true},
 			},
 			Expected: false,
 		},
 		"should return false when SAML is present": {
-			Providers: map[string]provider.Provider{
-				types.ProviderUnknown:  &provider.Unknown{},
-				types.ProviderExternal: provider.InitExternal(nil),
-				types.ProviderSAML:     provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
+			Scope: &providerSet{
+				providers: map[string]provider.Provider{
+					types.ProviderUnknown:  &provider.Unknown{},
+					types.ProviderExternal: provider.InitExternal(nil),
+					types.ProviderSAML:     provider.InitSAML("", "", nil, log.New("test", "debug"), nil, nil),
+				},
+				formCustomSubProviders: map[string]bool{},
 			},
 			Expected: false,
 		},
 		"should return false when Google is present": {
-			Providers: map[string]provider.Provider{
-				types.ProviderUnknown:  &provider.Unknown{},
-				types.ProviderExternal: provider.InitExternal(nil),
-				types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
+			Scope: &providerSet{
+				providers: map[string]provider.Provider{
+					types.ProviderUnknown:  &provider.Unknown{},
+					types.ProviderExternal: provider.InitExternal(nil),
+					types.ProviderGoogle:   provider.InitGoogle(cfg.Authentication{}),
+				},
+				formCustomSubProviders: map[string]bool{},
 			},
 			Expected: false,
 		},
-		"should return true when map is empty": {
-			Providers: map[string]provider.Provider{},
-			Expected:  true,
+		"should return true when providers map is empty": {
+			Scope: &providerSet{
+				providers:              map[string]provider.Provider{},
+				formCustomSubProviders: map[string]bool{},
+			},
+			Expected: true,
 		},
 	}
 
@@ -1290,7 +1319,7 @@ func TestIsProvidersEmpty(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			result := isProvidersEmpty(tc.Providers)
+			result := isScopeEmpty(tc.Scope)
 			assert.Equal(tc.Expected, result)
 		})
 	}
@@ -2314,6 +2343,260 @@ func TestProviderConfigSource(t *testing.T) {
 			source, disabled := providerConfigSource(tc.Auth, tc.Provider)
 			assert.Equal(tc.ExpectedSource, source)
 			assert.Equal(tc.ExpectedDisabled, disabled)
+		})
+	}
+}
+
+func TestProviderManagerFormSubProviderLifecycle(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareScope        func(context.Context, *sync.WaitGroup, *ProviderManager)
+		ExpectedSubs        []string
+		ExpectScopeMissing  bool
+		ExpectInheritedSubs []string
+		ExpectCustomSubs    []string
+		ExpectNonCustomSubs []string
+	}{
+		"should inherit Local from global when scope is created via custom SAML": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+			},
+			ExpectedSubs:        []string{types.ProviderLocal},
+			ExpectInheritedSubs: []string{types.ProviderLocal},
+			ExpectNonCustomSubs: []string{types.ProviderLocal},
+		},
+		"should inherit both Local and LDAP when scope is created via custom SAML": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				log := log.New("test", "debug")
+
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+				globalForm.EnableProvider(provider.InitLDAP("", log, nil))
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+			},
+			ExpectedSubs:        []string{types.ProviderLocal, types.ProviderLDAP},
+			ExpectInheritedSubs: []string{types.ProviderLocal, types.ProviderLDAP},
+		},
+		"should keep custom LDAP and inherit Local from global": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderLDAP, strPtr("cat1"))
+			},
+			ExpectedSubs:        []string{types.ProviderLocal, types.ProviderLDAP},
+			ExpectInheritedSubs: []string{types.ProviderLocal},
+			ExpectCustomSubs:    []string{types.ProviderLDAP},
+		},
+		"should keep custom Local and inherit LDAP from global": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				log := log.New("test", "debug")
+
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLDAP("", log, nil))
+
+				m.enableProvider(ctx, wg, types.ProviderLocal, strPtr("cat1"))
+			},
+			ExpectedSubs:        []string{types.ProviderLocal, types.ProviderLDAP},
+			ExpectInheritedSubs: []string{types.ProviderLDAP},
+			ExpectCustomSubs:    []string{types.ProviderLocal},
+		},
+		"should exclude explicitly disabled Local even when global has it": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, true)
+
+				m.enableProvider(ctx, wg, types.ProviderLDAP, strPtr("cat1"))
+			},
+			ExpectedSubs:     []string{types.ProviderLDAP},
+			ExpectCustomSubs: []string{types.ProviderLDAP},
+		},
+		"should end up with empty Form when both sub-providers are disabled": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				log := log.New("test", "debug")
+
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+				globalForm.EnableProvider(provider.InitLDAP("", log, nil))
+
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, true)
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLDAP, true)
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+			},
+			ExpectedSubs: []string{},
+		},
+		"should replace inherited Local with a custom instance when custom Local is enabled afterwards": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+				m.enableProvider(ctx, wg, types.ProviderLocal, strPtr("cat1"))
+			},
+			ExpectedSubs:     []string{types.ProviderLocal},
+			ExpectCustomSubs: []string{types.ProviderLocal},
+		},
+		"should restore inherited Local after custom Local is disabled": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+				m.enableProvider(ctx, wg, types.ProviderLocal, strPtr("cat1"))
+				m.disableProvider(types.ProviderLocal, strPtr("cat1"))
+			},
+			ExpectedSubs:        []string{types.ProviderLocal},
+			ExpectInheritedSubs: []string{types.ProviderLocal},
+			ExpectNonCustomSubs: []string{types.ProviderLocal},
+		},
+		"should propagate a global Local enable to an existing scope as inherited": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+				m.enableProvider(ctx, wg, types.ProviderLocal, nil)
+			},
+			ExpectedSubs:        []string{types.ProviderLocal},
+			ExpectInheritedSubs: []string{types.ProviderLocal},
+			ExpectNonCustomSubs: []string{types.ProviderLocal},
+		},
+		"should drop inherited Local from scope when global Local is disabled": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+				m.disableProvider(types.ProviderLocal, nil)
+			},
+			ExpectedSubs: []string{},
+		},
+		"should keep custom Local intact when global Local is disabled": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderLocal, strPtr("cat1"))
+				m.disableProvider(types.ProviderLocal, nil)
+			},
+			ExpectedSubs:     []string{types.ProviderLocal},
+			ExpectCustomSubs: []string{types.ProviderLocal},
+		},
+		"should remove inherited Local when category explicitly disables it": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, true)
+			},
+			ExpectedSubs: []string{},
+		},
+		"should restore inherited Local when category re-enables it after an explicit disable": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, true)
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, false)
+			},
+			ExpectedSubs:        []string{types.ProviderLocal},
+			ExpectInheritedSubs: []string{types.ProviderLocal},
+			ExpectNonCustomSubs: []string{types.ProviderLocal},
+		},
+		"should remove custom Local and clear custom flag when category explicitly disables it": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				m.enableProvider(ctx, wg, types.ProviderLocal, strPtr("cat1"))
+				m.handleCategoryDisabledProviderChange("cat1", types.ProviderLocal, true)
+			},
+			ExpectedSubs:        []string{},
+			ExpectNonCustomSubs: []string{types.ProviderLocal},
+		},
+		"should let scope custom LDAP win over a conflicting global LDAP": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				log := log.New("test", "debug")
+
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLDAP("", log, nil))
+
+				m.enableProvider(ctx, wg, types.ProviderLDAP, strPtr("cat1"))
+			},
+			ExpectedSubs:     []string{types.ProviderLDAP},
+			ExpectCustomSubs: []string{types.ProviderLDAP},
+		},
+		"should clean up the scope when the last custom is removed and only inherited sub-providers remain": {
+			PrepareScope: func(ctx context.Context, wg *sync.WaitGroup, m *ProviderManager) {
+				globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+				globalForm.EnableProvider(provider.InitLocal(nil))
+
+				m.enableProvider(ctx, wg, types.ProviderSAML, strPtr("cat1"))
+				m.disableProvider(types.ProviderSAML, strPtr("cat1"))
+			},
+			ExpectScopeMissing: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+
+			var wg sync.WaitGroup
+
+			log := log.New("test", "debug")
+
+			m := InitProviderManager(cfg.Authentication{}, log, nil)
+			m.samlValidateURL = func(string) error { return errors.New("no network in tests") }
+			m.cfgWatcher.getOrCreateCategoryChangesChannels("cat1")
+
+			globalForm := m.global.providers[types.ProviderForm].(*provider.Form)
+
+			tc.PrepareScope(ctx, &wg, m)
+
+			scope, scopeOK := m.categories["cat1"]
+			if tc.ExpectScopeMissing {
+				assert.False(scopeOK)
+
+				cancel()
+				wg.Wait()
+				return
+			}
+
+			assert.True(scopeOK)
+
+			scopeForm := scope.providers[types.ProviderForm].(*provider.Form)
+			assert.ElementsMatch(tc.ExpectedSubs, scopeForm.Providers())
+
+			publicForm := m.Provider(types.ProviderForm, "cat1").(*provider.Form)
+			assert.ElementsMatch(tc.ExpectedSubs, publicForm.Providers())
+
+			for _, name := range tc.ExpectInheritedSubs {
+				assert.Same(globalForm.Provider(name), scopeForm.Provider(name),
+					"sub-provider %q must be the same instance as global's", name)
+			}
+
+			for _, name := range tc.ExpectCustomSubs {
+				assert.True(scope.formCustomSubProviders[name],
+					"sub-provider %q must be marked as custom", name)
+			}
+
+			for _, name := range tc.ExpectNonCustomSubs {
+				assert.False(scope.formCustomSubProviders[name],
+					"sub-provider %q must not be marked as custom", name)
+			}
+
+			cancel()
+			wg.Wait()
 		})
 	}
 }
