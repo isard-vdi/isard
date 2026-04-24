@@ -1,0 +1,81 @@
+{
+  "frontend_toggler": {
+    "to_vue2": "Passer à l'ancienne interface",
+    "no_equivalent": "Pas d'équivalent dans l'ancienne interface"
+  },
+  "router": {
+    "titles": {
+      "home": "Accueil",
+      "login": "Se connecter"
+    },
+    "maintenance": {
+      "title": "Maintenance"
+    },
+    "verify-email": {
+      "title": "Vérifier l'email"
+    }
+  },
+  "views": {
+    "verify-email": {
+      "title": "L'adresse e-mail doit être vérifiée par IsardVDI",
+      "description": "Entrez votre adresse e-mail pour recevoir un lien de vérification.",
+      "email-label": "Adresse e-mail",
+      "email-placeholder": "nom{'@'}exemple.com",
+      "invalid-email": "Entrez une adresse e-mail valide",
+      "error-generic": "Une erreur s'est produite. Veuillez réessayer.",
+      "success": "Un e-mail de vérification a été envoyé. Veuillez vérifier votre boîte de réception.",
+      "buttons": {
+        "verify": "Envoyer l'e-mail de vérification",
+        "logout": "Se déconnecter"
+      }
+    },
+    "login": {
+      "separator": "Autres accès",
+      "select-category": "Sélectionnez une catégorie"
+    }
+  },
+  "layouts": {
+    "login": {
+      "title": "Se connecter",
+      "works-with": "Fonctionne avec"
+    }
+  },
+  "components": {
+    "login": {
+      "login-provider-form": {
+        "category": "Catégorie",
+        "username": "Nom d'utilisateur",
+        "password": "Mot de passe",
+        "forgot-password": "Mot de passe oublié?",
+        "login": "Se connecter"
+      },
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Se connecter avec SAML",
+          "google": "Se connecter avec Google"
+        }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Sélectionnez une catégorie",
+        "not-found": "Aucune catégorie trouvée"
+      },
+      "login-category-select": {
+        "logged-in-as": "Connecté en tant que {name}",
+        "logout": "Se déconnecter"
+      }
+    }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "Une erreur s'est produite",
+        "missing_category": "Sélectionner une catégorie est nécessaire",
+        "invalid_credentials": "Nom d'utilisateur ou mot de passe incorrect",
+        "user_disabled": "L'utilisateur est désactivé",
+        "user_disallowed": "L'utilisateur ne peut pas utiliser IsardVDI",
+        "rate_limit_date": "Trop de tentatives de connexion. Réessayez dans {time}",
+        "rate_limit": "Trop de tentatives de connexion. Réessayez plus tard"
+      }
+    }
+  }
+}
