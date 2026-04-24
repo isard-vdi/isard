@@ -2,9 +2,13 @@ syntax = "proto3";
 
 package haproxy_sync.v1;
 
-// HaproxySyncService manages HAProxy syncronization
-// with new configuration, avoiding full HAProxy reloads
+// HaproxySyncService manages HAProxy synchronization
+// with new configuration, avoiding full HAProxy reloads.
 service HaproxySyncService {
+  // DomainSync performs a full synchronization of all the domains that the HAProxy needs to
+  // accept and manage.
+  rpc DomainSync(DomainSyncRequest) returns (DomainSyncResponse) {}
+
   // BastionAddSubdomain adds a subdomain to subdomains.map
   rpc BastionAddSubdomain(BastionAddSubdomainRequest) returns (BastionAddSubdomainResponse) {}
 
@@ -22,6 +26,28 @@ service HaproxySyncService {
 
   // BastionGetCurrentMaps returns current HAProxy map state
   rpc BastionGetCurrentMaps(BastionGetCurrentMapsRequest) returns (BastionGetCurrentMapsResponse) {}
+}
+
+message DomainSyncDomain {
+  string name = 1;
+  bytes certificate = 2; // PEM. If empty, issued via ACME.
+}
+
+message DomainSyncRequest {
+  repeated DomainSyncDomain domains = 1;
+}
+
+message DomainSyncResponse {
+  int32 domains_added = 1;
+  int32 domains_removed = 2;
+  int32 certs_issued = 3;
+  int32 certs_removed = 4;
+  repeated DomainSyncError failed_domains = 5;
+}
+
+message DomainSyncError {
+  string domain = 1;
+  string error = 2;
 }
 
 message BastionAddSubdomainRequest {
