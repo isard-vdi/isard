@@ -48,7 +48,6 @@ ALLINONE_PARTS="
 	webapp
 	stats
 	monitor
-	api
 	scheduler
 	authentication
 	vpn
@@ -62,6 +61,10 @@ ALLINONE_PARTS="
 	notifier
 	sessions
 	bastion
+	apiv4
+	socketio
+	changefeed
+	change-handler
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -107,7 +110,6 @@ WEB_PARTS="
 	static
 	portal
 	webapp
-	api
 	scheduler
 	authentication
 	vpn
@@ -120,6 +122,10 @@ WEB_PARTS="
 	sessions
 	bastion
 	backupninja
+	apiv4
+	socketio
+	changefeed
+	change-handler
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
@@ -193,7 +199,7 @@ check_docker_compose_version(){
 }
 
 get_config_files(){
-	ls isardvdi*.cfg
+	ls isardvdi*.cfg 2>/dev/null
 }
 
 get_config_name(){
@@ -428,14 +434,6 @@ create_docker_compose_file(){
 	then
 		BACKUP_DISKS_ENABLED="false"
 	fi
-	if [ -z "$GOLANG_BUILD_IMAGE" ]
-	then
-		export GOLANG_BUILD_IMAGE="golang:1.23-alpine3.20"
-	fi
-	if [ -z "$GOLANG_RUN_IMAGE" ]
-	then
-		export GOLANG_RUN_IMAGE="alpine:3.20"
-	fi
 	if [ -z "$FLAVOUR" ]
 	then
 		FLAVOUR="all-in-one"
@@ -637,7 +635,7 @@ generate_code(){
 	case "$USAGE" in 
 	build)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
-		docker build -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
+		docker build --pull -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
 		;;
 	devel | test | production)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
@@ -649,7 +647,7 @@ generate_code(){
 		;;
 	esac
 
-	docker run --rm -u "$(id -u)" -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$DOCKER_IMAGE"
+	docker run --rm -u "$(id -u)" -e HOME=/tmp -e GOPATH=/tmp/go -e GOCACHE=/tmp/go-cache -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$DOCKER_IMAGE"
 	echo "Generated the code successfully"
 }
 
@@ -663,7 +661,14 @@ fi
 git submodule init
 git submodule update --recursive --remote
 
-get_config_files | while read config_file
+CONFIG_FILES=$(get_config_files)
+if [ -z "$CONFIG_FILES" ]; then
+	echo "ERROR: no isardvdi*.cfg found in $(pwd)." >&2
+	echo "Copy isardvdi.cfg.example to isardvdi.cfg and set USAGE=." >&2
+	exit 1
+fi
+
+echo "$CONFIG_FILES" | while read config_file
 do
 	(create_docker_compose_file "$config_file")
 

@@ -31,6 +31,7 @@ engine/.idea/
 #pytest
 .pytest_cache
 __pycache__
+.coverage
 
 #ipython
 .ipython
@@ -70,6 +71,7 @@ database/
 tetris/.env
 
 /docker-compose*.yml
+/docker-compose.yml.production
 
 #debug
 /debug.yml
@@ -78,9 +80,26 @@ tetris/.env
 #development
 engine/engine/supervisord.pid
 docker/hypervisor/src/vlans/api_client.py
-frontend/yarn.lock
+component/frontend/yarn.lock
 
 # Generated code
 pkg/gen
-frontend/src/gen
+component/frontend/src/gen
 testing_*_mock.go
+pkg/oas/apiv4/apiv4*.json
+
+api/src/api/bastion_domains/*.map
+
+# Playwright reports and results
+playwright-report/
+test-results/
+
+# Local CI results
+ci-results/
+
+# npm lockfile (project uses yarn)
+testing/e2e/package-lock.json
+node_modules/
+
+# Local git worktrees (for rebases and parallel work)
+.worktrees/
