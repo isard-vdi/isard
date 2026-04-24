@@ -11,16 +11,24 @@ from uuid import uuid4
 
 import humanfriendly as hf
 import rethinkdb as r
-from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from redis import Redis
 
 from .lib import *
 from .log import *
 
-""" 
+"""
 Update to new database release version when new code version release
 """
-release_version = 183
+release_version = 190
+# release 190: Add allow_insecure_tls field to LDAP and SAML provider configs
+# release 189: Move hypervisor thread_status from DB to engine RAM; drop the field
+# release 187: Add recycle_bin compound indexes + pre-computed count fields for performance
+# release 186: Split category authentication tri-state boolean into two explicit booleans
+#              Import authentication providers status from AUTHENTICATION_*_ENABLED variables
+#              Repair storage records missing user_id, ensure perms and status_logs
+# release 185: Align deployment structure with apiv4 (tag_desktop_id, image, kind, deployment_users quota)
+# release 184: Add recycle_bin indexes and pre-computed count fields for performance
 # release 183: Import Google OAuth2 configuration from AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* environment variables
 # release 182: Import SAML configuration from AUTHENTICATION_AUTHENTICATION_SAML_* environment variables
 # release 181: Add proxy_protocol field to bastion targets http configuration
@@ -1099,6 +1107,38 @@ password:s:%s"""
                 }
             ).run(self.conn)
 
+        if version == 186:
+            default_config = {
+                "local": "true",
+                "ldap": "false",
+                "saml": "false",
+                "google": "false",
+            }
+            auth_config = {}
+            for config_key, config_value in default_config.items():
+                auth_config[config_key] = {
+                    "enabled": bool(
+                        strtobool(
+                            os.environ.get(
+                                f"AUTHENTICATION_AUTHENTICATION_{config_key.upper()}_ENABLED",
+                                config_value,
+                            )
+                        )
+                    )
+                }
+
+            r.table(table).update({"auth": auth_config}).run(self.conn)
+
+        if version == 190:
+            r.table(table).update(
+                {
+                    "auth": {
+                        "ldap": {"ldap_config": {"allow_insecure_tls": False}},
+                        "saml": {"saml_config": {"allow_insecure_tls": False}},
+                    }
+                }
+            ).run(self.conn)
+
         return True
 
     """
@@ -1401,6 +1441,25 @@ password:s:%s"""
                     "Could not update table "
                     + table
                     + " conversion fields for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
+
+        if version == 189:
+            # thread_status moved from DB to engine-process RAM.
+            # Strip the now-obsolete field from every hypervisor row in a
+            # single server-side replace. Non-atomic is required because
+            # replace() with an r.row expression must be non-atomic.
+            try:
+                r.table(table).replace(
+                    r.row.without("thread_status"), non_atomic=True
+                ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "Could not strip thread_status from "
+                    + table
+                    + " for db version "
                     + str(version)
                     + "!"
                 )
@@ -3475,6 +3534,79 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 184:
+            try:
+                # Set tag_desktop_id on domains with a tag by looking up their deployment
+                deployments = list(
+                    r.table("deployments").pluck("id", "create_dict").run(self.conn)
+                )
+                deployment_tag_desktop_ids = {}
+                for deployment in deployments:
+                    if (
+                        isinstance(deployment.get("create_dict"), list)
+                        and len(deployment["create_dict"]) > 0
+                    ):
+                        deployment_tag_desktop_ids[deployment["id"]] = deployment[
+                            "create_dict"
+                        ][0].get("tag_desktop_id", False)
+
+                # Update domains with a tag
+                tagged_domains = list(
+                    r.table(table)
+                    .filter(lambda d: d["tag"] != False)
+                    .pluck("id", "tag")
+                    .run(self.conn)
+                )
+                for domain in tagged_domains:
+                    tag_desktop_id = deployment_tag_desktop_ids.get(
+                        domain["tag"], False
+                    )
+                    r.table(table).get(domain["id"]).update(
+                        {"tag_desktop_id": tag_desktop_id}
+                    ).run(self.conn)
+
+                # Set tag_desktop_id = False on domains without a tag
+                r.table(table).filter(
+                    lambda d: d.has_fields("tag_desktop_id").not_()
+                ).update({"tag_desktop_id": False}).run(self.conn)
+
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("tag_desktop_id").run(self.conn)
+                r.table(table).index_wait("tag_desktop_id").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "tag_tag_desktop_id",
+                    [r.row["tag"], r.row["tag_desktop_id"]],
+                ).run(self.conn)
+                r.table(table).index_wait("tag_tag_desktop_id").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 185:
+            # Compound indexes for apiv4 templates pagination
+            try:
+                r.table(table).index_create(
+                    "kind_accessed",
+                    [r.row["kind"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("kind_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_create(
+                    "enabled_kind_accessed",
+                    [r.row["enabled"], r.row["kind"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("enabled_kind_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -3908,6 +4040,45 @@ password:s:%s"""
 
             except Exception as e:
                 print(e)
+
+        if version == 184:
+            try:
+                deployments = list(r.table(table).run(self.conn))
+                for deployment in deployments:
+                    tag_desktop_id = str(uuid4())
+                    update_data = {}
+                    # Add tag_desktop_id to each create_dict entry
+                    if isinstance(deployment.get("create_dict"), list):
+                        new_create_dict = []
+                        for cd in deployment["create_dict"]:
+                            if "tag_desktop_id" not in cd:
+                                cd["tag_desktop_id"] = tag_desktop_id
+                            new_create_dict.append(cd)
+                        update_data["create_dict"] = new_create_dict
+                    # Add image at deployment root if missing
+                    if "image" not in deployment:
+                        if (
+                            isinstance(deployment.get("create_dict"), list)
+                            and len(deployment["create_dict"]) > 0
+                            and "image" in deployment["create_dict"][0]
+                        ):
+                            update_data["image"] = deployment["create_dict"][0]["image"]
+                        else:
+                            update_data["image"] = {
+                                "id": "1.jpg",
+                                "type": "stock",
+                                "url": "",
+                            }
+                    # Add kind field
+                    if "kind" not in deployment:
+                        update_data["kind"] = "desktops"
+                    if update_data:
+                        r.table(table).get(deployment["id"]).update(update_data).run(
+                            self.conn
+                        )
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -4088,6 +4259,16 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 188:
+            try:
+                r.table(table).index_create(
+                    "status_accessed",
+                    [r.row["status"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("status_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -4244,6 +4425,52 @@ password:s:%s"""
                         {
                             "limits": {
                                 "deployments_total": 999,
+                            }
+                        },
+                    ],
+                    group["id"],
+                )
+
+        if version == 184:
+            groups_quota = list(
+                r.table(table)
+                .filter(lambda group: r.not_(group["quota"] == False))
+                .run(self.conn)
+            )
+            for group in groups_quota:
+                quota = group["quota"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployment_users": quota.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    group["id"],
+                )
+                r.table(table).get(group["id"]).update(
+                    {"quota": {"deployment_desktops": 999}}
+                ).run(self.conn)
+
+            groups_limits = list(
+                r.table(table)
+                .filter(lambda group: r.not_(group["limits"] == False))
+                .run(self.conn)
+            )
+            for group in groups_limits:
+                limits = group["limits"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "limits": {
+                                "deployment_users": limits.get(
+                                    "deployment_desktops", 999
+                                ),
                             }
                         },
                     ],
@@ -4859,6 +5086,32 @@ password:s:%s"""
                 self.add_keys(table, [{"api_key": None}])
             except Exception as e:
                 print(e)
+
+        if version == 184:
+            users_quota = list(
+                r.table(table)
+                .filter(lambda user: r.not_(user["quota"] == False))
+                .run(self.conn)
+            )
+            for user in users_quota:
+                quota = user["quota"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployment_users": quota.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    user["id"],
+                )
+                r.table(table).get(user["id"]).update(
+                    {"quota": {"deployment_desktops": 999}}
+                ).run(self.conn)
+
         return True
 
     """
@@ -5402,6 +5655,150 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 186:
+            try:
+                # Find storage records missing user_id
+                broken_ids = list(
+                    r.table(table)
+                    .filter(lambda s: s.has_fields("user_id").not_())["id"]
+                    .run(self.conn)
+                )
+                print(
+                    f"--- Found {len(broken_ids)} storage records missing user_id ---"
+                )
+
+                if broken_ids:
+                    # Phase 1: Try to repair from domain relationship
+                    repairable = list(
+                        r.table(table)
+                        .get_all(r.args(broken_ids))
+                        .eq_join("id", r.table("domains"), index="storage_ids")
+                        .pluck({"left": {"id": True}, "right": {"user": True}})
+                        .run(self.conn)
+                    )
+                    repaired_ids = set()
+                    for item in repairable:
+                        r.table(table).get(item["left"]["id"]).update(
+                            {"user_id": item["right"]["user"]}
+                        ).run(self.conn)
+                        repaired_ids.add(item["left"]["id"])
+                    print(
+                        f"--- Repaired {len(repaired_ids)} storage records from domain owner ---"
+                    )
+
+                    # Phase 2: Try to repair backing files by tracing children
+                    # to their domain owners, preferring template owners since
+                    # backing files typically belong to templates
+                    unrepairable_ids = [
+                        sid for sid in broken_ids if sid not in repaired_ids
+                    ]
+                    if unrepairable_ids:
+                        for sid in unrepairable_ids:
+                            # Get children that have a user_id
+                            children = list(
+                                r.table(table)
+                                .get_all(sid, index="parent")
+                                .has_fields("user_id")
+                                .pluck("id", "user_id")
+                                .run(self.conn)
+                            )
+                            if not children:
+                                continue
+
+                            # Find domains that own these child storages
+                            child_ids = [c["id"] for c in children]
+                            child_domains = list(
+                                r.table("domains")
+                                .get_all(r.args(child_ids), index="storage_ids")
+                                .pluck("user", "kind")
+                                .run(self.conn)
+                            )
+
+                            # Prefer the template domain owner (backing files belong to templates)
+                            template_owner = None
+                            any_owner = None
+                            for d in child_domains:
+                                if d.get("kind") == "template":
+                                    template_owner = d["user"]
+                                    break
+                                if any_owner is None:
+                                    any_owner = d["user"]
+
+                            owner = template_owner or any_owner
+                            if owner:
+                                r.table(table).get(sid).update({"user_id": owner}).run(
+                                    self.conn
+                                )
+                                repaired_ids.add(sid)
+                                print(
+                                    f"--- Repaired storage {sid} from {'template' if template_owner else 'child'} domain owner ---"
+                                )
+
+                    # Phase 3: Delete truly orphaned records (no domain, no children with user_id)
+                    still_broken = [
+                        sid for sid in broken_ids if sid not in repaired_ids
+                    ]
+                    if still_broken:
+                        print(
+                            f"--- Deleting {len(still_broken)} unrepairable storage records ---"
+                        )
+                        r.table(table).get_all(r.args(still_broken)).delete().run(
+                            self.conn
+                        )
+
+                # Ensure all records have perms and status_logs
+                r.table(table).filter(lambda s: s.has_fields("perms").not_()).update(
+                    {"perms": ["r", "w"]}
+                ).run(self.conn)
+
+                r.table(table).filter(
+                    lambda s: s.has_fields("status_logs").not_()
+                ).update({"status_logs": []}).run(self.conn)
+
+            except Exception as e:
+                print(e)
+
+        if version == 187:
+            table = "recycle_bin"
+            try:
+                # Add compound indexes for range queries on status + accessed time
+                try:
+                    r.table(table).index_create(
+                        "status_accessed", [r.row["status"], r.row["accessed"]]
+                    ).run(self.conn)
+                except Exception:
+                    pass
+                try:
+                    r.table(table).index_create(
+                        "owner_category_status_accessed",
+                        [
+                            r.row["owner_category_id"],
+                            r.row["status"],
+                            r.row["accessed"],
+                        ],
+                    ).run(self.conn)
+                except Exception:
+                    pass
+                r.table(table).index_wait().run(self.conn)
+                print("--- Created recycle_bin compound indexes ---")
+
+                # Backfill pre-computed count fields and last_log
+                r.table(table).update(
+                    lambda rb: {
+                        "desktops_count": rb["desktops"].default([]).count(),
+                        "templates_count": rb["templates"].default([]).count(),
+                        "storages_count": rb["storages"].default([]).count(),
+                        "deployments_count": rb["deployments"].default([]).count(),
+                        "categories_count": rb["categories"].default([]).count(),
+                        "groups_count": rb["groups"].default([]).count(),
+                        "users_count": rb["users"].default([]).count(),
+                        "last_log": rb["logs"].default([]).nth(-1).default(None),
+                    }
+                ).run(self.conn)
+                print("--- Backfilled recycle_bin count fields ---")
+            except Exception as e:
+                print(e)
+
         return True
 
     def gpu_profiles(self, version):
@@ -5848,6 +6245,83 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 184:
+            categories_quota = list(
+                r.table(table)
+                .filter(lambda category: r.not_(category["quota"] == False))
+                .run(self.conn)
+            )
+            for category in categories_quota:
+                quota = category["quota"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployment_users": quota.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    category["id"],
+                )
+                r.table(table).get(category["id"]).update(
+                    {"quota": {"deployment_desktops": 999}}
+                ).run(self.conn)
+
+            categories_limits = list(
+                r.table(table)
+                .filter(lambda category: r.not_(category["limits"] == False))
+                .run(self.conn)
+            )
+            for category in categories_limits:
+                limits = category["limits"]
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "limits": {
+                                "deployment_users": limits.get(
+                                    "deployment_desktops", 999
+                                ),
+                            }
+                        },
+                    ],
+                    category["id"],
+                )
+
+        if version == 186:
+            config_map = {
+                None: {
+                    "disabled": False,
+                    "email_domain_restriction-enabled": False,
+                },
+                False: {
+                    "disabled": True,
+                    "email_domain_restriction-enabled": False,
+                },
+                True: {
+                    "disabled": False,
+                    "email_domain_restriction-enabled": True,
+                },
+            }
+            categories = list(r.table(table).run(self.conn))
+            for category in categories:
+                for provider in category.get("authentication", {}).values():
+                    mapped = config_map[provider.get("enabled", None)]
+                    allowed_domains = provider.get("allowed_domains", [])
+                    provider["disabled"] = mapped["disabled"]
+                    provider["config_source"] = "global"
+                    provider["email_domain_restriction"] = {
+                        "enabled": mapped["email_domain_restriction-enabled"]
+                        and bool(allowed_domains),
+                        "allowed": allowed_domains,
+                    }
+                    provider.pop("allowed_domains", None)
+                    provider.pop("enabled", None)
+            r.table(table).insert(categories, conflict="replace").run(self.conn)
+
         return True
 
     def qos_net(self, version):
@@ -6142,6 +6616,51 @@ password:s:%s"""
                 r.table(table).index_create(
                     "owner_group_status",
                     [r.row["owner_group_id"], r.row["status"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 184:
+            try:
+                r.table(table).index_create(
+                    "status_accessed",
+                    [r.row["status"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("status_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "owner_category_status_accessed",
+                    [
+                        r.row["owner_category_id"],
+                        r.row["status"],
+                        r.row["accessed"],
+                    ],
+                ).run(self.conn)
+                r.table(table).index_wait("owner_category_status_accessed").run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).update(
+                    lambda doc: {
+                        "desktops_count": doc["desktops"].count(),
+                        "templates_count": doc["templates"].count(),
+                        "storages_count": doc["storages"].count(),
+                        "deployments_count": doc["deployments"].count(),
+                        "users_count": doc["users"].count(),
+                        "groups_count": doc["groups"].count(),
+                        "categories_count": doc["categories"].count(),
+                        "last_log": r.branch(
+                            doc["logs"].count().gt(0),
+                            doc["logs"].nth(-1),
+                            None,
+                        ),
+                    }
                 ).run(self.conn)
             except Exception as e:
                 print(e)

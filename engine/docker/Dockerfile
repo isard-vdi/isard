@@ -36,13 +36,13 @@ RUN apk add --no-cache openssl shadow
 RUN useradd -u 1000 -ms /bin/sh qemu
 # Copy the isard source
 COPY engine/engine /isard
-ENV PYTHONPATH /opt/isardvdi
-COPY component/_common/src /opt/isardvdi/isardvdi_common
+ENV PYTHONPATH /opt/isardvdi:/opt/isardvdi/asyncapi_changefeed
+COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
+COPY pkg/gen/asyncapi/changefeed /opt/isardvdi/asyncapi_changefeed
 
 COPY engine/docker/genrsa.sh /
 COPY engine/docker/run.sh /
 COPY engine/docker/add-hypervisor.sh /
-COPY engine/docker/add-hyper-rethink.py /
 
 WORKDIR /isard
 

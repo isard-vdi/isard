@@ -41,7 +41,7 @@ from engine.services.lib.qcow import (
 )
 from engine.services.lib.storage import update_storage_status
 from engine.services.log import *
-from isardvdi_common.storage import Storage
+from isardvdi_common.models.storage import Storage
 
 TIMEOUT_QUEUES = float(CONFIG_DICT["TIMEOUTS"]["timeout_queues"])
 TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE = max(

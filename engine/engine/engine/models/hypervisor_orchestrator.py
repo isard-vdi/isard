@@ -13,6 +13,8 @@ import threading
 import time
 import traceback
 
+from changefeed_subscribers.engine import EngineSubscriber
+from changefeed_subscribers.hypervisors import HypervisorsSubscriber
 from engine.config import CONFIG_DICT
 from engine.models.pool_hypervisors import move_actions_to_others_hypers
 from engine.services.db import (
@@ -29,7 +31,9 @@ from engine.services.db.db import new_rethink_connection
 from engine.services.db.hypervisors import (
     get_hyp_hostname_from_id,
     get_hyp_hostname_user_port_from_id,
+    get_hyp_thread_status,
     get_hypers_enabled_with_capabilities_status,
+    remove_hyp_thread_status,
     update_hyp_status,
     update_hyp_thread_status,
 )
@@ -39,6 +43,7 @@ from engine.services.threads.threads import (
     launch_disk_operations_thread,
     launch_thread_worker,
 )
+from isardvdi_common.redis_stream import RedisStreamConsumer
 from rethinkdb import r
 
 # virtio_test_disk_relative_path = 'admin/admin/admin/virtio_testdisk.qcow2'
@@ -195,19 +200,21 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
                 if action["type"] == "enable_hyper":
                     if action["status"] in ["Error", "Offline"]:
+                        thread_status = get_hyp_thread_status(action["hyp_id"])
                         self.start_hyper_threads(
                             action["hyp_id"],
                             action["capabilities"],
                             action["status"],
-                            action["thread_status"],
+                            thread_status,
                         )
 
                 if action["type"] == "disable_hyper":
+                    thread_status = get_hyp_thread_status(action["hyp_id"])
                     self.disable_hyper(
                         action["hyp_id"],
                         action["capabilities"],
                         action["status"],
-                        action["thread_status"],
+                        thread_status,
                     )
 
                 if action["type"] == "new_hyper_in_db":
@@ -498,133 +505,119 @@ class HypervisorChangesThread(threading.Thread):
         self.name = name
         self.q_orchestrator = q_orchestrator
         self.stop = False
-        self.r_conn = False
 
     def run(self):
         self.tid = get_tid()
         logs.main.info("starting thread: {} (TID {})".format(self.name, self.tid))
-        self.r_conn = new_rethink_connection()
-        # rtable=r.table('disk_operations')
-        # for c in r.table('hypervisors').changes(include_initial=True, include_states=True).run(r_conn):
-        for c in (
-            r.table("hypervisors")
-            .pluck(
-                "id",
-                "capabilities",
-                "enabled",
-                "status",
-                "thread_status",
-                "hypervisors_pools",
-                "only_forced",
-                "gpu_only",
-            )
-            .merge({"table": "hypervisors"})
-            .changes()
-            .union(
-                r.table("engine")
-                .pluck("status_all_threads")
-                .merge({"table": "engine"})
-                .changes()
-            )
-            .run(self.r_conn)
-        ):
-            # stop thread
-            if self.stop is True:
-                break
 
-            if c["new_val"] != None:
-                if c["new_val"]["table"] == "engine":
-                    if c["new_val"]["status_all_threads"] == "Stopping":
-                        break
-            if c.get("old_val", None) is not None and c["old_val"]["table"] == "engine":
-                continue
-            if c.get("new_val", None) is not None and c["new_val"]["table"] == "engine":
-                continue
+        stop_event = threading.Event()
+        self._stop_event = stop_event
+        consumer = RedisStreamConsumer(
+            streams=["stream:hypervisors", "stream:engine"],
+            group="engine-hypervisors",
+        )
+
+        def handler(data):
+            table = data.get("table")
+            if table == "engine":
+                envelope = EngineSubscriber.parse_dict(data)
+                if envelope.change.new_val is not None:
+                    status = (envelope.change.new_val.additional_properties or {}).get(
+                        "status_all_threads"
+                    )
+                    if status == "Stopping":
+                        self._stop_event.set()
+                return
+
+            if table == "hypervisors":
+                envelope = HypervisorsSubscriber.parse_dict(data)
+                self._process_change(envelope.change)
+
+        consumer.run(handler, stop_event=stop_event)
+        logs.main.info("finished thread hypervisor changes")
+
+    def _process_change(self, change):
+        try:
+            new_val = change.new_val
+            old_val = change.old_val
 
             # hypervisor deleted
-            if c["new_val"] is None:
-                if c["old_val"].get("table", False) == "hypervisors":
-                    logs.main.debug("hypervisor deleted in rethink")
-                    logs.main.debug(pprint.pformat(c))
-                    update_domains_in_deleted_hyper(c["old_val"]["id"])
+            if new_val is None:
+                logs.main.debug("hypervisor deleted in rethink")
+                logs.main.debug(pprint.pformat(change))
+                remove_hyp_thread_status(old_val.id)
+                update_domains_in_deleted_hyper(old_val.id)
 
             # hypervisor created
-            elif c["old_val"] is None:
-                if c["new_val"].get("table", False) == "hypervisors":
-                    logs.main.debug("hypervisor created in rethink")
-                    logs.main.debug(pprint.pformat(c))
-                    if (
-                        c["new_val"]["status"] == "Offline"
-                        and c["new_val"]["enabled"] == True
-                    ):
-                        action = {}
-                        action["type"] = "enable_hyper"
-                        action["hyp_id"] = c["new_val"].get("id")
-                        action["capabilities"] = c["new_val"].get("capabilities")
-                        action["enabled"] = c["new_val"].get("enabled")
-                        action["status"] = c["new_val"].get("status")
-                        action["thread_status"] = c["new_val"].get("thread_status", {})
-                        action["hypervisors_pools"] = c["new_val"].get(
-                            "hypervisors_pools"
-                        )
-                        self.q_orchestrator.put(action)
+            elif old_val is None:
+                logs.main.debug("hypervisor created in rethink")
+                logs.main.debug(pprint.pformat(change))
+                if new_val.status == "Offline" and new_val.enabled is True:
+                    action = {
+                        "type": "enable_hyper",
+                        "hyp_id": new_val.id,
+                        "capabilities": new_val.capabilities,
+                        "enabled": new_val.enabled,
+                        "status": new_val.status,
+                        "thread_status": (new_val.additional_properties or {}).get(
+                            "thread_status", {}
+                        ),
+                        "hypervisors_pools": new_val.hypervisors_pools,
+                    }
+                    self.q_orchestrator.put(action)
             else:
-                if c["new_val"].get("table", False) == "hypervisors":
-                    logs.main.debug("hypervisor fields modified in rethink")
-                    logs.main.debug(pprint.pformat(c))
-                    if (
-                        c["old_val"]["enabled"] == False
-                        and c["new_val"]["enabled"] == True
-                    ):
-                        action = {}
-                        action["type"] = "enable_hyper"
-                        action["hyp_id"] = c["new_val"].get("id")
-                        action["capabilities"] = c["new_val"].get("capabilities")
-                        action["enabled"] = c["new_val"].get("enabled")
-                        action["status"] = c["new_val"].get("status")
-                        action["thread_status"] = c["new_val"].get("thread_status", {})
-                        action["hypervisors_pools"] = c["new_val"].get(
-                            "hypervisors_pools"
-                        )
-                        self.q_orchestrator.put(action)
-                    if (
-                        c["old_val"]["enabled"] == True
-                        and c["new_val"]["enabled"] == False
-                    ):
-                        action = {}
-                        action["type"] = "disable_hyper"
-                        action["hyp_id"] = c["new_val"].get("id")
-                        action["capabilities"] = c["new_val"].get("capabilities")
-                        action["enabled"] = c["new_val"].get("enabled")
-                        action["status"] = c["new_val"].get("status")
-                        action["thread_status"] = c["new_val"].get("thread_status", {})
-                        action["hypervisors_pools"] = c["new_val"].get(
-                            "hypervisors_pools"
-                        )
-                        self.q_orchestrator.put(action)
-                    # Detect only_forced or gpu_only transition → move non-GPU queued actions
-                    old_only_forced = c["old_val"].get("only_forced", False)
-                    new_only_forced = c["new_val"].get("only_forced", False)
-                    old_gpu_only = c["old_val"].get("gpu_only", False)
-                    new_gpu_only = c["new_val"].get("gpu_only", False)
+                logs.main.debug("hypervisor fields modified in rethink")
+                logs.main.debug(pprint.pformat(change))
+                if old_val.enabled is False and new_val.enabled is True:
+                    action = {
+                        "type": "enable_hyper",
+                        "hyp_id": new_val.id,
+                        "capabilities": new_val.capabilities,
+                        "enabled": new_val.enabled,
+                        "status": new_val.status,
+                        "thread_status": (new_val.additional_properties or {}).get(
+                            "thread_status", {}
+                        ),
+                        "hypervisors_pools": new_val.hypervisors_pools,
+                    }
+                    self.q_orchestrator.put(action)
+                if old_val.enabled is True and new_val.enabled is False:
+                    action = {
+                        "type": "disable_hyper",
+                        "hyp_id": new_val.id,
+                        "capabilities": new_val.capabilities,
+                        "enabled": new_val.enabled,
+                        "status": new_val.status,
+                        "thread_status": (new_val.additional_properties or {}).get(
+                            "thread_status", {}
+                        ),
+                        "hypervisors_pools": new_val.hypervisors_pools,
+                    }
+                    self.q_orchestrator.put(action)
+                # Detect only_forced or gpu_only transition
+                old_only_forced = old_val.only_forced
+                new_only_forced = new_val.only_forced
+                old_gpu_only = old_val.gpu_only
+                new_gpu_only = new_val.gpu_only
 
-                    if (not old_only_forced and new_only_forced) or (
-                        not old_gpu_only and new_gpu_only
-                    ):
-                        action = {}
-                        action["type"] = "hyp_only_forced"
-                        action["hyp_id"] = c["new_val"].get("id")
-                        self.q_orchestrator.put(action)
+                if (not old_only_forced and new_only_forced) or (
+                    not old_gpu_only and new_gpu_only
+                ):
+                    action = {
+                        "type": "hyp_only_forced",
+                        "hyp_id": new_val.id,
+                    }
+                    self.q_orchestrator.put(action)
 
-                    if (
-                        c["old_val"]["enabled"] == False
-                        and c["new_val"]["status"] == "Deleting"
-                        and c["old_val"]["status"] in ["Error", "Offline"]
-                    ):
-                        hyp_id = c["new_val"].get("id")
+                if (
+                    old_val.enabled is False
+                    and new_val.status == "Deleting"
+                    and old_val.status in ["Error", "Offline"]
+                ):
+                    hyp_id = new_val.id
+                    cleanup_hypervisor_gpus(hyp_id)
+                    delete_table_item("hypervisors", hyp_id)
 
-                        # Remove all the GPUs of the said hypervisor
-                        cleanup_hypervisor_gpus(hyp_id)
-                        delete_table_item("hypervisors", hyp_id)
-
-        self.r_conn.close()
+        except Exception as e:
+            logs.main.error(f"Error processing hypervisor change: {e}")
+            logs.main.error(traceback.format_exc())

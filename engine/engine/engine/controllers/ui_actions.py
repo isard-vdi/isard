@@ -5,6 +5,7 @@
 
 import os
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
@@ -55,7 +56,7 @@ from engine.services.lib.storage import (
     update_storage_deleted_domain,
 )
 from engine.services.log import *
-from isardvdi_common.domain import Domain
+from isardvdi_common.models.domain import Domain
 
 DEFAULT_HOST_MODE = "host-passthrough"
 
@@ -75,6 +76,13 @@ Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE = 40
 # TTL cache for template lookups during batch domain creation
 # Avoids repeated DB queries when creating many domains from the same template
 _template_cache = TTLCache(maxsize=100, ttl=60)
+
+# Thread pool for the async post-edit "Updating" → "Stopped" transition.
+# Matches the apiv4-and-websockets pattern (updating_thread_pool in that
+# branch's ui_actions.py).
+updating_thread_pool = ThreadPoolExecutor(
+    max_workers=4, thread_name_prefix="updating_domain"
+)
 
 
 @cached(cache=_template_cache)
@@ -556,6 +564,101 @@ class UiActions(object):
         pass
 
         # alberto: comentar con josep maria,
+
+    def updating_from_create_dict(self, id_domain, ssl=True):
+        """Transition a desktop from Updating back to Stopped after an edit.
+
+        Ported from apiv4-and-websockets (engine/controllers/ui_actions.py
+        ``updating_from_create_dict``). When a user edits a desktop from
+        the old frontend / webapp, apiv4 writes the new
+        create_dict/hardware and flips status to ``Updating``. The engine
+        must observe the transition, validate that the new create_dict
+        produces a valid XML via ``recreate_xml_to_start``, and flip the
+        status back to ``Stopped`` (or ``Failed`` if validation errors).
+
+        Without this, the desktop is stuck in ``Updating`` forever.
+        """
+        try:
+            updating_thread_pool.submit(
+                self.updating_from_create_dict_th, id_domain, ssl
+            )
+        except Exception as e:
+            logs.exception_id.debug("0018")
+            log.error("Updating domain {} failed. Exception: {}".format(id_domain, e))
+
+    def updating_from_create_dict_th(self, id_domain, ssl=True):
+        """Worker body for ``updating_from_create_dict``.
+
+        Adapted from apiv4-and-websockets. This branch's
+        ``recreate_xml_to_start`` already rolls the old two-step flow
+        (populate_dict_hardware_from_create_dict +
+        update_xml_from_dict_domain) into a single call, so we just
+        validate here and move to Stopped — next ``start_domain_from_id``
+        will regenerate the XML from create_dict on demand.
+        """
+        sleep(0.1)
+        domain = get_table_fields(
+            "domains",
+            id_domain,
+            [
+                "kind",
+                "name",
+                {"create_dict": {"hardware": "memory", "reservables": True}},
+                "forced_hyp",
+                "favourite_hyp",
+                "hypervisors_pools",
+            ],
+        )
+        if not domain:
+            log.error(f"Domain {id_domain} not found; cannot transition Updating.")
+            return False
+
+        if domain.get("kind") != "desktop":
+            # Templates don't go through the XML-validation path; just
+            # flip the status back to Stopped.
+            update_domain_status(
+                "Stopped",
+                id_domain,
+                detail="Updated hardware",
+            )
+            return True
+
+        pool_id_var = domain.get("hypervisors_pools")
+        if not pool_id_var:
+            update_domain_status(
+                "Failed",
+                id_domain,
+                detail="Updating aborted, domain missing hypervisors pool",
+            )
+            return False
+        pool_id = pool_id_var[0] if isinstance(pool_id_var, list) else pool_id_var
+
+        cpu_host_model = self.manager.pools[pool_id].conf.get(
+            "cpu_host_model", DEFAULT_HOST_MODE
+        )
+        try:
+            xml, _viewer_passwd = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
+        except Exception as e:
+            logs.exception_id.debug("0018")
+            log.error("recreate_xml_to_start in domain {}".format(id_domain))
+            log.error("Traceback: \n .{}".format(traceback.format_exc()))
+            log.error("Exception message: {}".format(e))
+            xml = False
+
+        if xml is False:
+            update_domain_status(
+                "Failed",
+                id_domain,
+                detail="DomainXML can not parse and modify xml to start",
+            )
+            return False
+
+        update_domain_status(
+            "Stopped",
+            id_domain,
+            detail="Updated hardware",
+        )
+        return True
 
     # en principio crea todo lo que se necesita en la base de datos
     # esta función sólo ha de crear el disco derivado donde le diga el campo de la base de datos

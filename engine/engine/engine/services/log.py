@@ -13,7 +13,7 @@ environ = os.environ
 
 LOG_DIR = "logs"
 # LOG_LEVEL = CONFIG_DICT["LOG"]["log_level"]
-LOG_LEVEL = environ.get("LOG_LEVEL")
+LOG_LEVEL = environ.get("LOG_LEVEL") or "INFO"
 # LOG FORMATS
 
 # FORCE LOG_LEVEL IF EXISTS FILE

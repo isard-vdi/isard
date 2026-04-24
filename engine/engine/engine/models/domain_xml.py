@@ -463,11 +463,14 @@ class DomainXML(object):
 
                 vm_dict["interfaces"].append(list_dict)
 
+        # Absolute XPath — query the full document, not the last interface
+        # from the loop above. Using `tree` here raised UnboundLocalError
+        # whenever the domain had no <interface> elements.
         vm_dict["boot_order"] = [
-            x.get("dev") for x in tree.xpath("/domain/os/boot[@dev]")
+            x.get("dev") for x in xml_tree.xpath("/domain/os/boot[@dev]")
         ]
         vm_dict["boot_menu_enable"] = [
-            x.get("dev") for x in tree.xpath("/domain/os/bootmenu[@enable]")
+            x.get("dev") for x in xml_tree.xpath("/domain/os/bootmenu[@enable]")
         ]
 
         ## OJO!!!!!!!!!!!!!!
@@ -944,7 +947,7 @@ class DomainXML(object):
         self.add_device(xpath_same, element, xpath_next, xpath_previous)
 
     def set_video_type(self, video):
-        if video.get("type", "none") in ["none", "virtio"]:
+        if video.get("type", "none") != "qxl":
             # remove all attributes like vram that have no sense if type_video is none
             # libvirt xml parser launch an exception if these keys exists
             for key in self.tree.xpath("/domain/devices/video/model")[0].keys():

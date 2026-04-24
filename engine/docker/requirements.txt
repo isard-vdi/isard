@@ -1,5 +1,5 @@
 bcrypt==3.2.0
-Flask==2.3.3
+Flask~=3.0
 Flask-Login==0.6.3
 rethinkdb==2.4.10.post1
 lxml~=4.6
@@ -14,8 +14,11 @@ flatten-dict==0.4.2
 yattag==1.14.0
 PyJWT==2.8.0
 humanfriendly==10.0
-pytz==2022.7
+pytz~=2025.2
 cachetools~=5.3
-requests~=2.31
+requests~=2.32.4
 rq==2.0.0
 tabulate==0.9.0
+gevent~=25.5
+python-socketio~=5.13.0
+pydantic~=2.12
