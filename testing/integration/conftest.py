@@ -102,6 +102,10 @@ def _cleanup_before_and_after(
 
 @pytest.fixture
 def ws(admin_client: IsardClient) -> Iterator[SocketIOListener]:
+    # Probe an authenticated endpoint first so IsardClient's 401 handler
+    # refreshes the token if it expired since the last test — otherwise the
+    # SocketIO handshake would fail on a stale JWT.
+    admin_client.get("/api/v4/item/user/get-details")
     listener = SocketIOListener(token=admin_client.token or "")
     listener.connect()
     try:

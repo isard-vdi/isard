@@ -123,7 +123,7 @@ class IsardClient:
         # after refreshing the token before reporting an assertion error
         # — without this the suite is full of false positives the moment
         # the worker hits a multi-minute download/create.
-        if resp.status_code == 401 and self._login_args:
+        if resp.status_code in (401, 403) and self._login_args:
             try:
                 self._relogin()
             except Exception:
@@ -186,7 +186,7 @@ class IsardClient:
             )
 
         resp = _send()
-        if resp.status_code == 401 and self._login_args:
+        if resp.status_code in (401, 403) and self._login_args:
             try:
                 self._relogin()
             except Exception:
