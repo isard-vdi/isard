@@ -70,37 +70,27 @@ const goToDesktops = () => {
         </Alert>
       </div>
       <div v-else class="flex items-center justify-center">
-        <div v-if="!data?.notifications" class="text-center">
+        <div v-if="!data?.notifications?.length" class="text-center">
           <p>{{ t('views.notifications.no-notifications') }}</p>
         </div>
         <div v-else class="flex flex-col">
-          <div v-for="notification in data?.notifications" :key="notification.id">
-            <Alert
-              v-for="(value, itemType) in notification"
-              :key="itemType"
-              class="flex flex-auto flex-col gap-4 m-4 max-w-5xl"
-            >
-              <AlertTitle class="text-lg font-bold text-brand-700">{{
-                value.template.title
-              }}</AlertTitle>
-              <hr />
-              <div v-if="value.notifications && value.action_id != 'custom'">
-                <div v-for="(n, index) in value.notifications" :key="index">
-                  <AlertDescription class="overflow-y-auto max-h-80">
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <span v-html="n.text" />
-                  </AlertDescription>
-                </div>
-              </div>
-              <span v-else>
-                <AlertDescription class="overflow-y-auto max-h-64 pr-2">
-                  <!-- eslint-disable-next-line vue/no-v-html -->
-                  <span v-html="value.template.body" />
-                </AlertDescription>
-              </span>
-              <footer class="text-sm text-gray-500">{{ value.template.footer }}</footer>
-            </Alert>
-          </div>
+          <Alert
+            v-for="notification in data.notifications"
+            :key="notification.id"
+            class="flex flex-auto flex-col gap-4 m-4 max-w-5xl"
+          >
+            <AlertTitle class="text-lg font-bold text-brand-700">{{
+              notification.title
+            }}</AlertTitle>
+            <hr />
+            <AlertDescription class="overflow-y-auto max-h-80 pr-2">
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <span v-html="notification.body" />
+            </AlertDescription>
+            <footer v-if="notification.footer" class="text-sm text-gray-500">
+              {{ notification.footer }}
+            </footer>
+          </Alert>
         </div>
       </div>
     </template>

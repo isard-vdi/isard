@@ -132,7 +132,7 @@ test.describe.serial('GPU desktop tests', () => {
         const startBtn = gpuCard.locator('button:has-text("Start"), button:has-text("Start now")').first()
         await performClick(page, startBtn, 1500)
 
-        const modal = page.locator('[role="alertdialog"]').first()
+        const modal = page.locator('[role="dialog"]').first()
         await expect(modal).toBeVisible({ timeout: 10000 })
 
         const dropdown = modal.locator('[role="combobox"]').first()
@@ -147,7 +147,7 @@ test.describe.serial('GPU desktop tests', () => {
         const startBtn = gpuCard.locator('button:has-text("Start"), button:has-text("Start now")').first()
         await performClick(page, startBtn, 1500)
 
-        const modal = page.locator('[role="alertdialog"]').first()
+        const modal = page.locator('[role="dialog"]').first()
         await expect(modal).toBeVisible({ timeout: 10000 })
 
         const dropdown = modal.locator('[role="combobox"]').first()
@@ -286,7 +286,7 @@ test.describe.serial('Bastion modal', () => {
         await bastionOption.click()
         await page.waitForTimeout(1000)
 
-        const modal = page.locator('[role="alertdialog"]').first()
+        const modal = page.locator('[role="dialog"]').first()
         await expect(modal).toBeVisible({ timeout: 10000 })
         await expect(modal.getByText(/Bastion target ID/i)).toBeVisible()
         await expect(modal.getByText(/http:\/\//i)).toBeVisible()
@@ -306,7 +306,7 @@ test.describe.serial('Bastion modal', () => {
         await bastionOption.click()
         await page.waitForTimeout(1000)
 
-        const modal = page.locator('[role="alertdialog"]').first()
+        const modal = page.locator('[role="dialog"]').first()
         await expect(modal).toBeVisible({ timeout: 10000 })
 
         await expect(modal.getByText(/Authorized SSH keys/i)).toBeVisible()
@@ -323,7 +323,7 @@ test('change and start modal appears when GPU is unavailable', async ({ page, us
     await expect(startBtn).toBeVisible({ timeout: 10000 })
     await performClick(page, startBtn, 2000)
 
-    const modal = page.locator('[role="alertdialog"]').first()
+    const modal = page.locator('[role="dialog"]').first()
     await expect(modal).toBeVisible({ timeout: 20000 })
 
     const modalContent = modal.locator('text=/is not available for desktop/i').first()

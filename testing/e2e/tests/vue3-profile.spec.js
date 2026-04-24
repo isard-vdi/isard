@@ -4,8 +4,8 @@ import { commonHelpers } from '../fixtures/common.js'
 const profileURL = '/frontend/profile'
 
 test.describe('Vue 3 Profile view', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories, profileURL)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories, profileURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
     expect(page.url()).toContain(profileURL)
   })

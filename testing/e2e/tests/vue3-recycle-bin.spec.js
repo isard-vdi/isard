@@ -4,8 +4,8 @@ import { commonHelpers } from '../fixtures/common.js'
 const recycleBinURL = '/frontend/recycle-bin'
 
 test.describe('Vue 3 Recycle Bin view', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories, recycleBinURL)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories, recycleBinURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
     expect(page.url()).toContain(recycleBinURL)
   })

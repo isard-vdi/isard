@@ -203,9 +203,38 @@ const loginHelpers = {
     // window.location.pathname = '/'. Wait for that to settle before the
     // caller navigates — going to a protected route with a pending login
     // bounces back to /login.
+    let urlSettled = true
     await page
       .waitForURL((u) => !/\/login(\/|$|\?)/.test(u.toString()), { timeout: 15000 })
-      .catch(() => {})
+      .catch(() => { urlSettled = false })
+
+    // Under -j 4 the JWT cookie write races with the redirect; downstream
+    // helpers (e.g. webapp-admin bridgeAdminSession) read cookies straight
+    // away and intermittently see an empty jar. Poll the playwright context
+    // cookie jar until the auth cookie is committed before returning.
+    // 80 * 250ms = 20s — generous because under heavy parallel load the
+    // apiv4 login POST has been observed to take >10s to complete.
+    const ctx = page.context()
+    let cookieFound = false
+    let lastCookieNames = ''
+    for (let i = 0; i < 80; i += 1) {
+      const cookies = await ctx.cookies()
+      lastCookieNames = cookies.map((c) => c.name).join(',')
+      if (cookies.find((c) => c.name === 'authorization' || c.name === 'isardvdi_session')) {
+        cookieFound = true
+        break
+      }
+      await page.waitForTimeout(250)
+    }
+    if (!cookieFound) {
+      // Surface the failure here instead of letting it cascade as a
+      // cryptic "no JWT cookie on context" downstream — the upstream
+      // cause is the login itself, not the helper that reads the jar.
+      throw new Error(
+        `login: JWT cookie did not appear within 20s for user=${user.username} ` +
+          `(urlSettled=${urlSettled}, currentURL=${page.url()}, cookies=[${lastCookieNames}])`,
+      )
+    }
 
     if (redirectPath) {
       await page.goto(redirectPath)
@@ -239,6 +268,18 @@ export const test = base.extend({
 
   loginHelpers: async ({ }, use) => {
     await use(loginHelpers)
+  },
+
+  // Returns admin_e2e_NN keyed by the playwright worker index, so each
+  // parallel worker logs in as a distinct admin account. The shared
+  // `users.admin` contends on Redis session state under -j 4 and the
+  // login POST bounces back to /login with no cookies set; the
+  // admin_e2e_01..15 accounts are seeded in the testing DB precisely
+  // for per-worker isolation.
+  adminPerWorker: async ({ }, use, testInfo) => {
+    const idx = (testInfo.workerIndex % 15) + 1
+    const key = `admin_e2e_${String(idx).padStart(2, '0')}`
+    await use(users[key])
   },
 })
 

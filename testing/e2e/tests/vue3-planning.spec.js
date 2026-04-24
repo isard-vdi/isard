@@ -19,7 +19,7 @@ test.describe('Vue 3 Planning view', () => {
 
   test('planning view renders for admin', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
@@ -28,7 +28,7 @@ test.describe('Vue 3 Planning view', () => {
       if (msg.type() === 'error') consoleErrors.push(msg.text())
     })
 
-    await loginHelpers.login(page, users.admin, categories, planningURL)
+    await loginHelpers.login(page, adminPerWorker, categories, planningURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
 
     expect(page.url()).toContain(planningURL)
@@ -47,14 +47,19 @@ test.describe('Vue 3 Planning view', () => {
         !e.includes('Failed to load resource') &&
         !e.includes('favicon') &&
         !e.includes('socket.io') &&
-        !e.includes('net::ERR_FAILED'),
+        !e.includes('net::ERR_FAILED') &&
+        // [WDS] Disconnected! is webpack-dev-server HMR noise from the
+        // co-served Vue 2 old-frontend; sockjs-node is the same dev-server's
+        // CORS-blocked keepalive. Both unrelated to Vue 3 functionality.
+        !e.includes('[WDS]') &&
+        !e.includes('sockjs-node'),
     )
     expect(fatalErrors, `Console errors:\n${fatalErrors.join('\n')}`).toHaveLength(0)
   })
 
   test('planning view fetches reservable types list', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
@@ -63,7 +68,7 @@ test.describe('Vue 3 Planning view', () => {
       { timeout: 15000 },
     )
 
-    await loginHelpers.login(page, users.admin, categories, planningURL)
+    await loginHelpers.login(page, adminPerWorker, categories, planningURL)
     const response = await reservablesPromise
 
     expect(response.status()).toBe(200)
@@ -76,11 +81,11 @@ test.describe('Vue 3 Planning view', () => {
 
   test('selecting a reservable type loads items (GPUs)', async ({
     page,
-    users,
+    adminPerWorker,
     categories,
     loginHelpers,
   }) => {
-    await loginHelpers.login(page, users.admin, categories, planningURL)
+    await loginHelpers.login(page, adminPerWorker, categories, planningURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
 
     // Open the Bookable type select. Shadcn/radix renders select triggers as

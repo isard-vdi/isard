@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import Modal from './Modal.vue'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { modalVariants, type ModalVariants } from '.'
 import Icon from '@/components/icon/Icon.vue'
@@ -38,12 +46,13 @@ const props = withDefaults(defineProps<Props>(), {
   closeOnBackdropClick: true
 })
 
-const emit = defineEmits(['update:open', 'cancel'])
+const emit = defineEmits(['update:open', 'cancel', 'close'])
 
 const handleClose = () => {
   if (props.loading) return
   emit('update:open', false)
   emit('cancel')
+  emit('close')
 }
 
 const widthClass = computed(() => {
@@ -53,23 +62,31 @@ const widthClass = computed(() => {
 </script>
 
 <template>
-  <Modal
-    :open="props.open"
-    :has-image="true"
-    :close-on-backdrop-click="!props.loading && props.closeOnBackdropClick"
-    :show-close-button="props.showCloseButton"
-    :close-button-color="'base-white'"
-    :class="cn('rounded-lg', widthClass, props.class)"
-    :title="props.title"
-    :_description="props.description"
-    @close="handleClose"
-  >
-    <template #image>
+  <AlertDialog :open="props.open" @update:open="(v) => !v && handleClose()">
+    <AlertDialogContent
+      :class="
+        cn(
+          'bg-base-background shadow-md max-h-[90vh] flex flex-col p-0 rounded-lg overflow-hidden',
+          widthClass,
+          props.class
+        )
+      "
+      @escape-key-down="handleClose()"
+      @pointer-down-outside="
+        (event: Event) => {
+          if (props.closeOnBackdropClick && !props.loading) {
+            handleClose()
+          } else {
+            event.preventDefault()
+          }
+        }
+      "
+    >
       <div
         :class="
           cn(
             modalVariants({ level: props.level }),
-            'relative rounded-t-lg w-full h-58 overflow-hidden flex items-center justify-center'
+            'relative w-full h-58 overflow-hidden flex items-center justify-center'
           )
         "
       >
@@ -85,21 +102,39 @@ const widthClass = computed(() => {
           class="relative z-10 top-4 self-start max-w-full"
         />
       </div>
-    </template>
 
-    <template #default>
-      <div v-if="props.description" class="flex items-center gap-2 whitespace-pre-line">
-        <Icon v-if="props.loading" name="loading-03" size="sm" class="animate-spin" />
-        <!-- TODO: use Spinner component -->
-        <span class="wrap-break-word w-full">{{ props.description }}</span>
-      </div>
-      <slot name="description" />
-    </template>
+      <AlertDialogHeader class="flex text-start justify-between items-start px-6 pt-6 shrink-0">
+        <div>
+          <AlertDialogTitle v-if="props.title" class="text-gray-warm-900 text-lg">
+            {{ props.title }}
+          </AlertDialogTitle>
+          <AlertDialogDescription v-if="props.description" class="sr-only">
+            {{ props.description }}
+          </AlertDialogDescription>
+        </div>
+        <Button
+          v-if="props.showCloseButton"
+          hierarchy="link-color"
+          class="absolute top-3 right-3 z-20 cursor-pointer"
+          @click="handleClose()"
+        >
+          <Icon name="x" stroke-color="base-white" size="md" />
+        </Button>
+      </AlertDialogHeader>
 
-    <template #footer>
-      <div class="flex w-full justify-center items-center pb-5 gap-2">
-        <slot name="footer"></slot>
+      <div class="px-6 overflow-y-auto">
+        <div v-if="props.description" class="flex items-center gap-2 whitespace-pre-line">
+          <Icon v-if="props.loading" name="loading-03" size="sm" class="animate-spin" />
+          <span class="wrap-break-word w-full">{{ props.description }}</span>
+        </div>
+        <slot name="description" />
       </div>
-    </template>
-  </Modal>
+
+      <AlertDialogFooter class="shrink-0 sm:justify-center pb-4 px-6 mt-auto">
+        <div class="flex w-full justify-center items-center pb-5 gap-2">
+          <slot name="footer"></slot>
+        </div>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
 </template>

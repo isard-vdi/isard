@@ -5,8 +5,8 @@ const deploymentsURL = '/frontend/deployments'
 const newDeploymentURL = '/frontend/deployments/new'
 
 test.describe('Vue 3 Deployments view', () => {
-  test.beforeEach(async ({ page, users, categories, loginHelpers }) => {
-    await loginHelpers.login(page, users.admin, categories, deploymentsURL)
+  test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
+    await loginHelpers.login(page, adminPerWorker, categories, deploymentsURL)
     await page.waitForLoadState('networkidle', { timeout: 15000 })
     expect(page.url()).toContain(deploymentsURL)
   })
