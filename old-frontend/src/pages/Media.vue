@@ -49,7 +49,7 @@
           </template>
           <template #cell(status)="data">
             <b-tooltip
-              v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+              v-if="(data.item.status || '').toLowerCase() === 'downloadfailedinvalidformat'"
               :target="() => $refs['invalidTooltip']"
               :title="$t(`errors.media_invalid`)"
               triggers="hover"
@@ -57,7 +57,7 @@
               show
             />
             <span
-              v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+              v-if="(data.item.status || '').toLowerCase() === 'downloadfailedinvalidformat'"
               ref="invalidTooltip"
             >
               <b-icon
@@ -66,14 +66,14 @@
                 class="danger-icon cursor-pointer"
               />
             </span>
-            {{ $t(`views.media.status.${data.item.status.toLowerCase()}`) }}
+            {{ $t(`views.media.status.${(data.item.status || '').toLowerCase()}`) }}
           </template>
           <template #cell(progressSize)="data">
             <p
               v-if="['Downloaded', 'DownloadFailedInvalidFormat'].includes(data.item.status)"
               class="text-dark-gray m-0"
             >
-              {{ data.item.progress.received }}
+              {{ (data.item.progress || {}).received || "" }}
             </p>
             <div v-else-if="data.item.status !== 'DownloadFailed'">
               <b-progress
@@ -82,11 +82,11 @@
               >
                 <b-progress-bar
                   variant="info"
-                  :value="data.item.progress.total_percent"
+                  :value="(data.item.progress || {}).total_percent || 0"
                   show-progress
                   animated
                 >
-                  <strong>{{ data.item.progress.total_percent }} %</strong>
+                  <strong>{{ (data.item.progress || {}).total_percent || 0 }} %</strong>
                 </b-progress-bar>
               </b-progress>
             </div>
@@ -215,7 +215,7 @@
           </template>
           <template #cell(status)="data">
             <b-tooltip
-              v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+              v-if="(data.item.status || '').toLowerCase() === 'downloadfailedinvalidformat'"
               :target="() => $refs['invalidTooltip']"
               :title="$t(`errors.media_invalid`)"
               triggers="hover"
@@ -223,7 +223,7 @@
               show
             />
             <span
-              v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+              v-if="(data.item.status || '').toLowerCase() === 'downloadfailedinvalidformat'"
               ref="invalidTooltip"
             >
               <b-icon
@@ -232,14 +232,14 @@
                 class="danger-icon cursor-pointer"
               />
             </span>
-            {{ $t(`views.media.status.${data.item.status.toLowerCase()}`) }}
+            {{ $t(`views.media.status.${(data.item.status || '').toLowerCase()}`) }}
           </template>
           <template #cell(progressSize)="data">
             <p
               v-if="['Downloaded', 'DownloadFailedInvalidFormat'].includes(data.item.status)"
               class="text-dark-gray m-0"
             >
-              {{ data.item.progress.received }}
+              {{ (data.item.progress || {}).received || "" }}
             </p>
             <div v-else-if="data.item.status !== 'DownloadFailed'">
               <b-progress
@@ -248,11 +248,11 @@
               >
                 <b-progress-bar
                   variant="info"
-                  :value="data.item.progress.total_percent"
+                  :value="(data.item.progress || {}).total_percent || 0"
                   show-progress
                   animated
                 >
-                  <strong>{{ data.item.progress.total_percent }} %</strong>
+                  <strong>{{ (data.item.progress || {}).total_percent || 0 }} %</strong>
                 </b-progress-bar>
               </b-progress>
             </div>

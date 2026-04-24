@@ -18,33 +18,43 @@ export class ApiHelper {
    * Login as admin and store the token
    */
   async login (username = 'admin', password = 'IsardVDI', category = 'default') {
-    const res = await this._fetch('POST', '/api/v3/login', {
-      type: 'local',
-      category_id: category,
-      username,
-      password
-    })
-    this.token = res.token
-    return res
+    const token = await this._loginAuth(username, password, category)
+    this.token = token
+    return { token }
   }
 
   /**
    * Login as a specific user with their category
    */
   async loginAs (username, password, category = 'default') {
-    const res = await this._fetch('POST', '/api/v3/login', {
-      type: 'local',
-      category_id: category,
-      username,
-      password
-    })
-    return res.token
+    return this._loginAuth(username, password, category)
+  }
+
+  /**
+   * Call the Go authentication service at /authentication/login. The
+   * endpoint returns the raw JWT in a text/plain body (not JSON) and
+   * expects the credentials as multipart/form-data with the provider
+   * and category_id as query parameters.
+   */
+  async _loginAuth (username, password, category) {
+    const qs = `provider=form&category_id=${encodeURIComponent(category)}`
+    const form = new FormData()
+    form.append('username', username)
+    form.append('password', password)
+
+    const url = `${this.baseURL}/authentication/login?${qs}`
+    const res = await fetch(url, { method: 'POST', body: form })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`authentication /login failed (${res.status}): ${text}`)
+    }
+    return (await res.text()).trim()
   }
 
   // --- Categories ---
 
   async createCategory (name, uid) {
-    return this._authFetch('POST', '/api/v3/admin/category', {
+    return this._authFetch('POST', '/api/v4/admin/category', {
       name,
       uid: uid || name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
       description: `Test category ${name}`
@@ -54,19 +64,20 @@ export class ApiHelper {
   // --- Groups ---
 
   async createGroup (name, categoryId, linkedGroups = []) {
-    return this._authFetch('POST', '/api/v3/admin/group', {
+    // v4 AdminGroupCreateData does not accept `linked_groups`; the caller
+    // argument is kept for API compatibility and currently ignored. If
+    // tests need linked-groups, a follow-up PUT to the group is needed.
+    return this._authFetch('POST', '/api/v4/admin/group', {
       name,
-      uid: name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
       parent_category: categoryId,
-      description: `Test group ${name}`,
-      linked_groups: linkedGroups
+      description: `Test group ${name}`
     })
   }
 
   // --- Users ---
 
   async createUser (username, categoryId, groupId, role = 'user', password = 'test1234') {
-    return this._authFetch('POST', '/api/v3/admin/user', {
+    return this._authFetch('POST', '/api/v4/admin/user', {
       username,
       uid: username,
       name: username,
@@ -79,7 +90,7 @@ export class ApiHelper {
   }
 
   async setSecondaryGroups (userIds, groupIds) {
-    return this._authFetch('PUT', '/api/v3/admin/user/secondary-groups/add', {
+    return this._authFetch('PUT', '/api/v4/admin/user/secondary-groups/add', {
       ids: userIds,
       secondary_groups: groupIds
     })
@@ -91,49 +102,49 @@ export class ApiHelper {
    * Get the list of available downloads
    */
   async getDownloads (kind = 'domains') {
-    return this._authFetch('GET', `/api/v3/admin/downloads/${kind}`)
+    return this._authFetch('GET', `/api/v4/admin/downloads/${kind}`)
   }
 
   /**
    * Register with downloads server if not already registered
    */
   async registerDownloads () {
-    return this._authFetch('POST', '/api/v3/admin/downloads/register')
+    return this._authFetch('POST', '/api/v4/admin/downloads/register')
   }
 
   /**
    * Start downloading a template
    */
   async downloadTemplate (kind, id) {
-    return this._authFetch('POST', `/api/v3/admin/downloads/download/${kind}/${id}`)
+    return this._authFetch('POST', `/api/v4/admin/downloads/download/${kind}/${id}`)
   }
 
   /**
    * Get all templates accessible to the logged-in user
    */
   async getTemplates () {
-    return this._authFetch('GET', '/api/v3/user/templates/allowed/all')
+    return this._authFetch('GET', '/api/v4/items/templates/allowed/all')
   }
 
   /**
    * Get template tree for deletion
    */
   async getTemplateTree (templateId) {
-    return this._authFetch('GET', `/api/v3/template/tree/${templateId}`)
+    return this._authFetch('GET', `/api/v4/item/template/${templateId}/get-tree`)
   }
 
   /**
    * Get admin template tree list
    */
   async getAdminTemplateTree (templateId) {
-    return this._authFetch('GET', `/api/v3/admin/desktops/tree_list/${templateId}`)
+    return this._authFetch('GET', `/api/v4/admin/desktops/tree_list/${templateId}`)
   }
 
   /**
    * Create a template from a stopped desktop
    */
   async createTemplate (name, desktopId, allowed = false) {
-    return this._authFetch('POST', '/api/v3/template', {
+    return this._authFetch('POST', '/api/v4/item/template', {
       name,
       desktop_id: desktopId,
       description: `Test template ${name}`,
@@ -151,7 +162,7 @@ export class ApiHelper {
    * Duplicate a template
    */
   async duplicateTemplate (templateId, name, allowed = false) {
-    return this._authFetch('POST', `/api/v3/template/duplicate/${templateId}`, {
+    return this._authFetch('POST', `/api/v4/item/template/${templateId}/duplicate`, {
       name,
       description: 'Duplicate of template',
       enabled: true,
@@ -167,7 +178,7 @@ export class ApiHelper {
   // --- Desktops ---
 
   async createDesktop (name, templateId) {
-    return this._authFetch('POST', '/api/v3/persistent_desktop', {
+    return this._authFetch('POST', '/api/v4/item/desktop', {
       name,
       template_id: templateId,
       description: `Test desktop ${name}`
@@ -175,13 +186,11 @@ export class ApiHelper {
   }
 
   async stopDesktop (desktopId) {
-    return this._authFetch('PUT', `/api/v3/desktop/updating/${desktopId}`, {
-      status: 'Stopping'
-    })
+    return this._authFetch('PUT', `/api/v4/item/desktop/${desktopId}/stop`)
   }
 
   async getDesktop (desktopId) {
-    return this._authFetch('GET', `/api/v3/domain/info/${desktopId}`)
+    return this._authFetch('GET', `/api/v4/item/desktop/${desktopId}/get-info`)
   }
 
   /**
@@ -200,7 +209,7 @@ export class ApiHelper {
   // --- Deployments ---
 
   async createDeployment (name, templateId, allowed) {
-    return this._authFetch('POST', '/api/v3/deployments', {
+    return this._authFetch('POST', '/api/v4/item/deployment', {
       name,
       template_id: templateId,
       description: `Test deployment ${name}`,
@@ -218,7 +227,7 @@ export class ApiHelper {
   // --- Domain status ---
 
   async getDomain (domainId) {
-    return this._authFetch('GET', `/api/v3/domain/info/${domainId}`)
+    return this._authFetch('GET', `/api/v4/item/desktop/${domainId}/get-info`)
   }
 
   /**

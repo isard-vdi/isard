@@ -184,9 +184,9 @@ export default {
     saveDirectViewer: (state, payload) => {
       state.directViewer.name = payload.name
       state.directViewer.description = payload.description
-      state.directViewer.viewers = Object.keys(payload.viewers).map((viewer) => {
-        return payload.viewers[viewer]
-      })
+      state.directViewer.viewers = Object.keys(payload.viewers)
+        .map((viewer) => payload.viewers[viewer])
+        .filter((viewer) => viewer != null)
       state.directViewer.state = payload.state
       state.directViewer.jwt = payload.jwt
       state.directViewer.desktopId = payload.desktopId
@@ -299,7 +299,7 @@ export default {
       context.commit('updateViewers', viewers)
     },
     fetchDesktops (context) {
-      axios.get(`${apiV3Segment}/user/desktops`).then(response => {
+      axios.get(`${apiV3Segment}/item/user/desktops`).then(response => {
         context.commit('setDesktops', DesktopUtils.parseDesktops(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -308,7 +308,15 @@ export default {
     createDesktop (_, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'))
 
-      axios.post(`${apiV3Segment}/nonpersistent`, data, { timeout: 25000 }).then(response => {
+      // ``data`` is a FormData built by TableList.vue / Card.vue with a
+      // single ``template`` field. The v4 endpoint expects JSON, so we
+      // extract the template id and send a minimal ``{template_id}`` body.
+      const templateId = data instanceof FormData ? data.get('template') : data.template
+      axios.post(
+        `${apiV3Segment}/item/desktop/new-nonpersistent`,
+        { template_id: templateId },
+        { timeout: 25000 }
+      ).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -332,7 +340,7 @@ export default {
         action: data.action
       })
 
-      return axios.get(`${apiV3Segment}/desktop/${data.action}/${data.desktopId}`).then(response => {
+      return axios.put(`${apiV3Segment}/item/desktop/${data.desktopId}/${data.action}`).then(response => {
         context.commit('update_desktop', { id: data.desktopId, state: DesktopUtils.parseState({ state: response.data.status }) })
         // Once the request is successful, we can clear the pending state
         context.commit('CLEAR_PENDING_OPERATION', data.desktopId)
@@ -356,7 +364,7 @@ export default {
             action: () => {
               this._vm.$snotify.clear()
               data.storage.forEach((storage) => {
-                axios.put(`${apiV3Segment}/storage/${storage}/abort_operations`).then(() => {
+                axios.put(`${apiV3Segment}/item/storage/${storage}/abort-operations`).then(() => {
                   ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.cancelling-operation'))
                 }).catch(e => {
                   ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -371,7 +379,7 @@ export default {
       })
     },
     resetDesktop (_, data) {
-      axios.put(`${apiV3Segment}/direct/${data.token}/${data.action}`).then(response => {
+      axios.put(`${apiV3Segment}/item/desktop/token/${data.token}/reset-desktop`).then(response => {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
@@ -388,7 +396,7 @@ export default {
       }
       context.commit('updateViewers', viewers)
 
-      axios.get(`${apiV3Segment}/desktop/${data.desktopId}/viewer/${data.viewer}`).then(response => {
+      axios.get(`${apiV3Segment}/item/desktop/${data.desktopId}/get-viewer/${data.viewer}`).then(response => {
         this._vm.$snotify.clear()
 
         const el = document.createElement('a')
@@ -418,7 +426,7 @@ export default {
     createNewDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'), '', true, 1000)
 
-      axios.post(`${apiV3Segment}/persistent_desktop`, data).then(response => {
+      axios.post(`${apiV3Segment}/item/desktop`, data).then(response => {
         context.dispatch('updateBastion', response.data.id)
         router.push({ name: 'desktops' })
       }).catch(e => {
@@ -428,7 +436,7 @@ export default {
     createNewDesktopFromMedia (_, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'), '', true, 1000)
 
-      axios.post(`${apiV3Segment}/desktop/from/media`, data).then(response => {
+      axios.post(`${apiV3Segment}/item/desktop/from-media`, data).then(response => {
         router.push({ name: 'desktops' })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -437,8 +445,8 @@ export default {
     deleteDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-desktop'))
       const url = data.permanent
-        ? `${apiV3Segment}/desktop/${data.id}/permanent`
-        : `${apiV3Segment}/desktop/${data.id}`
+        ? `${apiV3Segment}/item/desktop/${data.id}?permanent=true`
+        : `${apiV3Segment}/item/desktop/${data.id}`
 
       axios.delete(url).then(response => {
         this._vm.$snotify.clear()
@@ -448,14 +456,14 @@ export default {
     },
     toggleDesktopVisible (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(data.visible ? 'messages.info.making-invisible-desktop' : 'messages.info.making-visible-desktop'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/domain/visible/${data.id}`).catch(e => {
+      axios.put(`${apiV3Segment}/item/desktop/${data.id}/toggle-deployment-visibility`).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     deleteNonpersistentDesktop (_, desktopId) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-desktop'))
 
-      axios.delete(`${apiV3Segment}/nonpersistent/${desktopId}`).then(response => {
+      axios.delete(`${apiV3Segment}/item/desktop/${desktopId}?permanent=true`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -474,12 +482,12 @@ export default {
       router.push({ name: path })
     },
     getDirectViewers (context, payload) {
-      axios.get(`${apiV3Segment}/direct/docs`).then(response => {
+      axios.get(`${apiV3Segment}/item/desktop/get-viewers-docs`).then(response => {
         const config = context.getters.getConfig
         config.viewersDocumentationUrl = response.data.viewers_documentation_url
         context.commit('setConfig', ConfigUtils.parseConfig(config))
       })
-      return axios.get(`/api/v3/direct/${payload.token}`).then(response => {
+      return axios.get(`${apiV3Segment}/item/desktop/token/${payload.token}/get-viewer`).then(response => {
         context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(response.data))
       }).catch(e => {
         context.commit('setDirectViewerErrorState')
@@ -493,7 +501,7 @@ export default {
     openDirectViewerDesktop (_, payload) {
       const token = router.currentRoute.params.pathMatch
       if (token) {
-        axios.post(`/api/v3/direct/${token}/viewer/${payload.kind}-${payload.protocol}`)
+        axios.post(`${apiV3Segment}/item/desktop/token/${token}/viewer/${payload.kind}-${payload.protocol}`)
           .catch(() => {})
       }
 
@@ -527,10 +535,10 @@ export default {
       context.commit('setCurrentTab', currentTab)
     },
     fetchDirectLink (context, domainId) {
-      axios.get(`${apiV3Segment}/desktop/jumperurl/${domainId}`).then(response => {
+      axios.get(`${apiV3Segment}/item/desktop/${domainId}/get-share-link`).then(response => {
         context.commit('setDirectLinkDomainId', domainId)
-        context.commit('setDirectLinkEnabled', !!response.data.jumperurl)
-        context.commit('setDirectLink', response.data.jumperurl ? `${location.protocol}//${location.host}/vw/${response.data.jumperurl}` : '')
+        context.commit('setDirectLinkEnabled', !!response.data.link)
+        context.commit('setDirectLink', response.data.link ? `${location.protocol}//${location.host}/vw/${response.data.link}` : '')
         context.dispatch('directLinkModalShow', true)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -540,15 +548,15 @@ export default {
       context.commit('setDirectLinkModalShow', show)
     },
     toggleDirectLink (context, data) {
-      axios.put(`${apiV3Segment}/desktop/jumperurl_reset/${data.domainId}`, { disabled: data.disabled }).then(response => {
-        context.commit('setDirectLink', response.data ? `${location.protocol}//${location.host}/vw/${response.data}` : '')
+      axios.put(`${apiV3Segment}/item/desktop/${data.domainId}/update-share-link`, { enabled: !data.disabled }).then(response => {
+        context.commit('setDirectLink', response.data.link ? `${location.protocol}//${location.host}/vw/${response.data.link}` : '')
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     editDesktopReservables (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
-      return axios.put(`${apiV3Segment}/domain/reservables/${data.id}`, data).catch(e => {
+      return axios.put(`${apiV3Segment}/item/desktop/${data.id}/edit`, { reservables: data.reservables }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
@@ -577,14 +585,14 @@ export default {
       })
     },
     recreateDesktop (context, data) {
-      axios.post(`${apiV3Segment}/domain/${data.id}/recreate_disk`).catch(e => {
+      axios.put(`${apiV3Segment}/item/desktop/${data.id}/recreate`).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchBastionTargets (context) {
       const config = context.getters.getConfig
       if (config.canUseBastion === true) {
-        axios.get(`${apiV3Segment}/bastion_targets`).then(response => {
+        axios.get(`${apiV3Segment}/items/bastions`).then(response => {
           context.commit('setBastionTargets', response.data)
         }).catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -595,28 +603,28 @@ export default {
       context.commit('setBastionModal', data)
     },
     updateBastionAuthorizedKeys (context, data) {
-      axios.put(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/authorized_keys`, { authorized_keys: data.ssh.authorized_keys }).then(response => {
+      axios.put(`${apiV3Segment}/item/desktop/${data.desktop_id}/update-bastion-authorized-keys`, { authorized_keys: data.ssh.authorized_keys }).then(response => {
         ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.authorized-ssh-keys-updated'))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     updateBastionDomainName (context, data) {
-      axios.put(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/domain`, { domain: data.domain || null }).then(response => {
+      axios.put(`${apiV3Segment}/item/desktop/${data.desktop_id}/update-bastion-domain`, { domain_name: data.domain || null }).then(response => {
         ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-domain-updated'))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     updateBastionDomains (context, data) {
-      axios.put(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/domains`, { domains: data.domains || [] }).then(response => {
+      axios.put(`${apiV3Segment}/item/desktop/${data.desktop_id}/update-bastion-domains`, { domains: data.domains || [] }).then(response => {
         ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-domains-updated'))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     verifyBastionDomain (context, data) {
-      return axios.post(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/domain/verify`, { domain: data.domain })
+      return axios.post(`${apiV3Segment}/item/desktop/${data.desktop_id}/verify-bastion-domain`, { domain: data.domain })
         .then(response => {
           return { success: true }
         }).catch(e => {
@@ -634,7 +642,7 @@ export default {
       context.commit('removeBastionTarget', JSON.parse(data))
     },
     extendDesktopTimeout (context, desktopId) {
-      return axios.put(`${apiV3Segment}/desktop/${desktopId}/extend-timeout`).catch(e => {
+      return axios.put(`${apiV3Segment}/item/desktop/${desktopId}/extend-timeout`).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     }

@@ -1,4 +1,8 @@
 {
+  "frontend_toggler": {
+    "to_vue3": "Canviar a la nova interfície",
+    "no_equivalent": "Sense equivalent a la nova interfície"
+  },
   "components": {
     "select-search": {
       "empty": "No hi han opcions disponibles"
@@ -308,6 +312,7 @@
         "unit": "Mida unitat personal / Mida total unitat personal (MB)",
         "deployments_total": "Desplegaments creats / Total de desplegaments",
         "deployment_desktops": "Maxim d'escriptoris per desplegament",
+        "deployment_users": "Maxim d'usuaris per desplegament",
         "started_deployment_desktops": {
           "title": "Escriptoris de desplegament arrencats / Total escriptoris de desplegament arrencats",
           "description": "Quantitat total d'escriptoris de desplegaments que pot arrencar l'usuari"

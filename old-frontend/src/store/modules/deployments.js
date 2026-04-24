@@ -65,13 +65,13 @@ export default {
       context.commit('remove_deployments', deployment)
     },
     fetchDeployments (context) {
-      axios.get(`${apiV3Segment}/deployments`).then(response => {
-        context.commit('setDeployments', DeploymentsUtils.parseDeployments(response.data))
+      axios.get(`${apiV3Segment}/items/deployments`).then(response => {
+        context.commit('setDeployments', DeploymentsUtils.parseDeployments(response.data.deployments))
       })
     },
     createNewDeployment (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-deployment'), '', true, 1000)
-      axios.post(`${apiV3Segment}/deployments`, payload).then(response => {
+      axios.post(`${apiV3Segment}/item/deployment`, payload).then(response => {
         // this._vm.$snotify.clear()
         router.push({ name: 'deployment_desktops', params: { id: response.data.id } })
       }).catch(e => {

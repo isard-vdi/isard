@@ -1,4 +1,8 @@
 {
+    "frontend_toggler": {
+        "to_vue3": "切换到新界面",
+        "no_equivalent": "新界面中没有对应项"
+    },
     "validations": {
         "required": "{property} 必填",
         "sameAs": "{property}字段的值必须与{property2}相同。",

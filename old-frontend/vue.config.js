@@ -44,6 +44,6 @@ module.exports = {
 
   devServer: {
     disableHostCheck: true,
-    public: 'https://localhost:443'
+    public: process.env.WDS_PUBLIC || 'https://localhost:443'
   }
 }

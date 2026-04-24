@@ -483,7 +483,7 @@ export default {
     const started = ref(false)
 
     const createDesktop = () => {
-      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'desktops', routeName: 'desktopsnew' })
+      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'desktop', routeName: 'desktopsnew' })
     }
 
     const createMedia = () => {
@@ -491,7 +491,7 @@ export default {
     }
 
     const createDeployment = () => {
-      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'deployments', routeName: 'deploymentsnew' })
+      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'deployment', routeName: 'deploymentsnew' })
     }
 
     $store.dispatch('fetchItemsInRecycleBin')

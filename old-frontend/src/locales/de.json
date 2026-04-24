@@ -1,4 +1,8 @@
 {
+  "frontend_toggler": {
+    "to_vue3": "Zur neuen Oberfläche wechseln",
+    "no_equivalent": "Kein Äquivalent in der neuen Oberfläche"
+  },
   "views": {
     "maintenance": {
       "the-service": "Isard wird in wenigen Minuten wieder verfügbar sein",

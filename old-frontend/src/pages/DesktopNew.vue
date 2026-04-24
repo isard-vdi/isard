@@ -141,6 +141,7 @@
                 class="danger-icon position-absolute cursor-pointer"
               />
               <img
+                v-if="data.item.image"
                 :src="`..${data.item.image.url}`"
                 alt=""
                 style="height: 2rem; border: 1px solid #555;"
@@ -375,11 +376,8 @@ export default {
       for (let i = 0; i < domain.value.guestProperties.viewers.length; i++) {
         Object.assign(viewers, domain.value.guestProperties.viewers[i])
       }
-      // Parse isos data
-      const isos = domain.value.hardware.isos.map((value) => {
-        return { id: value.id }
-      })
-      // Create the data object that will be send
+      const isos = domain.value.hardware.isos.map((value) => value.id)
+      const image = (domain.value.image && domain.value.image.id) ? domain.value.image : null
       const domainData = {
         template_id: selected.value[0].id,
         name: domain.value.name,
@@ -401,10 +399,10 @@ export default {
           isos: isos,
           memory: domain.value.hardware.memory,
           vcpus: domain.value.hardware.vcpus,
-          videos: domain.value.hardware.videos,
-          reservables: domain.value.reservables
+          videos: domain.value.hardware.videos
         },
-        image: domain.value.image
+        reservables: domain.value.reservables,
+        image: image
       }
       $store.dispatch('createNewDesktop', domainData)
     }

@@ -91,7 +91,7 @@ export default {
       const domainData = {
         media_id: media.value.id,
         kind: media.value.kind,
-        xml_id: selectedOSTemplateId.value,
+        os_template: selectedOSTemplateId.value,
         name: domain.value.name,
         description: domain.value.description,
         guest_properties: {

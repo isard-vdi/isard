@@ -166,7 +166,14 @@ export default {
       }
     },
     fetchDeployment (context, data) {
-      axios.get(`${apiV3Segment}/deployment/${data.id}`).then(response => {
+      axios.get(`${apiV3Segment}/item/deployment/${data.id}`).then(response => {
+        context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchDeploymentVideowall (context, data) {
+      axios.get(`${apiV3Segment}/item/deployment/${data.id}/videowall`).then(response => {
         context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -177,7 +184,7 @@ export default {
     },
     toggleVisible (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(payload.visible ? 'messages.info.making-invisible-deployment' : 'messages.info.making-visible-deployment'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/visible/${payload.id}`, { stop_started_domains: payload.stopStartedDomains }).catch(e => {
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/toggle-visibility`, { stop_started_domains: payload.stopStartedDomains }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
@@ -185,8 +192,8 @@ export default {
     deleteDeployment (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
       const url = payload.permanent
-        ? `${apiV3Segment}/deployments/${payload.id}/permanent`
-        : `${apiV3Segment}/deployments/${payload.id}`
+        ? `${apiV3Segment}/item/deployment/${payload.id}?permanent=true`
+        : `${apiV3Segment}/item/deployment/${payload.id}`
       axios.delete(url).then(response => {
         context.commit('remove_deployments', { id: payload.id })
         this._vm.$snotify.clear()
@@ -199,14 +206,14 @@ export default {
     },
     recreateDeployment (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.recreating-deployment'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/${payload.id}`).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/recreate`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     downloadDirectViewerCSV (_, payload) {
-      axios.get(`${apiV3Segment}/deployments/directviewer_csv/${payload.id}`, { params: { reset: payload.reset } }).then(response => {
+      axios.get(`${apiV3Segment}/item/deployment/${payload.id}/download-csv`, { params: { reset: payload.reset } }).then(response => {
         this._vm.$snotify.clear()
         const el = document.createElement('a')
         el.setAttribute(
@@ -225,7 +232,7 @@ export default {
     },
     startDeploymentDesktops (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.starting-desktops'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/start/${payload.id}`).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/start`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -233,7 +240,7 @@ export default {
     },
     stopDeploymentDesktops (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.stopping-desktops'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/stop/${payload.id}`).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/stop`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -241,12 +248,12 @@ export default {
     },
     countGroupsUsers (_, groups) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.counting-desktops'), '', true, 1000)
-      return axios.put(`${apiV3Segment}/groups_users/count`, groups).catch(e => {
+      return axios.put(`${apiV3Segment}/items/groups-users/count`, groups).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     checkDeploymentsCreateQuota (context, data) {
-      return axios.post(`${apiV3Segment}/deployments/new/check_quota`, data).catch(e => {
+      return axios.post(`${apiV3Segment}/item/deployment/check-quota`, data).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
@@ -273,9 +280,9 @@ export default {
       router.replace({ name: 'deploymentEdit', params: { id: editDeploymentId } })
     },
     fetchDeploymentInfo (context, deploymentId) {
-      axios.get(`${apiV3Segment}/deployment/info/${deploymentId}`).then(response => {
+      axios.get(`${apiV3Segment}/item/deployment/${deploymentId}/info`).then(response => {
         context.commit('setDomain', DomainsUtils.parseDomain(response.data))
-        context.commit('setDeployment', { name: response.data.tag_name })
+        context.commit('setDeployment', { name: response.data.name })
         context.dispatch('setAllowedGroupsUsers', { groups: response.data.allowed.groups, users: response.data.allowed.users })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -283,7 +290,7 @@ export default {
     },
     editDeployment (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
-      axios.put(`${apiV3Segment}/deployment/${data.id}`, data).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${data.id}/edit`, data).then(response => {
         context.dispatch('navigate', 'deployments')
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -291,12 +298,12 @@ export default {
     },
     editDeploymentUsers (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
-      axios.put(`${apiV3Segment}/deployment/users/${data.id}`, data).catch(e => {
+      axios.put(`${apiV3Segment}/item/deployment/${data.id}/edit-users`, data).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchCoOwners (context, deploymentId) {
-      return axios.get(`${apiV3Segment}/deployment/co-owners/${deploymentId}`).then(response => {
+      return axios.get(`${apiV3Segment}/item/deployment/${deploymentId}/co-owners`).then(response => {
         const owner = AllowedUtils.parseUser(response.data.owner)
         const coOwners = AllowedUtils.parseAllowed('users', response.data.co_owners)
         context.commit('setCoOwners', { owner: owner, coOwners: coOwners })
@@ -307,14 +314,14 @@ export default {
     },
     updateCoOwners (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
-      axios.put(`${apiV3Segment}/deployment/co-owners/${data.id}`, { co_owners: data.users }).then(response => {
+      axios.put(`${apiV3Segment}/item/deployment/${data.id}/co-owners`, { co_owners: data.users }).then(response => {
         context.dispatch('fetchCoOwners', data.id)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchPermissions (context, deploymentId) {
-      axios.get(`${apiV3Segment}/deployment/permissions/${deploymentId}`).then(response => {
+      axios.get(`${apiV3Segment}/item/deployment/${deploymentId}/permissions`).then(response => {
         context.commit('setPermissions', response.data)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

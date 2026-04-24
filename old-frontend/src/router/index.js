@@ -5,6 +5,7 @@ import { jwtDecode } from 'jwt-decode'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
 import { appTitle } from '../shared/constants'
+import { resolveVue3Path } from '@/shared/frontendModeMap'
 import i18n from '@/i18n'
 import store from '@/store'
 
@@ -461,6 +462,11 @@ router.beforeEach(async (to, from, next) => {
           if (store.getters.getConfig.migrationsBlock) {
             window.location.pathname = '/export-user'
           }
+        }
+        if (store.getters.getConfig.frontendMode === 'actual') {
+          const target = resolveVue3Path(to) || '/frontend/desktops'
+          window.location.assign(target)
+          return
         }
         if (!store.getters.getMaxTime) {
           store.dispatch('fetchMaxTime')

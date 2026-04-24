@@ -99,20 +99,23 @@ export default {
       context.commit('resetMediaState')
     },
     fetchMedia ({ commit }) {
-      axios.get(`${apiV3Segment}/media`).then(response => {
+      axios.get(`${apiV3Segment}/items/media`).then(response => {
         commit(
           'setMedia',
-          MediaUtils.parseMediaList(orderBy(response.data, ['desc']))
+          MediaUtils.parseMediaList(orderBy(response.data.media, ['desc']))
         )
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchSharedMedia ({ commit }) {
-      axios.get(`${apiV3Segment}/media_allowed`).then(response => {
+      // get-shared returns the full list as { media: [...] }. The
+      // get-allowed endpoint is paginated (page_size 1-50) and would silently
+      // cap shared items at 10 for the user.
+      axios.get(`${apiV3Segment}/items/media/get-shared`).then(response => {
         commit(
           'setSharedMedia',
-          MediaUtils.parseMediaList(orderBy(response.data, ['desc']))
+          MediaUtils.parseMediaList(orderBy(response.data.media, ['desc']))
         )
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -121,14 +124,14 @@ export default {
     createNewMedia (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-media'), '', true, 1000)
 
-      axios.post(`${apiV3Segment}/media`, payload).then(response => {
+      axios.post(`${apiV3Segment}/item/media`, payload).then(response => {
         router.push({ name: 'media' })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchMediaDesktops (context, data) {
-      axios.get(`${apiV3Segment}/media/desktops/${data.mediaId}`).then(response => {
+      axios.get(`${apiV3Segment}/item/media/${data.mediaId}/get-desktops`).then(response => {
         if (response.data.length > 0) {
           context.commit('setMediaDesktops', MediaUtils.parseMediaDesktops(response.data))
           context.commit('setMediaId', data.mediaId)
@@ -162,7 +165,7 @@ export default {
     deleteMedia (_, mediaId) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-media'))
 
-      axios.delete(`${apiV3Segment}/media/${mediaId}`).then(response => {
+      axios.delete(`${apiV3Segment}/item/media/${mediaId}`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -171,7 +174,7 @@ export default {
     downloadMedia (_, mediaId) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.downloading-media'))
 
-      axios.post(`${apiV3Segment}/media/download/${mediaId}`).then(response => {
+      axios.put(`${apiV3Segment}/item/media/${mediaId}/download`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -180,7 +183,7 @@ export default {
     stopMediaDownload (_, mediaId) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.stopping-download'))
 
-      axios.post(`${apiV3Segment}/media/abort/${mediaId}`).then(response => {
+      axios.put(`${apiV3Segment}/item/media/${mediaId}/abort`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

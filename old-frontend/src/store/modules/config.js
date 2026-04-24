@@ -50,7 +50,7 @@ export default {
       // Clear all existing timeouts before setting new ones
       context.commit('clearTimeouts')
 
-      const rsp = await axios.get(`${apiV3Segment}/user/config`)
+      const rsp = await axios.get(`${apiV3Segment}/item/user/get-config`)
       context.commit('setConfig', ConfigUtils.parseConfig(rsp.data))
 
       // Skip session management for isardvdi-service sessions
@@ -136,7 +136,7 @@ export default {
       return rsp.data
     },
     async fetchStatusBarNotification ({ commit }) {
-      const rsp = await axios.get(`${apiV3Segment}/notifications/status_bar`)
+      const rsp = await axios.get(`${apiV3Segment}/notifications/status-bar`)
       commit('setStatusBarNotification', rsp.data)
     }
   }

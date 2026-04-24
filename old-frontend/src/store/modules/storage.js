@@ -65,12 +65,12 @@ export default {
   },
   actions: {
     fetchStorage (context) {
-      axios.get(`${apiV3Segment}/storage/ready`).then(response => {
+      axios.get(`${apiV3Segment}/items/storage/ready`).then(response => {
         context.commit('setStorage', StorageUtils.parseStorageList(response.data))
       })
     },
     fetchAppliedQuota (context) {
-      axios.get(`${apiV3Segment}/user/appliedquota`).then(response => {
+      axios.get(`${apiV3Segment}/item/user/get-quotas`).then(response => {
         context.commit('setQuota', ProfileUtils.parseQuota(response.data.quota))
       })
     },
@@ -79,7 +79,7 @@ export default {
       context.commit('setShowIncreaseModal', data.show)
     },
     updateIncrease (context, data) {
-      return axios.put(`${apiV3Segment}/storage/${data.id}/priority/${data.priority}/increase/${data.increment}`).catch(e => {
+      return axios.put(`${apiV3Segment}/item/storage/${data.id}/priority/${data.priority}/increase/${data.increment}`).catch(e => {
         if (e.response.data.description_code) {
           ErrorUtils.showErrorMessage(this._vm.$snotify, e, i18n.t(`errors.increase_${e.response.data.description_code}`))
         } else {

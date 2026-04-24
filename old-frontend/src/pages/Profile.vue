@@ -306,9 +306,15 @@
                               />
                               <QuotaProgressBar
                                 v-if="profile.role.toLowerCase() !== 'user'"
-                                :title="$t('components.profile.quota.deployment_desktops')"
-                                :value="profile.used.deploymentDesktops"
-                                :max="profile.quota.deploymentDesktops"
+                                :title="$t('components.profile.quota.deployment_users')"
+                                :value="profile.used.deploymentUsers"
+                                :max="profile.quota.deploymentUsers"
+                              />
+                              <QuotaProgressBar
+                                v-if="profile.role.toLowerCase() !== 'user'"
+                                :title="$t('components.profile.quota.deployment_users')"
+                                :value="profile.used.deploymentUsers"
+                                :max="profile.quota.deploymentUsers"
                               />
                               <QuotaProgressBar
                                 v-if="profile.role.toLowerCase() !== 'user'"

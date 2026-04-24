@@ -2,7 +2,7 @@
   <b-img
     id="logo"
     fluid-grow
-    src="/custom/logo.svg"
+    src="/api/v4/logo"
     :alt="$t('components.title.logo-alt')"
     :style="styles"
     :class="classes"
