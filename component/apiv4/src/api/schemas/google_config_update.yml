@@ -1,0 +1,18 @@
+enabled:
+  type: boolean
+  required: true
+  check_with: depends_if
+  meta:
+    depends_if:
+      - values:
+          - and:
+              - value: true
+        other_fields:
+          and:
+            - google_config
+migration:
+  type: dict
+  schema: migration
+google_config:
+  type: dict
+  schema: google_config

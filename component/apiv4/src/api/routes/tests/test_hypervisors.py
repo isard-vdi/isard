@@ -1,0 +1,289 @@
+#
+#   Copyright © 2025 IsardVDI
+#
+#   This file is part of IsardVDI.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""Route tests for :mod:`api.routes.admin.hypervisors`.
+
+Covers the admin hypervisor endpoints that replaced T1/hypervisor,
+T1/hypervisors and T1/orchestrator v3_compat shims. All handlers live
+on ``admin_router`` so the default ``MockJWT()`` (admin role) is
+enough. Service-level calls are monkeypatched so no real DB is hit.
+"""
+
+from api.routes.tests.helpers import MockJWT
+
+
+def test_admin_hypervisors_list(monkeypatch, test_client):
+    jwt = MockJWT()
+    stub = [
+        {"id": "hyper-1", "status": "Online", "enabled": True},
+        {"id": "hyper-2", "status": "Offline", "enabled": False},
+    ]
+    captured = {}
+
+    def fake_get_hypervisors(status=None):
+        captured["status"] = status
+        return stub
+
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.get_hypervisors",
+        staticmethod(fake_get_hypervisors),
+    )
+
+    response = test_client(url="/admin/hypervisors", jwt=jwt)
+
+    assert response.status_code == 200
+    assert response.json() == stub
+    assert captured["status"] is None
+
+
+def test_admin_hypervisors_list_by_status(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_get_hypervisors(status=None):
+        captured["status"] = status
+        return []
+
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.get_hypervisors",
+        staticmethod(fake_get_hypervisors),
+    )
+
+    response = test_client(url="/admin/hypervisors/Online", jwt=jwt)
+
+    assert response.status_code == 200
+    assert captured == {"status": "Online"}
+
+
+def test_admin_hypervisor_create(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_create(data):
+        captured["hyper_id"] = data["hyper_id"]
+        captured["hostname"] = data["hostname"]
+        return {"id": data["hyper_id"], "status": "Offline"}
+
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.create_or_update_hypervisor",
+        staticmethod(fake_create),
+    )
+
+    response = test_client(
+        url="/admin/hypervisor",
+        method="POST",
+        body={
+            "hyper_id": "hyper-new",
+            "hostname": "hyper-new.internal",
+        },
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"id": "hyper-new", "status": "Offline"}
+    assert captured == {"hyper_id": "hyper-new", "hostname": "hyper-new.internal"}
+
+
+def test_admin_hypervisor_enable(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_enable(hyper_id, enabled):
+        captured["hyper_id"] = hyper_id
+        captured["enabled"] = enabled
+        return {"id": hyper_id, "enabled": enabled}
+
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.enable_hyper",
+        staticmethod(fake_enable),
+    )
+
+    response = test_client(
+        url="/admin/hypervisor/hyper-1",
+        method="PUT",
+        body={"enabled": False},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured == {"hyper_id": "hyper-1", "enabled": False}
+
+
+def test_admin_hypervisor_delete(monkeypatch, test_client):
+    jwt = MockJWT()
+    calls = []
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.remove_hyper",
+        staticmethod(lambda hyper_id: calls.append(hyper_id) or {"removed": hyper_id}),
+    )
+
+    response = test_client(
+        url="/admin/hypervisor/hyper-1",
+        method="DELETE",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert calls == ["hyper-1"]
+
+
+def test_admin_hypervisor_stop_domains(monkeypatch, test_client):
+    jwt = MockJWT()
+    calls = []
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.stop_hyper_domains",
+        staticmethod(lambda hyper_id: calls.append(hyper_id)),
+    )
+
+    response = test_client(
+        url="/admin/hypervisor/stop/hyper-1",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert calls == ["hyper-1"]
+
+
+def test_admin_hypervisor_virt_pools_get(monkeypatch, test_client):
+    jwt = MockJWT()
+    stub = [{"id": "pool-1", "enabled": True}]
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.get_hyper_virt_pools",
+        staticmethod(lambda hyper_id: stub),
+    )
+
+    response = test_client(url="/admin/hypervisor/hyper-1/virt_pools", jwt=jwt)
+
+    assert response.status_code == 200
+    assert response.json() == stub
+
+
+def test_admin_hypervisor_virt_pools_update(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_update(hyper_id, data):
+        captured["hyper_id"] = hyper_id
+        captured["id"] = data["id"]
+        captured["enable_virt_pool"] = data["enable_virt_pool"]
+
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.update_hyper_virt_pools",
+        staticmethod(fake_update),
+    )
+
+    response = test_client(
+        url="/admin/hypervisor/hyper-1/virt_pools",
+        method="PUT",
+        body={"id": "pool-1", "enable_virt_pool": True},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "hyper_id": "hyper-1",
+        "id": "pool-1",
+        "enable_virt_pool": True,
+    }
+
+
+def test_admin_hypervisor_mountpoints(monkeypatch, test_client):
+    jwt = MockJWT()
+    stub = [{"path": "/isard", "size": 1000000}]
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.get_hyper_mountpoints",
+        staticmethod(lambda hyper_id: stub),
+    )
+
+    response = test_client(url="/admin/hypervisor/mountpoints/hyper-1", jwt=jwt)
+
+    assert response.status_code == 200
+    assert response.json() == stub
+
+
+def test_admin_hypervisor_started_domains(monkeypatch, test_client):
+    jwt = MockJWT()
+    stub = [{"id": "desktop-1", "user_name": "alice"}]
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.get_hyper_started_domains",
+        staticmethod(lambda hyper_id: stub),
+    )
+
+    response = test_client(url="/admin/hypervisor/started_domains/hyper-1", jwt=jwt)
+
+    assert response.status_code == 200
+    assert response.json() == stub
+
+
+# ─── Orchestrator hypervisor management (T1/orchestrator shims) ─────────
+
+
+def test_admin_orchestrator_managed_list(monkeypatch, test_client):
+    jwt = MockJWT()
+    stub = [{"id": "hyper-1", "orchestrator_managed": True}]
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.get_orchestrator_managed_hypervisors",
+        staticmethod(lambda: stub),
+    )
+
+    response = test_client(
+        url="/admin/hypervisors/orchestrator_managed",
+        method="POST",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == stub
+
+
+def test_admin_orchestrator_manage_unset(monkeypatch, test_client):
+    """DELETE /admin/orchestrator/hypervisor/{id}/manage — replaces the
+    webapp's T1/orchestrator DELETE .../manage shim."""
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_set(hyper_id, reset=False):
+        captured["hyper_id"] = hyper_id
+        captured["reset"] = reset
+
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.set_hyper_orchestrator_managed",
+        staticmethod(fake_set),
+    )
+
+    response = test_client(
+        url="/admin/orchestrator/hypervisor/hyper-1/manage",
+        method="DELETE",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured == {"hyper_id": "hyper-1", "reset": True}
+
+
+def test_admin_orchestrator_manage_set(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_set(hyper_id, reset=False):
+        captured["hyper_id"] = hyper_id
+        captured["reset"] = reset
+
+    monkeypatch.setattr(
+        "api.services.admin_hypervisors.AdminHypervisorsService.set_hyper_orchestrator_managed",
+        staticmethod(fake_set),
+    )
+
+    response = test_client(
+        url="/admin/orchestrator/hypervisor/hyper-1/manage",
+        method="POST",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured == {"hyper_id": "hyper-1", "reset": False}

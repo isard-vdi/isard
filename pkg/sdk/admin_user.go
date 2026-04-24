@@ -73,7 +73,7 @@ func (c *Client) AdminUserResetPassword(ctx context.Context, id, pwd string) err
 		"password": pwd,
 	}
 
-	req, err := c.newJSONRequest(http.MethodPut, "admin/user/reset-password", body)
+	req, err := c.newJSONRequest(http.MethodPut, "admin/users/reset-password", body)
 	if err != nil {
 		return err
 	}

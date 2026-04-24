@@ -66,7 +66,6 @@ type Interface interface {
 	DesktopList(context.Context) ([]*Desktop, error)
 	DesktopGet(ctx context.Context, id string) (*Desktop, error)
 	DesktopCreate(ctx context.Context, name, templateID string) (*Desktop, error)
-	DesktopCreateFromScratch(ctx context.Context, name, xml string) (*Desktop, error)
 	DesktopUpdate(ctx context.Context, id string, opts DesktopUpdateOptions) error
 	DesktopDelete(ctx context.Context, id string) error
 	DesktopStart(ctx context.Context, id string) error
@@ -100,7 +99,7 @@ func NewClient(cfg *Cfg) (*Client, error) {
 		return nil, fmt.Errorf("invalid base URL: %w", err)
 	}
 
-	u.Path = "/api/v3/"
+	u.Path = "/api/v4/"
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: cfg.IgnoreCerts},

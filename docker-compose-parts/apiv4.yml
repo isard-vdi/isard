@@ -1,0 +1,70 @@
+services:
+  isard-apiv4:
+    container_name: isard-apiv4
+    image: ${DOCKER_IMAGE_PREFIX}apiv4:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    depends_on:
+      - isard-db
+      - isard-redis
+      - isard-scheduler
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.151
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5000)); s.close()"]
+      start_period: 30s
+      interval: 5s
+    volumes:
+      - /opt/isard/sshkeys/:/sshkeys:rw
+      - /opt/isard/certs/viewers:/viewers:ro
+      - /opt/isard/frontend/custom:/static/custom:rw
+      - /opt/isard/assets/img/desktops:/app/api/static/assets/img/desktops:rw
+      - /opt/isard-local/haproxy/bastion_domains:/api/api/bastion_domains
+      - /opt/isard/config:/usr/local/etc/isardvdi
+      - /opt/isard/frontend/custom/categories:/opt/isard/frontend/custom/categories:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      PYTHONUNBUFFERED: 1
+      GRPC_VERBOSITY: ERROR
+      NOTIFY_EMAIL:
+      DOMAIN:
+      LOG_LEVEL:
+      DEBUG_STATS: "false"
+      DEBUG_WEBSOCKETS: "false"
+      RETHINKDB_HOST:
+      RETHINKDB_PORT:
+      RETHINKDB_DB:
+      API_ISARDVDI_SECRET:
+      API_HYPERVISORS_SECRET:
+      WG_USERS_PORT:
+      WG_HYPERS_NET:
+      WG_GUESTS_NETS:
+      WG_GUESTS_DHCP_MASK:
+      VPN_MTU:
+      USAGE:
+      VIEWER_RDP_GW:
+      FRONTEND_SHOW_BOOKINGS:
+      FRONTEND_DOCS_URI:
+      FRONTEND_VIEWERS_DOCS_URI:
+      FRONTEND_SHOW_TEMPORAL:
+      FRONTEND_MODE:
+      DIRECTVIEWER_MODE:
+      AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION:
+      REDIS_HOST:
+      REDIS_PORT:
+      REDIS_PASSWORD:
+      WEBAPP_ADMIN_PWD:
+      NEXTCLOUD_INSTANCE:
+      HTTP_PORT:
+      HTTPS_PORT:
+      BASTION_ENABLED:
+      BASTION_SSH_PORT:
+      OPERATIONS_API_ENABLED:
+      AUTHENTICATION_AUTHENTICATION_LDAP_SAVE_EMAIL:
+      AUTHENTICATION_AUTHENTICATION_SAML_SAVE_EMAIL:

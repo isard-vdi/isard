@@ -36,7 +36,7 @@ type DesktopViewerRsp struct {
 }
 
 func (c *Client) DesktopList(ctx context.Context) ([]*Desktop, error) {
-	req, err := c.newRequest(http.MethodGet, "user/desktops", nil)
+	req, err := c.newRequest(http.MethodGet, "item/user/desktops", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (c *Client) DesktopList(ctx context.Context) ([]*Desktop, error) {
 }
 
 func (c *Client) DesktopGet(ctx context.Context, id string) (*Desktop, error) {
-	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("user/desktop/%s", id), nil)
+	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("item/user/desktop/%s", id), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (c *Client) DesktopCreate(ctx context.Context, name, templateID string) (*D
 		"template_id": templateID,
 	}
 
-	req, err := c.newJSONRequest(http.MethodPost, "persistent_desktop", body)
+	req, err := c.newJSONRequest(http.MethodPost, "item/desktop", body)
 	if err != nil {
 		return nil, err
 	}
@@ -82,30 +82,8 @@ func (c *Client) DesktopCreate(ctx context.Context, name, templateID string) (*D
 	return d, nil
 }
 
-func (c *Client) DesktopCreateFromScratch(ctx context.Context, name string, xml string) (*Desktop, error) {
-	u, err := addOptions("desktop/from/scratch", map[string]string{
-		"name": name,
-		"xml":  xml,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := c.newRequest(http.MethodPost, u, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	d := &Desktop{}
-	if _, err := c.do(ctx, req, d); err != nil {
-		return nil, fmt.Errorf("create desktop: %w", err)
-	}
-
-	return d, nil
-}
-
 func (c *Client) DesktopDelete(ctx context.Context, id string) error {
-	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("desktop/%s", id), nil)
+	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("item/desktop/%s", id), nil)
 	if err != nil {
 		return err
 	}
@@ -118,7 +96,8 @@ func (c *Client) DesktopDelete(ctx context.Context, id string) error {
 }
 
 func (c *Client) DesktopStart(ctx context.Context, id string) error {
-	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("desktop/start/%s", id), nil)
+	// v4 verb change: GET desktop/start/{id} → PUT item/desktop/{id}/start
+	req, err := c.newRequest(http.MethodPut, fmt.Sprintf("item/desktop/%s/start", id), nil)
 	if err != nil {
 		return nil
 	}
@@ -131,7 +110,8 @@ func (c *Client) DesktopStart(ctx context.Context, id string) error {
 }
 
 func (c *Client) DesktopStop(ctx context.Context, id string) error {
-	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("desktop/stop/%s", id), nil)
+	// v4 verb change: GET desktop/stop/{id} → PUT item/desktop/{id}/stop
+	req, err := c.newRequest(http.MethodPut, fmt.Sprintf("item/desktop/%s/stop", id), nil)
 	if err != nil {
 		return nil
 	}
@@ -160,7 +140,8 @@ func (c *Client) DesktopViewer(ctx context.Context, t DesktopViewer, id string) 
 		return "", fmt.Errorf("unknown viewer type: %s", t)
 	}
 
-	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("desktop/%s/viewer/%s", id, t), nil)
+	// v4 path: desktop/{id}/viewer/{t} → item/desktop/{id}/get-viewer/{t}
+	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("item/desktop/%s/get-viewer/%s", id, t), nil)
 	if err != nil {
 		return "", nil
 	}
@@ -199,7 +180,7 @@ type DesktopUpdateOptions struct {
 }
 
 func (c *Client) DesktopUpdate(ctx context.Context, id string, opts DesktopUpdateOptions) error {
-	req, err := c.newJSONRequest(http.MethodPut, fmt.Sprintf("domain/%s", id), opts)
+	req, err := c.newJSONRequest(http.MethodPut, fmt.Sprintf("item/desktop/%s/edit", id), opts)
 	if err != nil {
 		return err
 	}

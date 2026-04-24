@@ -69,22 +69,15 @@ def landing():
           </div>
           <div class="right">
             <div class="logo">
-              <img src="/custom/logo.svg" alt="Logo" style="max-width:180px;max-height:100px;">
+              <img src="/api/v4/logo" alt="Logo" style="max-width:180px;max-height:100px;">
             </div>
             <h1>IsardVDI OpenAPI Service</h1>
             <ul>
-              <li><b>API v3</b>:
-                <a href="/openapi/apiv3.json">openapi.json</a> |
-                <a href="/openapi/docs/apiv3">Swagger UI</a> |
-                <a href="/openapi/redoc/apiv3">ReDoc</a>
-              </li>
-              <!--
               <li><b>API v4</b>:
-                <a href="/openapi/apiv4.json">openapi.json</a> |
-                <a href="/openapi/docs/apiv4">Swagger UI</a> |
-                <a href="/openapi/redoc/apiv4">ReDoc</a>
+                <a href="/api/v4/openapi.json">openapi.json</a> |
+                <a href="/api/v4/docs">Swagger UI</a> |
+                <a href="/api/v4/redoc">ReDoc</a>
               </li>
-              -->
               <li><b>Authentication</b>:
                 <a href="/openapi/authentication.json">openapi.json</a> |
                 <a href="/openapi/docs/authentication">Swagger UI</a> |
@@ -118,40 +111,6 @@ def favicon():
 # Helper to serve JSON files
 def serve_json(path):
     return FileResponse(path, media_type="application/json")
-
-
-# --- API v3 ---
-@router.get("/apiv3.json", include_in_schema=False)
-def openapi_api():
-    return serve_json("oas/api/api.json")
-
-
-@router.get("/docs/apiv3", include_in_schema=False)
-def docs_api():
-    return get_swagger_ui_html(openapi_url="/openapi/api.json", title="API Swagger UI")
-
-
-@router.get("/redoc/apiv3", include_in_schema=False)
-def redoc_api():
-    return get_redoc_html(openapi_url="/openapi/api.json", title="API ReDoc")
-
-
-# --- API v4 ---
-# @router.get("/apiv4.json", include_in_schema=False)
-# def openapi_api():
-#     return serve_json("oas/apiv4/apiv4.json")
-
-
-# @router.get("/docs/apiv4", include_in_schema=False)
-# def docs_api():
-#     return get_swagger_ui_html(
-#         openapi_url="/openapi/apiv4.json", title="API Swagger UI"
-#     )
-
-
-# @router.get("/redoc/api", include_in_schema=False)
-# def redoc_api():
-#     return get_redoc_html(openapi_url="/openapi/apiv4.json", title="API ReDoc")
 
 
 # --- Authentication ---

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 )
 
 type Template struct {
@@ -14,7 +13,7 @@ type Template struct {
 }
 
 func (c *Client) TemplateList(ctx context.Context) ([]*Template, error) {
-	req, err := c.newRequest(http.MethodGet, "user/templates", nil)
+	req, err := c.newRequest(http.MethodGet, "items/templates", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -28,11 +27,12 @@ func (c *Client) TemplateList(ctx context.Context) ([]*Template, error) {
 }
 
 func (c *Client) TemplateCreateFromDesktop(ctx context.Context, name string, desktopID string) (*Template, error) {
-	body := url.Values{}
-	body.Add("template_name", name)
-	body.Add("desktop_id", desktopID)
+	body := map[string]string{
+		"name":       name,
+		"desktop_id": desktopID,
+	}
 
-	req, err := c.newRequest(http.MethodPost, "template", body)
+	req, err := c.newJSONRequest(http.MethodPost, "item/template", body)
 	if err != nil {
 		return nil, err
 	}

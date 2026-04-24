@@ -1,0 +1,8 @@
+services:
+  isard-apiv4:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: component/apiv4/docker/Dockerfile
+      # target: production
+      args:
+        SRC_VERSION_ID: $SRC_VERSION_ID

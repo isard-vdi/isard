@@ -1,0 +1,283 @@
+#
+#   IsardVDI - Open Source KVM Virtual Desktops based on KVM Linux and dockers
+#   Copyright (C) 2025 Miriam Melina Gamboa Valdez
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Affero General Public License for more details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+import asyncio
+import logging
+import random
+import time
+import traceback
+
+from api import direct_viewer_router, open_router, token_router
+from api.dependencies.alloweds import owns_domain_id
+from api.dependencies.rate_limiting import MIN_RESPONSE_TIME, direct_viewer_limiter
+from api.schemas.common import ErrorResponse, SimpleResponse
+
+log = logging.getLogger(__name__)
+
+
+async def _timed_not_found(start_time):
+    """Return 404 after enforcing minimum response time with jitter."""
+    elapsed = time.time() - start_time
+    target = MIN_RESPONSE_TIME + random.uniform(-0.5, 0.5)
+    remaining = target - elapsed
+    if remaining > 0:
+        await asyncio.sleep(remaining)
+    return JSONResponse(
+        content={"error": "not_found", "msg": "Not found"}, status_code=404
+    )
+
+
+from api.schemas.domains.desktop_direct_viewer import (
+    DesktopShareLinkResponse,
+    DesktopUpdateShareLinkRequest,
+    DesktopViewerResponse,
+    ViewersDocsResponse,
+)
+from api.services.desktops import DesktopService
+from api.services.error import Error
+from cachetools import TTLCache, cached
+from fastapi import Depends, Path, Request
+from fastapi.responses import JSONResponse
+
+tag = "desktop_direct_viewer"
+
+
+@cached(cache=TTLCache(maxsize=20, ttl=10))
+@token_router.get(
+    "/item/desktop/{desktop_id}/get-share-link",
+    response_model=DesktopShareLinkResponse,
+    tags=[tag],
+    summary="Get an url to share a desktop",
+    description="Returns a link to share an IsardVDI desktop based on an ID.",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[Depends(owns_domain_id("desktop_id"))],
+)
+async def get_share_link(
+    request: Request,
+    desktop_id: str = Path(..., description="The ID of the desktop"),
+):
+    try:
+        link = DesktopService.get_desktop_share_link(desktop_id)
+        return JSONResponse(
+            content=DesktopShareLinkResponse(link=link).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve desktop",
+            traceback.format_exc(),
+        )
+
+
+@token_router.put(
+    "/item/desktop/{desktop_id}/update-share-link",
+    response_model=DesktopShareLinkResponse,
+    tags=[tag],
+    summary="Generate an link to share a desktop",
+    description="Generates a link to share an IsardVDI desktop based on an ID",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[Depends(owns_domain_id("desktop_id"))],
+)
+async def update_share_link(
+    request: Request,
+    data: DesktopUpdateShareLinkRequest,
+    desktop_id: str = Path(..., description="The ID of the desktop"),
+):
+    try:
+        link = DesktopService.update_desktop_share_link(desktop_id, data.enabled)
+        return JSONResponse(
+            content=DesktopShareLinkResponse(link=link).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve desktop",
+            traceback.format_exc(),
+        )
+
+
+@open_router.get(
+    "/item/desktop/token/{token}/get-viewer",
+    tags=[tag],
+    response_model=DesktopViewerResponse,
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_desktop_viewer(
+    request: Request,
+    token: str = Path(
+        ...,
+        description="Code provided for the desktop viewer. Mainly defined when generating the share link.",
+    ),
+):
+    start_time = time.time()
+    # Rate limit: return identical 404 when exceeded (invisible to attacker)
+    if direct_viewer_limiter.is_limited(request):
+        log.warning(f"Direct viewer rate limit exceeded for token request")
+        return await _timed_not_found(start_time)
+    try:
+        desktop = DesktopService.get_desktop_direct_viewer_from_token(token, request)
+        return JSONResponse(
+            content=DesktopViewerResponse(**desktop).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        # All failures return generic 404 with timing normalization
+        log.warning("Direct viewer token handler failed", exc_info=True)
+        return await _timed_not_found(start_time)
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=360))
+@open_router.get(
+    "/item/desktop/get-viewers-docs",
+    tags=[tag],
+    response_model=ViewersDocsResponse,
+    summary="Get viewer documentation URL",
+    description="Returns the URL for the viewer documentation",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_viewer_docs(request: Request):
+    try:
+        docs_link = DesktopService.get_direct_viewer_docs()
+        return JSONResponse(
+            content=ViewersDocsResponse(viewers_documentation_url=docs_link).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve viewer documentation",
+            traceback.format_exc(),
+        )
+
+
+_VIEWER_PROTOCOLS = {
+    "file-spice",
+    "browser-vnc",
+    "browser-rdp",
+    "file-rdpgw",
+    "file-rdpvpn",
+}
+
+
+@open_router.post(
+    "/item/desktop/token/{token}/viewer/{protocol}",
+    tags=[tag],
+    response_model=SimpleResponse,
+    responses={
+        404: {"model": ErrorResponse},
+    },
+)
+async def log_viewer_click(
+    request: Request,
+    token: str = Path(..., description="Direct viewer share token"),
+    protocol: str = Path(..., description="Viewer protocol used"),
+):
+    """Log a direct viewer click event with the protocol used."""
+    start_time = time.time()
+    if direct_viewer_limiter.is_limited(request):
+        return await _timed_not_found(start_time)
+    if protocol not in _VIEWER_PROTOCOLS:
+        return await _timed_not_found(start_time)
+    try:
+        desktop = DesktopService.get_desktop_direct_viewer_from_token(token, request)
+        from isardvdi_common.helpers.logging import Logging
+
+        Logging.logs_domain_event_directviewer(
+            desktop["id"],
+            action_user=None,
+            viewer_type=protocol,
+            user_request=request,
+        )
+        return JSONResponse(
+            content=SimpleResponse(id=desktop["id"]).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        log.warning("Direct viewer click logging failed", exc_info=True)
+        return await _timed_not_found(start_time)
+
+
+@cached(cache=TTLCache(maxsize=20, ttl=10))
+@direct_viewer_router.put(
+    "/item/desktop/token/{token}/reset-desktop",
+    tags=[tag],
+    response_model=SimpleResponse,
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def reset_desktop(
+    request: Request,
+    token: str = Path(
+        ...,
+        description="Code provided for the desktop viewer. Mainly defined when generating the share link.",
+    ),
+):
+    start_time = time.time()
+    if direct_viewer_limiter.is_limited(request):
+        log.warning("Direct viewer rate limit exceeded for reset request")
+        return await _timed_not_found(start_time)
+    try:
+        desktop_id = DesktopService.reset_desktop_from_token(token, request)
+        return JSONResponse(
+            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        log.warning("Direct viewer reset token handler failed", exc_info=True)
+        return await _timed_not_found(start_time)
