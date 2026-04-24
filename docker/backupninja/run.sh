@@ -294,6 +294,14 @@ EOF
             sed -i "1a\\when = $SCHEDULE" "$NFS_MOUNT_SCRIPT"
         fi
 
+        # Preflight free-space check (runs after NFS mount so it sees the
+        # real target). A FATAL here forces the eventual report to
+        # CRITICAL even if no individual borg action fails.
+        PREFLIGHT_SCRIPT="/usr/local/etc/backup.d/15-session-preflight-$SCHEDULE_INDEX.sh"
+        cp /usr/local/bin/session_preflight.sh "$PREFLIGHT_SCRIPT"
+        chmod 700 "$PREFLIGHT_SCRIPT"
+        sed -i "1a\\when = $SCHEDULE" "$PREFLIGHT_SCRIPT"
+
         END_SCRIPT="/usr/local/etc/backup.d/90-session-report-$SCHEDULE_INDEX.sh"
         cat >"$END_SCRIPT" <<EOF
 #!/bin/sh
@@ -489,6 +497,12 @@ case "$1" in
         ;;
 
     "")
+        # Detect an orphaned session from a previous run (container was
+        # killed or restarted mid-backup) and report it as CRITICAL before
+        # we start serving the next cron tick. Non-fatal: any failure here
+        # must not stop us from starting crond.
+        /usr/local/bin/detect_orphaned_session.sh || true
+
         # Start the cron daemon and follow the logs
         crond
         tail -f $LOG_FILE
