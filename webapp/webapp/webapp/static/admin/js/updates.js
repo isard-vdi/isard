@@ -22,7 +22,7 @@ $(document).ready(function() {
                 $('.not_registered').find('button').on('click', function(){
                     $.ajax({
                         type: "POST",
-                        url: '/api/v3/admin/downloads/register',
+                        url: '/api/v4/admin/downloads/register',
                         dataType: 'json',
                         success: function (resp) {
                             $('.not_registered').hide();
@@ -150,7 +150,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/download/domains/" + id,
+                    url:"/api/v4/admin/downloads/download/domains/" + id,
                     data: JSON.stringify(table['domains'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['domains'].ajax.reload();}
                 })
@@ -159,7 +159,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/abort/domains/" + id,
+                    url:"/api/v4/admin/downloads/abort/domains/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['domains'].ajax.reload();}
                 })
@@ -168,7 +168,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/delete/domains/" + id,
+                    url:"/api/v4/admin/downloads/delete/domains/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['domains'].ajax.reload();}
                 })
@@ -253,9 +253,14 @@ function load_data(){
                                 return '<i class="fa fa-spinner fa-pulse fa-fw"></i>'
                             }}],
                 "initComplete": function(settings, json){
-                    socket.on('media_data', function(data){
+                    socket.on('media_add', function(data){
                         var data = JSON.parse(data);
-                            dtUpdateOnly(table['media'],data);
+                        dtUpdateOnly(table['media'],data);
+                    });
+
+                    socket.on('media_update', function(data){
+                        var data = JSON.parse(data);
+                        dtUpdateOnly(table['media'],data);
                     });
 
                     socket.on('media_delete', function(data){
@@ -273,7 +278,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/download/media/" + id,
+                    url:"/api/v4/admin/downloads/download/media/" + id,
                     data: JSON.stringify(table['media'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['media'].ajax.reload();}
                 })
@@ -282,7 +287,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/abort/media/" + id,
+                    url:"/api/v4/admin/downloads/abort/media/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['media'].ajax.reload();}
                 })
@@ -291,7 +296,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/delete/media/" + id,
+                    url:"/api/v4/admin/downloads/delete/media/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['media'].ajax.reload();}
                 })
@@ -358,7 +363,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/download/virt_install/" + id,
+                    url:"/api/v4/admin/downloads/download/virt_install/" + id,
                     data: JSON.stringify(table['virt_install'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['virt_install'].ajax.reload();}
                 })
@@ -367,7 +372,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/delete/virt_install/" + id,
+                    url:"/api/v4/admin/downloads/delete/virt_install/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['virt_install'].ajax.reload();}
                 })
@@ -434,7 +439,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/download/videos/" + id,
+                    url:"/api/v4/admin/downloads/download/videos/" + id,
                     data: JSON.stringify(table['videos'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['videos'].ajax.reload();}
                 })
@@ -443,7 +448,7 @@ function load_data(){
                 $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/downloads/delete/videos/" + id,
+                    url:"/api/v4/admin/downloads/delete/videos/" + id,
                     data: JSON.stringify({}),
                     success: function(data){table['videos'].ajax.reload();}
                 })
@@ -472,7 +477,7 @@ function load_data(){
         }).get().on('pnotify.confirm', function(){
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/downloads/download/" + id,
+                url:"/api/v4/admin/downloads/download/" + id,
                 success: function(data){table[id].ajax.reload();}
             });
         })
@@ -527,10 +532,10 @@ function renderName(data){
 }
 
 function renderProgress(data){
-            perc = data.progress.received_percent
-            if(!('progress' in data) || !('received_percent' in data['progress'])){
+            if(!data.progress || !('received_percent' in data.progress)){
                 return ""
             }
+            perc = data.progress.received_percent
             return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
                   <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
                   aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \

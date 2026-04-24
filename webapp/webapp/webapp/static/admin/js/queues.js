@@ -22,7 +22,7 @@ $(document).ready(function () {
 
     queues_table = $('#queues').DataTable({
         "ajax": {
-            "url": "/api/v3/queues",
+            "url": "/api/v4/admin/queues",
             "dataSrc": ""
         },
         "language": {
@@ -60,7 +60,7 @@ $(document).ready(function () {
 
     consumerstable = $('#consumers').DataTable({
         "ajax": {
-            "url": "/api/v3/queues/consumers",
+            "url": "/api/v4/admin/queues/consumers",
             "dataSrc": ""
         },
         "language": {

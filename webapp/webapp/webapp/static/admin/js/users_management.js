@@ -37,7 +37,7 @@ function socketio_on(){
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v3/admin/allowed/term/groups/',
+                url: '/api/v4/admin/allowed/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -95,7 +95,7 @@ function socketio_on(){
         checkMigratedAndProceed(users_to_enable, function () {
             $.ajax({
                 type: 'PUT',
-                url: '/api/v3/admin/users/csv',
+                url: '/api/v4/admin/users/csv',
                 data: JSON.stringify(data),
                 contentType: 'application/json',
                 success: function (xhr) {
@@ -149,7 +149,7 @@ function socketio_on(){
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v3/admin/allowed/term/groups/',
+                url: '/api/v4/admin/allowed/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -201,7 +201,7 @@ function socketio_on(){
                 multiple: true,
                 ajax: {
                     type: "POST",
-                    url: '/api/v3/admin/allowed/term/groups/',
+                    url: '/api/v4/admin/allowed/term/groups/',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -278,7 +278,7 @@ function socketio_on(){
                 if (data["edit-secondary-group"] === 'on') {
                     await $.ajax({
                         type: 'PUT',
-                        url: `/api/v3/admin/user/secondary-groups/${data['action-secondary-group']}`,
+                        url: `/api/v4/admin/user/secondary-groups/${data['action-secondary-group']}`,
                         data: JSON.stringify({
                             "secondary_groups": data['secondary_groups'] ? data['secondary_groups'] : [],
                             "ids": data['ids']
@@ -296,7 +296,7 @@ function socketio_on(){
                 if (data["edit-email-verified"] === 'on') {
                     await $.ajax({
                         type: 'PUT',
-                        url: '/api/v3/admin/users/bulk',
+                        url: '/api/v4/admin/users/bulk',
                         data: JSON.stringify({ "email_verified": data['email-verified'] === 'on', "ids": data['ids'] }),
                         contentType: 'application/json',
                         success: function () {
@@ -359,7 +359,7 @@ function socketio_on(){
             $('#modalDeleteUser #send').prop('disabled', true);
             $.ajax({
                 type: "POST",
-                url: "/api/v3/admin/user/delete/check",
+                url: "/api/v4/admin/user/delete/check",
                 data: JSON.stringify({"ids": usersToDelete}),
                 contentType: "application/json"
             }).done(function (items) {
@@ -493,7 +493,7 @@ function socketio_on(){
             })
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/user" ,
+                url:"/api/v4/admin/user" ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 error: function (data) {
@@ -544,7 +544,7 @@ function socketio_on(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/user/" + data['id'],
+                url:"/api/v4/admin/user/" + data['id'],
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 error: function(data) {
@@ -584,7 +584,7 @@ function socketio_on(){
             var notice = new PNotify({});
             $.ajax({
                 type: "PUT",
-                url: "/api/v3/admin/user/migrate/" + data['id'] + "/" + data['target_user'],
+                url: "/api/v4/admin/user/migrate/" + data['id'] + "/" + data['target_user'],
                 data: {},
                 contentType: "application/json",
             }).done(function () {
@@ -621,7 +621,7 @@ function socketio_on(){
             $('#passwd-error').empty();
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/user/" + data['id'],
+                url:"/api/v4/admin/user/" + data['id'],
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)
@@ -648,7 +648,7 @@ function socketio_on(){
             var notice = new PNotify({})
             $.ajax({
                 type: 'DELETE',
-                url: '/api/v3/admin/user',
+                url: '/api/v4/admin/user',
                 data: JSON.stringify({ 'user': user, 'delete_user': formData['delete-user'] == 'true' }),
                 contentType: 'application/json',
                 error: function (data) {
@@ -679,11 +679,13 @@ function socketio_on(){
                     })
                     $('.modal').modal('hide')
                     notice.update({
-                        title: `Processing...`,
-                        text: `Deleting ${user.length} user(s)`,
-                        hide: false,
+                        title: `Deletion queued`,
+                        text: `Queued deletion of ${user.length} user(s). Rows will disappear as the operation progresses.`,
+                        hide: true,
+                        delay: 4000,
                         opacity: 1,
-                        icon: 'fa fa-spinner fa-pulse'
+                        type: 'success',
+                        icon: 'fa fa-success'
                     })
                 }
             })
@@ -740,7 +742,7 @@ function socketio_on(){
             })
             $.ajax({
                 type: 'POST',
-                url: "/api/v3/admin/bulk/user",
+                url: "/api/v4/admin/bulk/user",
                 data: JSON.stringify({ users: users, email_verified: formdata['email-verified'] }),
                 contentType: "application/json",
                 success: function(data)
@@ -981,6 +983,14 @@ function socketio_on(){
 
 notice = {}
 
+function userAddUpdateSocketHandle(data) {
+    var data = JSON.parse(data);
+    data['secondary_groups_names'] = data['secondary_groups_data'].map(group => group['name']);
+    data = {...users_table.row("#"+data.id).data(),...data}
+    dtUpdateInsert(users_table,data,false);
+    users_table.draw(false)
+}
+
 function initUsersSockets () { 
     socket.on('msg', function (data) {
         var data = JSON.parse(data);
@@ -1023,74 +1033,13 @@ function initUsersSockets () {
     });
 
     socket.on('users_data', function(data) {
-        var data = JSON.parse(data);
-        data['secondary_groups_names'] = data['secondary_groups_data'].map(group => group['name']);
-        data = {...users_table.row("#"+data.id).data(),...data}
-        dtUpdateInsert(users_table,data,false);
-        users_table.draw(false)
+        userAddUpdateSocketHandle(data)
     });
 
     socket.on('users_delete', function(data) {
         var data = JSON.parse(data);
         users_table.row('#'+data.id).remove().draw();
     });
-
-    socket.on('add_form_result', function (data) {
-        var data = JSON.parse(data);
-        $('form').each(function() { this.reset() });
-        $('.modal').modal('hide');
-        $('#modalAddBulkUsers #send').prop('disabled', false);
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-        users_table.ajax.reload()
-    });
-
-    socket.on ('result', function (data) {
-        var data = JSON.parse(data);
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-        users_table.ajax.reload()
-    });
-
-    socket.on('user_action', function (data) {
-        PNotify.removeAll();
-        var data = JSON.parse(data);
-        if (data.status === 'failed') {
-          new PNotify({
-            title: `ERROR: ${data.action} on ${data.count} user(s)`,
-            text: data.msg,
-            hide: false,
-            icon: 'fa fa-warning',
-            opacity: 1,
-            type: 'error'
-          });
-        } else if (data.status === 'completed') {
-          users_table.ajax.reload();
-          new PNotify({
-            title: `Action Succeeded: ${data.action}`,
-            text: `The action "${data.action}" completed on ${data.count} user(s).`,
-            hide: true,
-            delay: 4000,
-            icon: 'fa fa-success',
-            opacity: 1,
-            type: 'success'
-          });
-        }
-      });
 }
 
 function actionsUserDetail(){
@@ -1115,7 +1064,7 @@ function actionsUserDetail(){
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v3/admin/allowed/term/groups/',
+                url: '/api/v4/admin/allowed/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -1140,7 +1089,7 @@ function actionsUserDetail(){
         setModalUser();
         $.ajax({
             type: "GET",
-            url: '/api/v3/admin/user/' + pk,
+            url: '/api/v4/admin/user/' + pk,
             contentType: "application/json",
             accept: "application/json",
             async: false
@@ -1183,7 +1132,7 @@ function actionsUserDetail(){
             $("#modalPasswdUserForm")[0].reset();
             $("#modalPasswdUserForm .alert").empty();
             $.ajax({
-                url: "/api/v3/admin/user/password-policy/" + pk,
+                url: "/api/v4/admin/user/password-policy/" + pk,
                 success: function (data) {
                     var alert = $("#modalPasswdUserForm #password-policy-list")
                     alert.append("<b>Password must contain:</b><br><ul>")
@@ -1227,7 +1176,7 @@ function actionsUserDetail(){
         }).get().on('pnotify.confirm', function() {
             $.ajax({
                 type: "PUT",
-                url: "/api/v3/admin/user/reset-vpn/" + pk,
+                url: "/api/v4/admin/user/reset-vpn/" + pk,
             }).done(function (data) {
                 new PNotify({
                     title: "Success",
@@ -1277,7 +1226,7 @@ function actionsUserDetail(){
         showLoadingData('#table_modal_delete_users')
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/user/delete/check",
+            url: "/api/v4/admin/user/delete/check",
             data: JSON.stringify({
                 "ids": [pk]
             }),
@@ -1329,7 +1278,7 @@ function actionsUserDetail(){
         $(modal + ' .modal-migration-title span#user-name').text(rowData.name);
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/user/delete/check",
+            url: "/api/v4/admin/user/delete/check",
             data: JSON.stringify({ "ids": [id] }),
             contentType: "application/json"
         }).done(function (items) {
@@ -1365,7 +1314,7 @@ function actionsUserDetail(){
                 placeholder: 'Select a user from category ' + rowData.category_name,
                 ajax: {
                     type: "POST",
-                    url: '/api/v3/admin/allowed/term/users/',
+                    url: '/api/v4/admin/allowed/term/users/',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -1426,7 +1375,7 @@ function actionsUserDetail(){
         resetMigrationModalErrors(modal+ ' #modalMigrateUserForm');
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/user/migrate/check/" + originUserId + "/" + targetUserId,
+            url: "/api/v4/admin/user/migrate/check/" + originUserId + "/" + targetUserId,
             contentType: "application/json",
             success: function (data) {
                 if (data.errors.length > 0) {
@@ -1488,7 +1437,7 @@ function actionsUserDetail(){
         }).get().on('pnotify.confirm', function() {
             $.ajax({
                 type: "GET",
-                url: "/api/v3/admin/jwt/"+id,
+                url: "/api/v4/admin/jwt/"+id,
             }).done(function (data) {
                 deleteCookie('authorization')
                 saveCookie('isardvdi_session', data.jwt)
@@ -1546,7 +1495,7 @@ function actionsUserDetail(){
         }).get().on('pnotify.confirm', function () {
             $.ajax({
                 type: "PUT",
-                url: "/api/v3/admin/user/" + id + "/logout",
+                url: "/api/v4/admin/user/" + id + "/logout",
             }).done(function (data) {
                 new PNotify({
                     title: "Logged out",
@@ -1623,7 +1572,7 @@ function renderUsersDetailPannel ( d ) {
 function setModalUser(){
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/userschema",
+        url:"/api/v4/admin/userschema",
         async: false,
         success: function (d) {
             $.each(d, function (key, value) {
@@ -1681,7 +1630,7 @@ function csv2datatables(csv, modal) {
     }
     $.ajax({
         type: modal == "#modalUpdateFromCSV" ? "PUT" : "POST",
-        url: "/api/v3/admin/users/csv/validate",
+        url: "/api/v4/admin/users/csv/validate",
         data: JSON.stringify(csv_data.users),
         contentType: "application/json",
         async: false,
@@ -1986,7 +1935,7 @@ function render_users_to_edit_table(usersToEdit) {
 function enableDisableUser(user_id, active) {
     $.ajax({
         type: "PUT",
-        url: "/api/v3/admin/user/" + user_id,
+        url: "/api/v4/admin/user/" + user_id,
         data: JSON.stringify({ user_id, active }),
         contentType: "application/json",
         success: function (data) {
@@ -2020,7 +1969,7 @@ function enableDisableUser(user_id, active) {
 function updateUserBulkData(update_data, form, hideModal) {
     $.ajax({
         type: 'PUT',
-        url: '/api/v3/admin/users/bulk',
+        url: '/api/v4/admin/users/bulk',
         data: JSON.stringify(update_data),
         contentType: 'application/json',
         async: false,
@@ -2040,7 +1989,7 @@ async function checkMigratedAndProceed(users, onSuccess) {
     return new Promise((resolve, reject) => {
         $.ajax({
             type: "POST",
-            url: `/api/v3/admin/user/check/migrated`,
+            url: `/api/v4/admin/user/check/migrated`,
             data: JSON.stringify({ "users": users }),
             contentType: "application/json",
             success: function (data) {

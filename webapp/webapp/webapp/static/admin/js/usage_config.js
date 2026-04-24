@@ -13,7 +13,7 @@ $(document).ready(function () {
 
   $.ajax({
     type: 'GET',
-    url: '/api/v3/admin/usage/consumers',
+    url: '/api/v4/admin/usage/consumers',
     contentType: "application/json",
     success: function (consumer) {
       if (consumer==0) {
@@ -171,7 +171,7 @@ $(document).ready(function () {
     if (data['end_date'] == null || moment(data['end_date']).isAfter(data['start_date'])) {
     $.ajax({
       type: 'GET',
-      url: `/api/v3/admin/usage/check/overlapping/${data["id"]}/${data["start_date"]}/${data["end_date"]}`,
+      url: `/api/v4/admin/usage/check/overlapping/${data["id"]}/${data["start_date"]}/${data["end_date"]}`,
       contentType: 'application/json',
       success: function (xhr) {
         if (xhr) {
@@ -458,7 +458,7 @@ function render_table_credits() {
 
   table_credits = $('#table-credit').DataTable({
     "ajax": {
-      "url": "/api/v3/admin/usage/category_credits",
+      "url": "/api/v4/admin/usage/category_credits",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -564,7 +564,7 @@ function render_table_credits() {
 function render_table_limits() {
   table_limits = $('#table_limits').DataTable({
     "ajax": {
-      "url": "/api/v3/admin/usage/limits",
+      "url": "/api/v4/admin/usage/limits",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -616,7 +616,7 @@ function render_table_limits() {
 function render_table_parameters() {
   table_parameters = $('#table_parameters').DataTable({
     "ajax": {
-      "url": "/api/v3/admin/usage/parameters",
+      "url": "/api/v4/admin/usage/parameters",
       "contentType": "application/json",
       "type": 'GET',
       "data": function(d){return JSON.stringify({})}
@@ -695,7 +695,7 @@ function render_table_parameters() {
 function render_table_groupings() {
   table_groupings = $('#table_groupings').DataTable({
     "ajax": {
-      "url": "/api/v3/admin/usage/groupings",
+      "url": "/api/v4/admin/usage/groupings",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -749,7 +749,7 @@ function render_table_groupings() {
 function fetchAvailableParameters(modal) {
   $.ajax({
     type: 'GET',
-    url: '/api/v3/admin/table/usage_parameter',
+    url: '/api/v4/admin/table/usage_parameter',
     success: function (parameter) {
       $(modal + ' #item_type').on("change", function () {
         $(modal + ' #available-parameters').empty();
@@ -793,7 +793,7 @@ function fetchAvailableParameters(modal) {
 function populateLimits(modal) {
   $.ajax({
     type: 'GET',
-    url: '/api/v3/admin/usage/limits',
+    url: '/api/v4/admin/usage/limits',
     contentType: "application/json",
     success: function (limit) {
       $.each(limit, function (key, value) {
@@ -856,7 +856,7 @@ function selectParameterList(modal, row) {
 
   $.ajax({
     type: 'GET',
-    url: '/api/v3/admin/table/usage_parameter',
+    url: '/api/v4/admin/table/usage_parameter',
     success: function (parameter) {
       $.each(parameter, function (key, value) {
         $(modal + ' #parameters').append(`<option title="${value.desc}" value="${value.id}">${value.name}</option>`)
@@ -873,7 +873,7 @@ function selectParameterList(modal, row) {
 }
 
 function addItem(kind, data, datatable) {
-  url = `/api/v3/admin/usage/${kind}s`;
+  url = `/api/v4/admin/usage/${kind}s`;
 
   $.ajax({
     type: 'POST',
@@ -908,7 +908,7 @@ function addItem(kind, data, datatable) {
 }
 
 function editItem(kind, data, datatable) {
-  url = `/api/v3/admin/usage/${kind}s/${data.id}`;
+  url = `/api/v4/admin/usage/${kind}s/${data.id}`;
 
   $.ajax({
     type: 'PUT',
@@ -943,7 +943,7 @@ function editItem(kind, data, datatable) {
 }
 
 function deleteItem(kind, id, datatable) {
-  url = `/api/v3/admin/usage/${kind}s/${id}`;
+  url = `/api/v4/admin/usage/${kind}s/${id}`;
 
   new PNotify({
     title: 'Confirmation Needed',
@@ -1004,7 +1004,7 @@ $('tbody').on('click', 'button', function () {
 
     $.ajax({
       type: 'GET',
-      url: `/api/v3/admin/usage/category_credits/${id}`,
+      url: `/api/v4/admin/usage/category_credits/${id}`,
       contentType: 'application/json',
       success: function (data) {
         $(modal + ' #id').val(id);
@@ -1127,7 +1127,7 @@ function consolidate(item_type, days) {
 function deleteAllUsageConsumption() {
   $.ajax({
     type: "DELETE",
-    url: "/api/v3/admin/usage/delete_data/",
+    url: "/api/v4/admin/usage/delete_data/",
     accept: "application/json",
   }).done(() => {
     new PNotify({
@@ -1154,33 +1154,4 @@ function deleteAllUsageConsumption() {
 
 // SOCKETIO
 
-function socketio_on() {
-  socket.on('usage_action_failed', function (data) {
-    PNotify.removeAll();
-    document.body.classList.remove('loading-cursor');
-    var data = JSON.parse(data);
-    new PNotify({
-      title: `ERROR: ${data.action} all consumption data`,
-      text: data.msg,
-      hide: false,
-      icon: 'fa fa-warning',
-      opacity: 1,
-      type: 'error'
-    });
-  });
-
-  socket.on('usage_action_completed', function (data) {
-    PNotify.removeAll();
-    document.body.classList.remove('loading-cursor');
-    var data = JSON.parse(data);
-    new PNotify({
-      title: `Action Succeeded: ${data.action}`,
-      text: `The action "${data.action}" completed on all consumption data.`,
-      hide: true,
-      delay: 4000,
-      icon: 'fa fa-success',
-      opacity: 1,
-      type: 'success'
-    });
-  });
-}
+function socketio_on() { }

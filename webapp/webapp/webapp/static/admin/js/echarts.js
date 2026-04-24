@@ -69,7 +69,7 @@ $.fn.echartGroupedItems = function (table, group_field, nested_array_field) {
     return this.each(function () {
       const $container = $(this);
       $.ajax({
-        url: '/api/v3/admin/echart/'+kind,
+        url: '/api/v4/admin/echart/'+kind,
         type: 'POST',
         data: JSON.stringify({
           "table": table,
@@ -129,7 +129,7 @@ $.fn.echartGroupedItems = function (table, group_field, nested_array_field) {
     return this.each(function () {
       const $container = $(this);
       $.ajax({
-        url: '/api/v3/admin/echart/'+kind,
+        url: '/api/v4/admin/echart/'+kind,
         type: 'POST',
         data: JSON.stringify({
           "table": table,
@@ -188,7 +188,7 @@ $.fn.echartDailyItems = function (table, date_field) {
     return this.each(function () {
       const $container = $(this);
       $.ajax({
-        url: '/api/v3/admin/echart/daily_items',
+        url: '/api/v4/admin/echart/daily_items',
         type: 'POST',
         data: JSON.stringify({
           "table": table,

@@ -61,7 +61,7 @@ columnDefs = [
     {
         "targets": 2,
         "render": function ( data, type, full, meta ) {
-            img_url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
+            img_url = full.image && full.image.url ? location.protocol+'//' + document.domain + ':' + location.port + full.image.url : ''
             if( ! "booking_id" in full ){
                 booking_id=false
             }else{
@@ -219,7 +219,7 @@ $(document).ready(function() {
             })
             $.ajax({
                 type: 'DELETE',
-                url: '/api/v3/admin/templates/delete/'+template_id,
+                url: '/api/v4/admin/templates/delete/'+template_id,
                 contentType: 'application/json',
                 error: function(data) {
                     notice.update({
@@ -270,7 +270,7 @@ $(document).ready(function() {
             })
             $.ajax({
                 type: 'POST',
-                url: '/api/v3/template/duplicate/'+data.id,
+                url: '/api/v4/item/template/'+data.id+'/duplicate',
                 data: JSON.stringify(sent_data),
                 contentType: 'application/json',
                 error: function(data) {
@@ -485,8 +485,8 @@ $(document).ready(function() {
                     }).get().on('pnotify.confirm', function() {
                         $.ajax({
                             type: "PUT",
-                            url:"/api/v3/template/update",
-                            data: JSON.stringify({id:pk, enabled:enabled}),
+                            url:"/api/v4/item/template/" + pk + "/set-enabled",
+                            data: JSON.stringify({enabled:enabled}),
                             contentType: "application/json",
                             accept: "application/json",
                             error: function(data) {
@@ -503,7 +503,7 @@ $(document).ready(function() {
                             },
                             success: function(data) {
                                 new PNotify({
-                                    title: "Template " + (data.enabled? 'enabled': 'disabled'),
+                                    title: "Template " + (enabled? 'enabled': 'disabled'),
                                     text: "",
                                     hide: true,
                                     delay: 1000,
@@ -567,6 +567,11 @@ $(document).ready(function() {
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 function socketio_on(){
+    socket.on(kind+'_data', function(data){
+        var data = JSON.parse(data);
+        dtUpdateInsert(domains_table, data, false);
+    });
+
     socket.on(kind+'_delete', function(data){
         var data = JSON.parse(data);
         var row = domains_table.row('#'+data.id).remove().draw();
@@ -578,79 +583,6 @@ function socketio_on(){
                 icon: 'fa fa-success',
                 opacity: 1,
                 type: 'success'
-        });
-    });
-
-    socket.on ('result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $('.modal').modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-
-    socket.on('add_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalAddFromBuilder #modalAdd")[0].reset();
-            $("#modalAddFromBuilder").modal('hide');
-            $("#modalAddFromMedia #modalAdd")[0].reset();
-            $("#modalAddFromMedia").modal('hide');
-            $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
-            $("#modalTemplateDesktop").modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-
-    socket.on('adds_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalAddDesktop #modalAdd")[0].reset();
-            $("#modalAddDesktop").modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-
-    socket.on('edit_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalEdit")[0].reset();
-            $("#modalEditDesktop").modal('hide');
-            $("#modalBulkEditForm")[0].reset();
-            $("#modalBulkEdit").modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
         });
     });
 }
@@ -686,7 +618,7 @@ function actionsDomainDetail(){
         $('#modalServerForm #id').val(pk);
         $.ajax({
             type: "POST",
-            url:"/api/v3/admin/table/domains",
+            url:"/api/v4/admin/table/domains",
             data: JSON.stringify({
                 'id': pk,
                 'pluck': "server"
@@ -752,7 +684,7 @@ function actionsDomainDetail(){
             let pk = $('#modalChangeOwnerDomainForm #id').val()
             $.ajax({
                 type: "PUT",
-                url: `/api/v3/template/owner/${pk}/${data['new_owner']}`,
+                url: `/api/v4/item/template/${pk}/change-owner/${data['new_owner']}`,
                 contentType: 'application/json',
                 success: function (data) {
                     $('form').each(function () { this.reset() });
@@ -832,8 +764,8 @@ $('.btn-duplicate-template').on('click', function () {
         }).modal('show');
         // setModalUser()
         // setQuotaTableDefaults('#edit-users-quota','users',pk)
-        api.ajax('/api/v3/desktop/jumperurl/' + pk,'GET',{}).done(function(data) {
-            if(data.jumperurl != false){
+        api.ajax(`/api/v4/item/${kind}/` + pk + '/get-share-link','GET',{}).done(function(data) {
+            if(data.link){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
                 //NOTE: With this it will fire ifChecked event, and generate new key
@@ -842,7 +774,7 @@ $('.btn-duplicate-template').on('click', function () {
                 //$('#jumperurl-check').iCheck('check');
                 $('#jumperurl-check').prop('checked',true).iCheck('update');
 
-                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.jumperurl);
+                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.link);
             }else{
                 $('#jumperurl-check').iCheck('update')[0].unchecked;
                 $('#jumperurl').hide();
@@ -855,12 +787,12 @@ $('.btn-duplicate-template').on('click', function () {
         if($('#jumperurl').val()==''){
             pk=$('#modalJumperurlForm #id').val();
             $.ajax({
-                url: '/api/v3/desktop/jumperurl_reset/' + pk,
+                url: `/api/v4/item/${kind}/` + pk + '/update-share-link',
                 type: 'PUT',
                 contentType: "application/json",
-                data: JSON.stringify({"disabled" : false}),
+                data: JSON.stringify({"enabled" : true}),
                 success: function(data) {
-                    $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
+                    $('#jumperurl').val(data.link ? location.protocol + '//' + location.host+'/vw/'+data.link : '');
                 }
             })
             $('#jumperurl').show();
@@ -888,10 +820,10 @@ $('.btn-duplicate-template').on('click', function () {
             }).get().on('pnotify.confirm', function() {
                 pk=$('#modalJumperurlForm #id').val();
                 $.ajax({
-                    url: '/api/v3/desktop/jumperurl_reset/' + pk,
+                    url: `/api/v4/item/${kind}/` + pk + '/update-share-link',
                     type: 'PUT',
                     contentType: "application/json",
-                    data: JSON.stringify({"disabled" : true}),
+                    data: JSON.stringify({"enabled" : false}),
                     success: function(data) {
                         $('#jumperurl').val('');
                     }
@@ -920,7 +852,7 @@ $('.btn-duplicate-template').on('click', function () {
         }).modal('show');
         $.ajax({
             type: "POST",
-            url:"/api/v3/admin/table/domains",
+            url:"/api/v4/admin/table/domains",
             data: JSON.stringify({'id':pk,'pluck':['id','forced_hyp']}),
             contentType: 'application/json',
             accept: "application/json",
@@ -959,7 +891,7 @@ $('.btn-duplicate-template').on('click', function () {
             pk=$('#modalForcedhypForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/table/domains",
+                url:"/api/v4/admin/table/domains",
                 data: JSON.stringify({'id':pk,'pluck':['id','forced_hyp']}),
                 contentType: 'application/json',
                 accept: "application/json",
@@ -1004,7 +936,7 @@ $('.btn-duplicate-template').on('click', function () {
         data=$('#modalForcedhypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: `/api/v3/domain/${data["id"]}`,
+            url: `/api/v4/item/${kind}/${data["id"]}/edit`,
             data: JSON.stringify({
                 ...( ! ("forced_hyp"  in data) && {"forced_hyp": false} ),
                 ...( "forced_hyp" in data && {"forced_hyp": [data.forced_hyp]} ),
@@ -1047,7 +979,7 @@ $('.btn-duplicate-template').on('click', function () {
         }).modal('show');
         $.ajax({
             type: "POST",
-            url:"/api/v3/admin/table/domains",
+            url:"/api/v4/admin/table/domains",
             data: JSON.stringify({'id':pk,'pluck':['id','favourite_hyp']}),
             contentType: 'application/json',
             accept: "application/json",
@@ -1086,7 +1018,7 @@ $('.btn-duplicate-template').on('click', function () {
             pk=$('#modalFavouriteHypForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v3/admin/table/domains",
+                url:"/api/v4/admin/table/domains",
                 data: JSON.stringify({'id':pk,'pluck':['id','favourite_hyp']}),
                 contentType: 'application/json',
                 accept: "application/json",
@@ -1119,7 +1051,7 @@ $('.btn-duplicate-template').on('click', function () {
         data=$('#modalFavouriteHypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: `/api/v3/domain/${data["id"]}`,
+            url: `/api/v4/item/${kind}/${data["id"]}/edit`,
             data: JSON.stringify({
                 ...( ! ("favourite_hyp"  in data) && {"favourite_hyp": false} ),
                 ...( "favourite_hyp" in data && {"favourite_hyp": [data.favourite_hyp]} ),
@@ -1157,7 +1089,7 @@ function HypervisorsDropdown(selected) {
     $("#modalForcedhypForm #forced_hyp").empty();
     $.ajax({
         type: "POST",
-        url:"/api/v3/admin/table/hypervisors",
+        url:"/api/v4/admin/table/hypervisors",
         data: JSON.stringify({
             'pluck': ['id','hostname']
         }),
@@ -1179,7 +1111,7 @@ function HypervisorsFavDropdown(selected) {
     $("#modalFavouriteHypForm #favourite_hyp").empty();
     $.ajax({
         type: "POST",
-        url:"/api/v3/admin/table/hypervisors",
+        url:"/api/v4/admin/table/hypervisors",
         data: JSON.stringify({
             'pluck': ['id','hostname']
         }),
@@ -1200,7 +1132,7 @@ function HypervisorsFavDropdown(selected) {
 function setDefaultsTemplate(id) {
     $.ajax({
         type: "GET",
-        url:"/api/v3/domain/info/" + id,
+        url:"/api/v4/item/template/" + id + "/get-info",
         success: function(data)
         {
             $('.template-id').val(id);
@@ -1214,7 +1146,7 @@ function setDefaultsTemplate(id) {
 function populate_tree_template_delete(id) {
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/desktops/tree_list/" + id,
+        url:"/api/v4/admin/desktops/tree_list/" + id,
         contentType: 'application/json',
         success: function(data)
         {
@@ -1309,7 +1241,7 @@ function renderDisplay(data){
                 })
                 $.ajax({
                     type: 'PUT',
-                    url: '/api/v3/domain/'+data["id"],
+                    url: `/api/v4/item/${kind}/`+data["id"]+'/edit',
                     data: JSON.stringify(data),
                     contentType: 'application/json',
                     error: function(data) {

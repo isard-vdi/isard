@@ -31,7 +31,7 @@ $(document).ready(function () {
         $.ajax({
           type: "PUT",
           url:
-            "/api/v3/hypervisors/gpus",
+            "/api/v4/admin/hypervisors/gpus",
           data: JSON.stringify({}),
           contentType: "application/json",
           success: function (data) {
@@ -54,7 +54,7 @@ $(document).ready(function () {
 
   gpus_table = $("#table-gpus").DataTable({
     ajax: {
-      url: "/api/v3/admin/reservables/gpus",
+      url: "/api/v4/items/reservables/gpus",
       contentType: "application/json",
       type: "GET",
     },
@@ -314,7 +314,7 @@ $(document).ready(function () {
             $.ajax({
               type: "GET",
               url:
-                "/api/v3/admin/reservables/check/last/" +
+                "/api/v4/item/reservable/check-last/" +
                 reservable_type +
                 "/" +
                 subitem_id +
@@ -401,7 +401,7 @@ $(document).ready(function () {
             $.ajax({
               type: "GET",
               url:
-                "/api/v3/admin/reservables/check/last/" +
+                "/api/v4/item/reservable/check-last/" +
                 reservable_type +
                 "/" +
                 item_id,
@@ -537,7 +537,7 @@ $(document).ready(function () {
             var item_id = data.id;
             $.ajax({
                 type: 'PUT',
-                url: '/api/v3/admin/reservables/gpus/' + item_id,
+                url: '/api/v4/admin/reservables/gpus/' + item_id,
                 data: JSON.stringify({ name: data.name, description: data.description }),
                 contentType: 'application/json',
                 success: function(data) {
@@ -621,7 +621,7 @@ function showDeleteGPUModal(subitem_id, item_id, reservable_type, data) {
   if (data['deployments'].length > 0) {
     $.each(data['deployments'], function (key, value) {
       value['kind'] = 'deployment';
-      value['name'] = value["tag_name"];
+      value['name'] = value["name"];
       value['user_name'] = value['username'];
       infoDomains(value, $('#deployments_table tbody'));
     });
@@ -645,7 +645,7 @@ function modal_add_gpu_datatables(reservable_type) {
 
   modal_add_gpu = $("#modal_add_gpu").DataTable({
     ajax: {
-      url: "/api/v3/admin/profiles/" + reservable_type, // defined through attribute data-panel in add new button
+      url: "/api/v4/items/reservables/profiles/" + reservable_type, // defined through attribute data-panel in add new button
       dataSrc: "",
     },
     scrollY: "125px",
@@ -719,7 +719,7 @@ function initalize_bookables_modal_events() {
         $.ajax({
           type: "POST",
           url:
-            "/api/v3/admin/reservables/" +
+            "/api/v4/item/reservable/" +
             $("#modalAddGpu #reservable_type").val(),
           data: JSON.stringify(data),
           contentType: "application/json",
@@ -756,12 +756,12 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
   $.ajax({
     type: "PUT",
     url:
-      "/api/v3/admin/reservables/enable/" +
+      "/api/v4/item/reservable/enable/" +
       reservable_type +
       "/" +
       item_id +
       "/" +
-      subitem_id  + (notify_user ? "/notify_user" : ""),
+      subitem_id + (notify_user ? "?notify_user=true" : ""),
     data: JSON.stringify({ enabled, desktops, plans }),
     contentType: "application/json",
     success: function(data)
@@ -798,7 +798,7 @@ function GpuEnabledProfilesDropdown(gpu_id) {
   $.ajax({
     method: "POST",
     async: false,
-    url: "/api/v3/admin/table/gpus",
+    url: "/api/v4/admin/table/gpus",
     data: JSON.stringify({"id": gpu_id}),
     contentType: "application/json",
     accept: "application/json",
@@ -813,10 +813,10 @@ function deleteReservable(reservable_type, item_id, notify_user) {
   $.ajax({
     type: "DELETE",
     url:
-      "/api/v3/admin/reservables/delete/" +
+      "/api/v4/item/reservable/" +
       reservable_type +
       "/" +
-      item_id + (notify_user ? "/notify_user" : ""),
+      item_id + (notify_user ? "?notify_user=true" : ""),
     contentType: "application/json",
     success: function (data) {
       $('form').each(function () { this.reset() });

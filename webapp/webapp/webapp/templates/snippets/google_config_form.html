@@ -20,24 +20,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #}
 {% with
-  id_prefix = 'google-config-show-' if disabled is true else 'google-config-edit-'
+  name="client_id",
+  label="Client ID"
 %}
-  <div class="x_panel">
-    <div class="x_content">
-      {% with
-        name="google_config_client_id",
-        label="Client ID"
-      %}
-        {% include '/snippets/form_field.html' %}
-      {% endwith %}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-      {% with
-        name="google_config_client_secret",
-        label="Client Secret",
-        type="password"
-      %}
-        {% include '/snippets/form_field.html' %}
-      {% endwith %}
-    </div>
-  </div>
+{% with
+  name="client_secret",
+  label="Client Secret",
+  type="password",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
 {% endwith %}

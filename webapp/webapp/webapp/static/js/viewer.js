@@ -10,7 +10,7 @@ function startClientVpnSocket(socket){
     $('#btn-uservpnconfig').on('click', function () {
         $.ajax({
             type: "GET",
-            url:"/api/v3/user/vpn/config",
+            url:"/api/v4/item/user/vpn/config",
             success: function (data) {
                 const el = document.createElement('a')
                 const content = data.content
@@ -26,29 +26,13 @@ function startClientVpnSocket(socket){
             }
         })
     });
-
-    socket.on('vpn', function (data) {
-        var data = JSON.parse(data);
-        if(data['kind']=='url'){
-            window.open(data['url'], '_blank');
-        }
-        if(data['kind']=='file'){
-            var vpnFile = new Blob([data['content']], {type: data['mime']});
-            var a = document.createElement('a');
-                a.download = data['name']+'.'+data['ext'];
-                a.href = window.URL.createObjectURL(vpnFile);
-            var ev = document.createEvent("MouseEvents");
-                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                a.dispatchEvent(ev);              
-        }
-    });
 }
 
 
 function setViewerButtons(desktop_id){
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/domain/" + desktop_id + "/viewer_data",
+        url:"/api/v4/admin/domain/" + desktop_id + "/viewer_data",
         // async: false,
         success: function (resp) {
             setViewerButtonData(desktop_id,resp)
@@ -154,7 +138,7 @@ function setViewerButtonData(desktop_id,data){
         }
         $.ajax({
             type: "GET",
-            url:"/api/v3/desktop/" + desktop_id + "/viewer/" + $(this).data('client') + "-" + $(this).data('type'),
+            url:"/api/v4/item/desktop/" + desktop_id + "/get-viewer/" + $(this).data('client') + "-" + $(this).data('type'),
             success: function (data) {
                 var el = document.createElement('a')
                 if (data.kind === 'file') {

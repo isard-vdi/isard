@@ -22,7 +22,7 @@ $(document).ready(function () {
   DEFAULT_STORAGE_POOL_ID = ""
   $.ajax({
     type: "GET",
-    url: "/admin/storage_pool/default",
+    url: "/api/v4/storage-pool/default",
     success: function (data) {
       DEFAULT_STORAGE_POOL_ID = data.id;
     }
@@ -31,7 +31,7 @@ $(document).ready(function () {
   storage_pools_table = $('#storage_pools').DataTable({
     "ajax": {
       "type": 'GET',
-      "url": "/admin/storage_pools",
+      "url": "/api/v4/storage-pools",
       "dataSrc": "",
       "contentType": "application/json",
     },
@@ -342,7 +342,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "PUT",
-            url: "/admin/storage_pool/" + data["id"],
+            url: "/api/v4/storage-pool/" + data["id"],
             data: JSON.stringify({ 'name': data["name"], 'enabled': !data.enabled }),
             contentType: "application/json",
             success: function (data) {
@@ -394,7 +394,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "PUT",
-            url: "/admin/storage_pool/" + data["id"],
+            url: "/api/v4/storage-pool/" + data["id"],
             data: JSON.stringify({ 'enabled_virt': !data.enabled_virt }),
             contentType: "application/json",
             success: function (data) {
@@ -458,7 +458,7 @@ $(document).ready(function () {
         }).get().on("pnotify.confirm", function () {
           $.ajax({
             type: "DELETE",
-            url: "/admin/storage_pool/" + data["id"],
+            url: "/api/v4/storage-pool/" + data["id"],
             contentType: "application/json",
             success: function (data) {
               new PNotify({
@@ -594,7 +594,7 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
 
     $.ajax({
       type: "POST",
-      url: `/api/v3/admin/storage_pool/check_category_availability`,
+      url: `/api/v4/storage-pool/check-category-availability`,
       data: JSON.stringify({ "categories": data.categories, "storage_pool_id": data.id }),
       contentType: "application/json",
       success: function (xhr) {
@@ -685,7 +685,7 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
 
     $.ajax({
       type: "POST",
-      url: `/api/v3/admin/storage_pool/check_category_availability`,
+      url: `/api/v4/storage-pool/check-category-availability`,
       data: JSON.stringify({ "categories": data.categories, "storage_pool_id": data.id }),
       contentType: "application/json",
       success: function (xhr) {
@@ -769,7 +769,7 @@ function populateQosDisk(modal, qos_disk_id) {
   );
   $.ajax({
     type: "GET",
-    url: "/api/v3/admin/table/qos_disk",
+    url: "/api/v4/admin/table/qos_disk",
     cache: false,
     success: function (qos_disk) {
       $.each(qos_disk, function (key, value) {
@@ -788,7 +788,7 @@ function populateCategory(modal, category_id) {
   $(modal + " #category").empty();
   $.ajax({
     type: "GET",
-    url: "/api/v3/admin/categories",
+    url: "/api/v4/admin/categories",
     cache: false,
     success: function (category) {
       $.each(category, function (key, value) {
@@ -809,7 +809,7 @@ function updateStoragePool(data) {
     icon: 'fa fa-spinner fa-pulse'
   })
   $.ajax({
-    url: "/admin/storage_pool/" + data["id"],
+    url: "/api/v4/storage-pool/" + data["id"],
     type: "PUT",
     data: JSON.stringify(data),
     contentType: "application/json",
@@ -849,7 +849,7 @@ function createStoragePool(data) {
     icon: "fa fa-spinner fa-pulse",
   });
   $.ajax({
-    url: "/admin/storage_pool",
+    url: "/api/v4/storage-pool",
     type: "POST",
     data: JSON.stringify(data),
     contentType: "application/json",

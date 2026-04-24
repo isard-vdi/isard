@@ -22,10 +22,10 @@ import os
 
 from flask import jsonify, make_response, redirect, render_template
 from flask_login import current_user, login_required, login_user, logout_user
+from isardvdi_common.helpers.token_flask import TokenFlask
 
 from webapp import app
 
-from .._common.tokens import get_expired_user_data
 from ..auth.authentication import *
 from ..lib.log import *
 from .decorators import isAdmin, isAdminManager, maintenance
@@ -113,10 +113,12 @@ def remote_logout():
 @login_required
 def logout():
     response = requests.get(
-        f"http://isard-api:5000/api/v3/category/{current_user.category}/custom_url"
+        f"http://isard-apiv4:5000/api/v4/item/category/{current_user.category}/custom_url"
     )
     if request.cookies.get("isardvdi_session"):
-        user_session = get_expired_user_data(request.cookies.get("isardvdi_session"))
+        user_session = TokenFlask.get_expired_user_data(
+            request.cookies.get("isardvdi_session")
+        )
         provider = (
             "form"
             if user_session.get("provider") in ["local", "ldap"]

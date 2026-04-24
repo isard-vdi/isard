@@ -79,7 +79,7 @@ function actionsRolDetail() {
 
         $.ajax({
             type: "GET",
-            url: "/api/v3/admin/role/" + pk,
+            url: "/api/v4/admin/role/" + pk,
             contentType: "application/json",
             success: function (role) {
                 $('#modalEditRoleForm #id').val(pk);
@@ -101,7 +101,7 @@ function actionsRolDetail() {
                 })
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v3/admin/role/" + data['id'],
+                    url: "/api/v4/admin/role/" + data['id'],
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {

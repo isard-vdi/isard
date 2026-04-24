@@ -59,8 +59,8 @@ $(document).ready(function() {
             { "data": "limits.isos", className: "xe-isos", defaultContent: "-"},
             { "data": "quota.deployments_total", className: "xe-deployments", defaultContent: "-"},
             { "data": "limits.deployments_total", className: "xe-deployments", defaultContent: "-"},
-            { "data": "quota.deployment_desktops", className: "xe-deployments", defaultContent: "-"},
-            { "data": "limits.deployment_desktops", className: "xe-deployments", defaultContent: "-"},
+            { "data": "quota.deployment_users", className: "xe-deployments", defaultContent: "-"},
+            { "data": "limits.deployment_users", className: "xe-deployments", defaultContent: "-"},
             { "data": "id", "visible": false}
         ],
         "columnDefs": [
@@ -242,7 +242,7 @@ function actionsCategoryDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/quota/category/"+pk ,
+                url:"/api/v4/admin/quota/category/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)
@@ -314,7 +314,7 @@ function actionsCategoryDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/limits/category/"+pk ,
+                url:"/api/v4/admin/limits/category/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)

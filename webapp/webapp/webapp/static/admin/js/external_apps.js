@@ -66,7 +66,7 @@ $(document).ready(function(){
                 })
                 $.ajax({
                     type: "POST",
-                    url:"/api/v3/admin/secret",
+                    url:"/api/v4/admin/secret",
                     data: JSON.stringify({
                         "id": data["name"],
                         "description": data["description"],
@@ -127,7 +127,7 @@ $(document).ready(function(){
                 }).get().on('pnotify.confirm', function() {
                     $.ajax({
                         type: "DELETE",
-                        url: "/api/v3/admin/secret/" + id,
+                        url: "/api/v4/admin/secret/" + id,
                     });
                     table.ajax.reload()
                 }).on('pnotify.cancel', function() {});
@@ -139,7 +139,7 @@ $(document).ready(function(){
 function setRoleCategory(){
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/userschema",
+        url:"/api/v4/admin/userschema",
         async: false,
         success: function (d) {
             $.each(d, function (key, value) {

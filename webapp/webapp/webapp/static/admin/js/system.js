@@ -45,7 +45,7 @@ $(document).ready(function () {
         $("#maintenance_checkbox").unbind("ifUnchecked");
         $.ajax({
             type: "PUT",
-            url: "/api/v3/maintenance",
+            url: "/api/v4/maintenance",
             data: JSON.stringify(enabled),
             contentType: "application/json",
             accept: "application/json",
@@ -58,7 +58,7 @@ $(document).ready(function () {
     }
     $.ajax({
         type: "GET",
-        url: "/api/v3/maintenance/status",
+        url: "/api/v4/maintenance/status",
         accept: "application/json",
     }).done((data) => {
         maintenance_update_checkbox(data);
@@ -72,7 +72,7 @@ $(document).ready(function () {
     $("#btn-edit-maintenance-text").on("click", function () {
         var modal = "#modalEditMaintenanceText";
         $.ajax({
-            url: "/api/v3/maintenance/text",
+            url: "/api/v4/maintenance/text",
         }).done(function (data) {
             $(modal + " #title").val(data.title);
             $(modal + " #text").val(data.body);
@@ -89,7 +89,7 @@ $(document).ready(function () {
         form.parsley().validate();
         $.ajax({
             type: "PUT",
-            url: "/api/v3/maintenance/text",
+            url: "/api/v4/maintenance/text",
             contentType: 'application/json',
             data: JSON.stringify(data)
         }).done(function (data) {
@@ -124,7 +124,7 @@ function socketio_on() { }
 
 function showMaintenanceText(div) {
     $.ajax({
-        url: "/api/v3/maintenance/text",
+        url: "/api/v4/maintenance/text",
     }).done(function (data) {
         $("#preview").text(`${data.title}\n\n${data.body}`)
     });

@@ -24,8 +24,7 @@ from functools import wraps
 from cachetools import TTLCache, cached
 from flask import redirect, render_template
 from flask_login import current_user, logout_user
-
-from .._common.api_rest import ApiRest
+from isardvdi_common.connections.api_rest import ApiRest
 
 _MAINTENANCE_API_ENDPOINT = "/maintenance"
 
@@ -67,11 +66,14 @@ def isAdminManager(fn):
 @cached(TTLCache(maxsize=1, ttl=5))
 def _get_maintenance(category_id=None):
     logging.debug("Check api maintenance mode")
-    return ApiRest().get(
+    result = ApiRest().get(
         _MAINTENANCE_API_ENDPOINT + "/" + category_id
         if category_id
         else _MAINTENANCE_API_ENDPOINT
     )
+    if isinstance(result, dict):
+        return bool(result.get("enabled", False))
+    return bool(result)
 
 
 def maintenance(function):

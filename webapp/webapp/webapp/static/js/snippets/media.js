@@ -40,7 +40,7 @@
                 multiple: true,
                 ajax: {
                     type: "POST",
-                    url: '/api/v3/admin/allowed/term/media',
+                    url: '/api/v4/admin/allowed/term/media',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,

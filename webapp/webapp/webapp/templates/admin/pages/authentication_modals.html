@@ -41,33 +41,44 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 <form id="modalProviderConfigForm" class="form-horizontal form-label-left">
-                    <input hidden name="provider" id="provider" />
+                    <input hidden name="provider" id="provider" data-parsley-excluded="true" />
+                    <div class="x_panel local_config">
+                        <h4><i class="fa fa-id-badge"></i> Local Configuration</h4>
+                        {% with
+                          id_prefix="local-config-edit-",
+                          name="enabled",
+                          label="Enabled",
+                          type="checkbox"
+                        %}
+                          {% include '/snippets/form_field.html' %}
+                        {% endwith %}
+                    </div>
                     <div class="x_panel ldap_config">
                         <h4><i class="fa fa-id-badge"></i> LDAP Configuration</h4>
-                        {% include '/snippets/ldap_config_form.html' %}
+                        {% include '/snippets/ldap_config_enable_form.html' %}
                     </div>
                     <div class="x_panel saml_config">
                         <h4><i class="fa fa-exchange"></i> SAML Configuration</h4>
-                        {% include '/snippets/saml_config_form.html' %}
+                        {% include '/snippets/saml_config_enable_form.html' %}
                     </div>
                     <div class="x_panel google_config">
                         <h4><i class="fa fa-id-badge"></i> Google Configuration</h4>
-                        {% include '/snippets/google_config_form.html' %}
+                        {% include '/snippets/google_config_enable_form.html' %}
                     </div>
-                    <div class="x_panel">
+                    <div class="x_panel migration-section">
                         <h4><i class="fa fa-exchange"></i> Migration</h4>
                         <!-- 4 iCheck checkboxes: allow automigration, delete user on migrate, allow user import and allow user export-->
                         <div class="x_content">
                             <div class="x_content">
                                 <div class="col-md-6 col-xs-12">
                                     <label>
-                                        <input type="checkbox" id="import" name="import" class="flat"> Allow User
+                                        <input type="checkbox" id="import" name="migration[import]" class="flat"> Allow User
                                         Import
                                     </label>
                                 </div>
                                 <div class="col-md-6 col-xs-12">
                                     <label>
-                                        <input type="checkbox" id="export" name="export" class="flat"> Allow User
+                                        <input type="checkbox" id="export" name="migration[export]" class="flat"> Allow User
                                         Export
                                     </label>
                                 </div>
@@ -85,7 +96,7 @@
                         <div class="x_content">
                         <div class="col-xs-12">
                             <label for="action_after_migrate">After migration:</label>
-                            <select id="action_after_migrate" name="action_after_migrate" class="form-control">
+                            <select id="action_after_migrate" name="migration[action_after_migrate]" class="form-control">
                                 <option selected value="none">Nothing</option>
                                 <option value="delete">Delete original user</option>
                                 <option value="disable">Disable original user</option>
@@ -97,7 +108,7 @@
                     <div class="x_panel force-migration-panel" style="display:none;">
                         <div class="col-md-12 col-xs-12">
                             <label>
-                                <input type="checkbox" id="force" name="force" class="flat"> Force Migration 
+                                <input type="checkbox" id="force" name="migration[force_migration]" class="flat"> Force Migration
                             </label>
                             <span> (Users in this provider will be forced to the export user page)</span>
                         </div>
@@ -108,7 +119,7 @@
                             <div class="form-group">
                                 <div class="col-md-6 col-xs-12">
                                     <label>
-                                        <input type="checkbox" id="notification_bar" name="notification_bar"
+                                        <input type="checkbox" id="notification_bar" name="migration[notification_bar][enabled]"
                                             class="flat"> Add Status Bar Notification
                                     </label>
                                 </div>
@@ -116,7 +127,7 @@
                             <div id="status_bar_notification">
                                 <div class="form-group">
                                     <label for="template">Notification Template</label>
-                                    <select id="template" name="template" class="form-control">
+                                    <select id="template" name="migration[notification_bar][template]" class="form-control">
                                     </select>
                                     <p><i>(Edit templates at
                                             <a href="/isard-admin/admin/notifications">Notification templates</a>)
@@ -124,7 +135,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="level">Notification Level</label>
-                                    <select id="level" name="level" class="form-control">
+                                    <select id="level" name="migration[notification_bar][level]" class="form-control">
                                         <option selected value="info">Info</option>
                                         <option value="warning">Warning</option>
                                         <option value="danger">Danger</option>

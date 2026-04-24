@@ -25,7 +25,7 @@ $(document).ready(function () {
     scheduler_table = $('#table-scheduler').DataTable({
         "ajax": {
             "type": "GET",
-            "url": "/api/v3/admin/scheduler/jobs/system",
+            "url": "/api/v4/admin/scheduler/jobs/system",
         },
         "sAjaxDataProp": "",
         "language": {
@@ -128,7 +128,24 @@ $(document).ready(function () {
 
 });
 
-function socketio_on() { }
+function socketio_on() {
+    socket.on('scheduler_jobs_add', function (data) {
+        var data = JSON.parse(data);
+        dtUpdateInsert(scheduler_table, data, false);
+    });
+
+    socket.on('scheduler_jobs_update', function (data) {
+        var data = JSON.parse(data);
+        dtUpdateInsert(scheduler_table, data, false);
+    });
+
+    socket.on('scheduler_jobs_delete', function (data) {
+        var data = JSON.parse(data);
+        if (typeof(scheduler_table.row('#' + data.id).id()) !== 'undefined') {
+            scheduler_table.row('#' + data.id).remove().draw();
+        }
+    });
+}
 
 function scheduler_init() {
     $("#modalScheduler #modalAddScheduler").each(function () {

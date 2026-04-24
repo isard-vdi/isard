@@ -10,9 +10,9 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
         $(id+" #hardware-qos_id").find('option').remove();
         $(id+" #hardware-disk_bus").find('option').remove();
         if (typeof domain_id !== 'undefined'){
-            url = '/api/v3/user/hardware/allowed/'+domain_id
+            url = '/api/v4/item/user/get-allowed-hardware/'+domain_id
         }else{
-            url = '/api/v3/user/hardware/allowed'
+            url = '/api/v4/item/user/get-allowed-hardware'
         }
         $.ajax({
             type: 'GET',
@@ -106,7 +106,7 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
 function setHardwareDomainIdDefaults(div_id,domain_id){
     $.ajax({
         type: 'GET',
-        url: '/api/v3/domain/info/'+domain_id,
+        url: '/api/v4/item/desktop/'+domain_id+'/get-info',
         accept: 'application/json',
     }).done(function(domain) {
         setHardwareDomainDefaults(div_id,domain)
@@ -211,9 +211,9 @@ function setHardwareDomainDefaults(div_id,domain){
 
 function setHardwareDomainDefaultsDetails(domain_id,item){
     if (item == "domain"){
-        ajaxUrl = "/api/v3/domain/hardware/"+domain_id
+        ajaxUrl = "/api/v4/domain/hardware/"+domain_id
     } else if (item == "deployment"){
-        ajaxUrl = "/api/v3/deployment/hardware/"+domain_id
+        ajaxUrl = "/api/v4/item/deployment/"+domain_id+"/hardware"
     }
     $.ajax({
         type: "GET",
@@ -261,7 +261,7 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
 function setDomainStorage(domain_id) {
     storage_table = $("#table-storage-" + domain_id.replaceAll('.', '\\.')).DataTable({
         "ajax": {
-            "url": "/api/v3/admin/domain/storage/" + domain_id,
+            "url": "/api/v4/admin/domain/storage/" + domain_id,
             "contentType": "application/json",
             "type": 'GET'
         },

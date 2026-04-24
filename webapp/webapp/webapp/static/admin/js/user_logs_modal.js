@@ -100,8 +100,12 @@
             autoWidth: false,
             searching: false,
             ajax: {
-                url: '/api/v3/admin/logs_users/user/' + encodeURIComponent(userId),
-                type: 'POST'
+                url: '/api/v4/admin/logs_users',
+                type: 'POST',
+                data: function(d) {
+                    d.filter_field = 'user_id';
+                    d.filter_value = userId;
+                }
             },
             columns: columns,
             columnDefs: [
@@ -131,12 +135,13 @@
             $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Downloading...');
 
             var formData = 'draw=1&start=0&length=100000&order[0][column]=0&order[0][dir]=desc';
+            formData += '&filter_field=user_id&filter_value=' + encodeURIComponent(currentUserId);
             columns.forEach(function(col, i) {
                 formData += '&columns[' + i + '][data]=' + encodeURIComponent(col.data);
             });
 
             $.ajax({
-                url: '/api/v3/admin/logs_users/user/' + encodeURIComponent(currentUserId),
+                url: '/api/v4/admin/logs_users',
                 type: 'POST',
                 data: formData,
                 success: function(resp) {

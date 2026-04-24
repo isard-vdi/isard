@@ -1,7 +1,7 @@
     function setAlloweds_viewer(div_id,id, table = 'domains'){
         $.ajax({
             type: "POST",
-            url: '/api/v3/allowed/table/' + table,
+            url: '/api/v4/allowed/table/' + table,
             contentType: "application/json",
             data: JSON.stringify({'id':id}),
             accept: "application/json",
@@ -192,7 +192,7 @@
         setAlloweds_add('#modalAlloweds #alloweds-add');
         $.ajax({
             type: "POST",
-            url: '/api/v3/allowed/table/'+table,
+            url: '/api/v4/allowed/table/'+table,
             accept: "application/json",
             contentType: "application/json",
             data: JSON.stringify({'id':data.id}),

@@ -21,7 +21,7 @@
 $(document).ready(function () {
     personalunits_table = $('#table-personalunits').DataTable({
         "ajax": {
-            "url": "/api/v3/admin/user_storage",
+            "url": "/api/v4/admin/user_storage",
             "contentType": "application/json",
             "type": 'GET',
         },
@@ -224,7 +224,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function() {
                     $.ajax({
                         type: "DELETE",
-                        url: "/api/v3/admin/user_storage/" + data["id"],
+                        url: "/api/v4/admin/user_storage/" + data["id"],
                         success: function (data) {
                             $('form').each(function () { this.reset() });
                             $('.modal').modal('hide');
@@ -279,7 +279,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function() {
                     $.ajax({
                         type: "DELETE",
-                        url: "/api/v3/admin/user_storage/" + data["id"]+"/reset",
+                        url: "/api/v4/admin/user_storage/" + data["id"]+"/reset",
                         success: function (data) {
                             $('form').each(function () { this.reset() });
                             $('.modal').modal('hide');
@@ -321,7 +321,7 @@ $(document).ready(function () {
                     }).get().on('pnotify.confirm', function() {
                         $.ajax({
                             type: "GET",
-                            url: "/api/v3/admin/user_storage/" + data["id"]+"/login_auth",
+                            url: "/api/v4/admin/user_storage/" + data["id"]+"/login_auth",
                             success: function (data) {
                                 data = JSON.parse(data);
                                 window.open(data.login_url, '_blank');
@@ -349,7 +349,7 @@ $(document).ready(function () {
         $("#spinner_sync_users").show();
         $.ajax({
             type: "PUT",
-            url: "/api/v3/admin/user_storage/"+id+"/sync/users",
+            url: "/api/v4/admin/user_storage/"+id+"/sync/users",
             contentType: "application/json",
             success: function () {
                 new PNotify({
@@ -386,7 +386,7 @@ $(document).ready(function () {
         $("#spinner_sync_groups").show();
         $.ajax({
             type: "PUT",
-            url: "/api/v3/admin/user_storage/"+id+"/sync/groups",
+            url: "/api/v4/admin/user_storage/"+id+"/sync/groups",
             data: JSON.stringify({'id':id,'sync':'groups'}),
             contentType: "application/json",
             success: function () {
@@ -430,7 +430,7 @@ $(document).ready(function () {
         $('#modalPersonalunitsForm #verify_cert').iCheck('check').iCheck('update')
         $.ajax({
             type: "GET",
-            url:"/api/v3/admin/userschema",
+            url:"/api/v4/admin/userschema",
             success: function (data) {
                 $('#modalPersonalunitsForm #access').find('option').remove().end();
                 $('#modalPersonalunitsForm #access').append('<option value="">Choose</option>');
@@ -458,7 +458,7 @@ $(document).ready(function () {
             data["quota"]={"admin": parseInt(data["quota-admin"]), "manager": parseInt(data["quota-manager"]), "advanced": parseInt(data["quota-advanced"]), "user": parseInt(data["quota-user"])}
             $.ajax({
                 type: "POST",
-                url: "/api/v3/admin/user_storage/auth_basic",
+                url: "/api/v4/admin/user_storage/new/auth_basic",
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function () {
@@ -574,31 +574,13 @@ $(document).ready(function () {
                 dtUpdateInsert(personalunits_progress,data,false);
             }
         });
-    
-        socket.on('result', function (data) {
-            var data = JSON.parse(data);
-            new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-' + data.icon,
-                opacity: 1,
-                type: data.type
-            });
-        });
 
-        socket.on('delete', function (data) {
+        socket.on('user_storage_delete', function (data) {
             var dict = JSON.parse(data);
-            data = dict['data']
-            switch (dict['table']) {
-                case 'personalunits':
-                    var row = personalunits_table.row('#'+data.id).remove().draw();
-                    break;
-            }
+            personalunits_table.row('#'+dict.id).remove().draw();
             new PNotify({
                 title: "Deleted",
-                text: data.name + " has been deleted",
+                text: dict.name + " has been deleted",
                 hide: true,
                 delay: 4000,
                 icon: 'fa fa-success',

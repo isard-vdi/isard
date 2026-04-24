@@ -124,7 +124,7 @@ $(document).ready(function () {
               data["table"] = "remotevpn";
               $.ajax({
                 type: "DELETE",
-                url: "/api/v3/bookings/priorities/" + data['id'],
+                url: "/api/v4/item/booking/priority/" + data['id'],
                 contentType: "application/json",
                 success: function (data) {
                   $("form").each(function () {
@@ -323,7 +323,7 @@ $(".btn-compute").on("click", function () {
       $.ajax({
         type: "POST",
         url:
-          "/api/v3/bookings/priorities",
+          "/api/v4/items/bookings/priorities",
         data: JSON.stringify({"rule_id":$('#priority').val()}),
         contentType: "application/json",
         success: function (data) {
@@ -338,7 +338,7 @@ $(".btn-compute").on("click", function () {
 
   $.ajax({
     type: "GET",
-    url: "/api/v3/admin/priority/rules",
+    url: "/api/v4/items/bookings/priority-rules",
     contentType: "application/json",
     dataType: "json",
     success: function (response) {
@@ -351,27 +351,7 @@ $(".btn-compute").on("click", function () {
       $('#priority option[value="' + response.priority_id + '"]').prop("selected",true);
     },
   });
-    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
-function socketio_on(){
-  socket.on("add_form_result", function (data) {
-    console.log("received result");
-    var data = JSON.parse(data);
-    if (data.result) {
-      $("#modalAddScheduler")[0].reset();
-      $("#modalScheduler").modal("hide");
-    }
-    new PNotify({
-      title: data.title,
-      text: data.text,
-      hide: true,
-      delay: 4000,
-      icon: "fa fa-" + data.icon,
-      opacity: 1,
-      type: data.type,
-    });
-  });
-}
 
 function renderBookableDetailPannel ( d ) {
 
