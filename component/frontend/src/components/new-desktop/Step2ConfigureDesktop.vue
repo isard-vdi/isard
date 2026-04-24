@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { useUserStore } from '@/stores/user'
-import { getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getTemplateDetailsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
 import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
 import { Button } from '@/components/ui/button'
@@ -53,7 +53,7 @@ const {
   error: templateError,
   data: templateData
 } = useQuery({
-  ...getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGetOptions({
+  ...getTemplateDetailsOptions({
     path: {
       template_id: props.selectedTemplate?.id || ''
     }

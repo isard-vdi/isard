@@ -11,11 +11,11 @@ import {
 import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
 import type { CategoryResponseList } from '@/gen/oas/apiv4'
 import {
-  apiV4CategoriesApiV4ItemsCategoriesGetOptions,
-  apiV4CategoriesApiV4ItemsCategoriesGetQueryKey,
-  apiV4CategoryApiV4ItemCategoryCustomUrlGetOptions,
-  apiV4CategoryApiV4ItemCategoryCustomUrlGetQueryKey,
-  apiV4LoginConfigApiV4ItemLoginConfigGetOptions
+  apiV4CategoriesOptions,
+  apiV4CategoriesQueryKey,
+  apiV4CategoryCustomUrlOptions,
+  apiV4CategoryCustomUrlQueryKey,
+  apiV4LoginConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   parseToken as parseAuthToken,
@@ -98,10 +98,10 @@ const {
   isError: globalConfigIsError,
   error: globalConfigError,
   data: globalConfig
-} = useQuery(apiV4LoginConfigApiV4ItemLoginConfigGetOptions())
+} = useQuery(apiV4LoginConfigOptions())
 
-const categoriesOpts = computed(() => apiV4CategoriesApiV4ItemsCategoriesGetOptions())
-const categoriesQueryKey = computed(() => apiV4CategoriesApiV4ItemsCategoriesGetQueryKey())
+const categoriesOpts = computed(() => apiV4CategoriesOptions())
+const categoriesQueryKey = computed(() => apiV4CategoriesQueryKey())
 const {
   isPending: categoriesIsPending,
   isError: categoriesIsError,
@@ -114,14 +114,14 @@ const {
 })
 
 const categoryOpts = computed(() =>
-  apiV4CategoryApiV4ItemCategoryCustomUrlGetOptions({
+  apiV4CategoryCustomUrlOptions({
     path: {
       custom_url: routeCategory.value || ''
     }
   })
 )
 const categoryQueryKey = computed(() =>
-  apiV4CategoryApiV4ItemCategoryCustomUrlGetQueryKey({
+  apiV4CategoryCustomUrlQueryKey({
     path: {
       custom_url: routeCategory.value || ''
     }

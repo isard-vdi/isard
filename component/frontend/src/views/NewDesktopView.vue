@@ -4,9 +4,9 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
-  createDesktopApiV4ItemDesktopPostMutation,
-  checkQuotaNewDesktopApiV4QuotaDesktopNewGetOptions,
-  checkStoragePoolCreationAvailabilityApiV4StoragePoolsCheckCreateAvailabilityGetOptions
+  createDesktopMutation,
+  checkQuotaNewDesktopOptions,
+  checkStoragePoolCreationAvailabilityOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -26,13 +26,13 @@ const { t } = useI18n()
 // --------------------------------------------------
 
 const quotaQuery = useQuery({
-  ...checkQuotaNewDesktopApiV4QuotaDesktopNewGetOptions(),
+  ...checkQuotaNewDesktopOptions(),
   staleTime: QUOTA_STALE_TIME,
   retry: false
 })
 
 const storageQuery = useQuery({
-  ...checkStoragePoolCreationAvailabilityApiV4StoragePoolsCheckCreateAvailabilityGetOptions(),
+  ...checkStoragePoolCreationAvailabilityOptions(),
   staleTime: QUOTA_STALE_TIME,
   retry: false,
   enabled: quotaQuery.isSuccess
@@ -101,7 +101,7 @@ const {
   isError: submitDesktopCreateIsError,
   error: submitDesktopCreateError
 } = useMutation({
-  ...createDesktopApiV4ItemDesktopPostMutation(),
+  ...createDesktopMutation(),
   onSuccess: (data) => {
     router.push({
       name: 'single-desktop',

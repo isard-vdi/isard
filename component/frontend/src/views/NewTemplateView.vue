@@ -7,7 +7,7 @@ import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import { getUserDesktopsApiV4ItemsDesktopsGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGet } from '@/gen/oas/apiv4'
-import { checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { checkQuotaNewTemplateOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 
@@ -63,7 +63,7 @@ const { t, d } = useI18n()
 // --------------------------------------------------
 
 const quotaQuery = useQuery({
-  ...checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions(),
+  ...checkQuotaNewTemplateOptions(),
   staleTime: QUOTA_STALE_TIME,
   retry: false
 })

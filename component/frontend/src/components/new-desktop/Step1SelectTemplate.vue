@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
 import TemplatesList from '@/components/templates/TemplatesList.vue'
 import { DomainInfoModal } from '@/components/desktops'
-import { getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGet } from '@/gen/oas/apiv4/'
+import { getTemplateDetails } from '@/gen/oas/apiv4/'
 
 interface Props {
   selectedId?: string
@@ -36,7 +36,7 @@ const {
   reset: resetTemplateDetails
 } = useMutation({
   mutationFn: async (templateId: string) => {
-    const { data } = await getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGet({
+    const { data } = await getTemplateDetails({
       path: {
         template_id: templateId
       },

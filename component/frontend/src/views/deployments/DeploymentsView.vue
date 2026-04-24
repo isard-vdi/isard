@@ -13,8 +13,8 @@ import ModalCard from '@/components/modal-card/ModalCard.vue'
 import Button from '@/components/ui/button/Button.vue'
 import AlertModal from '@/components/modal/AlertModal.vue'
 import {
-  getAllDeploymentsApiV4ItemsDeploymentsGetOptions,
-  deleteDeploymentApiV4ItemDeploymentDeploymentIdDeleteMutation
+  getAllDeploymentsOptions,
+  deleteDeploymentMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { useDeleteDeployment } from '@/lib/deployments'
 
@@ -24,14 +24,10 @@ import modalLabs from '@/assets/img/modalcard-2.svg'
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const router = useRouter()
-const {
-  isPending,
-  isError,
-  data: deploymentsData
-} = useQuery(getAllDeploymentsApiV4ItemsDeploymentsGetOptions())
+const { isPending, isError, data: deploymentsData } = useQuery(getAllDeploymentsOptions())
 
 const deleteMutation = useMutation({
-  ...deleteDeploymentApiV4ItemDeploymentDeploymentIdDeleteMutation()
+  ...deleteDeploymentMutation()
 })
 function goToDeploymentDetail(deploymentId: string) {
   router.push(`/lab/${deploymentId}`)

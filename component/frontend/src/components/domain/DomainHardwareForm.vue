@@ -15,8 +15,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/vue-query'
 import {
-  getAllowedHardwareApiV4ItemUserGetAllowedHardwareGetOptions,
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions,
+  getAllowedHardwareOptions,
+  getTemplateInfoOptions,
   getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
@@ -85,7 +85,7 @@ const {
   error: templateError,
   data: templateData
 } = useQuery({
-  ...getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions({
+  ...getTemplateInfoOptions({
     path: {
       template_id: props.templateId!
     }
@@ -238,7 +238,7 @@ const {
   isPending: userAllowedHardwareLoading,
   error: userAllowedHardwareError,
   data: userAllowedHardware
-} = useQuery(getAllowedHardwareApiV4ItemUserGetAllowedHardwareGetOptions())
+} = useQuery(getAllowedHardwareOptions())
 
 const diskBusOptions = computed(() => userAllowedHardware.value?.disk_bus || [])
 const videosOptions = computed(() => userAllowedHardware.value?.videos || [])

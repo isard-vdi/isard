@@ -4,8 +4,8 @@ import DataTable from '@/components/data-table/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
 import {
-  getAllDeploymentsApiV4ItemsDeploymentsGetOptions,
-  checkQuotaNewDeploymentApiV4QuotaDeploymentNewGetOptions
+  getAllDeploymentsOptions,
+  checkQuotaNewDeploymentOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { type OwnedDeployment } from '@/gen/oas/apiv4'
 import InputField from '@/components/input-field/InputField.vue'
@@ -44,7 +44,7 @@ const {
   isError: deploymentsIsError,
   error: deploymentsError,
   data: deployments
-} = useQuery(getAllDeploymentsApiV4ItemsDeploymentsGetOptions())
+} = useQuery(getAllDeploymentsOptions())
 
 // New deployments quota check
 const showQuotaExceededModal = ref(false)
@@ -54,7 +54,7 @@ const goToNewDeployment = async () => {
   checkQuotaIsPending.value = true
   try {
     await queryClient.fetchQuery({
-      ...checkQuotaNewDeploymentApiV4QuotaDeploymentNewGetOptions(),
+      ...checkQuotaNewDeploymentOptions(),
       staleTime: QUOTA_STALE_TIME
     })
     checkQuotaIsPending.value = false

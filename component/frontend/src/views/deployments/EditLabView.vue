@@ -13,11 +13,11 @@ import { Tab, TabsList, TabsContent } from '@/components/ui/tabs'
 import TabsTrigger from '@/components/ui/tabs/TabsTrigger.vue'
 
 import {
-  editDeploymentApiV4ItemDeploymentDeploymentIdPutMutation,
-  getLabApiV4ItemDeploymentLabLabIdGetOptions,
-  getAllUsersApiV4ItemsUsersGetOptions,
-  getAllGroupsApiV4ItemsGroupsGetOptions,
-  getUserApiV4ItemUserGetOptions
+  editDeploymentMutation,
+  getDeploymentOptions,
+  getAllUsersOptions,
+  getAllGroupsOptions,
+  getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { MultiSelectTagItemType } from '@/components/multi-select'
 
@@ -107,14 +107,14 @@ const getSaveButtonTooltip = computed(() => {
   return ''
 })
 
-const { data: currentUser } = useQuery(getUserApiV4ItemUserGetOptions())
+const { data: currentUser } = useQuery(getUserOptions())
 
 const { isPending: getAllUsersIsPending, data: users } = useQuery(
-  getAllUsersApiV4ItemsUsersGetOptions()
+  getAllUsersOptions()
 )
 
 const { isPending: getAllGroupsIsPending, data: groups } = useQuery(
-  getAllGroupsApiV4ItemsGroupsGetOptions()
+  getAllGroupsOptions()
 )
 
 const {
@@ -122,10 +122,10 @@ const {
   isPending,
   isError,
   error
-} = useQuery(getLabApiV4ItemDeploymentLabLabIdGetOptions({ path: { lab_id: labId as string } }))
+} = useQuery(getDeploymentOptions({ path: { deployment_id: labId as string } }))
 
-const editDeploymentMutation = useMutation(
-  editDeploymentApiV4ItemDeploymentDeploymentIdPutMutation()
+const editDeploymentMut = useMutation(
+  editDeploymentMutation()
 )
 
 const transformFormDataToApiFormat = (data: {
@@ -194,7 +194,7 @@ const handleSave = async () => {
     submitError.value = null
 
     const apiData = transformFormDataToApiFormat(formData.value)
-    await editDeploymentMutation.mutateAsync({
+    await editDeploymentMut.mutateAsync({
       path: { deployment_id: labId as string },
       body: apiData
     })

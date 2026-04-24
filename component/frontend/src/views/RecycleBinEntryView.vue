@@ -19,7 +19,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { DeleteModal } from '@/components/recycle-bin'
-import { getRecycleBinApiV4ItemRecycleBinRecycleBinIdGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getRecycleBinOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
 import bannerImg from '@/assets/img/rcb-entry-banner.svg'
 import { RestoreModal } from '@/components/recycle-bin'
@@ -41,7 +41,7 @@ const {
   error: entryError,
   data: entry
 } = useQuery({
-  ...getRecycleBinApiV4ItemRecycleBinRecycleBinIdGetOptions({
+  ...getRecycleBinOptions({
     path: { recycle_bin_id: recycleBinId.value }
   }),
   enabled: computed(() => Boolean(recycleBinId.value))

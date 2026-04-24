@@ -11,10 +11,7 @@ import Badge from '@/components/ui/badge/Badge.vue'
 import CardPreview from '@/components/ui/card/CardPreview.vue'
 import { MultiSelect, type MultiSelectTagItemType } from '@/components/multi-select'
 
-import {
-  getAllUsersApiV4ItemsUsersGetOptions,
-  getAllGroupsApiV4ItemsGroupsGetOptions
-} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getAllUsersOptions, getAllGroupsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 interface Props {
   name: string
@@ -41,13 +38,9 @@ const emit = defineEmits([
 
 const { t } = useI18n()
 
-const { isPending: getAllUsersIsPending, data: users } = useQuery(
-  getAllUsersApiV4ItemsUsersGetOptions()
-)
+const { isPending: getAllUsersIsPending, data: users } = useQuery(getAllUsersOptions())
 
-const { isPending: getAllGroupsIsPending, data: groups } = useQuery(
-  getAllGroupsApiV4ItemsGroupsGetOptions()
-)
+const { isPending: getAllGroupsIsPending, data: groups } = useQuery(getAllGroupsOptions())
 
 const usersFormated = computed(() => {
   if (!users.value) return [] as MultiSelectTagItemType[]

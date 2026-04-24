@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
 import {
-  getUserNotificationTriggerDisplayApiV4ItemsNotificationsUserTriggerDisplayGetOptions,
-  getUserApiV4ItemUserGetOptions
+  getUserNotificationTriggerDisplayOptions,
+  getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SinglePageLayout } from '@/layouts/single-page'
@@ -23,7 +23,7 @@ const {
   error: notificationsError,
   data: notificationsData
 } = useQuery(
-  getUserNotificationTriggerDisplayApiV4ItemsNotificationsUserTriggerDisplayGetOptions({
+  getUserNotificationTriggerDisplayOptions({
     path: {
       trigger: route.params.trigger,
       display: 'fullpage'
@@ -36,14 +36,14 @@ const isError = computed(() => notificationsIsError.value)
 const error = computed(() => notificationsError.value)
 const data = computed(() => notificationsData.value)
 
-const { data: getUser } = useQuery(getUserApiV4ItemUserGetOptions())
+const { data: getUserOptions } = useQuery(getUserOptions())
 
 const goToDesktops = () => {
   window.location.pathname = '/'
 }
 </script>
 <template>
-  <SinglePageLayout :go-back="false" :avatar="true" :user="getUser">
+  <SinglePageLayout :go-back="false" :avatar="true" :user="getUserOptions">
     <template #title>
       <h1 class="mt-[46px] mb-3 text-center text-display-md font-bold text-gray-warm-800">
         {{ t('views.notifications.title') }}

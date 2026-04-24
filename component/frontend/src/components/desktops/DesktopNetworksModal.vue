@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
-import { getDesktopNetworksApiV4ItemDesktopDesktopIdGetNetworksGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDesktopNetworksOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 import { Modal } from '@/components/modal'
@@ -36,8 +36,10 @@ const {
   isError,
   error
 } = useQuery(
-  getDesktopNetworksApiV4ItemDesktopDesktopIdGetNetworksGetOptions({
-    path: { desktop_id: props.desktopId }
+  getDesktopNetworksOptions({
+    path: {
+      desktop_id: props.desktopId
+    }
   })
 )
 

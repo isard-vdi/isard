@@ -8,10 +8,10 @@ import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
   getUserTemplatesApiV4ItemsTemplatesGetOptions,
-  //   // getUserSharedTemplatesApiV4ItemsTemplatesGetSharedGetOptions
-  getUserApiV4ItemUserGetOptions
+  //   // getUserSharedTemplates
+  getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getUserSharedTemplatesApiV4ItemsTemplatesGetSharedGet } from '@/gen/oas/apiv4/'
+import { getUserSharedTemplates } from '@/gen/oas/apiv4/'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 
@@ -43,7 +43,7 @@ const {
   isPending: userIsPending,
   isError: userIsError,
   error: userError
-} = useQuery({ ...getUserApiV4ItemUserGetOptions(), staleTime: Infinity })
+} = useQuery({ ...getUserOptions(), staleTime: Infinity })
 
 const {
   isPending: userTemplatesIsPending,
@@ -87,7 +87,7 @@ const {
   data: sharedTemplates
 } = useMutation({
   mutationFn: async () => {
-    const { data } = await getUserSharedTemplatesApiV4ItemsTemplatesGetSharedGet({
+    const { data } = await getUserSharedTemplates({
       throwOnError: true
     })
     return data

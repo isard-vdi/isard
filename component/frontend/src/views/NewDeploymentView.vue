@@ -13,13 +13,13 @@ import { useQuery, useMutation } from '@tanstack/vue-query'
 
 import type { CreateDesktopRequest, ErrorResponse } from '@/gen/oas/apiv4'
 import {
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGet,
-  getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGet
+  getTemplateInfo,
+  getTemplateDetails
 } from '@/gen/oas/apiv4'
 import {
-  createDeploymentApiV4ItemDeploymentPostMutation,
-  getUserQuotasApiV4ItemUserGetQuotasGetOptions,
-  checkQuotaNewDeploymentApiV4QuotaDeploymentNewGetOptions
+  createDeploymentMutation,
+  getUserQuotasOptions,
+  checkQuotaNewDeploymentOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { Button } from '@/components/ui/button'
@@ -43,7 +43,7 @@ const { t, d } = useI18n()
 const currentStep = ref(1)
 
 const deploymentQuotaQuery = useQuery({
-  ...checkQuotaNewDeploymentApiV4QuotaDeploymentNewGetOptions(),
+  ...checkQuotaNewDeploymentOptions(),
   staleTime: QUOTA_STALE_TIME,
   retry: false
 })
@@ -56,10 +56,10 @@ const {
   isPending: userQuotasIsPending,
   isError: userQuotasIsError,
   error: userQuotasError
-} = useQuery(getUserQuotasApiV4ItemUserGetQuotasGetOptions())
+} = useQuery(getUserQuotasOptions())
 
 const {
-  mutate: createDeployment,
+  mutate: createDeploymentMutation,
   mutateAsync: createDeploymentAsync,
   isPending: createDeploymentIsPending,
   isError: createDeploymentIsError,
@@ -67,7 +67,7 @@ const {
   data: createDeploymentData,
   variables: createDeploymentVariables
 } = useMutation({
-  ...createDeploymentApiV4ItemDeploymentPostMutation(),
+  ...createDeploymentMutation(),
   onSuccess: (data) => {
     router.push({
       name: 'deployments',
@@ -117,7 +117,7 @@ const {
   data: getTemplateInfoData
 } = useMutation({
   mutationFn: async (templateId: string) => {
-    const { data } = await getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGet({
+    const { data } = await getTemplateInfo({
       path: {
         template_id: templateId
       },
@@ -139,7 +139,7 @@ const {
   reset: resetTemplateDetails
 } = useMutation({
   mutationFn: async (templateId: string) => {
-    const { data } = await getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGet({
+    const { data } = await getTemplateDetails({
       path: {
         template_id: templateId
       },

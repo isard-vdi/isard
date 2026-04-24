@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue' // Change this line to use "type" import
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
-import { deleteDeploymentApiV4ItemDeploymentDeploymentIdDeleteMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { deleteDeploymentMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { useI18n } from 'vue-i18n'
 
 export interface DeploymentToDelete {
@@ -32,9 +32,7 @@ export function useDeleteDeployment(): DeleteDeploymentState {
   const deleteLoading = ref(false)
   const deleteError = ref('')
 
-  const deleteMutation = useMutation(
-    deleteDeploymentApiV4ItemDeploymentDeploymentIdDeleteMutation()
-  )
+  const deleteMutation = useMutation(deleteDeploymentMutation())
 
   function handleDelete(deploymentId: string, deploymentName: string) {
     deploymentToDelete.value = { id: deploymentId, name: deploymentName }

@@ -7,8 +7,8 @@ import { useQuery, useMutation } from '@tanstack/vue-query'
 import { cn, copyToClipboard } from '@/lib/utils'
 
 import {
-  deleteTemplateApiV4ItemTemplateTemplateIdDeleteMutation,
-  getTemplateTreeApiV4ItemTemplateTemplateIdGetTreeGetOptions
+  deleteTemplateMutation,
+  getTemplateTreeOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -50,7 +50,7 @@ const {
   isError: templateTreeIsError,
   error: templateTreeError
 } = useQuery(
-  getTemplateTreeApiV4ItemTemplateTemplateIdGetTreeGetOptions({
+  getTemplateTreeOptions({
     path: { template_id: props.templateId }
   })
 )
@@ -62,7 +62,7 @@ const {
   isError: deleteTemplateIsError,
   error: deleteTemplateError
 } = useMutation({
-  ...deleteTemplateApiV4ItemTemplateTemplateIdDeleteMutation(),
+  ...deleteTemplateMutation(),
   onSuccess: () => {
     emit('close')
   }

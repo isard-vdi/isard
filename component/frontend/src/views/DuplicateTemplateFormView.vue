@@ -8,12 +8,12 @@ import { useForm } from '@tanstack/vue-form'
 import * as z from 'zod'
 
 import {
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions,
-  getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGetOptions,
-  duplicateTemplateApiV4ItemTemplateTemplateIdDuplicatePostMutation
+  getTemplateInfoOptions,
+  getTemplateDetailsOptions,
+  duplicateTemplateMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
-import { checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { checkQuotaNewTemplateOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 
@@ -36,7 +36,7 @@ const { t } = useI18n()
 // --------------------------------------------------
 
 const quotaQuery = useQuery({
-  ...checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions(),
+  ...checkQuotaNewTemplateOptions(),
   staleTime: QUOTA_STALE_TIME,
   retry: false
 })
@@ -48,14 +48,14 @@ const quotaCheckPassed = computed(() => quotaQuery.isSuccess.value)
 const templateId = ref<string>(route.params.templateId as string)
 
 const { data: templateInfo, isPending: templateInfoIsPending } = useQuery(
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions({
+  getTemplateInfoOptions({
     path: {
       template_id: templateId.value
     }
   })
 )
 const { data: templateDetails, isPending: templateDetailsIsPending } = useQuery(
-  getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGetOptions({
+  getTemplateDetailsOptions({
     path: {
       template_id: templateId.value
     }
@@ -68,14 +68,14 @@ const imageUrl = computed(() => {
 
 const duplicateTemplateErrorCode = ref<string | undefined>(undefined)
 const {
-  mutate: duplicateTemplate,
+  mutate: duplicateTemplateMutation,
   mutateAsync: duplicateTemplateAsync,
   isPending: duplicateTemplateIsPending,
   isError: duplicateTemplateIsError,
   error: duplicateTemplateError,
   data: duplicateTemplateData
 } = useMutation({
-  ...duplicateTemplateApiV4ItemTemplateTemplateIdDuplicatePostMutation(),
+  ...duplicateTemplateMutation(),
   onSuccess: (data) => {
     router.push({ name: 'templates', params: { templateId: data.id } })
   },

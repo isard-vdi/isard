@@ -10,17 +10,13 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 
-import {
-  getUserQuotasApiV4ItemUserGetQuotasGet,
-  type UserQuota,
-  type UserQuotaUsed
-} from '@/gen/oas/apiv4'
+import { getUserQuotas, type UserQuota, type UserQuotaUsed } from '@/gen/oas/apiv4'
 
 const open = defineModel<boolean>('open')
 
 const { isPending: loading, data: rawData } = useQuery({
   queryKey: ['userQuotas'],
-  queryFn: () => getUserQuotasApiV4ItemUserGetQuotasGet(),
+  queryFn: () => getUserQuotas(),
   enabled: open
 })
 

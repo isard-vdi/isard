@@ -7,7 +7,7 @@ import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
   getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGetOptions,
   getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions,
-  createTemplateApiV4ItemTemplatePostMutation
+  createTemplateMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
@@ -75,14 +75,14 @@ const imageUrl = computed(() => {
 
 const createTemplateErrorCode = ref<string | undefined>(undefined)
 const {
-  mutate: createTemplate,
+  mutate: createTemplateMutation,
   mutateAsync: createTemplateAsync,
   isPending: createTemplateIsPending,
   isError: createTemplateIsError,
   error: createTemplateError,
   data: createTemplateData
 } = useMutation({
-  ...createTemplateApiV4ItemTemplatePostMutation(),
+  ...createTemplateMutation(),
   onSuccess: (data) => {
     emit('templateCreated', data.id)
   },

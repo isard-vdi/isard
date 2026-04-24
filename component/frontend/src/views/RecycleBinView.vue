@@ -5,9 +5,9 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 import {
-  getRecycleBinCutoffTimeApiV4ItemRecycleBinGetUserCutoffTimeGetOptions,
-  getRecycleBinItemCountUserApiV4ItemsRecycleBinGetOptions,
-  emptyRecycleBinApiV4ItemRecycleBinEmptyDeleteMutation
+  getRecycleBinCutoffTimeOptions,
+  getRecycleBinItemCountUserOptions,
+  emptyRecycleBinMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import templatesEmptyImg from '@/assets/img/templates-empty.svg'
@@ -36,13 +36,13 @@ const {
   isError: cutoffTimeIsError,
   error: cutoffTimeError,
   data: cutoffTime
-} = useQuery(getRecycleBinCutoffTimeApiV4ItemRecycleBinGetUserCutoffTimeGetOptions())
+} = useQuery(getRecycleBinCutoffTimeOptions())
 
 const showEmptyBinModal = ref(false)
 const emptyBinError = ref<string | null>(null)
 
 const { mutate: emptyBin, isPending: isEmptyingBin } = useMutation({
-  ...emptyRecycleBinApiV4ItemRecycleBinEmptyDeleteMutation(),
+  ...emptyRecycleBinMutation(),
   onSuccess: () => {
     showEmptyBinModal.value = false
     emptyBinError.value = null
@@ -72,7 +72,7 @@ const {
   isError: itemsIsError,
   error: itemsError,
   data: items
-} = useQuery(getRecycleBinItemCountUserApiV4ItemsRecycleBinGetOptions())
+} = useQuery(getRecycleBinItemCountUserOptions())
 
 const searchQuery = ref('')
 const showDeleteModal = ref(false)

@@ -2,6 +2,18 @@
 
 set -e
 
+openapi_go() {
+	# $1 = api name (also package + target dir under pkg/gen/oas/)
+	# $2 = path to OpenAPI JSON spec
+	# $3 = optional path to ogen config file
+	mkdir -p "pkg/gen/oas/$1"
+	if [ -n "$3" ]; then
+		ogen --target "./pkg/gen/oas/$1" -package "$1" --clean --config "$3" "$2"
+	else
+		ogen --target "./pkg/gen/oas/$1" -package "$1" --clean "$2"
+	fi
+}
+
 openapi_ts() {
 	ln -s /deps/package.json .
 	ln -s /deps/node_modules .
@@ -10,6 +22,19 @@ openapi_ts() {
 
 	rm package.json
 	rm node_modules
+}
+
+openapi_python() {
+	# $1 = client package dir name (e.g. isardvdi_apiv4_client)
+	# $2 = path to OpenAPI JSON spec
+	# openapi-python-client lives in the unified workspace venv (/venv ->
+	# /workspace/.venv) installed via docker/codegen/pyproject.toml deps.
+	openapi-python-client generate \
+		--path "$2" \
+		--output-path "component/_common/$1/src/$1" \
+		--overwrite \
+		--config "component/_common/$1/openapi-python-client.yml" \
+		--meta=none
 }
 
 rm -rf pkg/gen/proto/go
@@ -21,6 +46,10 @@ rm -rf pkg/gen/asyncapi/changefeed/changefeed_models
 rm -rf pkg/gen/asyncapi/changefeed/changefeed_subscribers
 rm -f pkg/gen/asyncapi/changefeed/changefeed.yaml
 rm -rf component/frontend/src/gen
+rm -rf component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client
+rm -rf component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client
+rm -rf component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client
+rm -rf component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client
 rm -f ./*/**/testing_*_mock.go
 
 mkdir -p /tmp/go /tmp/go-cache
@@ -86,26 +115,38 @@ for f in grpc_dir.rglob('*_pb2_grpc.py'):
         print(f'  rewritten: {f}')
 "
 
-# Notifier OAS
-mkdir -p pkg/gen/oas/notifier
-ogen --target ./pkg/gen/oas/notifier -package notifier --clean pkg/oas/notifier/notifier.json
+# Notifier
+openapi_go notifier pkg/oas/notifier/notifier.json
+openapi_python isardvdi_notifier_client pkg/oas/notifier/notifier.json
 
-# Authentication OAS
-mkdir -p pkg/gen/oas/authentication
-ogen --target ./pkg/gen/oas/authentication -package authentication --clean pkg/oas/authentication/authentication.json
+# Scheduler
+openapi_go scheduler pkg/oas/scheduler/scheduler.json pkg/oas/scheduler/ogen.yml
+openapi_python isardvdi_scheduler_client pkg/oas/scheduler/scheduler.json
+
+# Authentication (Python client must exist before gen_openapi.py runs,
+# since apiv4's services/migrations.py imports isardvdi_authentication_client
+# at module level).
+openapi_go authentication pkg/oas/authentication/authentication.json
 openapi_ts authentication || echo "WARNING: openapi_ts authentication failed"
+openapi_python isardvdi_authentication_client pkg/oas/authentication/authentication.json
 
 # APIv4 OAS
 source /apiv4-venv/bin/activate
-export PYTHONPATH=${PYTHONPATH}:/build/pkg/gen/proto/python/src
+# Workspace install at image build time only saw the stub __init__.py for the
+# four generated clients (chicken-and-egg: codegen output is gitignored). Add
+# the freshly generated src/ dirs to PYTHONPATH so they take precedence over
+# the empty stubs installed in the venv.
+export PYTHONPATH=/build/component/_common/isardvdi_authentication_client/src:/build/component/_common/isardvdi_notifier_client/src:/build/component/_common/isardvdi_scheduler_client/src:/build/pkg/gen/proto/python/src${PYTHONPATH:+:$PYTHONPATH}
 mkdir -p pkg/oas/apiv4
 python ./component/apiv4/src/gen_openapi.py --output pkg/oas/apiv4/apiv4.json
 
-mkdir -p pkg/gen/oas/apiv4
-ogen --target ./pkg/gen/oas/apiv4 -package apiv4 --clean --config pkg/oas/apiv4/ogen.yml pkg/oas/apiv4/apiv4.json
+# APIv4
+openapi_go apiv4 pkg/oas/apiv4/apiv4.json pkg/oas/apiv4/ogen.yml
 openapi_ts apiv4 || echo "WARNING: openapi_ts apiv4 failed"
+openapi_python isardvdi_apiv4_client pkg/oas/apiv4/apiv4.json
 
 # Changefeed AsyncAPI (spec + Pydantic models)
+source /apiv4-venv/bin/activate
 mkdir -p pkg/gen/asyncapi/changefeed
 python /gen_changefeed_asyncapi.py \
 	--tables component/changefeed/src/isardvdi_changefeed/tables.json \

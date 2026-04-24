@@ -7,7 +7,7 @@ import Button from '@/components/ui/button/Button.vue'
 import Separator from '@/components/ui/separator/Separator.vue'
 import DesktopListItem from '@/components/desktop-list-item/DesktopListItem.vue'
 
-import { getAllTemplatesApiV4ItemsTemplatesGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getAllTemplatesOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 interface Props {
   desktops: Record<string, unknown>[]
@@ -33,7 +33,7 @@ const {
   data: templatesData,
   isPending: isTemplatesLoading,
   isError: isTemplatesError
-} = useQuery(getAllTemplatesApiV4ItemsTemplatesGetOptions())
+} = useQuery(getAllTemplatesOptions())
 
 const filteredTemplates = computed(() => {
   if (!templatesData.value?.templates) return []

@@ -6,9 +6,9 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 
 import {
   getUserTemplatesApiV4ItemsTemplatesGetOptions,
-  getUserSharedTemplatesApiV4ItemsTemplatesGetSharedGetOptions,
-  checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions,
-  checkQuotaNewDesktopApiV4QuotaDesktopNewGetOptions
+  getUserSharedTemplatesOptions,
+  checkQuotaNewTemplateOptions,
+  checkQuotaNewDesktopOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { copyToClipboard } from '@/lib/utils'
@@ -39,7 +39,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toggleVariants } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DomainInfoModal } from '@/components/desktops'
-import { getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGet } from '@/gen/oas/apiv4/'
+import { getTemplateDetails } from '@/gen/oas/apiv4/'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -62,7 +62,7 @@ const {
   data: sharedTemplates,
   refetch: fetchSharedTemplates
 } = useQuery({
-  ...getUserSharedTemplatesApiV4ItemsTemplatesGetSharedGetOptions(),
+  ...getUserSharedTemplatesOptions(),
   enabled: false // Lazy load when tab is clicked
 })
 
@@ -128,7 +128,7 @@ const handleWithTemplateQuotaCheck = async (callback: () => void) => {
   templateCreationCheckIsPending.value = true
   try {
     await queryClient.fetchQuery({
-      ...checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions(),
+      ...checkQuotaNewTemplateOptions(),
       staleTime: QUOTA_STALE_TIME
     })
     templateCreationCheckIsPending.value = false
@@ -147,7 +147,7 @@ const handleWithDesktopQuotaCheck = async (callback: () => void) => {
   desktopCreationCheckIsPending.value = true
   try {
     await queryClient.fetchQuery({
-      ...checkQuotaNewDesktopApiV4QuotaDesktopNewGetOptions(),
+      ...checkQuotaNewDesktopOptions(),
       staleTime: QUOTA_STALE_TIME
     })
     desktopCreationCheckIsPending.value = false
@@ -174,7 +174,7 @@ const {
   reset: resetTemplateDetails
 } = useMutation({
   mutationFn: async (templateId: string) => {
-    const { data } = await getTemplateDetailsApiV4ItemTemplateTemplateIdGetDetailsGet({
+    const { data } = await getTemplateDetails({
       path: {
         template_id: templateId
       },

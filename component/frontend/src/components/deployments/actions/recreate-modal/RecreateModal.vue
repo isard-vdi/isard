@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useMutation } from '@tanstack/vue-query'
-import { recreateDeploymentApiV4ItemDeploymentDeploymentIdRecreatePutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { recreateDeploymentMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import { useI18n } from 'vue-i18n'
@@ -29,8 +29,8 @@ const handleClose = () => {
   emit('close')
 }
 
-const { mutate: recreateDeployment, isPending: recreateDeploymentIsPending } = useMutation({
-  ...recreateDeploymentApiV4ItemDeploymentDeploymentIdRecreatePutMutation(),
+const { mutate: recreateDeploymentMutation, isPending: recreateDeploymentIsPending } = useMutation({
+  ...recreateDeploymentMutation(),
   onSuccess: () => {
     handleClose()
     if (props.onSuccess) props.onSuccess()
@@ -39,7 +39,7 @@ const { mutate: recreateDeployment, isPending: recreateDeploymentIsPending } = u
 
 const handleRecreateDeployment = () => {
   if (!props.deploymentId) return
-  recreateDeployment({
+  recreateDeploymentMutation({
     path: { deployment_id: props.deploymentId }
   })
 }
