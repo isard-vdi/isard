@@ -2,12 +2,14 @@ package provider
 
 import (
 	"context"
+	"io"
 	"regexp"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,6 +68,8 @@ func TestLDAPLoadConfig(t *testing.T) {
 				RoleDefault:     model.RoleUser,
 
 				SaveEmail: true,
+
+				AllowInsecureTLS: true,
 			},
 			Expected: LDAPConfig{
 				Protocol:   "ldaps",
@@ -111,6 +115,8 @@ func TestLDAPLoadConfig(t *testing.T) {
 				RoleDefault:     model.RoleUser,
 
 				SaveEmail: true,
+
+				AllowInsecureTLS: true,
 			},
 		},
 		"should return error for invalid UID regex": {
@@ -272,12 +278,15 @@ func TestLDAPLoadConfig(t *testing.T) {
 		}
 	}
 
+	log := zerolog.New(io.Discard)
+
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			l := &LDAP{
 				cfg: &cfgManager[LDAPConfig]{cfg: &LDAPConfig{}},
+				log: &log,
 			}
 
 			err := l.LoadConfig(context.Background(), tc.Input)
@@ -344,6 +353,9 @@ func TestLDAPLoadConfig(t *testing.T) {
 
 			// Save email
 			assert.Equal(tc.Expected.SaveEmail, cfg.SaveEmail)
+
+			// Allow insecure TLS
+			assert.Equal(tc.Expected.AllowInsecureTLS, cfg.AllowInsecureTLS)
 		})
 	}
 }

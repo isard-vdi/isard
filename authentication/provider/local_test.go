@@ -63,6 +63,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -96,6 +97,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -120,6 +122,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -160,6 +163,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -224,7 +228,7 @@ func TestCallback(t *testing.T) {
 			t.Parallel()
 
 			p := provider.InitLocal(nil)
-			group, secondary, user, redirect, token, err := p.Callback(context.Background(), nil, provider.CallbackArgs{})
+			group, secondary, user, redirect, token, err := p.Callback(context.Background(), nil, provider.CallbackArgs{Host: "example.com"})
 
 			assert.Nil(group)
 			assert.Nil(secondary)

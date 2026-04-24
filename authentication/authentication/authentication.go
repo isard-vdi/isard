@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/providermanager"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
@@ -19,8 +20,8 @@ import (
 )
 
 type Interface interface {
-	Providers() []string
-	Provider(provider string) provider.Provider
+	Providers(categoryID string) []string
+	Provider(provider string, categoryID string) provider.Provider
 
 	Login(ctx context.Context, provider string, categoryID string, args provider.LoginArgs, remoteAddr string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, ss string, args provider.CallbackArgs, remoteAddr string) (tkn, redirect string, err error)
@@ -40,7 +41,7 @@ type Interface interface {
 	GenerateAPIKey(ctx context.Context, tkn string, expirationMinutes int) (apiKey string, err error)
 	GenerateUserToken(ctx context.Context, tkn string, userID string) (userTkn string, err error)
 
-	SAML() *samlsp.Middleware
+	SAML(categoryID string, host string) *samlsp.Middleware
 
 	Healthcheck() error
 }
@@ -60,10 +61,13 @@ type Authentication struct {
 
 	Cfg cfg.Authentication
 
-	prvManager *ProviderManager
+	prvManager providermanager.Interface
 }
 
 func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
+	prvManager := providermanager.InitProviderManager(cfg.Authentication, log, db)
+	prvManager.Manage(ctx, wg)
+
 	a := &Authentication{
 		Log:    log,
 		Secret: cfg.Authentication.Secret,
@@ -78,18 +82,18 @@ func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Log
 		Notifier:   notifierCli,
 		Sessions:   sessionsCli,
 		Cfg:        cfg.Authentication,
-		prvManager: InitProviderManager(ctx, wg, cfg.Authentication, log, db),
+		prvManager: prvManager,
 	}
 
 	return a
 }
 
-func (a *Authentication) Providers() []string {
-	return a.prvManager.Providers()
+func (a *Authentication) Providers(categoryID string) []string {
+	return a.prvManager.Providers(categoryID)
 }
 
-func (a *Authentication) Provider(p string) provider.Provider {
-	return a.prvManager.Provider(p)
+func (a *Authentication) Provider(p string, categoryID string) provider.Provider {
+	return a.prvManager.Provider(p, categoryID)
 }
 
 func (a *Authentication) check(ctx context.Context, ss, remoteAddr string) (*token.LoginClaims, error) {
@@ -113,8 +117,8 @@ func (a *Authentication) Check(ctx context.Context, ss, remoteAddr string) error
 	return err
 }
 
-func (a *Authentication) SAML() *samlsp.Middleware {
-	return a.prvManager.SAML()
+func (a *Authentication) SAML(categoryID string, host string) *samlsp.Middleware {
+	return a.prvManager.SAML(categoryID, host)
 }
 
 func (a *Authentication) Healthcheck() error {

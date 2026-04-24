@@ -4,23 +4,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/limits"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+
+	"github.com/rs/zerolog"
 )
 
 var _ Provider = &Form{}
 
 type Form struct {
-	cfg       cfg.Authentication
+	log *zerolog.Logger
+	cfg cfg.Authentication
+
+	limits *limits.Limits
+
+	mux       sync.RWMutex
 	providers map[string]Provider
-	limits    *limits.Limits
 }
 
-func InitForm(cfg cfg.Authentication, local *Local, ldap *LDAP) *Form {
+func InitForm(cfg cfg.Authentication, log *zerolog.Logger, local *Local, ldap *LDAP) *Form {
 	providers := map[string]Provider{}
 
 	if local != nil {
@@ -32,6 +39,7 @@ func InitForm(cfg cfg.Authentication, local *Local, ldap *LDAP) *Form {
 	}
 
 	f := &Form{
+		log:       log,
 		cfg:       cfg,
 		providers: providers,
 	}
@@ -73,6 +81,9 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		}
 
 	}
+
+	f.mux.RLock()
+	defer f.mux.RUnlock()
 
 	var invCreds *ProviderError
 
@@ -142,6 +153,9 @@ func (f *Form) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*
 }
 
 func (f *Form) AutoRegister(u *model.User) bool {
+	f.mux.RLock()
+	defer f.mux.RUnlock()
+
 	for _, p := range f.providers {
 		if p.AutoRegister(u) {
 			return true
@@ -156,6 +170,9 @@ func (f *Form) String() string {
 }
 
 func (f *Form) Providers() []string {
+	f.mux.RLock()
+	defer f.mux.RUnlock()
+
 	providers := []string{}
 	for k := range f.providers {
 		providers = append(providers, k)
@@ -165,10 +182,42 @@ func (f *Form) Providers() []string {
 }
 
 func (f *Form) Provider(p string) Provider {
+	f.mux.RLock()
+	defer f.mux.RUnlock()
+
 	return f.providers[p]
 }
 
+func (f *Form) EnableProvider(p Provider) {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+
+	if _, ok := f.providers[p.String()]; ok {
+		f.log.Warn().Str("provider", p.String()).Msg("attempted to enable form provider, but was already enabled")
+		return
+	}
+
+	f.providers[p.String()] = p
+	f.log.Info().Str("provider", p.String()).Msg("form provider enabled")
+}
+
+func (f *Form) DisableProvider(name string) {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+
+	if _, ok := f.providers[name]; !ok {
+		f.log.Warn().Str("provider", name).Msg("attempted to disable form provider, but was nonexistent")
+		return
+	}
+
+	delete(f.providers, name)
+	f.log.Info().Str("provider", name).Msg("form provider disabled")
+}
+
 func (f *Form) Healthcheck() error {
+	f.mux.RLock()
+	defer f.mux.RUnlock()
+
 	for _, p := range f.providers {
 		if err := p.Healthcheck(); err != nil {
 			return fmt.Errorf("error in provider '%s': %w ", p.String(), err)
@@ -178,22 +227,22 @@ func (f *Form) Healthcheck() error {
 	return nil
 }
 
-func (Form) Logout(context.Context, string) (string, error) {
+func (*Form) Logout(context.Context, string) (string, error) {
 	return "", nil
 }
 
-func (Form) SaveEmail() bool {
+func (*Form) SaveEmail() bool {
 	return true
 }
 
-func (Form) GuessGroups(context.Context, *types.ProviderUserData, []string) (*model.Group, []*model.Group, *ProviderError) {
+func (*Form) GuessGroups(context.Context, *types.ProviderUserData, []string) (*model.Group, []*model.Group, *ProviderError) {
 	return nil, nil, &ProviderError{
 		User:   ErrInvalidIDP,
 		Detail: errors.New("the form provider doesn't support the guess groups operation"),
 	}
 }
 
-func (Form) GuessRole(context.Context, *types.ProviderUserData, []string) (*model.Role, *ProviderError) {
+func (*Form) GuessRole(context.Context, *types.ProviderUserData, []string) (*model.Role, *ProviderError) {
 	return nil, &ProviderError{
 		User:   ErrInvalidIDP,
 		Detail: errors.New("the form provider doesn't support the guess role operation"),

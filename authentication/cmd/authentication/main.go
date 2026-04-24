@@ -51,7 +51,7 @@ func main() {
 	go http.Serve(ctx, &wg, log, cfg.HTTP.Addr(), authentication)
 	wg.Add(1)
 
-	log.Info().Strs("providers", authentication.Providers()).Msg("service started")
+	log.Info().Msg("service started")
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
