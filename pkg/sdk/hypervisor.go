@@ -24,7 +24,7 @@ type Hypervisor struct {
 }
 
 func (c *Client) HypervisorList(ctx context.Context) ([]*Hypervisor, error) {
-	req, err := c.newRequest(http.MethodGet, "hypervisors", nil)
+	req, err := c.newRequest(http.MethodGet, "admin/hypervisors", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (c *Client) HypervisorList(ctx context.Context) ([]*Hypervisor, error) {
 }
 
 func (c *Client) HypervisorGet(ctx context.Context, id string) (*Hypervisor, error) {
-	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("hypervisor/%s", id), nil)
+	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("admin/hypervisor/%s", id), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (c *Client) HypervisorGet(ctx context.Context, id string) (*Hypervisor, err
 }
 
 func (c *Client) HypervisorDelete(ctx context.Context, id string) error {
-	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("hypervisor/%s", id), nil)
+	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("admin/hypervisor/%s", id), nil)
 	if err != nil {
 		return err
 	}

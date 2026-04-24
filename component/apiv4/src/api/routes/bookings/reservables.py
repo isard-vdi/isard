@@ -1,0 +1,748 @@
+#
+#   Copyright © 2025 Naomi Hidalgo Piñar
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+import logging
+import traceback
+from typing import Optional
+
+log = logging.getLogger("apiv4")
+
+from api import admin_router, token_router
+from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.reservables import (
+    AddReservableItemRequest,
+    AvailableReservablesResponse,
+    BookingProvisioningRequest,
+    CheckLastResponse,
+    CreatePlanRequest,
+    EnableReservableRequest,
+    ReservableDetailResponse,
+    ReservableItemResponse,
+    ReservablesListResponse,
+)
+from api.services.error import Error
+from api.services.reservables import ReservableService
+from fastapi import Path, Query, Request
+from fastapi.responses import JSONResponse
+
+tag = "reservables"
+
+
+@admin_router.get(
+    "/items/reservables",
+    response_model=ReservablesListResponse,
+    tags=[tag],
+    summary="Get list of reservable types",
+    description="Returns a list of all available reservable types (e.g., gpus, usbs).",
+    responses={
+        403: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_reservables(request: Request):
+    """Get list of all reservable types."""
+    try:
+        reservables = ReservableService.get_reservables()
+        return JSONResponse(
+            content=ReservablesListResponse(reservables=reservables).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve reservables",
+            traceback.format_exc(),
+        )
+
+
+# NOTE: this specific path MUST be registered BEFORE the generic
+# ``/items/reservables/{reservable_type}`` below, otherwise FastAPI's
+# path matcher resolves ``profiles`` as the ``reservable_type`` path
+# parameter and the profiles handler becomes unreachable.
+@admin_router.get(
+    "/items/reservables/profiles/{reservable_type}",
+    tags=[tag],
+    summary="List profiles for a reservable type",
+    description=("Returns all profiles for a specific reservable type."),
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def list_profiles(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
+):
+    try:
+        return JSONResponse(
+            content=ReservableService.list_profiles(reservable_type),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve profiles for {reservable_type}",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/items/reservables/{reservable_type}",
+    response_model=ReservableDetailResponse,
+    tags=[tag],
+    summary="Get items of a specific reservable type",
+    description="Returns all items for a specific reservable type (e.g., all GPUs).",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_reservable_items(
+    request: Request,
+    reservable_type: str = Path(
+        ..., description="The reservable type (e.g., 'gpus', 'usbs')"
+    ),
+):
+    """
+    Get all items for a specific reservable type
+    """
+    try:
+        items = ReservableService.get_reservable_detail(reservable_type)
+        return JSONResponse(
+            content=ReservableDetailResponse(items=items).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve reservable items for {reservable_type}",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/items/reservables/{reservable_type}/{item_id}",
+    response_model=ReservableItemResponse,
+    tags=[tag],
+    summary="Get specific reservable item",
+    description="Returns a list of subitems of a specific reservable item, (e.g., vGPU profiles).",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_reservable_item(
+    request: Request,
+    reservable_type: str = Path(
+        ..., description="The reservable type (e.g., 'gpus', 'usbs')"
+    ),
+    item_id=str,
+):
+    """
+    Get detailed information for a specific reservable item.
+    """
+    try:
+        item = ReservableService.get_reservable_item(reservable_type, item_id)
+        return JSONResponse(
+            content=ReservableItemResponse(**item).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve reservable item {item_id} of type {reservable_type}",
+            traceback.format_exc(),
+        )
+
+
+@token_router.get(
+    "/item/reservables/get-available",
+    tags=[tag],
+    response_model=AvailableReservablesResponse,
+    summary="Get booking reservables available",
+    description="Returns available reservables for booking.",
+)
+async def get_booking_reservables_available(request: Request):
+    try:
+        return JSONResponse(
+            content=AvailableReservablesResponse(
+                reservables_available=ReservableService.get_available_reservables(
+                    request.token_payload
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve available reservables.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/item/reservable/{reservable_type}",
+    tags=[tag],
+    summary="Add new reservable item",
+    description="Creates a new reservable item of the specified type.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def add_reservable_item(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
+    data: AddReservableItemRequest = ...,
+):
+    try:
+        result = ReservableService.add_item(reservable_type, data.model_dump())
+        return JSONResponse(
+            content=result,
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to add reservable item for {reservable_type}",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/item/reservable/enable/{reservable_type}/{item_id}/{subitem_id}",
+    tags=[tag],
+    summary="Enable or disable a reservable subitem",
+    description=(
+        "Enables or disables a specific reservable subitem (e.g., GPU "
+        "profile). Pass ``?notify_user=true`` to fan out a ``deleted-gpu``"
+        " email to every user whose desktops/deployments/bookings "
+        "reference the reservable (v3 parity)."
+    ),
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def enable_reservable_subitem(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type"),
+    item_id: str = Path(..., description="The item ID"),
+    subitem_id: str = Path(..., description="The subitem ID"),
+    data: EnableReservableRequest = ...,
+    notify_user: bool = Query(
+        False,
+        description=(
+            "If true, notify every affected user by email before the "
+            "subitem is disabled. Ignored when ``enabled`` is true."
+        ),
+    ),
+):
+    try:
+        result = ReservableService.enable_subitem(
+            reservable_type,
+            item_id,
+            subitem_id,
+            data.enabled,
+            notify_user=notify_user,
+        )
+        return JSONResponse(
+            content=result,
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to enable/disable reservable subitem",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/item/reservable/enabled/{reservable_type}/{item_id}",
+    tags=[tag],
+    summary="List enabled subitems",
+    description="Returns the list of enabled subitems for a specific reservable item.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def list_enabled_subitems(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type"),
+    item_id: str = Path(..., description="The item ID"),
+):
+    try:
+        return JSONResponse(
+            content=ReservableService.list_subitems_enabled(reservable_type, item_id),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve enabled subitems",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/item/reservable/check-last/{reservable_type}/{subitem_id}/{item_id}",
+    tags=[tag],
+    response_model=CheckLastResponse,
+    summary="Check last subitem",
+    description="Checks if a GPU profile was the last enabled and returns affected desktops and plans.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def check_last_subitem(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type"),
+    subitem_id: str = Path(..., description="The subitem ID"),
+    item_id: str = Path(..., description="The item ID"),
+):
+    try:
+        data = ReservableService.check_last_subitem(
+            reservable_type, subitem_id, item_id
+        )
+        return JSONResponse(
+            content=CheckLastResponse(**data).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check last subitem.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/item/reservable/check-last/{reservable_type}/{item_id}",
+    tags=[tag],
+    response_model=CheckLastResponse,
+    summary="Check last item",
+    description="Checks if a GPU item was the last enabled and returns affected desktops and plans.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def check_last_item(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type"),
+    item_id: str = Path(..., description="The item ID"),
+):
+    try:
+        data = ReservableService.check_last_item(reservable_type, item_id)
+        return JSONResponse(
+            content=CheckLastResponse(**data).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check last item.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.delete(
+    "/item/reservable/{reservable_type}/{item_id}",
+    tags=[tag],
+    response_model=EmptyResponse,
+    summary="Delete reservable item",
+    description=(
+        "Deletes a reservable item and all its associated plans and "
+        "bookings. Pass ``?notify_user=true`` to fan out a "
+        "``deleted-gpu`` email to affected users first (v3 parity)."
+    ),
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def delete_reservable_item(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type"),
+    item_id: str = Path(..., description="The item ID"),
+    notify_user: bool = Query(
+        False,
+        description=(
+            "If true, fan out a ``deleted-gpu`` email to every user "
+            "affected by the deletion before removing the item."
+        ),
+    ),
+):
+    try:
+        ReservableService.delete_item(reservable_type, item_id, notify_user=notify_user)
+        return JSONResponse(
+            content=EmptyResponse().model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to delete reservable item.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/reservables/{reservable_type}/{item_id}",
+    tags=[tag],
+    summary="Update reservable item",
+    description="Update name and description of a reservable item (e.g., GPU).",
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def update_reservable_item(
+    request: Request,
+    reservable_type: str = Path(..., description="The reservable type (e.g., gpus)"),
+    item_id: str = Path(..., description="The item ID"),
+    data: dict = {},
+):
+    try:
+        ReservableService.update_item(reservable_type, item_id, data)
+        return JSONResponse(
+            content=EmptyResponse().model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update reservable item.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/items/reservables-planner",
+    tags=[tag],
+    summary="List all plans",
+    description="Returns all resource planner plans.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def list_all_plans(request: Request):
+    try:
+        plans = ReservableService.list_all_plans()
+        # RethinkDB returns datetime objects — serialize for JSON
+        for plan in plans:
+            for key in ("start", "end"):
+                if key in plan and hasattr(plan[key], "isoformat"):
+                    plan[key] = plan[key].isoformat()
+        return JSONResponse(
+            content=plans,
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        log.error("reservables-planner error: %s", traceback.format_exc())
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve plans.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/item/reservables-planner/check-integrity",
+    tags=[tag],
+    summary="Check planning integrity",
+    description="Checks if any plan item IDs are overlapped.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def check_integrity(request: Request):
+    try:
+        return JSONResponse(
+            content=ReservableService.check_integrity(),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check planning integrity.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/item/reservables-planner/actual-plan/{item_id}",
+    tags=[tag],
+    summary="Get actual plan for item",
+    description="Returns the current active plan for a specific item.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_actual_plan(
+    request: Request,
+    item_id: str = Path(..., description="The item ID"),
+):
+    try:
+        return JSONResponse(
+            content=ReservableService.get_actual_plan(item_id),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve actual plan.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/item/reservables-planner/{plan_id}/bookings",
+    tags=[tag],
+    summary="Get plan bookings",
+    description="Returns all bookings associated with a specific plan.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_plan_bookings(
+    request: Request,
+    plan_id: str = Path(..., description="The plan ID"),
+):
+    try:
+        return JSONResponse(
+            content=ReservableService.get_plan_bookings(plan_id),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve plan bookings.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/item/reservables-planner/by-item/{item_id}",
+    tags=[tag],
+    summary="Get plans for item",
+    description="Returns all plans for a specific item.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_item_plans(
+    request: Request,
+    item_id: str = Path(..., description="The item ID"),
+):
+    try:
+        return JSONResponse(
+            content=ReservableService.get_item_plans(item_id),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve item plans.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
+    "/item/reservables-planner",
+    tags=[tag],
+    summary="Create plan",
+    description="Creates a new resource planner plan.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def create_plan(request: Request, data: CreatePlanRequest):
+    try:
+        plan_data = {
+            "item_type": data.item_type,
+            "item_id": data.item_id,
+            "subitem_id": data.subitem_id,
+            "start": data.start,
+            "end": data.end,
+        }
+        result = ReservableService.add_plan(request.token_payload, plan_data)
+        return JSONResponse(
+            content=result,
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to create plan.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.delete(
+    "/item/reservables-planner/{plan_id}",
+    tags=[tag],
+    response_model=EmptyResponse,
+    summary="Delete plan",
+    description="Deletes a resource planner plan and its associated bookings.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def delete_plan(
+    request: Request,
+    plan_id: str = Path(..., description="The plan ID"),
+):
+    try:
+        ReservableService.delete_plan(plan_id)
+        return JSONResponse(
+            content=EmptyResponse().model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to delete plan.",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/item/reservables-planner/{plan_id}/{start}/{end}",
+    tags=[tag],
+    response_model=EmptyResponse,
+    summary="Update plan",
+    description="Updates a resource planner plan's start and end dates.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def update_plan(
+    request: Request,
+    plan_id: str = Path(..., description="The plan ID"),
+    start: str = Path(..., description="New start datetime"),
+    end: str = Path(..., description="New end datetime"),
+):
+    try:
+        ReservableService.update_plan(request.token_payload, plan_id, start, end)
+        return JSONResponse(
+            content=EmptyResponse().model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update plan.",
+            traceback.format_exc(),
+        )
+
+
+@token_router.post(
+    "/item/reservables-planner/booking-provisioning",
+    tags=[tag],
+    summary="Booking provisioning",
+    description="Determines where a new booking can be placed based on available resources.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
+)
+async def booking_provisioning(request: Request, data: BookingProvisioningRequest):
+    try:
+        result = ReservableService.booking_provisioning(
+            request.token_payload,
+            data.subitems,
+            data.units,
+            data.priority,
+            data.block_interval,
+        )
+        return JSONResponse(
+            content=result,
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to compute booking provisioning.",
+            traceback.format_exc(),
+        )

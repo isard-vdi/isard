@@ -13,7 +13,7 @@ type UserVPNRsp struct {
 }
 
 func (c *Client) UserVPN(ctx context.Context) (string, error) {
-	req, err := c.newRequest(http.MethodGet, "user/vpn/config", nil)
+	req, err := c.newRequest(http.MethodGet, "item/user/vpn/config", nil)
 	if err != nil {
 		return "", err
 	}
@@ -42,7 +42,7 @@ func (c *Client) UserOwnsDesktop(ctx context.Context, opts *UserOwnsDesktopOpts)
 
 	if opts != nil && opts.IP != "" {
 		body["ip"] = opts.IP
-		req, err := c.newJSONRequest(http.MethodGet, "user/owns_desktop", body)
+		req, err := c.newJSONRequest(http.MethodPost, "item/user/owns-desktop", body)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func (c *Client) UserOwnsDesktop(ctx context.Context, opts *UserOwnsDesktopOpts)
 		body["proxy_hyper_host"] = opts.ProxyHyperHost
 		body["port"] = opts.Port
 
-		req, err := c.newJSONRequest(http.MethodGet, "user/owns_desktop", body)
+		req, err := c.newJSONRequest(http.MethodPost, "item/user/owns-desktop", body)
 		if err != nil {
 			return err
 		}

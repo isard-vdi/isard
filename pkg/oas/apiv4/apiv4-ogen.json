@@ -1,0 +1,78 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "IsardVDI API",
+    "description": "IsardVDI API v4 - Split",
+    "version": "4.0.0-alpha1-split"
+  },
+  "paths": {
+    "/api/v4": {
+      "get": {
+        "tags": [
+          "open",
+          "ogen-keep"
+        ],
+        "summary": "Get API Version",
+        "description": "Returns the current version of the API and IsardVDI.",
+        "operationId": "api_version_api_v4_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiVersion": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "api_version": {
+            "type": "string",
+            "title": "Api Version"
+          },
+          "isardvdi_version": {
+            "type": "string",
+            "title": "Isardvdi Version"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "api_version",
+          "isardvdi_version",
+          "usage"
+        ],
+        "title": "ApiVersion"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

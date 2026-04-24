@@ -1,4 +1,4 @@
-FROM alpine:3.22.0
+FROM alpine:3.22
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache python3 py3-pip
@@ -10,8 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt --break-system-packages
 
 COPY component/openapi/src/main.py /app/main.py
 COPY pkg/oas /app/oas
-COPY frontend/src/assets/img/cover-img.svg /app/cover-img.svg
-COPY frontend/public/favicon.ico /app/favicon.ico
+COPY component/frontend/src/assets/img/cover-img.svg /app/cover-img.svg
+COPY component/frontend/public/favicon.ico /app/favicon.ico
 
 EXPOSE 5000
 

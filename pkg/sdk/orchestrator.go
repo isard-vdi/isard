@@ -96,7 +96,7 @@ type OrchestratorGPUBookingTime struct {
 }
 
 func (c *Client) OrchestratorHypervisorList(ctx context.Context) ([]*OrchestratorHypervisor, error) {
-	req, err := c.newRequest(http.MethodGet, "orchestrator/hypervisors", nil)
+	req, err := c.newRequest(http.MethodGet, "admin/orchestrator/hypervisors", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (c *Client) OrchestratorHypervisorList(ctx context.Context) ([]*Orchestrato
 }
 
 func (c *Client) OrchestratorHypervisorGet(ctx context.Context, id string) (*OrchestratorHypervisor, error) {
-	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("orchestrator/hypervisor/%s", id), nil)
+	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("admin/orchestrator/hypervisor/%s", id), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (c *Client) OrchestratorHypervisorGet(ctx context.Context, id string) (*Orc
 }
 
 func (c *Client) OrchestratorHypervisorManage(ctx context.Context, id string) error {
-	req, err := c.newRequest(http.MethodPost, fmt.Sprintf("orchestrator/hypervisor/%s/manage", id), nil)
+	req, err := c.newRequest(http.MethodPost, fmt.Sprintf("admin/orchestrator/hypervisor/%s/manage", id), nil)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (c *Client) OrchestratorHypervisorManage(ctx context.Context, id string) er
 }
 
 func (c *Client) OrchestratorHypervisorUnmanage(ctx context.Context, id string) error {
-	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("orchestrator/hypervisor/%s/manage", id), nil)
+	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("admin/orchestrator/hypervisor/%s/manage", id), nil)
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (c *Client) OrchestratorHypervisorUnmanage(ctx context.Context, id string) 
 }
 
 func (c *Client) OrchestratorHypervisorAddToDeadRow(ctx context.Context, id string) (time.Time, error) {
-	req, err := c.newRequest(http.MethodPost, fmt.Sprintf("orchestrator/hypervisor/%s/dead_row", id), nil)
+	req, err := c.newRequest(http.MethodPost, fmt.Sprintf("admin/orchestrator/hypervisor/%s/dead_row", id), nil)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -172,7 +172,7 @@ func (c *Client) OrchestratorHypervisorAddToDeadRow(ctx context.Context, id stri
 }
 
 func (c *Client) OrchestratorHypervisorRemoveFromDeadRow(ctx context.Context, id string) error {
-	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("orchestrator/hypervisor/%s/dead_row", id), nil)
+	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("admin/orchestrator/hypervisor/%s/dead_row", id), nil)
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (c *Client) OrchestratorHypervisorRemoveFromDeadRow(ctx context.Context, id
 }
 
 func (c *Client) OrchestratorHypervisorStopDesktops(ctx context.Context, id string) error {
-	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("orchestrator/hypervisor/%s/desktops", id), nil)
+	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("admin/orchestrator/hypervisor/%s/desktops", id), nil)
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (c *Client) OrchestratorHypervisorStopDesktops(ctx context.Context, id stri
 }
 
 func (c *Client) OrchestratorGPUBookingList(ctx context.Context) ([]*OrchestratorGPUBooking, error) {
-	req, err := c.newRequest(http.MethodGet, "orchestrator/gpu/bookings", nil)
+	req, err := c.newRequest(http.MethodGet, "items/bookings/gpu", nil)
 	if err != nil {
 		return nil, err
 	}

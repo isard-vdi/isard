@@ -1,0 +1,186 @@
+local:
+  type: dict
+  schema:
+    disabled:
+      type: boolean
+      required: true
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: false
+            other_fields:
+              and:
+                - email_domain_restriction
+                - config_source
+    email_domain_restriction:
+      type: dict
+      schema: email_domain_restriction
+    config_source:
+      type: string
+      allowed:
+        - global
+        - custom
+google:
+  type: dict
+  schema:
+    disabled:
+      type: boolean
+      required: true
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: false
+            other_fields:
+              and:
+                - email_domain_restriction
+                - config_source
+    email_domain_restriction:
+      type: dict
+      schema: email_domain_restriction
+    config_source:
+      type: string
+      allowed:
+        - global
+        - custom
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: custom
+            other_fields:
+              and:
+                - google_config
+    google_config:
+      type: dict
+      schema: google_config
+saml:
+  type: dict
+  schema:
+    disabled:
+      type: boolean
+      required: true
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: false
+            other_fields:
+              and:
+                - email_domain_restriction
+                - config_source
+    email_domain_restriction:
+      type: dict
+      schema: email_domain_restriction
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - path: enabled
+                    value: true
+            other_fields:
+              and:
+                - saml_config.field_email
+    config_source:
+      type: string
+      allowed:
+        - global
+        - custom
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: custom
+            other_fields:
+              or:
+                - saml_config.metadata_url
+                - saml_config.metadata_file
+    saml_config:
+      type: dict
+      schema: saml_config
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - path: auto_register
+                    value: true
+                  - path: group_default
+                    value: ''
+            other_fields:
+              and:
+                - saml_config.field_group
+          - values:
+              - and:
+                  - path: auto_register
+                    value: true
+                  - path: role_default
+                    value: ''
+            other_fields:
+              and:
+                - saml_config.field_role
+ldap:
+  type: dict
+  schema:
+    disabled:
+      type: boolean
+      required: true
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: false
+            other_fields:
+              and:
+                - email_domain_restriction
+                - config_source
+    email_domain_restriction:
+      type: dict
+      schema: email_domain_restriction
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - path: enabled
+                    value: true
+            other_fields:
+              and:
+                - ldap_config.field_email
+    config_source:
+      type: string
+      allowed:
+        - global
+        - custom
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - value: custom
+            other_fields:
+              and:
+                - ldap_config
+    ldap_config:
+      type: dict
+      schema: ldap_config
+      check_with: depends_if
+      meta:
+        depends_if:
+          - values:
+              - and:
+                  - path: auto_register
+                    value: true
+                  - path: group_default
+                    value: ''
+            other_fields:
+              and:
+                - ldap_config.field_group

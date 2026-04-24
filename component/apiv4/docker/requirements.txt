@@ -1,0 +1,24 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+pyjwt==2.10.1
+rethinkdb==2.4.10.post1  # Kept at 2.4.10.post1 as per your request
+pydantic==2.12.0
+websockets==15.0.1
+cachetools==5.5.2
+python-json-logger==3.3.0
+rq==2.3.2
+pytz==2025.2
+grpcio==1.66.2
+grpcio-health-checking==1.66.2
+protobuf==5.29.4
+gevent~=25.5
+redis==6.0.0
+requests~=2.32.4
+python-socketio~=5.13.0
+dnspython==2.7.0
+bcrypt==4.3.0
+portion==2.6.1
+Pillow~=11.0
+specktre==0.3.0
+html-sanitizer==2.6.0
+user-agents==2.2.0
