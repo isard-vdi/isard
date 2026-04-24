@@ -16,9 +16,9 @@ import {
   editDeploymentApiV4ItemDeploymentDeploymentIdPutMutation,
   getLabApiV4ItemDeploymentLabLabIdGetOptions,
   getAllUsersApiV4ItemsUsersGetOptions,
-  getAllGroupsApiV4ItemsGroupsGetOptions
+  getAllGroupsApiV4ItemsGroupsGetOptions,
+  getUserApiV4ItemUserGetOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getUserOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
 import type { MultiSelectTagItemType } from '@/components/multi-select'
 
 interface DesktopItem {
@@ -107,7 +107,7 @@ const getSaveButtonTooltip = computed(() => {
   return ''
 })
 
-const { data: currentUser } = useQuery(getUserOptions())
+const { data: currentUser } = useQuery(getUserApiV4ItemUserGetOptions())
 
 const { isPending: getAllUsersIsPending, data: users } = useQuery(
   getAllUsersApiV4ItemsUsersGetOptions()

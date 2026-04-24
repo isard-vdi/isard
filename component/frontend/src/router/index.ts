@@ -1,10 +1,9 @@
-import { TokenType } from '@/lib/auth'
+import { TokenType, type Role } from '@/lib/auth'
 import { createRouter, createWebHistory } from 'vue-router'
 import { MainLayout } from '@/layouts/main'
 import { useAuthStore } from '@/stores/auth'
 import { useSessionStore } from '@/stores/session'
 import { useSocketStore } from '@/stores/socket'
-import type { Role } from '@/gen/oas/api'
 import { getUserConfigApiV4ItemUserGetConfigGet } from '@/gen/oas/apiv4'
 import { resolveVue2Path, type FrontendMode } from '@/lib/frontendModeMap'
 

@@ -3,7 +3,8 @@ import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import type { CookieSetOptions } from 'universal-cookie'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
 import { type LoginError as AuthLoginError } from '@/gen/oas/authentication'
-import type { Role } from '@/gen/oas/api'
+
+export type Role = 'admin' | 'manager' | 'advanced' | 'user'
 
 interface ProviderUserData {
   provider: string
