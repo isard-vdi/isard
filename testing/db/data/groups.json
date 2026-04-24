@@ -1,0 +1,163 @@
+[
+    {
+        "auto": false,
+        "description": "[Hidden category] main group",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "cca27c62-9db4-45a2-8faa-3897f095d507",
+        "limits": false,
+        "linked_groups": [],
+        "name": "Main",
+        "parent_category": "07962917-9649-436e-b103-559c36c04afd",
+        "quota": false,
+        "uid": "Main"
+    },
+    {
+        "auto": false,
+        "description": "[Another category] main group",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "8b8054ff-0e53-47c9-8bed-1091f6c4d0c9",
+        "limits": false,
+        "linked_groups": [],
+        "name": "Main",
+        "parent_category": "ae26368b-26d3-4692-ba2f-62e99ceb054e",
+        "quota": false,
+        "uid": "Main"
+    },
+    {
+        "auto": false,
+        "description": "[Email] main group",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "0575ce32-ce07-4fd0-9e42-1debf89ffa38",
+        "limits": false,
+        "linked_groups": [],
+        "name": "Main",
+        "parent_category": "5389a10b-8509-4b62-b94e-674dfcb372d8",
+        "quota": false,
+        "uid": "Main"
+    },
+    {
+        "auto": false,
+        "description": "[Another category] ",
+        "enrollment": {
+            "advanced": "6x820h",
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "0031ddf8-2cd6-4523-9c67-f35065b85283",
+        "limits": false,
+        "linked_groups": [],
+        "name": "SAML",
+        "parent_category": "ae26368b-26d3-4692-ba2f-62e99ceb054e",
+        "quota": false,
+        "uid": "14c04ceb-2795-47db-8626-417ad3f2d339"
+    },
+    {
+        "auto": false,
+        "description": "[dislcaimer] main group",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "4e53ffd1-fd32-4385-b8c6-04ea7b5a8a04",
+        "limits": false,
+        "linked_groups": [],
+        "name": "Main",
+        "parent_category": "4f0408cc-4fd8-4d33-8173-f23f24d79cc3",
+        "quota": false,
+        "uid": "Main"
+    },
+    {
+        "auto": false,
+        "description": "[notifications] main group",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "f1f87cad-38ac-43d8-ab07-8427ee84da7c",
+        "limits": false,
+        "linked_groups": [],
+        "name": "Main",
+        "parent_category": "0efd17b5-2cc6-4f72-bbe1-18958d5b6c73",
+        "quota": false,
+        "uid": "Main"
+    },
+    {
+        "auto": false,
+        "description": "[Maintenance] main group",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "ddeffbe7-18f4-4c35-baff-83195bfcf0cf",
+        "limits": false,
+        "linked_groups": [],
+        "name": "Main",
+        "parent_category": "99beca35-1d46-41d8-8319-8cc54dbe3db0",
+        "quota": false,
+        "uid": "Main"
+    },
+    {
+        "description": "[Default] Default group",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": "bj7i32"
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "default-default",
+        "limits": false,
+        "linked_groups": [],
+        "name": "Default",
+        "parent_category": "default",
+        "quota": false,
+        "uid": "default"
+    },
+    {
+        "auto": false,
+        "description": "[Reset password] main group",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "ed5a9145-2d42-47a5-baa3-9c5fde9c3aad",
+        "limits": false,
+        "linked_groups": [],
+        "name": "Main",
+        "parent_category": "0519250f-e376-48c4-9609-fdae7d54a353",
+        "quota": false,
+        "uid": "Main"
+    }
+]

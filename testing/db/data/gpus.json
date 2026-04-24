@@ -1,0 +1,29 @@
+[
+    {
+        "architecture": "NVIDIA Ampere",
+        "brand": "NVIDIA",
+        "description": "A16 mock for testing",
+        "id": "e2e8b73f-b989-47b4-9864-9e0da97f7b21",
+        "memory": "16 GB GDDR",
+        "model": "A16",
+        "name": "GPU A16",
+        "physical_device": null,
+        "profiles_enabled": [
+            "NVIDIA-A16-2Q",
+            "NVIDIA-A16-4Q"
+        ]
+    },
+    {
+        "architecture": "NVIDIA Turing",
+        "brand": "NVIDIA",
+        "description": "For knowledge workers using modern productivity applications. ",
+        "id": "c33b8926-afd3-4d90-bc88-93be1357c9e5",
+        "memory": "16GB GDDR5",
+        "model": "T4",
+        "name": "GPU T4",
+        "physical_device": null,
+        "profiles_enabled": [
+            "NVIDIA-T4-2Q"
+        ]
+    }
+]

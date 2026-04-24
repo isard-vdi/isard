@@ -1,0 +1,55 @@
+# IsardVDI e2e / integration test configuration
+#
+# Mirrors the cfg that .gitlab-ci.yml builds for test-e2e and
+# integration-real jobs: USAGE=test, DOMAIN=host.docker.internal,
+# ENABLE_STATS=false. This template exists so `make test-e2e-stack`
+# and CI produce byte-identical docker-compose.e2e.yml stacks.
+#
+# Do NOT commit a non-template copy — the active e2e cfg is
+# generated at test time from this file, with the CI-only vars
+# (DOCKER_IMAGE_PREFIX, DOCKER_IMAGE_TAG) appended by the runner.
+
+# ------ Docker Compose -----------------------------------------------
+USAGE=test
+FLAVOUR=all-in-one
+ENABLE_STATS=false
+
+# Reuse locally-built dev-stack images (override at CI time).
+# CI sets DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/ and a per-commit
+# tag; locally we read what the dev stack built and tag-pin to it.
+# `make test-e2e-stack` auto-fills both from isardvdi.cfg.
+#DOCKER_IMAGE_PREFIX=
+#DOCKER_IMAGE_TAG=
+
+# ------ Domain -------------------------------------------------------
+# host.docker.internal routes to the portal container from whatever
+# network Playwright runs on (CI wires it via --add-host; locally we
+# rely on the docker-desktop / dockerd alias).
+DOMAIN=host.docker.internal
+
+# Browser tests do not speak PROXY protocol.
+PROXY_PROTOCOL=false
+
+# ------ Admin password (matches testing/db/data/users.json) ----------
+WEBAPP_ADMIN_PWD=IsardVDI
+
+# ------ Authentication rate limits -----------------------------------
+# Disabled for the normal e2e run — 16 parallel workers hammering
+# /login otherwise trip the limiter. The dedicated rate-limit spec
+# enables them locally at runtime.
+AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false
+
+# ------ LDAP / SAML / Google wiring ----------------------------------
+# The Go isard-authentication service loads provider config from the
+# RethinkDB `config` table's `auth` key (see authentication/model/config.go).
+# For tests we seed that shape directly via testing/db/data/config.json
+# — no cfg passthrough needed.
+#
+# The only env var that still matters here is the SAML test-IdP
+# category allow-list, which authentication-test-saml reads:
+AUTHENTICATION_TEST_SAML_CATEGORY_IDS=default
+
+# ------ Notify / Bastion ---------------------------------------------
+NOTIFY_EMAIL=True
+BASTION_ENABLED=true
+BASTION_SSH_PORT=2222

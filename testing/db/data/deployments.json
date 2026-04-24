@@ -1,0 +1,18 @@
+[
+    {
+        "id": "deployment-test-001",
+        "name": "Deployment Test Frontend",
+        "description": "Deployment for frontend",
+        "desktop_name": "Desktop from deployment",
+        "create_dict": {},
+        "user": "local-default-admin-admin",
+        "category": "default",
+        "group": "default-default",
+        "visible": true,
+        "enabled": true,
+        "co_owners": [],
+        "totalDesktops": 2,
+        "startedDesktops": 0,
+        "user_permissions": ["recreate"]
+    }
+]

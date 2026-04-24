@@ -1,0 +1,1388 @@
+[
+    {
+        "accessed": 1754483445,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "4dffb235-8293-4e40-b661-25ab33cf1781",
+        "lang": "es",
+        "name": "User Default",
+        "password": "$2b$12$tgSHsvmibnDE0WPyhrYYnuZeN0q0sXpsge570k8snDcEBFdklfOx2",
+        "password_history": [],
+        "password_last_updated": 0,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "4dffb235-8293-4e40-b661-25ab33cf1781_1754484645",
+        "uid": "user01",
+        "username": "user01",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.3",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "gNiMG7ElZ6mN9V29M9P+Es3nYOpY6gxLFfGhiJ3r2VU=",
+                    "public": "Oaqyyz1xUXGJmiZy0Q0x6jHKDCE8ZXrs8atPJEDV6XE="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483338,
+        "active": true,
+        "api_key": "",
+        "category": "5389a10b-8509-4b62-b94e-674dfcb372d8",
+        "disclaimer_acknowledged": false,
+        "email": "email@example.com",
+        "email_verification_token": "",
+        "email_verified": 1,
+        "group": "0575ce32-ce07-4fd0-9e42-1debf89ffa38",
+        "id": "08a544c0-8241-4516-a724-c0762752145c",
+        "lang": "es",
+        "name": "Verified Email",
+        "password": "$2b$12$I6yD5oqDGdK2UJ8o1T5Kguz8UWyExCXjmrHcJ/hQfyfKBLNRNmGD6",
+        "password_history": [],
+        "password_last_updated": 0,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "08a544c0-8241-4516-a724-c0762752145c_1754484538",
+        "uid": "verified",
+        "username": "verified",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.6",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "eAPLnR8hrbHpJJ2wBFhKf5bkTZGJ2amGFFCh8Xo11Xg=",
+                    "public": "r8AM7z3sWmRx5Nnc2JAjvnvyxgdP9oTTYAo2fO1EgBE="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754291933,
+        "active": true,
+        "api_key": null,
+        "category": "5389a10b-8509-4b62-b94e-674dfcb372d8",
+        "disclaimer_acknowledged": null,
+        "email": "email2@example.com",
+        "email_verification_token": null,
+        "email_verified": null,
+        "group": "0575ce32-ce07-4fd0-9e42-1debf89ffa38",
+        "id": "c71cca60-5ce4-44ff-a84d-b16af89317c2",
+        "lang": "es",
+        "name": "Unverified Email",
+        "password": "$2b$12$G2VP2MJ3RGufUhKk2nnOfOu8OX8MlKS6wLZqufKVXSpdfDrtSJ2y.",
+        "password_history": [
+            "$2b$12$/Rn5OY7Wf7Ho8sGrLn4MHe0EDaLDBYcSsnUiSV5PpOH8Y4vvJ1da6"
+        ],
+        "password_last_updated": 1754291933,
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "uid": "unverified",
+        "username": "unverified",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.13",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "yK5NSW2AI09kyA+kUMPmWuH0lLtju7z3OREFB2qrKls=",
+                    "public": "hDnRgjAA2kPUT4DTinbvtfQK1ZQqwXnQ0lD7v/lhc08="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754385160,
+        "active": true,
+        "api_key": null,
+        "category": "default",
+        "email": "",
+        "email_verification_token": null,
+        "email_verified": false,
+        "group": "default-default",
+        "id": "359a8a64-8a5a-4349-ae8a-81efc7a26835",
+        "lang": "es",
+        "name": "Too many attempts",
+        "password": "$2b$12$9HT0SPWLwbYtEq5qtxN.lOF9dnc2wTRklB21VIaL2ZGABV0ExcjSe",
+        "password_history": [
+            "$2b$12$9HT0SPWLwbYtEq5qtxN.lOF9dnc2wTRklB21VIaL2ZGABV0ExcjSe"
+        ],
+        "password_last_updated": 1754385161,
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "uid": "toomanyattempts",
+        "username": "toomanyattempts",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.10",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "4KGLYJuXMqIvyUZqzkkentVLGfZegwuiS231QZoo70w=",
+                    "public": "78jw0iWnqZGTdqMlXSQMml4T48obEZ39Y18emEEx5Eo="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754291930,
+        "active": true,
+        "api_key": null,
+        "category": "07962917-9649-436e-b103-559c36c04afd",
+        "disclaimer_acknowledged": null,
+        "email": "",
+        "email_verification_token": null,
+        "email_verified": null,
+        "group": "cca27c62-9db4-45a2-8faa-3897f095d507",
+        "id": "161cb3cd-54b1-4937-a922-df57b1b8c483",
+        "lang": "es",
+        "name": "Manager Hidden",
+        "password": "$2b$12$pmoyXBuwQFzVY81HyF7Sx.mFVeUIJQBkYZH92ubk/U32lWmW7xhPK",
+        "password_history": [
+            "$2b$12$TEMNFJ46.yz4svC/1RsCSu0uGoxvGTNO10VfaT4DLGQrNFZ3JqWTC"
+        ],
+        "password_last_updated": 1754291930,
+        "provider": "local",
+        "quota": false,
+        "role": "manager",
+        "secondary_groups": [],
+        "uid": "manager02",
+        "username": "manager02",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.12",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "qB0e7kbCgHbCdQuiVitlJSHHbQicXYau++LDaGY0ZWs=",
+                    "public": "e7fWH/zKmL2e08ho+v/Js1jKZbOxuXAFkEOWYpwj01M="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754490196,
+        "active": true,
+        "api_key": "",
+        "category": "99beca35-1d46-41d8-8319-8cc54dbe3db0",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": 0,
+        "group": "ddeffbe7-18f4-4c35-baff-83195bfcf0cf",
+        "id": "6bd3f296-5f2b-4a80-8b8a-2ac42ea3c88d",
+        "name": "Admin Maintenance",
+        "password": "$2b$12$B86JyeZMqHV38/9ZtNYxUu15YIc56PGVJJC4SblY6rs97RvwkGe96",
+        "password_history": [
+            "$2b$12$B86JyeZMqHV38/9ZtNYxUu15YIc56PGVJJC4SblY6rs97RvwkGe96"
+        ],
+        "password_last_updated": 1754466253,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "6bd3f296-5f2b-4a80-8b8a-2ac42ea3c88d_1754491396",
+        "uid": "admin_maintenance",
+        "username": "admin_maintenance",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.16",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "2MA8h8wIir1KkofQYH/4lS0MdRTRl9vRgvbtnxRGE3U=",
+                    "public": "4YpkwucBROw/g1zHZbFDKrf72NlZ9sJG+GjaNrNromA="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754300066,
+        "active": true,
+        "api_key": "",
+        "category": "4f0408cc-4fd8-4d33-8173-f23f24d79cc3",
+        "disclaimer_acknowledged": null,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "4e53ffd1-fd32-4385-b8c6-04ea7b5a8a04",
+        "id": "cedd36cc-81d5-4052-ab0a-52390526cae0",
+        "lang": "es",
+        "name": "Advanced with Disclaimer",
+        "password": "$2b$12$MVh4.str..tyIko5baUP2.mtLcq/qWtxQhkqwZiyQ2GVHKwoqKlyW",
+        "password_history": [],
+        "password_last_updated": 0,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "advanced",
+        "secondary_groups": [],
+        "start_logs_id": "cedd36cc-81d5-4052-ab0a-52390526cae0_1754301266",
+        "uid": "disclaimer",
+        "username": "disclaimer",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.15",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "WMZJ96bxH9VdroJQ40NdDLd0nLyiAIgALCDdrSsyRk4=",
+                    "public": "9oV+ZCZ9kL8SrddTFjuW/jETnMM/9qBc7s9zRT9L8jM="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483359,
+        "active": true,
+        "api_key": "",
+        "category": "07962917-9649-436e-b103-559c36c04afd",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "cca27c62-9db4-45a2-8faa-3897f095d507",
+        "id": "f04ec876-a836-45fc-8014-3677386739a4",
+        "lang": "es",
+        "name": "User Hidden",
+        "password": "$2b$12$88ayehAGzO17KcjI4d8PFu9TkmCZlIHgHGWrALE7.7dO81PBC6dv2",
+        "password_history": [
+            "$2b$12$Nkj2Q1Er6maVWvydHZDmA.BhMUJLz57LkpXcdKqtL79RgTCoSnGBG"
+        ],
+        "password_last_updated": 1754291929,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "f04ec876-a836-45fc-8014-3677386739a4_1754484559",
+        "uid": "user02",
+        "username": "user02",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.11",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "aM21rKOyJitVDC3hIaboVbsJm4EYzqWLAOiyJd6E6nM=",
+                    "public": "vjON7yG10GNy3YlyqAyvz5+TFpepav/7a4Z5VXiOeUA="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483366,
+        "active": true,
+        "api_key": "",
+        "category": "99beca35-1d46-41d8-8319-8cc54dbe3db0",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "ddeffbe7-18f4-4c35-baff-83195bfcf0cf",
+        "id": "4642bf13-d878-4ce7-9fe1-c17864a39a10",
+        "lang": "es",
+        "name": "maintenance",
+        "password": "$2b$12$L0K.xNY0Pup.FViR5JjG4OFWp8h.CQK5d4oUtzqWCsGZADUbbOGoG",
+        "password_history": [],
+        "password_last_updated": 0,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "4642bf13-d878-4ce7-9fe1-c17864a39a10_1754484566",
+        "uid": "maintenance",
+        "username": "maintenance",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.8",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "8J9ZopWu1sueorwUY8uyz5pfCZNlK7gcef6y4BTZmHw=",
+                    "public": "Ns1nUZviT57vZjQu/pX5m054pFqxBwgS31e63jIJ9FE="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754291928,
+        "active": false,
+        "api_key": null,
+        "category": "default",
+        "disclaimer_acknowledged": null,
+        "email": "",
+        "email_verification_token": null,
+        "email_verified": null,
+        "group": "default-default",
+        "id": "8b151f4b-8743-4b56-9895-8413bee76fc0",
+        "lang": "es",
+        "name": "disabled",
+        "password": "$2b$12$gIAEy6V1aLGjxb1PNS7mKOFIW1bihII8aqhr4Bwc11QdXJnf0pt2q",
+        "password_history": [
+            "$2b$12$8slTBppqkzGx.ndz2Fes3uEp9CKD5bzZiOCCavDSWLjSyQ7mtNR7a"
+        ],
+        "password_last_updated": 1754291929,
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "uid": "disabled",
+        "username": "disabled",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.7",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "wJmxJuhg3zR3e7DHxhtRjq/ZJL8uY6AARWyWH6qjfVs=",
+                    "public": "4ftAIHG3ohiwe7DS+H25bhBZw3Q0NWt1l7xabl/HJkY="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754468236,
+        "active": true,
+        "api_key": "",
+        "category": "0efd17b5-2cc6-4f72-bbe1-18958d5b6c73",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": 0,
+        "group": "f1f87cad-38ac-43d8-ab07-8427ee84da7c",
+        "id": "8159ba0b-77fe-4ca3-9ebe-0b17470747d6",
+        "name": "notifications",
+        "password": "$2b$12$QlzEyWZ.p6LxdT5p0.y6VuX1Z68LAyf/hI0u055VABQyW6C6Ab54q",
+        "password_history": [
+            "$2b$12$QlzEyWZ.p6LxdT5p0.y6VuX1Z68LAyf/hI0u055VABQyW6C6Ab54q"
+        ],
+        "password_last_updated": 1754467094,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "8159ba0b-77fe-4ca3-9ebe-0b17470747d6_1754469436",
+        "uid": "notifications",
+        "username": "notifications",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.17",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "EPbDj/OPEzq+q8r++0kVIl52K7vuU9A6u6UldI1br0A=",
+                    "public": "Oz2IisKbfnLiDW4yjAZoZJbay0YbGelO34qfLzpLD1s="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483461,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "f5a63886-ad76-40cf-b767-ddc1a253d3a6",
+        "lang": "es",
+        "name": "Manager Default",
+        "password": "$2b$12$VRUhby5oAal2ECQBII7VPu4MmFimz4mWq..QVd5Dr8IVVX8m/V2ey",
+        "password_history": [
+            "$2b$12$2f9d0z/R92tNB3A6MeHzlOZFGiy2YhIv8Wwn6CyGEfpx638X8P71O"
+        ],
+        "password_last_updated": 1754291928,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "manager",
+        "secondary_groups": [],
+        "start_logs_id": "f5a63886-ad76-40cf-b767-ddc1a253d3a6_1754484661",
+        "uid": "manager01",
+        "username": "manager01",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.5",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "ABRh1trwe91bOuIZMEVAEYmh4PwxQKtguBK/sK8dbXk=",
+                    "public": "DGvzx1PShrJg0GjGRrLJCpJTA8csUE3GNl9HJv8S1X8="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483347,
+        "active": true,
+        "api_key": "",
+        "category": "ae26368b-26d3-4692-ba2f-62e99ceb054e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "8b8054ff-0e53-47c9-8bed-1091f6c4d0c9",
+        "id": "f62e3d74-aadd-4ce3-9b43-38f34f368323",
+        "lang": "es",
+        "name": "User Another",
+        "password": "$2b$12$xuCtNql317leKyRzuamacO7n4lfVmZGPIkMxKgiMYXY7ILXCXDgy6",
+        "password_history": [
+            "$2b$12$4A0iyoAeX8DRKNOYt9zSWenXD1j8hSYv8TwcltAHWNcpqYUyfkiAa"
+        ],
+        "password_last_updated": 1754291931,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "f62e3d74-aadd-4ce3-9b43-38f34f368323_1754484547",
+        "uid": "user03",
+        "username": "user03",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.14",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "gOevyoF+q3EAfnV6s9A/GkXD56d4j+xASavUfvdYs3M=",
+                    "public": "oE60I8EUWNsWwiTaFmNWnzNOG6hPna/IkDfhW5K9Gzs="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754304534,
+        "active": true,
+        "api_key": "",
+        "category": "ae26368b-26d3-4692-ba2f-62e99ceb054e",
+        "default_templates": [],
+        "disclaimer_acknowledged": true,
+        "email": "user1@example.com",
+        "email_verification_token": "",
+        "email_verified": 0,
+        "group": "0031ddf8-2cd6-4523-9c67-f35065b85283",
+        "id": "81eca699-3f3c-4fed-9d69-1958f9c7de82",
+        "name": "user1",
+        "password": "a11@0pVUMrWo*OH3",
+        "password_history": [
+            "a11@0pVUMrWo*OH3"
+        ],
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "saml",
+        "quota": false,
+        "role": "advanced",
+        "secondary_groups": [],
+        "start_logs_id": "81eca699-3f3c-4fed-9d69-1958f9c7de82_1754305734",
+        "uid": "1",
+        "username": "user1",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.9",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "2CRS6M47/Pnbckjmz1TxB/NStnh6Xu1W0of7oGF3t3w=",
+                    "public": "JNnT0edybhya8jENPi2zE8Xzn/AHEY2qCDzT2t8UGhI="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754291931,
+        "active": true,
+        "api_key": null,
+        "category": "ae26368b-26d3-4692-ba2f-62e99ceb054e",
+        "disclaimer_acknowledged": null,
+        "email": "",
+        "email_verification_token": null,
+        "email_verified": null,
+        "group": "8b8054ff-0e53-47c9-8bed-1091f6c4d0c9",
+        "id": "85c4d612-f1ee-4cf8-988a-1eaaf5b3b19b",
+        "lang": "es",
+        "name": "Manager Another",
+        "password": "$2b$12$bgaHgc0Kory7CXzs4eTu.ug/MiZv3FsHPs8.1rq6xW67zxhfeg7by",
+        "password_history": [
+            "$2b$12$LKn1TXt6fjzIRWlJznBEougqD6YIPu5VHbwl/aeeqSr97LPT7bgh."
+        ],
+        "password_last_updated": 1754291932,
+        "provider": "local",
+        "quota": false,
+        "role": "manager",
+        "secondary_groups": [],
+        "uid": "manager03",
+        "username": "manager03",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.4",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "GJh7T1hVkBjrWSkroX/B5e/AQkmMRf85wqtRWT0MT3c=",
+                    "public": "WdGgjB7I5QUWtcF3yVKrJ/gdkfUbaPe3N3yEMPdjNjY="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "admin@isard.io",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "local-default-admin-admin",
+        "lang": "es",
+        "name": "Administrator",
+        "password": "$2b$12$RsH9B8u9UgxoVgxsbpVTQe7X12bPTsxYMBSZYfGekltZGy0MWojti",
+        "password_history": [],
+        "password_last_updated": 0,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "local-default-admin-admin_1754484618",
+        "uid": "admin",
+        "username": "admin",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.2",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "2Lmzu0xCbg3Gzs0HG/Ml+E+YjdVtHL83SCvEu9Tkomc=",
+                    "public": "cC9mVXOy05a2HWBzCHMfedVd+HTUKNM1Dg1YVGgex0A="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754578457,
+        "active": true,
+        "api_key": null,
+        "category": "0519250f-e376-48c4-9609-fdae7d54a353",
+        "email": "",
+        "email_verification_token": null,
+        "email_verified": false,
+        "group": "ed5a9145-2d42-47a5-baa3-9c5fde9c3aad",
+        "id": "425d2bad-6fe9-4ff0-a527-a1f5253a160a",
+        "name": "Password Reset",
+        "password": "$2b$12$iSxETzRck0sQbUDLyMZTFOsnIeMvoJpJYJXGlTHHNNyMKjiEPg..u",
+        "password_history": [
+            "$2b$12$iSxETzRck0sQbUDLyMZTFOsnIeMvoJpJYJXGlTHHNNyMKjiEPg..u"
+        ],
+        "password_last_updated": null,
+        "provider": "local",
+        "quota": false,
+        "lang": "es",
+        "role": "user",
+        "secondary_groups": [],
+        "uid": "password_reset",
+        "username": "password_reset",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.18",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "COvjoL20khwHqXsEnBXhStO9ntX8rkNryqh5AsbdrEM=",
+                    "public": "vFhIRB9nd4pdArpUBexwIeqLonb+X/pbdlOjL/CeI3w="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "67d9d771-8e2d-5a43-9f1b-b75130af513a",
+        "lang": "es",
+        "name": "E2E Admin 01",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "67d9d771-8e2d-5a43-9f1b-b75130af513a_1754484618",
+        "uid": "admin_e2e_01",
+        "username": "admin_e2e_01",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.21",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey01placeholder00000000000000000000=",
+                    "public": "e2ePubKey01placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "9b612af1-2e83-5a73-acab-9e1f8cc6d960",
+        "lang": "es",
+        "name": "E2E Admin 02",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "9b612af1-2e83-5a73-acab-9e1f8cc6d960_1754484618",
+        "uid": "admin_e2e_02",
+        "username": "admin_e2e_02",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.22",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey02placeholder00000000000000000000=",
+                    "public": "e2ePubKey02placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "0232270e-27c5-5554-b548-85a1d35feb4d",
+        "lang": "es",
+        "name": "E2E Admin 03",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "0232270e-27c5-5554-b548-85a1d35feb4d_1754484618",
+        "uid": "admin_e2e_03",
+        "username": "admin_e2e_03",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.23",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey03placeholder00000000000000000000=",
+                    "public": "e2ePubKey03placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "96f984bc-fa8f-5e83-ae34-af5d24fef029",
+        "lang": "es",
+        "name": "E2E Admin 04",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "96f984bc-fa8f-5e83-ae34-af5d24fef029_1754484618",
+        "uid": "admin_e2e_04",
+        "username": "admin_e2e_04",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.24",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey04placeholder00000000000000000000=",
+                    "public": "e2ePubKey04placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "979fa7ca-537a-56c6-b40f-f7c798419f3f",
+        "lang": "es",
+        "name": "E2E Admin 05",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "979fa7ca-537a-56c6-b40f-f7c798419f3f_1754484618",
+        "uid": "admin_e2e_05",
+        "username": "admin_e2e_05",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.25",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey05placeholder00000000000000000000=",
+                    "public": "e2ePubKey05placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "6f5c0b03-53cf-5047-b56e-5e83b5530be4",
+        "lang": "es",
+        "name": "E2E Admin 06",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "6f5c0b03-53cf-5047-b56e-5e83b5530be4_1754484618",
+        "uid": "admin_e2e_06",
+        "username": "admin_e2e_06",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.26",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey06placeholder00000000000000000000=",
+                    "public": "e2ePubKey06placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "8ddebf86-faf4-52d0-b2d6-586806dc2bf2",
+        "lang": "es",
+        "name": "E2E Admin 07",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "8ddebf86-faf4-52d0-b2d6-586806dc2bf2_1754484618",
+        "uid": "admin_e2e_07",
+        "username": "admin_e2e_07",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.27",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey07placeholder00000000000000000000=",
+                    "public": "e2ePubKey07placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "11a3abb2-3888-5af2-8a14-91340405a89f",
+        "lang": "es",
+        "name": "E2E Admin 08",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "11a3abb2-3888-5af2-8a14-91340405a89f_1754484618",
+        "uid": "admin_e2e_08",
+        "username": "admin_e2e_08",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.28",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey08placeholder00000000000000000000=",
+                    "public": "e2ePubKey08placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "c7e77d70-e443-53d2-9933-d9b83e4a19a1",
+        "lang": "es",
+        "name": "E2E Admin 09",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "c7e77d70-e443-53d2-9933-d9b83e4a19a1_1754484618",
+        "uid": "admin_e2e_09",
+        "username": "admin_e2e_09",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.29",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey09placeholder00000000000000000000=",
+                    "public": "e2ePubKey09placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "ca96982b-326b-52ff-a0ee-2e588aae3607",
+        "lang": "es",
+        "name": "E2E Admin 10",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "ca96982b-326b-52ff-a0ee-2e588aae3607_1754484618",
+        "uid": "admin_e2e_10",
+        "username": "admin_e2e_10",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.30",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey10placeholder00000000000000000000=",
+                    "public": "e2ePubKey10placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "29b9841e-325d-5911-b2ff-4480b4465602",
+        "lang": "es",
+        "name": "E2E Admin 11",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "29b9841e-325d-5911-b2ff-4480b4465602_1754484618",
+        "uid": "admin_e2e_11",
+        "username": "admin_e2e_11",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.31",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey11placeholder00000000000000000000=",
+                    "public": "e2ePubKey11placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "bd703f20-a54d-5be0-a2d3-a0eb34c01ede",
+        "lang": "es",
+        "name": "E2E Admin 12",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "bd703f20-a54d-5be0-a2d3-a0eb34c01ede_1754484618",
+        "uid": "admin_e2e_12",
+        "username": "admin_e2e_12",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.32",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey12placeholder00000000000000000000=",
+                    "public": "e2ePubKey12placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "714f62f6-0ddb-5906-b6d1-8f5222e84cf2",
+        "lang": "es",
+        "name": "E2E Admin 13",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "714f62f6-0ddb-5906-b6d1-8f5222e84cf2_1754484618",
+        "uid": "admin_e2e_13",
+        "username": "admin_e2e_13",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.33",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey13placeholder00000000000000000000=",
+                    "public": "e2ePubKey13placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "43f042bc-cfef-56eb-894a-e8fed340d4ed",
+        "lang": "es",
+        "name": "E2E Admin 14",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "43f042bc-cfef-56eb-894a-e8fed340d4ed_1754484618",
+        "uid": "admin_e2e_14",
+        "username": "admin_e2e_14",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.34",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey14placeholder00000000000000000000=",
+                    "public": "e2ePubKey14placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "9a09b425-2e8f-525f-9c90-868a40607ee2",
+        "lang": "es",
+        "name": "E2E Admin 15",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "admin",
+        "secondary_groups": [],
+        "start_logs_id": "9a09b425-2e8f-525f-9c90-868a40607ee2_1754484618",
+        "uid": "admin_e2e_15",
+        "username": "admin_e2e_15",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.35",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2ePrivKey15placeholder00000000000000000000=",
+                    "public": "e2ePubKey15placeholder000000000000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "default",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "default-default",
+        "id": "4e2aec3a-b3ac-5829-a692-51c10e493da8",
+        "lang": "es",
+        "name": "E2E User 01",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "4e2aec3a-b3ac-5829-a692-51c10e493da8_1754484618",
+        "uid": "user_e2e_01",
+        "username": "user_e2e_01",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.40",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "e2eUserPrivKey01placeholder000000000000=",
+                    "public": "e2eUserPubKey01placeholder0000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    }
+]
