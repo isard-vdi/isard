@@ -4,20 +4,147 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
 	"gitlab.com/isard/isardvdi/haproxy-sync/transport/grpc"
 	"gitlab.com/isard/isardvdi/pkg/cfg"
 	haproxysyncv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/haproxy_sync/v1"
+	"gitlab.com/isard/isardvdi/pkg/log"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+func TestDomainSync(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareService func(*haproxysync.MockHaproxysync)
+		Req            *haproxysyncv1.DomainSyncRequest
+		ExpectedRsp    *haproxysyncv1.DomainSyncResponse
+		ExpectedErr    string
+	}{
+		"should work as expected": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{
+					{Name: "example.com"},
+					{Name: "test.org"},
+				}).Return(haproxysync.DomainSyncResult{
+					DomainsAdded:   2,
+					DomainsRemoved: 1,
+					CertsIssued:    2,
+					CertsRemoved:   1,
+				}, nil)
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []*haproxysyncv1.DomainSyncDomain{
+					{Name: "example.com"},
+					{Name: "test.org"},
+				},
+			},
+			ExpectedRsp: &haproxysyncv1.DomainSyncResponse{
+				DomainsAdded:   2,
+				DomainsRemoved: 1,
+				CertsIssued:    2,
+				CertsRemoved:   1,
+				FailedDomains:  []*haproxysyncv1.DomainSyncError{},
+			},
+		},
+		"should work with provided certificate": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{
+					{Name: "provided.com", Certificate: []byte("PEM")},
+				}).Return(haproxysync.DomainSyncResult{
+					DomainsAdded: 1,
+				}, nil)
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []*haproxysyncv1.DomainSyncDomain{
+					{Name: "provided.com", Certificate: []byte("PEM")},
+				},
+			},
+			ExpectedRsp: &haproxysyncv1.DomainSyncResponse{
+				DomainsAdded:  1,
+				FailedDomains: []*haproxysyncv1.DomainSyncError{},
+			},
+		},
+		"should work with empty domains": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{}).
+					Return(haproxysync.DomainSyncResult{
+						DomainsAdded:   0,
+						DomainsRemoved: 0,
+						CertsIssued:    0,
+						CertsRemoved:   0,
+					}, nil)
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []*haproxysyncv1.DomainSyncDomain{},
+			},
+			ExpectedRsp: &haproxysyncv1.DomainSyncResponse{
+				DomainsAdded:   0,
+				DomainsRemoved: 0,
+				CertsIssued:    0,
+				CertsRemoved:   0,
+				FailedDomains:  []*haproxysyncv1.DomainSyncError{},
+			},
+		},
+		"should return an Internal status if an unexpected error occurs": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{
+					{Name: "fail.com"},
+				}).Return(haproxysync.DomainSyncResult{}, errors.New("unexpected error"))
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []*haproxysyncv1.DomainSyncDomain{
+					{Name: "fail.com"},
+				},
+			},
+			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("sync domains: %w", errors.New("unexpected error")).Error()).Error(),
+		},
+		"should return an InvalidArgument status if a domain is invalid": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{
+					{Name: "*.example.com"},
+				}).Return(haproxysync.DomainSyncResult{}, fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.example.com"))
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []*haproxysyncv1.DomainSyncDomain{
+					{Name: "*.example.com"},
+				},
+			},
+			ExpectedErr: status.Error(codes.InvalidArgument, fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.example.com").Error()).Error(),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			serviceMock := &haproxysync.MockHaproxysync{}
+			tc.PrepareService(serviceMock)
+
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
+
+			rsp, err := srv.DomainSync(context.Background(), tc.Req)
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			assert.Equal(tc.ExpectedRsp, rsp)
+
+			serviceMock.AssertExpectations(t)
+		})
+	}
+}
 
 func TestBastionAddSubdomain(t *testing.T) {
 	assert := assert.New(t)
@@ -38,16 +165,6 @@ func TestBastionAddSubdomain(t *testing.T) {
 			},
 			ExpectedRsp: &haproxysyncv1.BastionAddSubdomainResponse{},
 		},
-		"should return an InvalidArgument status if subdomain is missing": {
-			PrepareService: func(m *haproxysync.MockHaproxysync) {
-				m.On("BastionAddSubdomain", mock.AnythingOfType("context.backgroundCtx"), "").
-					Return(haproxysync.ErrMissingSubdomain)
-			},
-			Req: &haproxysyncv1.BastionAddSubdomainRequest{
-				Domain: "",
-			},
-			ExpectedErr: status.Error(codes.InvalidArgument, haproxysync.ErrMissingSubdomain.Error()).Error(),
-		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareService: func(m *haproxysync.MockHaproxysync) {
 				m.On("BastionAddSubdomain", mock.AnythingOfType("context.backgroundCtx"), "fail").
@@ -58,16 +175,24 @@ func TestBastionAddSubdomain(t *testing.T) {
 			},
 			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("add subdomain: %w", errors.New("unexpected error")).Error()).Error(),
 		},
+		"should return an InvalidArgument status if subdomain is invalid": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("BastionAddSubdomain", mock.AnythingOfType("context.backgroundCtx"), "*.evil").
+					Return(fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.evil"))
+			},
+			Req: &haproxysyncv1.BastionAddSubdomainRequest{
+				Domain: "*.evil",
+			},
+			ExpectedErr: status.Error(codes.InvalidArgument, fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.evil").Error()).Error(),
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionAddSubdomain(context.Background(), tc.Req)
 
@@ -103,16 +228,6 @@ func TestBastionDeleteSubdomain(t *testing.T) {
 			},
 			ExpectedRsp: &haproxysyncv1.BastionDeleteSubdomainResponse{},
 		},
-		"should return an InvalidArgument status if subdomain is missing": {
-			PrepareService: func(m *haproxysync.MockHaproxysync) {
-				m.On("BastionDeleteSubdomain", mock.AnythingOfType("context.backgroundCtx"), "").
-					Return(haproxysync.ErrMissingSubdomain)
-			},
-			Req: &haproxysyncv1.BastionDeleteSubdomainRequest{
-				Domain: "",
-			},
-			ExpectedErr: status.Error(codes.InvalidArgument, haproxysync.ErrMissingSubdomain.Error()).Error(),
-		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareService: func(m *haproxysync.MockHaproxysync) {
 				m.On("BastionDeleteSubdomain", mock.AnythingOfType("context.backgroundCtx"), "fail").
@@ -123,16 +238,24 @@ func TestBastionDeleteSubdomain(t *testing.T) {
 			},
 			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("delete subdomain: %w", errors.New("unexpected error")).Error()).Error(),
 		},
+		"should return an InvalidArgument status if subdomain is invalid": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("BastionDeleteSubdomain", mock.AnythingOfType("context.backgroundCtx"), "*.evil").
+					Return(fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.evil"))
+			},
+			Req: &haproxysyncv1.BastionDeleteSubdomainRequest{
+				Domain: "*.evil",
+			},
+			ExpectedErr: status.Error(codes.InvalidArgument, fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.evil").Error()).Error(),
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionDeleteSubdomain(context.Background(), tc.Req)
 
@@ -168,16 +291,6 @@ func TestBastionAddIndividualDomain(t *testing.T) {
 			},
 			ExpectedRsp: &haproxysyncv1.BastionAddIndividualDomainResponse{},
 		},
-		"should return an InvalidArgument status if domain is missing": {
-			PrepareService: func(m *haproxysync.MockHaproxysync) {
-				m.On("BastionAddIndividualDomain", mock.AnythingOfType("context.backgroundCtx"), "").
-					Return(haproxysync.ErrMissingDomain)
-			},
-			Req: &haproxysyncv1.BastionAddIndividualDomainRequest{
-				Domain: "",
-			},
-			ExpectedErr: status.Error(codes.InvalidArgument, haproxysync.ErrMissingDomain.Error()).Error(),
-		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareService: func(m *haproxysync.MockHaproxysync) {
 				m.On("BastionAddIndividualDomain", mock.AnythingOfType("context.backgroundCtx"), "fail.com").
@@ -188,16 +301,24 @@ func TestBastionAddIndividualDomain(t *testing.T) {
 			},
 			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("add individual domain: %w", errors.New("unexpected error")).Error()).Error(),
 		},
+		"should return an InvalidArgument status if domain is invalid": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("BastionAddIndividualDomain", mock.AnythingOfType("context.backgroundCtx"), "*.evil.com").
+					Return(fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.evil.com"))
+			},
+			Req: &haproxysyncv1.BastionAddIndividualDomainRequest{
+				Domain: "*.evil.com",
+			},
+			ExpectedErr: status.Error(codes.InvalidArgument, fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.evil.com").Error()).Error(),
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionAddIndividualDomain(context.Background(), tc.Req)
 
@@ -233,16 +354,6 @@ func TestBastionDeleteIndividualDomain(t *testing.T) {
 			},
 			ExpectedRsp: &haproxysyncv1.BastionDeleteIndividualDomainResponse{},
 		},
-		"should return an InvalidArgument status if domain is missing": {
-			PrepareService: func(m *haproxysync.MockHaproxysync) {
-				m.On("BastionDeleteIndividualDomain", mock.AnythingOfType("context.backgroundCtx"), "").
-					Return(haproxysync.ErrMissingDomain)
-			},
-			Req: &haproxysyncv1.BastionDeleteIndividualDomainRequest{
-				Domain: "",
-			},
-			ExpectedErr: status.Error(codes.InvalidArgument, haproxysync.ErrMissingDomain.Error()).Error(),
-		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareService: func(m *haproxysync.MockHaproxysync) {
 				m.On("BastionDeleteIndividualDomain", mock.AnythingOfType("context.backgroundCtx"), "fail.com").
@@ -253,16 +364,24 @@ func TestBastionDeleteIndividualDomain(t *testing.T) {
 			},
 			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("delete individual domain: %w", errors.New("unexpected error")).Error()).Error(),
 		},
+		"should return an InvalidArgument status if domain is invalid": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("BastionDeleteIndividualDomain", mock.AnythingOfType("context.backgroundCtx"), "*.evil.com").
+					Return(fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.evil.com"))
+			},
+			Req: &haproxysyncv1.BastionDeleteIndividualDomainRequest{
+				Domain: "*.evil.com",
+			},
+			ExpectedErr: status.Error(codes.InvalidArgument, fmt.Errorf("%w: %q: idna: disallowed rune U+002A", haproxysync.ErrInvalidDomain, "*.evil.com").Error()).Error(),
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionDeleteIndividualDomain(context.Background(), tc.Req)
 
@@ -351,12 +470,10 @@ func TestBastionSyncMaps(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionSyncMaps(context.Background(), tc.Req)
 
@@ -422,12 +539,10 @@ func TestBastionGetCurrentMaps(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionGetCurrentMaps(context.Background(), tc.Req)
 
@@ -468,12 +583,10 @@ func TestCheck(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			err := srv.Check(context.Background())
 

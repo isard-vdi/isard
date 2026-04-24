@@ -31,14 +31,15 @@ r = RethinkDB()
 db = RDB(app)
 db.init_app(app)
 
-from .._common.tokens import Error, get_header_jwt_payload
+from isardvdi_common.helpers.token_flask import TokenFlask
+
 from ..lib.exceptions import Error
 
 
 def is_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
+        payload = TokenFlask.get_header_jwt_payload()
         if payload["role_id"] == "admin":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
@@ -65,7 +66,7 @@ def itemExists(item_table, item_id):
 def is_admin_or_manager(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
+        payload = TokenFlask.get_header_jwt_payload()
         if payload["role_id"] == "admin" or payload["role_id"] == "manager":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
@@ -93,7 +94,7 @@ def ownsCategoryId(payload, category_id):
 def has_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
+        payload = TokenFlask.get_header_jwt_payload()
         kwargs["payload"] = payload
         return f(*args, **kwargs)
 

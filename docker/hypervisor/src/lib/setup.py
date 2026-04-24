@@ -8,10 +8,11 @@ from pprint import pprint
 from time import sleep
 
 from api_client import ApiClient
-from gpu_discovery import discover_gpus, discover_hugepages, discover_pci_devices
 
 DEFAULT_STORAGE_POOL_ID = (
-    SourceFileLoader("storage_pool", "/src/_common/default_storage_pool.py")
+    SourceFileLoader(
+        "storage_pool", "/src/isardvdi_common/helpers/default_storage_pool.py"
+    )
     .load_module()
     .DEFAULT_STORAGE_POOL_ID
 )
@@ -68,9 +69,12 @@ def SetupHypervisor():
         "isard_proxy_hyper_url": proxy_hyper_url,
         "isard_hyper_vpn_host": isard_hyper_vpn_host,
         "only_forced": json.loads(os.environ.get("ONLY_FORCED_HYP", "false").lower()),
-        "nvidia_gpus": json.dumps(discover_gpus()),
-        "nvidia_enabled": False,  # Will be set below based on discovery
-        "hugepages_info": json.dumps(discover_hugepages()),
+        "nvidia_enabled": (
+            True if os.environ.get("GPU_NVIDIA_SCAN") == "true" else False
+        ),
+        "force_get_hyp_info": (
+            True if os.environ.get("GPU_NVIDIA_RESCAN") == "true" else False
+        ),
         "min_free_mem_gb": os.environ.get("HYPER_FREEMEM", "0"),
         "min_free_gpu_mem_gb": os.environ.get("GPU_ONLY_MEM", "0"),
         "storage_pools": os.environ.get(
@@ -85,10 +89,6 @@ def SetupHypervisor():
         ),
         "gpu_only": True if os.environ.get("GPU_ONLY") == "true" else False,
     }
-
-    gpu_list = json.loads(HYPERVISOR["nvidia_gpus"])
-    HYPERVISOR["nvidia_enabled"] = len(gpu_list) > 0
-    HYPERVISOR["pci_devices"] = json.dumps(discover_pci_devices(gpu_list))
 
     ## Adding hyper. Received dict with certs and number
     ok = False
@@ -141,19 +141,6 @@ def SetupHypervisor():
                         f.write(v)
     except:
         raise
-
-    ## Save VPN tunneling mode from API response for use by start.sh
-    vpn_tunneling_mode = data.get("vpn", {}).get("tunneling_mode", "wireguard+geneve")
-    print(f"VPN tunneling mode from API: {vpn_tunneling_mode}")
-    with open("/tmp/vpn_tunneling_mode", "w") as f:
-        f.write(vpn_tunneling_mode)
-
-    ## Save infrastructure MTU from API response for OVS setup
-    infra_mtu = data.get("vpn", {}).get("infrastructure_mtu", "")
-    if infra_mtu:
-        print(f"Infrastructure MTU from API: {infra_mtu}")
-        with open("/tmp/infrastructure_mtu", "w") as f:
-            f.write(str(infra_mtu))
 
 
 def DeleteHypervisor():

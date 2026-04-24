@@ -14,9 +14,9 @@ class ApiClient:
     def __init__(self):
         api_domain = os.environ.get("API_DOMAIN", False)
         if api_domain and api_domain != "isard-api":
-            self.base_url = "https://" + api_domain + "/api/v3/"
+            self.base_url = "https://" + api_domain + "/api/v4/admin/"
         else:
-            self.base_url = "http://isard-api:5000/api/v3/"
+            self.base_url = "http://isard-apiv4:5000/api/v4/admin/"
         self.verifycert = False
         print("Api base url set to " + self.base_url)
 
@@ -25,7 +25,7 @@ class ApiClient:
             logging.info("POST api url: " + self.base_url + url)
             resp = requests.post(
                 self.base_url + url,
-                data=data,
+                json=data,
                 headers=self.header_auth(),
                 verify=self.verifycert,
             )
@@ -65,7 +65,7 @@ class ApiClient:
             logging.error("PUT api url: " + self.base_url + url)
             resp = requests.put(
                 self.base_url + url,
-                data=data,
+                json=data,
                 headers=self.header_auth(),
                 verify=self.verifycert,
             )

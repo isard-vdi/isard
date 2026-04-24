@@ -21,7 +21,6 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/sdk"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"libvirt.org/go/libvirt"
 )
 
 func main() {
@@ -32,7 +31,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	collectors, libvirtConn, sshConn := startCollectors(ctx, cfg, log)
+	collectors, libvirtPool, sshPool := startCollectors(ctx, cfg, log)
 
 	enabledCollectors := []string{}
 	for _, c := range collectors {
@@ -60,12 +59,12 @@ func main() {
 
 	cancel()
 
-	if libvirtConn != nil {
-		libvirtConn.Close()
+	if libvirtPool != nil {
+		libvirtPool.Close()
 	}
 
-	if sshConn != nil {
-		sshConn.Close()
+	if sshPool != nil {
+		sshPool.Close()
 	}
 }
 
@@ -87,7 +86,7 @@ func hasWeb(flavour string) bool {
 	}
 }
 
-func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *libvirt.Connect, *ssh.Client) {
+func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *collector.LibvirtPool, *collector.SSHPool) {
 	domain := hasHypervisor(cfg.Flavour) && cfg.Collectors.Domain.Enable
 	hypervisor := hasHypervisor(cfg.Flavour) && cfg.Collectors.Hypervisor.Enable
 	socket := hasHypervisor(cfg.Flavour) && cfg.Collectors.Socket.Enable
@@ -97,8 +96,7 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 	oci := hasWeb(cfg.Flavour) && cfg.Collectors.OCI.Enable
 	conntrack := hasWeb(cfg.Flavour) && cfg.Collectors.Conntrack.Enable
 
-	var sshConn *ssh.Client
-	var sshMux sync.Mutex
+	var sshPool *collector.SSHPool
 	if domain || socket {
 		kHosts, err := knownhosts.New(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
 		if err != nil {
@@ -123,25 +121,19 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 			HostKeyCallback: kHosts,
 		}
 
-		sshConn, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port), sshCfg)
+		sshPool, err = collector.NewSSHPool(fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port), sshCfg, log)
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Str("host", cfg.SSH.Host).Int("port", cfg.SSH.Port).Msg("connect using SSH")
 		}
 	}
 
-	var libvirtConn *libvirt.Connect
-	var libvirtMux sync.Mutex
+	var libvirtPool *collector.LibvirtPool
 	if hypervisor || domain {
 		// TODO: We should add a libvirt timeout
 		var err error
-		libvirtConn, err = libvirt.NewConnectReadOnly(cfg.LibvirtURI)
+		libvirtPool, err = collector.NewLibvirtPool(cfg.LibvirtURI, log)
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("connect to libvirt")
-		}
-
-		alive, err := libvirtConn.IsAlive()
-		if err != nil || !alive {
-			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("connection not alive")
 		}
 	}
 
@@ -153,17 +145,17 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 	}
 
 	if hypervisor {
-		h := collector.NewHypervisor(&libvirtMux, cfg, log, libvirtConn)
+		h := collector.NewHypervisor(cfg, log, libvirtPool)
 		collectors = append(collectors, h)
 	}
 
 	if domain {
-		d := collector.NewDomain(ctx, &libvirtMux, &sshMux, cfg, log, libvirtConn, sshConn)
+		d := collector.NewDomain(ctx, cfg, log, libvirtPool, sshPool)
 		collectors = append(collectors, d)
 	}
 
 	if socket {
-		s := collector.NewSocket(&sshMux, cfg, log, sshConn)
+		s := collector.NewSocket(cfg, log, sshPool)
 		collectors = append(collectors, s)
 	}
 
@@ -218,5 +210,5 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 		collectors = append(collectors, c)
 	}
 
-	return collectors, libvirtConn, sshConn
+	return collectors, libvirtPool, sshPool
 }

@@ -36,9 +36,15 @@ services:
       - /proc/sys/net/netfilter/nf_conntrack_acct:/host-proc/sys/net/netfilter/nf_conntrack_acct
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - isard-redis
     env_file:
       - .env
     environment:
+      REDIS_HOST:
+      REDIS_PORT:
+      REDIS_PASSWORD:
+      PYTHONPATH: "/opt/isardvdi:/opt/isardvdi/asyncapi_changefeed"
       # OVS Security Configuration (automatic based on API_DOMAIN)
       API_DOMAIN: ${API_DOMAIN:-}
       DOCKER_NET: ${DOCKER_NET:-172.31.255}

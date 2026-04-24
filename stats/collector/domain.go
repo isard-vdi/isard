@@ -49,10 +49,8 @@ type DomainMem struct {
 type Domain struct {
 	hyp             string
 	log             *zerolog.Logger
-	libvirtMux      *sync.Mutex
-	libvirtConn     *libvirt.Connect
-	sshMux          *sync.Mutex
-	sshConn         *ssh.Client
+	libvirt         *LibvirtPool
+	ssh             *SSHPool
 	cache           *ttlcache.Cache[[2]string, DomainStats]
 	extractDuration atomic.Pointer[time.Duration]
 
@@ -110,15 +108,13 @@ type Domain struct {
 	descPortVNCWebsocket        *prometheus.Desc
 }
 
-func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zerolog.Logger, libvirtConn *libvirt.Connect, sshConn *ssh.Client) *Domain {
+func NewDomain(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger, libvirtPool *LibvirtPool, sshPool *SSHPool) *Domain {
 	// TODO: Setup domain cache expiration?
 	d := &Domain{
-		libvirtMux:  libvirtMux,
-		libvirtConn: libvirtConn,
-		sshMux:      sshMux,
-		sshConn:     sshConn,
-		hyp:         cfg.Domain,
-		cache:       ttlcache.New[[2]string, DomainStats](),
+		libvirt: libvirtPool,
+		ssh:     sshPool,
+		hyp:     cfg.Domain,
+		cache:   ttlcache.New[[2]string, DomainStats](),
 	}
 	l := log.With().Str("collector", d.String()).Str("hypervisor", d.hyp).Logger()
 	d.log = &l
@@ -787,9 +783,12 @@ func (c *Domain) collectStats(ctx context.Context) {
 				start := time.Now()
 
 				c.log.Trace().Msg("listing libvirt domains")
-				c.libvirtMux.Lock()
-				doms, err := c.libvirtConn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_RUNNING)
-				c.libvirtMux.Unlock()
+				var doms []libvirt.Domain
+				err := c.libvirt.Use(func(conn *libvirt.Connect) error {
+					var lerr error
+					doms, lerr = conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_RUNNING)
+					return lerr
+				})
 				if err != nil {
 					c.log.Error().Err(err).Msg("list all running domains")
 					return
@@ -853,9 +852,12 @@ func (c *Domain) collectStats(ctx context.Context) {
 				for _, batch := range batches {
 					c.log.Trace().Msg("extracting libvirt stats")
 
-					c.libvirtMux.Lock()
-					stats, err := c.libvirtConn.GetAllDomainStats(batch, 0, libvirt.CONNECT_GET_ALL_DOMAINS_STATS_RUNNING)
-					c.libvirtMux.Unlock()
+					var stats []libvirt.DomainStats
+					err := c.libvirt.Use(func(conn *libvirt.Connect) error {
+						var lerr error
+						stats, lerr = conn.GetAllDomainStats(batch, 0, libvirt.CONNECT_GET_ALL_DOMAINS_STATS_RUNNING)
+						return lerr
+					})
 					if err != nil {
 						c.log.Error().Err(err).Msg("extract domain stats")
 						continue
@@ -926,10 +928,12 @@ func (c *Domain) collectStats(ctx context.Context) {
 }
 
 func (c *Domain) collectMemStats(dom *libvirt.Domain) (*DomainMem, error) {
-	c.libvirtMux.Lock()
-	defer c.libvirtMux.Unlock()
-
-	mem, err := dom.MemoryStats(uint32(libvirt.DOMAIN_MEMORY_STAT_NR), 0)
+	var mem []libvirt.DomainMemoryStat
+	err := c.libvirt.Use(func(*libvirt.Connect) error {
+		var lerr error
+		mem, lerr = dom.MemoryStats(uint32(libvirt.DOMAIN_MEMORY_STAT_NR), 0)
+		return lerr
+	})
 	if err != nil {
 		return nil, fmt.Errorf("get the domain memory stats: %w", err)
 	}
@@ -949,16 +953,12 @@ func (c *Domain) collectMemStats(dom *libvirt.Domain) (*DomainMem, error) {
 }
 
 func (c *Domain) collectDomainPorts(id string) (DomainPorts, error) {
-	c.sshMux.Lock()
-	defer c.sshMux.Unlock()
-
-	sess, err := c.sshConn.NewSession()
-	if err != nil {
-		return DomainPorts{}, fmt.Errorf("create ssh session: %w", err)
-	}
-	defer sess.Close()
-
-	b, err := sess.CombinedOutput(fmt.Sprintf(`cat /var/log/libvirt/qemu/%s.log | grep -e tls-port -e websocket | tail -n 2`, id))
+	var b []byte
+	err := c.ssh.WithSession(func(sess *ssh.Session) error {
+		out, oerr := sess.CombinedOutput(fmt.Sprintf(`cat /var/log/libvirt/qemu/%s.log | grep -e tls-port -e websocket | tail -n 2`, id))
+		b = out
+		return oerr
+	})
 	if err != nil {
 		return DomainPorts{}, fmt.Errorf("collect domain ports: %w: %s", err, b)
 	}
@@ -1017,10 +1017,12 @@ func (c *Domain) collectDomainPorts(id string) (DomainPorts, error) {
 }
 
 func (c *Domain) collectDomainMetadata(d *libvirt.Domain) (*libvirtxml.Domain, *IsardMetadata, error) {
-	c.libvirtMux.Lock()
-	defer c.libvirtMux.Unlock()
-
-	raw, err := d.GetXMLDesc(0)
+	var raw string
+	err := c.libvirt.Use(func(*libvirt.Connect) error {
+		var lerr error
+		raw, lerr = d.GetXMLDesc(0)
+		return lerr
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("get domain XML: %w", err)
 	}

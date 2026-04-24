@@ -38,10 +38,10 @@ if not cfg.init_app(app):
 
 from flask_socketio import SocketIO
 
-debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
+debug = os.environ.get("LOG_LEVEL", "INFO") == "DEBUG"
 socketio = SocketIO(
     app,
-    path="/api/v3/socket.io/",
+    path="/socket.io",
     cors_allowed_origins="*",
     logger=debug,
     engineio_logger=debug,

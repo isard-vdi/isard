@@ -128,7 +128,7 @@ func setDefaults() {
 		},
 		"isardvdi_api": map[string]interface{}{
 			"enable": true,
-			"addr":   "http://isard-api:5000",
+			"addr":   "http://isard-apiv4:5000",
 			"secret": "",
 		},
 		"isardvdi_authentication": map[string]interface{}{

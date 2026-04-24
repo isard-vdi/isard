@@ -34,7 +34,7 @@ class ApiClient:
     def __init__(self, service="api"):
         self.service = service
         if service == "api":
-            subpath = "/api/v3"
+            subpath = "/api/v4"
         if service == "engine":
             subpath = ""
         if service == "scheduler":
@@ -43,7 +43,8 @@ class ApiClient:
         if api_domain:
             self.base_url = "https://" + api_domain + subpath
         else:
-            self.base_url = "http://isard-" + service + ":5000" + subpath
+            hostname = "isard-apiv4" if service == "api" else "isard-" + service
+            self.base_url = "http://" + hostname + ":5000" + subpath
         self.verifycert = False
         logging.info("Api base url to " + service + " set to " + self.base_url)
 

@@ -1,4 +1,4 @@
-ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22
 
 # Build rdpgw binary
 FROM ${GOLANG_BUILD_IMAGE} as rdpgw-build
@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 go build -o bin/rdpgw cmd/rdpgw/main.go
 #
 # VPN
 #
-FROM alpine:3.22.0 as production
+FROM alpine:3.22 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
@@ -67,9 +67,9 @@ RUN pip3 install --break-system-package --no-cache-dir --upgrade pip
 COPY docker/vpn/requirements.txt /requirements.txt
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
-    python3-dev \
+    python3-dev~=3.12 \
     libffi-dev \
-    openssl-dev \ 
+    openssl-dev \
     autoconf \
     automake \
     libtool \
@@ -86,7 +86,11 @@ RUN ln -s /usr/sbin/iptables /sbin/iptables
 
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
+COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
+COPY pkg/gen/asyncapi/changefeed /opt/isardvdi/asyncapi_changefeed
 COPY docker/vpn/run.sh /
+
+ENV PYTHONPATH="/opt/isardvdi:/opt/isardvdi/asyncapi_changefeed"
 
 COPY --from=rdpgw-build /build/rdpgw/bin/rdpgw /rdpgw
 

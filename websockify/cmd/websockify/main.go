@@ -42,8 +42,8 @@ func init() {
 	logger.Info().Str("log_level", logLevel).Msg("Starting websockify service")
 
 	apiAddr = os.Getenv("API_DOMAIN")
-	if apiAddr == "" || apiAddr == "isard-api" {
-		apiAddr = "isard-api:5000"
+	if apiAddr == "" || apiAddr == "isard-apiv4" {
+		apiAddr = "isard-apiv4:5000"
 		apiIgnoreCerts = false
 		apiProtocol = "http"
 		logger.Info().Str("api_addr", apiAddr).Msg("Using internal API")

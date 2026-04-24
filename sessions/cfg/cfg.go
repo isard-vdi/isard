@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/pkg/cfg"
+	"gitlab.com/isard/isardvdi/pkg/redis"
 
 	"github.com/spf13/viper"
 )
@@ -31,14 +32,16 @@ func New() Cfg {
 
 	cfg.New("sessions", setDefaults, config)
 
+	// Pin the Redis DB so env overrides cannot break the assignment contract
+	// defined in pkg/redis/dbs.go.
+	config.Redis.DB = redis.DBSessions
+
 	return *config
 }
 
 func setDefaults() {
 	cfg.SetRedisDefaults()
 	cfg.SetGRPCDefaults()
-
-	viper.SetDefault("redis.db", 1)
 
 	viper.SetDefault("sessions", map[string]any{
 		"max_time":            "4h",

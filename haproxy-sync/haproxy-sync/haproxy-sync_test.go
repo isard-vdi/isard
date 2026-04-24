@@ -3,14 +3,13 @@ package haproxysync_test
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/cfg"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
+	"gitlab.com/isard/isardvdi/pkg/log"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,12 +35,10 @@ func TestCheck(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
-			svc := haproxysync.Init(&log, cfg.HAProxy{}, haproxyMock)
+			svc := haproxysync.Init(log.New("test", "debug"), cfg.HAProxy{}, haproxyMock, nil)
 
 			err := svc.Check(context.Background())
 

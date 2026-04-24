@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import isardvdi_common.log
+import isardvdi_common.helpers.log
 from waitress import serve
 
 from notifier import app

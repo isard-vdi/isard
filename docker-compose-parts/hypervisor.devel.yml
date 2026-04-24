@@ -2,5 +2,5 @@ services:
   isard-hypervisor:
     volumes:
     - ${BUILD_ROOT_PATH}/docker/hypervisor/src:/src
-    - ${BUILD_ROOT_PATH}/component/_common/src:/src/_common
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/src/isardvdi_common
     - ${BUILD_ROOT_PATH}/docker/hypervisor/kvm/hooks:/etc/libvirt/hooks

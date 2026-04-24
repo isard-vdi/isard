@@ -10,6 +10,9 @@ import subprocess
 import traceback
 from subprocess import check_output
 
+from changefeed_models.hypervisors_row import HypervisorsRow
+from changefeed_models.users_row import UsersRow
+from pydantic import BaseModel
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
 # Simpler iptools. Just adds both directions filtering
@@ -112,6 +115,21 @@ class Keys(object):
 
 
 class Wg(object):
+    def _to_model(self, data):
+        """Convert a raw dict to the appropriate Row model. Pass models through."""
+        if isinstance(data, BaseModel):
+            return data
+        # Use UsersRow for both 'users' and 'remotevpn' — vpn fields overlap
+        if self.table == "hypervisors":
+            return HypervisorsRow.model_validate(data)
+        return UsersRow.model_validate(data)
+
+    @staticmethod
+    def _to_dict(peer):
+        if isinstance(peer, BaseModel):
+            return peer.model_dump()
+        return peer
+
     def __init__(
         self,
         interface="wg0",
@@ -180,12 +198,12 @@ class Wg(object):
     def init_peers(self, reset=False):
         # This will reset all vpn config on restart.
         if reset == True:
-            print("Reset " + self.table + " peer certificates...")
+            log.info("Reset %s peer certificates...", self.table)
             r.table(self.table).replace(r.row.without("vpn")).run()
             if self.table == "users":
                 r.table("remotevpn").replace(r.row.without("vpn")).run()
 
-        print("Initializing peers...")
+        log.info("Initializing peers...")
         if self.table == "hypervisors":
             # Exclude geneve-only hypervisors from WireGuard initialization
             wglist = list(
@@ -211,7 +229,7 @@ class Wg(object):
 
         create_peers = []
         if self.keys.update_clients == True:
-            print("Server key changed. Generating new client keys for all users...")
+            log.info("Server key changed. Generating new client keys for all users...")
         for peer in wglist:
             new_peer = False
             if (
@@ -228,15 +246,15 @@ class Wg(object):
             if new_peer == False:
                 if self.table == "users":
                     if peer.get("active") == True:
-                        self.up_peer(peer)
+                        self.up_peer(self._to_model(peer))
                 else:
-                    self.up_peer(peer)
+                    self.up_peer(self._to_model(peer))
             else:
                 if self.table == "users":
                     if new_peer.get("active") == True:
-                        self.up_peer(new_peer)
+                        self.up_peer(self._to_model(new_peer))
                 else:
-                    self.up_peer(new_peer)
+                    self.up_peer(self._to_model(new_peer))
             # if self.table=='users':
             #    self.uipt.add_user(peer['id'],peer['vpn']['wireguard']['Address'])
 
@@ -255,7 +273,7 @@ class Wg(object):
 
             create_peers = []
             if self.keys.update_clients == True:
-                print(
+                log.info(
                     "Server key changed. Generating new client keys for all remotevpn..."
                 )
             for peer in wglist_remotevpn:
@@ -276,18 +294,19 @@ class Wg(object):
                     )
                     create_peers.append(new_peer)
                 if new_peer == False:
-                    self.up_peer(peer)
+                    self.up_peer(self._to_model(peer))
                 else:
-                    self.up_peer(new_peer)
+                    self.up_peer(self._to_model(new_peer))
             r.table("remotevpn").insert(create_peers, conflict="update").run()
 
     def gen_new_peer(self, peer, extra_client_nets=None):
+        peer_dict = peer.model_dump() if isinstance(peer, BaseModel) else peer
         if self.table == "hypervisors":
             extra_client_nets = None
-            if peer.get("vpn", {}).get("tunneling_mode") == "geneve":
-                return {"id": peer["id"]}  # No WG config for geneve-only
+            if (peer_dict.get("vpn") or {}).get("tunneling_mode") == "geneve":
+                return {"id": peer_dict["id"]}  # No WG config for geneve-only
         return {
-            "id": peer["id"],
+            "id": peer_dict["id"],
             "vpn": {
                 "iptables": [],
                 "wireguard": {
@@ -300,22 +319,21 @@ class Wg(object):
         }  ### What networks the client will see.
 
     def up_peer(self, peer):
-        if "vpn" not in peer or "wireguard" not in peer.get("vpn", {}):
+        peer = self._to_dict(peer)
+        if peer.get("vpn") is None or "wireguard" not in (peer.get("vpn") or {}):
             # Geneve-only hypervisor - create direct GENEVE port
             if self.table == "hypervisors":
+                hostname = peer.get("hostname") or peer["id"]
+                try:
+                    resolved_ip = socket.gethostbyname(hostname)
+                except socket.gaierror:
+                    log.error(f"Cannot resolve hostname {hostname} for {peer['id']}")
+                    return False
+                geneve_port_num = os.environ.get("WG_HYPERS_PORT", "4443")
                 if (
                     peer["id"]
                     not in check_output(("ovs-vsctl", "show"), text=True).strip()
                 ):
-                    hostname = peer.get("hostname", peer["id"])
-                    try:
-                        resolved_ip = socket.gethostbyname(hostname)
-                    except socket.gaierror:
-                        log.error(
-                            f"Cannot resolve hostname {hostname} for {peer['id']}"
-                        )
-                        return False
-                    geneve_port_num = os.environ.get("WG_HYPERS_PORT", "4443")
                     subprocess.run(
                         [
                             "ovs-vsctl",
@@ -331,55 +349,67 @@ class Wg(object):
                             f"options:dst_port={geneve_port_num}",
                         ]
                     )
+                else:
                     subprocess.run(
                         [
                             "ovs-vsctl",
                             "set",
-                            "Interface",
+                            "interface",
                             peer["id"],
-                            "bfd:enable=true",
-                            "bfd:min_tx=1000",
-                            "bfd:min_rx=1000",
+                            f"options:remote_ip={resolved_ip}",
                         ]
                     )
-                    # Same VLAN 4095 flow rules as WG+GENEVE path
-                    port = check_output(
-                        ("ovs-vsctl", "get", "interface", peer["id"], "ofport"),
-                        text=True,
-                    ).strip()
-                    vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
-                        ]
-                    )
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
-                        ]
-                    )
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
-                        ]
-                    )
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
-                        ]
-                    )
+                # BFD + VLAN 4095 flow rules apply in both the new-port and
+                # existing-port paths so fresh hypervisors are not left
+                # without the security policy.
+                subprocess.run(
+                    [
+                        "ovs-vsctl",
+                        "set",
+                        "Interface",
+                        peer["id"],
+                        "bfd:enable=true",
+                        "bfd:min_tx=1000",
+                        "bfd:min_rx=1000",
+                    ]
+                )
+                port = check_output(
+                    ("ovs-vsctl", "get", "interface", peer["id"], "ofport"),
+                    text=True,
+                ).strip()
+                vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
+                    ]
+                )
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
+                    ]
+                )
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
+                    ]
+                )
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
+                    ]
+                )
             return True
 
         if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
@@ -416,6 +446,7 @@ class Wg(object):
                     ]
                 )
             if self.table == "hypervisors":
+                wg_address = peer["vpn"]["wireguard"]["Address"]
                 if peer["id"] not in (
                     check_output(
                         ("ovs-vsctl", "show"),
@@ -433,89 +464,75 @@ class Wg(object):
                             "interface",
                             peer["id"],
                             "type=geneve",
-                            "options:remote_ip=" + address,
+                            "options:remote_ip=" + wg_address,
+                        ]
+                    )
+                else:
+                    subprocess.run(
+                        [
+                            "ovs-vsctl",
+                            "set",
+                            "interface",
+                            peer["id"],
+                            "options:remote_ip=" + wg_address,
                         ]
                     )
 
-                    port = check_output(
-                        ("ovs-vsctl", "get", "Interface", peer["id"], "ofport"),
-                        text=True,
-                    ).strip()
-                    # SECURITY: Allow only VM MACs (52:54:00:xx:xx:xx) from hypervisors
-                    # Split into ARP/DHCP (allow directly) and IP (check source pinning table)
-                    vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
-                    # Allow ARP from VMs (needed for DHCP discovery and gateway)
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=451,arp,in_port={port}"
-                            f",dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
-                        ]
-                    )
-                    # Allow DHCP requests from VMs (needed before IP is assigned)
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=451,udp,in_port={port}"
-                            f",dl_vlan=4095,dl_src={vm_mac_match}"
-                            f",tp_src=68,tp_dst=67,actions=NORMAL",
-                        ]
-                    )
-                    # IP traffic from VMs: check source IP pinning in table 2
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            f"priority=450,ip,in_port={port}"
-                            f",dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
-                        ]
-                    )
-                    # Drop non-VM MACs from this hypervisor on VLAN 4095
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            "priority=449,in_port="
-                            + str(port)
-                            + ",dl_vlan=4095,actions=drop",
-                        ]
-                    )
-
-                    # Forward VLAN 4095 traffic from hypervisor using NORMAL switching
-                    # NORMAL enables MAC learning and proper forwarding:
-                    # - Traffic to VPN (10.2.0.1): forwards to vlan-wg (access port strips tag)
-                    # - Traffic to bastion (10.2.0.2): forwards to bastion port (trunk)
-                    # - Traffic to samba (10.2.0.3): forwards to samba port (trunk)
-                    # Note: This rule (p201) is now superseded by p450/449 above but kept
-                    # as documentation of the intended behavior
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            "priority=201,in_port="
-                            + str(port)
-                            + ",dl_vlan=4095,actions=NORMAL",
-                        ]
-                    )
-
-                    # Drop other VLAN 4095 traffic from this hypervisor
-                    subprocess.run(
-                        [
-                            "ovs-ofctl",
-                            "add-flow",
-                            "ovsbr0",
-                            "priority=200,in_port="
-                            + str(port)
-                            + ",dl_vlan=4095,actions=drop",
-                        ]
-                    )
+                # BFD + VLAN 4095 flow rules apply in both the new-port
+                # and existing-port paths so fresh hypervisors are not
+                # left without the security policy.
+                subprocess.run(
+                    [
+                        "ovs-vsctl",
+                        "set",
+                        "Interface",
+                        peer["id"],
+                        "bfd:enable=true",
+                        "bfd:min_tx=1000",
+                        "bfd:min_rx=1000",
+                    ]
+                )
+                port = check_output(
+                    ("ovs-vsctl", "get", "Interface", peer["id"], "ofport"),
+                    text=True,
+                ).strip()
+                vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=451,arp,in_port={port},dl_vlan=4095,"
+                        f"dl_src={vm_mac_match},actions=NORMAL",
+                    ]
+                )
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=451,udp,in_port={port},dl_vlan=4095,"
+                        f"dl_src={vm_mac_match},tp_src=68,tp_dst=67,"
+                        f"actions=NORMAL",
+                    ]
+                )
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=450,ip,in_port={port},dl_vlan=4095,"
+                        f"dl_src={vm_mac_match},actions=resubmit(,2)",
+                    ]
+                )
+                subprocess.run(
+                    [
+                        "ovs-ofctl",
+                        "add-flow",
+                        "ovsbr0",
+                        f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
+                    ]
+                )
 
                 # There seems to be a bug because the route is not applied so we need to force again...
                 # check_output(('/usr/bin/wg-quick','save','hypers'), text=True)
@@ -527,14 +544,16 @@ class Wg(object):
             return False
 
     def add_peer(self, peer, table=False):
-        if "nets" in peer.keys() and peer["nets"] != "":
-            extra_client_nets = peer["nets"]
+        peer = self._to_dict(peer)
+        nets = peer.get("nets", "")
+        if nets:
+            extra_client_nets = nets
         else:
             extra_client_nets = None
         new_peer = self.gen_new_peer(peer, extra_client_nets=extra_client_nets)
         if self.up_peer(new_peer) == True:
             # if self.table=='users':
-            #    self.uipt.add_user(peer['id'],new_peer['vpn']['wireguard']['Address'])
+            #    self.uipt.add_user(peer["id"],new_peer['vpn']['wireguard']['Address'])
             if table == False:
                 table = self.table
             r.table(table).insert(new_peer, conflict="update").run()
@@ -552,9 +571,10 @@ class Wg(object):
         #     r.table(table).get(new_peer["id"]).delete().run()
 
     def down_peer(self, peer, table=False):
+        peer = self._to_dict(peer)
         if table == False:
             table = self.table
-        if "vpn" in peer.keys() and "wireguard" in peer["vpn"].keys():
+        if peer.get("vpn") is not None and "wireguard" in (peer.get("vpn") or {}):
             if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
                 subprocess.run(
                     [
@@ -579,16 +599,37 @@ class Wg(object):
             ).strip()
         self.uipt.remove_matching_rules(peer)
         if table == "hypervisors":
-            # Delete OVS flows for this hypervisor port before removing it
-            subprocess.run(
-                ["ovs-ofctl", "del-flows", "ovsbr0", "in_port=" + peer["id"]],
-                capture_output=True,
-            )
-            print(
+            # Resolve the ofport BEFORE del-port so del-flows uses the numeric id
+            # that matches how the rules were installed in up_peer().
+            try:
+                ofport = check_output(
+                    ("ovs-vsctl", "get", "interface", peer["id"], "ofport"),
+                    text=True,
+                ).strip()
+            except subprocess.CalledProcessError as exc:
+                log.warning(
+                    f"Could not resolve ofport for {peer['id']}: {exc}; "
+                    "skipping del-flows"
+                )
+                ofport = None
+
+            if ofport and ofport not in ("", "[]", "-1"):
+                result = subprocess.run(
+                    ["ovs-ofctl", "del-flows", "ovsbr0", f"in_port={ofport}"],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    log.warning(
+                        f"del-flows for port {peer['id']} (ofport={ofport}) failed: "
+                        f"{result.stderr.strip()}"
+                    )
+
+            log.info(
                 check_output(("ovs-vsctl", "del-port", peer["id"]), text=True).strip()
             )
         # if self.table=='users':
-        #    self.uipt.del_user(peer['id'],peer['vpn']['wireguard']['Address'])
+        #    self.uipt.del_user(peer.id,peer.vpn['wireguard']['Address'])
 
     def gen_client_ip(self):
         next_ip = str(
@@ -605,7 +646,8 @@ class Wg(object):
         return next_ip
 
     def gen_peer_config(self, peer):
-        # allowed_ips=','.join(peer['vpn']['wireguard']['AllowedIPs'])
+        peer = self._to_dict(peer)
+        # allowed_ips=','.join(peer.vpn['wireguard']['AllowedIPs'])
         return (
             "[peer]\nPublicKey="
             + peer["vpn"]["wireguard"]["keys"]["public"]
@@ -615,6 +657,7 @@ class Wg(object):
         )
 
     def set_iptables(self, peer):
+        peer = self._to_dict(peer)
         iptables = peer["vpn"]["iptables"]
 
     def server_config(self, mtu, postup):
@@ -663,29 +706,31 @@ PostUp = %s
     #        [IPv4Network('192.168.128.0/23'), IPv4Network('192.168.130.0/23'), IPv4Network('192.168.132.0/23'), IPv4Network('192.168.134.0/23'), IPv4Network('192.168.136.0/23'), IPv4Network('192.168.138.0/23'), IPv4Network('192.168.140.0/23'), IPv4Network('192.168.142.0/23')]
 
     def desktop_iptables(self, data):
-        if data["old_val"] == None:
+        old_val = data.get("old_val")
+        new_val = data.get("new_val")
+        if old_val is None:
             # New. Do nothing as will not have ip yet.
             return
-        elif data["new_val"] == None:
+        elif new_val is None:
             # Deleted. We should ensure that no rules are kept for this domain.
-            guest_ip = data["old_val"].get("viewer", {}).get("guest_ip")
+            old_viewer = old_val.get("viewer", {})
+            guest_ip = old_viewer.get("guest_ip")
             if guest_ip:
                 self._remove_table2_flow(guest_ip)
             return
         else:
             # Updated
-            if data["new_val"]["status"] == "Started" and "guest_ip" in data[
-                "new_val"
-            ].get("viewer", {}):
+            new_viewer = new_val.get("viewer", {})
+            old_viewer = old_val.get("viewer", {}) if old_val else {}
+            nv_status = new_val.get("status")
+            nv_user = new_val.get("user")
+            ov_user = old_val.get("user") if old_val else None
+            if nv_status == "Started" and "guest_ip" in new_viewer:
                 # As the changes filters for guest_ip in viewer we won't have viewer field till guest_ip is set.
-                self.uipt.desktop_add(
-                    data["new_val"]["user"], data["new_val"]["viewer"]["guest_ip"]
-                )
-            elif "viewer" not in data["new_val"].keys() and data["old_val"].get(
-                "viewer", {}
-            ).get("guest_ip"):
-                guest_ip = data["old_val"]["viewer"]["guest_ip"]
-                self.uipt.desktop_remove(data["old_val"]["user"], guest_ip)
+                self.uipt.desktop_add(nv_user, new_viewer.get("guest_ip"))
+            elif not new_viewer and old_viewer.get("guest_ip"):
+                guest_ip = old_viewer.get("guest_ip")
+                self.uipt.desktop_remove(ov_user, guest_ip)
                 self._remove_table2_flow(guest_ip)
 
     def _remove_table2_flow(self, guest_ip):

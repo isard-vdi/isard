@@ -21,8 +21,8 @@ import os
 
 from flask import render_template
 from html_sanitizer import Sanitizer
-from isardvdi_common.api_exceptions import Error
-from isardvdi_common.task import Task
+from isardvdi_common.helpers.api_exceptions_flask import Error
+from isardvdi_common.models.task import Task
 from jinja2.exceptions import TemplateNotFound
 from spectree import Response
 
