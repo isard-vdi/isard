@@ -74,6 +74,20 @@
     "shared-deployments": {
       "title": "Compartits amb tu",
       "subtitle": "Comença a treballar amb desplegaments creats per a tu"
+    },
+    "bookings": {
+      "summary": {
+        "title": "Reserves",
+        "subtitle": "Revisa totes les teves reserves properes i recents"
+      },
+      "item": {
+        "title": "Reserves",
+        "subtitle": "Reserva temps en un escriptori o desplegament"
+      }
+    },
+    "planning": {
+      "title": "Planificació",
+      "subtitle": "Planifica la disponibilitat dels recursos reservables"
     }
   },
   "views": {
@@ -1649,7 +1663,6 @@
           }
         }
       },
-
       "form-desktop-card": {
         "header": {
           "title": "Escriptori {index}",
@@ -1728,6 +1741,45 @@
         },
         "cancel": "Cancel·la",
         "confirm": "Confirma"
+      }
+    },
+    "desktop-gpu-unavailable-modal": {
+      "title": "La GPU '{current-gpu}' no està disponible per a l'escriptori '{name}' en aquest moment.",
+      "book": {
+        "action-button": "Reserva l'escriptori",
+        "title": "Reserva l'escriptori",
+        "subtitle": "Reserva l'escriptori amb el seu model de targeta gràfica actual comprovant la seva planificació"
+      },
+      "change-and-start": {
+        "action-button": "Canvia i inicia",
+        "subtitle": "Es pot canviar a un model de targeta gràfica disponible ara i iniciar-lo (Això podria afectar el rendiment de l'escriptori)",
+        "title": "Canvia i inicia"
+      }
+    },
+    "desktop-start-now-modal": {
+      "cancel": "Cancel·la",
+      "confirm": "Inicia l'escriptori",
+      "description": "Selecciona fins quan s'utilitzarà l'escriptori",
+      "title": "Iniciar",
+      "select": {
+        "label": "Hora de finalització",
+        "placeholder": "Selecciona fins quan s'utilitzarà"
+      }
+    },
+    "desktop-gpu-change-and-start-modal": {
+      "title": "Canvia i inicia",
+      "book": "Reserva l'escriptori",
+      "cancel": "Cancel·la",
+      "confirm": "Canvia i inicia",
+      "description": "Canvieu la GPU de l'escriptori i inicieu-lo immediatament.",
+      "empty": {
+        "description": "No hi ha altres perfils de GPU disponibles actualment",
+        "title": "No hi ha perfils disponibles"
+      },
+      "gpu-select": {
+        "placeholder": "Perfils de GPU disponibles",
+        "value": "Canvia a \"{profile}\"",
+        "label": "Nou perfil de GPU"
       }
     }
   },

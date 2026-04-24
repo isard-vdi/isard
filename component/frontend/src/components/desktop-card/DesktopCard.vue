@@ -61,6 +61,7 @@ const emit = defineEmits<{
   // show*Modal: []
   // --- Redirects ---
   editDesktop: []
+  bookDesktop: []
   createTemplate: []
   // goTo*: []
 }>()
@@ -141,6 +142,7 @@ const desktopKind = computed(() => {
         @show-direct-link-modal="emit('showDirectLinkModal')"
         @show-recreate-modal="emit('showRecreateModal')"
         @create-template="emit('createTemplate')"
+        @book-desktop="emit('bookDesktop')"
       />
     </template>
 

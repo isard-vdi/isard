@@ -21,6 +21,8 @@ const authedRoutes = [
   { path: '/frontend/media', name: 'media', roles: ['admin', 'manager', 'advanced'] },
   { path: '/frontend/deployments', name: 'deployments', roles: ['admin', 'manager', 'advanced'] },
   { path: '/frontend/deployments/new', name: 'new-deployment', roles: ['admin', 'manager', 'advanced'] },
+  { path: '/frontend/bookings/summary', name: 'booking-summary', roles: ['admin', 'manager', 'advanced', 'user'] },
+  { path: '/frontend/planning', name: 'planning', roles: ['admin'] },
 ]
 
 test.describe('Vue 3 navigation smoke', () => {

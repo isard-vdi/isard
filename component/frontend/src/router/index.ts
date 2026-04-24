@@ -224,6 +224,53 @@ const router = createRouter({
               }
             }
           ]
+        },
+        {
+          path: 'bookings',
+          name: 'bookings-root',
+          meta: {
+            allowedTokenTypes: ['login'],
+            allowedRoles: ['admin', 'manager', 'advanced', 'user'] as Role[]
+          },
+          children: [
+            {
+              path: 'summary',
+              name: 'booking-summary',
+              component: () => import('../views/booking/BookingSummaryView.vue'),
+              meta: {
+                title: 'router.bookings.summary.title',
+                subtitle: 'router.bookings.summary.subtitle'
+              }
+            },
+            {
+              path: ':type(desktop|deployment)/:id',
+              name: 'booking',
+              component: () => import('../views/booking/BookingView.vue'),
+              meta: {
+                title: 'router.bookings.item.title',
+                subtitle: 'router.bookings.item.subtitle'
+              }
+            }
+          ]
+        },
+        {
+          path: 'planning',
+          name: 'planning-root',
+          meta: {
+            allowedTokenTypes: ['login'],
+            allowedRoles: ['admin'] as Role[]
+          },
+          children: [
+            {
+              path: '',
+              name: 'planning',
+              component: () => import('../views/planning/PlanningView.vue'),
+              meta: {
+                title: 'router.planning.title',
+                subtitle: 'router.planning.subtitle'
+              }
+            }
+          ]
         }
       ]
     },

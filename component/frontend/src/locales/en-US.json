@@ -81,6 +81,20 @@
     "shared-deployments": {
       "title": "Shared with you",
       "subtitle": "Start working with deployments created for you"
+    },
+    "bookings": {
+      "summary": {
+        "title": "Bookings",
+        "subtitle": "Review all your upcoming and recent bookings"
+      },
+      "item": {
+        "title": "Bookings",
+        "subtitle": "Book time on a desktop or deployment"
+      }
+    },
+    "planning": {
+      "title": "Planning",
+      "subtitle": "Plan availability for reservable resources"
     }
   },
   "views": {
@@ -1843,6 +1857,106 @@
         "cancel": "Cancel",
         "confirm": "Confirm"
       }
+    },
+    "bookings": {
+      "summary": {
+        "title": "All your bookings"
+      },
+      "item": {
+        "event-titles": {
+          "available": "Available",
+          "unavailable": "Unavailable",
+          "overridable": "Overridable"
+        },
+        "enough-units": "Enough units",
+        "units": "units",
+        "split-labels": {
+          "availability": "Availability",
+          "bookings": "Bookings"
+        },
+        "status-bar": {
+          "buttons": {
+            "add-booking": "Add booking"
+          },
+          "forbid-time": "Advance time needed",
+          "max-time": "Maximum booking time",
+          "max-items": "Maximum bookings"
+        },
+        "modal": {
+          "title": "Title",
+          "start-date": "Start date",
+          "start-time": "Start time",
+          "end-date": "End date",
+          "end-time": "End time",
+          "profile": "Profile",
+          "select-profile": "Please select a profile",
+          "create": {
+            "modal-title": "Add booking",
+            "button": "Add booking"
+          },
+          "edit": {
+            "modal-title": "Edit booking",
+            "button": "Save changes"
+          },
+          "view": {
+            "modal-title": "View booking"
+          },
+          "delete": {
+            "button": "Delete"
+          },
+          "cancel": "Cancel"
+        },
+        "new-planning": {
+          "bookable-type": "Bookable type",
+          "bookable-item": "Item name"
+        }
+      },
+      "errors": {
+        "forbid": "You need more advance time in order to create the booking",
+        "maximum-time": "You can't create a reservation for that long",
+        "end-before-start": "The booking end time can't be before the start time",
+        "minimum-time": "The booking must last at least 5 minutes",
+        "past-booking": "Can't create a booking in the past"
+      }
+    },
+    "desktop-start-now-modal": {
+      "title": "Start",
+      "description": "Select until when the desktop will be used.",
+      "select": {
+        "label": "End time",
+        "placeholder": "Select until when it will be used"
+      },
+      "cancel": "Cancel",
+      "confirm": "Start desktop"
+    },
+    "desktop-gpu-unavailable-modal": {
+      "title": "GPU '{current-gpu}' is not available for desktop '{name}' at the moment.",
+      "change-and-start": {
+        "title": "Change and start",
+        "subtitle": "It can be changed to an available graphic card model now and start it (It could affect the desktop performance)",
+        "action-button": "Change and start"
+      },
+      "book": {
+        "title": "Book the desktop",
+        "subtitle": "Book the desktop with its current graphic card model checking its planification",
+        "action-button": "Book desktop"
+      }
+    },
+    "desktop-gpu-change-and-start-modal": {
+      "title": "Change and Start",
+      "description": "Change the desktop GPU and start it immediately.",
+      "empty": {
+        "title": "No profiles available",
+        "description": "There are no other GPU profiles currently available."
+      },
+      "gpu-select": {
+        "label": "New GPU profile",
+        "placeholder": "Available GPU Profiles",
+        "value": "Change to '{profile}'"
+      },
+      "cancel": "Cancel",
+      "book": "Book Desktop",
+      "confirm": "Change and Start"
     }
   },
   "authentication": {
@@ -1971,6 +2085,31 @@
           "title": "Desktop reservables are not equal",
           "description": "All desktops with reservables in a deployment must have the same reservables assigned. Please make sure all desktops with reservables have the same reservables assigned and try again."
         }
+      }
+    },
+    "booking": {
+      "errors": {
+        "generic": "An error has occurred",
+        "conflict": "The booking does not fit in requested date",
+        "booking_does_not_fit_date": "The booking does not fit in requested date",
+        "booking_max_items_exceeded": "You've exceeded the user maximum bookings",
+        "booking_desktop_delete_stop": "The desktop must be stopped to delete this booking",
+        "booking_deployment_delete_stop": "The deployment must be stopped to delete this booking",
+        "not_found": "Booking not found"
+      }
+    },
+    "planning": {
+      "errors": {
+        "generic": "An error has occurred",
+        "conflict": "The plan overlaps with an existing plan",
+        "invalid_date_range": "The date range is invalid",
+        "invalid_start_date": "The start date is invalid",
+        "invalid_end_date": "The end date is invalid",
+        "incorrect_new_plan_body_data": "The plan data is incorrect",
+        "unable_to_insert": "Unable to create the plan",
+        "reservable_item_not_found": "The reservable item was not found",
+        "no_available_profile": "No available profile for this item",
+        "not_found": "Plan not found"
       }
     }
   },

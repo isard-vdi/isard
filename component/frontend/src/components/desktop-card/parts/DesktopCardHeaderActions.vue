@@ -25,6 +25,7 @@ const emit = defineEmits<{
   showDirectLinkModal: []
   showRecreateModal: []
   createTemplate: []
+  bookDesktop: []
 }>()
 
 function handleNetworkClick() {
@@ -68,6 +69,7 @@ function handleNetworkClick() {
         @show-direct-link-modal="emit('showDirectLinkModal')"
         @show-recreate-modal="emit('showRecreateModal')"
         @create-template="emit('createTemplate')"
+        @book-desktop="emit('bookDesktop')"
       />
     </DropdownMenuContent>
   </DropdownMenu>

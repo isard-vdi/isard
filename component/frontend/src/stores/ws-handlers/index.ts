@@ -6,6 +6,8 @@ import { templateEventHandlers } from './template'
 import { mediaEventHandlers } from './media'
 import { recycleBinEventHandlers } from './recycle-bin'
 import { bulkSpawnEventHandlers } from './bulk-spawn'
+import { bookingEventHandlers } from './booking'
+import { planningEventHandlers } from './planning'
 import type { WsEventMap, WsEventName } from '@/types/ws-events'
 import { QueryClient } from '@tanstack/vue-query'
 import type { Socket } from 'socket.io-client'
@@ -24,7 +26,9 @@ export const allEventHandlers: EventHandlerMap = {
   ...sharedDeploymentEventHandlers,
   ...mediaEventHandlers,
   ...recycleBinEventHandlers,
-  ...bulkSpawnEventHandlers
+  ...bulkSpawnEventHandlers,
+  ...bookingEventHandlers,
+  ...planningEventHandlers
 }
 
 export function registerSocketHandlers(socket: Socket, queryClient: QueryClient) {

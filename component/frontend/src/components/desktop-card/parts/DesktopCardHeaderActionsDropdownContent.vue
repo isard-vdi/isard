@@ -32,6 +32,7 @@ const emit = defineEmits<{
   showDirectLinkModal: []
   showRecreateModal: []
   createTemplate: []
+  bookDesktop: []
 }>()
 </script>
 
@@ -77,11 +78,8 @@ const emit = defineEmits<{
           !props.desktop.tag &&
           props.desktop.needs_booking === true
         "
-        as="a"
-        :href="`/booking/desktop/${props.desktop.id}`"
-        target="_blank"
+        @click="emit('bookDesktop')"
       >
-        <!-- TODO: handle redirects in the view. -->
         <Button
           size="sm"
           class="mr-2 w-full justify-start"

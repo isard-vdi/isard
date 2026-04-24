@@ -809,6 +809,10 @@ const goToEditDesktop = (desktopId: string) => {
   router.push({ name: 'edit-desktop', params: { desktopId } })
 }
 
+const goToBookingDesktop = (desktopId: string) => {
+  router.push({ name: 'booking', params: { type: 'desktop', id: desktopId } })
+}
+
 const templateCreationCheckIsPending = ref(false)
 
 const goToNewTemplate = async (desktopId: string) => {
@@ -1474,6 +1478,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           recreateDesktopModalDesktopData = { id: routeDesktop.id, name: routeDesktop.name }
         "
         @create-template="goToNewTemplate(routeDesktop.id)"
+        @book-desktop="goToBookingDesktop(routeDesktop.id)"
       />
 
       <EmptyContent class="flex-row">
@@ -1713,6 +1718,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
             }
           "
           @create-template="(dktp) => goToNewTemplate(dktp.id)"
+          @book-desktop="(dktp) => goToBookingDesktop(dktp.id)"
         />
 
         <div
@@ -1751,6 +1757,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                 recreateDesktopModalDesktopData = { id: dktp.id, name: dktp.name }
               "
               @create-template="goToNewTemplate(dktp.id)"
+              @book-desktop="goToBookingDesktop(dktp.id)"
             />
           </template>
         </div>
