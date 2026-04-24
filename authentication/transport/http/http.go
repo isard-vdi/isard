@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"sync"
 	"time"
 
@@ -83,11 +84,17 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	// Observability endpoints
 	m.Handle("/healthcheck", requestMetadataHandler(http.HandlerFunc(a.healthcheck)))
 
-	// SAML authentication
+	// SAML authentication - global.
 	m.Handle("/authentication/saml/login", requestMetadataHandler(http.HandlerFunc(a.loginSAML)))
 	m.Handle("/authentication/saml/metadata", requestMetadataHandler(http.HandlerFunc(a.metadataSAML)))
 	m.Handle("/authentication/saml/acs", requestMetadataHandler(http.HandlerFunc(a.acsSAML)))
 	m.Handle("/authentication/saml/slo", requestMetadataHandler(http.HandlerFunc(a.logoutSAML)))
+
+	// SAML authentication - category-specific.
+	m.Handle("/authentication/saml/{categoryID}/login", requestMetadataHandler(http.HandlerFunc(a.loginSAML)))
+	m.Handle("/authentication/saml/{categoryID}/metadata", requestMetadataHandler(http.HandlerFunc(a.metadataSAML)))
+	m.Handle("/authentication/saml/{categoryID}/acs", requestMetadataHandler(http.HandlerFunc(a.acsSAML)))
+	m.Handle("/authentication/saml/{categoryID}/slo", requestMetadataHandler(http.HandlerFunc(a.logoutSAML)))
 
 	// The OpenAPI specification server
 	noCacheHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -156,7 +163,10 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	categoryID := r.URL.Query().Get("category_id")
+	categoryID := r.PathValue("categoryID")
+	if categoryID == "" {
+		categoryID = r.URL.Query().Get("category_id")
+	}
 
 	redirect := oasAuthentication.OptString{}
 	if red := r.URL.Query().Get("redirect"); red != "" {
@@ -170,7 +180,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Ensure the user has logged in through SAML
-	middleware := a.Authentication.SAML()
+	middleware := a.Authentication.SAML(categoryID, r.Host)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -204,6 +214,9 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 		case *oasAuthentication.LoginOKHeaders:
 			w.Header().Add("Authorization", t.Authorization)
 			w.Header().Set("Set-Cookie", t.SetCookie)
+			if t.Location.Set {
+				w.Header().Set("Location", t.Location.Value)
+			}
 
 			w.WriteHeader(http.StatusOK)
 			b, err := io.ReadAll(t.Response.Data)
@@ -222,7 +235,9 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 }
 
 func (a *AuthenticationServer) metadataSAML(w http.ResponseWriter, r *http.Request) {
-	middleware := a.Authentication.SAML()
+	categoryID := r.PathValue("categoryID")
+
+	middleware := a.Authentication.SAML(categoryID, r.Host)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 
@@ -235,7 +250,9 @@ func (a *AuthenticationServer) metadataSAML(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *AuthenticationServer) acsSAML(w http.ResponseWriter, r *http.Request) {
-	middleware := a.Authentication.SAML()
+	categoryID := r.PathValue("categoryID")
+
+	middleware := a.Authentication.SAML(categoryID, r.Host)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -246,7 +263,9 @@ func (a *AuthenticationServer) acsSAML(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *AuthenticationServer) logoutSAML(w http.ResponseWriter, r *http.Request) {
-	middleware := a.Authentication.SAML()
+	categoryID := r.PathValue("categoryID")
+
+	middleware := a.Authentication.SAML(categoryID, r.Host)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -269,7 +288,12 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	// Remote address is injected in the RequestMetadata middleware
 	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
 
-	args := provider.LoginArgs{}
+	// Host is injected in the RequestMetadata middleware.
+	host := ctx.Value(requestMetadataHostCtxKey).(string)
+
+	args := provider.LoginArgs{
+		Host: host,
+	}
 
 	// Token provided in the Authorization header
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
@@ -293,9 +317,9 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 
 	log := a.Log.With().Str("provider", string(params.Provider)).Logger()
 
-	p := a.Authentication.Provider(string(params.Provider))
+	p := a.Authentication.Provider(string(params.Provider), params.CategoryID)
 	if p.String() == types.ProviderSAML {
-		middleware := a.Authentication.SAML()
+		middleware := a.Authentication.SAML(params.CategoryID, host)
 		if middleware == nil {
 			log.Error().Msg("requested SAML middleware, but it's not initialized")
 
@@ -319,15 +343,22 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 				return nil, provider.ErrInternal
 			}
 
-			// Prepeare the redirection
+			// Build the SAML login path with category in the URL when present.
+			samlLoginPath := "/authentication/saml/login"
+			if params.CategoryID != "" {
+				samlLoginPath = path.Join("/authentication/saml", params.CategoryID, "login")
+			}
+
 			q := url.Values{}
 			q.Add("provider", string(params.Provider))
-			q.Add("category_id", params.CategoryID)
+			if params.CategoryID != "" {
+				q.Add("category_id", params.CategoryID)
+			}
 			if params.Redirect.Set {
 				q.Add("redirect", params.Redirect.Value)
 			}
 
-			u, _ := url.Parse("/authentication/saml/login")
+			u, _ := url.Parse(samlLoginPath)
 			u.RawQuery = q.Encode()
 
 			// Redirect to the correct SAML endpoint
@@ -424,7 +455,12 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	// Remote address is injected in the RequestMetadata middleware
 	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
 
-	args := provider.CallbackArgs{}
+	// Host is injected in the RequestMetadata middleware.
+	host := ctx.Value(requestMetadataHostCtxKey).(string)
+
+	args := provider.CallbackArgs{
+		Host: host,
+	}
 
 	// OAuth2
 	if params.Code.Set {
@@ -583,9 +619,11 @@ func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthenticatio
 	return resp, nil
 }
 
-func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {
+func (a *AuthenticationServer) Providers(ctx context.Context, params oasAuthentication.ProvidersParams) (oasAuthentication.ProvidersRes, error) {
+	authPrvs := a.Authentication.Providers(params.CategoryID)
+
 	providers := []oasAuthentication.Providers{}
-	for _, p := range a.Authentication.Providers() {
+	for _, p := range authPrvs {
 		if p == types.ProviderLocal || p == types.ProviderLDAP {
 			continue
 		}

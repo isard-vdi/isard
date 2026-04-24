@@ -37,6 +37,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("néfix :3").Update(map[string]interface{}{
 					"disclaimer_acknowledged": true,
 				})).Return(r.WriteResponse{
@@ -47,6 +48,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 		"should return an error if the JWT is invalid": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &token.DisclaimerAcknowledgementRequiredClaims{
@@ -73,6 +75,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 		"should return an error if the JWT is not of disclaimer-acknowledgementrequired": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				ss, err := token.SignCallbackToken("", "local", "default", "")
@@ -91,6 +94,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("néfix :3").Update(map[string]interface{}{
 					"disclaimer_acknowledged": true,
 				})).Return(nil, errors.New("hello there!"))

@@ -9,12 +9,18 @@ import (
 )
 
 type Config struct {
+	Local  Local  `rethinkdb:"local"`
 	LDAP   LDAP   `rethinkdb:"ldap"`
 	SAML   SAML   `rethinkdb:"saml"`
 	Google Google `rethinkdb:"google"`
 }
 
+type Local struct {
+	Enabled bool `rethinkdb:"enabled"`
+}
+
 type LDAP struct {
+	Enabled    bool       `rethinkdb:"enabled"`
 	LDAPConfig LDAPConfig `rethinkdb:"ldap_config"`
 }
 
@@ -62,9 +68,12 @@ type LDAPConfig struct {
 	RoleDefault     Role                `rethinkdb:"role_default"`
 
 	SaveEmail bool `rethinkdb:"save_email"`
+
+	AllowInsecureTLS bool `rethinkdb:"allow_insecure_tls"`
 }
 
 type SAML struct {
+	Enabled    bool       `rethinkdb:"enabled"`
 	SAMLConfig SAMLConfig `rethinkdb:"saml_config"`
 }
 
@@ -110,9 +119,12 @@ type SAMLConfig struct {
 	LogoutRedirectURL string `rethinkdb:"logout_redirect_url"`
 
 	SaveEmail bool `rethinkdb:"save_email"`
+
+	AllowInsecureTLS bool `rethinkdb:"allow_insecure_tls"`
 }
 
 type Google struct {
+	Enabled      bool         `rethinkdb:"enabled"`
 	GoogleConfig GoogleConfig `rethinkdb:"google_config"`
 }
 

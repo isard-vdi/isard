@@ -51,7 +51,7 @@ func TestUnknownLogin(t *testing.T) {
 			t.Parallel()
 
 			u := Unknown{}
-			g, secondary, usr, redirect, tkn, err := u.Login(context.Background(), "default", LoginArgs{})
+			g, secondary, usr, redirect, tkn, err := u.Login(context.Background(), "default", LoginArgs{Host: "example.com"})
 
 			assert.Nil(g)
 			assert.Nil(secondary)
@@ -81,7 +81,7 @@ func TestUnknownCallback(t *testing.T) {
 			t.Parallel()
 
 			u := Unknown{}
-			g, secondary, usr, redirect, tkn, err := u.Callback(context.Background(), nil, CallbackArgs{})
+			g, secondary, usr, redirect, tkn, err := u.Callback(context.Background(), nil, CallbackArgs{Host: "example.com"})
 
 			assert.Nil(g)
 			assert.Nil(secondary)
