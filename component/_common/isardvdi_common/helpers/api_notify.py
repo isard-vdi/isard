@@ -1,0 +1,131 @@
+#
+#   Copyright © 2025 Josep Maria Viñolas Auquer
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+import json
+
+from isardvdi_common.connections.redis_urls import socketio_url
+from socketio import RedisManager
+
+socketio = RedisManager(socketio_url(), write_only=True)
+
+
+def notify_custom(event: str, data: dict | list, namespace: str, room: str):
+    socketio.emit(
+        event,
+        json.dumps(data),
+        namespace=namespace,
+        room=room,
+    )
+
+
+def notify_user(user_id, type, msg_code, params={}):
+    data = {
+        "type": type,
+        "msg_code": msg_code,
+        "params": params,
+    }
+    socketio.emit(
+        "msg",
+        json.dumps(data),
+        namespace="/userspace",
+        room=user_id,
+    )
+
+
+def send_socket_user(event, data, user_id, room=None):
+    """
+    Send a socket message to a specific user.
+    :param event: The event to emit.
+    :param data: The data to send with the message.
+    :param user_id: The ID of the user to send the message to.
+    """
+    socketio.emit(
+        event,
+        json.dumps(data),
+        namespace="/userspace",
+        room=user_id,
+    )
+    if room:
+        socketio.emit(
+            event,
+            json.dumps(data),
+            namespace="/userspace",
+            room=room,
+        )
+
+
+def notify_admin(user_id, title, description, notify_id="", type="info", params={}):
+    data = {
+        "id": notify_id,
+        "type": type,
+        "title": title,
+        "description": description,
+        "params": params,
+    }
+    socketio.emit(
+        "msg",
+        json.dumps(data),
+        namespace="/administrators",
+        room=user_id,
+    )
+
+
+def notify_desktop(desktop_id, type, msg_code, params={}):
+    data = {
+        "type": type,
+        "msg_code": msg_code,
+        "params": params,
+    }
+    socketio.emit(
+        "msg",
+        json.dumps(data),
+        namespace="/userspace",
+        room=desktop_id,
+    )
+
+
+def notify_broadcast(event: str, data: dict | list, namespace: str):
+    """
+    Broadcast an event to every connected client in the given namespace.
+    Matches the Flask-SocketIO v3 `broadcast=True` behaviour by omitting
+    the `room` parameter, which makes socket.io-redis fan out to all
+    sockets in the namespace.
+    """
+    socketio.emit(
+        event,
+        json.dumps(data),
+        namespace=namespace,
+    )
+
+
+def notify_admins(event, data={}, category=None):
+    socketio.emit(
+        event,
+        json.dumps(data),
+        namespace="/administrators",
+        room="admins",
+    )
+    if category:
+        socketio.emit(
+            event,
+            json.dumps(data),
+            namespace="/administrators",
+            room=category,
+        )

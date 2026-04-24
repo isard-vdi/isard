@@ -1,0 +1,546 @@
+#
+#   Copyright © 2025 Pau Abril Iranzo
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+
+import time
+import traceback
+
+from isardvdi_common.connections.rethink_connection_factory import (
+    RethinkSharedConnection,
+)
+from isardvdi_common.helpers.caches import Caches
+from isardvdi_common.helpers.cards import Cards
+from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
+from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.user import User
+from isardvdi_common.schemas.shared.allowed import Allowed
+from rethinkdb import r
+
+
+class TemplatesProcessed(RethinkSharedConnection):
+
+    _rdb_table = "domains"
+
+    @classmethod
+    def get_template_with_user_info(cls, category=None):
+        """
+        Get template domains with user info according to category
+        """
+        query = r.table(cls._rdb_table).get_all("template", index="kind")
+
+        if category:
+            query = query.filter(lambda domain: domain["category"] == category)
+
+        query = query.map(
+            lambda domain: domain.merge(
+                {
+                    "user_data": r.table("users").get(domain["user"]).default({}),
+                    "group_data": r.table("groups").get(domain["group"]).default({}),
+                    "category_data": r.table("categories")
+                    .get(domain["category"])
+                    .default({}),
+                }
+            )
+        )
+
+        query = query.map(
+            lambda domain: domain.merge(
+                {
+                    "create_dict": domain["create_dict"].merge(
+                        {
+                            "hardware": domain["create_dict"]["hardware"].merge(
+                                {
+                                    "isos": r.branch(
+                                        domain["create_dict"]["hardware"].has_fields(
+                                            "isos"
+                                        ),
+                                        domain["create_dict"]["hardware"]["isos"].map(
+                                            lambda iso: r.branch(
+                                                iso.has_fields("name"),
+                                                iso,
+                                                r.table("media")
+                                                .get(iso["id"])
+                                                .default({})
+                                                .pluck("id", "name"),
+                                            )
+                                        ),
+                                        [],
+                                    )
+                                }
+                            )
+                        }
+                    )
+                }
+            )
+        )
+
+        query = query.map(
+            lambda domain: domain.merge(
+                {
+                    "user": domain["user_data"]["username"],
+                    "user_name": domain["user_data"]["name"],
+                    "group": domain["group_data"]["id"],
+                    "category": domain["category_data"]["id"],
+                    "description": domain["description"],
+                    "image": domain["image"],
+                    "id": domain["id"],
+                    "name": domain["name"],
+                }
+            )
+        )
+        query = query.pluck(
+            "allowed",
+            "id",
+            "create_dict",
+            "guest_properties",
+            "name",
+            "user",
+            "user_name",
+            "group",
+            "category",
+            "description",
+            "image",
+        )
+
+        with cls._rdb_context():
+            templates = list(query.run(cls._rdb_connection))
+
+        for template in templates:
+            template["create_dict"]["hardware"]["interfaces"] = [
+                i["id"]
+                for i in template["create_dict"]
+                .get("hardware", {})
+                .get("interfaces", [])
+            ]
+
+        return templates
+
+    @classmethod
+    def is_duplicate(cls, template_id):
+        """_From api/libv2/api_templates.py is_duplicate()_"""
+        with cls._rdb_context():
+            return (
+                r.table("domains")
+                .get(template_id)
+                .has_fields("duplicate_parent_template")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def check_template_status(cls, template_id=None, template=None):
+        """_From api/libv2/api_desktops_persistent.py check_template_status()_"""
+        if template_id:
+            template = Caches.get_document("templates", template_id)
+
+        if template["status"] == "Failed":
+            raise Error(
+                "bad_request",
+                "Can't create a desktop with a Failed template.",
+                traceback.format_exc(),
+                description_code="template_failed",
+            )
+
+    @classmethod
+    def new_template(
+        cls,
+        user_id,
+        template_id,
+        name,
+        desktop_id,
+        allowed={"roles": False, "categories": False, "groups": False, "users": False},
+        description="",
+        enabled=False,
+    ):
+        """_From api/src/api/libv2/api_templates.py ApiTemplates.New()_"""
+        try:
+            with cls._rdb_context():
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .pluck("id", "category", "group", "provider", "username", "uid")
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            raise Error(
+                "not_found",
+                "User not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        with cls._rdb_context():
+            desktop = r.table("domains").get(desktop_id).run(cls._rdb_connection)
+        if desktop == None:
+            raise Error(
+                "not_found",
+                "Desktop not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        if desktop.get("status") != "Stopped":
+            raise Error(
+                "precondition_required",
+                "To create a template, status desktop must be Stopped",
+                traceback.format_exc(),
+            )
+        if desktop.get("server"):
+            raise Error(
+                "internal_server",
+                "Can't create a template from a server",
+                traceback.format_exc(),
+            )
+        if not Domain(desktop.get("id")).storage_ready:
+            raise Error(
+                error="precondition_required",
+                description="Desktop storages are not ready",
+                description_code="desktop_storage_not_ready",
+            )
+
+        parent_disk = resolve_parent_disk(desktop)
+
+        hardware = desktop["create_dict"]["hardware"]
+        hardware["disks"] = [{"extension": "qcow2", "parent": parent_disk}]
+
+        create_dict = Helpers._parse_media_info({"hardware": hardware})
+        create_dict["origin"] = desktop_id
+
+        if desktop["create_dict"].get("reservables"):
+            create_dict = {
+                **create_dict,
+                **{"reservables": desktop["create_dict"]["reservables"]},
+            }
+        create_dict["hardware"]["qos_disk_id"] = False
+
+        template_dict = {
+            "accessed": int(time.time()),
+            "id": template_id,
+            "name": name,
+            "description": description,
+            "kind": "template",
+            "user": user["id"],
+            "username": user["username"],
+            "status": "CreatingTemplate",
+            "detail": None,
+            "category": user["category"],
+            "group": user["group"],
+            # desktops created via ``from-media`` never have ``xml`` /
+            # ``os`` populated by the apiv4 service — those fields are
+            # written by the engine when the domain first starts. Make
+            # the template inherit whatever the desktop has, or leave
+            # empty so the engine regenerates on first start.
+            "xml": desktop.get("xml", ""),
+            "icon": desktop.get("icon", ""),
+            "image": Cards.get_domain_stock_card(template_id),
+            "os": desktop.get("os", ""),
+            "guest_properties": desktop["guest_properties"],
+            "create_dict": create_dict,
+            "hypervisors_pools": ["default"],
+            "parents": desktop["parents"] if "parents" in desktop.keys() else [],
+            "allowed": Allowed(**allowed).model_dump(mode="json"),
+            "enabled": enabled,
+            "tag": False,
+            "tag_visible": False,
+            "favourite_hyp": desktop.get("favourite_hyp", False),
+            "forced_hyp": desktop.get("forced_hyp", False),
+        }
+
+        if not Domain.exists(template_id):
+            with cls._rdb_context():
+                # TODO(move-domains-to-common): pydantic
+                r.table("domains").get(desktop_id).update(
+                    {
+                        "create_dict": {"template_dict": template_dict},
+                        "status": "CreatingTemplate",
+                    }
+                ).run(cls._rdb_connection)
+
+            return template_id
+        else:
+            raise Error(
+                "conflict",
+                "Template id already exists: " + str(template_id),
+                description_code="template_already_exists" + str(template_id),
+            )
+
+    @classmethod
+    def duplicate_template(
+        cls,
+        payload,
+        template_id,
+        name,
+        allowed={"roles": False, "categories": False, "groups": False, "users": False},
+        description="",
+        enabled=False,
+    ):
+        """_From api/src/api/libv2/api_templates.py ApiTemplates.Duplicate()_"""
+        with cls._rdb_context():
+            template = (
+                r.table("domains")
+                .get(template_id)
+                .without("id", "history_domain")
+                .run(cls._rdb_connection)
+            )
+        if not template:
+            raise Error(
+                "not_found",
+                "Template id not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+
+        template = {**template, **Helpers.get_user_data(payload["user_id"])}
+        template["name"] = name
+        template["description"] = description
+        template["allowed"] = Allowed(**allowed).model_dump(mode="json")
+        template["enabled"] = enabled
+        template["status"] = "Stopped"
+        template["accessed"] = int(time.time())
+        template["parents"] = template.get("parents", [])
+        template["duplicate_parent_template"] = template.get(
+            "duplicate_parent_template", template_id
+        )
+
+        try:
+            with cls._rdb_context():
+                new_template_id = (
+                    # TODO(move-domains-to-common): pydantic
+                    r.table("domains")
+                    .insert(template)["generated_keys"][0]
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            raise Error(
+                "internal_server",
+                "Unable to insert duplicate template",
+                traceback.format_exc(),
+            )
+        return new_template_id
+
+    @classmethod
+    def get_template(cls, template_id):
+        """_From api/libv2/api_templates.py ApiTemplates.Get()_"""
+        template = Caches.get_document(
+            "domains",
+            template_id,
+            [
+                "id",
+                "name",
+                "icon",
+                "image",
+                "description",
+                "allowed",
+                "guest_properties",
+                "create_dict",
+                "status",
+                "kind",
+                "user",
+            ],
+        )
+        if template is None:
+            raise Error("not_found", "Template id not found", traceback.format_exc())
+        return template
+
+    @classmethod
+    def update_template(cls, template_id, data):
+        """_From api/libv2/api_templates.py ApiTemplates.UpdateTemplate()_"""
+        with cls._rdb_context():
+            template = r.table("domains").get(template_id).run(cls._rdb_connection)
+        if not template:
+            raise Error(
+                "not_found",
+                "Unable to update inexistent template",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        if template and template["kind"] == "template":
+            with cls._rdb_context():
+                r.table("domains").get(template_id).update(data).run(
+                    cls._rdb_connection
+                )
+            with cls._rdb_context():
+                template = r.table("domains").get(template_id).run(cls._rdb_connection)
+            return template
+        raise Error(
+            "conflict",
+            "Unable to update enable in a non template kind domain",
+            traceback.format_exc(),
+            description_code="unable_to_update",
+        )
+
+    @classmethod
+    def delete_non_persistent_desktops(cls, template_id):
+        """_From api/libv2/api_templates.py delete_desktops_non_persistent()_
+
+        Cascade-flag every non-persistent desktop derived from the given
+        template to ``ForceDeleting`` so the engine cleans them up. Used
+        when an admin disables a template — without this, ephemeral
+        desktops keep running forever even though their template is no
+        longer usable.
+        """
+        with cls._rdb_context():
+            r.table("domains").get_all(template_id, index="parents").filter(
+                {"persistent": False}
+            ).update({"status": "ForceDeleting"}).run(cls._rdb_connection)
+
+    @classmethod
+    def check_children(cls, payload, domain_tree):
+        """_From api/libv2/api_templates.py ApiTemplates.check_children()_"""
+        try:
+            Helpers.owns_domain_id(payload, domain_tree["id"])
+            domains = [
+                {
+                    "id": domain_tree["id"],
+                    "kind": domain_tree["kind"],
+                    "name": domain_tree["title"],
+                    "user": domain_tree["user"],
+                }
+            ]
+            deployments = []
+            pending = False
+        except Exception:
+            domains = [{}]
+            deployments = []
+            pending = True
+
+        for item in domain_tree["children"]:
+            item_result = {
+                "id": item["id"],
+                "kind": item["kind"],
+                "name": item["title"],
+                "user": item["user"],
+            }
+
+            if item.get("children"):
+                child_result = cls.check_children(payload, item)
+                domains.extend(child_result["domains"])
+                pending = pending or child_result["pending"]
+            else:
+                if item["kind"] == "deployment":
+                    try:
+                        Helpers.owns_deployment_id(payload, item["id"], True)
+                        deployments.append(item_result)
+                    except Exception:
+                        pending = True
+                        deployments.append({})
+                else:
+                    try:
+                        Helpers.owns_domain_id(payload, item["id"])
+                        domains.append(item_result)
+                    except Exception:
+                        pending = True
+                        domains.append({})
+
+        return {"deployments": deployments, "domains": domains, "pending": pending}
+
+    @classmethod
+    def get_deployments_with_template(cls, template_id, return_username=False):
+        """_From api/libv2/api_templates.py ApiTemplates.get_deployments_with_template()_"""
+        query = r.table("deployments").get_all(template_id, index="template")
+        if return_username:
+            with cls._rdb_context():
+                return list(
+                    query.merge(
+                        lambda deployment: {
+                            "username": r.table("users").get(deployment["user"])[
+                                "username"
+                            ]
+                        }
+                    ).run(cls._rdb_connection)
+                )
+        else:
+            with cls._rdb_context():
+                return list(query.run(cls._rdb_connection))
+
+    @classmethod
+    def get_user_templates(cls, user_id):
+        """_From api/libv2/api_users.py ApiUsers.Templates()_"""
+        if not User.exists(user_id):
+            raise Error(
+                "not_found",
+                "User not found",
+                traceback.format_exc(),
+                description_code="user_not_found",
+            )
+
+        try:
+            with cls._rdb_context():
+                templates = (
+                    r.table("domains")
+                    .get_all(["template", user_id], index="kind_user")
+                    .order_by("name")
+                    .pluck(
+                        {
+                            "id",
+                            "name",
+                            "allowed",
+                            "enabled",
+                            "kind",
+                            "category",
+                            "group",
+                            "icon",
+                            "image",
+                            "user",
+                            "description",
+                            "status",
+                        },
+                        {"create_dict": {"hardware": {"disks": {"storage_id": True}}}},
+                    )
+                    .run(cls._rdb_connection)
+                )
+
+            return templates
+
+        except Exception:
+            raise Error(
+                "internal_server", "Internal server error", traceback.format_exc()
+            )
+
+    @classmethod
+    def get_template_details(cls, desktop_id):
+        with cls._rdb_context():
+            details = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck(
+                    "name",
+                    "description",
+                    {
+                        "create_dict": {
+                            "hardware": {
+                                "interfaces": True,
+                                "disks": True,
+                                "boot_order": True,
+                                "disk_bus": True,
+                                "graphics": True,
+                                "isos": True,
+                                "memory": True,
+                                "vcpus": True,
+                                "videos": True,
+                            },
+                            "reservables": True,
+                        },
+                        "guest_properties": True,
+                    },
+                )
+                .run(cls._rdb_connection)
+            )
+
+        return details
