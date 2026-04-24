@@ -1,4 +1,4 @@
-FROM grafana/grafana:11.5.1
+FROM grafana/grafana:11.6.14-security-01
 
 USER root
 

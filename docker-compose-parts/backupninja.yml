@@ -43,7 +43,7 @@ services:
       - BACKUP_REPORT_EMAIL=${BACKUP_REPORT_EMAIL-root}
 
       # API settings for backup reporting
-      - API_DOMAIN=${API_DOMAIN-isard-api}
+      - API_DOMAIN=${API_DOMAIN-isard-apiv4}
       - API_ISARDVDI_SECRET=${API_ISARDVDI_SECRET}
 
       # NFS

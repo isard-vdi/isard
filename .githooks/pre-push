@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Pre-push hook: runs unit tests before pushing
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+COMPOSE="docker compose -f docker-compose.ci.yml"
+
+echo ">> Running unit tests before push..."
+$COMPOSE --profile unit-test up --abort-on-container-exit
+
+echo "All unit tests passed."
