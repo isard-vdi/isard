@@ -8,8 +8,10 @@ import Icon from '@/components/icon/Icon.vue'
 import LabFormSettings from '@/components/lab/LabFormSettings.vue'
 import LabFormDesktops from '@/components/lab/LabFormDesktops.vue'
 import UnsavedChangesModal from '@/components/modal/UnsavedChangesModal.vue'
-import { createDeploymentApiV4ItemDeploymentPostMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getUserOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
+import {
+  createDeploymentApiV4ItemDeploymentPostMutation,
+  getUserApiV4ItemUserGetOptions
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { MultiSelectTagItemType } from '@/components/multi-select'
 
 import {
@@ -143,7 +145,7 @@ const canAddNewDesktop = computed(() => {
   return formData.value.desktops.every((desktop) => desktop.template !== null)
 })
 
-const { data: currentUser } = useQuery(getUserOptions())
+const { data: currentUser } = useQuery(getUserApiV4ItemUserGetOptions())
 const createDeploymentMutation = useMutation(createDeploymentApiV4ItemDeploymentPostMutation())
 
 const transformFormDataToApiFormat = (data: {

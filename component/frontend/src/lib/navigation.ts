@@ -1,4 +1,4 @@
-import type { Role } from '@/gen/oas/api'
+import type { Role } from '@/lib/auth'
 import { computed, type ComputedRef } from 'vue'
 import { i18n } from '@/lib/i18n'
 import { useI18n } from 'vue-i18n'

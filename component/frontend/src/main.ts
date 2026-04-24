@@ -9,7 +9,6 @@ import { computed, createApp } from 'vue'
 import { createPinia } from 'pinia'
 
 import { client as authClient } from './gen/oas/authentication/client.gen'
-import { client as apiClient } from './gen/oas/api/client.gen'
 import { client as apiv4Client } from './gen/oas/apiv4/client.gen'
 
 import App from './App.vue'
@@ -93,9 +92,6 @@ watch(
     const headers = newToken ? { Authorization: `Bearer ${newToken}` } : undefined
 
     authClient.setConfig({
-      headers
-    })
-    apiClient.setConfig({
       headers
     })
     apiv4Client.setConfig({

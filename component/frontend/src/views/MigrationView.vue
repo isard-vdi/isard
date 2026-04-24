@@ -7,11 +7,11 @@ import { Icon } from '@/components/icon'
 import { MigrationItemBox, MigrationItemTable, MigrationResultItem } from '@/components/migration'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
-  postUserMigrationAuto,
-  type PostUserMigrationAutoResponse,
-  type GetUserMigrationItemsError,
-  type GetUserMigrationItemsResponse
-} from '@/gen/oas/api'
+  migrationMigrateUserApiV4ItemUserMigrationMigrateUserPost as postUserMigrationAuto,
+  type MigrationMigrateUserApiV4ItemUserMigrationMigrateUserPostResponse as PostUserMigrationAutoResponse,
+  type MigrationListItemsApiV4ItemUserMigrationListItemsGetError as GetUserMigrationItemsError,
+  type MigrationListItemsApiV4ItemUserMigrationListItemsGetResponse as GetUserMigrationItemsResponse
+} from '@/gen/oas/apiv4'
 
 import { useQuery } from '@tanstack/vue-query'
 
@@ -23,10 +23,10 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldError, FieldLabel, FieldContent } from '@/components/ui/field'
 
 import {
-  getUserOptions,
-  getUserMigrationItemsOptions,
-  getUserMigrationItemsQueryKey
-} from '@/gen/oas/api/@tanstack/vue-query.gen'
+  getUserApiV4ItemUserGetOptions as getUserOptions,
+  migrationListItemsApiV4ItemUserMigrationListItemsGetOptions as getUserMigrationItemsOptions,
+  migrationListItemsApiV4ItemUserMigrationListItemsGetQueryKey as getUserMigrationItemsQueryKey
+} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 const { t, te, d } = useI18n()
 
 const userMigrationItemsOpts = computed(() => getUserMigrationItemsOptions())
@@ -160,6 +160,7 @@ const formSchema = z.object({
 const migrationSubmitted = ref(false)
 const migrationSuccess = ref(false)
 const migrationResponse = ref({} as PostUserMigrationAutoResponse)
+const userMigrationError = ref<string[] | undefined>(undefined)
 const form = useForm({
   defaultValues: {
     accept: false
