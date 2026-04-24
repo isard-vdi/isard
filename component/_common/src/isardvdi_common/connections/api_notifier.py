@@ -26,6 +26,7 @@ notifier endpoint don't need the ``isardvdi_notifier_client`` package
 installed.
 """
 
+import logging
 import os
 import traceback
 from typing import Any, Iterable
@@ -33,6 +34,8 @@ from typing import Any, Iterable
 from isardvdi_common.helpers.error_factory import Error
 
 _SERVICE = "isard-apiv4"
+
+logger = logging.getLogger(__name__)
 
 
 def send_verification_email(email: str, user_id: str, token: str) -> Any:
@@ -67,6 +70,87 @@ def send_verification_email(email: str, user_id: str, token: str) -> Any:
             "Exception when sending verification email to user",
             traceback.format_exc(),
         )
+
+
+def notify_backup_failure(backup_data: dict) -> None:
+    """Email active admins when a backup record is stored with a bad status.
+
+    Best-effort: every failure inside is caught and logged. This must not
+    interfere with the insert that triggered it — if the notifier is down,
+    the backup record is still persisted.
+    """
+    status = backup_data.get("status")
+    if status not in ("CRITICAL", "ERROR"):
+        return
+
+    # Lazy imports keep services that don't ship the notifier client able to
+    # import this module without ``ModuleNotFoundError``.
+    from isardvdi_notifier_client.api.mail import post_notifier_mail
+    from isardvdi_notifier_client.models import NotifyMailRequest
+    from isardvdi_notifier_client_auth import build_client, raise_for_status
+    from rethinkdb import r
+
+    from isardvdi_common.connections.rethink_connection_factory import (
+        RethinkSharedConnection,
+    )
+
+    host = backup_data.get("host", "unknown")
+    scope = backup_data.get("scope", "full")
+    summary = backup_data.get("summary", "")
+    backup_type = backup_data.get("type", "automated")
+
+    subject = f"[IsardVDI] Backup {status} on {host} ({scope})"
+    text = (
+        f"<p>An {backup_type} backup on host <strong>{host}</strong> "
+        f"finished with status <strong>{status}</strong>.</p>"
+        f"<p>{summary or 'No summary available.'}</p>"
+        f"<p>Review the full record in the admin panel under "
+        f"<em>Backups</em>.</p>"
+    )
+
+    try:
+        with RethinkSharedConnection._rdb_context():
+            admins = list(
+                r.table("users")
+                .get_all("admin", index="role")
+                .filter(
+                    lambda u: u["active"].default(False).eq(True)
+                    & u["email"].default("").ne("")
+                )
+                .pluck("id", "username", "email")
+                .run(RethinkSharedConnection._rdb_connection)
+            )
+    except Exception as e:
+        logger.warning("notify_backup_failure: cannot list admins: %s", e)
+        return
+
+    if not admins:
+        logger.info(
+            "notify_backup_failure: no active admins with an email address; "
+            "skipping notification for %s on %s",
+            status,
+            host,
+        )
+        return
+
+    for admin in admins:
+        try:
+            with build_client(_SERVICE) as client:
+                resp = post_notifier_mail.sync_detailed(
+                    client=client,
+                    body=NotifyMailRequest(
+                        user_id=admin["id"],
+                        subject=subject,
+                        text=text,
+                    ),
+                )
+                raise_for_status(resp)
+        except Exception as e:
+            logger.warning(
+                "notify_backup_failure: failed to notify admin %s: %s",
+                admin.get("username") or admin.get("id"),
+                e,
+            )
 
 
 def send_deleted_gpu_notification(
