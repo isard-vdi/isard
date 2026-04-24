@@ -226,6 +226,17 @@ def admin_backup_insert(data):
     backup_id = result["generated_keys"][0]
     cleanup_old_backups(host)
 
+    # Email admins when the backup did not finish cleanly. Imported lazily
+    # so this module does not depend on the notifier at import time.
+    if data.get("status") in ("CRITICAL", "ERROR"):
+        try:
+            from .api_notifier import notify_backup_failure
+
+            notify_backup_failure(data)
+        except Exception:
+            # Never let notification problems fail the insert.
+            pass
+
     return {
         "id": backup_id,
         "status": "success",
