@@ -17,6 +17,12 @@ import (
 
 var _ Provider = &Form{}
 
+// IsFormSubProvider reports whether a provider name is a sub-provider of Form
+// (i.e. plugs into Form.Login via f.providers[name]).
+func IsFormSubProvider(name string) bool {
+	return name == types.ProviderLocal || name == types.ProviderLDAP
+}
+
 type Form struct {
 	log *zerolog.Logger
 	cfg cfg.Authentication

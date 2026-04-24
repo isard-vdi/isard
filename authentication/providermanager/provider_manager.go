@@ -29,6 +29,12 @@ var _ Interface = &ProviderManager{}
 type providerSet struct {
 	providers      map[string]provider.Provider
 	watcherCancels map[string]context.CancelFunc
+
+	// formCustomSubProviders tracks which Form sub-provider names (local, ldap)
+	// are configured as `custom` for this category scope, as opposed to inherited
+	// by reference from the global Form. nil for the global scope; non-nil for
+	// every category scope.
+	formCustomSubProviders map[string]bool
 }
 
 func InitProviderManager(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *ProviderManager {
@@ -222,24 +228,29 @@ func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context
 	}
 }
 
-// handleCategoryDisabledProviderChange tracks whether a provider is explicitly disabled in a category.
+// handleCategoryDisabledProviderChange tracks whether a provider is explicitly
+// disabled in a category.
 func (m *ProviderManager) handleCategoryDisabledProviderChange(categoryID string, prv string, disabled bool) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
+	isFormSub := provider.IsFormSubProvider(prv)
+
 	if !disabled {
-		d, ok := m.categoriesDisabledProviders[categoryID]
-		if !ok {
-			return
+		if d, ok := m.categoriesDisabledProviders[categoryID]; ok {
+			delete(d, prv)
+			m.log.Info().Str("category", categoryID).Str("provider", prv).Msg("category provider re-enabled (removed from disabled list)")
+
+			if len(d) == 0 {
+				delete(m.categoriesDisabledProviders, categoryID)
+			}
 		}
 
-		delete(d, prv)
-		m.log.Info().Str("category", categoryID).Str("provider", prv).Msg("category provider re-enabled (removed from disabled list)")
-
-		if len(d) == 0 {
-			delete(m.categoriesDisabledProviders, categoryID)
+		if isFormSub {
+			if scope, ok := m.categories[categoryID]; ok {
+				m.restoreInheritedFormSubProvider(scope, categoryID, prv)
+			}
 		}
-
 		return
 	}
 
@@ -249,6 +260,15 @@ func (m *ProviderManager) handleCategoryDisabledProviderChange(categoryID string
 
 	m.categoriesDisabledProviders[categoryID][prv] = true
 	m.log.Info().Str("category", categoryID).Str("provider", prv).Msg("category provider explicitly disabled")
+
+	if isFormSub {
+		if scope, ok := m.categories[categoryID]; ok {
+			if f, ok := scope.providers[types.ProviderForm].(*provider.Form); ok && f.Provider(prv) != nil {
+				f.DisableProvider(prv)
+			}
+			delete(scope.formCustomSubProviders, prv)
+		}
+	}
 }
 
 // isCategoryDisabledProvider returns true if the provider is explicitly disabled in the category.
@@ -288,14 +308,56 @@ func (m *ProviderManager) disableProvider(prv string, categoryID *string) {
 
 	disableProvider(log, scope, prv)
 
-	// Clean up category if it has no active providers.
-	if categoryID != nil && isProvidersEmpty(scope.providers) {
-		log.Debug().Msg("category has no active providers, removing scope")
-		delete(m.categories, *categoryID)
-		m.cfgWatcher.categoriesMux.Lock()
-		delete(m.cfgWatcher.categoriesChanges, *categoryID)
-		m.cfgWatcher.categoriesMux.Unlock()
+	if isFormSub := provider.IsFormSubProvider(prv); isFormSub {
+		// Cleanup global form sub-providers
+		if categoryID == nil {
+			var emptyScopes []string
+			for catID, s := range m.categories {
+				if s.formCustomSubProviders[prv] {
+					continue
+				}
+
+				f, ok := s.providers[types.ProviderForm].(*provider.Form)
+				if !ok {
+					continue
+				}
+
+				if f.Provider(prv) == nil {
+					continue
+				}
+
+				f.DisableProvider(prv)
+
+				if isScopeEmpty(s) {
+					emptyScopes = append(emptyScopes, catID)
+				}
+			}
+
+			for _, catID := range emptyScopes {
+				m.cleanupEmptyScope(log, catID)
+			}
+
+			return
+		}
+
+		// Cleanup category specific form sub-providers
+		delete(scope.formCustomSubProviders, prv)
+		m.restoreInheritedFormSubProvider(scope, *categoryID, prv)
 	}
+
+	if categoryID != nil && isScopeEmpty(scope) {
+		m.cleanupEmptyScope(log, *categoryID)
+	}
+}
+
+// cleanupEmptyScope removes an empty category scope and its cfgWatcher entry.
+// Must be called with m.mux held.
+func (m *ProviderManager) cleanupEmptyScope(log *zerolog.Logger, categoryID string) {
+	log.Debug().Msg("category has no active providers, removing scope")
+	delete(m.categories, categoryID)
+	m.cfgWatcher.categoriesMux.Lock()
+	delete(m.cfgWatcher.categoriesChanges, categoryID)
+	m.cfgWatcher.categoriesMux.Unlock()
 }
 
 func disableProvider(log *zerolog.Logger, scope *providerSet, p string) {
@@ -322,14 +384,25 @@ func disableProvider(log *zerolog.Logger, scope *providerSet, p string) {
 	log.Info().Str("provider", p).Msg("provider disabled")
 }
 
-func isProvidersEmpty(prvs map[string]provider.Provider) bool {
-	for name, prv := range prvs {
+// isScopeEmpty reports whether a category scope has no providers that justify
+// keeping it alive. Inherited Form sub-providers (those not in
+// formCustomSubProviders) don't count — they're just references to global
+// providers and the scope would resolve them identically through fallback.
+func isScopeEmpty(scope *providerSet) bool {
+	for name, prv := range scope.providers {
 		switch name {
 		case types.ProviderUnknown, types.ProviderExternal:
 			continue
 		case types.ProviderForm:
-			if f, ok := prv.(*provider.Form); ok && len(f.Providers()) > 0 {
-				return false
+			f, ok := prv.(*provider.Form)
+			if !ok {
+				continue
+			}
+
+			for _, subName := range f.Providers() {
+				if scope.formCustomSubProviders[subName] {
+					return false
+				}
 			}
 		default:
 			return false
@@ -347,10 +420,25 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 	if scope == nil {
 		log.Debug().Msg("creating new provider scope for category")
 		scope = &providerSet{
-			providers:      initProvidersMap(m.cfg, log, m.db),
-			watcherCancels: map[string]context.CancelFunc{},
+			providers:              initProvidersMap(m.cfg, log, m.db),
+			watcherCancels:         map[string]context.CancelFunc{},
+			formCustomSubProviders: map[string]bool{},
 		}
 		m.categories[*categoryID] = scope
+
+		// Inherit global Form sub-providers (Local, LDAP) into the new scope,
+		// honoring category-disabled flags. The scope is fresh so no custom
+		// overrides exist yet — no need to check formCustomSubProviders here.
+		if globalForm, ok := m.global.providers[types.ProviderForm].(*provider.Form); ok {
+			scopeForm := scope.providers[types.ProviderForm].(*provider.Form)
+			for _, name := range globalForm.Providers() {
+				if m.isCategoryDisabledProvider(*categoryID, name) {
+					continue
+				}
+
+				scopeForm.EnableProvider(globalForm.Provider(name))
+			}
+		}
 	}
 
 	changesChans := m.cfgWatcher.globalChanges
@@ -365,6 +453,19 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 		}
 	}
 
+	isFormSub := provider.IsFormSubProvider(prv)
+
+	// For category-scope Form sub-providers: if there is an inherited entry,
+	// remove it so the custom one can replace it. Skip if a custom is already
+	// in place (truly already enabled — let the free enableProvider warn).
+	if categoryID != nil && isFormSub {
+		if f, ok := scope.providers[types.ProviderForm].(*provider.Form); ok {
+			if !scope.formCustomSubProviders[prv] && f.Provider(prv) != nil {
+				f.DisableProvider(prv)
+			}
+		}
+	}
+
 	enableProvider(ctx, wg, enableProviderParams{
 		log:             log,
 		cfg:             m.cfg,
@@ -374,6 +475,20 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 		httpClient:      m.httpClient,
 		samlValidateURL: m.samlValidateURL,
 	}, scope, prv)
+
+	// Mark category-scope Form sub-providers as custom after a successful enable.
+	if categoryID != nil && isFormSub {
+		if f, ok := scope.providers[types.ProviderForm].(*provider.Form); ok && f.Provider(prv) != nil {
+			scope.formCustomSubProviders[prv] = true
+		}
+	}
+
+	// Propagate a global-scope Form sub-provider enable to every existing scope.
+	if categoryID == nil && isFormSub {
+		for catID, s := range m.categories {
+			m.restoreInheritedFormSubProvider(s, catID, prv)
+		}
+	}
 
 	m.applyStoredBranding(ctx, log, scope, prv, categoryID)
 }
@@ -571,6 +686,40 @@ func getProvider(prvs map[string]provider.Provider, p string) provider.Provider 
 	}
 
 	return prvs[types.ProviderUnknown]
+}
+
+// restoreInheritedFormSubProvider re-adds a single global Form sub-provider to
+// scope's Form. No-op if the scope has a custom override for that name, the
+// category has disabled it, global doesn't have it, or scope already has it.
+// Must be called with m.mux held.
+func (m *ProviderManager) restoreInheritedFormSubProvider(scope *providerSet, categoryID, name string) {
+	if scope.formCustomSubProviders[name] {
+		return
+	}
+	if m.isCategoryDisabledProvider(categoryID, name) {
+		return
+	}
+
+	globalForm, ok := m.global.providers[types.ProviderForm].(*provider.Form)
+	if !ok {
+		return
+	}
+
+	p := globalForm.Provider(name)
+	if p == nil {
+		return
+	}
+
+	scopeForm, ok := scope.providers[types.ProviderForm].(*provider.Form)
+	if !ok {
+		return
+	}
+
+	if scopeForm.Provider(name) != nil {
+		return
+	}
+
+	scopeForm.EnableProvider(p)
 }
 
 func (m *ProviderManager) Healthcheck() error {
