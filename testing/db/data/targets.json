@@ -1,0 +1,18 @@
+[
+    {
+        "desktop_id": "3a1f2b4c-6d78-4e90-9a12-b3c4d5e6f7a8",
+        "domain": null,
+        "http": {
+            "enabled": true,
+            "http_port": 80,
+            "https_port": 443
+        },
+        "id": "7ce9e966-0281-4e60-a65c-12704e6577c9",
+        "ssh": {
+            "authorized_keys": [],
+            "enabled": true,
+            "port": 12345
+        },
+        "user_id": "11a3abb2-3888-5af2-8a14-91340405a89f"
+    }
+]

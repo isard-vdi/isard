@@ -22,3 +22,12 @@ services:
       - SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE=https://${DOMAIN}/authentication/saml/acs
       - SIMPLESAMLPHP_SP_SINGLE_LOGOUT_SERVICE=https://${DOMAIN}/authentication/saml/slo
       - AUTHENTICATION_TEST_SAML_CATEGORY_IDS
+
+  # Mount the pre-fetched test IdP metadata into the auth service so the
+  # SAML provider can load it without a metadata_url HTTPS validation
+  # bypass. The kristophjunge IdP serves metadata over plain HTTP only,
+  # which fails validateMetadataURL() (intentional SSRF hardening). The
+  # file is committed at component/authentication-test-saml/idp-metadata.xml.
+  isard-authentication:
+    volumes:
+      - ${BUILD_ROOT_PATH}/component/authentication-test-saml/idp-metadata.xml:/keys/test-idp-metadata.xml:ro

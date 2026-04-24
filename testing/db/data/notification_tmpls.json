@@ -1,0 +1,249 @@
+[
+    {
+        "default": "en",
+        "description": "Disclaimer for testing the login",
+        "id": "03e9b26f-7ec3-4cb2-b761-f795d698e37a",
+        "lang": {
+            "ca": {
+                "body": "Això és un <strong>avís legal</strong>",
+                "footer": "IsardVDI",
+                "title": "AVÍS LEGAL"
+            },
+            "en": {
+                "body": "This is a <strong>disclaimer</strong>",
+                "footer": "IsardVDI",
+                "title": "DISCLAIMER"
+            },
+            "es": {
+                "body": "Este es un <strong>aviso legal</strong>",
+                "footer": "IsardVDI",
+                "title": "AVISO LEGAL"
+            }
+        },
+        "name": "Dislcaimer"
+    },
+    {
+        "default": "en",
+        "description": "Text that will be associated with each notification sent to the user when a deployment is not used for a long time and is sent to the recycle bin.",
+        "id": "ed8ca653-8886-42bd-a3f5-f0beadcec0ff",
+        "kind": "unused_deployments",
+        "lang": {
+            "ca": {
+                "body": "<p>El desplegament <b>{name}</b>, que va ser utilitzat per últim cop en data <b>{accessed}</b>.</p>",
+                "footer": "Si us plau, esborreu els desplegaments que ja no s'utilitzaran.",
+                "title": "Desplegaments sense utilitzar han estat eliminats"
+            },
+            "en": {
+                "body": "<p>Deployment <b>{name}</b>, last time used at <b>{accessed}</b>.</p>",
+                "footer": "Please, delete deployments that won't be used anymore.",
+                "title": "Unused deployments have been deleted"
+            },
+            "es": {
+                "body": "<p>El despliegue <b>{name}</b>, que fue utilizado por última vez en fecha <b>{accessed}</b>.</p>",
+                "footer": "Por favor, elimine los despliegues que ya no se utilizarán.",
+                "title": "Despliegues sin utilizar han sido eliminados"
+            }
+        },
+        "name": "Send unused deployments to recycle bin",
+        "system": {
+            "body": "<p>Deployment <b>{name}</b>, last time used at <b>{accessed}</b>.</p>",
+            "footer": "Please, delete desployments that won't be used anymore.",
+            "title": "Unused deployments have been deleted"
+        },
+        "vars": {
+            "accessed": "12 Mar 2024 13:00",
+            "name": "Testing environment deployment"
+        }
+    },
+    {
+        "default": "system",
+        "description": "Password recovery message that will be sent when user requests password recovery",
+        "id": "17fc003e-e03b-4784-886c-c4ff661b6d51",
+        "kind": "password",
+        "lang": {
+            "ca": {
+                "body": "<p>Hem rebut la vostra sol·licitud de restabliment de contrasenya per accedir a IsardVDI. Si us plau, cliqueu al següent botó per establir una nova contrasenya:</p><a href='{url}' class='btn btn-primary'>Estableix la contrasenya</a><p>Aquest botó només es pot utilitzar una vegada i té una validesa de 24 hores.</p><p>Si no heu iniciat aquesta sol·licitud, podeu ignorar aquest missatge.</p>",
+                "footer": "Si us plau, no respongueu a aquest correu electrònic, ja que ha estat generat automàticament.",
+                "title": "Restableix la contrasenya IsardVDI"
+            },
+            "en": {
+                "body": "<p>We've received your password reset request to access IsardVDI. Click on the following button to set a new password:</p>\n<a href=\"{url}\" class=\"btn btn-primary\">Set password</a>\n<p>This button can only be used once and it's valid for 24 hours.</p><p>If you did not initiate this request, you may safely ignore this message.</p>",
+                "footer": "Please do not answer since this email has been automatically generated.",
+                "title": "Reset IsardVDI password"
+            },
+            "es": {
+                "body": "<p>Hemos recibido su solicitud de restablecimiento de contraseña para acceder a IsardVDI. Haga clic en el siguiente botón para establecer una nueva contraseña:</p>\n<a href=\"{url}\" class=\"btn btn-primary\">Configurar contraseña</a>\n<p>Este botón solo se puede usar una vez y es válido durante 24 horas.</p><p>Si no inició esta solicitud, puede ignorar este mensaje.</p>",
+                "footer": "Por favor, no responda a este correo electrónico, ya que es un envío automático.",
+                "title": "Restablecer contraseña de IsardVDI"
+            }
+        },
+        "name": "Password recovery",
+        "system": {
+            "body": "<p>We've received your password reset request to access IsardVDI. Click on the following button to set a new password:</p>\n<a href=\"{url}\" class=\"btn btn-primary\">Set password</a>\n<p>This button can only be used once and it's valid for 24 hours.</p><p>If you did not initiate this request, you may safely ignore this message.</p>",
+            "footer": "Please do not answer since this email has been automatically generated.",
+            "title": "Reset IsardVDI password"
+        },
+        "vars": {
+            "url": "https://your.domain.com/password_recovery/1234567890",
+            "user_id": "jdoe",
+            "user_name": "John Doe"
+        }
+    },
+    {
+        "default": "system",
+        "description": "Email verification that will be sent when user logs in for the first time and/or admin forces email verification at new logins",
+        "id": "fd58ae4f-fbec-4b47-b377-bd2efc648778",
+        "kind": "email",
+        "lang": {
+            "ca": {
+                "body": "<p>Si us plau, confirmeu la vostra adreça electrònica clicant al següent botó:</p><a href='{url}' class='btn btn-primary'>Verifica el correu electrònic</a><p>Aquest botó només es pot utilitzar una vegada i té una validesa de 1 hora.</p>",
+                "footer": "Si us plau, no respongueu a aquest correu electrònic, ja que ha estat generat automàticament.",
+                "title": "Verifica el correu electrònic IsardVDI"
+            },
+            "en": {
+                "body": "<p>Please verify your email address by clicking on the following button:</p>\n<a href=\"{url}\" class=\"btn btn-primary\">Verify email</a>\n<p>This button can only be used once and it's valid for 1 hour.</p>",
+                "footer": "Please do not answer since this email has been automatically generated.",
+                "title": "Verify IsardVDI email"
+            },
+            "es": {
+                "body": "<p>Verifique su dirección de correo electrónico haciendo clic en el siguiente botón:</p>\n<a href=\"{url}\" class=\"btn btn-primary\">Verificar correo</a>\n<p>Este botón solo se puede usar una vez y es válido durante 1 hora.</p>",
+                "footer": "Por favor, no responda a este correo electrónico, ya que es un envío automático.",
+                "title": "Verificación del correo electrónico de IsardVDI"
+            }
+        },
+        "name": "Email verification",
+        "system": {
+            "body": "<p>Please verify your email address by clicking on the following button:</p>\n<a href=\"{url}\" class=\"btn btn-primary\">Verify email</a>\n<p>This button can only be used once and it's valid for 1 hour.</p>",
+            "footer": "Please do not answer since this email has been automatically generated.",
+            "title": "Verify IsardVDI email"
+        },
+        "vars": {
+            "email": "your@domain.com",
+            "url": "https://your.domain.com/email_verify/1234567890",
+            "user_id": "jdoe",
+            "user_name": "John Doe"
+        }
+    },
+    {
+        "default": "en",
+        "description": "Notification about the modification of the user's elements with bookables when a GPU profile is deleted.",
+        "id": "15e34d4b-2f13-4e76-b0b6-6cea5e2bb176",
+        "kind": "deleted_gpu",
+        "lang": {
+            "ca": {
+                "body": "<br> <h2>Alguns dels elements amb reserves han estat modificats</h2> <p>Hola usuari,</p> <p>A causa de la <strong>eliminació d'un perfil de GPU</strong> per part d'un administrador, us informem que</p> <strong>Aquests elements ja no porten el perfil que tenien assignat:<br></strong> <br> <h3>Escriptoris:</h3> {desktops} <br> <h3>Desplegaments:</h3> {deployments} <br> <hr><br> <strong>I aquestes reserves han estat eliminades:</strong> <br> <h3>Reserves:</h3> {bookings}<br>",
+                "footer": "Si us plau, no respongueu a aquest correu electrònic, ja que ha estat generat automàticament.",
+                "title": "Alguns elements teus amb reserves han estat modificats"
+            },
+            "en": {
+                "body": "<br> <h2>Some of the elements with bookings you own have been modified</h2> <p>Hello user,</p> <p>Due to the <strong>elimination of a GPU profile</strong> by an administrator, we inform you that</p> <strong>The profiles assigned to these items have been deleted and they no longer have assigned the profile they had before:<br></strong> <br> <h3>Desktops:</h3> {desktops} <br> <h3>Deployments:</h3> {deployments} <br> <hr> <br> <strong>And these bookings have been deleted:</strong> <br> <h3>Bookings:</h3> {bookings} <br>",
+                "footer": "Please do not answer since this email has been automatically generated.",
+                "title": "Some of your elements with bookings have been modified"
+            },
+            "es": {
+                "body": "<br> <h2>Algunos de tus elementos con reservas han sido modificados</h2> <p>A causa de la <strong>eliminación de un perfil de GPU</strong> por parte de un administrador, le informamos que</p> <strong>Estos elementos ya no llevan el perfil que tenían asignado:<br></strong> <br> <h3>Escritorios:</h3> {desktops} <br> <h3>Despliegues:</h3> {deployments} <br> <hr> <br> <strong>Y estas reservas han sido eliminadas:</strong> <br> <h3>Reservas:</h3> {bookings} <br>",
+                "footer": "Por favor, no responda a este correo electrónico, ya que es un envío automático.",
+                "title": "Se han modificado algunos de tus elementos con reservas"
+            }
+        },
+        "name": "Deleted GPU profile",
+        "system": {
+            "body": "<br> <h2>Some of the elements with bookings you own have been modified</h2> <p>Hello user,</p> <p>Due to the <strong>elimination of a GPU profile</strong> by an administrator, we inform you that</p> <strong>The profiles assigned to these items have been deleted and they no longer have assigned the profile they had before:<br></strong> <br> <h3>Desktops:</h3> {desktops} <br> <h3>Deployments:</h3> {deployments} <br> <hr> <br> <strong>And these bookings have been deleted:</strong> <br> <h3>Bookings:</h3> {bookings} <br>",
+            "footer": "Please do not answer since this email has been automatically generated.",
+            "title": "Some of your elements with bookings have been modified"
+        },
+        "vars": {
+            "bookings": "<ul class='list-group'><li class='list-group-item'>Windows 10 GPU | From 12 Mar 2024 13:00 to 13 Apr 2024 15:30</li><li class='list-group-item'>Ubuntu 22.04 GPU | From 12 Mar 2024 14:00 - 13 Mar 2024 15:30</li></ul>",
+            "deployments": "<ul class='list-group'><li class='list-group-item'>Windows 11 deployment</li><li class='list-group-item'>Ubuntu 24.04 deployment</li></ul>",
+            "desktops": "<ul class='list-group'><li class='list-group-item'>Windows 11</li><li class='list-group-item'>Windows 10</li><li class='list-group-item'>Ubuntu 22.04</li></ul>"
+        }
+    },
+    {
+        "default": "en",
+        "description": "Test fullpage notification",
+        "id": "42c61f8c-4a07-4297-9a1c-e5f63287ebba",
+        "lang": {
+            "ca": {
+                "body": "Aquesta és una notificació que se't mostra a través d'aquesta pàgina",
+                "footer": "Gràcies per la teva comprensió",
+                "title": "Notificacions per a tu"
+            },
+            "en": {
+                "body": "This is a notification that is brought to you through this page",
+                "footer": "Thank you for your understanding",
+                "title": "Notifications for you"
+            },
+            "es": {
+                "body": "Esta es una notificación que se te muestra a través de esta página",
+                "footer": "Gracias por tu comprensión",
+                "title": "Notificaciones para ti"
+            }
+        },
+        "name": "Fullpage Notification"
+    },
+    {
+        "default": "en",
+        "description": "Text that will be associated with each notification sent to the user when a desktop is not used for a long time and is sent to the recycle bin.",
+        "id": "b45e37f1-dac1-4652-9937-c25768d31d81",
+        "kind": "unused_desktops",
+        "lang": {
+            "ca": {
+                "body": "<p>L'escriptori <b>{name}</b>, que va ser utilitzat per últim cop en data <b>{accessed}</b>.</p>",
+                "footer": "Si us plau, esborreu els escriptoris que ja no s'utilitzaran.",
+                "title": "Escriptoris sense utilitzar han estat eliminats"
+            },
+            "en": {
+                "body": "<p>Desktop <b>{name}</b>, last time used at <b>{accessed}</b>.</p>",
+                "footer": "Please, delete desktops that won't be used anymore.",
+                "title": "Unused desktops have been deleted"
+            },
+            "es": {
+                "body": "<p>El escritorio <b>{name}</b>, que fue utilizado por última vez en fecha <b>{accessed}</b>.</p>",
+                "footer": "Por favor, elimine los escritorios que ya no se utilizarán.",
+                "title": "Escritorios sin utilizar han sido eliminados"
+            }
+        },
+        "name": "Send unused desktops to recycle bin",
+        "system": {
+            "body": "<p>Desktop <b>{name}</b>, last time used at <b>{accessed}</b>.</p>",
+            "footer": "Please, delete desktops that won't be used anymore.",
+            "title": "Unused desktops have been deleted"
+        },
+        "vars": {
+            "accessed": "12 Mar 2024 13:00",
+            "name": "Testing environment"
+        }
+    },
+    {
+        "default": "en",
+        "description": "Text that will be shown if bastion is enabled and the user is starting a desktop with bastion.",
+        "id": "dcc24650-b206-457c-887a-667deb5eafe0",
+        "kind": "bastion_enabled_disclaimer",
+        "lang": {
+            "ca": {
+                "body": "<p>The desktop <b>{desktop_name}</b>, has bastion enabled. Please, beware of its risks.</p>",
+                "footer": "",
+                "title": "Desktop with bastion enabled"
+            },
+            "en": {
+                "body": "<p>The desktop <b>{desktop_name}</b>, has bastion enabled. Please, beware of its risks.</p>",
+                "footer": "",
+                "title": "Desktop with bastion enabled"
+            },
+            "es": {
+                "body": "<p>The desktop <b>{desktop_name}</b>, has bastion enabled. Please, beware of its risks.</p>",
+                "footer": "",
+                "title": "Desktop with bastion enabled"
+            }
+        },
+        "name": "Bastion enabled disclaimer",
+        "system": {
+            "body": "<p>The desktop <b>{desktop_name}</b>, has bastion enabled. Please, beware of its risks.</p>",
+            "footer": "",
+            "title": "Desktop with bastion enabled"
+        },
+        "vars": {
+            "desktop_name": "Testing desktop"
+        }
+    }
+]

@@ -1,0 +1,87 @@
+[
+    {
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": [
+                "admin"
+            ],
+            "users": false
+        },
+        "brand": "NVIDIA",
+        "description": "NVIDIA vGPU A16 with profile 2Q with 2048 vRAM with maximum 8 vGPUs per device",
+        "heads": 1,
+        "id": "NVIDIA-A16-2Q",
+        "model": "A16",
+        "name": "GPU NVIDIA A16 2048",
+        "priority_id": "default",
+        "profile": "2Q",
+        "ram": 2048,
+        "total_units": 8,
+        "units": 8,
+        "vram": 2048
+    },
+    {
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": [],
+            "users": false
+        },
+        "brand": "None",
+        "description": "None",
+        "heads": 0,
+        "id": "None",
+        "model": "None",
+        "name": "No GPU",
+        "profile": "None",
+        "ram": 0,
+        "units": 0,
+        "vram": 0
+    },
+    {
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": [
+                "admin"
+            ],
+            "users": false
+        },
+        "brand": "NVIDIA",
+        "description": "NVIDIA vGPU A16 with profile 4Q with 4096 vRAM with maximum 4 vGPUs per device",
+        "heads": 1,
+        "id": "NVIDIA-A16-4Q",
+        "model": "A16",
+        "name": "GPU NVIDIA A16 4096",
+        "priority_id": "default",
+        "profile": "4Q",
+        "ram": 4096,
+        "total_units": 4,
+        "units": 4,
+        "vram": 4096
+    },
+    {
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": [
+                "admin",
+                "user"
+            ],
+            "users": false
+        },
+        "brand": "NVIDIA",
+        "description": "NVIDIA vGPU T4 with profile 2Q with 2048 vRAM with maximum 8 vGPUs per device",
+        "heads": 1,
+        "id": "NVIDIA-T4-2Q",
+        "model": "T4",
+        "name": "GPU NVIDIA T4 2048",
+        "priority_id": "test-booking-rule",
+        "profile": "2Q",
+        "ram": 2048,
+        "total_units": 8,
+        "units": 8,
+        "vram": 2048
+    }
+]

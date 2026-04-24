@@ -1,0 +1,44 @@
+[
+    {
+        "accessed": 1754500000,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": []
+        },
+        "category": "default",
+        "description": "Empty ISO file for testing purposes without external downloads",
+        "detail": "Ready for use",
+        "group": "default-default",
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "empty-iso",
+        "kind": "iso",
+        "name": "Empty ISO",
+        "path": "default/default-default/local/admin-admin/empty-iso",
+        "path_downloaded": "/isard/media/empty.iso",
+        "progress": {
+            "received": "0B",
+            "received_percent": 100,
+            "speed_current": "0B",
+            "speed_download_average": "0B",
+            "speed_upload_average": "0",
+            "time_left": "00:00:00",
+            "time_spent": "0:00:00",
+            "time_total": "0:00:00",
+            "total": "0B",
+            "total_bytes": 0,
+            "total_percent": 100,
+            "xferd": "0",
+            "xferd_percent": "0"
+        },
+        "status": "Downloaded",
+        "url-isard": false,
+        "url-web": "local://empty.iso",
+        "user": "local-default-admin-admin",
+        "username": "admin"
+    }
+]

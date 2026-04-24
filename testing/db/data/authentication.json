@@ -1,0 +1,76 @@
+[
+    {
+        "category": "5389a10b-8509-4b62-b94e-674dfcb372d8",
+        "disclaimer": false,
+        "email_verification": true,
+        "id": "8576e0ee-ebe4-4179-8bdf-b417a7a1b96c",
+        "password": {
+            "digits": 0,
+            "expiration": 0,
+            "length": 8,
+            "lowercase": 0,
+            "not_username": true,
+            "old_passwords": 0,
+            "special_characters": 0,
+            "uppercase": 0
+        },
+        "role": "all",
+        "type": "local"
+    },
+    {
+        "category": "all",
+        "disclaimer": false,
+        "email_verification": false,
+        "id": "a8108ed2-8934-419f-a99c-0fe43d02da35",
+        "password": {
+            "digits": 0,
+            "expiration": 0,
+            "length": 8,
+            "lowercase": 0,
+            "not_username": false,
+            "old_passwords": 0,
+            "special_characters": 0,
+            "uppercase": 0
+        },
+        "role": "all",
+        "type": "local"
+    },
+    {
+        "category": "all",
+        "disclaimer": {
+            "template": "03e9b26f-7ec3-4cb2-b761-f795d698e37a"
+        },
+        "email_verification": false,
+        "id": "b4ff266e-063a-42c8-ad83-7c6b4bc07ca8",
+        "password": {
+            "digits": 0,
+            "expiration": 0,
+            "length": 8,
+            "lowercase": 0,
+            "not_username": true,
+            "old_passwords": 0,
+            "special_characters": 0,
+            "uppercase": 0
+        },
+        "role": "advanced",
+        "type": "local"
+    },
+    {
+        "category": "0519250f-e376-48c4-9609-fdae7d54a353",
+        "disclaimer": false,
+        "email_verification": false,
+        "id": "e54a4964-b0ae-4734-8439-cfc45d8653c7",
+        "password": {
+            "digits": 0,
+            "expiration": 1,
+            "length": 8,
+            "lowercase": 0,
+            "not_username": true,
+            "old_passwords": 0,
+            "special_characters": 0,
+            "uppercase": 0
+        },
+        "role": "all",
+        "type": "local"
+    }
+]
