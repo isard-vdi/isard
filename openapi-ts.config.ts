@@ -5,6 +5,12 @@ const service = process.env.CODEGEN;
 export default defineConfig({
   client: "@hey-api/client-fetch",
   input: `pkg/oas/${service}/${service}.json`,
-  output: `frontend/src/gen/oas/${service}`,
-  plugins: ["@tanstack/vue-query"],
+  output: `component/frontend/src/gen/oas/${service}`,
+  plugins: [
+    "@tanstack/vue-query",
+    {
+      name: "@hey-api/typescript",
+      enums: "javascript",
+    },
+  ],
 });

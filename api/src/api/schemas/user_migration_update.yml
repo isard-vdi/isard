@@ -1,3 +1,0 @@
-check_quotas:
-  type: boolean
-  schema: check_quotas_update
