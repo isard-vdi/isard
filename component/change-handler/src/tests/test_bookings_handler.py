@@ -1,0 +1,130 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+import json
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from tests.conftest import FakeRow
+
+
+def _booking(**overrides):
+    base = dict(
+        id="b1",
+        user_id="u1",
+        item_id="i1",
+        item_type=None,
+        start=datetime(2026, 1, 15, 9, 0, tzinfo=timezone.utc),
+        end=datetime(2026, 1, 15, 10, 0, tzinfo=timezone.utc),
+    )
+    base.update(overrides)
+    return FakeRow(**base)
+
+
+class TestBookingsHandler:
+    @pytest.fixture
+    def handler(self):
+        from handlers.bookings import BookingsHandler
+
+        sio = AsyncMock()
+        return BookingsHandler(sio, "bookings")
+
+    @pytest.mark.asyncio
+    async def test_insert_emits_booking_and_bookingitem_add(self, handler):
+        await handler.on_insert(_booking())
+        events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
+        assert events[0] == "booking_add"
+        assert events[1] == "bookingitem_add"
+
+    @pytest.mark.asyncio
+    async def test_insert_prepares_dates_and_adds_editable_and_event_type(
+        self, handler
+    ):
+        await handler.on_insert(_booking())
+        payload = json.loads(handler.socketio_server.emit.call_args_list[0][0][1])
+        assert payload["start"].startswith("2026-01-15T09:00")
+        assert payload["end"].startswith("2026-01-15T10:00")
+        assert payload["event_type"] == "event"
+        assert payload["editable"] is True
+
+    @pytest.mark.asyncio
+    async def test_update_emits_booking_and_bookingitem_update(self, handler):
+        await handler.on_update(_booking(), _booking())
+        events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
+        assert "booking_update" in events
+        assert "bookingitem_update" in events
+
+    @pytest.mark.asyncio
+    async def test_delete_emits_booking_delete_with_id_only(self, handler):
+        await handler.on_delete(_booking())
+        first = handler.socketio_server.emit.call_args_list[0]
+        assert first[0][0] == "booking_delete"
+        assert json.loads(first[0][1]) == {"id": "b1"}
+
+    @pytest.mark.asyncio
+    @patch(
+        "handlers.bookings.DeploymentsProcessed.get_deployment",
+        return_value={
+            "id": "dep1",
+            "user": "u1",
+            "desktops": [
+                {"id": "desk1", "user": "u1"},
+                {"id": "desk2", "user": "u2"},
+            ],
+        },
+    )
+    async def test_deployment_booking_emits_deployment_and_desktop_updates(
+        self, _mock_get, handler
+    ):
+        await handler.on_insert(_booking(item_type="deployment", item_id="dep1"))
+        events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
+        assert events.count("deployment_update") == 1
+        assert events.count("desktop_update") == 2
+        desktop_rooms = [
+            c[1]["room"]
+            for c in handler.socketio_server.emit.call_args_list
+            if c[0][0] == "desktop_update"
+        ]
+        assert set(desktop_rooms) == {"u1", "u2"}
+
+    @pytest.mark.asyncio
+    @patch(
+        "handlers.bookings.DesktopsProcessed._parse_desktop",
+        return_value={"id": "desk1", "user": "u1"},
+    )
+    @patch("handlers.bookings.Domain.get", return_value={"id": "desk1"})
+    async def test_desktop_booking_emits_single_desktop_update(
+        self, _mock_domain, _mock_parse, handler
+    ):
+        await handler.on_insert(_booking(item_type="desktop", item_id="desk1"))
+        events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
+        assert events.count("desktop_update") == 1
+        _mock_domain.assert_called_once_with("desk1")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("item_type", [None, "media", "template", "lab", ""])
+    async def test_unknown_item_type_emits_no_extra_events(self, handler, item_type):
+        """`send_booking_item_event` is the sole fan-out point that talks to
+        deployments / desktops. Anything other than those two `item_type`
+        values is silently dropped — pin that contract.
+        """
+        with patch("handlers.bookings.DeploymentsProcessed") as mock_dep, patch(
+            "handlers.bookings.DesktopsProcessed"
+        ) as mock_desk, patch("handlers.bookings.Domain") as mock_domain:
+            await handler.on_insert(_booking(item_type=item_type))
+            events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
+            assert events == ["booking_add", "bookingitem_add"]
+            mock_dep.get_deployment.assert_not_called()
+            mock_desk._parse_desktop.assert_not_called()
+            mock_domain.get.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_on_insert_skips_when_user_id_is_none(self, handler):
+        """Regression: user_id=None must NOT broadcast to whole /userspace."""
+        await handler.on_insert(_booking(user_id=None))
+        calls = [
+            c
+            for c in handler.socketio_server.emit.await_args_list
+            if c.kwargs.get("room") is None or (len(c.args) >= 4 and c.args[3] is None)
+        ]
+        assert calls == []

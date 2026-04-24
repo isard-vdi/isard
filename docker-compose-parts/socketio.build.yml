@@ -1,0 +1,5 @@
+services:
+  isard-socketio:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: component/socketio/docker/Dockerfile

@@ -1,0 +1,5 @@
+services:
+  isard-changefeed:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: component/changefeed/docker/Dockerfile

@@ -1,0 +1,5 @@
+services:
+  isard-change-handler:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: component/change-handler/docker/Dockerfile

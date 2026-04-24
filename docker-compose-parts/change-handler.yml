@@ -1,0 +1,32 @@
+services:
+  isard-change-handler:
+    image: ${DOCKER_IMAGE_PREFIX}change-handler:${DOCKER_IMAGE_TAG:-latest}
+    container_name: isard-change-handler
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    depends_on:
+      - isard-changefeed
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.34
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'isardvdi_change-handler' || exit 1"]
+      start_period: 30s
+      interval: 5s
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      LOG_LEVEL:
+      PYTHONUNBUFFERED: 1
+      RETHINKDB_HOST: ${RETHINKDB_HOST:-isard-db}
+      RETHINKDB_PORT: ${RETHINKDB_PORT:-28015}
+      RETHINKDB_DB: ${RETHINKDB_DB:-isard}
+      REDIS_HOST:
+      REDIS_PORT:
+      REDIS_PASSWORD:
+      DEBUG_WEBSOCKETS: "false"
+      API_ISARDVDI_SECRET:
