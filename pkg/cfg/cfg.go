@@ -111,6 +111,11 @@ func SetDBDefaults() {
 }
 
 func SetRedisDefaults() {
+	viper.BindEnv("redis.host", "REDIS_HOST")
+	viper.BindEnv("redis.port", "REDIS_PORT")
+	viper.BindEnv("redis.usr", "REDIS_USER")
+	viper.BindEnv("redis.pwd", "REDIS_PASSWORD")
+
 	viper.SetDefault("redis", map[string]interface{}{
 		"host": "isard-redis",
 		"port": 6379,
