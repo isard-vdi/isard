@@ -178,6 +178,35 @@ export interface WsBulkSpawnPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Bookings / Plans — emitted by change-handler BookingsHandler /
+// ResourcePlannerHandler.
+// ---------------------------------------------------------------------------
+
+export interface WsBookingPayload {
+  id: string
+  user_id: string
+  item_id: string
+  item_type: 'desktop' | 'deployment'
+  title: string
+  start: string
+  end: string
+  event_type: string
+  editable: boolean
+  [key: string]: unknown
+}
+
+export interface WsPlanPayload {
+  id: string
+  user_id: string
+  item_id: string
+  item_type: string
+  subitem_id: string
+  start: string
+  end: string
+  [key: string]: unknown
+}
+
+// ---------------------------------------------------------------------------
 // Event name → payload type mapping
 // ---------------------------------------------------------------------------
 
@@ -210,6 +239,14 @@ export interface WsEventMap {
 
   creating_desktops: WsBulkSpawnPayload
   end_creating_desktops: WsBulkSpawnPayload
+
+  booking_add: WsBookingPayload
+  booking_update: WsBookingPayload
+  booking_delete: WsDeletePayload
+
+  plan_add: WsPlanPayload
+  plan_update: WsPlanPayload
+  plan_delete: WsPlanPayload
 }
 
 export type WsEventName = keyof WsEventMap

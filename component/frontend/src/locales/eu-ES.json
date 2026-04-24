@@ -53,6 +53,20 @@
     "recycle-bin": {
       "title": "Zakarrontzia",
       "subtitle": "Ikusi, leheneratu edo ezabatu zakarrontziko elementuak"
+    },
+    "bookings": {
+      "summary": {
+        "title": "Erreserbak",
+        "subtitle": "Ikusi zure hurrengo eta azken erreserbak"
+      },
+      "item": {
+        "title": "Erreserbak",
+        "subtitle": "Erreserbatu denbora mahaigain edo hedaketa batean"
+      }
+    },
+    "planning": {
+      "title": "Plangintza",
+      "subtitle": "Plangintzatu erreserbagarri diren baliabideen erabilgarritasuna"
     }
   },
   "views": {
@@ -1323,6 +1337,46 @@
         "owned": "Nire euskarriak",
         "shared": "Partekatutako euskarriak"
       }
+    },
+    "desktop-start-now-modal": {
+      "title": "Abiarazi orain",
+      "description": "Hautatu noiz arte erabiliko den mahaigaina.",
+      "select": {
+        "label": "Amaiera-ordua",
+        "placeholder": "Hautatu noiz arte erabiliko den",
+        "value": "{end-time} arte"
+      },
+      "cancel": "Utzi",
+      "confirm": "Abiarazi mahaigaina"
+    },
+    "desktop-gpu-unavailable-modal": {
+      "title": "'{current-gpu}' GPU ez dago erabilgarri '{name}' mahaigainarentzat une honetan.",
+      "change-and-start": {
+        "title": "Aldatu eta abiarazi",
+        "subtitle": "Erabilgarri dagoen txartel grafiko-modelo batera alda daiteke orain eta abiarazi (mahaigainaren errendimenduari eragin diezaioke)",
+        "action-button": "Aldatu eta abiarazi"
+      },
+      "book": {
+        "title": "Erreserbatu mahaigaina",
+        "subtitle": "Erreserbatu mahaigaina bere uneko txartel grafiko-modeloarekin, planifikazioa egiaztatuz",
+        "action-button": "Erreserbatu mahaigaina"
+      }
+    },
+    "desktop-gpu-change-and-start-modal": {
+      "title": "Aldatu eta abiarazi",
+      "description": "Aldatu mahaigainaren GPU eta abiarazi berehala.",
+      "empty": {
+        "title": "Ez dago profil erabilgarririk",
+        "description": "Ez dago beste GPU profil erabilgarririk une honetan."
+      },
+      "gpu-select": {
+        "label": "GPU profil berria",
+        "placeholder": "GPU profil erabilgarriak",
+        "value": "Aldatu '{profile}'-ra"
+      },
+      "cancel": "Utzi",
+      "book": "Erreserbatu mahaigaina",
+      "confirm": "Aldatu eta abiarazi"
     }
   },
   "authentication": {

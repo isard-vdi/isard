@@ -74,6 +74,20 @@
     "shared-deployments": {
       "title": "Compartidos contigo",
       "subtitle": "Empieza a trabajar con despliegues creados para ti"
+    },
+    "bookings": {
+      "summary": {
+        "title": "Reservas",
+        "subtitle": "Revisa todas tus reservas próximas y recientes"
+      },
+      "item": {
+        "title": "Reservas",
+        "subtitle": "Reserva tiempo para un escritorio o despliegue"
+      }
+    },
+    "planning": {
+      "title": "Planificación",
+      "subtitle": "Planifica la disponibilidad de los recursos reservables"
     }
   },
   "views": {
@@ -1707,6 +1721,45 @@
         },
         "cancel": "Cancelar",
         "confirm": "Confirmar"
+      }
+    },
+    "desktop-gpu-unavailable-modal": {
+      "title": "La GPU '{current-gpu}' no está disponible para el escritorio '{name}' en este momento.",
+      "change-and-start": {
+        "title": "Cambiar e iniciar",
+        "subtitle": "Se puede cambiar a un modelo de tarjeta gráfica disponible ahora e iniciarlo (Podría afectar el rendimiento del escritorio).",
+        "action-button": "Cambiar e iniciar"
+      },
+      "book": {
+        "title": "Reservar el escritorio",
+        "subtitle": "Reserva el escritorio con su perfil de tarjeta gráfica actual comprobando su planificación",
+        "action-button": "Reservar escritorio"
+      }
+    },
+    "desktop-start-now-modal": {
+      "cancel": "Cancelar",
+      "confirm": "Inicia el escritorio",
+      "description": "Seleccione hasta cuándo se utilizará el escritorio.",
+      "title": "Iniciar",
+      "select": {
+        "label": "Hora de finalización",
+        "placeholder": "Seleccione hasta cuando se utilizará"
+      }
+    },
+    "desktop-gpu-change-and-start-modal": {
+      "title": "Cambiar e iniciar",
+      "book": "Reservar escritorio",
+      "cancel": "Cancelar",
+      "confirm": "Cambiar e iniciar",
+      "description": "Cambie la GPU del escritorio e inícielo inmediatamente.",
+      "empty": {
+        "description": "No hay perfiles disponibles para este escritorio",
+        "title": "No hay perfiles disponibles"
+      },
+      "gpu-select": {
+        "placeholder": "Perfiles de GPU disponibles",
+        "value": "Cambiar a '{profile}'",
+        "label": "Nuevo perfil de GPU"
       }
     }
   },
