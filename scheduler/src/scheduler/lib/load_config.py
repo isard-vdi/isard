@@ -99,7 +99,7 @@ class loadConfig:
 
             app.config.setdefault("LOG_LEVEL", os.environ.get("LOG_LEVEL", "INFO"))
             app.config.setdefault("LOG_FILE", "isard-api.log")
-            app.debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
+            app.debug = os.environ.get("LOG_LEVEL", "INFO") == "DEBUG"
 
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()

@@ -1,4 +1,4 @@
-FROM alpine:3.22.0 as build
+FROM alpine:3.22 as build
 MAINTAINER isard <info@isard.com>
 RUN apk add --no-cache \
     automake \
@@ -12,7 +12,7 @@ RUN git clone https://gitlab.com/isard/backupninja.git && \
     bash ./autogen.sh && bash configure && \
     make && make install
 
-FROM alpine:3.22.0 as production
+FROM alpine:3.22 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk -U upgrade --no-cache
@@ -40,7 +40,7 @@ RUN pip3 install \
 
 # Set up Python path for common imports
 ENV PYTHONPATH /opt/isardvdi
-COPY component/_common/src /opt/isardvdi/isardvdi_common
+COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
 
 # Install backupninja
 COPY --from=build /usr/local/sbin/backupninja /usr/local/sbin/backupninja

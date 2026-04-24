@@ -24,11 +24,11 @@ from email.mime.text import MIMEText
 from email.utils import formatdate, make_msgid
 from time import sleep
 
-from isardvdi_common.api_rest import ApiRest
+from isardvdi_common.connections.api_rest import ApiRest
 
 
 def mail(address: list, subject: str, text: str, html: str):
-    smtp = ApiRest("isard-api").get("/smtp")
+    smtp = ApiRest("isard-apiv4").get("/smtp")
     if not smtp.get("enabled"):
         raise Exception("SMTP not enabled")
     message = MIMEMultipart("alternative")

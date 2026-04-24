@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"sync"
 
+	"gitlab.com/isard/isardvdi/haproxy-sync/acme"
 	"gitlab.com/isard/isardvdi/haproxy-sync/cfg"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
@@ -28,7 +29,9 @@ func main() {
 		log.Fatal().Err(err).Msg("connect to HAProxy admin stats socket")
 	}
 
-	haproxysync := haproxysync.Init(log, cfg.HAProxy, haproxy)
+	acme := acme.NewACME(log, cfg.HAProxy.Domains.CertsPath)
+
+	haproxysync := haproxysync.Init(log, cfg.HAProxy, haproxy, acme)
 
 	grpc := grpc.NewHAProxySyncServer(log, &wg, cfg.GRPC, haproxysync)
 

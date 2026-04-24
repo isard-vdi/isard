@@ -4,7 +4,7 @@ BackupNinja Report Sender
 A standalone script to parse backup execution logs and send JSON reports to IsardVDI API
 
 This script provides parsing of BackupNinja backup logs and sends detailed reports
-to the IsardVDI API at /api/v3/backups when backups are finished.
+to the IsardVDI API at /api/v4/backups when backups are finished.
 """
 
 import json
@@ -1430,9 +1430,9 @@ if __name__ == "__main__":
         # Send to API using ApiRest directly
         try:
             if args.api_domain and args.api_domain.startswith("http"):
-                api = ApiRest(service="isard-api", base_url=args.api_domain)
+                api = ApiRest(service="isard-apiv4", base_url=args.api_domain)
             else:
-                api = ApiRest(service="isard-api")
+                api = ApiRest(service="isard-apiv4")
 
             result = api.post("/backups", data=report.to_dict())
             logger.info("Backup report sent successfully")
@@ -1450,7 +1450,7 @@ else:
 
     # Send to API using ApiRest directly
     try:
-        api = ApiRest(service="isard-api")
+        api = ApiRest(service="isard-apiv4")
         result = api.post("/backups", data=report.to_dict())
         logger.info("Backup report sent successfully")
     except Exception as e:

@@ -29,13 +29,8 @@ from pathlib import Path
 from queue import PriorityQueue
 from xml.etree import ElementTree as ET
 
-from ovs import poller as ovs_poller
-from ovs.db import idl as ovs_idl
-
 # Configuration
 SOCKET_PATH = "/var/run/openvswitch/ovs-worker.sock"
-OVSDB_SOCKET = "unix:/var/run/openvswitch/db.sock"
-OVSDB_SCHEMA = "/usr/share/openvswitch/vswitch.ovsschema"
 LOG_FILE = Path("/tmp/qemu-hook.log")
 BRIDGE = "ovsbr0"
 
@@ -81,8 +76,6 @@ class OvsWorker:
         self._task_counter = (
             0  # Tie-breaker for priority queue (lambdas aren't comparable)
         )
-        self.idl = None
-        self.seqno = 0
         self.stats = {
             "processed": 0,
             "skipped": 0,
@@ -140,37 +133,9 @@ class OvsWorker:
 
     def start(self):
         """Initialize and start the worker"""
-        self._connect_ovsdb()
         self._cleanup_stale_ports()
         self._start_processor_thread()
         self._run_socket_server()
-
-    def _connect_ovsdb(self):
-        """Establish persistent OVSDB connection"""
-        log({"event": "ovsdb_connecting", "socket": OVSDB_SOCKET})
-
-        schema_helper = ovs_idl.SchemaHelper(location=OVSDB_SCHEMA)
-        schema_helper.register_table("Port")
-        schema_helper.register_table("Interface")
-        schema_helper.register_table("Bridge")
-
-        self.idl = ovs_idl.Idl(OVSDB_SOCKET, schema_helper)
-
-        # Wait for initial sync
-        while not self.idl.has_ever_connected():
-            self.idl.run()
-            poller = ovs_poller.Poller()
-            self.idl.wait(poller)
-            poller.block()
-
-        self.seqno = self.idl.change_seqno
-        log({"event": "ovsdb_connected"})
-
-    def _run_idl(self):
-        """Run IDL to process updates"""
-        self.idl.run()
-        if self.idl.change_seqno != self.seqno:
-            self.seqno = self.idl.change_seqno
 
     def _cleanup_stale_ports(self):
         """Remove OVS ports whose underlying device is gone or in error state.
@@ -178,28 +143,53 @@ class OvsWorker:
         Stale ports appear when a VM crashes without going through the normal
         stopped-event path.  Must be called before the processor thread starts
         (startup) and periodically from _collect_security_stats.
-        Collects names first, then deletes — _del_port_from_ovs mutates IDL state.
         """
-        self._run_idl()
-        stale = []
-        for interface in self.idl.tables["Interface"].rows.values():
-            if interface.name in (BRIDGE, ""):
-                continue
-            error = interface.error
-            ofport = interface.ofport
-            port_num = (
-                ofport[0] if isinstance(ofport, (list, tuple)) and ofport else ofport
+        try:
+            result = subprocess.run(
+                ["ovs-vsctl", "list-ports", BRIDGE],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=5,
             )
-            if error or (isinstance(port_num, int) and port_num < 0):
-                stale.append(interface.name)
-                log(
-                    {
-                        "event": "stale_port_found",
-                        "port": interface.name,
-                        "error": str(error),
-                        "ofport": str(ofport),
-                    }
+            ports = result.stdout.strip().split("\n") if result.stdout.strip() else []
+        except subprocess.CalledProcessError:
+            return
+
+        stale = []
+        for port_name in ports:
+            if not port_name or port_name == BRIDGE:
+                continue
+            try:
+                result = subprocess.run(
+                    ["ovs-vsctl", "get", "Interface", port_name, "error", "ofport"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=5,
                 )
+                lines = result.stdout.strip().split("\n")
+                raw_error = lines[0].strip('"') if len(lines) > 0 else ""
+                # OVS returns [] for empty optional fields, treat as no error
+                error = raw_error if raw_error and raw_error != "[]" else ""
+                ofport_str = lines[1].strip() if len(lines) > 1 else "0"
+                try:
+                    port_num = int(ofport_str)
+                except ValueError:
+                    port_num = 0
+                if error or port_num < 0:
+                    stale.append(port_name)
+                    log(
+                        {
+                            "event": "stale_port_found",
+                            "port": port_name,
+                            "error": error,
+                            "ofport": ofport_str,
+                        }
+                    )
+            except subprocess.CalledProcessError:
+                continue
+
         for port_name in stale:
             self._del_port_from_ovs(port_name)
             log({"event": "stale_port_removed", "port": port_name})
@@ -432,78 +422,77 @@ class OvsWorker:
     # =========================================================================
 
     def _get_port_ofport(self, port_name: str, retries: int = 3) -> int | None:
-        """Get OpenFlow port number for a port using OVSDB with retry
+        """Get OpenFlow port number for a port via ovs-vsctl with retry
 
-        Uses short retries (200ms each) to handle OVSDB IDL sync lag.
+        Uses short retries (200ms each) to handle newly added ports.
         Port is added by _add_port_to_ovs() before this is called.
         """
         for attempt in range(retries):
-            # Poll IDL for updates
-            poller = ovs_poller.Poller()
-            self.idl.wait(poller)
-            poller.timer_wait(50)  # 50ms max wait for updates
-            poller.block()
-            self.idl.run()
+            try:
+                # Check for errors first
+                result = subprocess.run(
+                    ["ovs-vsctl", "get", "Interface", port_name, "error"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=5,
+                )
+                error = result.stdout.strip().strip('"')
+                # OVS returns [] for empty optional fields, treat as no error
+                if error and error != "[]":
+                    log({"event": "port_error", "port": port_name, "error": error})
+                    return None
 
-            for interface in self.idl.tables["Interface"].rows.values():
-                if interface.name == port_name:
-                    error = interface.error
-                    if error:
-                        log(
-                            {
-                                "event": "port_error",
-                                "port": port_name,
-                                "error": str(error),
-                            }
-                        )
-                        return None
-                    ofport = interface.ofport
-                    if ofport and len(ofport) > 0:
-                        port_num = ofport[0] if isinstance(ofport, list) else ofport
-                        if port_num > 0:
-                            return port_num
+                result = subprocess.run(
+                    ["ovs-vsctl", "get", "Interface", port_name, "ofport"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=5,
+                )
+                port_num = int(result.stdout.strip())
+                if port_num > 0:
+                    return port_num
+            except (subprocess.CalledProcessError, ValueError):
+                pass
 
-            # Port not found yet, short wait before retry
             if attempt < retries - 1:
                 time.sleep(0.2)
 
         return None
 
     def _set_port_tag(self, port_name: str, tag: int):
-        """Set VLAN tag on port using OVSDB transaction"""
-        self._run_idl()
+        """Set VLAN tag on port via ovs-vsctl"""
+        try:
+            subprocess.run(
+                ["ovs-vsctl", "set", "Port", port_name, f"tag={tag}"],
+                check=True,
+                capture_output=True,
+                timeout=5,
+            )
+        except subprocess.CalledProcessError as e:
+            log(
+                {
+                    "event": "set_port_tag_error",
+                    "port": port_name,
+                    "tag": tag,
+                    "error": e.stderr.decode() if e.stderr else str(e),
+                }
+            )
 
-        for port in self.idl.tables["Port"].rows.values():
-            if port.name == port_name:
-                txn = ovs_idl.Transaction(self.idl)
-                port.tag = tag
-                status = txn.commit_block()
-                # UNCHANGED is expected if tag already set, not an error
-                if status not in (
-                    ovs_idl.Transaction.SUCCESS,
-                    ovs_idl.Transaction.UNCHANGED,
-                ):
-                    log(
-                        {
-                            "event": "set_port_tag_error",
-                            "port": port_name,
-                            "tag": tag,
-                            "status": str(status),
-                        }
-                    )
-                return
-
-    def _get_bridge(self, bridge_name: str = BRIDGE):
-        """Get bridge row from OVSDB"""
-        for bridge in self.idl.tables["Bridge"].rows.values():
-            if bridge.name == bridge_name:
-                return bridge
-        return None
+    def _bridge_exists(self, bridge_name: str = BRIDGE) -> bool:
+        """Check if OVS bridge exists via ovs-vsctl"""
+        result = subprocess.run(
+            ["ovs-vsctl", "br-exists", bridge_name],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
 
     def _add_port_to_ovs(
         self, port_name: str, vlan_tag: int = None, bridge_name: str = BRIDGE
     ) -> bool:
-        """Add port to OVS bridge via OVSDB IDL (non-blocking)
+        """Add port to OVS bridge via ovs-vsctl
 
         For ethernet type interfaces, libvirt only creates the tap device.
         We add the port to OVS ourselves.
@@ -516,10 +505,7 @@ class OvsWorker:
         Returns:
             True if successful, False otherwise
         """
-        self._run_idl()
-
-        bridge = self._get_bridge(bridge_name)
-        if not bridge:
+        if not self._bridge_exists(bridge_name):
             log(
                 {
                     "event": "add_port_error",
@@ -529,45 +515,24 @@ class OvsWorker:
             )
             return False
 
-        # Check if port already exists
-        for port in self.idl.tables["Port"].rows.values():
-            if port.name == port_name:
-                # Port already exists, just update tag if needed
-                if vlan_tag:
-                    self._set_port_tag(port_name, vlan_tag)
-                return True
+        # Check if port already exists on a bridge
+        result = subprocess.run(
+            ["ovs-vsctl", "port-to-br", port_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            # Port already exists, just update tag if needed
+            if vlan_tag:
+                self._set_port_tag(port_name, vlan_tag)
+            return True
 
         try:
-            txn = ovs_idl.Transaction(self.idl)
-
-            # Create Interface row
-            iface = txn.insert(self.idl.tables["Interface"])
-            iface.name = port_name
-            iface.type = ""  # system interface (tap device)
-
-            # Create Port row
-            port = txn.insert(self.idl.tables["Port"])
-            port.name = port_name
-            port.interfaces = [iface]
+            cmd = ["ovs-vsctl", "add-port", bridge_name, port_name]
             if vlan_tag:
-                port.tag = vlan_tag
-
-            # Add port to bridge
-            bridge.ports = bridge.ports + [port]
-
-            status = txn.commit_block()
-            if status not in (
-                ovs_idl.Transaction.SUCCESS,
-                ovs_idl.Transaction.UNCHANGED,
-            ):
-                log(
-                    {
-                        "event": "add_port_error",
-                        "port": port_name,
-                        "status": str(status),
-                    }
-                )
-                return False
+                cmd.append(f"tag={vlan_tag}")
+            subprocess.run(cmd, check=True, capture_output=True, timeout=5)
 
             log(
                 {
@@ -579,12 +544,18 @@ class OvsWorker:
             )
             return True
 
-        except Exception as e:
-            log({"event": "add_port_error", "port": port_name, "error": str(e)})
+        except subprocess.CalledProcessError as e:
+            log(
+                {
+                    "event": "add_port_error",
+                    "port": port_name,
+                    "error": e.stderr.decode() if e.stderr else str(e),
+                }
+            )
             return False
 
     def _del_port_from_ovs(self, port_name: str, bridge_name: str = BRIDGE) -> bool:
-        """Remove port from OVS bridge via OVSDB IDL (non-blocking)
+        """Remove port from OVS bridge via ovs-vsctl
 
         Args:
             port_name: Name of the tap device to remove
@@ -593,57 +564,27 @@ class OvsWorker:
         Returns:
             True if successful, False otherwise
         """
-        self._run_idl()
-
-        bridge = self._get_bridge(bridge_name)
-        if not bridge:
-            return True  # Bridge doesn't exist, nothing to do
-
         try:
-            txn = ovs_idl.Transaction(self.idl)
-
-            # Find and remove port
-            port_to_delete = None
-            for port in bridge.ports:
-                if port.name == port_name:
-                    port_to_delete = port
-                    break
-
-            if not port_to_delete:
-                return True  # Port doesn't exist, nothing to do
-
-            # Remove port from bridge
-            new_ports = [p for p in bridge.ports if p.name != port_name]
-            bridge.ports = new_ports
-
-            # Delete the port and interface rows
-            for iface in port_to_delete.interfaces:
-                iface.delete()
-            port_to_delete.delete()
-
-            status = txn.commit_block()
-            if status not in (
-                ovs_idl.Transaction.SUCCESS,
-                ovs_idl.Transaction.UNCHANGED,
-            ):
-                log(
-                    {
-                        "event": "del_port_error",
-                        "port": port_name,
-                        "status": str(status),
-                    }
-                )
-                return False
-
+            subprocess.run(
+                ["ovs-vsctl", "--if-exists", "del-port", bridge_name, port_name],
+                check=True,
+                capture_output=True,
+                timeout=5,
+            )
             log({"event": "del_port", "port": port_name, "bridge": bridge_name})
             return True
-
-        except Exception as e:
-            log({"event": "del_port_error", "port": port_name, "error": str(e)})
+        except subprocess.CalledProcessError as e:
+            log(
+                {
+                    "event": "del_port_error",
+                    "port": port_name,
+                    "error": e.stderr.decode() if e.stderr else str(e),
+                }
+            )
             return False
 
     def _del_ports_batch(self, port_infos: list) -> int:
-        """Delete multiple OVS ports in a single OVSDB transaction
+        """Delete multiple OVS ports in a single ovs-vsctl call
 
         Args:
             port_infos: List of {"port": name, "bridge": bridge_name}
@@ -654,47 +595,23 @@ class OvsWorker:
         if not port_infos:
             return 0
 
-        self._run_idl()
+        cmd = ["ovs-vsctl"]
+        for port_info in port_infos:
+            port_name = port_info["port"]
+            bridge_name = port_info.get("bridge", BRIDGE)
+            cmd.extend(["--", "--if-exists", "del-port", bridge_name, port_name])
 
         try:
-            txn = ovs_idl.Transaction(self.idl)
-            deleted = 0
-
-            for port_info in port_infos:
-                port_name = port_info["port"]
-                bridge_name = port_info.get("bridge", BRIDGE)
-
-                bridge = self._get_bridge(bridge_name)
-                if not bridge:
-                    continue
-
-                port_to_delete = None
-                for port in bridge.ports:
-                    if port.name == port_name:
-                        port_to_delete = port
-                        break
-
-                if not port_to_delete:
-                    continue
-
-                new_ports = [p for p in bridge.ports if p.name != port_name]
-                bridge.ports = new_ports
-
-                for iface in port_to_delete.interfaces:
-                    iface.delete()
-                port_to_delete.delete()
-                deleted += 1
-
-            status = txn.commit_block()
-            if status in (ovs_idl.Transaction.SUCCESS, ovs_idl.Transaction.UNCHANGED):
-                log({"event": "del_ports_batch", "count": deleted})
-                return deleted
-            else:
-                log({"event": "del_ports_batch_error", "status": str(status)})
-                return 0
-
-        except Exception as e:
-            log({"event": "del_ports_batch_error", "error": str(e)})
+            subprocess.run(cmd, check=True, capture_output=True, timeout=10)
+            log({"event": "del_ports_batch", "count": len(port_infos)})
+            return len(port_infos)
+        except subprocess.CalledProcessError as e:
+            log(
+                {
+                    "event": "del_ports_batch_error",
+                    "error": e.stderr.decode() if e.stderr else str(e),
+                }
+            )
             return 0
 
     def _ofctl(self, *args) -> bool:
@@ -1520,7 +1437,6 @@ def main():
         {
             "event": "init",
             "socket": SOCKET_PATH,
-            "ovsdb": OVSDB_SOCKET,
         }
     )
 

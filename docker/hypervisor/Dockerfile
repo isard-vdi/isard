@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/*
 
 # Build mdevctl
-FROM alpine:3.22.0 as build
+FROM alpine:3.22 as build
 
 RUN apk add --no-cache cargo uuidgen py3-docutils make git
 
@@ -17,7 +17,7 @@ RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
 # Image isard-hypervisor
-FROM alpine:3.22.0 as production
+FROM alpine:3.22 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
@@ -166,14 +166,14 @@ RUN apk add  --no-cache bash python3 py3-pip py3-requests
 RUN pip3 install --break-system-packages --upgrade pip
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
-    python3-dev \
-    libffi-dev 
+    python3-dev~=3.12 \
+    libffi-dev
 RUN pip3 install --break-system-packages --no-cache-dir -r requirements.txt && \
     rm requirements.txt
 # RUN apk del .build_deps
 
-# Openvswitch with Python bindings for native OVSDB API
-RUN apk add openvswitch@community py3-openvswitch@community libxml2-utils
+# Openvswitch binary tools (Python bindings replaced by ovs-vsctl subprocess calls)
+RUN apk add openvswitch@community libxml2-utils
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 
@@ -193,7 +193,7 @@ COPY --from=build /usr/sbin/mdevctl /usr/sbin/mdevctl
 
 # RUNTIME
 COPY docker/hypervisor/src /src
-COPY component/_common/src /src/_common
+COPY component/_common/isardvdi_common /src/isardvdi_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 WORKDIR /src
 

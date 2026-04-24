@@ -5,3 +5,7 @@ PyJWT==2.8.0
 cachetools~=5.3
 uuid
 betterproto~=1.2.5
+python-socketio~=5.12.1
+gevent~=23.9.1
+pytz==2025.2
+pydantic==2.12.0a1

@@ -132,7 +132,10 @@ class Actions:
 
     def desktop_stop(**kwargs):
         try:
-            api_client.get("/desktop/stop/" + kwargs["desktop_id"])
+            # v4 moved /item/desktop/{id}/stop from GET to PUT during the
+            # verb normalisation. GET still reaches the FastAPI router
+            # but returns 405 Method Not Allowed.
+            api_client.put("/item/desktop/" + kwargs["desktop_id"] + "/stop")
         except:
             log.error(
                 "Exception when stopping desktop "
@@ -373,7 +376,7 @@ class Actions:
 
         for domain_id in domains_ids:
             try:
-                answer = api_client.get("/desktop/stop/" + domain_id)
+                answer = api_client.put("/item/desktop/" + domain_id + "/stop")
                 log.debug("-> Stopping domain " + domain_id + ": " + str(answer))
             except:
                 log.error(
@@ -468,7 +471,9 @@ class Actions:
                 ).run(db.conn)
             if not kwargs["booking_id"]:
                 try:
-                    answer = api_client.put("/deployments/stop/" + kwargs["item_id"])
+                    answer = api_client.put(
+                        "/item/deployment/" + kwargs["item_id"] + "/stop"
+                    )
                     log.debug(
                         "-> Stopping deployment "
                         + kwargs["item_id"]
@@ -490,7 +495,9 @@ class Actions:
                 ).run(db.conn)
             if not kwargs["booking_id"]:
                 try:
-                    answer = api_client.get("/desktop/stop/" + kwargs["item_id"])
+                    answer = api_client.put(
+                        "/item/desktop/" + kwargs["item_id"] + "/stop"
+                    )
                     log.debug(
                         "-> Stopping desktop " + kwargs["item_id"] + ": " + str(answer)
                     )
@@ -503,7 +510,7 @@ class Actions:
                     )
 
     def recycle_bin_cutoff_time_system_delete():
-        api_client.delete("/recycle-bin/cutoff-time-surpassed")
+        api_client.delete("/items/recycle-bin/cutoff-time-surpassed")
 
     def send_unused_items_to_recycle_bin(**kwargs):
         try:
@@ -525,7 +532,9 @@ class Actions:
 
     def recycle_bin_delete_admin(**kwargs):
         max_delete_period = int(kwargs.get("max_delete_period"))
-        api_client.put("/recycle_bin/delete", {"max_delete_period": max_delete_period})
+        api_client.put(
+            "/items/recycle-bin/delete", {"max_delete_period": max_delete_period}
+        )
 
     # def recycle_bin_old_entries_action_archive(**kwargs):
     #     return []
@@ -537,7 +546,7 @@ class Actions:
         return []
 
     def recycle_bin_old_entries_action_delete(**kwargs):
-        api_client.put("/recycle_bin/old_entries/delete")
+        api_client.put("/item/recycle-bin/old-entries/delete")
 
     def wait_desktops_to_do_storage_action_kwargs(**kwargs):
         return []
@@ -546,30 +555,41 @@ class Actions:
         response = {}
         try:
             if kwargs["action"] == "move":
-                response = api_client.put(
-                    f"/storage/{kwargs['storage_id']}/path{kwargs['destination_path']}/priority/{kwargs['priority']}"
-                    + ("/rsync" if kwargs["rsync"] else "")
-                )
+                if kwargs.get("rsync"):
+                    response = api_client.put(
+                        f"/item/storage/{kwargs['storage_id']}/rsync/to-path",
+                        {
+                            "destination_path": kwargs["destination_path"],
+                            "priority": kwargs["priority"],
+                        },
+                    )
+                else:
+                    response = api_client.put(
+                        f"/item/storage/{kwargs['storage_id']}/move/by-path",
+                        {
+                            "dest_path": kwargs["destination_path"],
+                            "priority": kwargs["priority"],
+                        },
+                    )
             elif kwargs["action"] == "virt_win_reg":
                 response = api_client.put(
-                    f"/storage/virt-win-reg/{kwargs['storage_id']}/priority/{kwargs['priority']}"
+                    f"/item/storage/{kwargs['storage_id']}/virt-win-reg/priority/{kwargs['priority']}"
                 )
             elif kwargs["action"] == "convert":
-                storage_id = kwargs["storage_id"]
-                new_storage_type = kwargs["new_storage_type"]
-                new_storage_status = (
-                    kwargs["new_storage_status"]
-                    if kwargs.get("new_storage_status")
-                    else ""
+                response = api_client.post(
+                    f"/item/storage/{kwargs['storage_id']}/convert",
+                    {
+                        "new_storage_type": kwargs["new_storage_type"],
+                        "new_storage_status": kwargs.get(
+                            "new_storage_status", "downloadable"
+                        ),
+                        "compress": bool(kwargs.get("compress")),
+                        "priority": kwargs["priority"],
+                    },
                 )
-                compress = "/compress" if kwargs.get("compress") else ""
-                priority = kwargs["priority"]
-                convert_url = f"/storage/{storage_id}/convert/{new_storage_type}/{new_storage_status}{compress}/priority/{priority}"
-
-                response = api_client.post(convert_url)
             elif kwargs["action"] == "increase":
                 response = api_client.put(
-                    f"/storage/{kwargs['storage_id']}/priority/{kwargs['priority']}/increase/{kwargs['increment']}"
+                    f"/item/storage/{kwargs['storage_id']}/priority/{kwargs['priority']}/increase/{kwargs['increment']}"
                 )
             if response:
                 scheduler_client.delete(f"/{kwargs['storage_id']}.stg_action")
@@ -598,16 +618,16 @@ class Actions:
         api_client.put("/logs_users/old_entries/delete")
 
     def nonpersistent_delete_timeout(**kwargs):
-        api_client.delete(f'/nonpersistent/{kwargs["desktop_id"]}')
+        api_client.delete(f'/item/desktop/{kwargs["desktop_id"]}?permanent=true')
 
     def queues_old_tasks_action_delete_kwargs(**kwargs):
         return []
 
     def queues_old_tasks_action_delete(**kwargs):
-        api_client.delete("/redis/old_tasks/auto")
+        api_client.delete("/admin/queues/old_tasks/auto")
 
     def retry_failed_tasks_kwargs(**kwargs):
         return []
 
     def retry_failed_tasks(**kwargs):
-        api_client.post("/admin/tasks/retry")
+        api_client.put("/admin/tasks/retry")

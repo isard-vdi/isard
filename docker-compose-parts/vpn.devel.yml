@@ -5,3 +5,4 @@ services:
     - ${BUILD_ROOT_PATH}/docker/vpn/ovs:/ovs
     - ${BUILD_ROOT_PATH}/docker/vpn/dnsmasq-hook:/dnsmasq-hook
     - ${BUILD_ROOT_PATH}/docker/vpn/run.sh:/run.sh
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common

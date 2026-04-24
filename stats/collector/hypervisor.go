@@ -1,32 +1,30 @@
 package collector
 
 import (
-	"sync"
 	"time"
 
 	"gitlab.com/isard/isardvdi/stats/cfg"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
-	"libvirt.org/go/libvirt"
 )
 
 type Hypervisor struct {
-	hyp  string
-	Log  *zerolog.Logger
-	mux  *sync.Mutex
-	conn *libvirt.Connect
+	hyp string
+	Log *zerolog.Logger
+	// libvirt pool retained for future use (the current Collect body does not
+	// actually query libvirt — see commented-out calls below).
+	libvirt *LibvirtPool
 
 	descScrapeDuration *prometheus.Desc
 	descScrapeSuccess  *prometheus.Desc
 }
 
-func NewHypervisor(mux *sync.Mutex, cfg cfg.Cfg, log *zerolog.Logger, conn *libvirt.Connect) *Hypervisor {
+func NewHypervisor(cfg cfg.Cfg, log *zerolog.Logger, libvirtPool *LibvirtPool) *Hypervisor {
 	h := &Hypervisor{
-		hyp:  cfg.Domain,
-		mux:  mux,
-		Log:  log,
-		conn: conn,
+		hyp:     cfg.Domain,
+		Log:     log,
+		libvirt: libvirtPool,
 	}
 
 	h.descScrapeDuration = prometheus.NewDesc(

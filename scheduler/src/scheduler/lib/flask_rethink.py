@@ -26,23 +26,22 @@ import logging as log
 
 # Since no older versions than 0.9 are supported for Flask, this is safe
 # import rethinkdb as r
-from flask import _app_ctx_stack as stack
-from flask import current_app
+from flask import current_app, g
 
 
 class RDB(object):
     def __init__(self, app=None, db=None):
         self.app = app
         self.db = db
-        if app != None:
+        if app is not None:
             self.init_app(app)
 
     def init_app(self, app):
         @app.teardown_appcontext
         def teardown(exception):
-            ctx = stack.top
-            if hasattr(ctx, "rethinkdb"):
-                ctx.rethinkdb.close()
+            rethinkdb = g.pop("rethinkdb", None)
+            if rethinkdb is not None:
+                rethinkdb.close()
 
     def connect(self):
         return r.connect(
@@ -54,8 +53,6 @@ class RDB(object):
 
     @property
     def conn(self):
-        ctx = stack.top
-        if ctx != None:
-            if not hasattr(ctx, "rethinkdb"):
-                ctx.rethinkdb = self.connect()
-            return ctx.rethinkdb
+        if "rethinkdb" not in g:
+            g.rethinkdb = self.connect()
+        return g.rethinkdb

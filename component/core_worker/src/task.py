@@ -20,23 +20,62 @@
 import json
 
 from cachetools import TTLCache, cached
-from isardvdi_common.api_rest import ApiRest
-from isardvdi_common.domain import Domain
-from isardvdi_common.media import Media
-from isardvdi_common.storage import Storage, StoragePool
-from isardvdi_common.task import Task
+from isardvdi_common.connections.api_rest import ApiRest
+from isardvdi_common.connections.redis_urls import socketio_url
+from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.media import Media
+from isardvdi_common.models.storage import Storage, StoragePool
+from isardvdi_common.models.task import Task
 from requests.exceptions import HTTPError
-from rethink_custom_base import export_r as r
 from rq import get_current_job
+from socketio import RedisManager
+
+redis_manager = RedisManager(socketio_url(), write_only=True)
+
+# Domain statuses that represent a domain that is not yet (or no longer) runnable
+# and is waiting for its storage to be ready. Only these can be safely promoted to
+# "Stopped" when a storage transitions to "ready" — running or transitional
+# statuses must be left alone (otherwise we race with the engine/broom and create
+# a Started↔Stopped flap loop).
+_DOMAIN_PRE_READY_STATUSES = frozenset(
+    {
+        "Downloading",
+        "Downloaded",
+        "DiskNew",
+        "Failed",
+        "Unknown",
+        "CreatingDisk",
+        "CreatingDiskFromScratch",
+        "CreatingDomain",
+        "CreatingDomainFromDisk",
+        "CreatingAndStarting",
+        "CreatingTemplate",
+        "CreatingTemplateDisk",
+        "TemplateDiskCreated",
+    }
+)
+
+
+def _promote_domains_to_stopped(storage_object):
+    """Promote only domains waiting on storage to ``Stopped``.
+
+    Skips domains currently running or in a transitional status so we never
+    yank a live VM from under the engine's state machine.
+    """
+    for domain in storage_object.domains:
+        if domain.status in _DOMAIN_PRE_READY_STATUSES:
+            domain.status = "Stopped"
 
 
 def socketio(data):
-    ApiRest().post("/socketio", data=data)
+    for event in data:
+        redis_manager.emit(**event)
+    ApiRest().post("/admin/socketio", data=data)
 
 
 @cached(TTLCache(maxsize=10, ttl=60))
 def user_info(user_id):
-    """Get cached user info form isard-api.
+    """Get cached user info from isard-apiv4.
 
     :param user_id: User ID
     :type user_id: str
@@ -69,9 +108,9 @@ def feedback(task_id=None):
     if task.user_id != "isard-scheduler":
         try:
             user = user_info(task.user_id)
-        except:
+        except Exception:
             user = None
-        if user:
+        if isinstance(user, dict):
             socketio(
                 [
                     {
@@ -188,7 +227,9 @@ def update_status(statuses={}):
         for item_status, items in item_statuses_item_ids.items():
             for item_class, item_ids in items.items():
                 for item_id in item_ids:
-                    globals()[item_class.capitalize()](item_id, status=item_status)
+                    globals()[item_class.capitalize()].init_document(
+                        item_id, status=item_status
+                    )
                     if item_class.lower() == "storage":
                         send_storage_status_socket(item_id, item_status)
 
@@ -203,7 +244,10 @@ def storage_update_parent(storage_id):
     task = Task(get_current_job().id)
     if task.depending_status == "finished":
         storage = Storage(storage_id)
-        backing_file = getattr(storage, "qemu-img-info").get("full-backing-filename")
+        qemu_img_info = getattr(storage, "qemu-img-info")
+        if qemu_img_info is None:
+            return
+        backing_file = qemu_img_info.get("full-backing-filename")
         if backing_file:
             backing_storage = Storage.get_by_path(backing_file)
             if backing_storage:
@@ -214,7 +258,9 @@ def storage_update_parent(storage_id):
             elif storage.status == "orphan":
                 return
             else:
-                storage.parent = Storage.create_from_path(backing_file).id
+                storage.parent = Storage.create_from_path(
+                    backing_file, user_id=task.user_id
+                ).id
         else:
             storage.parent = None
 
@@ -231,7 +277,7 @@ def storage_update(**storage_dict):
         if storage_dict:
             if not Storage.exists(storage_dict["id"]):
                 return  # Storage was deleted
-            storage_object = Storage(**storage_dict)
+            storage_object = Storage.init_document(**storage_dict)
             if storage_dict.get("status") in ["deleted", "orphan", "broken_chain"]:
                 for domain in (
                     storage_object.domains + storage_object.domains_derivatives
@@ -241,8 +287,7 @@ def storage_update(**storage_dict):
                     if child.status != "deleted":
                         child.status = "orphan"
             if storage_dict.get("status") == "ready":
-                for domain in storage_object.domains:
-                    domain.status = "Stopped"
+                _promote_domains_to_stopped(storage_object)
 
             send_storage_status_socket(
                 storage_dict["id"],
@@ -271,7 +316,7 @@ def storage_update_dict(**storage_dict):
     if storage_dict:
         if not Storage.exists(storage_dict["id"]):
             return  # Storage was deleted
-        storage_object = Storage(**storage_dict)
+        storage_object = Storage.init_document(**storage_dict)
         if storage_dict.get("status") in ["deleted", "orphan", "broken_chain"]:
             for domain in storage_object.domains + storage_object.domains_derivatives:
                 domain.status = "Failed"
@@ -279,8 +324,7 @@ def storage_update_dict(**storage_dict):
                 if child.status != "deleted":
                     child.status = "orphan"
         if storage_dict.get("status") == "ready":
-            for domain in storage_object.domains:
-                domain.status = "Stopped"
+            _promote_domains_to_stopped(storage_object)
 
         send_storage_status_socket(
             storage_dict["id"],
@@ -295,7 +339,7 @@ def storage_add(**storage_dict):
     :param storage_dict: Storage data
     :type storage_dict: dict
     """
-    Storage(**storage_dict)
+    Storage.init_document(**storage_dict)
 
 
 def storage_delete(storage_id):
@@ -317,7 +361,7 @@ def recycle_bin_update(**recycle_bin_dict):
     """
     task = Task(get_current_job().dependency.dependency.id)
     ApiRest().put(
-        f"/recycle_bin/update_task",
+        "/item/recycle-bin/update-task",
         data={
             "recycle_bin_id": recycle_bin_dict["recycle_bin_id"],
             "id": task.id,
@@ -336,7 +380,7 @@ def media_update(**media_dict):
     task = Task(get_current_job().id)
     if task.depending_status == "finished":
         if media_dict:
-            Media(**media_dict)
+            Media.init_document(**media_dict)
         else:
             for dependency in task.dependencies:
                 if dependency.task in ("check_media_existence"):
@@ -395,19 +439,6 @@ def domain_change_storage(domain_id, storage_id):
     c_dict = domain.create_dict
     c_dict["hardware"]["disks"][0]["storage_id"] = storage_id
     domain.create_dict = c_dict
-
-
-def storage_domains_force_update(storage_id):
-    """
-    Force update domains of a storage.
-
-    No longer sets domains to StartingPaused: hardware is now resolved
-    on-demand at domain start time via resolve_hardware_from_create_dict().
-
-    :param storage_id: Storage ID
-    :type storage_id: str
-    """
-    return
 
 
 def _valid_storage_pool(storage, new_path):
@@ -616,10 +647,10 @@ def send_storage_status_socket(storage_id, status, user_id=None):
     if user_id:
         try:
             user = user_info(user_id)
-        except:
+        except Exception:
             user = None
 
-        if user:
+        if isinstance(user, dict):
             socketio(
                 [
                     {

@@ -21,14 +21,14 @@
 import traceback
 from functools import wraps
 
-from isardvdi_common.api_exceptions import Error
-from isardvdi_common.tokens import get_header_jwt_payload
+from isardvdi_common.helpers.api_exceptions_flask import Error
+from isardvdi_common.helpers.token_flask import TokenFlask
 
 
 def is_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
+        payload = TokenFlask.get_header_jwt_payload()
         if payload["role_id"] == "admin":
             kwargs["payload"] = payload
             return f(*args, **kwargs)

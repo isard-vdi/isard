@@ -76,7 +76,7 @@ func setDefaults() {
 		"operations_timeout": "15m",
 		"operations_address": "isard-operations:1312",
 		"check_address":      "isard-check:1312",
-		"api_address":        "http://isard-api:5000",
+		"api_address":        "http://isard-apiv4:5000",
 		"api_secret":         "",
 		"director":           "",
 		"director_rata": map[string]interface{}{

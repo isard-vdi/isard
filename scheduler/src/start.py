@@ -28,7 +28,15 @@ from flask import Flask
 
 from scheduler import app, socketio
 
-debug = os.environ.get("USAGE", "production") == "devel"
+reload_enabled = os.environ.get("USAGE", "production") == "devel"
+debug_enabled = os.environ.get("LOG_LEVEL", "INFO") == "DEBUG"
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=debug, log_output=debug)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=5000,
+        debug=debug_enabled,
+        log_output=debug_enabled,
+        use_reloader=reload_enabled,
+    )
