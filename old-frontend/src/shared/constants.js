@@ -1,7 +1,7 @@
 import i18n from '@/i18n'
 
-export const apiV3Segment = '/api/v3'
-export const apiWebSockets = '/api/v3/socket.io'
+export const apiV3Segment = '/api/v4'
+export const apiWebSockets = '/socket.io'
 export const apiAdminSegment = '/isard-admin'
 export const authenticationSegment = '/authentication'
 export const appTitle = 'IsardVDI'

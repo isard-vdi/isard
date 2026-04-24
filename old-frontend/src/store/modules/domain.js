@@ -210,6 +210,7 @@ export default {
     },
     async uploadImageFile (context, payload) {
       const itemId = context.getters.getEditDomainId
+      const itemKind = context.getters.getDomain.kind === 'template' ? 'template' : 'desktop'
 
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -219,7 +220,7 @@ export default {
 
         const data = `{"image": {"type": "user","file": {"data": "${decodeURIComponent(base64String)}", "filename": "${payload.filename}"}}}`
 
-        axios.put(`${apiV3Segment}/domain/${itemId}`, JSON.stringify(JSON.parse(data)), { headers: { 'Content-Type': 'application/json' } }).then(response => {
+        axios.put(`${apiV3Segment}/item/${itemKind}/${itemId}/edit`, JSON.stringify(JSON.parse(data)), { headers: { 'Content-Type': 'application/json' } }).then(response => {
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.image-uploaded'), '', true, 1000)
           context.dispatch('fetchDesktopImages')
         }).catch(e => {
@@ -238,10 +239,10 @@ export default {
       context.dispatch('navigate', 'newfrommedia')
     },
     fetchDomain (context, domainId) {
-      axios.get(`${apiV3Segment}/domain/info/${domainId}`).then(response => {
+      axios.get(`${apiV3Segment}/item/desktop/${domainId}/get-info`).then(response => {
         if (!context.getters.getEditDomainId) { // Only keep the domain name when editing
           response.data.name = context.getters.getDomain.name
-        } else { // only fetch bastion when editing
+        } else if (response.data.kind !== 'template') { // bastion is desktop-only
           context.dispatch('fetchBastion', domainId)
         }
         context.commit('setDomain', DomainsUtils.parseDomain(response.data))
@@ -250,14 +251,14 @@ export default {
       })
     },
     fetchHardware (context) {
-      axios.get(`${apiV3Segment}/user/hardware/allowed`).then(response => {
+      axios.get(`${apiV3Segment}/item/user/get-allowed-hardware`).then(response => {
         context.commit('setHardware', DomainsUtils.parseAvailableHardware(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchBookables (context) {
-      axios.get(`${apiV3Segment}/domains/allowed/reservables`).then(response => {
+      axios.get(`${apiV3Segment}/items/domains/get-allowed-reservables`).then(response => {
         context.commit('setBookables', response.data)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -266,9 +267,13 @@ export default {
     editDomain (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
 
-      axios.put(`${apiV3Segment}/domain/${data.id}`, data).then(response => {
-        context.dispatch('updateBastion', data.id)
-        router.push({ name: 'desktops' })
+      const kindSegment = data.kind === 'template' ? 'template' : 'desktop'
+      const redirectName = data.kind === 'template' ? 'templates' : 'desktops'
+      axios.put(`${apiV3Segment}/item/${kindSegment}/${data.id}/edit`, data).then(response => {
+        if (data.kind !== 'template') {
+          context.dispatch('updateBastion', data.id)
+        }
+        router.push({ name: redirectName })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
@@ -278,7 +283,7 @@ export default {
       context.commit('removeGuestProperties')
     },
     fetchMediaInstalls ({ commit }) {
-      axios.get(`${apiV3Segment}/media/installs`).then(response => {
+      axios.get(`${apiV3Segment}/items/media/installs`).then(response => {
         commit(
           'setMediaInstalls', response.data, ['desc']
         )
@@ -295,7 +300,7 @@ export default {
     fetchBastion (context, domainId) {
       const config = context.getters.getConfig
       if (config.canUseBastion === true) {
-        axios.get(`${apiV3Segment}/desktop/bastion/${domainId}`).then(response => {
+        axios.get(`${apiV3Segment}/item/desktop/${domainId}/get-bastion`).then(response => {
           const bastion = response.data
           if (response.data.ssh.enabled || response.data.http.enabled) {
             bastion.enabled = true
@@ -306,7 +311,7 @@ export default {
         }).catch(e => {
           // We can ignore 404, since the first time the bastion
           // won't be created
-          if (e.respponse.status !== 404) {
+          if (e.response?.status !== 404) {
             ErrorUtils.handleErrors(e, this._vm.$snotify)
           }
         })
@@ -321,7 +326,7 @@ export default {
         bastion.http.https_port = bastion.http.https_port ? parseInt(bastion.http.https_port) : 443
         bastion.ssh.port = bastion.ssh.port ? parseInt(bastion.ssh.port) : 22
 
-        axios.put(`${apiV3Segment}/desktop/bastion/${domainId}`, bastion).then(response => {
+        axios.put(`${apiV3Segment}/item/desktop/${domainId}/bastion`, bastion).then(response => {
         }).catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })

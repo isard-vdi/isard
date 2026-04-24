@@ -4,7 +4,7 @@
     rounded="lg"
   >
     <b-card
-      :img-src="`..${desktop.image.url}`"
+      :img-src="desktop.image ? `..${desktop.image.url}` : ''"
       class="border-0 mx-3"
       :aria-hidden="show ? 'true' : null"
       img-alt=""

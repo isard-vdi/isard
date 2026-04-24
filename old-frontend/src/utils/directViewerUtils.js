@@ -3,7 +3,7 @@ import { DateUtils } from './dateUtils'
 
 export class DirectViewerUtils {
   static parseDirectViewer (item) {
-    const { vmName: name, vmDescription: description, viewers, vmState: state, scheduled, jwt, desktopId, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd } = item
+    const { name, description, viewers, status: state, scheduled, jwt, id: desktopId, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd } = item
     return {
       name,
       description,

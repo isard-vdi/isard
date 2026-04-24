@@ -1,4 +1,8 @@
 {
+  "frontend_toggler": {
+    "to_vue3": "Passer à la nouvelle interface",
+    "no_equivalent": "Pas d'équivalent dans la nouvelle interface"
+  },
   "views": {
     "register": {
       "title": "Inscription",

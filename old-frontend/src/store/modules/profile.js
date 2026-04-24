@@ -171,22 +171,25 @@ export default {
       context.commit('resetProfileState')
     },
     fetchProfile (context) {
-      axios
-        .get(`${apiV3Segment}/user`)
-        .then(response => {
-          context.commit('setProfile', ProfileUtils.parseProfile(response.data))
+      Promise.all([
+        axios.get(`${apiV3Segment}/item/user/get-details`),
+        axios.get(`${apiV3Segment}/item/user/get-quotas`)
+      ])
+        .then(([detailsResp, quotasResp]) => {
+          const merged = { ...detailsResp.data, ...quotasResp.data }
+          context.commit('setProfile', ProfileUtils.parseProfile(merged))
         })
         .catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
     },
     updatePassword (context, data) {
-      return axios.put(`${apiV3Segment}/user`, data).catch(e => {
+      return axios.put(`${apiV3Segment}/item/user/set-password`, data).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     updateEmail (context, data) {
-      return axios.put(`${apiV3Segment}/user`, data).catch(e => {
+      return axios.put(`${apiV3Segment}/item/user/set-email`, data).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
@@ -205,13 +208,13 @@ export default {
     saveNewLanguage (context) {
       const lang = context.getters.getLang
       if (lang) {
-        axios.put(`${apiV3Segment}/user/language/${lang}`, {}, { timeout: 25000 }).catch(e => {
+        axios.put(`${apiV3Segment}/item/user/set-lang`, { lang }, { timeout: 25000 }).catch(e => {
           console.error(e)
         })
       }
     },
     fetchPasswordPolicy (context) {
-      return axios.get(`${apiV3Segment}/user/password-policy`)
+      return axios.get(`${apiV3Segment}/item/user/get-password-policy`)
         .then(response => {
           context.commit('setPasswordPolicy', response.data)
         })
@@ -223,7 +226,7 @@ export default {
       context.commit('resetEmailAddressState')
     },
     resetVPN (context, userId) {
-      axios.put(`${apiV3Segment}/user/reset-vpn`)
+      axios.put(`${apiV3Segment}/item/user/reset-vpn`)
         .then(response => {
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.reset-vpn'))
         })
@@ -232,7 +235,7 @@ export default {
         })
     },
     generateExportUserToken (context) {
-      return axios.post(`${apiV3Segment}/user_migration/export`, {})
+      return axios.put(`${apiV3Segment}/item/user-migration/export-user`, {})
         .then(response => {
           context.commit('setExportUserToken', response.data.token)
         })
@@ -259,7 +262,7 @@ export default {
         })
     },
     importUser (context, data) {
-      return axios.post(`${apiV3Segment}/user_migration/import`, data)
+      return axios.put(`${apiV3Segment}/item/user-migration/import-user`, data)
         .then(response => {
           window.location.pathname = '/migration'
         })
@@ -274,7 +277,7 @@ export default {
       context.commit('setShowApiKeyModal', show)
     },
     fetchUserApiKey (context) {
-      return axios.get(`${apiV3Segment}/user/api_key`)
+      return axios.get(`${apiV3Segment}/item/user/get-api-key`)
         .then(response => {
           context.commit('setUserApiKey', {
             exists: response.data.exists,
@@ -302,7 +305,7 @@ export default {
         })
     },
     expireApiKey (context) {
-      return axios.delete(`${apiV3Segment}/user/api_key`)
+      return axios.delete(`${apiV3Segment}/item/user/expire-api-key`)
         .then(response => {
           context.commit('setUserApiKey', {
             exists: false,

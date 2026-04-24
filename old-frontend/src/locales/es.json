@@ -1,4 +1,8 @@
 {
+  "frontend_toggler": {
+    "to_vue3": "Cambiar a nueva interfaz",
+    "no_equivalent": "Sin equivalente en la nueva interfaz"
+  },
   "validations": {
     "required": "El campo {property} es obligatorio.",
     "sameAs": "El campo {property} ha de tener el mismo valor que {property2}.",
@@ -591,6 +595,7 @@
         "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)",
         "deployments_total": "Despliegues creados / Total de despliegues",
         "deployment_desktops": "Maximo de escritorios por despliegue",
+        "deployment_users": "Maximo de usuarios por despliegue",
         "started_deployment_desktops": {
           "title": "Escritorios de despliegue arrancados",
           "description": "Cantidad total de escritorios de despliegues que puede arrancar el usuario"

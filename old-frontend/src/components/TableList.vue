@@ -71,7 +71,7 @@
                 <!-- IMAGE -->
                 <div
                   class="rounded-circle bg-red"
-                  :style="{'background-image': `url('..${data.item.image.url}')`}"
+                  :style="{'background-image': data.item.image ? `url('..${data.item.image.url}')` : ''}"
                 />
               </template>
               <template #cell(name)="data">

@@ -1,4 +1,8 @@
 {
+  "frontend_toggler": {
+    "to_vue3": "Interfaze berrira aldatu",
+    "no_equivalent": "Ez dago baliokiderik interfaze berrian"
+  },
   "components": {
     "navbar": {
       "admin": "Administrazioa",

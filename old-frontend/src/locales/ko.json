@@ -1,4 +1,8 @@
 {
+    "frontend_toggler": {
+        "to_vue3": "새 인터페이스로 전환",
+        "no_equivalent": "새 인터페이스에 해당 항목 없음"
+    },
     "validations": {
         "required": "{property}은(는) 필수 항목입니다.",
         "sameAs": "{property} 필드는 반드시 {property2}와 같은 값을 가져야 합니다."

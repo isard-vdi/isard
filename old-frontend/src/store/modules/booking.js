@@ -159,21 +159,24 @@ export default {
       context.commit('remove_booking', booking)
     },
     fetchEvents (context, data) {
-      axios.get(`${apiV3Segment}/bookings/user/${data.itemId}/${data.itemType}`, { params: { startDate: data.startDate, endDate: data.endDate, returnType: data.returnType } }).then(response => {
+      const url = data.itemType === 'deployment'
+        ? `${apiV3Segment}/item/booking/get-deployment/${data.itemId}`
+        : `${apiV3Segment}/item/booking/get-desktop/${data.itemId}`
+      axios.get(url, { params: { startDate: data.startDate, endDate: data.endDate, returnType: data.returnType } }).then(response => {
         context.commit('setBookingEvents', BookingUtils.parseEvents(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchAllEvents (context, data) {
-      axios.get(`${apiV3Segment}/bookings/user`, { params: { startDate: data.startDate, endDate: data.endDate } }).then(response => {
+      axios.get(`${apiV3Segment}/items/bookings`, { params: { startDate: data.startDate, endDate: data.endDate } }).then(response => {
         context.commit('setBookingEvents', BookingUtils.parseEvents(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     fetchPriority (context, data) {
-      axios.get(`${apiV3Segment}/bookings/priority/${data.itemType}/${data.itemId}`).then(response => {
+      axios.get(`${apiV3Segment}/items/bookings/get-priority-desktop/${data.itemId}`).then(response => {
         context.commit('setBookingPriority', BookingUtils.parsePriority(response.data))
         context.commit('setBookingItemName', response.data.name)
       }).catch(e => {
@@ -279,7 +282,7 @@ export default {
           start: DateUtils.formatAsUTC(payload.start),
           end: DateUtils.formatAsUTC(payload.end)
         }
-        return axios.post(`${apiV3Segment}/booking/event`, data).then(response => {
+        return axios.post(`${apiV3Segment}/item/booking/event`, data).then(response => {
           this._vm.$snotify.clear()
           context.dispatch('resetModalData')
           context.dispatch('showBookingModal', false)
@@ -302,7 +305,7 @@ export default {
         end: payload.end,
         now: true
       }
-      return axios.post(`${apiV3Segment}/booking/event`, data).then(response => {
+      return axios.post(`${apiV3Segment}/item/booking/event`, data).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -320,7 +323,7 @@ export default {
         formData.append('title', payload.title)
         formData.append('start', DateUtils.formatAsUTC(payload.date))
         formData.append('end', DateUtils.formatAsUTC(payload.end))
-        axios.put(`${apiV3Segment}/booking/event/${payload.id}`, formData).then(response => {
+        axios.put(`${apiV3Segment}/item/booking/event/${payload.id}/edit`, formData).then(response => {
           this._vm.$snotify.clear()
           context.dispatch('resetModalData')
           context.dispatch('showBookingModal', false)
@@ -333,7 +336,7 @@ export default {
     },
     deleteEvent (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-event'), '', true, 1000)
-      return axios.delete(`${apiV3Segment}/booking/event/${payload.id}`).then(response => {
+      return axios.delete(`${apiV3Segment}/item/booking/event/${payload.id}`).then(response => {
         this._vm.$snotify.clear()
         context.dispatch('resetModalData')
         context.dispatch('showBookingModal', false)
@@ -355,7 +358,7 @@ export default {
       context.dispatch('fetchAllEvents', eventsData)
     },
     checkCanStart (context, data) {
-      return axios.get(`${apiV3Segment}/booking/max_booking_date/${data.id}`).then(response => {
+      return axios.get(`${apiV3Segment}/item/booking/max-booking-date/${data.id}`).then(response => {
         response.data.show = true
         response.data.profile = { id: data.profile, maxBookingDate: response.data.max_booking_date }
         response.data.action = data.action
@@ -381,7 +384,7 @@ export default {
       })
     },
     fetchReservablesAvailable (context, data) {
-      return axios.get(`${apiV3Segment}/booking/reservables_available`).then(response => {
+      return axios.get(`${apiV3Segment}/item/booking/reservables-available`).then(response => {
         this._vm.$snotify.clear()
         response.data.showProfileDropdown = true
         response.data.show = true

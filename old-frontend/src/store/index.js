@@ -113,12 +113,12 @@ export default new Vuex.Store({
       context.commit('setMessageModal', MessageUtils.parseMessage(JSON.parse(data)))
     },
     fetchCategories ({ commit }) {
-      return axios.get(`${apiV3Segment}/categories`).then(response => {
+      return axios.get(`${apiV3Segment}/items/categories`).then(response => {
         commit('setCategories', response.data)
       })
     },
     fetchCategory (context, customUrl) {
-      return axios.get(`${apiV3Segment}/category/` + customUrl).then(response => {
+      return axios.get(`${apiV3Segment}/item/category/` + customUrl).then(response => {
         context.commit('setCategory', response.data)
       }).catch(e => {
         if (e.response.status === 404) {
@@ -126,28 +126,18 @@ export default new Vuex.Store({
         }
       })
     },
-    maintenance (context) {
-      return new Promise((resolve, reject) => {
-        axios.get(`${apiV3Segment}/check`).then(response => {
-          resolve()
-        }).catch(e => {
-          console.log(e)
-          reject(e)
-        })
-      })
-    },
     showMessageModal (context, show) {
       context.commit('setShowMessageModal', show)
     },
     checkCreateQuota (context, data) {
-      return axios.get(`${apiV3Segment}/${data.itemType}/new/check_quota`).then(response => {
+      return axios.get(`${apiV3Segment}/quota/${data.itemType}/new`).then(response => {
         context.dispatch('navigate', data.routeName)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     checkHypervisorAvailability () {
-      return axios.get(`${apiV3Segment}/admin/storage_pool/availability`).catch(e => {
+      return axios.get(`${apiV3Segment}/storage-pool/availability`).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
@@ -159,7 +149,7 @@ export default new Vuex.Store({
       })
     },
     fetchLoginConfig (context) {
-      return axios.get(`${apiV3Segment}/login_config`).then(response => {
+      return axios.get(`${apiV3Segment}/item/login-config`).then(response => {
         context.commit('setLoginConfig', response.data)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

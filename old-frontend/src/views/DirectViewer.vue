@@ -185,8 +185,8 @@ export default {
     const $store = context.root.$store
     const loading = computed(() => $store.getters.getDirectViewer.viewers.length === 0)
     const directViewer = computed(() => $store.getters.getDirectViewer)
-    const browserViewers = computed(() => directViewer.value.viewers.filter(viewer => viewer.kind === 'browser'))
-    const fileViewers = computed(() => directViewer.value.viewers.filter(viewer => viewer.kind === 'file'))
+    const browserViewers = computed(() => (directViewer.value?.viewers ?? []).filter(viewer => viewer && viewer.kind === 'browser'))
+    const fileViewers = computed(() => (directViewer.value?.viewers ?? []).filter(viewer => viewer && viewer.kind === 'file'))
     const viewerDescription = {
       spice: i18n.t('views.direct-viewer.description.spice'),
       vnc: i18n.t('views.direct-viewer.description.vnc'),

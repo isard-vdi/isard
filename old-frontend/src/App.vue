@@ -30,7 +30,14 @@ export default {
     onBeforeMount(() => {
       listenCookieChange(({ oldValue, newValue }) => {
         if (!getCookie(sessionCookieName)) {
-          // Session cookie was removed - handle logout
+          // Session cookie was removed. If a logout is already in flight,
+          // skip this dispatch — otherwise we would race the in-progress
+          // navigation (e.g. to a SAML IdP logout URL) with a local
+          // /login redirect, cancelling the IdP logout and leaving the
+          // IdP session alive.
+          if ($store.getters.getIsLoggingOut) {
+            return
+          }
           $store.dispatch('logout', !viewsNotRedirected.includes(context.root.$route.name))
         } else if (oldValue && newValue && oldValue !== newValue) {
           console.log('Session cookie changed, syncing session...')

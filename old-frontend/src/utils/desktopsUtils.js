@@ -15,7 +15,7 @@ export class DesktopUtils {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
       id,
-      name: name.trim(),
+      name: name ? name.trim() : '',
       state: this.parseState(item),
       type,
       ip,
@@ -42,7 +42,7 @@ export class DesktopUtils {
   }
 
   static parseState (item) {
-    const { state } = item
+    const state = item.state || item.status
     return this.getState(state)
   }
 
@@ -58,7 +58,7 @@ export class DesktopUtils {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
       id,
-      name: name.trim(),
+      name: name ? name.trim() : '',
       type: 'nonpersistent',
       buttonIconName: 'play',
       category,
@@ -97,15 +97,17 @@ export class DesktopUtils {
   }
 
   static buttonIconName (item) {
-    const state = this.getState(item.state)
+    const state = this.getState(item.state || item.status)
+    if (!state) return status.stopped.icon
     if (item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip].includes(state.toLowerCase())) {
       return 'trash'
     }
 
-    return state ? status[state.toLowerCase()].icon : status.stopped.icon
+    return state ? (status[state.toLowerCase()] || status.stopped).icon : status.stopped.icon
   }
 
   static getState (state) {
+    if (!state) return desktopStates.unknown
     return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying].includes(state.toLowerCase()) ? state : desktopStates.working
   }
 
