@@ -3,9 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery } from '@tanstack/vue-query'
 import {
-  getRecycleBinDefaultDeleteConfigApiV4ItemRecycleBinGetDefaultDeleteConfigGetOptions,
-  getRecycleBinCutoffTimeApiV4ItemRecycleBinGetUserCutoffTimeGetOptions,
-  deleteDeploymentApiV4ItemDeploymentDeploymentIdDeleteMutation
+  getRecycleBinDefaultDeleteConfigOptions,
+  getRecycleBinCutoffTimeOptions,
+  deleteDeploymentMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
@@ -32,11 +32,11 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const { data: recycleBinDefaultDelete } = useQuery(
-  getRecycleBinDefaultDeleteConfigApiV4ItemRecycleBinGetDefaultDeleteConfigGetOptions()
+  getRecycleBinDefaultDeleteConfigOptions()
 )
 
 const { data: recycleBinCutoffTime } = useQuery(
-  getRecycleBinCutoffTimeApiV4ItemRecycleBinGetUserCutoffTimeGetOptions()
+  getRecycleBinCutoffTimeOptions()
 )
 
 const deleteModalRecycleBinChecked = ref(recycleBinDefaultDelete.value)
@@ -45,8 +45,8 @@ watch(recycleBinDefaultDelete, (val) => {
   deleteModalRecycleBinChecked.value = val
 })
 
-const { mutate: deleteDeployment, isPending: deleteDeploymentIsPending } = useMutation({
-  ...deleteDeploymentApiV4ItemDeploymentDeploymentIdDeleteMutation(),
+const { mutate: deleteDeploymentMutation, isPending: deleteDeploymentIsPending } = useMutation({
+  ...deleteDeploymentMutation(),
   onSuccess: () => {
     handleClose()
     if (props.onSuccess) {
@@ -59,7 +59,7 @@ const deploymentNameLabel = computed(() => props.deploymentName || undefined)
 
 const confirmDelete = () => {
   if (!props.deploymentId) return
-  deleteDeployment({
+  deleteDeploymentMutation({
     path: { deployment_id: props.deploymentId },
     query: {
       permanent:

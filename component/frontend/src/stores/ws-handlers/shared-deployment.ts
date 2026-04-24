@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/vue-query'
-import { getAllSharedDeploymentsApiV4ItemsDeploymentsGetSharedGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getAllSharedDeploymentsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-const key = getAllSharedDeploymentsApiV4ItemsDeploymentsGetSharedGetOptions().queryKey
+const key = getAllSharedDeploymentsOptions().queryKey
 
 function updateStartedDesktops(queryClient: QueryClient, payload: any, delta: number) {
   const { id } = JSON.parse(payload)

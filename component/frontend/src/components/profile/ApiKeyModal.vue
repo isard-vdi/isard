@@ -12,8 +12,8 @@ import DatePicker from '@/components/date-picker/DatePicker.vue'
 import { getLocalTimeZone, today, type DateValue } from '@internationalized/date'
 import { useI18n } from 'vue-i18n'
 import {
-  getUserApiKeyApiV4ItemUserGetApiKeyGetOptions,
-  expireUserApiKeyApiV4ItemUserExpireApiKeyDeleteMutation
+  getUserApiKeyOptions,
+  expireUserApiKeyMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { generateApiKeyMutation } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 
@@ -61,7 +61,7 @@ const {
   refetch: refetchUserApiKey,
   error: userApiKeyError
 } = useQuery({
-  ...getUserApiKeyApiV4ItemUserGetApiKeyGetOptions(),
+  ...getUserApiKeyOptions(),
   enabled: computed(() => props.open)
 })
 
@@ -89,7 +89,7 @@ const { mutateAsync: generateApiKey, isPending: isGeneratingApiKey } =
   useMutation(generateApiKeyMutation())
 
 const { mutateAsync: expireApiKey, isPending: isExpiringApiKey } = useMutation(
-  expireUserApiKeyApiV4ItemUserExpireApiKeyDeleteMutation()
+  expireUserApiKeyMutation()
 )
 
 const handleGenerateKey = async () => {

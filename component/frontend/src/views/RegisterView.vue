@@ -5,9 +5,9 @@ import { useI18n } from 'vue-i18n'
 import { type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
 import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
-import type { RegisterUserApiV4ItemUserRegisterPostData, ErrorResponse } from '@/gen/oas/apiv4'
-import { registerUserApiV4ItemUserRegisterPost } from '@/gen/oas/apiv4'
-import { apiV4LoginConfigApiV4ItemLoginConfigGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import type { RegisterUserData, ErrorResponse } from '@/gen/oas/apiv4'
+import { registerUser } from '@/gen/oas/apiv4'
+import { apiV4LoginConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   parseToken as parseAuthToken,
   getToken as getAuthToken,
@@ -41,7 +41,7 @@ const {
   isError: configIsError,
   error: configError,
   data: config
-} = useQuery(apiV4LoginConfigApiV4ItemLoginConfigGetOptions())
+} = useQuery(apiV4LoginConfigOptions())
 
 const isPending = computed(() => configIsPending.value)
 
@@ -227,12 +227,10 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   window.location.pathname = '/'
 }
 
-const submitRegister = async (
-  options: ClientOptions<RegisterUserApiV4ItemUserRegisterPostData>
-) => {
+const submitRegister = async (options: ClientOptions<RegisterUserData>) => {
   const bearer = getAuthBearer(cookies) ?? ''
 
-  const { error, response } = await registerUserApiV4ItemUserRegisterPost({
+  const { error, response } = await registerUser({
     ...options,
     headers: { Authorization: `Bearer ${bearer}` }
   })

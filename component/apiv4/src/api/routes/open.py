@@ -40,7 +40,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 
 @cached(cache=TTLCache(maxsize=1, ttl=360))
 @open_router.get(
-    "",
+    "/",
     response_model=ApiVersion,
     summary="Get API Version",
     description="Returns the current version of the API and IsardVDI.",

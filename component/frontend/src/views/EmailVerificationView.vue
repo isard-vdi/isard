@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { InputField } from '@/components/input-field'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { setUserEmailApiV4ItemUserSetEmailPutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { setUserEmailMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const { t } = useI18n()
 const cookies = useAuthCookies()
@@ -35,7 +35,7 @@ const form = useForm({
     successMessage.value = ''
 
     try {
-      await setUserEmail({ body: { email: value.email } })
+      await setUserEmailMutation({ body: { email: value.email } })
       successMessage.value = t('views.verify-email.success')
     } catch (error: unknown) {
       const descriptionCode =
@@ -54,8 +54,8 @@ const form = useForm({
   }
 })
 
-const { mutateAsync: setUserEmail, isPending: isSubmitting } = useMutation(
-  setUserEmailApiV4ItemUserSetEmailPutMutation()
+const { mutateAsync: setUserEmailMutation, isPending: isSubmitting } = useMutation(
+  setUserEmailMutation()
 )
 
 const isValid = form.useStore((state) => state.isValid)

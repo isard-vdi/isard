@@ -332,3 +332,46 @@ async def value_error_handler(request: Request, exception: ValueError):
             "description": str(exception),
         },
     )
+
+
+def _custom_openapi():
+    """Apply gen_openapi strippers to the runtime OpenAPI schema.
+
+    Ensures the schema served at ``/api/v4/openapi.json`` matches the
+    codegen output at ``pkg/oas/apiv4/apiv4.json`` byte-for-byte
+    (modulo ordering). Single source of truth: the strippers live in
+    ``gen_openapi.py``; this override reuses them rather than
+    duplicating the logic.
+    """
+    if app.openapi_schema:
+        return app.openapi_schema
+    from fastapi.openapi.utils import get_openapi
+    from gen_openapi import (
+        _normalize_operation_ids,
+        _strip_colliding_component_titles,
+        _strip_component_property_titles,
+        _strip_null_unions,
+        _strip_parameter_titles,
+        _strip_path_inline_body_titles,
+        _strip_path_parameter_anyof_null,
+    )
+
+    spec = get_openapi(
+        title=app.title,
+        version=app.version,
+        openapi_version=app.openapi_version,
+        description=app.description,
+        routes=app.routes,
+    )
+    _strip_path_parameter_anyof_null(spec)
+    _strip_null_unions(spec)
+    _strip_parameter_titles(spec)
+    _strip_component_property_titles(spec)
+    _strip_colliding_component_titles(spec)
+    _strip_path_inline_body_titles(spec)
+    _normalize_operation_ids(spec)
+    app.openapi_schema = spec
+    return spec
+
+
+app.openapi = _custom_openapi

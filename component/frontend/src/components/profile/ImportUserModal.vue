@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Icon } from '@/components/icon'
 import { FeaturedIconOutline } from '@/components/icon/featured-outline'
 import { useI18n } from 'vue-i18n'
-import { migrationImportUserApiV4ItemUserMigrationImportUserPutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { migrationImportUserMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 interface Props {
   open?: boolean
@@ -45,7 +45,7 @@ const handleClose = () => {
 }
 
 const { mutateAsync: importUser, isPending: isSubmitting } = useMutation(
-  migrationImportUserApiV4ItemUserMigrationImportUserPutMutation()
+  migrationImportUserMutation()
 )
 
 const handleSubmit = async () => {

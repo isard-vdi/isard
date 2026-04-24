@@ -7,8 +7,8 @@ import { useQuery, useMutation } from '@tanstack/vue-query'
 import { cn, copyToClipboard } from '@/lib/utils'
 
 import {
-  getTemplateTreeApiV4ItemTemplateTemplateIdGetTreeGetOptions,
-  convertTemplateToDesktopApiV4ItemTemplateTemplateIdConvertToDesktopPostMutation
+  getTemplateTreeOptions,
+  convertTemplateToDesktopMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -65,7 +65,7 @@ const {
   isError: templateTreeIsError,
   error: templateTreeError
 } = useQuery(
-  getTemplateTreeApiV4ItemTemplateTemplateIdGetTreeGetOptions({
+  getTemplateTreeOptions({
     path: { template_id: props.templateId }
   })
 )
@@ -91,7 +91,7 @@ const {
   isError: convertTemplateIsError,
   error: convertTemplateError
 } = useMutation({
-  ...convertTemplateToDesktopApiV4ItemTemplateTemplateIdConvertToDesktopPostMutation(),
+  ...convertTemplateToDesktopMutation(),
   onSuccess: () => {
     emit('close')
   }

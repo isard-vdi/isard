@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 
-import { toggleTemplateEnabledApiV4ItemTemplateTemplateIdToggleEnabledPutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { toggleTemplateEnabledMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
@@ -38,7 +38,7 @@ const {
   isError: toggleTemplateIsError,
   error: toggleTemplateError
 } = useMutation({
-  ...toggleTemplateEnabledApiV4ItemTemplateTemplateIdToggleEnabledPutMutation(),
+  ...toggleTemplateEnabledMutation(),
   onSuccess: () => {
     emit('close')
   }

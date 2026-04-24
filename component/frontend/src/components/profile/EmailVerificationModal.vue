@@ -11,8 +11,8 @@ import { Icon } from '@/components/icon'
 import { useI18n } from 'vue-i18n'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import {
-  setUserEmailApiV4ItemUserSetEmailPutMutation,
-  getUserApiV4ItemUserGetQueryKey
+  setUserEmailMutation,
+  getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 interface Props {
@@ -55,8 +55,8 @@ const form = useForm({
     apiError.value = ''
 
     try {
-      await setUserEmail({ body: { email: form.getFieldValue('email') } })
-      await queryClient.invalidateQueries({ queryKey: getUserApiV4ItemUserGetQueryKey() })
+      await setUserEmailMutation({ body: { email: form.getFieldValue('email') } })
+      await queryClient.invalidateQueries({ queryKey: getUserOptions() })
       handleClose()
     } catch (error: unknown) {
       const descriptionCode =
@@ -96,8 +96,8 @@ const handleClose = () => {
   apiError.value = ''
 }
 
-const { mutateAsync: setUserEmail, isPending: isRequestingVerification } = useMutation(
-  setUserEmailApiV4ItemUserSetEmailPutMutation()
+const { mutateAsync: setUserEmailMutation, isPending: isRequestingVerification } = useMutation(
+  setUserEmailMutation()
 )
 
 const isValid = form.useStore((state) => state.isValid)

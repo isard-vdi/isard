@@ -16,7 +16,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/vue-query'
 import {
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions,
+  getTemplateInfoOptions,
   getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Switch } from '@/components/ui/switch'
@@ -116,7 +116,7 @@ const {
   error: templateError,
   data: templateData
 } = useQuery({
-  ...getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions({
+  ...getTemplateInfoOptions({
     path: {
       template_id: props.templateId!
     }

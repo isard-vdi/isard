@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getUserConfigApiV4ItemUserGetConfigGet } from '@/gen/oas/apiv4'
+import { getUserConfig } from '@/gen/oas/apiv4'
 
 export const useUserStore = defineStore('user', () => {
   const config = ref<Record<string, unknown> | null>(null)
 
   const getUserConfig = async (): Promise<void> => {
     try {
-      const response = await getUserConfigApiV4ItemUserGetConfigGet()
+      const response = await getUserConfig()
       if (response.error) {
         throw new Error('Failed to fetch user config')
       }

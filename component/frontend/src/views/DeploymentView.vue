@@ -8,7 +8,7 @@ import { Icon } from '@/components/icon'
 import { AvatarLabel } from '@/components/avatar-label'
 import { DataTable } from '@/components/data-table'
 import bannerDeployments from '@/assets/img/banner-deployments.svg'
-import { getDeploymentApiV4ItemDeploymentDeploymentIdGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDeploymentOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { type DeploymentUserDetail } from '@/gen/oas/apiv4'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import { Button } from '@/components/ui/button'
@@ -47,7 +47,7 @@ const {
   data: deploymentEntry,
   isError: deploymentEntryIsError
 } = useQuery({
-  ...getDeploymentApiV4ItemDeploymentDeploymentIdGetOptions({
+  ...getDeploymentOptions({
     path: { deployment_id: deploymentId.value }
   })
 })

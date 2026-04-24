@@ -3,7 +3,7 @@ import { computed, ref, watchEffect } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import {
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions,
+  getTemplateInfoOptions,
   getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
@@ -22,7 +22,7 @@ const {
   error: templateError,
   data: templateData
 } = useQuery({
-  ...getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions({
+  ...getTemplateInfoOptions({
     path: {
       template_id: props.templateId!
     }
