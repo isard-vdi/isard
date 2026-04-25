@@ -207,6 +207,30 @@ export interface WsPlanPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Users — emitted by change-handler UsersHandler to /userspace room=user.id
+// when the user's own record changes (e.g. email verified). Payload is the
+// full user model. See component/change-handler/src/handlers/users.py.
+// ---------------------------------------------------------------------------
+
+export interface WsUserDataPayload {
+  id: string
+  email?: string | null
+  email_verified?: number | boolean | null
+  [key: string]: unknown
+}
+
+// ---------------------------------------------------------------------------
+// Shared-deployment desktop start/stop — emitted by DesktopDomainHandler
+// when a participant desktop in a shared deployment crosses the started
+// boundary. Payload is the deployment id (i.e. desktop.tag).
+// See component/change-handler/src/handlers/domains.py:405-415.
+// ---------------------------------------------------------------------------
+
+export interface WsSharedDeploymentDesktopPayload {
+  id: string
+}
+
+// ---------------------------------------------------------------------------
 // Event name → payload type mapping
 // ---------------------------------------------------------------------------
 
@@ -247,6 +271,12 @@ export interface WsEventMap {
   plan_add: WsPlanPayload
   plan_update: WsPlanPayload
   plan_delete: WsPlanPayload
+
+  users_data: WsUserDataPayload
+  users_delete: WsDeletePayload
+
+  shared_deployment_desktop_start: WsSharedDeploymentDesktopPayload
+  shared_deployment_desktop_stop: WsSharedDeploymentDesktopPayload
 }
 
 export type WsEventName = keyof WsEventMap
