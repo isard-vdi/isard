@@ -147,6 +147,10 @@ class Caches(RethinkSharedConnection):
         with cls._rdb_context():
             return r.table("config").get(1).run(cls._rdb_connection)
 
+    @classmethod
+    def clear_config_cache(cls):
+        cls.config_cache.clear()
+
     ## Unused item timeout
 
     @classmethod
