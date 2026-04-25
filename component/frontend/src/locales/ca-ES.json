@@ -88,6 +88,9 @@
     "planning": {
       "title": "Planificació",
       "subtitle": "Planifica la disponibilitat dels recursos reservables"
+    },
+    "direct-viewer": {
+      "title": "Visor directe"
     }
   },
   "views": {
@@ -663,6 +666,65 @@
     "shared-deployments": {
       "error": {
         "loading": "Error en carregar els desplegaments:"
+      }
+    },
+    "direct-viewer": {
+      "title": "Accés als visors d'escriptori:",
+      "logo-alt": "Logotip",
+      "loading": "S'està carregant",
+      "restart": "Reinicia",
+      "waitingip": "S'està esperant que l'escriptori s'engegui",
+      "powered-by": "Funciona amb {isardvdi}",
+      "errors": {
+        "not_found": "No s'ha trobat el recurs sol·licitat.",
+        "generic_error": "S'ha produït un error inesperat.",
+        "desktop_not_booked_until": "Aquest escriptori no està reservat fins a {start}.",
+        "direct_viewer_docs_not_found": "Documentació no trobada.",
+        "unable_to_reset_domain_jumperurl": "No s'ha pogut reiniciar l'escriptori."
+      },
+      "browser": {
+        "title": "Accés a través d'aquest navegador",
+        "subtitle": "No requereix cap instal·lació"
+      },
+      "file": {
+        "title": "Accés a través d'aplicació",
+        "subtitle": "Cal tenir programari específic instal·lat (millor rendiment)"
+      },
+      "description": {
+        "vnc": "Accés a l'escriptori en aquest navegador",
+        "rdp": "Accés a l'escriptori en aquest navegador (requereix l'usuari i contrasenya de l'escriptori Windows)",
+        "spice": "Accés a l'escriptori a través d'un fitxer que cal obrir amb el programa remote-viewer",
+        "rdpgw": "Windows inclou el programari necessari per al seu ús"
+      },
+      "help": {
+        "spice": {
+          "spice-help": "Instruccions d'instal·lació de SPICE",
+          "local-client": "Utilitza el client local (recomanat)",
+          "best-performance": "És l'opció amb millor rendiment",
+          "spice-client-required": "però es requereix una aplicació externa.",
+          "generic-text": "Feu clic al següent enllaç per trobar enllaços de descàrrega i instruccions d'instal·lació:",
+          "download-install": "Descarrega el programari del visor",
+          "once-installed": "Un cop instal·lat, feu clic al botó 'SPICE', que descarregarà el fitxer de l'escriptori virtual.",
+          "close-guide": "Tanca la guia"
+        },
+        "rdp": {
+          "rdp-help": "Instruccions d'instal·lació de RDP",
+          "local-client": "Utilitza el client RDP (recomanat)",
+          "included": "Windows inclou el programari necessari per al seu ús,",
+          "client-required": "però en altres sistemes operatius pot requerir la instal·lació d'una aplicació externa. Consulteu les instruccions d'instal·lació:",
+          "download-install": "Descarrega el programari del visor",
+          "once-installed": "Un cop instal·lat, feu clic al botó 'RDP', que descarregarà el fitxer de l'escriptori virtual.",
+          "close-guide": "Tanca la guia"
+        }
+      },
+      "reset-modal": {
+        "title": "Reinicia l'escriptori",
+        "option": {
+          "reset-desktop": "Forçar el reinici d'un escriptori és una acció perillosa. És equivalent a desendollar-lo mentre s'està executant. Si pots, atura'l des d'un visor."
+        },
+        "confirmation": {
+          "reset-desktop": "Força el reinici de l'escriptori"
+        }
       }
     }
   },

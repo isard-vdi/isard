@@ -307,6 +307,12 @@ const router = createRouter({
       meta: { title: 'router.maintenance.title' }
     },
     {
+      path: '/vw/:token',
+      name: 'direct-viewer',
+      component: () => import('../views/DirectViewerView.vue'),
+      meta: { title: 'router.direct-viewer.title', public: true }
+    },
+    {
       path: '/notifications/:trigger',
       name: 'notifications',
       component: () => import('../views/NotificationsView.vue'),

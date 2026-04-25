@@ -368,14 +368,6 @@ const router = new VueRouter({
       meta: {
         title: i18n.t('router.titles.not_found')
       }
-    },
-    {
-      path: '/vw/*',
-      name: 'DirectViewer',
-      component: () => import('@/views/DirectViewer.vue'),
-      meta: {
-        title: i18n.t('router.titles.direct_viewer')
-      }
     }
   ],
   mode: 'history'

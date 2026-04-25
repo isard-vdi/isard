@@ -4,25 +4,13 @@ import axios from 'axios'
 import * as cookies from 'tiny-cookie'
 import { apiV3Segment, sessionCookieName } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
-import { DirectViewerUtils } from '../../utils/directViewerUtils'
-import { ConfigUtils } from '../../utils/configUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
-import { DateUtils } from '../../utils/dateUtils'
-import { jwtDecode } from 'jwt-decode'
 
 const getDefaultState = () => {
   return {
     viewers: localStorage.viewers ? JSON.parse(localStorage.viewers) : {},
     desktops: [],
     currentTab: 'desktops',
-    directViewer: {
-      viewersDocumentationUrl: 'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/',
-      name: '',
-      description: '',
-      viewers: [],
-      state: '',
-      shutdown: ''
-    },
     desktops_loaded: false,
     viewType: 'grid',
     showStarted: false,
@@ -84,9 +72,6 @@ export default {
     },
     getDesktopsFilter: state => {
       return state.filters.desktops
-    },
-    getDirectViewer: state => {
-      return state.directViewer
     },
     getCurrentTab: state => {
       return state.currentTab
@@ -181,21 +166,6 @@ export default {
     saveDesktopFilter: (state, payload) => {
       state.filters.desktops = payload.filter
     },
-    saveDirectViewer: (state, payload) => {
-      state.directViewer.name = payload.name
-      state.directViewer.description = payload.description
-      state.directViewer.viewers = Object.keys(payload.viewers)
-        .map((viewer) => payload.viewers[viewer])
-        .filter((viewer) => viewer != null)
-      state.directViewer.state = payload.state
-      state.directViewer.jwt = payload.jwt
-      state.directViewer.desktopId = payload.desktopId
-      state.directViewer.shutdown = payload.shutdown
-      state.directViewer.viewersDocumentationUrl = payload.viewersDocumentationUrl
-    },
-    setDirectViewerErrorState: (state) => {
-      state.directViewer.state = 'error'
-    },
     setCurrentTab: (state, currentTab) => {
       state.currentTab = currentTab
     },
@@ -249,9 +219,6 @@ export default {
     },
     resetDirectLinkState (context) {
       context.commit('resetDirectLinkState')
-    },
-    socket_directviewerUpdate (context, data) {
-      context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(JSON.parse(data)))
     },
     socket_desktopAdd (context, data) {
       const desktop = DesktopUtils.parseDesktop(JSON.parse(data))
@@ -378,12 +345,6 @@ export default {
         placeholder: ''
       })
     },
-    resetDesktop (_, data) {
-      axios.put(`${apiV3Segment}/item/desktop/token/${data.token}/reset-desktop`).then(response => {
-      }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
-    },
     openDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.opening-desktop'))
 
@@ -480,53 +441,6 @@ export default {
     },
     navigate (context, path) {
       router.push({ name: path })
-    },
-    getDirectViewers (context, payload) {
-      axios.get(`${apiV3Segment}/item/desktop/get-viewers-docs`).then(response => {
-        const config = context.getters.getConfig
-        config.viewersDocumentationUrl = response.data.viewers_documentation_url
-        context.commit('setConfig', ConfigUtils.parseConfig(config))
-      })
-      return axios.get(`${apiV3Segment}/item/desktop/token/${payload.token}/get-viewer`).then(response => {
-        context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(response.data))
-      }).catch(e => {
-        context.commit('setDirectViewerErrorState')
-        // If the error is that the desktop needs booking format he given time to the users local
-        if (e.response.data.description_code === 'desktop_not_booked_until') {
-          e.response.data.params.start = DateUtils.utcToLocalTime(e.response.data.params.start)
-        }
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
-    },
-    openDirectViewerDesktop (_, payload) {
-      const token = router.currentRoute.params.pathMatch
-      if (token) {
-        axios.post(`${apiV3Segment}/item/desktop/token/${token}/viewer/${payload.kind}-${payload.protocol}`)
-          .catch(() => {})
-      }
-
-      const el = document.createElement('a')
-
-      if (payload.kind === 'file') {
-        el.setAttribute(
-          'href',
-            `data:${payload.mime};charset=utf-8,${encodeURIComponent(payload.content)}`
-        )
-        el.setAttribute('download', `${payload.name}.${payload.ext}`)
-      } else if (payload.kind === 'browser') {
-        const exp = payload.protocol === 'rdp' ? jwtDecode(payload.cookie).web_viewer.exp * 1000 : JSON.parse(atob(decodeURIComponent(payload.cookie))).web_viewer.exp * 1000
-        cookies.setCookie('browser_viewer', payload.cookie, { expires: exp })
-
-        const url = new URL(payload.viewer)
-        url.searchParams.append('direct', '1')
-
-        el.setAttribute('href', url.toString())
-      }
-
-      el.style.display = 'none'
-      document.body.appendChild(el)
-      el.click()
-      document.body.removeChild(el)
     },
     updateCurrentTab (context, currentTab) {
       if (currentTab === 'sharedTemplates' && !context.getters.getSharedTemplatesLoaded) {
