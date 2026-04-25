@@ -185,11 +185,7 @@ async def admin_hypervisor_enable(
 ):
     try:
         if data.numa_topology is not None:
-            from isardvdi_common.lib.hypervisors.hypervisors import (
-                HypervisorsProcessed,
-            )
-
-            HypervisorsProcessed.update_hyper_numa_topology(
+            AdminHypervisorsService.update_hyper_numa_topology(
                 hyper_id, data.numa_topology
             )
         result = AdminHypervisorsService.enable_hyper(hyper_id, data.enabled)

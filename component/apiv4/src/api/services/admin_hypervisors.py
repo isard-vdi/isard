@@ -117,6 +117,11 @@ class AdminHypervisorsService:
         return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
 
     @staticmethod
+    def update_hyper_numa_topology(hyper_id, numa_topology):
+        """Refresh hypervisor numa_topology (libvirt-validated, sent at enable time)."""
+        HypervisorsProcessed.update_hyper_numa_topology(hyper_id, numa_topology)
+
+    @staticmethod
     def enable_hyper(hyper_id, enable=True):
         """Enable or disable a hypervisor."""
         if enable:
