@@ -2209,16 +2209,18 @@ def _expand_cpulist(cpulist_str):
     return sorted(set(cpus))
 
 
-def add_numa_pinning(xml, numa_node, cpulist_str, vcpus, memory_mode="preferred"):
-    """Add <cputune> and <numatune> for NUMA-local CPU pinning.
+def add_numa_pinning(
+    xml, numa_node, cpulist_str, vcpus, memory_mode="preferred", emit_numatune=True
+):
+    """Add <cputune> and (optionally) <numatune> for NUMA-local CPU pinning.
 
     When vcpus <= len(node_cpus): generates per-vCPU pinning with
     <vcpupin> entries distributed round-robin across the node's CPUs,
     plus <emulatorpin> for QEMU emulator threads.
 
     When vcpus > len(node_cpus): skips per-vCPU pinning (would cause
-    harmful contention) and only sets <vcpu cpuset='...'> plus <numatune>
-    to constrain to the node.
+    harmful contention) and only sets <vcpu cpuset='...'> to constrain
+    to the node.
 
     Args:
         xml: Domain XML string
@@ -2226,7 +2228,17 @@ def add_numa_pinning(xml, numa_node, cpulist_str, vcpus, memory_mode="preferred"
         cpulist_str: CPU list string for the node (e.g. "0-15,32-47")
         vcpus: Number of vCPUs in the domain
         memory_mode: "strict" for GPU+hugepages (guaranteed node-local),
-                     "preferred" for non-GPU (hint, can fall back)
+                     "preferred" for non-GPU (hint, can fall back).
+                     Ignored when emit_numatune=False.
+        emit_numatune: When True, add <numatune memory nodeset=N/> to bind
+                       guest memory to the NUMA cell. Set to False on hosts
+                       where libvirt's capability XML reports broken NUMA
+                       cell IDs (libvirt-in-container can produce duplicate
+                       id='0' cells); libvirt would reject <numatune> as
+                       "NUMA node X is unavailable" in that case. CPU
+                       pinning still works because <cputune>/cpuset
+                       reference CPU IDs, not cell IDs, and the kernel's
+                       first-touch policy provides soft memory locality.
 
     See https://libvirt.org/formatdomain.html#cpu-tuning
     See https://libvirt.org/formatdomain.html#numa-node-tuning
@@ -2275,24 +2287,25 @@ def add_numa_pinning(xml, numa_node, cpulist_str, vcpus, memory_mode="preferred"
         if vcpu_elem:
             vcpu_elem[0].set("cpuset", cpulist_str)
 
-    # Add numatune
-    numatune_xml = (
-        f"<numatune><memory mode='{memory_mode}' nodeset='{numa_node}'/></numatune>"
-    )
-    numatune_elem = etree.parse(StringIO(numatune_xml)).getroot()
+    if emit_numatune:
+        # Add numatune
+        numatune_xml = (
+            f"<numatune><memory mode='{memory_mode}' nodeset='{numa_node}'/></numatune>"
+        )
+        numatune_elem = etree.parse(StringIO(numatune_xml)).getroot()
 
-    # Insert after cputune if present, else after memoryBacking, else after vcpu
-    cputune = tree.xpath("/domain/cputune")
-    mem_backing = tree.xpath("/domain/memoryBacking")
-    vcpu_elem = tree.xpath("/domain/vcpu")
-    if cputune:
-        cputune[0].addnext(numatune_elem)
-    elif mem_backing:
-        mem_backing[0].addnext(numatune_elem)
-    elif vcpu_elem:
-        vcpu_elem[0].addnext(numatune_elem)
-    else:
-        tree.xpath("/domain")[0].insert(0, numatune_elem)
+        # Insert after cputune if present, else after memoryBacking, else after vcpu
+        cputune = tree.xpath("/domain/cputune")
+        mem_backing = tree.xpath("/domain/memoryBacking")
+        vcpu_elem = tree.xpath("/domain/vcpu")
+        if cputune:
+            cputune[0].addnext(numatune_elem)
+        elif mem_backing:
+            mem_backing[0].addnext(numatune_elem)
+        elif vcpu_elem:
+            vcpu_elem[0].addnext(numatune_elem)
+        else:
+            tree.xpath("/domain")[0].insert(0, numatune_elem)
 
     return indent(etree.tostring(tree, encoding="unicode"))
 
