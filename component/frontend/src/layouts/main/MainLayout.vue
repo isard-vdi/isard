@@ -8,6 +8,7 @@ import { Header } from '@/components/header'
 import { Sidebar } from '@/components/sidebar'
 import { FrontendToggler } from '@/components/frontend-toggler'
 import SessionModal from '@/components/modal/SessionModal.vue'
+import { MessageModal } from '@/components/modal'
 
 import { useSessionStore } from '@/stores/session'
 import { sidebarItemsToShow } from '@/lib/navigation'
@@ -142,6 +143,8 @@ onUnmounted(() => {
     @logout="sessionStore.handleLogout"
     @go-to-login="sessionStore.redirectToLogin"
   />
+
+  <MessageModal />
 
   <FrontendToggler />
 </template>
