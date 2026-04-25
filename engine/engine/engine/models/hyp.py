@@ -25,6 +25,7 @@ from engine.services.db import (
     get_id_hyp_from_uri,
     get_vgpu,
     get_vgpu_actual_profile,
+    replace_vgpu_profile_mdevs,
     reset_vgpu_created_started,
     update_actual_stats_domain,
     update_actual_stats_hyp,
@@ -33,6 +34,7 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_created,
     update_vgpu_profile,
+    update_vgpu_uuid_reserved_in_domain,
     update_vgpu_uuid_started_in_domain,
     update_vgpu_uuids,
 )
@@ -44,7 +46,7 @@ from engine.services.db.domains import (
     get_domains_with_status_in_list,
     update_domain_status,
 )
-from engine.services.db.hypervisors import get_hypervisor
+from engine.services.db.hypervisors import add_vgpu_uuids, get_hypervisor, get_vgpu_full
 from engine.services.lib.functions import (
     SSHTimeoutError,
     calcule_cpu_hyp_stats,
@@ -115,6 +117,9 @@ class HypStats(object):
             for k in self.hyper_stats_history[hyp_id].keys()
             if time.time() - k < minutes * 60
         ]
+        if not minutes_keys:
+            # No samples in this time window yet — return current instant stats
+            return self.get_stats(hyp_id, minutes=0)
         # Get dict of means of all values in cpu_1min_keys dicts
         cpu_minutes_mean = {
             kk: round(
@@ -122,12 +127,16 @@ class HypStats(object):
             )
             for kk in minutes_keys[0]["cpu"].keys()
         }
-        memory_minutes_mean = {
-            kk: round(
-                sum([vv["memory"][kk] for vv in minutes_keys]) / len(minutes_keys), 0
-            )
-            for kk in minutes_keys[0]["memory"].keys()
-        }
+        memory_minutes_mean = {}
+        for kk in minutes_keys[0]["memory"].keys():
+            sample = minutes_keys[0]["memory"][kk]
+            if isinstance(sample, (int, float)):
+                memory_minutes_mean[kk] = round(
+                    sum(vv["memory"][kk] for vv in minutes_keys) / len(minutes_keys), 0
+                )
+            else:
+                # Non-numeric fields (e.g. numa_hugepages_free_kb dict): use latest value
+                memory_minutes_mean[kk] = minutes_keys[-1]["memory"][kk]
         self.remove_old_stats(hyp_id=hyp_id)
         return {"memory": memory_minutes_mean, "cpu": cpu_minutes_mean}
 
@@ -142,11 +151,20 @@ class HypStats(object):
                 if time.time() - key >= minutes * 60:
                     del self.hyper_stats_history[hyp_id][key]
 
-    def set_stats(self, hyp_id, memory, cpu, hugepages_total_kb=0, hugepages_free_kb=0):
+    def set_stats(
+        self,
+        hyp_id,
+        memory,
+        cpu,
+        hugepages_total_kb=0,
+        hugepages_free_kb=0,
+        numa_hugepages_free_kb=None,
+    ):
         memory["available"] = memory["free"] + memory["cached"]
         memory["hugepages_total_kb"] = hugepages_total_kb
         memory["hugepages_free_kb"] = hugepages_free_kb
         memory["hugepages_used_kb"] = hugepages_total_kb - hugepages_free_kb
+        memory["numa_hugepages_free_kb"] = numa_hugepages_free_kb or {}
         memory["used"] = memory["total"] - memory["available"] - hugepages_free_kb
         current_libvirt_stats = {"memory": memory, "cpu": cpu}
         if hyp_id not in self.hyper_libvirt_last_stats.keys():
@@ -583,6 +601,19 @@ class hyp(object):
                 f"{len(self.info_nvidia)} GPU cards"
             )
 
+        # Reconcile mdev pools with current sub_paths. Picks up VFs that
+        # appeared after the original discovery (e.g., sriov_numvfs raised
+        # later) without disturbing UUIDs already bound to running domains.
+        for pci_bus, d_vgpu in self.info_nvidia.items():
+            vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
+            try:
+                self.reconcile_vgpu_uuids(vgpu_id, d_vgpu)
+            except Exception as e:
+                logs.workers.error(
+                    f"[{self.id_hyp_rethink}] reconcile_vgpu_uuids failed "
+                    f"for {vgpu_id}: {e}"
+                )
+
         # Re-apply driver binding for GPUs with active passthrough profile.
         # The vfio-pci binding does not survive container/host restarts, so
         # we must re-apply it every time the engine starts.
@@ -746,8 +777,35 @@ class hyp(object):
 
         old_profile = pci_info.get("vgpu_profile", None)
         if old_profile == new_profile and new_profile != "passthrough":
-            update_table_field("vgpus", gpu_id, "changing_to_profile", False)
-            return
+            # For MIG profiles, verify MIG is actually enabled before skipping.
+            # On first boot the stored profile may be MIG but MIG mode was never
+            # activated (discovery reports MIG capabilities even when disabled).
+            new_is_mig = (
+                pci_info.get("types", {}).get(new_profile, {}).get("mig", False)
+            )
+            if new_is_mig:
+                pci_bdf = pci_info["path"].split("/")[-1]
+                mig_check = execute_commands(
+                    self.hostname,
+                    [
+                        f"nvidia-smi -i {pci_bdf} --query-gpu=mig.mode.current --format=csv,noheader"
+                    ],
+                    port=self.port,
+                    timeout=10,
+                )
+                mig_current = mig_check[0].get("out", "").strip() if mig_check else ""
+                if "Enabled" not in mig_current:
+                    logs.main.info(
+                        f"MIG profile {new_profile} selected but MIG is "
+                        f"{mig_current!r} on {pci_bdf}, enabling MIG mode"
+                    )
+                    # Fall through to MIG transition below
+                else:
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    return
+            else:
+                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                return
         # For passthrough, always re-run driver binding even when old == new,
         # because driver state (vfio-pci) may not survive host/container restarts.
         if old_profile != new_profile or new_profile == "passthrough":
@@ -758,6 +816,58 @@ class hyp(object):
             )
             # GET RUNNING MDEVS AND DOMAINS FROM HYPERVISOR
             d_mdevs_running = self.get_mdevs_with_domains()
+
+            # Defensive quiesce: destroy any domain whose mdev belongs to
+            # this PCI card, across *all* profiles. remove_uuids covers the
+            # old profile; this loop catches orphan mdevs from prior
+            # profiles or from a stale self.mdevs map. Keeps the card
+            # empty before the driver swap and before the post-switch
+            # pool rebuild. Skipped when old==new (passthrough re-run,
+            # nothing to tear down).
+            if old_profile != new_profile:
+                card_uuids = set()
+                for prof_map in pci_mdevs.values():
+                    card_uuids.update(prof_map.keys())
+                extra_domains = set()
+                for running_uuid, info in d_mdevs_running.items():
+                    if running_uuid in card_uuids and running_uuid not in remove_uuids:
+                        vm_name = info.get("vm_name")
+                        if isinstance(vm_name, str) and vm_name:
+                            extra_domains.add(vm_name)
+                if extra_domains:
+                    pci_bdf_log = pci_info["path"].split("/")[-1]
+                    logs.main.info(
+                        f"Stopping {len(extra_domains)} desktop(s) on "
+                        f"{pci_bdf_log} before switching "
+                        f"{old_profile} -> {new_profile}: "
+                        f"{sorted(extra_domains)}"
+                    )
+                    for domain_id in extra_domains:
+                        try:
+                            self.conn.lookupByName(domain_id).destroy()
+                        except libvirt.libvirtError as e:
+                            if "Domain not found" in str(e):
+                                logs.main.info(f"domain {domain_id} already stopped.")
+                            else:
+                                logs.main.error(
+                                    f"domain {domain_id} on {pci_bdf_log} "
+                                    f"can not be destroyed before profile "
+                                    f"switch: {e}"
+                                )
+                                update_table_field(
+                                    "vgpus", gpu_id, "changing_to_profile", False
+                                )
+                                return False
+                        except Exception as e:
+                            logs.main.error(
+                                f"domain {domain_id} on {pci_bdf_log} "
+                                f"can not be destroyed before profile "
+                                f"switch: {e}"
+                            )
+                            update_table_field(
+                                "vgpus", gpu_id, "changing_to_profile", False
+                            )
+                            return False
 
             # Destroy any PCI passthrough domains using this GPU before driver swap
             if old_profile == "passthrough":
@@ -1055,6 +1165,15 @@ class hyp(object):
                     ]
                 execute_commands(self.hostname, cmds_driver, port=self.port, timeout=60)
 
+            # Right-size the target profile's mdev map to what the driver
+            # can actually host. Must run *before* we read the pool and
+            # build create commands below, so the sysfs writes match the
+            # DB truth. Safe here because the card is quiesced: all
+            # guests on the old profile (plus any stragglers on other
+            # profiles of this PF) were just destroyed above.
+            if old_profile != new_profile:
+                self._rightsize_profile_pool(gpu_id, pci_id, new_profile)
+
             # CREATE NEW UUIDS
             create_uuids = get_all_mdev_uuids_from_profile(gpu_id, new_profile)
 
@@ -1159,6 +1278,10 @@ class hyp(object):
                     update_vgpu_created(vgpu_id, vgpu_profile, uuid_create)
                     self.mdevs[pci_id][vgpu_profile][uuid_create]["created"] = True
                     continue
+                if d_uuid.get("mig"):
+                    # MIG instances are created by _execute_mig_transition()
+                    # via nvidia-smi, not by echoing to mdev_supported_types.
+                    continue
                 if uuid_create not in d_mdevs_running.keys():
                     if sub_paths is False:
                         path = base_path
@@ -1170,6 +1293,32 @@ class hyp(object):
                     cmds.append(
                         f"echo {uuid_create} > '{path}/mdev_supported_types/{type_id}/create'"
                     )
+
+            # Pre-flight capacity check: if the DB pool has more UUIDs than
+            # the driver-declared max_instance for this profile, creating the
+            # overflow produces EIO and fires a persistent warning. Truncate
+            # up front, flag the overflow entries, and emit ONE aggregated
+            # warning instead. A pool_size <= physical_cap card is unaffected.
+            physical_cap = (
+                d_nvidia.get("types", {}).get(vgpu_profile, {}).get("max") or 0
+            )
+            if physical_cap and len(cmds) > 0:
+                already_realised = sum(
+                    1
+                    for u, info in self.mdevs[pci_id][vgpu_profile].items()
+                    if info.get("created") or u in d_mdevs_running
+                )
+                remaining = max(0, physical_cap - already_realised)
+                if len(cmds) > remaining:
+                    self._warn_gpu_at_capacity(
+                        pci_id,
+                        vgpu_profile,
+                        physical_cap,
+                        already_realised,
+                        len(cmds),
+                        remaining,
+                    )
+                    cmds = cmds[:remaining]
 
             if len(cmds) > 0:
                 logs.workers.info(
@@ -1191,6 +1340,11 @@ class hyp(object):
                         )
                         self.mdevs[pci_id][vgpu_profile][uuid_create]["created"] = True
                 else:
+                    err_msgs = [
+                        d["err"].strip()
+                        for d in array_out_err
+                        if d.get("err", "").strip()
+                    ]
                     logs.workers.error(
                         f"[{self.id_hyp_rethink}] Failed to create mdevs for PCI {pci_id}: "
                         f"{len(errors)}/{len(cmds)} commands failed"
@@ -1200,11 +1354,92 @@ class hyp(object):
                             logs.workers.error(
                                 f"[{self.id_hyp_rethink}] CMD: {cmds[i][:80]}... / ERROR: {d['err']}"
                             )
+                    # Diagnose and store a user-visible warning
+                    self._diagnose_mdev_failure(pci_id, vgpu_profile, err_msgs)
             else:
                 logs.workers.debug(
                     f"[{self.id_hyp_rethink}] No new mdevs to create for PCI {pci_id} "
                     f"(all already running)"
                 )
+
+    def _warn_gpu_at_capacity(
+        self, pci_id, profile, physical_cap, already_realised, requested, remaining
+    ):
+        """Emit a single 'GPU at profile capacity' warning for an over-sized pool.
+
+        Fires when the DB vGPU pool has more UUIDs for a given (PF, profile)
+        than the nvidia driver's declared ``max_instance`` — i.e. the card
+        cannot host the pool regardless of how many retries we issue. The
+        caller is expected to truncate its create commands; this method only
+        records the diagnostic. No retry is scheduled because retrying a
+        saturated card rewrites the same row every 30s with no new outcome.
+        """
+        pci_bdf = pci_id.replace("pci_", "").replace("_", ":", 2)
+        pci_bdf = pci_bdf[: len(pci_bdf) - 2] + "." + pci_bdf[-1]
+        over = requested - remaining
+        total_requested = already_realised + requested
+        diagnosis = (
+            f"GPU {pci_bdf} at profile '{profile}' capacity: "
+            f"{already_realised + remaining}/{physical_cap} instances in use, "
+            f"DB pool has {total_requested} slots — {over} slot(s) cannot be "
+            f"realised (pool over-sized vs hardware). Reduce pool size or "
+            f"switch to a profile with more instances per GPU."
+        )
+        logs.workers.warning(f"[{self.id_hyp_rethink}] {diagnosis}")
+        if hasattr(self, "_gpu_warnings"):
+            self._gpu_warnings.append(diagnosis)
+
+    def _diagnose_mdev_failure(self, pci_id, profile, err_msgs):
+        """Diagnose mdev creation failure and store warning in hypervisor detail."""
+        pci_bdf = pci_id.replace("pci_", "").replace("_", ":", 2)
+        pci_bdf = pci_bdf[: len(pci_bdf) - 2] + "." + pci_bdf[-1]
+
+        first_err = err_msgs[0] if err_msgs else ""
+        if "I/O error" in first_err:
+            # "I/O error" on write to .../create has two common causes on
+            # SR-IOV cards:
+            #   1. The targeted VF already hosts an mdev for that type
+            #      (available_instances=0). Typical on re-runs before the
+            #      reconciler catches up.
+            #   2. IOMMU/VFIO misconfigured so the nvidia driver refuses to
+            #      bind the VFs. Typical on a fresh host without iommu=pt.
+            # The distinguishing signal is whether ANY mdevs exist on the
+            # card right now — if yes, cause (1); if no, cause (2).
+            diagnosis = (
+                f"GPU {pci_bdf}: mdev creation failed (I/O error). "
+                f"Either the target SR-IOV VFs already host mdevs for "
+                f"profile '{profile}' (available_instances=0 — retry after "
+                f"reconciliation) OR the nvidia driver cannot bind the VFs "
+                f"(IOMMU/VFIO misconfigured — enable IOMMU in BIOS and add "
+                f"iommu=pt to kernel cmdline, then reboot). "
+                f"Inspect /sys/bus/pci/devices/<VF>/mdev_supported_types/"
+                f"<type_id>/available_instances to tell them apart."
+            )
+        elif "nonexistent directory" in first_err:
+            diagnosis = (
+                f"GPU {pci_bdf}: mdev type '{profile}' not found in sysfs. "
+                f"GPU may need SR-IOV VF enablement or MIG mode activation."
+            )
+        elif "Permission denied" in first_err:
+            diagnosis = (
+                f"GPU {pci_bdf}: mdev creation permission denied. "
+                f"Container may lack required privileges."
+            )
+        else:
+            diagnosis = (
+                f"GPU {pci_bdf}: mdev creation failed for profile '{profile}': "
+                f"{first_err[:200]}"
+            )
+
+        logs.workers.warning(f"[{self.id_hyp_rethink}] {diagnosis}")
+
+        # Accumulate for batch write at end of init_nvidia. Failures reaching
+        # _diagnose_mdev_failure came from a sysfs write that actually ran, so
+        # they are race-/state-dependent and the 30 s retry may clear them
+        # once deferred cleanup finishes. Mark retry-eligible.
+        if hasattr(self, "_gpu_warnings"):
+            self._gpu_warnings.append(diagnosis)
+        self._gpu_warnings_retryable = True
 
     def init_nvidia(self):
         """Initialize NVIDIA GPU/vGPU support for this hypervisor.
@@ -1217,6 +1452,33 @@ class hyp(object):
         """
         logs.workers.info(f"[{self.id_hyp_rethink}] Starting NVIDIA initialization...")
         start_time = time.time()
+
+        # Bump generation so any in-flight mdev-retry thread from a previous
+        # init_nvidia exits on its next tick instead of fighting with us.
+        self._init_nvidia_generation = getattr(self, "_init_nvidia_generation", 0) + 1
+        current_gen = self._init_nvidia_generation
+
+        # Collect GPU warnings from discovery data and mdev creation.
+        # _gpu_warnings_retryable tracks whether any warning could plausibly
+        # clear on a second attempt after deferred mdev cleanup runs. Pure
+        # "GPU at capacity" diagnoses are deterministic and must NOT trigger
+        # the 30 s retry loop.
+        self._gpu_warnings = []
+        self._gpu_warnings_retryable = False
+        try:
+            if self.hypervisor:
+                nvidia_gpus = self.hypervisor.get("nvidia_gpus", [])
+                if isinstance(nvidia_gpus, str):
+                    import json
+
+                    nvidia_gpus = json.loads(nvidia_gpus)
+                for gpu in nvidia_gpus:
+                    for w in gpu.get("warnings", []):
+                        self._gpu_warnings.append(
+                            f"GPU {gpu.get('pci_bus_id', '?')}: {w}"
+                        )
+        except Exception:
+            pass
 
         # Step 1: Reconcile mdevs with reality (adopt unknown mdevs, update DB)
         logs.workers.info(
@@ -1237,6 +1499,125 @@ class hyp(object):
         logs.workers.info(
             f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Completed in {time.time() - step_start:.2f}s"
         )
+
+        # Write accumulated GPU warnings to DB for admin visibility
+        try:
+            warnings = getattr(self, "_gpu_warnings", [])
+            update_table_field(
+                "hypervisors",
+                self.id_hyp_rethink,
+                "gpu_warnings",
+                warnings,
+                merge_dict=False,
+            )
+            if warnings:
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] GPU warnings stored: {len(warnings)}"
+                )
+                if not getattr(self, "_gpu_warnings_retryable", False):
+                    logs.workers.info(
+                        f"[{self.id_hyp_rethink}] GPU warnings are deterministic "
+                        f"(pool vs hardware capacity); skipping retry."
+                    )
+                    return
+                # Schedule a bounded retry loop with ramping backoff. Orphan
+                # mdevs from a prior container lifetime may still block the
+                # initial init, and SR-IOV VF settling can take > 78 s on
+                # some cards (empirically observed on isardvdi-office-solaris
+                # 2026-04-21: VFs created at T+0, still blocked at T+78 s,
+                # self-healed sometime later). Dense early attempts catch
+                # fast self-heal; the long tail handles slow driver resets.
+                # Past the full window the state is genuinely stuck.
+                import threading
+
+                # (wait_s before each attempt) — total window ~21 min
+                retry_delays = (
+                    10,
+                    20,
+                    30,
+                    40,
+                    55,
+                    70,
+                    85,
+                    100,
+                    120,
+                    180,
+                    240,
+                    300,
+                )
+
+                if getattr(self, "_mdev_retry_active", False):
+                    logs.workers.info(
+                        f"[{self.id_hyp_rethink}] mdev retry thread already "
+                        f"running; not spawning a second one (generation "
+                        f"check will let it pick up the latest state)"
+                    )
+                else:
+                    self._mdev_retry_active = True
+
+                    def _retry_mdev_loop(spawn_gen=current_gen):
+                        try:
+                            for i, delay in enumerate(retry_delays, start=1):
+                                time.sleep(delay)
+                                if self._init_nvidia_generation != spawn_gen:
+                                    logs.workers.info(
+                                        f"[{self.id_hyp_rethink}] init_nvidia "
+                                        f"re-ran (gen {spawn_gen} -> "
+                                        f"{self._init_nvidia_generation}); "
+                                        f"aborting retry loop"
+                                    )
+                                    return
+                                logs.workers.info(
+                                    f"[{self.id_hyp_rethink}] mdev retry "
+                                    f"attempt {i}/{len(retry_delays)} "
+                                    f"after {delay}s backoff..."
+                                )
+                                self._gpu_warnings = []
+                                self._gpu_warnings_retryable = False
+                                try:
+                                    self.create_mdevs_from_uuids()
+                                except Exception as e:
+                                    logs.workers.warning(
+                                        f"[{self.id_hyp_rethink}] "
+                                        f"mdev retry {i} raised: {e}"
+                                    )
+                                rw = getattr(self, "_gpu_warnings", [])
+                                update_table_field(
+                                    "hypervisors",
+                                    self.id_hyp_rethink,
+                                    "gpu_warnings",
+                                    rw,
+                                    merge_dict=False,
+                                )
+                                if not rw:
+                                    logs.workers.info(
+                                        f"[{self.id_hyp_rethink}] GPU "
+                                        f"warnings cleared after retry "
+                                        f"{i}/{len(retry_delays)}"
+                                    )
+                                    return
+                                if not getattr(self, "_gpu_warnings_retryable", False):
+                                    logs.workers.info(
+                                        f"[{self.id_hyp_rethink}] retry {i} "
+                                        f"surfaced deterministic warning; "
+                                        f"aborting loop"
+                                    )
+                                    return
+                            logs.workers.warning(
+                                f"[{self.id_hyp_rethink}] mdev retry "
+                                f"exhausted after {len(retry_delays)} "
+                                f"attempts; warnings persist"
+                            )
+                        finally:
+                            self._mdev_retry_active = False
+
+                    threading.Thread(
+                        target=_retry_mdev_loop,
+                        name=f"mdev-retry-{self.id_hyp_rethink}",
+                        daemon=True,
+                    ).start()
+        except Exception:
+            pass
 
         logs.workers.info(
             f"[{self.id_hyp_rethink}] NVIDIA initialization completed in {time.time() - start_time:.2f}s"
@@ -1497,22 +1878,20 @@ class hyp(object):
         """Parse getFreePages result regardless of libvirt-python format.
 
         Handles:
-          - flat list [count, ...] (len = num_reported_cells * len(page_sizes))
-          - list of dicts [{page_size_kb: count}, ...]
           - dict of dicts {cell_idx: {page_size_kb: count}, ...}
+          - list of dicts [{page_size_kb: count}, ...]
+          - flat list [count, ...] (len = num_reported_cells * len(page_sizes))
         """
         total_free_kb = 0
         if isinstance(free_pages, dict):
             for _cell_idx, sizes in free_pages.items():
                 for page_size_kb, free_count in sizes.items():
                     total_free_kb += free_count * page_size_kb
-            reported_cells = len(free_pages)
         elif isinstance(free_pages, list):
             if len(free_pages) > 0 and isinstance(free_pages[0], dict):
                 for cell_dict in free_pages:
                     for page_size_kb, free_count in cell_dict.items():
                         total_free_kb += free_count * page_size_kb
-                reported_cells = len(free_pages)
             else:
                 idx = 0
                 for _cell in range(num_cells):
@@ -1520,16 +1899,111 @@ class hyp(object):
                         if idx < len(free_pages):
                             total_free_kb += free_pages[idx] * page_size_kb
                             idx += 1
-                reported_cells = len(free_pages) // len(page_sizes) if page_sizes else 0
         else:
             return 0
 
-        if 0 < reported_cells < num_cells:
-            total_free_kb = total_free_kb * num_cells // reported_cells
-
         return total_free_kb
 
+    def _get_hugepages_free_from_sysfs(self, hugepages_total_1g, hugepages_total_2m):
+        """Read hugepages free counts from sysfs via SSH.
+
+        Uses per-size sysfs files instead of /proc/meminfo because the latter
+        only reports the default hugepage size and silently ignores others.
+
+        Reads per-NUMA free counts when numa_topology is available in the
+        hypervisor record, deriving the global total from the per-node sum.
+        Falls back to global-only reads when per-NUMA data is unavailable.
+
+        Returns:
+            tuple: (total_free_kb, numa_free_kb) where numa_free_kb is a dict
+                   {"0": kb, "1": kb, ...} or {} if per-NUMA data unavailable.
+                   Returns (None, {}) on any failure.
+        """
+        numa_topo = self.hypervisor.get("numa_topology", {}) if self.hypervisor else {}
+        node_ids = sorted(numa_topo.get("nodes", {}).keys())
+
+        sizes_kb = []
+        if hugepages_total_1g > 0:
+            sizes_kb.append(1048576)
+        if hugepages_total_2m > 0:
+            sizes_kb.append(2048)
+        if not sizes_kb:
+            return None, {}
+
+        # Try per-NUMA reads first (one SSH command for all nodes and sizes)
+        if len(node_ids) > 1:
+            cmd_parts = []
+            for node_id in node_ids:
+                for size_kb in sizes_kb:
+                    cmd_parts.append(
+                        f"cat /sys/devices/system/node/node{node_id}"
+                        f"/hugepages/hugepages-{size_kb}kB/free_hugepages"
+                    )
+            cmd = " && echo '---' && ".join(cmd_parts)
+            try:
+                result = exec_remote_cmd(
+                    cmd,
+                    self.hostname,
+                    username=self.user,
+                    port=self.port,
+                    timeout=5,
+                )
+                if not result["err"]:
+                    out = result["out"].decode("utf-8", errors="replace").strip()
+                    parts = [p.strip() for p in out.split("---")]
+                    expected = len(node_ids) * len(sizes_kb)
+                    if len(parts) == expected:
+                        numa_free_kb = {}
+                        total_free_kb = 0
+                        idx = 0
+                        for node_id in node_ids:
+                            node_free = 0
+                            for size_kb in sizes_kb:
+                                node_free += int(parts[idx]) * size_kb
+                                idx += 1
+                            numa_free_kb[node_id] = node_free
+                            total_free_kb += node_free
+                        return total_free_kb, numa_free_kb
+            except (SSHTimeoutError, Exception) as e:
+                log.debug(f"[{self.id_hyp_rethink}] per-NUMA sysfs read failed: {e}")
+
+        # Fallback: global-only reads
+        cmd_parts = []
+        for size_kb in sizes_kb:
+            cmd_parts.append(
+                f"cat /sys/kernel/mm/hugepages/hugepages-{size_kb}kB/free_hugepages"
+            )
+        cmd = " && echo '---' && ".join(cmd_parts)
+        try:
+            result = exec_remote_cmd(
+                cmd,
+                self.hostname,
+                username=self.user,
+                port=self.port,
+                timeout=5,
+            )
+            if result["err"]:
+                return None, {}
+
+            out = result["out"].decode("utf-8", errors="replace").strip()
+            parts = [p.strip() for p in out.split("---")]
+            if len(parts) != len(sizes_kb):
+                return None, {}
+
+            total_free_kb = 0
+            for free_str, size_kb in zip(parts, sizes_kb):
+                total_free_kb += int(free_str) * size_kb
+            return total_free_kb, {}
+        except (SSHTimeoutError, Exception) as e:
+            log.debug(f"[{self.id_hyp_rethink}] sysfs hugepages read failed: {e}")
+            return None, {}
+
     def _get_hugepages_stats(self):
+        """Return (total_kb, free_kb, numa_free_kb).
+
+        numa_free_kb is {"0": kb, "1": kb, ...} when per-NUMA data is
+        available, {} otherwise.
+        """
         hugepages_info = (
             self.hypervisor.get("hugepages_info", {}) if self.hypervisor else {}
         )
@@ -1537,8 +2011,20 @@ class hyp(object):
         hugepages_total_2m = hugepages_info.get("2M", {}).get("total", 0)
         hugepages_total_kb = hugepages_total_1g * 1048576 + hugepages_total_2m * 2048
         if hugepages_total_kb == 0:
-            return 0, 0
+            return 0, 0, {}
 
+        # Primary: read from kernel sysfs via SSH (authoritative, handles all sizes)
+        hugepages_free_kb, numa_free_kb = self._get_hugepages_free_from_sysfs(
+            hugepages_total_1g, hugepages_total_2m
+        )
+        if hugepages_free_kb is not None:
+            return (
+                hugepages_total_kb,
+                min(hugepages_free_kb, hugepages_total_kb),
+                numa_free_kb,
+            )
+
+        # Fallback: libvirt getFreePages with dict-collision detection
         hugepages_free_kb = 0
         try:
             page_sizes = []
@@ -1548,6 +2034,18 @@ class hyp(object):
                 page_sizes.append(2048)
             num_cells = self.conn.getInfo()[4]
             free_pages = self.conn.getFreePages(page_sizes, 0, num_cells)
+
+            # Detect libvirt bug: duplicate cell IDs cause dict key collision,
+            # resulting in fewer keys than expected NUMA cells.
+            if isinstance(free_pages, dict) and len(free_pages) < num_cells:
+                log.warning(
+                    f"[{self.id_hyp_rethink}] getFreePages returned "
+                    f"{len(free_pages)} cells but expected {num_cells} "
+                    f"(libvirt duplicate cell ID bug), using single-cell query"
+                )
+                free_pages = self.conn.getFreePages(page_sizes, 0, 1)
+                num_cells = 1
+
             hugepages_free_kb = self._parse_free_pages(
                 free_pages, page_sizes, num_cells
             )
@@ -1557,16 +2055,23 @@ class hyp(object):
             )
             hugepages_free_kb = hugepages_total_kb
 
-        return hugepages_total_kb, min(hugepages_free_kb, hugepages_total_kb)
+        return hugepages_total_kb, min(hugepages_free_kb, hugepages_total_kb), {}
 
     def get_system_stats(self):
         try:
             start = time.time()
             memory = self.conn.getMemoryStats(-1)
             cpu = self.conn.getCPUStats(-1)
-            hugepages_total_kb, hugepages_free_kb = self._get_hugepages_stats()
+            hugepages_total_kb, hugepages_free_kb, numa_hp_free = (
+                self._get_hugepages_stats()
+            )
             hyp_stats.set_stats(
-                self.id_hyp_rethink, memory, cpu, hugepages_total_kb, hugepages_free_kb
+                self.id_hyp_rethink,
+                memory,
+                cpu,
+                hugepages_total_kb,
+                hugepages_free_kb,
+                numa_hp_free,
             )
             self.stats = {
                 "mem_stats": hyp_stats.get_stats(self.id_hyp_rethink)["memory"],
@@ -1717,6 +2222,13 @@ class hyp(object):
 
             # SR-IOV total VFs (needed for passthrough on vGPU cards)
             info_nvidia["sriov_totalvfs"] = gpu.get("sriov_totalvfs", 0)
+
+            # Bootstrap mdev-reset timestamp stamped by the hypervisor on each
+            # (re)start. Reconcile uses it to tell whether it needs to do an
+            # authoritative rebuild of vgpus.mdevs (the hypervisor wiped its
+            # mdev state, so the old DB pool no longer has anything bound).
+            if gpu.get("mdevs_reset_at"):
+                info_nvidia["mdevs_reset_at"] = gpu["mdevs_reset_at"]
 
             # max_gpus is the max of the most-split profile
             info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
@@ -2174,6 +2686,7 @@ class hyp(object):
                         "profile": profile,
                         "type_id": info.get("type_id"),
                         "pci_mdev_id": info.get("pci_mdev_id"),
+                        "domain_reserved": info.get("domain_reserved"),
                     }
 
         logs.workers.debug(
@@ -2264,6 +2777,35 @@ class hyp(object):
                     mdev_uuid=uuid,
                     domain_id=False,
                 )
+                # Clear orphan domain_reserved: if the reservation points to a
+                # domain that no longer exists or is in a terminal state, it is
+                # stale (e.g. libvirt rejected the attach and the normal stop
+                # path never fired). Leaving it set blocks the uuid forever.
+                reserved_domain_id = db_info.get("domain_reserved")
+                if reserved_domain_id:
+                    try:
+                        reserved_status = get_domain_status(reserved_domain_id)
+                    except Exception:
+                        reserved_status = None
+                    if reserved_status in (
+                        None,
+                        "Failed",
+                        "Stopped",
+                        "Shutting-down",
+                        "Unknown",
+                    ):
+                        logs.workers.info(
+                            f"[{self.id_hyp_rethink}] Clearing orphan "
+                            f"domain_reserved on mdev {uuid} "
+                            f"(was domain={reserved_domain_id}, status={reserved_status})"
+                        )
+                        update_vgpu_uuid_reserved_in_domain(
+                            hyp_id=self.id_hyp_rethink,
+                            pci_id=db_info["pci_id"],
+                            profile=db_info["profile"],
+                            mdev_uuid=uuid,
+                            domain_id=False,
+                        )
 
         # Remove orphan mdevs (no VM, no matching profile)
         if orphan_uuids:
@@ -2449,9 +2991,13 @@ class hyp(object):
                         path = d_info_gpu["path"]
                     else:
                         if i >= len(sub_paths):
-                            logs.main.warning(
-                                f"sub_paths has only {len(sub_paths)} elements but "
-                                f"total_available is {total_available}. Skipping remaining UUIDs."
+                            logs.workers.error(
+                                f"GPU profile {name} ({d_type['id']}): mdev pool "
+                                f"capped at {len(sub_paths)} (profile max "
+                                f"{total_available}). Likely sriov_numvfs is below "
+                                f"sriov_totalvfs so not every VF exposes "
+                                f"mdev_supported_types. Bump sriov_numvfs and "
+                                f"re-run discovery to recover the missing slots."
                             )
                             break
                         path = sorted(sub_paths)[i]
@@ -2469,6 +3015,255 @@ class hyp(object):
                     }
             d_uuids[name] = d
         return d_uuids
+
+    def _rightsize_profile_pool(self, gpu_id, pci_id, profile):
+        """Rebuild ``self.mdevs[pci_id][profile]`` to match hardware capacity.
+
+        The DB pool for a (PF, profile) pair is seeded by ``create_uuids``
+        using ``max(max_instance, available)``, which over-shoots on
+        SR-IOV cards where ``available`` reflects VF count rather than
+        the driver's per-profile ``max_instance``. Once over-sized, the
+        map is never trimmed — ``update_vgpu_uuids`` deep-merges. This
+        helper is called on a profile switch (after all desktops on the
+        card have been destroyed, so no live binding can exist on the
+        target profile) to right-size the map to
+        ``min(max_instance, len(sub_paths))`` using fresh UUIDs with
+        the same schema ``create_uuids`` emits. Skipped for passthrough
+        (single-UUID by construction) and MIG (separate provisioning).
+        """
+        if profile == "passthrough":
+            return
+        pci_info = self.info_nvidia.get(pci_id, {})
+        d_type = pci_info.get("types", {}).get(profile, {})
+        if d_type.get("mig"):
+            return
+        physical_cap = d_type.get("max") or 0
+        sub_paths = pci_info.get("sub_paths", False)
+        sub_paths_cap = len(sub_paths) if sub_paths else None
+        caps = [c for c in (physical_cap, sub_paths_cap) if c]
+        if not caps:
+            return
+        target_size = min(caps)
+
+        current = self.mdevs[pci_id].get(profile, {})
+        if len(current) == target_size:
+            return
+
+        type_id = d_type.get("id")
+        if not type_id:
+            logs.main.warning(
+                f"rightsize skipped for {gpu_id}/{profile}: "
+                f"missing type_id in pci_info"
+            )
+            return
+
+        new_map = {}
+        for i in range(target_size):
+            if sub_paths:
+                path = sorted(sub_paths)[i]
+                pci_mdev_id = path.split("/")[-1]
+            else:
+                pci_mdev_id = pci_info["path"].split("/")[-1]
+            new_map[str(uuid.uuid4())] = {
+                "pci_mdev_id": pci_mdev_id,
+                "type_id": type_id,
+                "created": False,
+                "domain_started": False,
+                "domain_reserved": False,
+            }
+
+        logs.main.info(
+            f"rightsized {profile} pool for {gpu_id}: "
+            f"{len(current)} -> {target_size}"
+        )
+        self.mdevs[pci_id][profile] = new_map
+        replace_vgpu_profile_mdevs(gpu_id, profile, new_map)
+
+    def reconcile_vgpu_uuids(self, vgpu_id, d_info_gpu):
+        """Reconcile a vgpu row's mdev UUID pool with live VF state.
+
+        Two modes, selected automatically:
+
+        - **Authoritative rebuild** (when the hypervisor has wiped its sysfs
+          mdevs on startup — signalled by ``info_gpu["mdevs_reset_at"]``
+          newer than the row's ``mdevs_last_synced_at``): overwrite
+          ``mdevs`` with a fresh canonical UUID per (VF × profile) slot.
+          Any ``domain_started`` / ``domain_reserved`` UUIDs in the old
+          pool no longer have a bound mdev on the host, so their domains
+          are transitioned to ``Stopped``.
+
+        - **Top-up** (no reset observed): add entries for VFs not already
+          present in ``mdevs[profile]``. Existing entries — including those
+          bound to running domains — are left intact. Idempotent.
+
+        Returns the number of mdev entries added (top-up) or created from
+        scratch (rebuild) across all profiles.
+        """
+        sub_paths = d_info_gpu.get("sub_paths", False)
+        if sub_paths is False:
+            return 0
+        existing = get_vgpu_full(vgpu_id)
+        if not existing:
+            return 0
+        existing_mdevs = existing.get("mdevs") or {}
+        sorted_paths = sorted(sub_paths)
+
+        reset_at = d_info_gpu.get("mdevs_reset_at")
+        last_synced_at = existing.get("mdevs_last_synced_at")
+        authoritative = bool(reset_at) and (
+            not last_synced_at or reset_at > last_synced_at
+        )
+
+        if authoritative:
+            return self._rebuild_vgpu_uuids_authoritative(
+                vgpu_id, d_info_gpu, existing, sorted_paths, reset_at
+            )
+
+        additions = {}
+        for name, d_type in d_info_gpu["types"].items():
+            if d_type.get("mig"):
+                continue
+            target = max(
+                d_type.get("max") or d_type.get("available", 1) or 1,
+                d_type.get("available", 1),
+            )
+            cap = min(target, len(sorted_paths))
+            prof_existing = existing_mdevs.get(name, {}) or {}
+            used_pcis = {
+                v.get("pci_mdev_id")
+                for v in prof_existing.values()
+                if isinstance(v, dict)
+            }
+            prof_add = {}
+            for path in sorted_paths:
+                if len(prof_existing) + len(prof_add) >= cap:
+                    break
+                pci_mdev_id = path.split("/")[-1]
+                if pci_mdev_id in used_pcis:
+                    continue
+                prof_add[str(uuid.uuid4())] = {
+                    "pci_mdev_id": pci_mdev_id,
+                    "type_id": d_type["id"],
+                    "created": False,
+                    "domain_started": False,
+                    "domain_reserved": False,
+                }
+            if prof_add:
+                additions[name] = prof_add
+        # Merge in any newly-discovered sub_paths so subsequent reads reflect
+        # current sysfs state.
+        existing_subpaths = set((existing.get("info") or {}).get("sub_paths", []) or [])
+        merged_subpaths = existing_subpaths | set(sorted_paths)
+        sub_paths_update = (
+            sorted(merged_subpaths) if merged_subpaths != existing_subpaths else None
+        )
+        if additions or sub_paths_update is not None:
+            add_vgpu_uuids(vgpu_id, additions, sub_paths=sub_paths_update)
+            total_added = sum(len(v) for v in additions.values())
+            if total_added:
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Reconciled {vgpu_id}: added "
+                    f"{total_added} mdev slots across "
+                    f"{len(additions)} profile(s) (sub_paths now "
+                    f"{len(merged_subpaths)})"
+                )
+            return total_added
+        return 0
+
+    def _rebuild_vgpu_uuids_authoritative(
+        self, vgpu_id, d_info_gpu, existing, sorted_paths, reset_at
+    ):
+        """Wholesale rebuild of vgpus.mdevs after a hypervisor mdev wipe.
+
+        Generates fresh UUIDs for every (VF × profile) slot up to profile
+        cap, replaces ``mdevs`` entirely, and transitions any domain whose
+        old UUID was bound (``domain_started`` or ``domain_reserved``) to
+        ``Stopped`` — those domains no longer have a live mdev on the host.
+        """
+        rebuilt = {}
+        for name, d_type in d_info_gpu["types"].items():
+            if d_type.get("mig"):
+                continue
+            target = max(
+                d_type.get("max") or d_type.get("available", 1) or 1,
+                d_type.get("available", 1),
+            )
+            cap = min(target, len(sorted_paths))
+            prof_new = {}
+            for path in sorted_paths[:cap]:
+                prof_new[str(uuid.uuid4())] = {
+                    "pci_mdev_id": path.split("/")[-1],
+                    "type_id": d_type["id"],
+                    "created": False,
+                    "domain_started": False,
+                    "domain_reserved": False,
+                }
+            if prof_new:
+                rebuilt[name] = prof_new
+        # passthrough is not profile-based; retain its slot if present.
+        passthrough = (existing.get("mdevs") or {}).get("passthrough")
+        if passthrough:
+            rebuilt["passthrough"] = {
+                uid: {
+                    **entry,
+                    "domain_started": False,
+                    "domain_reserved": False,
+                }
+                for uid, entry in passthrough.items()
+                if isinstance(entry, dict)
+            }
+
+        orphaned_domains = []
+        for prof, entries in (existing.get("mdevs") or {}).items():
+            for uid, entry in entries.items():
+                if not isinstance(entry, dict):
+                    continue
+                started = entry.get("domain_started")
+                reserved = entry.get("domain_reserved")
+                if started and isinstance(started, str):
+                    orphaned_domains.append((started, prof, uid, "started"))
+                elif reserved and isinstance(reserved, str):
+                    orphaned_domains.append((reserved, prof, uid, "reserved"))
+
+        add_vgpu_uuids(
+            vgpu_id,
+            rebuilt,
+            sub_paths=sorted_paths,
+            replace_mdevs=True,
+            mdevs_last_synced_at=reset_at,
+        )
+
+        total_created = sum(len(v) for k, v in rebuilt.items() if k != "passthrough")
+        logs.workers.warning(
+            f"[{self.id_hyp_rethink}] Authoritative rebuild of {vgpu_id}: "
+            f"{total_created} fresh mdev slots across "
+            f"{len([k for k in rebuilt if k != 'passthrough'])} profile(s); "
+            f"sub_paths={len(sorted_paths)}; "
+            f"{len(orphaned_domains)} orphaned domain binding(s) "
+            f"(mdev reset at {reset_at})"
+        )
+        for domain_id, prof, uid, kind in orphaned_domains:
+            try:
+                update_domain_status(
+                    "Stopped",
+                    domain_id,
+                    detail=(
+                        f"GPU hypervisor {self.id_hyp_rethink} reset its mdev "
+                        f"state at {reset_at}; bound mdev UUID {uid} "
+                        f"(profile {prof}, {kind}) no longer exists on host."
+                    ),
+                )
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] Stopped domain {domain_id}: "
+                    f"held {kind} mdev {uid} on {vgpu_id} profile {prof} "
+                    f"(hypervisor mdev reset)"
+                )
+            except Exception as e:
+                logs.workers.error(
+                    f"[{self.id_hyp_rethink}] failed to Stop orphaned "
+                    f"domain {domain_id} after mdev reset: {e}"
+                )
+        return total_created
 
     def delete_vgpus_devices(
         self, gpu_id, d_uids, info_nvidia, selected_gpu_type, hyp_id

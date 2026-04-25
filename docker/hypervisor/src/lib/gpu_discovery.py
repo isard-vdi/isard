@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import urllib.request
+from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
@@ -389,50 +390,248 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
     return gpus
 
 
+def _ensure_sriov_max_vfs(sysfs_pci_id):
+    """Ensure SR-IOV exposes all VFs (sriov_numvfs == sriov_totalvfs).
+
+    On vGPU cards like A16/A40, mdev_supported_types only appears on VFs that
+    are currently bound. If sriov_numvfs is lower than totalvfs at discovery
+    time, sub_paths will be incomplete and the engine caps the mdev pool below
+    hardware capacity. Top it up here so discovery sees every VF.
+    """
+    base = f"/sys/bus/pci/devices/{sysfs_pci_id}"
+    try:
+        with open(f"{base}/sriov_totalvfs") as f:
+            totalvfs = int(f.read().strip())
+        with open(f"{base}/sriov_numvfs") as f:
+            numvfs = int(f.read().strip())
+    except (OSError, ValueError):
+        return
+    if totalvfs <= 0 or numvfs >= totalvfs:
+        return
+    try:
+        with open(f"{base}/sriov_numvfs", "w") as f:
+            f.write(str(totalvfs))
+        log.info(
+            "GPU %s: raised sriov_numvfs %d -> %d to expose all VFs",
+            sysfs_pci_id,
+            numvfs,
+            totalvfs,
+        )
+    except OSError as e:
+        log.warning(
+            "GPU %s: could not raise sriov_numvfs (%d -> %d): %s",
+            sysfs_pci_id,
+            numvfs,
+            totalvfs,
+            e,
+        )
+
+
+def _reset_sysfs_mdevs(main_path):
+    """Remove every live sysfs mdev currently bound under this GPU's PF.
+
+    Scans both the PF (pre-Ampere cards like T4) and every SR-IOV VF
+    (``virtfn*`` symlinks) for mdev devices under
+    ``mdev_supported_types/<type>/devices/<uuid>`` and writes ``1`` to the
+    corresponding ``/sys/bus/mdev/devices/<uuid>/remove``.
+
+    Why: engine-side reconcile is the single source of truth for which mdev
+    UUIDs exist. Pre-existing mdevs from prior container lifetimes or from
+    NVIDIA vGPU host driver auto-instantiation collide with reconcile-created
+    UUIDs (each VF exposes only one mdev at a time), causing libvirt
+    ``createXML`` to hang for 30s when engine writes a new UUID into an
+    already-occupied ``/create``. Wiping on startup is the bootstrap contract:
+    every hypervisor (re)start comes up with an empty pool.
+    """
+    scan_roots = [main_path]
+    i = 0
+    while True:
+        link = os.path.join(main_path, f"virtfn{i}")
+        if not os.path.islink(link):
+            break
+        try:
+            scan_roots.append(os.path.realpath(link))
+        except OSError:
+            break
+        i += 1
+
+    removed = 0
+    refused = 0
+    for root in scan_roots:
+        mdev_dir = os.path.join(root, "mdev_supported_types")
+        if not os.path.isdir(mdev_dir):
+            continue
+        try:
+            types = os.listdir(mdev_dir)
+        except OSError:
+            continue
+        for type_name in types:
+            devices_dir = os.path.join(mdev_dir, type_name, "devices")
+            if not os.path.isdir(devices_dir):
+                continue
+            try:
+                uuids = os.listdir(devices_dir)
+            except OSError:
+                continue
+            for mdev_uuid in uuids:
+                remove_path = f"/sys/bus/mdev/devices/{mdev_uuid}/remove"
+                try:
+                    with open(remove_path, "w") as f:
+                        f.write("1")
+                    removed += 1
+                except OSError as e:
+                    refused += 1
+                    log.warning(
+                        "GPU %s: could not remove mdev %s on %s: %s "
+                        "(VF may be attached to a running domain; "
+                        "the domain must be stopped before hypervisor restart)",
+                        os.path.basename(main_path),
+                        mdev_uuid,
+                        os.path.basename(root),
+                        e,
+                    )
+    if removed or refused:
+        log.info(
+            "GPU %s: mdev reset — removed=%d refused=%d",
+            os.path.basename(main_path),
+            removed,
+            refused,
+        )
+
+
+def reset_all_mdevs():
+    """Wipe every sysfs mdev on every nvidia-bound PF.
+
+    Walks ``/sys/bus/pci/devices/*`` for entries whose ``driver`` symlink
+    resolves to ``nvidia`` and which expose ``mdev_supported_types`` or
+    ``sriov_totalvfs``, then calls the per-GPU :func:`_reset_sysfs_mdevs`
+    on each. Intended for the shutdown path so the host leaves no live
+    mdevs behind for the next container lifetime.
+
+    Returns the number of PFs scanned. Safe to call even when no qemu
+    is running; unsafe while a VF is attached to a domain (kernel will
+    refuse /remove, warning is logged per refusal).
+    """
+    pf_count = 0
+    try:
+        entries = sorted(os.listdir("/sys/bus/pci/devices/"))
+    except OSError:
+        return 0
+    for bdf in entries:
+        dev = f"/sys/bus/pci/devices/{bdf}"
+        driver_link = os.path.join(dev, "driver")
+        try:
+            driver_name = os.path.basename(os.path.realpath(driver_link))
+        except OSError:
+            continue
+        if driver_name != "nvidia":
+            continue
+        has_mdev = os.path.isdir(os.path.join(dev, "mdev_supported_types"))
+        has_sriov = os.path.isfile(os.path.join(dev, "sriov_totalvfs"))
+        if not (has_mdev or has_sriov):
+            continue
+        _reset_sysfs_mdevs(dev)
+        pf_count += 1
+    return pf_count
+
+
+def _enumerate_sriov_vf_paths(main_path):
+    """Return sorted list of SR-IOV VF sysfs paths for a PF device.
+
+    Uses the canonical ``virtfnN`` symlinks published by the kernel when
+    SR-IOV is enabled on the PF. Returns an empty list if the PF has no
+    SR-IOV VFs (non-SR-IOV card, or VFs not yet created).
+    """
+    vf_paths = []
+    i = 0
+    while True:
+        link = os.path.join(main_path, f"virtfn{i}")
+        if not os.path.islink(link):
+            break
+        try:
+            vf_bdf = os.path.basename(os.path.realpath(link))
+            vf_paths.append(f"/sys/bus/pci/devices/{vf_bdf}")
+        except OSError:
+            break
+        i += 1
+    return sorted(vf_paths)
+
+
 def _aggregate_subdevice_profiles(pci_bus_id):
-    """For cards like A40 that expose multiple sub-devices, aggregate profiles.
+    """For cards like A40 / Blackwell DC that expose mdev on sub-devices, aggregate.
 
-    Some NVIDIA cards (e.g., A40) don't expose mdev_supported_types on the main
-    PCI device but on sub-devices (e.g., 0000:41:00.4, 0000:41:00.5, etc.).
+    Some NVIDIA cards don't expose ``mdev_supported_types`` on the main PCI
+    device (PF) but on its SR-IOV VFs or on adjacent sub-functions:
 
-    This function checks both the main device and sub-devices, returning
-    aggregated profiles with summed available_instances.
+    - **SR-IOV path (A40, L40, L40S, Blackwell DC)**: VFs are linked from the
+      PF as ``virtfn0`` .. ``virtfnN-1``. We enumerate via those symlinks so
+      VFs landing on function numbers other than 00.X (e.g., 01.X on
+      Blackwell with 48 VFs) are not missed.
+    - **Legacy sub-function path (older A40 configs without SR-IOV)**: VFs
+      share the same bus+slot as the PF (``0000:41:00.4`` alongside
+      ``0000:41:00.0``) but are not SR-IOV. We fall back to scanning
+      ``<base>.N`` when no virtfn symlinks exist.
+
+    This function checks both and returns aggregated profiles with summed
+    ``available_instances``.
 
     Args:
         pci_bus_id: PCI bus ID from nvidia-smi
 
     Returns:
-        tuple: (profiles_list, sub_paths_set or None, path_parent or None)
+        tuple: (profiles_list, sub_paths_list or None, path_parent or None)
     """
     sysfs_pci_id = _normalize_pci_bus_id(pci_bus_id).lower()
     main_path = f"/sys/bus/pci/devices/{sysfs_pci_id}"
 
-    # First try main device
+    # First try main device (pre-Ampere cards like T4)
     main_profiles = _get_vgpu_profiles(pci_bus_id)
     if main_profiles:
+        # Clear any pre-existing mdevs on the PF so engine-side reconcile
+        # rebuilds the pool from an empty slate.
+        _reset_sysfs_mdevs(main_path)
         return main_profiles, None, None
 
-    # Check sub-devices (e.g., 0000:41:00.4 for main device 0000:41:00.0)
-    base = sysfs_pci_id.rsplit(".", 1)[0]  # e.g., '0000:41:00'
+    # Ensure every VF is bound so its mdev_supported_types is exposed.
+    # Without this the engine caps the mdev pool below hardware capacity
+    # whenever sriov_numvfs was raised after the original discovery scan.
+    _ensure_sriov_max_vfs(sysfs_pci_id)
+
+    # Wipe pre-existing mdevs on every VF. Must happen after
+    # _ensure_sriov_max_vfs (so every VF is present) and before enumeration,
+    # so engine's reconcile later sees empty VFs and its canonical UUIDs are
+    # the only ones that end up bound.
+    _reset_sysfs_mdevs(main_path)
+
+    # Prefer SR-IOV enumeration via virtfn* symlinks (authoritative for
+    # Ampere/Ada/Blackwell). Falls through to legacy sub-function scan only
+    # when no virtfn symlinks are present.
+    candidate_paths = _enumerate_sriov_vf_paths(main_path)
+    if not candidate_paths:
+        # Legacy: scan sub-functions with the same bus:device prefix
+        base = sysfs_pci_id.rsplit(".", 1)[0]  # e.g., '0000:41:00'
+        try:
+            for entry in sorted(os.listdir("/sys/bus/pci/devices/")):
+                if entry.startswith(base + ".") and entry != sysfs_pci_id:
+                    candidate_paths.append(f"/sys/bus/pci/devices/{entry}")
+        except OSError:
+            pass
+
     sub_paths = set()
     profile_map = {}  # name -> profile dict with aggregated available_instances
-
-    try:
-        for entry in sorted(os.listdir("/sys/bus/pci/devices/")):
-            if entry.startswith(base + ".") and entry != sysfs_pci_id:
-                sub_profiles = _get_vgpu_profiles(entry)
-                if sub_profiles:
-                    sub_path = f"/sys/bus/pci/devices/{entry}"
-                    sub_paths.add(sub_path)
-                    for p in sub_profiles:
-                        if p["name"] in profile_map:
-                            profile_map[p["name"]]["available_instances"] += p[
-                                "available_instances"
-                            ]
-                        else:
-                            profile_map[p["name"]] = dict(p)
-    except OSError:
-        pass
+    for sub_path in candidate_paths:
+        entry = os.path.basename(sub_path)
+        sub_profiles = _get_vgpu_profiles(entry)
+        if not sub_profiles:
+            continue
+        sub_paths.add(sub_path)
+        for p in sub_profiles:
+            if p["name"] in profile_map:
+                profile_map[p["name"]]["available_instances"] += p[
+                    "available_instances"
+                ]
+            else:
+                profile_map[p["name"]] = dict(p)
 
     if not profile_map:
         return [], None, None
@@ -453,8 +652,29 @@ def normalize_gpu_model(gpu_name, vgpu_profiles=None):
     "BRAND-MODEL-PROFILE" format with dashes as separators.
     """
     if vgpu_profiles:
-        return vgpu_profiles[0]["name"].split("-")[0]
-    return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+        # Extract model from vGPU profile name by removing the profile suffix.
+        # Profile suffix patterns:
+        #   - Simple: "-4Q", "-12A", "-96Q" (digits + letter)
+        #   - With slot: "-1-3Q", "-2-12Q", "-4-48Q" (slot-digits + letter)
+        # The model is everything before the suffix.
+        profile_name = vgpu_profiles[0]["name"]
+        match = re.match(r"^(.+?)(-\d+-\d+[ABCQ]|-\d+[ABCQ])$", profile_name)
+        if match:
+            model_part = match.group(1)
+        else:
+            # Fallback: use rsplit for simple cases
+            model_part = profile_name.rsplit("-", 1)[0]
+        # Strip vendor prefix and remove spaces/dashes so the two code paths
+        # (profile-derived and nvidia-smi-name-derived) produce the same model.
+        result = (
+            model_part.replace("NVIDIA ", "")
+            .replace("GRID ", "")
+            .replace(" ", "")
+            .replace("-", "")
+        )
+        return result
+    result = gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+    return result
 
 
 def discover_gpus():
@@ -466,6 +686,12 @@ def discover_gpus():
         list of GPU dicts. Empty list if no GPUs or nvidia-smi unavailable.
     """
     raw_gpus = _run_nvidia_smi()
+
+    # Single timestamp for this discovery run. Stamped on every GPU so engine
+    # reconcile can tell "this hypervisor came up fresh and wiped its mdevs at
+    # T", triggering an authoritative rebuild of vgpus.mdevs and stopping any
+    # domains still holding now-removed UUIDs.
+    mdevs_reset_at = datetime.now(timezone.utc).isoformat()
 
     gpus = []
     for gpu_index, gpu in enumerate(raw_gpus):
@@ -484,6 +710,7 @@ def discover_gpus():
             "mig_mode": mig_mode,
             "model": normalize_gpu_model(gpu["name"], profiles),
             "gpu_uuid": gpu.get("gpu_uuid"),
+            "mdevs_reset_at": mdevs_reset_at,
         }
 
         if mig_mode != "[N/A]":
@@ -491,7 +718,7 @@ def discover_gpus():
             if mig_profiles:
                 gpu_info["mig_profiles"] = mig_profiles
 
-        # Check for SR-IOV capability (vGPU cards like A40)
+        # Check for SR-IOV capability (vGPU cards like A40, Blackwell)
         sysfs_pci_id = _normalize_pci_bus_id(gpu["pci_bus_id"]).lower()
         sriov_path = f"/sys/bus/pci/devices/{sysfs_pci_id}/sriov_totalvfs"
         try:
@@ -506,6 +733,47 @@ def discover_gpus():
             gpu_info["sub_paths"] = sorted(sub_paths)
         if path_parent is not None:
             gpu_info["path_parent"] = path_parent
+
+        # Detect misconfiguration: SR-IOV GPUs with VFs but no vGPU profiles
+        warnings = []
+        totalvfs = gpu_info.get("sriov_totalvfs", 0)
+        if totalvfs > 0 and not profiles:
+            numvfs_path = f"/sys/bus/pci/devices/{sysfs_pci_id}/sriov_numvfs"
+            try:
+                with open(numvfs_path) as f:
+                    numvfs = int(f.read().strip())
+            except (OSError, ValueError):
+                numvfs = 0
+            if numvfs == 0:
+                warnings.append(
+                    f"SR-IOV capable ({totalvfs} VFs) but VF creation failed. "
+                    f"Only passthrough and MIG modes available."
+                )
+            else:
+                # VFs exist but no profiles — likely IOMMU issue
+                first_vf = f"/sys/bus/pci/devices/{sysfs_pci_id}/virtfn0"
+                vf_driver = ""
+                if os.path.exists(first_vf):
+                    vf_bdf = os.path.basename(os.path.realpath(first_vf))
+                    drv = f"/sys/bus/pci/devices/{vf_bdf}/driver"
+                    if os.path.exists(drv):
+                        vf_driver = os.path.basename(os.path.realpath(drv))
+                if vf_driver != "nvidia":
+                    warnings.append(
+                        f"SR-IOV VFs created ({numvfs}) but nvidia driver "
+                        f"cannot bind VFs (driver={vf_driver or 'none'}). "
+                        f"vGPU requires IOMMU enabled in BIOS and kernel "
+                        f"(iommu=pt). Only passthrough and MIG modes available."
+                    )
+                else:
+                    warnings.append(
+                        f"SR-IOV VFs active ({numvfs}) and nvidia-bound but "
+                        f"no vGPU profiles found on VFs."
+                    )
+        if warnings:
+            gpu_info["warnings"] = warnings
+            for w in warnings:
+                print(f"  GPU {sysfs_pci_id}: {w}")
 
         gpus.append(gpu_info)
 
@@ -679,6 +947,422 @@ def discover_hugepages():
     result["mounted"] = os.path.ismount("/dev/hugepages")
 
     return result
+
+
+def _expand_cpulist(cpulist):
+    """Expand a "0-3,8,10-11" string into a sorted set of ints."""
+    result = set()
+    if not cpulist:
+        return result
+    for part in cpulist.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            lo, hi = part.split("-", 1)
+            try:
+                result.update(range(int(lo), int(hi) + 1))
+            except ValueError:
+                continue
+        else:
+            try:
+                result.add(int(part))
+            except ValueError:
+                continue
+    return result
+
+
+def _get_libvirt_capabilities_xml():
+    """Return libvirt host capabilities XML, or None if libvirt is unavailable.
+
+    Prefers the Python binding (faster, no subprocess). Falls back to `virsh
+    capabilities` — the hypervisor container ships `virsh` but not the Python
+    `libvirt` module.
+    """
+    try:
+        import libvirt  # noqa: PLC0415
+
+        conn = libvirt.open("qemu:///system")
+        try:
+            return conn.getCapabilities()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        result = subprocess.run(
+            ["virsh", "capabilities"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return result.stdout
+    except Exception as e:
+        log.warning("NUMA: virsh capabilities failed: %s", e)
+        return None
+
+
+def _probe_libvirt_numa_cells():
+    """Parse <cells> from libvirt host capabilities.
+
+    Returns:
+        list of {"id": int, "memory_kb": int, "cpus": set(int)} or None if
+        libvirt capabilities are unreachable.
+    """
+    xml = _get_libvirt_capabilities_xml()
+    if not xml:
+        return None
+
+    # Stdlib xml.etree — the hypervisor image does not ship lxml.
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(xml)
+    cells = []
+    for cell in root.findall("./host/topology/cells/cell"):
+        try:
+            cell_id = int(cell.get("id"))
+        except (TypeError, ValueError):
+            continue
+        mem_elem = cell.find("memory")
+        memory_kb = int(mem_elem.text) if mem_elem is not None and mem_elem.text else 0
+        cpus = set()
+        for cpu in cell.findall("./cpus/cpu"):
+            try:
+                cpus.add(int(cpu.get("id")))
+            except (TypeError, ValueError):
+                continue
+        cells.append({"id": cell_id, "memory_kb": memory_kb, "cpus": cpus})
+    return cells
+
+
+def _validate_libvirt_numa(sysfs_nodes, libvirt_cells):
+    """Compare libvirt's NUMA view against sysfs.
+
+    Returns (ok: bool, reason: str). The reason is a short machine-readable
+    token, useful in logs and DB queries.
+    """
+    if not libvirt_cells:
+        return False, "libvirt_empty_cells"
+    if len(libvirt_cells) != len(sysfs_nodes):
+        return False, "cell_count_mismatch"
+
+    ids = [c["id"] for c in libvirt_cells]
+    if len(set(ids)) != len(ids):
+        return False, "duplicate_cell_ids"
+
+    sysfs_ids = {int(n) for n in sysfs_nodes.keys()}
+    if set(ids) != sysfs_ids:
+        return False, "cell_id_mismatch"
+
+    # Each cell's cpu set must match the corresponding sysfs cpulist.
+    for cell in libvirt_cells:
+        sys_cpulist = sysfs_nodes.get(str(cell["id"]), {}).get("cpulist", "")
+        sys_cpus = _expand_cpulist(sys_cpulist)
+        if cell["cpus"] != sys_cpus:
+            return False, "cpu_mismatch"
+
+    # Per-cell memory must look per-node, not a flat "every cell owns all RAM"
+    # (a libvirt-in-container bug we've seen on some hosts).
+    mems = [c["memory_kb"] for c in libvirt_cells]
+    if len(mems) >= 2 and len(set(mems)) == 1:
+        return False, "flat_cell_memory"
+
+    return True, "ok"
+
+
+def discover_numa_topology(probe_libvirt=False):
+    """Discover per-NUMA-node CPU list and hugepages from sysfs.
+
+    Reads /sys/devices/system/node/node* to build a map of which CPUs and
+    hugepages belong to each NUMA node. The cpulist values are static hardware
+    topology; the hugepages counts are a snapshot from discovery time.
+
+    When `probe_libvirt=True` (call post-libvirt-start) the sysfs view is
+    cross-checked against libvirt's own host capabilities (<cells>). Only when
+    both views agree does the result advertise `libvirt_numa_ok: True` — the
+    engine gates NUMA pinning on that flag, because libvirt will reject any
+    <numatune> block referencing a cell it doesn't believe in.
+
+    Returns:
+        dict: {
+            "libvirt_numa_ok": bool,
+            "reason": str,       # "ok" | "libvirt_unreachable" | "cpu_mismatch" | ...
+            "nodes": {           # always populated from sysfs, for diagnostics
+                "0": {
+                    "cpulist": "0-15,32-47",
+                    "hugepages": {"1G": {"total": 168, "free": 105}, "2M": {...}}
+                },
+                "1": {...}
+            }
+        }
+        Returns empty dict if /sys/devices/system/node is not available.
+    """
+    _SIZE_MAP = {
+        1048576: "1G",
+        2048: "2M",
+    }
+
+    node_dir = "/sys/devices/system/node"
+    try:
+        entries = sorted(d for d in os.listdir(node_dir) if re.match(r"node\d+$", d))
+    except OSError:
+        return {}
+
+    nodes = {}
+    for entry in entries:
+        node_id = entry.replace("node", "")
+        node_path = os.path.join(node_dir, entry)
+
+        # Read CPU list for this NUMA node
+        cpulist = ""
+        try:
+            with open(os.path.join(node_path, "cpulist")) as f:
+                cpulist = f.read().strip()
+        except (OSError, ValueError):
+            pass
+
+        # Read per-size hugepages for this NUMA node
+        hugepages = {"1G": {"total": 0, "free": 0}, "2M": {"total": 0, "free": 0}}
+        for size_kb, label in _SIZE_MAP.items():
+            hp_dir = os.path.join(node_path, "hugepages", f"hugepages-{size_kb}kB")
+            try:
+                with open(os.path.join(hp_dir, "nr_hugepages")) as f:
+                    hugepages[label]["total"] = int(f.read().strip())
+            except (OSError, ValueError):
+                pass
+            try:
+                with open(os.path.join(hp_dir, "free_hugepages")) as f:
+                    hugepages[label]["free"] = int(f.read().strip())
+            except (OSError, ValueError):
+                pass
+
+        nodes[node_id] = {"cpulist": cpulist, "hugepages": hugepages}
+
+    if not nodes:
+        return {}
+
+    # Cross-check with libvirt if a connection was provided. Single-cell hosts
+    # don't need NUMA pinning at all, so treat them as "ok" regardless.
+    if len(nodes) < 2:
+        return {"libvirt_numa_ok": True, "reason": "single_cell", "nodes": nodes}
+
+    if not probe_libvirt:
+        return {
+            "libvirt_numa_ok": False,
+            "reason": "libvirt_unreachable",
+            "nodes": nodes,
+        }
+
+    try:
+        libvirt_cells = _probe_libvirt_numa_cells()
+    except Exception as e:
+        log.warning("NUMA: libvirt capabilities probe failed: %s", e)
+        return {
+            "libvirt_numa_ok": False,
+            "reason": "libvirt_probe_error",
+            "nodes": nodes,
+        }
+    if libvirt_cells is None:
+        return {
+            "libvirt_numa_ok": False,
+            "reason": "libvirt_unreachable",
+            "nodes": nodes,
+        }
+
+    ok, reason = _validate_libvirt_numa(nodes, libvirt_cells)
+    if not ok:
+        log.warning(
+            "NUMA: libvirt view inconsistent with sysfs (%s). "
+            "sysfs_nodes=%s libvirt_cells=%s",
+            reason,
+            {k: v.get("cpulist") for k, v in nodes.items()},
+            [
+                {"id": c["id"], "memory_kb": c["memory_kb"], "n_cpus": len(c["cpus"])}
+                for c in libvirt_cells
+            ],
+        )
+    return {"libvirt_numa_ok": ok, "reason": reason, "nodes": nodes}
+
+
+def ensure_sriov_vfs():
+    """Enable SR-IOV virtual functions on GPUs that need them for vGPU.
+
+    Blackwell and newer NVIDIA GPUs expose vGPU mdev types on SR-IOV VFs,
+    not on the physical function (PF).  Without VFs, discover_gpus() finds
+    no vGPU profiles and falls back to MIG.
+
+    For each NVIDIA GPU with sriov_totalvfs > 0 and sriov_numvfs == 0 and
+    no mdev_supported_types on the PF, this enables VFs using the same
+    pci-pf-stub dance that NVIDIA's sriov-manage -e performs:
+
+        unbind nvidia → bind pci-pf-stub → write sriov_numvfs → unbind
+        pci-pf-stub → rebind nvidia
+
+    Must be called before discover_gpus().
+    """
+    pci_dir = "/sys/bus/pci/devices"
+    try:
+        entries = os.listdir(pci_dir)
+    except OSError:
+        return
+
+    for dev in sorted(entries):
+        dev_path = os.path.join(pci_dir, dev)
+        # Only PFs (function 0)
+        if not dev.endswith(".0"):
+            continue
+        # Only NVIDIA
+        try:
+            with open(os.path.join(dev_path, "vendor")) as f:
+                if f.read().strip() != "0x10de":
+                    continue
+        except OSError:
+            continue
+        # Must support SR-IOV with multiple VFs (single VF is not vGPU)
+        try:
+            with open(os.path.join(dev_path, "sriov_totalvfs")) as f:
+                totalvfs = int(f.read().strip())
+            if totalvfs <= 1:
+                continue
+        except (OSError, ValueError):
+            continue
+        # Already has VFs enabled
+        try:
+            with open(os.path.join(dev_path, "sriov_numvfs")) as f:
+                if int(f.read().strip()) > 0:
+                    continue
+        except (OSError, ValueError):
+            continue
+        # Already has mdev types on PF (legacy vGPU, not Blackwell)
+        if os.path.isdir(os.path.join(dev_path, "mdev_supported_types")):
+            continue
+
+        print(f"Enabling {totalvfs} SR-IOV VFs on {dev}...")
+        _enable_sriov_for_gpu(dev, totalvfs)
+
+
+def _check_iommu_available():
+    """Check if IOMMU is active (required for SR-IOV VF nvidia binding)."""
+    try:
+        groups = os.listdir("/sys/kernel/iommu_groups")
+        return len(groups) > 0
+    except OSError:
+        return False
+
+
+def _enable_sriov_for_gpu(pci_bdf, totalvfs):
+    """Run the pci-pf-stub dance to enable SR-IOV VFs for one GPU."""
+
+    def _run(cmd):
+        return subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+    if not _check_iommu_available():
+        print(
+            f"  WARNING: IOMMU not active — VFs will be created but nvidia "
+            f"cannot bind them (vGPU mdev creation will fail). "
+            f"Enable IOMMU in BIOS and add iommu=pt to kernel cmdline."
+        )
+
+    # Get vendor:device for pci-pf-stub new_id
+    r = _run(f"lspci -n -s {pci_bdf}")
+    if r.returncode != 0:
+        print(f"  FAILED: lspci for {pci_bdf}: {r.stderr.strip()}")
+        return
+    parts = r.stdout.split()
+    vend_dev = parts[2].replace(":", " ") if len(parts) >= 3 else ""
+    if not vend_dev:
+        print(f"  FAILED: could not parse vendor:device for {pci_bdf}")
+        return
+
+    steps = [
+        # Ensure pci-pf-stub module is loaded
+        ("modprobe pci-pf-stub", False),
+        # Get nvidia unbindLock
+        (f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock", True),
+        # Unbind PF from nvidia
+        (f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind", True),
+        # Register device with pci-pf-stub and bind
+        (f"echo '{vend_dev}' > /sys/bus/pci/drivers/pci-pf-stub/new_id", True),
+        (
+            f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
+            f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
+            False,
+        ),
+        ("sleep 0.5", False),
+        # Create VFs
+        (
+            f"echo {totalvfs} > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs",
+            False,
+        ),
+        # Unbind from pci-pf-stub
+        (f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind", True),
+        (
+            f"echo '{vend_dev}' > /sys/bus/pci/drivers/pci-pf-stub/remove_id",
+            True,
+        ),
+        # Bind all VFs to nvidia driver (enumerate via virtfn symlinks)
+        (
+            f"for vf in /sys/bus/pci/devices/{pci_bdf}/virtfn*/; do "
+            f"vf_bdf=$(basename $(readlink -f $vf)); "
+            f"[ -e /sys/bus/pci/devices/$vf_bdf/driver ] && "
+            f"echo $vf_bdf > /sys/bus/pci/devices/$vf_bdf/driver/unbind 2>/dev/null || true; "
+            f"echo $vf_bdf > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true; "
+            f"done",
+            True,
+        ),
+        # Rebind PF to nvidia
+        (f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/bind", True),
+        ("nvidia-smi -pm 1 2>/dev/null", True),
+    ]
+
+    for cmd, ignore_error in steps:
+        r = _run(cmd)
+        if r.returncode != 0 and not ignore_error:
+            print(f"  FAILED at: {cmd}")
+            print(f"  stderr: {r.stderr.strip()}")
+            return
+
+    # Verify VFs created
+    try:
+        with open(f"/sys/bus/pci/devices/{pci_bdf}/sriov_numvfs") as f:
+            actual = int(f.read().strip())
+        if actual > 0:
+            print(f"  Enabled {actual} VFs on {pci_bdf}")
+        else:
+            print(f"  WARNING: sriov_numvfs still 0 after enablement for {pci_bdf}")
+            return
+    except (OSError, ValueError) as e:
+        print(f"  WARNING: could not verify VFs for {pci_bdf}: {e}")
+        return
+
+    # Verify at least one VF bound to nvidia (required for mdev creation)
+    first_vf = os.path.join(f"/sys/bus/pci/devices/{pci_bdf}", "virtfn0")
+    if os.path.exists(first_vf):
+        vf_bdf = os.path.basename(os.path.realpath(first_vf))
+        driver_link = f"/sys/bus/pci/devices/{vf_bdf}/driver"
+        if os.path.exists(driver_link):
+            driver = os.path.basename(os.path.realpath(driver_link))
+            if driver != "nvidia":
+                print(
+                    f"  WARNING: VF {vf_bdf} bound to '{driver}' instead of "
+                    f"'nvidia' — mdev creation will fail. "
+                    f"Check IOMMU is enabled in BIOS and kernel (iommu=pt)."
+                )
+        else:
+            print(
+                f"  WARNING: VF {vf_bdf} has no driver — mdev creation will "
+                f"fail. Check IOMMU is enabled in BIOS and kernel (iommu=pt)."
+            )
 
 
 if __name__ == "__main__":

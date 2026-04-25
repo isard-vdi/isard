@@ -8,7 +8,13 @@ from pprint import pprint
 from time import sleep
 
 from api_client import ApiClient
-from gpu_discovery import discover_gpus, discover_hugepages, discover_pci_devices
+from gpu_discovery import (
+    discover_gpus,
+    discover_hugepages,
+    discover_numa_topology,
+    discover_pci_devices,
+    ensure_sriov_vfs,
+)
 
 DEFAULT_STORAGE_POOL_ID = (
     SourceFileLoader("storage_pool", "/src/_common/default_storage_pool.py")
@@ -45,6 +51,8 @@ isard_hyper_vpn_host = os.environ.get("VPN_DOMAIN", "isard-vpn")
 
 
 def SetupHypervisor():
+    ensure_sriov_vfs()
+
     HYPERVISOR = {
         "hyper_id": os.environ.get("HYPER_ID", "isard-hypervisor"),
         "hostname": hostname,
@@ -89,6 +97,7 @@ def SetupHypervisor():
     gpu_list = json.loads(HYPERVISOR["nvidia_gpus"])
     HYPERVISOR["nvidia_enabled"] = len(gpu_list) > 0
     HYPERVISOR["pci_devices"] = json.dumps(discover_pci_devices(gpu_list))
+    HYPERVISOR["numa_topology"] = json.dumps(discover_numa_topology())
 
     ## Adding hyper. Received dict with certs and number
     ok = False
@@ -157,20 +166,55 @@ def SetupHypervisor():
 
 
 def DeleteHypervisor():
-    ok = False
-    while not ok:
-        try:
-            deleted = apic.delete(
-                "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor")
-            )
-            ok = True
-        except:
-            print("Could not contact api to delete me... retrying...")
-            sleep(1)
-    return deleted
+    """Best-effort API unregister. Bounded: one attempt, logged on failure.
+
+    The old unbounded retry loop blocked shutdown indefinitely if the API
+    was unreachable — docker's stop_grace_period would then SIGKILL us
+    before any cleanup ran. Shutdown is handled by lib/shutdown.py now
+    (with its own timeout-bounded DELETE), so this function is only left
+    as a CLI entry point for manual operator use.
+    """
+    try:
+        return apic.delete(
+            "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor")
+        )
+    except Exception as e:
+        print(f"Could not contact api to delete me: {e}")
+        return False
+
+
+def _refresh_numa_topology_with_libvirt():
+    """Re-run NUMA discovery now that libvirtd is up and publish to the API.
+
+    SetupHypervisor() runs before libvirtd starts, so its numa_topology is
+    sysfs-only with libvirt_numa_ok=False. This runs at enable time and
+    publishes the validated topology (libvirt_numa_ok=True when libvirt's
+    NUMA view matches sysfs, False otherwise — engine gates <numatune> on
+    that flag).
+    """
+    try:
+        topo = discover_numa_topology(probe_libvirt=True)
+    except Exception as e:
+        print(f"NUMA refresh: discovery failed: {e}")
+        return
+    if not topo:
+        return
+    hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
+    try:
+        apic.update(
+            "hypervisor/" + hyper_id,
+            data={"numa_topology": json.dumps(topo), "enabled": True},
+        )
+        print(
+            f"NUMA refresh: libvirt_numa_ok={topo.get('libvirt_numa_ok')} "
+            f"reason={topo.get('reason')} nodes={list(topo.get('nodes', {}).keys())}"
+        )
+    except Exception as e:
+        print(f"NUMA refresh: failed to update hypervisor record: {e}")
 
 
 def EnableHypervisor():
+    _refresh_numa_topology_with_libvirt()
     data = {"enabled": True}
     ok = False
     while not ok:

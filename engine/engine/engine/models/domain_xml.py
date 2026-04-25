@@ -2145,6 +2145,11 @@ def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=
     hugepages instead of standard 4K pages.  Only called when the target
     hypervisor has hugepages available.
 
+    NUMA-local allocation is handled by <numatune> (added by add_numa_pinning),
+    not by a nodeset attribute on <page>.  The nodeset attribute on <page>
+    refers to guest NUMA cells and requires explicit guest NUMA topology
+    (<cpu><numa>) which we do not configure.
+
     See https://libvirt.org/formatdomain.html#memory-backing
     """
     parser = etree.XMLParser(remove_blank_text=True)
@@ -2158,14 +2163,14 @@ def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=
     for elem in tree.xpath("/domain/memoryBacking"):
         elem.getparent().remove(elem)
 
-    xml_backing = """<memoryBacking>
-  <hugepages>
-    <page size="{size}" unit="{unit}"/>
-  </hugepages>
-  <allocation mode="immediate" threads="{threads}"/>
-  <locked/>
-</memoryBacking>""".format(
-        size=hugepage_size, unit=hugepage_unit, threads=alloc_threads
+    xml_backing = (
+        "<memoryBacking>\n"
+        "  <hugepages>\n"
+        f'    <page size="{hugepage_size}" unit="{hugepage_unit}"/>\n'
+        "  </hugepages>\n"
+        f'  <allocation mode="immediate" threads="{alloc_threads}"/>\n'
+        "  <locked/>\n"
+        "</memoryBacking>"
     )
 
     element = etree.parse(StringIO(xml_backing)).getroot()
@@ -2181,3 +2186,223 @@ def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=
 
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output
+
+
+def _expand_cpulist(cpulist_str):
+    """Expand a kernel cpulist string into a sorted list of CPU IDs.
+
+    Examples:
+        "0-3,8-11"  -> [0, 1, 2, 3, 8, 9, 10, 11]
+        "0,2,4"     -> [0, 2, 4]
+        "0-3"       -> [0, 1, 2, 3]
+    """
+    cpus = []
+    for part in cpulist_str.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            start, end = part.split("-", 1)
+            cpus.extend(range(int(start), int(end) + 1))
+        else:
+            cpus.append(int(part))
+    return sorted(set(cpus))
+
+
+def add_numa_pinning(xml, numa_node, cpulist_str, vcpus, memory_mode="preferred"):
+    """Add <cputune> and <numatune> for NUMA-local CPU pinning.
+
+    When vcpus <= len(node_cpus): generates per-vCPU pinning with
+    <vcpupin> entries distributed round-robin across the node's CPUs,
+    plus <emulatorpin> for QEMU emulator threads.
+
+    When vcpus > len(node_cpus): skips per-vCPU pinning (would cause
+    harmful contention) and only sets <vcpu cpuset='...'> plus <numatune>
+    to constrain to the node.
+
+    Args:
+        xml: Domain XML string
+        numa_node: NUMA node ID (int)
+        cpulist_str: CPU list string for the node (e.g. "0-15,32-47")
+        vcpus: Number of vCPUs in the domain
+        memory_mode: "strict" for GPU+hugepages (guaranteed node-local),
+                     "preferred" for non-GPU (hint, can fall back)
+
+    See https://libvirt.org/formatdomain.html#cpu-tuning
+    See https://libvirt.org/formatdomain.html#numa-node-tuning
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error(f"Exception parsing xml in add_numa_pinning: {e}")
+        return xml
+
+    node_cpus = _expand_cpulist(cpulist_str)
+    if not node_cpus:
+        return xml
+
+    # Remove existing cputune and numatune (idempotent)
+    for tag in ("cputune", "numatune"):
+        for elem in tree.xpath(f"/domain/{tag}"):
+            elem.getparent().remove(elem)
+
+    if vcpus <= len(node_cpus):
+        # Per-vCPU pinning: distribute round-robin across node CPUs
+        pins = []
+        for i in range(vcpus):
+            cpu_id = node_cpus[i % len(node_cpus)]
+            pins.append(f"  <vcpupin vcpu='{i}' cpuset='{cpu_id}'/>")
+        pins.append(f"  <emulatorpin cpuset='{cpulist_str}'/>")
+        cputune_xml = "<cputune>\n{}\n</cputune>".format("\n".join(pins))
+
+        cputune_elem = etree.parse(StringIO(cputune_xml)).getroot()
+
+        # Insert after memoryBacking, or after vcpu
+        mem_backing = tree.xpath("/domain/memoryBacking")
+        vcpu_elem = tree.xpath("/domain/vcpu")
+        if mem_backing:
+            mem_backing[0].addnext(cputune_elem)
+        elif vcpu_elem:
+            vcpu_elem[0].addnext(cputune_elem)
+        else:
+            tree.xpath("/domain")[0].insert(0, cputune_elem)
+    else:
+        # Too many vCPUs for the node: only constrain via cpuset on <vcpu>
+        # so the host scheduler distributes within the node without
+        # per-vCPU pinning that would cause contention
+        vcpu_elem = tree.xpath("/domain/vcpu")
+        if vcpu_elem:
+            vcpu_elem[0].set("cpuset", cpulist_str)
+
+    # Add numatune
+    numatune_xml = (
+        f"<numatune><memory mode='{memory_mode}' nodeset='{numa_node}'/></numatune>"
+    )
+    numatune_elem = etree.parse(StringIO(numatune_xml)).getroot()
+
+    # Insert after cputune if present, else after memoryBacking, else after vcpu
+    cputune = tree.xpath("/domain/cputune")
+    mem_backing = tree.xpath("/domain/memoryBacking")
+    vcpu_elem = tree.xpath("/domain/vcpu")
+    if cputune:
+        cputune[0].addnext(numatune_elem)
+    elif mem_backing:
+        mem_backing[0].addnext(numatune_elem)
+    elif vcpu_elem:
+        vcpu_elem[0].addnext(numatune_elem)
+    else:
+        tree.xpath("/domain")[0].insert(0, numatune_elem)
+
+    return indent(etree.tostring(tree, encoding="unicode"))
+
+
+def add_qemu_pcie_reserve(xml, reserve_size="256G"):
+    """Add qemu:commandline for PCIe BAR memory reservation.
+
+    Needed for GPU passthrough when large GPUs or multiple GPUs compete
+    for prefetchable 64-bit MMIO address space.  The -global flag applies
+    to ALL pcie-root-ports in the domain.
+
+    Uses string manipulation instead of lxml because lxml's nsmap is
+    immutable after element creation, making namespace addition fragile.
+
+    See QEMU docs: -global pcie-root-port.pref64-reserve
+    """
+    QEMU_NS = 'xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0"'
+    qemu_block = (
+        "  <qemu:commandline>\n"
+        "    <qemu:arg value='-global'/>\n"
+        f"    <qemu:arg value='pcie-root-port.pref64-reserve={reserve_size}'/>\n"
+        "  </qemu:commandline>\n"
+    )
+
+    # Add qemu namespace to <domain> if not already present
+    if QEMU_NS not in xml:
+        xml = xml.replace("<domain ", f"<domain {QEMU_NS} ", 1)
+        if QEMU_NS not in xml:
+            # Handle <domain type="..."> without space before type
+            xml = xml.replace("<domain", f"<domain {QEMU_NS}", 1)
+
+    # Remove any existing qemu:commandline block
+    import re as _re
+
+    xml = _re.sub(
+        r"\s*<qemu:commandline>.*?</qemu:commandline>\s*",
+        "\n",
+        xml,
+        flags=_re.DOTALL,
+    )
+
+    # Insert before closing </domain>
+    xml = xml.replace("</domain>", qemu_block + "</domain>")
+    return xml
+
+
+def add_iothread_pinning(xml, cpulist_str):
+    """Add IO threads pinned to a NUMA node for disk I/O locality.
+
+    Creates one IO thread per virtio disk, pins each to the node's cpuset,
+    and assigns the IO thread to the disk's <driver> element.
+
+    Only affects virtio-bus disks.  Must be called AFTER add_numa_pinning()
+    so <cputune> already exists.
+
+    See https://libvirt.org/formatdomain.html#iothreads-allocation
+    See https://libvirt.org/formatdomain.html#cpu-tuning
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error(f"Exception parsing xml in add_iothread_pinning: {e}")
+        return xml
+
+    # Find virtio disks
+    virtio_disks = tree.xpath('//devices/disk[@device="disk"][target/@bus="virtio"]')
+    if not virtio_disks:
+        return xml
+
+    num_iothreads = len(virtio_disks)
+
+    # Remove existing iothreads element
+    for elem in tree.xpath("/domain/iothreads"):
+        elem.getparent().remove(elem)
+
+    # Add <iothreads>N</iothreads> after <vcpu>
+    iothreads_elem = etree.Element("iothreads")
+    iothreads_elem.text = str(num_iothreads)
+    vcpu_elem = tree.xpath("/domain/vcpu")
+    if vcpu_elem:
+        vcpu_elem[0].addnext(iothreads_elem)
+    else:
+        tree.xpath("/domain")[0].insert(0, iothreads_elem)
+
+    # Add <iothreadpin> entries to <cputune> (create if missing)
+    cputune = tree.xpath("/domain/cputune")
+    if not cputune:
+        cputune_elem = etree.SubElement(tree.getroot(), "cputune")
+        # Insert after memoryBacking or vcpu for proper XML order
+        mem_backing = tree.xpath("/domain/memoryBacking")
+        vcpu_elem = tree.xpath("/domain/vcpu")
+        if mem_backing:
+            mem_backing[0].addnext(cputune_elem)
+        elif vcpu_elem:
+            vcpu_elem[0].addnext(cputune_elem)
+        cputune = [cputune_elem]
+    else:
+        # Remove existing iothreadpin entries
+        for pin in cputune[0].xpath("iothreadpin"):
+            cputune[0].remove(pin)
+    for i in range(1, num_iothreads + 1):
+        pin_elem = etree.SubElement(cputune[0], "iothreadpin")
+        pin_elem.set("iothread", str(i))
+        pin_elem.set("cpuset", cpulist_str)
+
+    # Assign iothread to each virtio disk's <driver>
+    for i, disk in enumerate(virtio_disks, start=1):
+        driver = disk.find("driver")
+        if driver is not None:
+            driver.set("iothread", str(i))
+
+    return indent(etree.tostring(tree, encoding="unicode"))

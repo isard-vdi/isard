@@ -561,9 +561,11 @@ def get_hypers_online(
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
             "hugepages_info",
+            "numa_topology",
             "libvirt_warning",  # Include warning state for balancer
             "degraded",  # Include degraded state for webapp display
             "cap_status",  # Include cap_status for balancer operation
+            "gpu_warnings",  # GPU configuration issues for admin display
         )
         .run(r_conn)
     )
@@ -782,6 +784,8 @@ def get_hypers_gpu_online(
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
             "hugepages_info",
+            "numa_topology",
+            "pci_devices",
         )
         .run(r_conn)
     )
@@ -803,9 +807,13 @@ def get_hypers_gpu_online(
     if exclude_outofmem:
         hypers_online = filter_outofmem_hypers(hypers_online)
 
-    # Check profile format: "NVIDIA-A10-2Q"
+    # Check profile format: "NVIDIA-A10-2Q" or "NVIDIA-RTXPro6000BlackwellDC-1-12Q"
+    # Use split with maxsplit=2 to handle profiles with dashes (e.g., "1-12Q")
     try:
-        gpu_brand, gpu_model, gpu_profile = gpu_brand_model_profile.split("-")
+        parts = gpu_brand_model_profile.split("-", 2)
+        if len(parts) != 3:
+            raise ValueError("Expected 3 parts")
+        gpu_brand, gpu_model, gpu_profile = parts
     except:
         logs.workers.error(
             f"Error parsing gpu_profile: {gpu_brand_model_profile}. Not in format BRAND-MODEL-PROFILE"
@@ -867,6 +875,13 @@ def get_hypers_gpu_online(
                 f"hypervisor with available profile gpu: {h['id']}, uuid_selected: {mdev_uuid}, "
                 + f"gpu_profile: {gpu_brand_model_profile}, gpu_id: {gpu_id}"
             )
+            # Look up GPU NUMA node from pci_devices (sysfs format)
+            # pci is in libvirt format "pci_0000_41_00_0", convert to "0000:41:00.0"
+            pci_sysfs = pci[4:].replace("_", ":", 2)  # "0000:41:00_0"
+            pci_sysfs = (
+                pci_sysfs[: len(pci_sysfs) - 2] + "." + pci_sysfs[-1]
+            )  # "0000:41:00.0"
+            gpu_numa_node = h.get("pci_devices", {}).get(pci_sysfs, {}).get("numa_node")
             hypervisors_with_available_profile.append(
                 {
                     **h,
@@ -879,6 +894,14 @@ def get_hypers_gpu_online(
                             "gpu_profile": gpu_brand_model_profile,
                             "pci_bus_id": pci,
                             "hugepages_info": h.get("hugepages_info", {}),
+                            "hugepages_free_kb": h.get("stats", {})
+                            .get("mem_stats", {})
+                            .get("hugepages_free_kb", 0),
+                            "numa_hugepages_free_kb": h.get("stats", {})
+                            .get("mem_stats", {})
+                            .get("numa_hugepages_free_kb", {}),
+                            "gpu_numa_node": gpu_numa_node,
+                            "numa_topology": h.get("numa_topology", {}),
                         }
                     },
                 }
@@ -1038,12 +1061,91 @@ def update_vgpu_uuids(vgpu_id, d_uuids):
     close_rethink_connection(r_conn)
 
 
+def replace_vgpu_profile_mdevs(vgpu_id, profile, mdevs_for_profile):
+    """Replace the mdev map for a single profile wholesale.
+
+    RethinkDB's default update deep-merges, so callers rebuilding a
+    profile's UUID pool (e.g. a profile switch that right-sizes to
+    driver max_instance) cannot shrink the map with a plain update.
+    ``r.literal`` replaces the target sub-dict verbatim without
+    touching sibling profiles.
+    """
+    r_conn = new_rethink_connection()
+    r.table("vgpus").get(vgpu_id).update(
+        {"mdevs": {profile: r.literal(mdevs_for_profile)}}
+    ).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
+def get_vgpu_full(vgpu_id):
+    r_conn = new_rethink_connection()
+    try:
+        out = r.table("vgpus").get(vgpu_id).run(r_conn)
+    except ReqlNonExistenceError:
+        out = None
+    close_rethink_connection(r_conn)
+    return out
+
+
+def add_vgpu_uuids(
+    vgpu_id,
+    additions,
+    sub_paths=None,
+    replace_mdevs=False,
+    mdevs_last_synced_at=None,
+):
+    """Update a vgpu row's mdev pool.
+
+    additions: {profile_name: {uuid: entry_dict}}. In top-up mode (default)
+        these are only NEW UUIDs that get deep-merged into mdevs. In
+        authoritative-rebuild mode (replace_mdevs=True) these fully replace
+        mdevs — any profile/UUID not in ``additions`` is discarded.
+    sub_paths: optional sub_paths list to write into info.sub_paths. Always
+        replaces the existing list when provided.
+    replace_mdevs: when True, replace ``mdevs`` wholesale via ``r.literal``.
+        Used after the hypervisor boot wipes its sysfs mdevs so the DB pool
+        becomes the single source of truth for the fresh VFs.
+    mdevs_last_synced_at: when set, write this timestamp on the row so the
+        next reconcile can tell whether a later hypervisor reset has happened
+        since.
+
+    Top-up mode preserves active ``domain_started`` / ``domain_reserved``
+    bindings by relying on RethinkDB's deep-merge update. Replace mode does
+    NOT preserve them — caller is responsible for transitioning orphaned
+    domains to ``Stopped`` before (or right after) this call.
+    """
+    if not additions and sub_paths is None and mdevs_last_synced_at is None:
+        return
+    r_conn = new_rethink_connection()
+    patch = {}
+    if replace_mdevs:
+        patch["mdevs"] = r.literal(additions or {})
+    elif additions:
+        patch["mdevs"] = additions
+    if sub_paths is not None:
+        patch["info"] = {"sub_paths": list(sub_paths)}
+    if mdevs_last_synced_at is not None:
+        patch["mdevs_last_synced_at"] = mdevs_last_synced_at
+    r.table("vgpus").get(vgpu_id).update(patch).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
 def update_vgpu_uuid_started_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
     vgpu_id = "-".join([hyp_id, pci_id])
     rtable.filter({"id": vgpu_id}).update(
         {"mdevs": {profile: {mdev_uuid: {"domain_started": domain_id}}}}
+    ).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
+def update_vgpu_uuid_reserved_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    vgpu_id = "-".join([hyp_id, pci_id])
+    rtable.filter({"id": vgpu_id}).update(
+        {"mdevs": {profile: {mdev_uuid: {"domain_reserved": domain_id}}}}
     ).run(r_conn)
     close_rethink_connection(r_conn)
 

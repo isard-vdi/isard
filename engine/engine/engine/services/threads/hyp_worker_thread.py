@@ -42,6 +42,7 @@ from engine.services.lib.functions import (
     update_status_db_from_running_domains,
 )
 from engine.services.lib.libvirt_timeout import (
+    LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW,
     LIBVIRT_OPERATION_TIMEOUT,
     LIBVIRT_OPERATION_WARNING,
     LibvirtOperationStats,
@@ -670,7 +671,13 @@ class HypWorkerThread(threading.Thread):
     # =========================================================================
 
     def _execute_libvirt_with_timeout(
-        self, func, args=(), kwargs=None, operation_name="unknown", intervals=None
+        self,
+        func,
+        args=(),
+        kwargs=None,
+        operation_name="unknown",
+        intervals=None,
+        timeout=None,
     ):
         """Execute a libvirt operation with timeout tracking.
 
@@ -683,6 +690,10 @@ class HypWorkerThread(threading.Thread):
             kwargs: Keyword arguments for func
             operation_name: Name for logging/errors
             intervals: List to append timing info (optional)
+            timeout: Per-call override (seconds). Defaults to
+                LIBVIRT_OPERATION_TIMEOUT. Callers bump this for operations
+                known to be slow on the hot path — e.g. createXML of a GPU
+                domain that falls back to 4K-page VFIO mapping.
 
         Returns:
             The result of the libvirt call
@@ -693,6 +704,9 @@ class HypWorkerThread(threading.Thread):
         """
         if kwargs is None:
             kwargs = {}
+        effective_timeout = (
+            timeout if timeout is not None else LIBVIRT_OPERATION_TIMEOUT
+        )
 
         start_time = time.time()
         try:
@@ -700,7 +714,7 @@ class HypWorkerThread(threading.Thread):
                 func,
                 args=args,
                 kwargs=kwargs,
-                timeout=LIBVIRT_OPERATION_TIMEOUT,
+                timeout=effective_timeout,
                 operation_name=operation_name,
                 hyp_id=self.hyp_id,
             )
@@ -948,10 +962,30 @@ class HypWorkerThread(threading.Thread):
         )
         return True
 
+    def _pick_createxml_timeout(self, action):
+        """Return the libvirt createXML timeout (seconds) for this action.
+
+        GPU starts that have to fall back to 4K-page RAM (hugepages
+        insufficient) may need several minutes for VFIO mapping; the
+        engine flags those at XML-build time via ``expects_slow_createxml``.
+        Normal starts keep the short default so a genuinely-stuck
+        hypervisor still gets flagged fast.
+        """
+        if action.get("expects_slow_createxml"):
+            logs.workers.info(
+                f"Using extended createXML timeout {LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW}s "
+                f"for {action.get('id_domain')} on {self.hyp_id} (GPU start with "
+                f"4K-page fallback — slower VFIO mapping expected)"
+            )
+            return LIBVIRT_CREATEXML_TIMEOUT_GPU_SLOW
+        return LIBVIRT_OPERATION_TIMEOUT
+
     # Action handlers
     def _handle_start_paused_domain(self, action, action_time, intervals):
         """Handle start_paused_domain action"""
         logs.workers.debug(f"XML to start paused domain: {action['xml'][30:100]}")
+
+        createxml_timeout = self._pick_createxml_timeout(action)
 
         try:
             # Create domain in paused state with timeout tracking
@@ -961,6 +995,7 @@ class HypWorkerThread(threading.Thread):
                 kwargs={"flags": VIR_DOMAIN_START_PAUSED},
                 operation_name="libvirt createXML paused",
                 intervals=intervals,
+                timeout=createxml_timeout,
             )
 
             # Check for paused domains
@@ -1306,6 +1341,8 @@ class HypWorkerThread(threading.Thread):
                 )
                 return
 
+        createxml_timeout = self._pick_createxml_timeout(action)
+
         try:
             # Create the domain with timeout tracking
             dom = self._execute_libvirt_with_timeout(
@@ -1313,6 +1350,7 @@ class HypWorkerThread(threading.Thread):
                 args=(xml,),
                 operation_name="libvirt createXML",
                 intervals=intervals,
+                timeout=createxml_timeout,
             )
 
             # Get XML description with timeout tracking

@@ -441,14 +441,19 @@ class BalancerInterface:
 def _build_hugepages_extra(hyper_dict):
     """Extract hugepages fallback info for non-GPU desktops."""
     hugepages_info = hyper_dict.get("hugepages_info", {})
-    if not hugepages_info or not hugepages_info.get("mounted"):
-        return {}
     mem_stats = hyper_dict.get("stats", {}).get("mem_stats", {})
+    if not hugepages_info or not hugepages_info.get("mounted"):
+        return {
+            "numa_topology": hyper_dict.get("numa_topology", {}),
+            "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}),
+        }
     return {
         "hugepages": hugepages_info,
         "min_free_mem_gb": hyper_dict.get("min_free_mem_gb", 0) or 0,
         "mem_available_kb": mem_stats.get("available", 0),
         "hugepages_free_kb": mem_stats.get("hugepages_free_kb", 0),
+        "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}),
+        "numa_topology": hyper_dict.get("numa_topology", {}),
     }
 
 
@@ -465,6 +470,10 @@ def _parse_extra_gpu_info(gpu_selected):
         ),
         "pci_bus_id": gpu_selected.get("pci_bus_id"),
         "hugepages": gpu_selected.get("hugepages_info", {}),
+        "hugepages_free_kb": gpu_selected.get("hugepages_free_kb", 0),
+        "numa_hugepages_free_kb": gpu_selected.get("numa_hugepages_free_kb", {}),
+        "gpu_numa_node": gpu_selected.get("gpu_numa_node"),
+        "numa_topology": gpu_selected.get("numa_topology", {}),
     }
 
 

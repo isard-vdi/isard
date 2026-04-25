@@ -143,6 +143,8 @@ class ResourceItemsGpus:
         )
         with app.app_context():
             items = list(query.run(db.conn))
+        # Cache gpu_warnings per hypervisor to avoid repeated queries
+        hyp_gpu_warnings = {}
         for item in items:
             if item.get("active_profile"):
                 with app.app_context():
@@ -160,6 +162,34 @@ class ResourceItemsGpus:
                 item["active_profile"] = self.get_subitem(
                     item["id"], available_units["id"]
                 )["profile"]
+            # Attach gpu_warnings for this GPU's hypervisor
+            phys = item.get("physical_device") or ""
+            # physical_device format: "hyper_id-pci_XXXX_XX_XX_X"
+            parts = phys.rsplit("-pci_", 1)
+            hyp_id = parts[0] if len(parts) == 2 else None
+            pci_bdf = parts[1].replace("_", ":", 2) if len(parts) == 2 else ""
+            if pci_bdf:
+                pci_bdf = pci_bdf[: len(pci_bdf) - 2] + "." + pci_bdf[-1]
+            if hyp_id and hyp_id not in hyp_gpu_warnings:
+                try:
+                    with app.app_context():
+                        hyp_data = (
+                            r.table("hypervisors")
+                            .get(hyp_id)
+                            .pluck("gpu_warnings")
+                            .default({})
+                            .run(db.conn)
+                        )
+                    hyp_gpu_warnings[hyp_id] = hyp_data.get("gpu_warnings", [])
+                except Exception:
+                    hyp_gpu_warnings[hyp_id] = []
+            # Filter warnings relevant to this specific GPU's PCI address
+            all_warnings = hyp_gpu_warnings.get(hyp_id, [])
+            item["gpu_warnings"] = (
+                ([w for w in all_warnings if pci_bdf and pci_bdf in w] or all_warnings)
+                if all_warnings
+                else []
+            )
         return list(items)
 
     def add_item(self, data):
