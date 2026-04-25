@@ -64,11 +64,6 @@ class MediaHandler(BaseHandler):
             await self.on_delete(new_val)
             return
         enriched = self._enrich(new_val)
-        # TODO: on DownloadFailedInvalidFormat, archive cleanup is currently
-        # unowned. Re-enable the call below (or move the cleanup into the
-        # apiv4 delete flow) when we pick a home for it.
-        # if new_val.status == MediaStatusEnum.download_failed_invalid_format.value:
-        #     Media(new_val.id).delete_archive(new_val.user, keep_status=True)
         await self.emit(
             "media_update",
             json_dumps(self._with_editable(enriched)),
@@ -82,6 +77,11 @@ class MediaHandler(BaseHandler):
             room=new_val.category,
         )
         await super().on_update(old_val, enriched)
+        if new_val.status == MediaStatusEnum.download_failed_invalid_format.value and (
+            old_val is None
+            or old_val.status != MediaStatusEnum.download_failed_invalid_format.value
+        ):
+            Media(new_val.id).delete_file(user_id=new_val.user, keep_status=True)
 
     async def on_delete(self, old_val):
         await self.emit(

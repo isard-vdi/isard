@@ -157,6 +157,121 @@ async def test_media_transition_to_deleted_emits_only_delete(
     ), f"transition-to-deleted must not also emit media_update; got {events}"
 
 
+class TestMediaHandlerInvalidFormatCleanup:
+    """On the transition to ``DownloadFailedInvalidFormat`` the handler must
+    delete the broken disk artefact so apiv3 + apiv4 stay symmetric.
+    """
+
+    @pytest.mark.asyncio
+    async def test_transition_to_invalid_format_calls_delete_file(
+        self, media_handler, media_row_factory, monkeypatch
+    ):
+        delete_calls: list[dict] = []
+
+        class FakeMedia:
+            def __init__(self, media_id):
+                delete_calls.append({"phase": "init", "id": media_id})
+
+            def delete_file(self, user_id=None, keep_status=None):
+                delete_calls.append(
+                    {"phase": "call", "user_id": user_id, "keep_status": keep_status}
+                )
+
+        monkeypatch.setattr("handlers.media.Media", FakeMedia)
+
+        old = media_row_factory(id="m1", status="Downloading", user="u1")
+        new = media_row_factory(
+            id="m1", status="DownloadFailedInvalidFormat", user="u1"
+        )
+
+        await media_handler.on_update(old, new)
+
+        assert delete_calls == [
+            {"phase": "init", "id": "m1"},
+            {"phase": "call", "user_id": "u1", "keep_status": True},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_no_cleanup_when_already_invalid_format(
+        self, media_handler, media_row_factory, monkeypatch
+    ):
+        """Repeated change-feed events with the same InvalidFormat status
+        must not re-trigger delete_file.
+        """
+        called = False
+
+        class FakeMedia:
+            def __init__(self, _id):
+                pass
+
+            def delete_file(self, **_kwargs):
+                nonlocal called
+                called = True
+
+        monkeypatch.setattr("handlers.media.Media", FakeMedia)
+
+        old = media_row_factory(id="m1", status="DownloadFailedInvalidFormat")
+        new = media_row_factory(id="m1", status="DownloadFailedInvalidFormat")
+
+        await media_handler.on_update(old, new)
+
+        assert (
+            called is False
+        ), "delete_file must only fire on the InvalidFormat transition"
+
+    @pytest.mark.asyncio
+    async def test_no_cleanup_for_other_status_transitions(
+        self, media_handler, media_row_factory, monkeypatch
+    ):
+        called = False
+
+        class FakeMedia:
+            def __init__(self, _id):
+                pass
+
+            def delete_file(self, **_kwargs):
+                nonlocal called
+                called = True
+
+        monkeypatch.setattr("handlers.media.Media", FakeMedia)
+
+        old = media_row_factory(id="m1", status="Downloading")
+        new = media_row_factory(id="m1", status="Downloaded")
+
+        await media_handler.on_update(old, new)
+
+        assert called is False
+
+    @pytest.mark.asyncio
+    async def test_invalid_format_still_emits_media_update(
+        self, media_handler, fake_socketio, media_row_factory, monkeypatch
+    ):
+        """The cleanup must not suppress the user-facing update event —
+        the UI still needs to render the failure state.
+        """
+
+        class FakeMedia:
+            def __init__(self, _id):
+                pass
+
+            def delete_file(self, **_kwargs):
+                pass
+
+        monkeypatch.setattr("handlers.media.Media", FakeMedia)
+
+        old = media_row_factory(
+            id="m1", status="Downloading", user="u1", category="cat1"
+        )
+        new = media_row_factory(
+            id="m1", status="DownloadFailedInvalidFormat", user="u1", category="cat1"
+        )
+
+        await media_handler.on_update(old, new)
+
+        events = [e[0] for e in fake_socketio.emitted]
+        assert events.count("media_update") >= 2  # /userspace + /administrators
+
+
 class TestMediaHandlerNoneRoomRegression:
     @pytest.fixture
     def handler(self):
