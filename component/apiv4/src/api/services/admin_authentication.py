@@ -281,6 +281,7 @@ class AdminAuthenticationService(RethinkSharedConnection):
                 {"auth": {provider: r.row["auth"][provider].merge(data)}}
             ).run(cls._rdb_connection)
         provider_config_cache.clear()
+        Caches.clear_config_cache()
 
     # ── Migration exceptions ──────────────────────────────────────────────
 

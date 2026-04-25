@@ -1000,6 +1000,7 @@ class Helpers(RethinkSharedConnection):
                 r.table("config").get(1).update(
                     {"recycle_bin": {"recycle_bin_cutoff_time": cutoff_time}}
                 ).run(cls._rdb_connection)
+            Caches.clear_config_cache()
 
     @classmethod
     def add_log(
