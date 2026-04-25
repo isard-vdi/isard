@@ -88,6 +88,9 @@
     "planning": {
       "title": "Planificación",
       "subtitle": "Planifica la disponibilidad de los recursos reservables"
+    },
+    "direct-viewer": {
+      "title": "Visor directo"
     }
   },
   "views": {
@@ -663,6 +666,65 @@
     "shared-deployments": {
       "error": {
         "loading": "Error al cargar los despliegues:"
+      }
+    },
+    "direct-viewer": {
+      "title": "Acceso a los visores del escritorio:",
+      "logo-alt": "Logotipo",
+      "loading": "Cargando",
+      "restart": "Reiniciar",
+      "waitingip": "Esperando a que el escritorio se inicie",
+      "powered-by": "Funciona con {isardvdi}",
+      "errors": {
+        "not_found": "No se ha encontrado el recurso solicitado.",
+        "generic_error": "Se ha producido un error inesperado.",
+        "desktop_not_booked_until": "Este escritorio no está reservado hasta {start}.",
+        "direct_viewer_docs_not_found": "Documentación no encontrada.",
+        "unable_to_reset_domain_jumperurl": "No se ha podido reiniciar el escritorio."
+      },
+      "browser": {
+        "title": "Acceso a través de este navegador",
+        "subtitle": "No requiere ninguna instalación"
+      },
+      "file": {
+        "title": "Acceso a través de aplicación",
+        "subtitle": "Es necesario tener software específico instalado (mejor rendimiento)"
+      },
+      "description": {
+        "vnc": "Acceso al escritorio en este navegador",
+        "rdp": "Acceso al escritorio en este navegador (requiere el usuario y contraseña del escritorio Windows)",
+        "spice": "Acceso al escritorio a través de un fichero que debe abrirse con el programa remote-viewer",
+        "rdpgw": "Windows incluye el software necesario para su uso"
+      },
+      "help": {
+        "spice": {
+          "spice-help": "Instrucciones de instalación de SPICE",
+          "local-client": "Usa el cliente local (recomendado)",
+          "best-performance": "Es la opción con mejor rendimiento",
+          "spice-client-required": "pero se requiere una aplicación externa.",
+          "generic-text": "Haz clic en el siguiente enlace para encontrar enlaces de descarga e instrucciones de instalación:",
+          "download-install": "Descargar el software del visor",
+          "once-installed": "Una vez instalado, haz clic en el botón 'SPICE', que descargará el fichero del escritorio virtual.",
+          "close-guide": "Cerrar guía"
+        },
+        "rdp": {
+          "rdp-help": "Instrucciones de instalación de RDP",
+          "local-client": "Usa el cliente RDP (recomendado)",
+          "included": "Windows incluye el software necesario para su uso,",
+          "client-required": "pero en otros sistemas operativos puede requerir la instalación de una aplicación externa. Consulta las instrucciones de instalación:",
+          "download-install": "Descargar el software del visor",
+          "once-installed": "Una vez instalado, haz clic en el botón 'RDP', que descargará el fichero del escritorio virtual.",
+          "close-guide": "Cerrar guía"
+        }
+      },
+      "reset-modal": {
+        "title": "Reiniciar escritorio",
+        "option": {
+          "reset-desktop": "Forzar el reinicio de un escritorio es una acción peligrosa. Equivale a desenchufarlo mientras se está ejecutando. Si puedes, detenlo desde un visor."
+        },
+        "confirmation": {
+          "reset-desktop": "Forzar reinicio del escritorio"
+        }
       }
     }
   },
