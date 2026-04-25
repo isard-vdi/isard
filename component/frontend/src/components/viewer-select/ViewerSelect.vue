@@ -40,7 +40,6 @@ const emit = defineEmits<{
 const selectedViewer = ref<Viewer>(
   props.viewers.find((v) => v.id === props.selectedViewer) || props.viewers[0]
 )
-console.log('Initial selected viewer:', selectedViewer.value)
 
 const selectedViewerLabel = computed(() => t(`viewers.${selectedViewer.value.id}`))
 

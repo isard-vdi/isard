@@ -17,7 +17,6 @@ import { getLabUserDesktopsApiV4ItemLabLabIdUserUserIdDesktopsGetOptions } from 
 const route = useRoute()
 const { t } = useI18n()
 const labId = route.params.id as string
-console.log(labId)
 // Retrieve the userId from the store claims
 const authStore = useAuthStore()
 const userId = authStore.user.user_id as string

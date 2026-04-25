@@ -109,16 +109,11 @@ onMounted(() => {
 
       const closestEdgeOfTarget = extractClosestEdge(targetData)
 
-      console.debug('Closest edge of target:', closestEdgeOfTarget)
-      console.log(closestEdgeOfTarget)
-
       if (closestEdgeOfTarget === 'bottom') {
-        console.log('dd')
         addNetwork(sourceData.item.value, targetData.item.index)
       } else {
         addNetwork(sourceData.item.value, targetData.item.index + 1)
       }
-      console.log('Selected after drop:', selected.value)
 
       // Using `flushSync` so we can query the DOM straight after this line
       selected.value = reorderWithEdge({
@@ -128,8 +123,6 @@ onMounted(() => {
         closestEdgeOfTarget,
         axis: 'vertical'
       })
-
-      console.log('Selected after reorder:', selected.value)
 
       // Being simple and just querying for the task after the drop.
       // We could use react context to register the element in a lookup,

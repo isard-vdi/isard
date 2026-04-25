@@ -92,13 +92,6 @@ const rows = computed(() => {
         text: t('views.deployments.actions.edit'),
         onClick: () => goToEditLab(deployment.id)
       },
-      // {
-      //   icon: 'calendar',
-      //   text: t('views.deployments.actions.book'),
-      //   disabled: true,
-      //   title: t('common.to-be-implemented'),
-      //   onClick: () => console.log('Book clicked for', deployment.id)
-      // },
       {
         icon: 'trash-04',
         text: t('views.deployments.actions.delete'),

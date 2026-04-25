@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, readonly, ref, watch, toValue, reactive } from 'vue'
+import { computed, readonly, ref, toValue, reactive } from 'vue'
 
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useLocalStorage as vueuseLocalStorage, useWindowSize } from '@vueuse/core'
@@ -327,7 +327,6 @@ const bastionModalData = ref<BastionModalData | null>(null)
 const preferedViewers = computed(() => {
   // TODO: move this to the card component
   if (localStorage.value) {
-    console.log('Loaded prefered viewers from localStorage:', JSON.parse(localStorage.value))
     return JSON.parse(localStorage.value)
   }
   return {}
@@ -360,7 +359,6 @@ const fetchAndOpenViewer = async (
     console.error('Error fetching desktop info:', error)
     return
   }
-  console.log(data)
 
   // store prefered viewer in localStorage
   const updatedPreferedViewers = {
@@ -393,8 +391,6 @@ const fetchAndOpenViewer = async (
     document.body.appendChild(el)
     el.click()
     document.body.removeChild(el)
-
-    console.log('File downloaded')
   }
 }
 
@@ -409,14 +405,9 @@ const directLinkDesktopId = ref<string | null>(null)
 // --------------------------------------------------
 
 const copyText = (text: string) => {
-  navigator.clipboard.writeText(text).then(
-    () => {
-      console.log(`"${text}" copied to clipboard`)
-    },
-    (err) => {
-      console.error('Could not copy text: ', err)
-    }
-  )
+  navigator.clipboard.writeText(text).catch((err) => {
+    console.error('Could not copy text: ', err)
+  })
 }
 
 // --------------------------------------------------
@@ -701,8 +692,6 @@ const closeStartNowModal = () => {
 }
 
 const getEndTimeIntervals = (endTime: Date): Date[] => {
-  console.log('Calculating end time intervals up to:', endTime)
-
   const currentTime = new Date()
   if (endTime <= currentTime) {
     return []
@@ -713,16 +702,10 @@ const getEndTimeIntervals = (endTime: Date): Date[] => {
     return [endTime]
   }
 
-  // random id
-  const funcId = Math.random().toString(36).substring(2, 15)
-
   const intervals: Date[] = []
   while (currentTime < endTime) {
     intervals.push(new Date(currentTime))
-
     currentTime.setMinutes(currentTime.getMinutes() + 30)
-    console.log(funcId + 'Current time:', currentTime)
-    console.log(funcId + 'End time:', endTime)
   }
 
   return intervals
@@ -737,22 +720,10 @@ const maxBookingDateEndTimeIntervals = computed<Date[]>(() => {
   return getEndTimeIntervals(maxDate)
 })
 
-// log changes
-watch(
-  () => changeAndStartModalSelectedProfile,
-  (newVal) => {
-    console.log('Selected profile changed to:', newVal)
-  }
-)
-
 const changeAndStartModalSelectedProfileEndTimeIntervals = computed<Date[]>(() => {
   if (!changeAndStartModalSelectedProfile2.value) {
     return []
   }
-  console.log(
-    'AACalculating end time intervals for profile:',
-    changeAndStartModalSelectedProfile2.value
-  )
 
   const maxDate = new Date(
     availableReservables.value?.reservables_available?.find(
@@ -1301,7 +1272,6 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
               onChange: ({ value }) => {
                 if (value !== changeAndStartModalSelectedProfile2) {
                   changeAndStartModalSelectedProfile2 = value
-                  console.log('Profile changed to:', value)
                 }
               }
             }"
