@@ -394,14 +394,17 @@ class UiActions(object):
                 _xml_before_opts = xml
                 try:
                     # --- NUMA node selection ---
-                    # Only trust numa_topology when the hypervisor confirmed
-                    # libvirt sees the same cells as sysfs. When that check
-                    # failed (or the flag is missing on older images) we skip
-                    # pinning — libvirt would otherwise reject <numatune>
-                    # with "NUMA node X is unavailable".
+                    # We always trust the sysfs view for CPU pinning (<cputune>
+                    # and <vcpu cpuset='...'> reference CPU IDs, which libvirt
+                    # sees correctly even when its capability XML is broken).
+                    # The libvirt_numa_ok flag only gates <numatune>: when False
+                    # (libvirt-in-container reporting duplicate cell IDs, etc.),
+                    # add_numa_pinning skips the memory-binding element so
+                    # libvirt doesn't reject the domain. The kernel's first-touch
+                    # policy then provides soft NUMA locality via the cpuset.
                     numa_topo = extra_info.get("numa_topology", {}) or {}
                     libvirt_numa_ok = bool(numa_topo.get("libvirt_numa_ok"))
-                    numa_nodes = numa_topo.get("nodes", {}) if libvirt_numa_ok else {}
+                    numa_nodes = numa_topo.get("nodes", {}) or {}
                     numa_hp_free = extra_info.get("numa_hugepages_free_kb", {})
                     domain_memory_kb = domain_memory_gb * 1048576
                     target_node = None
@@ -509,6 +512,7 @@ class UiActions(object):
                                 cpulist,
                                 _vcpus,
                                 memory_mode=mem_mode,
+                                emit_numatune=libvirt_numa_ok,
                             )
                             xml = add_iothread_pinning(xml, cpulist)
                 except Exception as _opt_err:
