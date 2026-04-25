@@ -2,7 +2,7 @@ networks:
   isard-network:
     driver: bridge
     driver_opts:
-      com.docker.network.driver.mtu: 9000
+      com.docker.network.driver.mtu: ${INFRASTRUCTURE_MTU:-1500}
     external: false
     name: isard-network
     ipam:

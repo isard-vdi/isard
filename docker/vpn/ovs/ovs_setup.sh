@@ -102,7 +102,7 @@ _geneve_oh=54  # 20 IP + 8 UDP + 8 geneve + 14 eth + 4 VLAN
 _wg_oh=60      # 20 IP + 8 UDP + 32 WG
 
 if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
-    _infra_mtu=${INFRASTRUCTURE_MTU:-9000}
+    _infra_mtu=${INFRASTRUCTURE_MTU:-1500}
     _ovs_mtu=$_infra_mtu
     _guest_mtu=$(( _infra_mtu - _geneve_oh ))
     [ $_guest_mtu -gt 1500 ] && _guest_mtu=1500
@@ -121,6 +121,25 @@ fi
 [ $_guest_mtu -lt 1280 ] && _guest_mtu=1280  # IPv6 minimum floor
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] infra=$_infra_mtu ovs=$_ovs_mtu dhcp=$_guest_mtu"
+
+# Sanity-check OVS bridge MTU against the underlay (docker network) interface.
+# If OVS > underlay, geneve-encapsulated packets get fragmented/dropped because
+# Linux's geneve sets DF=1 on outer IP. This usually means the docker network
+# was not recreated after INFRASTRUCTURE_MTU was raised.
+# Use `ip link` (netlink) rather than /sys/class/net — sysfs reflects the host
+# namespace inside this container, not the container's eth0.
+_underlay_mtu=$(ip -o link show eth0 2>/dev/null | sed -n 's/.* mtu \([0-9]*\) .*/\1/p')
+if [ -n "$_underlay_mtu" ] && [ "$_ovs_mtu" -gt "$_underlay_mtu" ]; then
+    cat >&2 <<EOF
+$(date '+%Y-%m-%d %H:%M:%S') [MTU][WARNING] OVS bridge MTU=$_ovs_mtu exceeds underlay
+  eth0 MTU=$_underlay_mtu. Geneve traffic >$_underlay_mtu B will be dropped
+  (outer IP has DF=1, kernel cannot fragment). The docker network must be
+  recreated to apply the new MTU. From the host:
+    sudo docker compose -f /opt/isard/src/docker-compose.yml down
+    sudo docker network rm isard-network
+    sudo docker compose -f /opt/isard/src/docker-compose.yml up -d
+EOF
+fi
 
 ovs-vsctl set interface ovsbr0 mtu_request=$_ovs_mtu
 
