@@ -26,7 +26,7 @@ if [ -n "$ACME_DOMAIN" ] && [ -n "$ACME_EMAIL" ]; then
         while true; do
             acme-generate-cert.sh "$ACME_DOMAIN"
 
-            if curl "https://$ACME_DOMAIN:$HTTPS_PORT" &> /dev/null; then
+            if curl -k --resolve "$ACME_DOMAIN:$HTTPS_PORT:127.0.0.1" "https://$ACME_DOMAIN:$HTTPS_PORT" &> /dev/null; then
                 break
             fi
 
