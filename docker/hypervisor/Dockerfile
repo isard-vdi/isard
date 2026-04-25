@@ -173,7 +173,7 @@ RUN pip3 install --break-system-packages --no-cache-dir -r requirements.txt && \
 # RUN apk del .build_deps
 
 # Openvswitch binary tools (Python bindings replaced by ovs-vsctl subprocess calls)
-RUN apk add openvswitch@community=3.7.0-r1 libxml2-utils
+RUN apk add openvswitch@community libxml2-utils
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 
