@@ -65,8 +65,8 @@ class DomainModel(PydanticBase):
     description: str | None = ""
     detail: str | None = ""
     disks_info: list[dict] | None = None
-    favourite_hyp: bool | str | None = False
-    forced_hyp: bool | str | None = False
+    favourite_hyp: bool | list[str] | None = False
+    forced_hyp: bool | list[str] | None = False
     from_template: str | None = None
     group: str
     guest_properties: GuestProperties | None = None
@@ -74,7 +74,7 @@ class DomainModel(PydanticBase):
     hardware_from_xml: dict | None = None
     history_domain: list[dict] | None = []
     hw_stats: dict | None = None
-    hyp_started: str | None = ""
+    hyp_started: str | bool | None = False
     hypervisors_pools: list[str] | None = None
     icon: str | None = None
     image: Image | None = None
