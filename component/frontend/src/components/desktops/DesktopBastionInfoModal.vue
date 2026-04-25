@@ -160,7 +160,6 @@ const authorizedKeysForm = useForm({
     authorizedKeys: computed(() => bastionAuthorizedKeys.value)
   }),
   onSubmit: async ({ value }) => {
-    console.log('Submitting authorized keys form with value:', value)
     await saveBastionSshAuthorizedKeysAsync({
       body: {
         authorized_keys: value.authorizedKeys.split('\n')

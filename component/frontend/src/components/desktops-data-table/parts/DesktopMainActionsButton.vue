@@ -59,10 +59,6 @@ const handleDesktopAction = (action: DesktopActionsEnum) => {
     case DesktopActionsEnum.FetchBooking:
       emit('desktopFetchBooking')
       break
-
-    default:
-      console.log('no action')
-      break
   }
 }
 </script>

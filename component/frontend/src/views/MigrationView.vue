@@ -178,7 +178,7 @@ const form = useForm({
     const { data, error } = await postUserMigrationAuto()
 
     if (error !== undefined) {
-      console.log('error', error)
+      console.error('migration auto error', error)
       if (error.errors) {
         userMigrationError.value = error.errors
         return
