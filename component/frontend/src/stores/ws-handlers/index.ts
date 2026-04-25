@@ -9,6 +9,7 @@ import { bulkSpawnEventHandlers } from './bulk-spawn'
 import { bookingEventHandlers } from './booking'
 import { planningEventHandlers } from './planning'
 import { usersEventHandlers } from './users'
+import { messageEventHandlers } from './message'
 import type { WsEventMap, WsEventName } from '@/types/ws-events'
 import { QueryClient } from '@tanstack/vue-query'
 import type { Socket } from 'socket.io-client'
@@ -30,7 +31,8 @@ export const allEventHandlers: EventHandlerMap = {
   ...bulkSpawnEventHandlers,
   ...bookingEventHandlers,
   ...planningEventHandlers,
-  ...usersEventHandlers
+  ...usersEventHandlers,
+  ...messageEventHandlers
 }
 
 export function registerSocketHandlers(socket: Socket, queryClient: QueryClient) {

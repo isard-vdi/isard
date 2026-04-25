@@ -1267,6 +1267,14 @@
         "next": "Siguiente"
       }
     },
+    "message-modal": {
+      "title": "Información importante",
+      "extend-time": "Ampliar {minutes} min",
+      "messages": {
+        "desktop-time-limit": "El escritorio '{name}' se apagará automáticamente a las {date}.",
+        "searching-resources": "Estamos buscando recursos para el escritorio. Se iniciará en breves minutos, por favor espere."
+      }
+    },
     "delete-confirmation-modal": {
       "cancel": "Cancelar",
       "title": "Eliminar {kind} '{name}'",

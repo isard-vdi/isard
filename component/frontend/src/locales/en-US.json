@@ -1298,6 +1298,14 @@
         "go-to-login": "Go to login"
       }
     },
+    "message-modal": {
+      "title": "Important information",
+      "extend-time": "Extend {minutes} min",
+      "messages": {
+        "desktop-time-limit": "The '{name}' desktop will be stopped at {date}.",
+        "searching-resources": "We are looking for resources for the desktop. It will be started in a few minutes, please wait."
+      }
+    },
     "datatable": {
       "empty": "No desktops available",
       "pagination": {

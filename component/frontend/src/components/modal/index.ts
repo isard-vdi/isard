@@ -1,6 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority'
 
 export { default as AlertModal } from './AlertModal.vue'
+export { default as MessageModal } from './MessageModal.vue'
 export { default as Modal } from './Modal.vue'
 export { default as QuotaExceededModal } from './QuotaExceededModal.vue'
 

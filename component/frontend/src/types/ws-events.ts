@@ -220,6 +220,28 @@ export interface WsUserDataPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Personal user message — emitted by api_notify.notify_user / notify_desktop
+// to /userspace room=user.id. Payload is { type, msg_code, params } where
+// params can carry desktop-time-limit info (desktop_id, extend_enabled,
+// extend_time, date) so the UI can offer an "extend" action.
+// ---------------------------------------------------------------------------
+
+export interface WsMessageParams {
+  desktop_id?: string | null
+  extend_enabled?: boolean
+  extend_time?: number
+  date?: string
+  name?: string
+  [key: string]: unknown
+}
+
+export interface WsMessagePayload {
+  type: string | null
+  msg_code: string
+  params: WsMessageParams
+}
+
+// ---------------------------------------------------------------------------
 // Shared-deployment desktop start/stop — emitted by DesktopDomainHandler
 // when a participant desktop in a shared deployment crosses the started
 // boundary. Payload is the deployment id (i.e. desktop.tag).
@@ -277,6 +299,8 @@ export interface WsEventMap {
 
   shared_deployment_desktop_start: WsSharedDeploymentDesktopPayload
   shared_deployment_desktop_stop: WsSharedDeploymentDesktopPayload
+
+  msg: WsMessagePayload
 }
 
 export type WsEventName = keyof WsEventMap
