@@ -78,7 +78,7 @@ export const isRegisterClaims = (claims: TypeClaims): claims is RegisterClaims =
 }
 
 const authorizationTokenName = 'authorization'
-const sessionTokenName = 'isardvdi_session'
+export const sessionTokenName = 'isardvdi_session'
 
 export const useCookies = () => vueuseCookies([authorizationTokenName, sessionTokenName])
 

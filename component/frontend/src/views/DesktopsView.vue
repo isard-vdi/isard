@@ -55,6 +55,7 @@ import {
 
 import { cn } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
+import { sessionTokenName } from '@/lib/auth'
 
 import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
 
@@ -126,7 +127,7 @@ const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 
-const cookies = vueuseCookies(['viewerToken', 'browser_viewer'])
+const cookies = vueuseCookies(['viewerToken', 'browser_viewer', sessionTokenName])
 const localStorage = vueuseLocalStorage('viewers', '')
 
 const {
@@ -375,9 +376,7 @@ const fetchAndOpenViewer = async (
     }
 
     if (data.protocol === 'rdp') {
-      // TODO: session cookie
-      // cookies.set('viewerToken', cookies.get(sessionCookieName))
-      alert('TODO: set session cookie for RDP viewer')
+      cookies.set('viewerToken', cookies.get(sessionTokenName), cookieOpts)
     }
     cookies.set('browser_viewer', data.cookie, cookieOpts)
 
