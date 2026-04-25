@@ -34,7 +34,7 @@ echo "---> Cleaning old libvirt info dirs..."
 rm -rf /run/libvirt/*
 rm -r /var/lib/libvirt/dnsmasq
 
-ln -s /src/lib/api_client.py /src/vlans/api_client.py
+ln -sf /src/lib/api_client.py /src/vlans/api_client.py
 
 echo "---> Setting ssh password to API_HYPERVISORS_SECRET"
 echo "root:$API_HYPERVISORS_SECRET" |chpasswd
