@@ -170,7 +170,7 @@ const handleNotImplemented = () => alert('not implemented yet')
         <DesktopCardSkeleton variant="started" class="h-[310px]" />
         <DesktopCardSkeleton variant="stopped" class="h-[310px]" />
       </div>
-      <p v-else-if="deploymentsIsError" class="bg-red-100 text-red-800 p-4 rounded-md">
+      <p v-else-if="deploymentsIsError" class="bg-error-100 text-error-800 p-4 rounded-md">
         {{ t('views.shared-deployments.error.loading') }} {{ deploymentsError }}
       </p>
       <div

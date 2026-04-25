@@ -430,7 +430,7 @@ window.addEventListener('beforeunload', (e) => {
 
       <div
         v-if="submitError"
-        class="text-error-600 mb-4 p-2 bg-red-50 border border-red-200 rounded"
+        class="text-error-600 mb-4 p-2 bg-error-50 border border-error-200 rounded"
       >
         {{ submitError }}
       </div>

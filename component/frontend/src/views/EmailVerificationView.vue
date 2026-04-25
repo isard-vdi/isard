@@ -81,8 +81,8 @@ const handleLogout = () => {
           <AlertDescription>{{ apiError }}</AlertDescription>
         </Alert>
 
-        <Alert v-if="successMessage" class="border-green-300 bg-green-50">
-          <AlertDescription class="text-green-700">{{ successMessage }}</AlertDescription>
+        <Alert v-if="successMessage" class="border-success-100 bg-success-50">
+          <AlertDescription class="text-success-800">{{ successMessage }}</AlertDescription>
         </Alert>
 
         <form class="flex flex-col gap-4" @submit.prevent="form.handleSubmit">

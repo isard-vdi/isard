@@ -182,18 +182,18 @@ const authorizedKeysForm = useForm({
     @close="closeModal"
   >
     <Skeleton v-if="isPending" class="h-6 w-60" />
-    <div v-else-if="isError" class="flex flex-col gap-4 w-full bg-red-300 p-4 rounded">
-      <p v-if="userConfigIsError" class="text-red-700">
+    <div v-else-if="isError" class="flex flex-col gap-4 w-full bg-error-300 p-4 rounded">
+      <p v-if="userConfigIsError" class="text-error-700">
         {{ t('components.bastion-info-modal.error-loading-user-config') }}:
         {{ userConfigError?.message || 'Unknown error' }}
       </p>
 
-      <p v-if="bastionTargetDataIsError" class="text-red-700">
+      <p v-if="bastionTargetDataIsError" class="text-error-700">
         {{ t('components.bastion-info-modal.error-loading-bastion-data') }}:
         {{ bastionTargetDataError?.message || 'Unknown error' }}
       </p>
     </div>
-    <p v-else-if="!bastionTargetData" class="text-amber-400">
+    <p v-else-if="!bastionTargetData" class="text-warning-500">
       {{ t('components.bastion-info-modal.no-bastion-configured') }}
     </p>
     <div v-else class="flex flex-col gap-4 w-full">
