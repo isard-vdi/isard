@@ -297,7 +297,7 @@ const handleNotImplemented = () => alert('not implemented yet')
               <DropdownMenuItem
                 v-for="action in dropdownActions"
                 :key="action.key"
-                :class="{ 'hover:bg-red-50 focus:bg-red-50': action.destructive }"
+                :class="{ 'hover:bg-error-50 focus:bg-error-50': action.destructive }"
                 :disabled="action.disabled"
                 @click="action.fn(deploymentEntry?.info)"
               >

@@ -39,7 +39,7 @@ const offsetToAlignTerminalWithLine = (strokeSize - terminalSize) / 2
     :class="[
       orientationStyles[edgeToOrientationMap[edge]],
       [edgeStyles[edge]],
-      'absolute z-10 bg-blue-700 pointer-events-none before:content[\'\'] before:w-[--terminal-size] before:h-[--terminal-size] box-border before:absolute before:border-[length:--line-thickness] before:border-solid before:border-blue-700 before:rounded-full'
+      'absolute z-10 bg-brand-700 pointer-events-none before:content[\'\'] before:w-[--terminal-size] before:h-[--terminal-size] box-border before:absolute before:border-[length:--line-thickness] before:border-solid before:border-brand-700 before:rounded-full'
     ]"
     :style="{
       '--line-thickness': `${strokeSize}px`,

@@ -410,7 +410,7 @@ window.addEventListener('beforeunload', (e) => {
       </div>
 
       <div v-else-if="isError" class="p-4 text-center">
-        <div class="text-red-600 mb-4 p-2 bg-red-50 border border-red-200 rounded">
+        <div class="text-error-600 mb-4 p-2 bg-error-50 border border-error-200 rounded">
           {{ error?.message || 'Failed to load lab data' }}
         </div>
         <Button hierarchy="secondary-gray" @click="router.push('/labs')">
@@ -421,7 +421,7 @@ window.addEventListener('beforeunload', (e) => {
       <div v-else-if="lab && users && groups" class="flex flex-col gap-8 w-full">
         <div
           v-if="submitError"
-          class="text-error-600 mb-4 p-2 bg-red-50 border border-red-200 rounded"
+          class="text-error-600 mb-4 p-2 bg-error-50 border border-error-200 rounded"
         >
           {{ submitError }}
         </div>

@@ -413,7 +413,7 @@ const {
                     </Button>
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    class="hover:bg-red-50 focus:bg-red-50"
+                    class="hover:bg-error-50 focus:bg-error-50"
                     @click="deleteModalData = { id: row.id, name: row.name }"
                   >
                     <Button

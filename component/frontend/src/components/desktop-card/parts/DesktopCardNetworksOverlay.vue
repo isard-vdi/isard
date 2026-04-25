@@ -42,19 +42,19 @@ const {
     <Skeleton v-if="props.fullHeight" class="bg-gray-warm-600 h-9" />
   </div>
   <div v-else-if="networksIsError" class="flex flex-col items-center justify-center py-4">
-    <Icon name="alert-circle" class="w-5 h-5 text-red-500 mb-2" />
+    <Icon name="alert-circle" class="w-5 h-5 text-error-600 mb-2" />
     <div class="text-white text-center">
       Error loading networks:
-      <div class="text-red-400 text-xs mt-1">
+      <div class="text-error-300 text-xs mt-1">
         {{ networksError?.message || 'Unknown error' }}
       </div>
     </div>
   </div>
   <div
     v-else-if="!networks?.networks?.length"
-    class="flex flex-col items-center justify-center py-4 text-amber-400"
+    class="flex flex-col items-center justify-center py-4 text-warning-500"
   >
-    <Icon name="alert-circle" class="w-5 h-5 text-red-500 mb-2" />
+    <Icon name="alert-circle" class="w-5 h-5 text-error-600 mb-2" />
     <span class="text-white">No networks available</span>
   </div>
   <template v-else>

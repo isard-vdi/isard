@@ -132,7 +132,7 @@ const emit = defineEmits<{
     </DropdownMenuItem>
     <DropdownMenuItem
       v-if="props.desktop.status === DesktopStatusEnum.STOPPED && !props.desktop.tag"
-      class="hover:bg-red-50 focus:bg-red-50"
+      class="hover:bg-error-50 focus:bg-error-50"
       @click="emit('showDeleteModal')"
     >
       <Button

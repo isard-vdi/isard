@@ -1642,7 +1642,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         <DesktopCardSkeleton variant="stopped" class="h-[310px]" />
       </div>
 
-      <p v-else-if="desktopsIsError" class="bg-red-100 text-red-800 p-4 rounded-md">
+      <p v-else-if="desktopsIsError" class="bg-error-100 text-error-800 p-4 rounded-md">
         <!-- TODO -->
         Error loading desktops: {{ desktopsError?.message }}
       </p>

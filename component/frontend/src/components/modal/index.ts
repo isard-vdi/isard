@@ -7,10 +7,10 @@ export { default as QuotaExceededModal } from './QuotaExceededModal.vue'
 export const modalVariants = cva('', {
   variants: {
     level: {
-      warning: 'bg-[hsl(43,100%,47%)] text-gray-warm-900',
-      danger: 'bg-error-600 text-red-900',
-      info: 'bg-[hsl(212,48%,52%)] text-blue-900',
-      success: 'bg-[hsl(152,56%,40%)] text-green-900'
+      warning: 'bg-warning-modal text-gray-warm-900',
+      danger: 'bg-error-600 text-error-800',
+      info: 'bg-info-modal text-info-800',
+      success: 'bg-[hsl(152,56%,40%)] text-success-800'
     },
     size: {
       md: 'min-w-96',
