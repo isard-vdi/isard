@@ -44,10 +44,10 @@ class CategoryModel(BaseModel):
     ephimeral: bool = False
     frontend: bool
     id: str = Field(default_factory=lambda: str(uuid4()))
-    limits: Optional[bool] = False
+    limits: Optional[dict | bool] = False
     maintenance: Optional[bool] = False
     name: str
-    quota: Optional[bool] = False
+    quota: Optional[dict | bool] = False
     recycle_bin_cutoff_time: Optional[int] = None
     uid: str
     photo: Optional[str] = None
