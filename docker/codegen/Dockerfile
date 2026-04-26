@@ -5,7 +5,10 @@ FROM golang:1.25.8-alpine3.22
 ENV GODEBUG=netdns=go+4
 
 RUN apk -U upgrade --no-cache
-RUN apk add --no-cache python3 npm protoc
+# grpc-plugins ships grpc_python_plugin so buf.gen.yaml can call it locally
+# instead of fetching buf.build/grpc/python over the network on every codegen
+# (avoids resource_exhausted / deadline_exceeded rate-limit failures).
+RUN apk add --no-cache python3 npm protoc grpc-plugins
 
 RUN go install github.com/bufbuild/buf/cmd/buf@v1.50.0 && \
   go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2 && \
