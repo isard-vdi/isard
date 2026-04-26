@@ -45,7 +45,9 @@ except (ImportError, AttributeError):
     # fresh gRPC client.
     from isardvdi_common.connections.grpc_client import create_haproxy_bastion_client
 
-    haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1313)
+    # See helpers/bastion.py for rationale: 1312 is the gRPC default that
+    # haproxy-sync listens on; 1313 is the HTTP port used by other services.
+    haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1312)
 
 
 class TargetModel(BaseModel):

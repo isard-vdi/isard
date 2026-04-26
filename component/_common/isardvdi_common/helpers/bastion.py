@@ -43,7 +43,10 @@ try:
 except Exception:
     from isardvdi_common.connections.grpc_client import create_haproxy_bastion_client
 
-    haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1313)
+    # 1312 is the isardvdi gRPC default (pkg/cfg/cfg.go:131 SetGRPCDefaults).
+    # The haproxy-sync sidecar in the isard-portal container listens there.
+    # Port 1313 is HTTP for authentication / vpn / bastion-ssh — wrong target.
+    haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1312)
 
 
 class Bastion(RethinkSharedConnection):
