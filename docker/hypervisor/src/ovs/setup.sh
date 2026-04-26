@@ -156,6 +156,18 @@ else
     echo "Configuring OVS for WireGuard + Geneve tunneling"
     ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=$WG_HYPERS_GW
     echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Geneve tunnel to VPN gateway $WG_HYPERS_GW (from WG_HYPERS_NET)"
+    # BFD must be symmetric: the VPN side enables BFD on its end, so without
+    # BFD here OVS holds this port at forwarding=false and RSTP moves it to
+    # Disabled/Discarding, which silently drops DHCP DISCOVER from VLAN 4095.
+    ovs-vsctl set Interface "$DOMAIN" bfd:enable=true bfd:min_tx=1000 bfd:min_rx=1000
+
+    echo "Waiting for GENEVE tunnel BFD..."
+    for i in $(seq 1 30); do
+        BFD_STATE=$(ovs-vsctl get Interface "$DOMAIN" bfd_status:state 2>/dev/null || echo "init")
+        if [ "$BFD_STATE" = '"up"' ]; then echo "BFD tunnel UP"; break; fi
+        sleep 2
+    done
+
     GENEVE_PORT=$(ovs-vsctl get Interface "$DOMAIN" ofport)
 fi
 
