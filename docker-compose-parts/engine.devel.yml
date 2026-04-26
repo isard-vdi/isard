@@ -3,5 +3,6 @@ services:
     volumes:
       - ${BUILD_ROOT_PATH}/engine/engine:/isard:rw
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common
+      - ${BUILD_ROOT_PATH}/pkg/gen/asyncapi/changefeed:/opt/isardvdi/asyncapi_changefeed
     environment:
       JETBRAINS_REMOTE_RUN:

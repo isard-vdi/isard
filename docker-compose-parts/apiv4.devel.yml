@@ -2,7 +2,12 @@ services:
   isard-apiv4:
     container_name: isard-apiv4
     #image: isard/webapp:${TAG:-latest}
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "api", "--reload-dir", "/opt/isardvdi/isardvdi_common"]
+    # `pip install watchfiles` so uvicorn uses the inotify reloader instead
+    # of the default StatReload (polling). StatReload hangs across the
+    # `/opt/isardvdi/isardvdi_common` bind-mount on edits, leaving the
+    # service unresponsive until manual `docker restart`. watchfiles is a
+    # devel-only dep — keeping it out of the production image is intentional.
+    command: ["sh", "-c", "pip install --quiet --no-cache-dir watchfiles && exec uvicorn main:app --host 0.0.0.0 --port 5000 --reload --reload-dir api --reload-dir /opt/isardvdi/isardvdi_common"]
     volumes:
       - ${BUILD_ROOT_PATH}/component/apiv4/src:/app
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common
