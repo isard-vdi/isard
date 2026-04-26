@@ -773,7 +773,10 @@ class DownloadChangesThread(threading.Thread):
                     if subscriber is None:
                         continue
                     envelope = subscriber.parse_dict(
-                        {"old_val": None, "new_val": item, "table": table}
+                        {
+                            "table": table,
+                            "change": {"old_val": None, "new_val": item},
+                        }
                     )
                     self._process_change(envelope.change)
         finally:
