@@ -9,7 +9,21 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentsItem (deployment) {
-    const { id, name, description, visibleDesktops, startedDesktops, totalDesktops, creatingDesktops, visible, needs_booking: needsBooking, desktop_name: desktopName, template } = deployment
+    // apiv4 OwnedDeployment shape: snake_case fields + desktop_names (plural list)
+    // + tag_visible. Vue 2 has always read camelCase + a single desktopName.
+    // Map apiv4 → Vue 2 here; multi-desktop deployments display the count.
+    const {
+      id,
+      name,
+      description,
+      visible_desktops: visibleDesktops,
+      started_desktops: startedDesktops,
+      total_desktops: totalDesktops,
+      tag_visible: visible,
+      needs_booking: needsBooking,
+      desktop_names: desktopNames
+    } = deployment
+    const isMultiDesktop = Array.isArray(desktopNames) && desktopNames.length > 1
     return {
       id,
       name,
@@ -17,16 +31,21 @@ export class DeploymentsUtils {
       visibleDesktops,
       startedDesktops,
       totalDesktops,
-      creatingDesktops,
+      creatingDesktops: 0,
       visible,
       needsBooking,
-      desktopName,
-      template
+      desktopName: isMultiDesktop ? `${desktopNames.length} desktop types` : (desktopNames && desktopNames[0]) || '',
+      template: isMultiDesktop ? '' : (desktopNames && desktopNames[0]) || '',
+      isMultiDesktop
     }
   }
 
   static parseDeployment (deployment) {
-    const { id, name, desktop_name: desktopName, description, visible, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId } = deployment
+    // apiv4 uses tag_visible at the deployment root; old-frontend has always
+    // read `visible`. Accept either so this parser works on the apiv4 wire
+    // shape without a per-call adapter.
+    const { id, name, desktop_name: desktopName, description, tag_visible: tagVisible, visible: legacyVisible, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, total_desktops: totalDesktops, total_users: totalUsers, desktops_each_user: desktopsEachUser } = deployment
+    const visible = tagVisible !== undefined ? tagVisible : legacyVisible
     const desktops = deployment.desktops
       ? deployment.desktops.map((desktop) => {
         return DeploymentsUtils.parseDeploymentDesktop(desktop)
@@ -42,7 +61,10 @@ export class DeploymentsUtils {
       needsBooking,
       bookingId,
       nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
-      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''
+      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : '',
+      totalDesktops,
+      totalUsers,
+      desktopsEachUser
     }
   }
 

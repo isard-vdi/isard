@@ -1412,7 +1412,7 @@
         "confirmation": {
             "create-nonpersistent": "WARNING! This desktop is temporal. When stopping it all data will be deleted. Create desktop?",
             "visible-deployment": "Desktops will be visible",
-            "recreate-deployment": "'{name}' deleted desktops will be recreated, continue?",
+            "recreate-deployment": "'{name}': {count} missing desktop(s) will be created for users in the allowed groups/users that don't have one yet. Continue?",
             "edit-deployment": "'{name}' desktops will be edited, continue?",
             "delete-deployment": "'{name}' will be deleted, continue?",
             "delete-deployment-desktop": "'{name}' desktop will be deleted, continue?",

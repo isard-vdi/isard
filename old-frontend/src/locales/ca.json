@@ -1576,7 +1576,7 @@
     "confirmation": {
       "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. A l'aturar-ho totes les dades seràn esborrades. Crear escriptori?",
       "visible-deployment": "Els escriptoris seran visibles",
-      "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearan de nou, continuar?",
+      "recreate-deployment": "'{name}': es crearan {count} escriptori(s) que falten per als usuaris dels grups/usuaris permesos que encara no en tenen. Continuar?",
       "edit-deployment": "Els escriptoris de '{name}' s'editaran, continuar?",
       "delete-deployment": "'{name}' s'esborrarà, continuar?",
       "delete-deployment-desktop": "L'escriptori de '{name}' s'esborrarà, continuar?",

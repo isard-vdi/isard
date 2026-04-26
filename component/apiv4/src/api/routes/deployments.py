@@ -362,7 +362,17 @@ async def toggle_deployment_visibility(
     owns_deployment_id=Depends(owns_deployment_id()),
 ):
     try:
-        DeploymentService.toggle_visibility(deployment_id)
+        # Vue 2 sends {"stop_started_domains": bool} so the user can choose
+        # whether hiding a deployment also stops its Started desktops.
+        # Request body is optional (Vue 3 may PUT with no body); default to
+        # True to match the apiv3 contract.
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        stop_started_domains = bool(body.get("stop_started_domains", True))
+        DeploymentService.toggle_visibility(deployment_id, stop_started_domains)
         return JSONResponse(
             content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
             status_code=200,
@@ -884,7 +894,7 @@ async def get_deployment_co_owners(
     try:
         return JSONResponse(
             content=CoOwnersResponse(
-                co_owners=DeploymentService.get_co_owners(deployment_id)
+                **DeploymentService.get_co_owners(deployment_id)
             ).model_dump(mode="json"),
             status_code=200,
         )

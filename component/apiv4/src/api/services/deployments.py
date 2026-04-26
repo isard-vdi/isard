@@ -103,14 +103,18 @@ class DeploymentService:
         return deployment_id
 
     @staticmethod
-    def toggle_visibility(deployment_id):
+    def toggle_visibility(deployment_id, stop_started_domains=True):
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
                 f"Deployment with ID {deployment_id} does not exist.",
             )
-        deployment = RethinkDeployment(deployment_id)
-        deployment.tag_visible = not deployment.tag_visible
+        # Use the model method, not the property setter: the property setter
+        # only flips the deployment row's `tag_visible`, while toggle_visible
+        # also cascades the new value to every tagged desktop (all-or-none
+        # per deployment, via the `tag` index — independent of `tag_desktop_id`)
+        # and optionally stops Started desktops when going invisible.
+        RethinkDeployment(deployment_id).toggle_visible(stop_started_domains)
         deployment_cache.clear()
         return deployment_id
 
@@ -273,10 +277,30 @@ class DeploymentService:
 
     @staticmethod
     def get_deployment_videowall(deployment_id):
-        return CommonDeployments.get_deployment(
+        deployment = CommonDeployments.get_deployment(
             deployment_id=deployment_id,
             desktops=True,
         )
+        # Enrich with counts that the detail-page consumers (old-frontend
+        # Deployment.vue, recreate confirmation) compute from. Mirrors the
+        # same fields the wrapped /item/deployment/{id} response builds in
+        # `get_deployment` so a single videowall fetch is enough.
+        users = CommonDeploymentUsers.get_users_info(deployment_id)
+        deployment["total_users"] = len(users)
+        deployment["desktops_each_user"] = (
+            len(deployment.get("desktops", []))
+            and (
+                # On a deployment with desktops, divide actual desktops by users
+                # to derive the per-user multiplier; falls back to 1 when there
+                # are no desktops yet so the recreate count is `total_users`.
+                max(1, len(deployment["desktops"]) // max(1, len(users)))
+            )
+            or 1
+        )
+        deployment["total_desktops"] = (
+            deployment["total_users"] * deployment["desktops_each_user"]
+        )
+        return deployment
 
     @staticmethod
     def check_quota(user_id, users=None):
@@ -341,7 +365,7 @@ class DeploymentService:
                 "not_found",
                 f"Deployment with ID {deployment_id} does not exist.",
             )
-        return RethinkDeployment(deployment_id).get_co_owners().get("co_owners", [])
+        return RethinkDeployment(deployment_id).get_co_owners()
 
     @staticmethod
     def update_co_owners(deployment_id, co_owners):
