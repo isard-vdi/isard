@@ -1545,7 +1545,11 @@ class DesktopsProcessed(RethinkSharedConnection):
     @classmethod
     def validate_desktop_update(cls, data, domain_id):
         """_From api/libv2/api_desktops_persistent.py ApiDesktopsPersistent.validate_desktop_update()_"""
-        desktop = Caches.get_document("domains", domain_id)
+        # Bypass the 10s TTL cache: status writers (engine state machine,
+        # storage maintenance/ready cycle, core_worker promote-to-stopped) do
+        # not invalidate this entry, so a stale "Started"/"Maintenance" read
+        # spuriously fails the precondition right after a stop or a resize.
+        desktop = Caches.get_document("domains", domain_id, invalidate=True)
         data["id"] = domain_id
         if data.get("name"):
             Helpers.check_user_duplicated_domain_name(
