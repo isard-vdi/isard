@@ -79,14 +79,14 @@ export default {
       context.commit('setShowIncreaseModal', data.show)
     },
     updateIncrease (context, data) {
-      return axios.put(`${apiV3Segment}/item/storage/${data.id}/priority/${data.priority}/increase/${data.increment}`).catch(e => {
-        if (e.response.data.description_code) {
+      return axios.put(`${apiV3Segment}/item/storage/${data.id}/priority/${data.priority}/increase/${data.increment}`).then(() => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.increasing-storage'))
+      }).catch(e => {
+        if (e.response && e.response.data && e.response.data.description_code) {
           ErrorUtils.showErrorMessage(this._vm.$snotify, e, i18n.t(`errors.increase_${e.response.data.description_code}`))
         } else {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         }
-      }).then(() => {
-        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.increasing-storage'))
       })
     },
     socket_updateStorage (context, data) {

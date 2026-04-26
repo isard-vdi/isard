@@ -62,7 +62,8 @@
         <b-button
           v-if="getUser.role_id != 'user'"
           class="rounded-circle btn btn-blue px-2 mr-2"
-          :title="$t('views.storage.buttons.increase.title')"
+          :title="canIncrease(data.item) ? $t('views.storage.buttons.increase.title') : $t('errors.increase_desktops_not_stopped')"
+          :disabled="!canIncrease(data.item)"
           @click="showIncreaseModal({ item: data.item, show: true })"
         >
           <b-icon
@@ -146,6 +147,15 @@ export default {
       $store.dispatch('showIncreaseModal', data)
     }
 
+    // The apiv4 increase endpoint requires every desktop on the storage to be
+    // Stopped (it puts the storage into maintenance to resize). Hide the action
+    // when the precondition can't be met instead of letting the click 428.
+    const canIncrease = (item) => {
+      const domains = (item && item.domains) || []
+      if (domains.length === 0) return true
+      return domains.every(d => d.status === 'Stopped')
+    }
+
     return {
       perPage,
       pageOptions,
@@ -153,7 +163,8 @@ export default {
       fields,
       userQuota,
       getDate,
-      showIncreaseModal
+      showIncreaseModal,
+      canIncrease
     }
   },
   computed: {
