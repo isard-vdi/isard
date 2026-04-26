@@ -28,7 +28,6 @@ from api import app
 
 from ..libv2.api_backups import (
     admin_backup_get,
-    admin_backup_hosts,
     admin_backup_insert,
     admin_backup_list,
     get_integrity_enabled,
@@ -40,10 +39,7 @@ from .decorators import is_admin, is_internal_service
 @app.route("/api/v3/admin/backups", methods=["GET"])
 @is_admin
 def api_v3_admin_backups(payload):
-    """
-    Backup management endpoint for administrators (read-only).
-    Supports filtering by host via ?host=<name>.
-    """
+    """Backup management endpoint for administrators (read-only)."""
     options = request.args
     if options.get("id"):
         return admin_backup_get(options.get("id"), pluck=options.get("pluck"))
@@ -54,14 +50,7 @@ def api_v3_admin_backups(payload):
     except (TypeError, ValueError):
         raise Error("bad_request", "limit must be an integer")
 
-    return admin_backup_list(host=options.get("host"), limit=limit)
-
-
-@app.route("/api/v3/admin/backups/hosts", methods=["GET"])
-@is_admin
-def api_v3_admin_backup_hosts(payload):
-    """List distinct hosts that have ever reported a backup."""
-    return admin_backup_hosts()
+    return admin_backup_list(limit=limit)
 
 
 @app.route("/api/v3/admin/backups/<backup_id>", methods=["GET"])

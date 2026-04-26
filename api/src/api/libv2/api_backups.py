@@ -33,8 +33,6 @@ db = RDB(app)
 db.init_app(app)
 
 
-UNKNOWN_HOST = "unknown-host"
-
 # Integrity check toggle. Stored at config[1].backups.integrity_enabled.
 # Off by default: borg check is an expensive full-repo verification, and we
 # don't want existing deployments to silently inherit a multi-hour nightly
@@ -62,10 +60,10 @@ def set_integrity_enabled(value):
     return {"integrity_enabled": value}
 
 
-def _retention_per_host():
-    """How many records to keep per host. Configurable via env."""
+def _retention():
+    """How many backup records to keep. Configurable via env."""
     try:
-        value = int(os.environ.get("BACKUP_RETENTION_PER_HOST", "30"))
+        value = int(os.environ.get("BACKUP_RETENTION", "30"))
     except ValueError:
         value = 30
     return max(1, value)
@@ -90,46 +88,18 @@ def _normalize_times(item):
     return item
 
 
-def admin_backup_list(host=None, limit=None):
-    """
-    Get list of backups for admin users. Returns most recent first, grouped
-    across hosts. Pass host= to restrict to one host.
-    """
+def admin_backup_list(limit=None):
+    """Get list of backups for admin users. Returns most recent first."""
     with app.app_context():
-        if host:
-            query = (
-                r.table("backups")
-                .filter(lambda row: row["host"].default(UNKNOWN_HOST) == host)
-                .order_by(r.desc("timestamp"))
-            )
-        else:
-            query = r.table("backups").order_by(r.desc("timestamp"))
-
+        query = r.table("backups").order_by(r.desc("timestamp"))
         if limit is None:
-            limit = _retention_per_host()
-            if not host:
-                limit *= 10  # show more across hosts
+            limit = _retention()
         query = query.limit(limit)
 
         result = list(query.run(db.conn))
         for item in result:
             _normalize_times(item)
         return result
-
-
-def admin_backup_hosts():
-    """Distinct list of hosts that have ever reported a backup.
-
-    Uses .default() to tolerate pre-feature rows that lack the host field;
-    they surface as UNKNOWN_HOST rather than crashing the query.
-    """
-    with app.app_context():
-        return sorted(
-            r.table("backups")
-            .map(lambda row: row["host"].default(UNKNOWN_HOST))
-            .distinct()
-            .run(db.conn)
-        )
 
 
 def admin_backup_get(backup_id, pluck=None):
@@ -150,25 +120,18 @@ def admin_backup_get(backup_id, pluck=None):
         return result
 
 
-def cleanup_old_backups(host):
-    """
-    Remove old backup records for a single host, keeping only the N most
-    recent entries (N = BACKUP_RETENTION_PER_HOST, default 30).
-    """
-    if not host:
-        host = UNKNOWN_HOST
-    keep = _retention_per_host()
+def cleanup_old_backups():
+    """Keep only the N most recent backup records (N = BACKUP_RETENTION)."""
+    keep = _retention()
 
     with app.app_context():
-        host_filter = lambda row: row["host"].default(UNKNOWN_HOST) == host
-        total_count = r.table("backups").filter(host_filter).count().run(db.conn)
+        total_count = r.table("backups").count().run(db.conn)
         if total_count <= keep:
             return 0
 
         old_ids = [
             row["id"]
             for row in r.table("backups")
-            .filter(host_filter)
             .order_by(r.desc("timestamp"))
             .skip(keep)
             .pluck("id")
@@ -199,9 +162,6 @@ def admin_backup_insert(data):
             "bad_request", f"Backup scope must be one of: {', '.join(valid_scopes)}"
         )
 
-    host = data.get("host") or UNKNOWN_HOST
-    data["host"] = host
-
     if "details" in data and isinstance(data["details"], dict):
         details = data["details"]
         if "checks" in details and isinstance(details["checks"], list):
@@ -224,7 +184,7 @@ def admin_backup_insert(data):
         raise Error("internal_error", "Failed to create backup record")
 
     backup_id = result["generated_keys"][0]
-    cleanup_old_backups(host)
+    cleanup_old_backups()
 
     # Email admins when the backup did not finish cleanly. Imported lazily
     # so this module does not depend on the notifier at import time.

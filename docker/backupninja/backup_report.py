@@ -24,7 +24,6 @@ import json
 import logging
 import os
 import re
-import socket
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -125,7 +124,6 @@ class BackupReport:
     backup_type_summary: Optional[Dict[str, Any]] = None
     filesystem_metrics: Optional[Dict[str, Any]] = None
     backup_config: Optional[Dict[str, Any]] = None
-    host: Optional[str] = None
 
     def total_duration(self) -> Optional[int]:
         total = 0.0
@@ -146,7 +144,6 @@ class BackupReport:
 
         out: Dict[str, Any] = {
             "timestamp": int(self.timestamp.timestamp()),
-            "host": self.host or resolve_host_name(),
             "status": self.status,
             "type": backup_type,
             "scope": scope,
@@ -173,17 +170,6 @@ class BackupReport:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def resolve_host_name() -> str:
-    """Identifier for the host running backupninja. Honours BACKUP_HOST_NAME."""
-    name = os.environ.get("BACKUP_HOST_NAME")
-    if name:
-        return name
-    try:
-        return socket.gethostname() or "unknown-host"
-    except Exception:
-        return "unknown-host"
 
 
 def format_bytes(value: Any) -> str:
@@ -439,7 +425,6 @@ class BackupLogParser:
             backup_type_summary=backup_types_summary,
             filesystem_metrics=filesystem_metrics,
             backup_config=backup_config,
-            host=resolve_host_name(),
         )
 
     # -----------------------------------------------------------------------
