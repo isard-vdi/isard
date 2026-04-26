@@ -36,6 +36,7 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.scheduler import Scheduler
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.models.domain import DomainModel
+from isardvdi_common.models.storage import Storage
 from rethinkdb import r
 from socketio import RedisManager
 
@@ -123,7 +124,14 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         if not group:
             raise Error("not_found", "NewNonPersistent: group id not found.")
 
-        parent_disk = template["hardware"]["disks"][0]["file"]
+        storage_id = template["create_dict"]["hardware"]["disks"][0]["storage_id"]
+        if not Storage.exists(storage_id):
+            raise Error(
+                "not_found",
+                "Template storage not found",
+                description_code="storage_not_found",
+            )
+        parent_disk = Storage(storage_id).path
 
         create_dict = template["create_dict"]
         create_dict["hardware"]["disks"] = [
