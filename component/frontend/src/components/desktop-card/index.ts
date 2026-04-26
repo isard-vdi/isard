@@ -15,6 +15,8 @@ export { default as DesktopCardFooter } from './parts/DesktopCardFooter.vue'
 
 export { default as DesktopCardIp } from './parts/DesktopCardIp.vue'
 export { default as DesktopCardNetworksOverlay } from './parts/DesktopCardNetworksOverlay.vue'
+export { default as DesktopCardInfoOverlay } from './parts/DesktopCardInfoOverlay.vue'
+export { default as DesktopCardBastionOverlay } from './parts/DesktopCardBastionOverlay.vue'
 export { default as DesktopCardPreview } from './parts/DesktopCardPreview.vue'
 
 // --- Card size variants ---
@@ -183,6 +185,25 @@ export const cardNetworkVariants = cva('z-10', {
       md: 'px-3',
       lg: 'px-3',
       xl: 'px-4'
+    }
+  },
+  defaultVariants: {
+    size: 'lg'
+  }
+})
+
+// Left padding to clear the colored type-identifier sidebar SVG that
+// extends from the top-left corner over the image area. Matches the offset
+// in `cardIpAreaVariants` so the overlay header doesn't collide with it.
+export const cardOverlayPaddingVariants = cva('z-10', {
+  variants: {
+    size: {
+      '2xs': 'pl-[20px] pr-1.5 pb-1',
+      xs: 'pl-[28px] pr-2 pb-1',
+      sm: 'pl-[34px] pr-2.5 pb-1.5',
+      md: 'pl-[40px] pr-3 pb-2',
+      lg: 'pl-[44px] pr-3 pb-2',
+      xl: 'pl-[52px] pr-4 pb-2'
     }
   },
   defaultVariants: {

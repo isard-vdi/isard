@@ -1460,7 +1460,16 @@
       }
     },
     "desktop-networks-modal": {
-      "title": "Networks for desktop '{name}'"
+      "title": "Networks — {name}",
+      "description": "Network interfaces attached to this desktop. The Wireguard interface is shown first when present and exposes the routable guest IP.",
+      "empty": "No networks attached to this desktop",
+      "error": "Could not load network information",
+      "no-ip": "No IP assigned",
+      "fields": {
+        "id": "ID",
+        "mac": "MAC address",
+        "ip": "IP address"
+      }
     },
     "stop-all-desktops-confirmation-modal": {
       "title": "Stop all desktops",
@@ -1470,8 +1479,15 @@
       "confirm": "Stop all"
     },
     "bastion-info-modal": {
-      "title": "Bastion info for desktop '{name}'",
-      "description": "Use the following information to connect to the desktop via the bastion host.",
+      "title": "Bastion access — {name}",
+      "description": "Connect to this desktop from outside your network through the bastion. Copy the URL or SSH command, or set a custom domain and authorized SSH keys below.",
+      "no-bastion-configured": "Bastion is not enabled for this desktop",
+      "no-bastion-configured-description": "Edit the desktop and enable HTTP/HTTPS or SSH access to use the bastion.",
+      "error": {
+        "title": "Could not load bastion access"
+      },
+      "error-loading-user-config": "Error loading user config",
+      "error-loading-bastion-data": "Error loading bastion data",
       "fields": {
         "target-id": {
           "title": "Bastion target ID"
@@ -1575,8 +1591,20 @@
           "delete": "Delete",
           "book": "Book",
           "bastion": "Bastion",
+          "bastion-access": "Bastion access (HTTP / HTTPS / SSH)",
+          "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate"
+        },
+        "overlay": {
+          "expand": "Details",
+          "expand-tooltip": "Open the full details modal"
+        },
+        "info": {
+          "boot": "Boot"
+        },
+        "networks": {
+          "more": "more"
         },
         "status": {
           "notCreated": {

@@ -15,22 +15,22 @@ import {
   cardHeaderActionsVariants,
   cardHeaderSlotVariants,
   cardFooterVariants,
-  cardIconTriggerVariants,
-  cardIpAreaVariants,
-  cardNetworkVariants
+  cardIconTriggerVariants
 } from '.'
 const { t, d } = useI18n()
 
 interface Props {
   desktopKind: 'persistent' | 'nonpersistent' | 'deployment'
   imageUrl: string
-  showNetworkOverlay?: boolean
+  // Generic overlay panel toggle — content (info / networks / bastion / ...)
+  // is supplied by the parent through the `overlay` slot.
+  showOverlay?: boolean
   size?: CardSize
   fill?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showNetworkOverlay: false,
+  showOverlay: false,
   size: 'lg',
   fill: false
 })
@@ -154,17 +154,15 @@ const desktopKindStyle = computed(() => {
 
         <div :class="cardGradientVariants({ size })" />
 
-        <template v-if="showNetworkOverlay">
+        <template v-if="showOverlay">
           <div class="absolute inset-0 bg-base-black/60 transition-opacity duration-300 z-0" />
-
-          <div :class="cardIpAreaVariants({ size })">
-            <slot name="ip" />
+          <!-- Overlay flows into the parent's flex column (parent has
+               `justify-end`), so content lands above the name/desc footer.
+               The white border below visually separates the overlay panel
+               from the desktop name area. -->
+          <div class="z-10 w-full">
+            <slot name="overlay" />
           </div>
-
-          <div :class="cardNetworkVariants({ size })">
-            <slot name="networks" />
-          </div>
-
           <div class="border-b border-white pb-2 mb-2 z-10" />
         </template>
 

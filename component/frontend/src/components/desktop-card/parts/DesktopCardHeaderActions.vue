@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { UserDesktop } from '@/gen/oas/apiv4/'
 
 import { DesktopCardHeaderActionsDropdownContent } from '..'
@@ -8,45 +9,86 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+
+const { t } = useI18n()
 
 interface Props {
   desktop: UserDesktop
+  // Currently shown overlay; the matching icon is highlighted so users see
+  // which panel is open and which icon will close it on next click.
+  activeOverlay?: 'info' | 'networks' | 'bastion' | null
 }
 
-const props = withDefaults(defineProps<Props>(), {})
+const props = withDefaults(defineProps<Props>(), {
+  activeOverlay: null
+})
 
 const emit = defineEmits<{
+  infoClick: []
   networkClick: []
-  showNetworksModal: []
-  showInfoModal: []
+  bastionClick: []
   editDesktop: []
   showDeleteModal: []
-  showBastionModal: []
   showDirectLinkModal: []
   showRecreateModal: []
   createTemplate: []
   bookDesktop: []
 }>()
 
-function handleNetworkClick() {
-  if (window.innerWidth < 640) {
-    emit('showNetworksModal')
-  } else {
-    emit('networkClick')
-  }
-}
+const bastionEnabled =
+  props.desktop.bastion_target?.http?.enabled || props.desktop.bastion_target?.ssh?.enabled
+
+// Highlighted state when this icon's overlay is the active one.
+const iconButtonClass = (active: boolean) =>
+  [
+    'w-9! h-9! flex align-center justify-center p-0! backdrop-blur-[4px]',
+    active ? 'bg-base-white/30 hover:bg-base-white/40' : 'bg-base-black/30 hover:bg-base-black/50'
+  ].join(' ')
 </script>
 
 <template>
-  <Button
-    hierarchy="link-gray"
-    size="sm"
-    class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
-    icon="modem-02"
-    icon-stroke-color="base-white"
-    @click="handleNetworkClick"
-  >
-  </Button>
+  <Tooltip>
+    <TooltipTrigger as-child>
+      <Button
+        hierarchy="link-gray"
+        size="sm"
+        :class="iconButtonClass(props.activeOverlay === 'info')"
+        icon="info-circle"
+        icon-stroke-color="base-white"
+        @click="emit('infoClick')"
+      />
+    </TooltipTrigger>
+    <TooltipContent :title="t('components.desktops.desktop-card.actions.info')" />
+  </Tooltip>
+
+  <Tooltip>
+    <TooltipTrigger as-child>
+      <Button
+        hierarchy="link-gray"
+        size="sm"
+        :class="iconButtonClass(props.activeOverlay === 'networks')"
+        icon="modem-02"
+        icon-stroke-color="base-white"
+        @click="emit('networkClick')"
+      />
+    </TooltipTrigger>
+    <TooltipContent :title="t('components.desktops.desktop-card.actions.networks')" />
+  </Tooltip>
+
+  <Tooltip v-if="bastionEnabled">
+    <TooltipTrigger as-child>
+      <Button
+        hierarchy="link-gray"
+        size="sm"
+        :class="iconButtonClass(props.activeOverlay === 'bastion')"
+        icon="globe-04"
+        icon-stroke-color="base-white"
+        @click="emit('bastionClick')"
+      />
+    </TooltipTrigger>
+    <TooltipContent :title="t('components.desktops.desktop-card.actions.bastion-access')" />
+  </Tooltip>
 
   <DropdownMenu>
     <DropdownMenuTrigger>
@@ -62,10 +104,8 @@ function handleNetworkClick() {
     <DropdownMenuContent class="bg-white border border-gray-warm-300 rounded-lg" align="end">
       <DesktopCardHeaderActionsDropdownContent
         :desktop="props.desktop"
-        @show-info-modal="emit('showInfoModal')"
         @edit-desktop="emit('editDesktop')"
         @show-delete-modal="emit('showDeleteModal')"
-        @show-bastion-modal="emit('showBastionModal')"
         @show-direct-link-modal="emit('showDirectLinkModal')"
         @show-recreate-modal="emit('showRecreateModal')"
         @create-template="emit('createTemplate')"

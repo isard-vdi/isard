@@ -18,10 +18,15 @@ import {
   DesktopCardFooter,
   DesktopCardHeader,
   DesktopCardHeaderActions,
-  DesktopCardIp,
   DesktopCardNetworksOverlay,
-  DesktopCardPreview
+  DesktopCardInfoOverlay,
+  DesktopCardBastionOverlay,
+  DesktopCardPreview,
+  cardOverlayPaddingVariants
 } from '.'
+import { Icon } from '@/components/icon'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { ContextMenuContent, ContextMenuItem } from '@/components/ui/context-menu'
 
 const { t, d } = useI18n()
@@ -101,7 +106,15 @@ const notificationText = computed<string | null>(() => {
   return desktopNotificationText(props.desktop, t, d)
 })
 
-const showNetworkOverlay = ref<boolean>(false)
+// One overlay at a time — clicking the same icon toggles off, clicking
+// another swaps. The expand button inside each overlay opens the matching
+// full-screen modal.
+type OverlayKind = 'info' | 'networks' | 'bastion'
+const activeOverlay = ref<OverlayKind | null>(null)
+
+const toggleOverlay = (kind: OverlayKind) => {
+  activeOverlay.value = activeOverlay.value === kind ? null : kind
+}
 
 const desktopKind = computed(() => {
   if (props.desktop.tag) {
@@ -115,7 +128,7 @@ const desktopKind = computed(() => {
 <template>
   <DesktopCardBase
     v-bind="props"
-    :show-network-overlay="showNetworkOverlay"
+    :show-overlay="activeOverlay !== null"
     :desktop-kind="desktopKind"
     :image-url="props.desktop.image?.url ?? ''"
   >
@@ -138,12 +151,12 @@ const desktopKind = computed(() => {
     <template #header-actions>
       <DesktopCardHeaderActions
         :desktop="desktop"
-        @network-click="showNetworkOverlay = !showNetworkOverlay"
-        @show-networks-modal="emit('showNetworksModal')"
-        @show-info-modal="emit('showInfoModal')"
+        :active-overlay="activeOverlay"
+        @info-click="toggleOverlay('info')"
+        @network-click="toggleOverlay('networks')"
+        @bastion-click="toggleOverlay('bastion')"
         @edit-desktop="emit('editDesktop')"
         @show-delete-modal="emit('showDeleteModal')"
-        @show-bastion-modal="emit('showBastionModal')"
         @show-direct-link-modal="emit('showDirectLinkModal')"
         @show-recreate-modal="emit('showRecreateModal')"
         @create-template="emit('createTemplate')"
@@ -151,19 +164,53 @@ const desktopKind = computed(() => {
       />
     </template>
 
-    <template #ip>
-      <DesktopCardIp
-        v-if="desktop.interfaces.find((iface) => iface.id === 'wireguard')"
-        :desktop-status="desktop.status"
-        :desktop-ip="desktop.ip"
+    <template #overlay>
+      <DesktopCardInfoOverlay
+        v-if="activeOverlay === 'info'"
+        :desktop="desktop"
+        @show-info-modal="emit('showInfoModal')"
       />
-    </template>
-    <template #networks>
-      <!-- TODO: this should probably be in the view, as it contains an api call -->
-      <DesktopCardNetworksOverlay
-        :desktop-id="desktop.id"
-        :full-height="!(notificationText && desktop.description?.trim().length !== 0)"
-        @show-networks-modal="emit('showNetworksModal')"
+
+      <div
+        v-else-if="activeOverlay === 'networks'"
+        :class="cardOverlayPaddingVariants({ size: props.size })"
+        class="text-base-white text-start"
+      >
+        <div class="flex items-center gap-2 mb-1.5">
+          <Icon name="modem-02" size="sm" stroke-color="base-white" />
+          <span class="text-[10px] font-bold uppercase tracking-wide truncate">
+            {{ t('components.desktops.desktop-card.actions.networks') }}
+          </span>
+        </div>
+        <DesktopCardNetworksOverlay
+          :desktop-id="desktop.id"
+          :desktop-status="desktop.status"
+          :desktop-ip="desktop.ip"
+          :full-height="!(notificationText && desktop.description?.trim().length !== 0)"
+          @show-networks-modal="emit('showNetworksModal')"
+        />
+        <div class="flex justify-end mt-1.5">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                hierarchy="link-gray"
+                size="sm"
+                class="h-6! px-2! gap-1 bg-base-white/15 hover:bg-base-white/30 text-[10px] font-semibold text-base-white"
+                @click="emit('showNetworksModal')"
+              >
+                {{ t('components.desktops.desktop-card.overlay.expand') }}
+                <Icon name="expand-04" size="xs" stroke-color="base-white" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent :title="t('components.desktops.desktop-card.overlay.expand-tooltip')" />
+          </Tooltip>
+        </div>
+      </div>
+
+      <DesktopCardBastionOverlay
+        v-else-if="activeOverlay === 'bastion'"
+        :desktop="desktop"
+        @show-bastion-modal="emit('showBastionModal')"
       />
     </template>
 
