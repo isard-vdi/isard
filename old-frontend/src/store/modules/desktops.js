@@ -308,7 +308,13 @@ export default {
       })
 
       return axios.put(`${apiV3Segment}/item/desktop/${data.desktopId}/${data.action}`).then(response => {
-        context.commit('update_desktop', { id: data.desktopId, state: DesktopUtils.parseState({ state: response.data.status }) })
+        // apiv4's PUT /item/desktop/{id}/<action> returns SimpleResponse(id=...)
+        // with no `status` field — only commit the optimistic state when the
+        // legacy apiv3 shape leaks through (e.g. on a v3 fallback). Otherwise
+        // wait for the change-handler WebSocket event to push the real state.
+        if (response.data && response.data.status) {
+          context.commit('update_desktop', { id: data.desktopId, state: DesktopUtils.parseState({ state: response.data.status }) })
+        }
         // Once the request is successful, we can clear the pending state
         context.commit('CLEAR_PENDING_OPERATION', data.desktopId)
         if (data.action === 'start' && !isFromDeployment) {
