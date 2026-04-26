@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import RFB from '@novnc/novnc'
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
   height?: string
   viewOnly?: boolean
   qualityLevel?: number // From 0 to 9. Default is 6
+  compressionLevel?: number // From 0 to 9. Leave unset to use noVNC default (2)
   background?: string
 }
 
@@ -20,6 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
   height: '750px',
   viewOnly: false,
   qualityLevel: 6,
+  compressionLevel: undefined,
   background: 'var(--gray-warm-800)'
 })
 
@@ -32,12 +34,7 @@ const getCookie = (name: string) => {
   if (parts.length === 2) return parts.pop()?.split(';').shift()
 }
 
-const newRFB = (
-  target: HTMLElement,
-  viewOnly: boolean,
-  qualityLevel: number,
-  background: string
-) => {
+const newRFB = (target: HTMLElement) => {
   const wsUrl =
     'wss://' +
     props.viewer.host +
@@ -54,21 +51,31 @@ const newRFB = (
     credentials: { password: props.viewer.token }
   })
 
-  rfb.viewOnly = viewOnly
-  rfb.qualityLevel = qualityLevel
+  rfb.viewOnly = props.viewOnly
+  rfb.qualityLevel = props.qualityLevel
+  if (props.compressionLevel !== undefined) {
+    rfb.compressionLevel = props.compressionLevel
+  }
   rfb.scaleViewport = true
-  rfb.background = background
+  rfb.background = props.background
 }
 
 onMounted(() => {
   if (screen.value) {
-    newRFB(screen.value, props.viewOnly, props.qualityLevel, props.background)
+    newRFB(screen.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (rfb) {
+    rfb.disconnect()
+    rfb = null
   }
 })
 </script>
 
 <template>
-  <div>
-    <div ref="screen" :style="`height: ${props.height}; cursor: pointer;`" />
+  <div :style="`height: ${props.height}; width: 100%;`">
+    <div ref="screen" style="height: 100%; width: 100%; cursor: pointer" />
   </div>
 </template>

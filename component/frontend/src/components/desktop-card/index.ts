@@ -15,6 +15,7 @@ export { default as DesktopCardFooter } from './parts/DesktopCardFooter.vue'
 
 export { default as DesktopCardIp } from './parts/DesktopCardIp.vue'
 export { default as DesktopCardNetworksOverlay } from './parts/DesktopCardNetworksOverlay.vue'
+export { default as DesktopCardPreview } from './parts/DesktopCardPreview.vue'
 
 // --- Card size variants ---
 
