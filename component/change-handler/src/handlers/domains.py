@@ -93,8 +93,13 @@ class DomainsHandler(BaseHandler):
         val = new_val or old_val
         domain_status = val.status
         kind = val.kind
-        # The status must not be one of the engine transactional statuses
-        if not Helpers._is_frontend_desktop_status(domain_status):
+        # The status filter only applies to insert/update; deletions must be
+        # forwarded even when the row's last status is an engine-internal
+        # transactional one (e.g. ForceDeleting), otherwise the client never
+        # learns the desktop is gone. Matches main's api_socketio_domains.py.
+        if method_name != "on_delete" and not Helpers._is_frontend_desktop_status(
+            domain_status
+        ):
             return
         handler = (
             self.desktop_handler
