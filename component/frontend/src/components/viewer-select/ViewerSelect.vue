@@ -88,7 +88,7 @@ const selectViewer = (viewer: Viewer) => {
         <Button
           class="min-w-0 overflow-hidden"
           :icon="selectedViewer.loading ? 'loading-02' : ''"
-          icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
+          icon-class="animate-spin"
           :disabled="selectedViewer.loading"
           @click="selectViewer(selectedViewer)"
           ><span class="min-w-0 truncate">{{ selectedViewerLabel }}</span></Button
@@ -124,7 +124,7 @@ const selectViewer = (viewer: Viewer) => {
                       hierarchy="link-gray"
                       :icon="viewer.loading ? 'loading-02' : ''"
                       icon-size="md"
-                      icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
+                      icon-class="animate-spin"
                       :disabled="viewer.loading"
                       @click="selectViewer(viewer)"
                     >
