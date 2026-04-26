@@ -12,14 +12,13 @@ import {
   updateDesktopBastionDomainApiV4ItemDesktopDesktopIdUpdateBastionDomainPutMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Code } from '@/components/code'
 import { Icon, CopyIcon } from '@/components/icon'
 import { InputField } from '@/components/input-field'
 import { Label } from '@/components/ui/label'
 import { Modal } from '@/components/modal'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -60,25 +59,17 @@ const {
   })
 )
 
-const {
-  mutate: saveBastionHttpDomain,
-  mutateAsync: saveBastionHttpDomainAsync,
-  isPending: saveBastionHttpDomainIsPending,
-  isError: saveBastionHttpDomainIsError,
-  error: saveBastionHttpDomainError
-} = useMutation({
-  ...updateDesktopBastionDomainApiV4ItemDesktopDesktopIdUpdateBastionDomainPutMutation(),
-  onSuccess: () => {
-    refetchBastionTargetData()
-  }
-})
+const { mutateAsync: saveBastionHttpDomainAsync, isPending: saveBastionHttpDomainIsPending } =
+  useMutation({
+    ...updateDesktopBastionDomainApiV4ItemDesktopDesktopIdUpdateBastionDomainPutMutation(),
+    onSuccess: () => {
+      refetchBastionTargetData()
+    }
+  })
 
 const {
-  mutate: saveBastionSshAuthorizedKeys,
   mutateAsync: saveBastionSshAuthorizedKeysAsync,
-  isPending: saveBastionSshAuthorizedKeysIsPending,
-  isError: saveBastionSshAuthorizedKeysIsError,
-  error: saveBastionSshAuthorizedKeysError
+  isPending: saveBastionSshAuthorizedKeysIsPending
 } = useMutation({
   ...updateDesktopBastionAuthorizedKeysApiV4ItemDesktopDesktopIdUpdateBastionAuthorizedKeysPutMutation(),
   onSuccess: () => {
@@ -162,7 +153,7 @@ const authorizedKeysForm = useForm({
   onSubmit: async ({ value }) => {
     await saveBastionSshAuthorizedKeysAsync({
       body: {
-        authorized_keys: value.authorizedKeys.split('\n')
+        authorized_keys: value.authorizedKeys.split('\n').filter((k) => k.trim().length > 0)
       },
       path: {
         desktop_id: props.desktopId
@@ -176,125 +167,167 @@ const authorizedKeysForm = useForm({
   <Modal
     :open="props.open"
     show-close-button
-    class="w-160 max-w-160 overflow-y-show pt-4 pb-1"
+    size="2xl"
+    class="pt-6"
     :title="t('components.bastion-info-modal.title', { name: props.desktopName })"
+    :description="t('components.bastion-info-modal.description')"
     @close="closeModal"
   >
-    <Skeleton v-if="isPending" class="h-6 w-60" />
-    <div v-else-if="isError" class="flex flex-col gap-4 w-full bg-error-300 p-4 rounded">
-      <p v-if="userConfigIsError" class="text-error-700">
-        {{ t('components.bastion-info-modal.error-loading-user-config') }}:
-        {{ userConfigError?.message || 'Unknown error' }}
-      </p>
-
-      <p v-if="bastionTargetDataIsError" class="text-error-700">
-        {{ t('components.bastion-info-modal.error-loading-bastion-data') }}:
-        {{ bastionTargetDataError?.message || 'Unknown error' }}
-      </p>
-    </div>
-    <p v-else-if="!bastionTargetData" class="text-warning-500">
-      {{ t('components.bastion-info-modal.no-bastion-configured') }}
-    </p>
-    <div v-else class="flex flex-col gap-4 w-full">
-      <div class="flex flex-col gap-2">
-        <div class="flex flex-row items-center gap-2 w-full">
-          <Label class="text-nowrap font-bold text-muted-foreground">{{
-            t('components.bastion-info-modal.fields.target-id.title')
-          }}</Label>
-          <Separator />
-        </div>
-        <div class="flex flex-row items-center gap-4 w-full">
-          <p class="text-nowrap">{{ bastionTargetData.id }}</p>
-          <CopyIcon :value="bastionTargetData.id" stroke-color="gray-warm-600" />
-        </div>
+    <div class="flex flex-col gap-4 pb-4">
+      <!-- Loading state -->
+      <div
+        v-if="isPending"
+        class="bg-base-white p-5 rounded-lg border border-gray-warm-300 flex flex-col gap-3"
+      >
+        <Skeleton class="h-6 w-48" />
+        <Skeleton class="h-9 w-full" />
+        <Skeleton class="h-9 w-3/4" />
       </div>
 
-      <div v-if="bastionTargetData.http.enabled" class="flex flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <div class="flex flex-row items-center gap-2 w-full">
-            <Label class="text-nowrap font-bold text-muted-foreground">{{
-              t('components.domain.access.bastion.http-https.label')
-            }}</Label>
-            <Separator />
-          </div>
-          <div class="flex flex-row items-center gap-4 w-full">
-            <p class="text-nowrap truncate">{{ httpUrl }}</p>
-            <a :href="httpUrl" target="_blank">
-              <Icon
-                class="select-none cursor-pointer"
-                name="link-external-01"
-                size="md"
-                stroke-color="gray-warm-600"
-              />
-            </a>
-            <CopyIcon :value="httpUrl" stroke-color="gray-warm-600" />
-          </div>
-          <div class="flex flex-row items-center gap-4 w-full">
-            <p class="text-nowrap truncate">{{ httpsUrl }}</p>
-            <a :href="httpsUrl" target="_blank">
-              <Icon
-                class="select-none cursor-pointer"
-                name="link-external-01"
-                size="md"
-                stroke-color="gray-warm-600"
-              />
-            </a>
-            <CopyIcon :value="httpsUrl" stroke-color="gray-warm-600" />
-          </div>
-        </div>
+      <!-- Error state -->
+      <Alert v-else-if="isError" variant="destructive">
+        <Icon name="alert-circle" stroke-color="error-700" />
+        <AlertTitle>{{ t('components.bastion-info-modal.error.title') }}</AlertTitle>
+        <AlertDescription>
+          <p v-if="userConfigIsError">
+            {{ t('components.bastion-info-modal.error-loading-user-config') }}:
+            {{ userConfigError?.message || 'Unknown error' }}
+          </p>
+          <p v-if="bastionTargetDataIsError">
+            {{ t('components.bastion-info-modal.error-loading-bastion-data') }}:
+            {{ bastionTargetDataError?.message || 'Unknown error' }}
+          </p>
+        </AlertDescription>
+      </Alert>
 
-        <div v-if="true" class="flex flex-col w-full">
-          <div class="flex flex-row items-center gap-2 w-full mb-2">
-            <Label class="text-nowrap font-bold text-muted-foreground">{{
-              t('components.domain.access.bastion.http-https.custom-domains.label')
-            }}</Label>
-            <Separator />
+      <!-- Empty state: no bastion target -->
+      <div
+        v-else-if="!bastionTargetData"
+        class="bg-base-white p-6 rounded-lg border border-gray-warm-300 flex flex-col items-center text-center gap-2"
+      >
+        <Icon name="globe-04" size="lg" stroke-color="gray-warm-400" />
+        <p class="font-semibold text-gray-warm-700">
+          {{ t('components.bastion-info-modal.no-bastion-configured') }}
+        </p>
+        <p class="text-sm text-gray-warm-600">
+          {{ t('components.bastion-info-modal.no-bastion-configured-description') }}
+        </p>
+      </div>
+
+      <template v-else>
+        <!-- Target ID -->
+        <section class="bg-base-white p-5 rounded-lg border border-gray-warm-300">
+          <div class="flex items-center gap-2 mb-3">
+            <Icon name="passcode" size="md" stroke-color="gray-warm-700" />
+            <h3 class="font-semibold text-gray-warm-700">
+              {{ t('components.bastion-info-modal.fields.target-id.title') }}
+            </h3>
           </div>
-          <!-- TODO: Allow multiple domains. Can use as reference bastion config form -->
-          <form
-            class="flex flex-row items-center gap-2 w-full"
-            @submit.prevent.stop="domainNameForm.handleSubmit"
-          >
-            <domainNameForm.Field v-slot="{ field }" name="domainName">
-              <InputField
-                :id="field.name"
-                class="w-full"
-                :placeholder="
-                  t('components.domain.access.bastion.http-https.custom-domains.placeholder')
-                "
-                :name="field.name"
-                :model-value="field.state.value"
-                @blur="field.handleBlur"
-                @input="field.handleChange($event.target.value)"
+          <div class="flex items-center gap-3">
+            <code
+              class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
+            >
+              {{ bastionTargetData.id }}
+            </code>
+            <CopyIcon :value="bastionTargetData.id" stroke-color="gray-warm-600" />
+          </div>
+        </section>
+
+        <!-- HTTP / HTTPS section -->
+        <section
+          v-if="bastionTargetData.http.enabled"
+          class="bg-base-white p-5 rounded-lg border border-gray-warm-300 flex flex-col gap-4"
+        >
+          <div class="flex items-center gap-2">
+            <Icon name="globe-04" size="md" stroke-color="gray-warm-700" />
+            <h3 class="font-semibold text-gray-warm-700">
+              {{ t('components.domain.access.bastion.http-https.label') }}
+            </h3>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-3">
+              <code
+                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
+              >
+                {{ httpUrl }}
+              </code>
+              <a :href="httpUrl" target="_blank" :title="httpUrl">
+                <Icon
+                  class="select-none cursor-pointer"
+                  name="link-external-01"
+                  size="md"
+                  stroke-color="gray-warm-600"
+                />
+              </a>
+              <CopyIcon :value="httpUrl" stroke-color="gray-warm-600" />
+            </div>
+            <div class="flex items-center gap-3">
+              <code
+                class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
+              >
+                {{ httpsUrl }}
+              </code>
+              <a :href="httpsUrl" target="_blank" :title="httpsUrl">
+                <Icon
+                  class="select-none cursor-pointer"
+                  name="link-external-01"
+                  size="md"
+                  stroke-color="gray-warm-600"
+                />
+              </a>
+              <CopyIcon :value="httpsUrl" stroke-color="gray-warm-600" />
+            </div>
+          </div>
+
+          <!-- Custom domain editor -->
+          <div class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200">
+            <Label class="text-sm text-gray-warm-700">
+              {{ t('components.domain.access.bastion.http-https.custom-domains.label') }}
+            </Label>
+            <form
+              class="flex items-center gap-2"
+              @submit.prevent.stop="domainNameForm.handleSubmit"
+            >
+              <domainNameForm.Field v-slot="{ field }" name="domainName">
+                <InputField
+                  :id="field.name"
+                  class="flex-1"
+                  :placeholder="
+                    t('components.domain.access.bastion.http-https.custom-domains.placeholder')
+                  "
+                  :name="field.name"
+                  :model-value="field.state.value"
+                  @blur="field.handleBlur"
+                  @input="field.handleChange($event.target.value)"
+                />
+              </domainNameForm.Field>
+              <Button
+                hierarchy="primary"
+                icon="save-02"
+                :disabled="saveBastionHttpDomainIsPending"
+                type="submit"
               />
-            </domainNameForm.Field>
-            <Button
-              hierarchy="primary"
-              icon="save-02"
-              :disabled="saveBastionHttpDomainIsPending"
-              type="submit"
-            />
-          </form>
-          <div class="flex flex-col items-start gap-2">
+            </form>
             <Label
-              class="cursor-pointer gap-1 ml-2 text-gray-warm-600"
+              class="cursor-pointer flex items-center gap-1 text-sm text-gray-warm-600 hover:text-gray-warm-800"
               @click="bastionModalDnsAlertOpen = !bastionModalDnsAlertOpen"
-              >{{
+            >
+              {{
                 bastionModalDnsAlertOpen
                   ? t('components.domain.access.bastion.http-https.custom-domains.less-details')
                   : t('components.domain.access.bastion.http-https.custom-domains.more-details')
               }}
               <Icon
                 :name="bastionModalDnsAlertOpen ? 'chevron-up' : 'chevron-down'"
+                size="sm"
                 stroke-color="gray-warm-600"
               />
             </Label>
-
-            <Alert v-if="bastionModalDnsAlertOpen" class="bg-white border-gray-warm-300">
-              <AlertTitle class="font-bold text-gray-warm-700 mb-2">{{
-                t('components.domain.access.bastion.http-https.custom-domains.alert.title')
-              }}</AlertTitle>
-
+            <Alert v-if="bastionModalDnsAlertOpen" class="bg-gray-warm-50 border-gray-warm-300">
+              <AlertTitle class="font-semibold text-gray-warm-700 mb-1">
+                {{ t('components.domain.access.bastion.http-https.custom-domains.alert.title') }}
+              </AlertTitle>
               <i18n-t
                 keypath="components.domain.access.bastion.http-https.custom-domains.alert.description"
                 tag="AlertDescription"
@@ -304,66 +337,72 @@ const authorizedKeysForm = useForm({
                   <Code>{{
                     `${bastionTargetData!.desktop_id}.${userConfig?.bastion_domain}`
                   }}</Code>
-                  <div class="inline-block mx-1">
+                  <span class="inline-block mx-1">
                     <CopyIcon
                       class="inline-block"
                       :value="`${bastionTargetData!.desktop_id}.${userConfig?.bastion_domain}`"
                       size="sm"
                       stroke-color="gray-warm-600"
                     />
-                  </div>
+                  </span>
                 </template>
               </i18n-t>
             </Alert>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <div v-if="bastionTargetData?.ssh.enabled" class="flex flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <div class="flex flex-row items-center gap-2 w-full">
-            <Label class="text-nowrap font-bold text-muted-foreground">{{
-              t('components.domain.access.bastion.ssh.label')
-            }}</Label>
-            <Separator />
+        <!-- SSH section -->
+        <section
+          v-if="bastionTargetData.ssh.enabled"
+          class="bg-base-white p-5 rounded-lg border border-gray-warm-300 flex flex-col gap-4"
+        >
+          <div class="flex items-center gap-2">
+            <Icon name="terminal-square" size="md" stroke-color="gray-warm-700" />
+            <h3 class="font-semibold text-gray-warm-700">
+              {{ t('components.domain.access.bastion.ssh.label') }}
+            </h3>
           </div>
-          <div class="flex flex-row items-center gap-4 w-full">
-            <p class="text-nowrap">{{ sshUrl }}</p>
+
+          <div class="flex items-center gap-3">
+            <code
+              class="flex-1 bg-gray-warm-50 border border-gray-warm-200 rounded px-3 py-2 text-sm font-mono truncate"
+            >
+              {{ sshUrl }}
+            </code>
             <CopyIcon :value="sshUrl" stroke-color="gray-warm-600" />
           </div>
-        </div>
 
-        <div v-if="true" class="flex flex-col gap-2">
-          <div class="flex flex-row items-center gap-2 w-full">
-            <Label class="text-nowrap font-bold text-muted-foreground">{{
-              t('components.domain.access.bastion.ssh.authorized-keys.label')
-            }}</Label>
-            <Separator />
-          </div>
-          <form
-            class="flex flex-row items-start gap-2 w-full"
-            @submit.prevent.stop="authorizedKeysForm.handleSubmit"
-          >
-            <authorizedKeysForm.Field v-slot="{ field }" name="authorizedKeys">
-              <Textarea
-                :id="field.name"
-                class="w-full bg-base-white h-32 text-nowrap mb-1"
-                :placeholder="t('components.domain.access.bastion.ssh.authorized-keys.placeholder')"
-                :name="field.name"
-                :model-value="field.state.value"
-                @blur="field.handleBlur"
-                @input="field.handleChange($event.target.value)"
+          <div class="flex flex-col gap-2 pt-2 border-t border-gray-warm-200">
+            <Label class="text-sm text-gray-warm-700">
+              {{ t('components.domain.access.bastion.ssh.authorized-keys.label') }}
+            </Label>
+            <form
+              class="flex items-start gap-2"
+              @submit.prevent.stop="authorizedKeysForm.handleSubmit"
+            >
+              <authorizedKeysForm.Field v-slot="{ field }" name="authorizedKeys">
+                <Textarea
+                  :id="field.name"
+                  class="flex-1 bg-base-white h-32 font-mono text-sm whitespace-pre"
+                  :placeholder="
+                    t('components.domain.access.bastion.ssh.authorized-keys.placeholder')
+                  "
+                  :name="field.name"
+                  :model-value="field.state.value"
+                  @blur="field.handleBlur"
+                  @input="field.handleChange($event.target.value)"
+                />
+              </authorizedKeysForm.Field>
+              <Button
+                hierarchy="primary"
+                icon="save-02"
+                :disabled="saveBastionSshAuthorizedKeysIsPending"
+                type="submit"
               />
-            </authorizedKeysForm.Field>
-            <Button
-              hierarchy="primary"
-              icon="save-02"
-              :disabled="saveBastionSshAuthorizedKeysIsPending"
-              type="submit"
-            />
-          </form>
-        </div>
-      </div>
+            </form>
+          </div>
+        </section>
+      </template>
     </div>
   </Modal>
 </template>

@@ -5,13 +5,13 @@ import { type CardSize } from '.'
 interface Props {
   desktopKind: 'persistent' | 'nonpersistent' | 'deployment'
   imageUrl: string
-  showNetworkOverlay?: boolean
+  showOverlay?: boolean
   size?: CardSize
   fill?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
-  showNetworkOverlay: false,
+  showOverlay: false,
   size: 'lg',
   fill: false
 })
@@ -34,7 +34,7 @@ withDefaults(defineProps<Props>(), {
       <DesktopCardBase
         :desktop-kind="desktopKind"
         :image-url="imageUrl"
-        :show-network-overlay="showNetworkOverlay"
+        :show-overlay="showOverlay"
         :size="size"
         :fill="fill"
       >
@@ -50,11 +50,8 @@ withDefaults(defineProps<Props>(), {
         <template v-if="$slots['footer']" #footer>
           <slot name="footer" />
         </template>
-        <template v-if="$slots['ip']" #ip>
-          <slot name="ip" />
-        </template>
-        <template v-if="$slots['networks']" #networks>
-          <slot name="networks" />
+        <template v-if="$slots['overlay']" #overlay>
+          <slot name="overlay" />
         </template>
       </DesktopCardBase>
     </div>

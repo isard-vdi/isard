@@ -275,6 +275,8 @@ const {
 const networksModalData = ref<{
   id: string
   name: string
+  ip?: string | null
+  status?: string
 } | null>(null)
 
 // --------------------------------------------------
@@ -1017,6 +1019,8 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
     :open="networksModalData !== null"
     :desktop-id="networksModalData.id"
     :desktop-name="networksModalData.name"
+    :desktop-ip="networksModalData.ip"
+    :desktop-status="networksModalData.status"
     @close="networksModalData = null"
   />
 
@@ -1499,7 +1503,14 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         "
         @desktop-fetch-booking="fetchMaxBookingDate(routeDesktop.id)"
         @open-viewer="fetchAndOpenViewer(routeDesktop.id, $event)"
-        @show-networks-modal="networksModalData = { id: routeDesktop.id, name: routeDesktop.name }"
+        @show-networks-modal="
+          networksModalData = {
+            id: routeDesktop.id,
+            name: routeDesktop.name,
+            ip: routeDesktop.ip,
+            status: routeDesktop.status
+          }
+        "
         @show-info-modal="openDesktopInfoModal(routeDesktop.id)"
         @edit-desktop="goToEditDesktop(routeDesktop.id)"
         @show-delete-modal="
@@ -1731,7 +1742,12 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           @open-viewer="(data) => fetchAndOpenViewer(data.dktp.id, data.viewer)"
           @show-networks-modal="
             (dktp) => {
-              networksModalData = { id: dktp.id, name: dktp.name }
+              networksModalData = {
+                id: dktp.id,
+                name: dktp.name,
+                ip: dktp.ip,
+                status: dktp.status
+              }
             }
           "
           @show-info-modal="(dktp) => openDesktopInfoModal(dktp.id)"
@@ -1780,7 +1796,14 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
                 fetchMaxBookingDate(dktp.id)
               "
               @open-viewer="fetchAndOpenViewer(dktp.id, $event)"
-              @show-networks-modal="networksModalData = { id: dktp.id, name: dktp.name }"
+              @show-networks-modal="
+                networksModalData = {
+                  id: dktp.id,
+                  name: dktp.name,
+                  ip: dktp.ip,
+                  status: dktp.status
+                }
+              "
               @show-info-modal="openDesktopInfoModal(dktp.id)"
               @edit-desktop="goToEditDesktop(dktp.id)"
               @show-delete-modal="deleteModalDesktopData = { id: dktp.id, name: dktp.name }"

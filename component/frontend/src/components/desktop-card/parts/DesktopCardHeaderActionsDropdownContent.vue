@@ -5,13 +5,7 @@ import type { UserDesktop } from '@/gen/oas/apiv4/'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 
 const { t } = useI18n()
 
@@ -24,11 +18,11 @@ const props = withDefaults(defineProps<Props>(), {
   networks: false
 })
 
+// `showInfoModal` and `showBastionModal` were promoted to dedicated icon
+// buttons in DesktopCardHeaderActions; the dropdown no longer emits them.
 const emit = defineEmits<{
-  showInfoModal: []
   editDesktop: []
   showDeleteModal: []
-  showBastionModal: []
   showDirectLinkModal: []
   showRecreateModal: []
   createTemplate: []
@@ -38,17 +32,6 @@ const emit = defineEmits<{
 
 <template>
   <DropdownMenuGroup>
-    <DropdownMenuItem @click="emit('showInfoModal')">
-      <Button
-        size="sm"
-        class="mr-2 w-full justify-start"
-        hierarchy="link-gray"
-        icon="info-circle"
-        icon-size="md"
-      >
-        {{ t('components.desktops.desktop-card.actions.info') }}
-      </Button>
-    </DropdownMenuItem>
     <template v-if="props.desktop.status === DesktopStatusEnum.STOPPED">
       <DropdownMenuItem @click="emit('editDesktop')">
         <Button
@@ -91,20 +74,6 @@ const emit = defineEmits<{
         </Button>
       </DropdownMenuItem>
     </template>
-    <DropdownMenuItem
-      v-if="props.desktop.bastion_target?.http.enabled || props.desktop.bastion_target?.ssh.enabled"
-      @click="emit('showBastionModal')"
-    >
-      <Button
-        size="sm"
-        class="mr-2 w-full justify-start"
-        hierarchy="link-gray"
-        icon="server-02"
-        icon-size="md"
-      >
-        {{ t('components.desktops.desktop-card.actions.bastion') }}
-      </Button>
-    </DropdownMenuItem>
     <DropdownMenuItem @click="emit('showDirectLinkModal')">
       <Button
         size="sm"
