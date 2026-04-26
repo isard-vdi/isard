@@ -5,4 +5,4 @@ python-socketio[asyncio]~=5.12.1
 rethinkdb==2.4.10.post1
 redis==5.2.1
 simple-colors~=0.1
-uvicorn~=0.23.2
+uvicorn==0.34.2
