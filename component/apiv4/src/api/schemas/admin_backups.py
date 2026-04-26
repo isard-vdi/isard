@@ -32,10 +32,6 @@ class BackupReportRequest(BaseModel):
     scope: str = Field(
         description="Backup scope: 'full', 'db', 'redis', 'stats', 'config', or 'disks'"
     )
-    host: Optional[str] = Field(
-        default=None,
-        description="Reporting host identifier; defaults to 'unknown-host' when missing",
-    )
     details: Optional[dict] = Field(
         default=None, description="Backup details with checks, warnings, time_breakdown"
     )

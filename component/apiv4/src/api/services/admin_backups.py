@@ -28,8 +28,6 @@ from isardvdi_common.connections.rethink_connection_factory import (
 from isardvdi_common.helpers.error_factory import Error
 from rethinkdb import r
 
-UNKNOWN_HOST = "unknown-host"
-
 # Integrity check toggle. Stored at config[1].backups.integrity_enabled.
 # Off by default: borg check is an expensive full-repo verification, and we
 # don't want existing deployments to silently inherit a multi-hour nightly
@@ -38,10 +36,10 @@ UNKNOWN_HOST = "unknown-host"
 INTEGRITY_ENABLED_DEFAULT = False
 
 
-def _retention_per_host():
-    """How many records to keep per host. Configurable via env."""
+def _retention():
+    """How many backup records to keep. Configurable via env."""
     try:
-        value = int(os.environ.get("BACKUP_RETENTION_PER_HOST", "30"))
+        value = int(os.environ.get("BACKUP_RETENTION", "30"))
     except ValueError:
         value = 30
     return max(1, value)
@@ -92,50 +90,22 @@ def _normalize_check(check):
 class AdminBackupsService:
 
     @staticmethod
-    def list_backups(host: str = None, limit: int = None) -> list:
-        """List backup records ordered most-recent-first.
-
-        ``host=`` filters to that host's records (using ``UNKNOWN_HOST`` as
-        the fallback for pre-feature rows that lack the field). ``limit=``
-        defaults to ``BACKUP_RETENTION_PER_HOST`` for a single host, or 10×
-        that when listing across all hosts.
-        """
+    def list_backups(limit: int = None) -> list:
+        """List backup records ordered most-recent-first."""
         if limit is None:
-            limit = _retention_per_host()
-            if not host:
-                limit *= 10
+            limit = _retention()
 
         with RethinkSharedConnection._rdb_context():
-            if host:
-                query = (
-                    r.table("backups")
-                    .filter(lambda row: row["host"].default(UNKNOWN_HOST) == host)
-                    .order_by(r.desc("timestamp"))
-                )
-            else:
-                query = r.table("backups").order_by(r.desc("timestamp"))
             result = list(
-                query.limit(limit).run(RethinkSharedConnection._rdb_connection)
+                r.table("backups")
+                .order_by(r.desc("timestamp"))
+                .limit(limit)
+                .run(RethinkSharedConnection._rdb_connection)
             )
 
         for item in result:
             _normalize_times(item)
         return result
-
-    @staticmethod
-    def list_hosts() -> list:
-        """Distinct list of hosts that have ever reported a backup.
-
-        Pre-feature rows that lack the ``host`` field surface as
-        ``UNKNOWN_HOST`` rather than crashing the query.
-        """
-        with RethinkSharedConnection._rdb_context():
-            return sorted(
-                r.table("backups")
-                .map(lambda row: row["host"].default(UNKNOWN_HOST))
-                .distinct()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
 
     @staticmethod
     def get_backup(backup_id: str, pluck: str = None) -> dict:
@@ -169,9 +139,6 @@ class AdminBackupsService:
                 f"Backup scope must be one of: {', '.join(valid_scopes)}",
             )
 
-        host = data.get("host") or UNKNOWN_HOST
-        data["host"] = host
-
         if "details" in data and isinstance(data["details"], dict):
             details = data["details"]
             if "checks" in details and isinstance(details["checks"], list):
@@ -201,7 +168,7 @@ class AdminBackupsService:
             raise Error("internal_server", "Failed to create backup record")
 
         backup_id = result["generated_keys"][0]
-        AdminBackupsService._cleanup_old_backups(host)
+        AdminBackupsService._cleanup_old_backups()
 
         # Email admins when the backup did not finish cleanly. Imported lazily
         # so this module does not depend on the notifier at import time.
@@ -223,21 +190,13 @@ class AdminBackupsService:
         }
 
     @staticmethod
-    def _cleanup_old_backups(host: str):
-        """Remove old backup records for ``host``, keeping only the
-        ``BACKUP_RETENTION_PER_HOST`` most recent (default 30).
-        """
-        if not host:
-            host = UNKNOWN_HOST
-        keep = _retention_per_host()
+    def _cleanup_old_backups():
+        """Keep only the N most recent backup records (N = BACKUP_RETENTION)."""
+        keep = _retention()
 
         with RethinkSharedConnection._rdb_context():
-            host_filter = lambda row: row["host"].default(UNKNOWN_HOST) == host
             total_count = (
-                r.table("backups")
-                .filter(host_filter)
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
+                r.table("backups").count().run(RethinkSharedConnection._rdb_connection)
             )
             if total_count <= keep:
                 return 0
@@ -245,7 +204,6 @@ class AdminBackupsService:
             old_ids = [
                 row["id"]
                 for row in r.table("backups")
-                .filter(host_filter)
                 .order_by(r.desc("timestamp"))
                 .skip(keep)
                 .pluck("id")

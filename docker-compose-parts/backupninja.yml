@@ -55,13 +55,6 @@ services:
       # API settings for backup reporting
       - API_DOMAIN=${API_DOMAIN-isard-apiv4}
       - API_ISARDVDI_SECRET=${API_ISARDVDI_SECRET}
-      # Identifies this host in the central API so reports from multiple
-      # remote backupninja instances can be distinguished. Defaults to the
-      # docker host hostname; override per-host when the hostname is not
-      # unique or meaningful.
-      - BACKUP_HOST_NAME=${BACKUP_HOST_NAME-${HOSTNAME}}
-      # How many report records to keep per host in the API (default 30).
-      - BACKUP_RETENTION_PER_HOST=${BACKUP_RETENTION_PER_HOST-30}
       # Preflight threshold: minimum free percentage required on the
       # backup target for a session to start. Below this the preflight
       # script fails fast and the report is marked CRITICAL (default 10).

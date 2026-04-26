@@ -94,15 +94,14 @@ def notify_backup_failure(backup_data: dict) -> None:
         RethinkSharedConnection,
     )
 
-    host = backup_data.get("host", "unknown")
     scope = backup_data.get("scope", "full")
     summary = backup_data.get("summary", "")
     backup_type = backup_data.get("type", "automated")
 
-    subject = f"[IsardVDI] Backup {status} on {host} ({scope})"
+    subject = f"[IsardVDI] Backup {status} ({scope})"
     text = (
-        f"<p>An {backup_type} backup on host <strong>{host}</strong> "
-        f"finished with status <strong>{status}</strong>.</p>"
+        f"<p>An {backup_type} backup finished with status "
+        f"<strong>{status}</strong>.</p>"
         f"<p>{summary or 'No summary available.'}</p>"
         f"<p>Review the full record in the admin panel under "
         f"<em>Backups</em>.</p>"
@@ -127,9 +126,8 @@ def notify_backup_failure(backup_data: dict) -> None:
     if not admins:
         logger.info(
             "notify_backup_failure: no active admins with an email address; "
-            "skipping notification for %s on %s",
+            "skipping notification for %s",
             status,
-            host,
         )
         return
 

@@ -45,7 +45,7 @@ tag = "admin_backups"
     summary="List backups",
     description=(
         "Get a list of backups. Optionally get a specific backup by ID via "
-        "query parameter, or filter by host and limit via query parameters."
+        "query parameter, or limit the result via the limit query parameter."
     ),
     responses={
         400: {"model": ErrorResponse},
@@ -66,9 +66,7 @@ async def admin_backups_list(request: Request):
                 limit = int(limit) if limit else None
             except (TypeError, ValueError):
                 raise Error("bad_request", "limit must be an integer")
-            result = AdminBackupsService.list_backups(
-                host=options.get("host"), limit=limit
-            )
+            result = AdminBackupsService.list_backups(limit=limit)
         return JSONResponse(content=result, status_code=200)
     except Error:
         raise
@@ -77,28 +75,6 @@ async def admin_backups_list(request: Request):
             request,
             "internal_server",
             "Failed to list backups",
-            traceback.format_exc(),
-        )
-
-
-@admin_router.get(
-    "/admin/backups/hosts",
-    tags=[tag],
-    summary="List backup hosts",
-    description="Distinct list of hosts that have ever reported a backup.",
-    responses={500: {"model": ErrorResponse}},
-)
-async def admin_backup_hosts(request: Request):
-    try:
-        result = AdminBackupsService.list_hosts()
-        return JSONResponse(content=result, status_code=200)
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to list backup hosts",
             traceback.format_exc(),
         )
 
