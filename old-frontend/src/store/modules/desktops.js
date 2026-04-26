@@ -43,7 +43,13 @@ const getDefaultState = () => {
       desktop: {},
       bastion: { http: {}, ssh: {} }
     },
-    pendingOperations: {} // Track pending desktop operations for button state management
+    pendingOperations: {}, // Track pending desktop operations for button state management
+    // Ids of desktops the WS just removed. setDesktops filters incoming
+    // REST rows against this so a fetchDesktops response in flight at
+    // delete time can't re-add the doomed desktop. 5-second TTL drops
+    // entries on read so a re-spawn with the same id (rare on temporal)
+    // isn't permanently masked.
+    recentlyDeletedIds: {}
   }
 }
 
@@ -122,6 +128,21 @@ export default {
       state.directLink.enabled = null
     },
     setDesktops: (state, desktops) => {
+      // Drop entries from recentlyDeletedIds older than 5s on every read,
+      // and use the remaining set to filter REST rows for desktops the WS
+      // already deleted (e.g. nonpersistent stopped → engine deletes →
+      // socket_desktopDelete fires; a fetchDesktops in flight would
+      // otherwise re-add the doomed row as a ghost card until the next
+      // refresh).
+      const now = Date.now()
+      const TTL = 5000
+      const stillRecent = {}
+      for (const [id, ts] of Object.entries(state.recentlyDeletedIds)) {
+        if (now - ts < TTL) stillRecent[id] = ts
+      }
+      state.recentlyDeletedIds = stillRecent
+      const filtered = desktops.filter(d => !(d.id in stillRecent))
+
       // Race guard: a WS desktop_update can land between fetchDesktops
       // dispatch and the REST response. If the REST snapshot still shows a
       // transient state ("updating", "starting", "stopping", ...) but the
@@ -131,7 +152,7 @@ export default {
       const transient = ['updating', 'starting', 'stopping', 'shutting-down', 'creating', 'downloading', 'maintenance', 'working']
       const terminal = ['started', 'stopped', 'failed', 'waitingip']
       const prevById = new Map(state.desktops.map(d => [d.id, d]))
-      state.desktops = desktops.map(d => {
+      state.desktops = filtered.map(d => {
         const prev = prevById.get(d.id)
         if (!prev || !prev.state || !d.state) return d
         const newS = String(d.state).toLowerCase()
@@ -174,6 +195,12 @@ export default {
       state.pendingOperations = rest
     },
     remove_desktop: (state, desktop) => {
+      // Stamp the id so a concurrently-fetching setDesktops won't re-add it.
+      // setDesktops drops entries older than 5s on every read.
+      state.recentlyDeletedIds = {
+        ...state.recentlyDeletedIds,
+        [desktop.id]: Date.now()
+      }
       const desktopIndex = state.desktops.findIndex(d => d.id === desktop.id)
       if (desktopIndex !== -1) {
         state.desktops.splice(desktopIndex, 1)
