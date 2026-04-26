@@ -12,7 +12,20 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.152
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:5000/" ]
+      test:
+        - CMD
+        - python3
+        - -c
+        - |
+          import socket, sys
+          s = socket.socket(); s.settimeout(2)
+          try:
+              s.connect(('localhost', 5000))
+              sys.exit(0)
+          except OSError:
+              sys.exit(1)
+          finally:
+              s.close()
       start_period: 30s
       interval: 5s
     environment:
