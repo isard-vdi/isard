@@ -175,6 +175,10 @@ class DesktopsProcessed(RethinkSharedConnection):
             "id": desktop["id"],
             "name": desktop["name"],
             "status": desktop["status"],
+            # `state` is the apiv3 alias the old-frontend (Vue 2) reads; same
+            # value as `status`. Vue 3 reads `status` directly. Keeping both
+            # in the response makes a single endpoint serve both frontends.
+            "state": desktop["status"],
             "type": desktop["type"],
             "template": desktop["from_template"],
             "viewers": desktop["viewers"],
