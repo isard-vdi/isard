@@ -111,7 +111,7 @@ export class DesktopUtils {
     // spinner instead of "Temporarily unavailable" during the brief window
     // where a callsite hasn't been handed a state yet.
     if (!state) return desktopStates.working
-    return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying].includes(state.toLowerCase()) ? state : desktopStates.working
+    return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying, desktopStates.updating].includes(state.toLowerCase()) ? state : desktopStates.working
   }
 
   static viewerNeedsIp (viewer) {
