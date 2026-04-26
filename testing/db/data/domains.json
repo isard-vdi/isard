@@ -1,5 +1,68 @@
 [
     {
+        "id": "template-test-001",
+        "kind": "template",
+        "name": "Template Test Frontend",
+        "description": "Test template used by deployment-test-001",
+        "status": "Stopped",
+        "category": "default",
+        "group": "default-default",
+        "user": "local-default-admin-admin",
+        "username": "admin",
+        "persistent": true,
+        "server": false,
+        "icon": "fa-circle-o",
+        "os": "linux",
+        "accessed": 1758268070,
+        "booking_id": false,
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "hypervisors_pools": ["default"],
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "guest_properties": {
+            "credentials": {"username": "isard", "password": "pirineus"},
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {"options": null},
+                "file_spice": {"options": null}
+            }
+        },
+        "create_dict": {
+            "hardware": {
+                "vcpus": 1,
+                "memory": 1048576,
+                "videos": ["default"],
+                "interfaces": [{"id": "default", "mac": "52:54:00:00:00:01"}],
+                "graphics": ["default"],
+                "boot_order": ["disk"],
+                "disk_bus": "default",
+                "qos_disk_id": false,
+                "virtualization_nested": false,
+                "isos": [],
+                "floppies": [],
+                "disks": [
+                    {"storage_id": "storage-template-test-001"}
+                ]
+            },
+            "personal_vlans": false,
+            "reservables": {"vgpus": null}
+        },
+        "xml": null
+    },
+    {
         "accessed": 1758268070,
         "allowed": {
             "categories": false,
@@ -855,6 +918,7 @@
         "server": false,
         "status": "Stopped",
         "tag": "deployment-test-001",
+        "tag_desktop_id": "00000000-0000-4000-8000-000000000001",
         "tag_name": "Deployment-Test-Frontend",
         "tag_visible": true,
         "user": "8ddebf86-faf4-52d0-b2d6-586806dc2bf2",

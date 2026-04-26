@@ -321,12 +321,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         .get_all(deployment["id"], index="tag")
                         .filter({"tag_visible": True})
                         .count(),
-                        "desktop_names": r.branch(
-                            deployment["create_dict"].type_of().eq("ARRAY"),
-                            r.expr(deployment["create_dict"]).map(
-                                lambda cd: cd["name"]
-                            ),
-                            [],
+                        "desktop_names": r.expr(deployment["create_dict"]).map(
+                            lambda cd: cd["name"]
                         ),
                         "co_owner": False,
                     }
@@ -340,11 +336,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 **cls._parse_booking(deployment_id=deployment["id"]),
             }
             deployment["total_users"] = len(DeploymentUsers.get_users(deployment["id"]))
-            create_dicts = deployment.get("create_dict", [])
-            if not isinstance(create_dicts, list):
-                create_dicts = []
             # Check that the templates used in the deployment still exist
-            for create_dict in create_dicts:
+            for create_dict in deployment.get("create_dict", []):
                 template = Caches.get_document("domains", create_dict.get("template"))
                 if not template:
                     DesktopEvents.deployment_delete(deployment["id"], "system")
@@ -383,12 +376,8 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         .get_all(deployment["id"], index="tag")
                         .filter({"tag_visible": True})
                         .count(),
-                        "desktop_names": r.branch(
-                            deployment["create_dict"].type_of().eq("ARRAY"),
-                            r.expr(deployment["create_dict"]).map(
-                                lambda cd: cd["name"]
-                            ),
-                            [],
+                        "desktop_names": r.expr(deployment["create_dict"]).map(
+                            lambda cd: cd["name"]
                         ),
                         "co_owner": True,
                     }
