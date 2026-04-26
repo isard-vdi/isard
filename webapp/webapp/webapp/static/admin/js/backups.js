@@ -36,6 +36,23 @@ function parseBorgSize(s) {
     return n * (mults[unit] || 1);
 }
 
+// Format a byte count to a 1024-based human string (matches format_bytes() in
+// backup_report.py). Idempotent: already-formatted strings like "3.6 T" are
+// returned unchanged.
+function formatBytes(value) {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'string' && /[KMGTP]/i.test(value)) return value;
+    var n = Number(value);
+    if (!isFinite(n) || n <= 0) return '0 B';
+    var units = ['B', 'K', 'M', 'G', 'T', 'P'];
+    var i = 0;
+    while (n >= 1024 && i < units.length - 1) {
+        n /= 1024;
+        i++;
+    }
+    return n.toFixed(1) + ' ' + units[i];
+}
+
 // Helper function to render backup type icons
 function renderBackupTypeIcon(statusData, backupType) {
     if (!statusData || !statusData[backupType]) {
@@ -426,10 +443,11 @@ $(document).ready(function () {
                             if (repoData.latest_archive && repoData.latest_archive.stats) {
                                 var stats = repoData.latest_archive.stats;
                                 if (stats.deduplicated_size) {
-                                    content += ' Size: ' + stats.deduplicated_size;
+                                    content += ' Size: ' + formatBytes(stats.deduplicated_size);
                                 }
-                                if (stats.file_count) {
-                                    content += ', Files: ' + stats.file_count.toLocaleString();
+                                var files = stats.nfiles || stats.file_count;
+                                if (files) {
+                                    content += ', Files: ' + Number(files).toLocaleString();
                                 }
                             }
                             content += '</li>';
