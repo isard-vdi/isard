@@ -592,12 +592,16 @@ $(document).ready(function () {
                         if (action.messages && action.messages.length > 0) {
                             details.push('<a href="#" onclick="toggleMessages(\'' + action.name.replace(/[^a-zA-Z0-9]/g, '_') + '\'); return false;">Messages: ' + action.messages.length + ' <i class="fa fa-chevron-down"></i></a>');
                         }
-                        
+
+                        if (action.info_messages && action.info_messages.length > 0) {
+                            details.push('<a href="#" onclick="toggleInfoMessages(\'' + action.name.replace(/[^a-zA-Z0-9]/g, '_') + '\'); return false;">Info: ' + action.info_messages.length + ' <i class="fa fa-chevron-down"></i></a>');
+                        }
+
                         content += details.join('<br/>');
                         content += '</small></td>';
-                        
+
                         content += '</tr>';
-                        
+
                         // Add collapsible messages row if action has messages
                         if (action.messages && action.messages.length > 0) {
                             var actionId = action.name.replace(/[^a-zA-Z0-9]/g, '_');
@@ -605,6 +609,17 @@ $(document).ready(function () {
                             content += '<td colspan="4" class="bg-light"><small>';
                             content += '<strong>Messages:</strong><br/>';
                             action.messages.forEach(function(msg, index) {
+                                content += (index + 1) + '. ' + msg + '<br/>';
+                            });
+                            content += '</small></td></tr>';
+                        }
+
+                        if (action.info_messages && action.info_messages.length > 0) {
+                            var actionId = action.name.replace(/[^a-zA-Z0-9]/g, '_');
+                            content += '<tr id="info_messages_' + actionId + '" style="display: none;">';
+                            content += '<td colspan="4" class="bg-light"><small>';
+                            content += '<strong>Info:</strong><br/>';
+                            action.info_messages.forEach(function(msg, index) {
                                 content += (index + 1) + '. ' + msg + '<br/>';
                             });
                             content += '</small></td></tr>';
@@ -633,13 +648,26 @@ $(document).ready(function () {
     // Global function for toggling messages
     window.toggleMessages = function(actionId) {
         var messageRow = $('#messages_' + actionId);
-        var chevron = $('a[onclick*="' + actionId + '"] i');
-        
+        var chevron = $('a[onclick*="toggleMessages(\'' + actionId + '\')"] i');
+
         if (messageRow.is(':visible')) {
             messageRow.hide();
             chevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
         } else {
             messageRow.show();
+            chevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+        }
+    };
+
+    window.toggleInfoMessages = function(actionId) {
+        var infoRow = $('#info_messages_' + actionId);
+        var chevron = $('a[onclick*="toggleInfoMessages(\'' + actionId + '\')"] i');
+
+        if (infoRow.is(':visible')) {
+            infoRow.hide();
+            chevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+        } else {
+            infoRow.show();
             chevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
         }
     };
