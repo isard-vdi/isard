@@ -52,6 +52,13 @@ _DOMAIN_PRE_READY_STATUSES = frozenset(
         "CreatingTemplate",
         "CreatingTemplateDisk",
         "TemplateDiskCreated",
+        # Maintenance is set by Storage.set_maintenance(action) on every linked
+        # domain when the storage enters a paired maintenance/ready cycle
+        # (resize, sparsify, virt-win-reg, etc.). The cycle ends with
+        # task.storage_update receiving status="ready", which is the only path
+        # back to Stopped for those domains. Without this entry the desktops
+        # are stuck in Maintenance after every successful resize.
+        "Maintenance",
     }
 )
 
@@ -65,6 +72,7 @@ def _promote_domains_to_stopped(storage_object):
     for domain in storage_object.domains:
         if domain.status in _DOMAIN_PRE_READY_STATUSES:
             domain.status = "Stopped"
+            domain.current_action = None
 
 
 def socketio(data):
