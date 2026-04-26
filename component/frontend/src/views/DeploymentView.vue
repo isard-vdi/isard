@@ -175,6 +175,10 @@ const handleDeleteSuccess = () => {
 const showDownloadCsvModal = ref(false)
 
 const handleNotImplemented = () => alert('not implemented yet')
+
+const enterVideowall = () => {
+  router.push({ name: 'deployment-videowall', params: { deploymentId: deploymentId.value } })
+}
 </script>
 
 <template>
@@ -276,7 +280,7 @@ const handleNotImplemented = () => alert('not implemented yet')
         <Button icon="users-01" hierarchy="secondary-gray" @click="handleNotImplemented">
           {{ t('views.deployment.buttons.users-and-groups') }}
         </Button>
-        <Button icon="tv-03" hierarchy="secondary-gray" @click="handleNotImplemented">
+        <Button icon="tv-03" hierarchy="secondary-gray" @click="enterVideowall">
           {{ t('views.deployment.buttons.videowall') }}
         </Button>
         <Button icon="stop" hierarchy="destructive" @click="handleNotImplemented">
@@ -392,7 +396,7 @@ const handleNotImplemented = () => alert('not implemented yet')
                         ].includes(s.status)
                       )
                     "
-                    @click="handleNotImplemented"
+                    @click="enterVideowall"
                   ></Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" :title="t('views.deployment.tooltips.videowall')" />
