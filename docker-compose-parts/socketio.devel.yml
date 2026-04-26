@@ -1,6 +1,22 @@
 services:
   isard-socketio:
-    command: ["venv/bin/uvicorn", "isardvdi_socketio:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "/opt/isardvdi"]
+    # See apiv4.devel.yml for rationale: pip-install watchfiles so uvicorn
+    # uses inotify reload instead of StatReload polling, which hangs across
+    # the bind-mounted /opt/isardvdi/isardvdi_common tree.
+    # Both /opt/isardvdi/isardvdi_socketio AND /opt/isardvdi/isardvdi_common
+    # are separate bind-mounts. inotify on the parent /opt/isardvdi does NOT
+    # recurse through sub-mounts, so each one must be listed explicitly or
+    # changes to _common get silently dropped.
+    # Install watchfiles so uvicorn uses the inotify reloader instead of
+    # the StatReload polling fallback (which hangs on edits to the
+    # bind-mounted /opt/isardvdi/isardvdi_common).
+    #
+    # Also `--upgrade uvicorn`: production pins 0.34.2 (matching apiv4 /
+    # openapi for fleet consistency), but its WatchFiles supervisor misses
+    # change events through this venv's bind-mount layout. The supervisor
+    # was rewritten in uvicorn 0.45+, so devel uses whatever the latest is.
+    # Both packages are devel-only — production image is untouched.
+    command: ["sh", "-c", "venv/bin/pip install --quiet --no-cache-dir --upgrade uvicorn watchfiles && exec venv/bin/uvicorn isardvdi_socketio:app --host 0.0.0.0 --port 5000 --reload --reload-dir /opt/isardvdi/isardvdi_socketio --reload-dir /opt/isardvdi/isardvdi_common"]
     volumes:
       - ${BUILD_ROOT_PATH}/component/socketio/src:/opt/isardvdi/isardvdi_socketio
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common
