@@ -5,15 +5,35 @@
 * License: AGPLv3
 */
 
-// Helper function to format duration in seconds to human readable format
+// Helper function to format duration in seconds to human readable format.
+// Picks the largest applicable unit and shows up to two trailing components,
+// e.g. 35421 -> "9h 50m", 125 -> "2m 5s", 95000 -> "1d 2h".
 function formatDuration(seconds) {
-    if (!seconds || seconds < 1) return '< 1s';
-    var minutes = Math.floor(seconds / 60);
-    var remainingSeconds = Math.floor(seconds % 60);
-    if (minutes > 0) {
-        return minutes + 'm ' + remainingSeconds + 's';
-    }
-    return remainingSeconds + 's';
+    if (seconds === null || seconds === undefined) return 'N/A';
+    seconds = Math.floor(Number(seconds));
+    if (!isFinite(seconds) || seconds < 1) return '< 1s';
+    var d = Math.floor(seconds / 86400);
+    var h = Math.floor((seconds % 86400) / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    var s = seconds % 60;
+    if (d > 0) return d + 'd ' + h + 'h';
+    if (h > 0) return h + 'h ' + m + 'm';
+    if (m > 0) return m + 'm ' + s + 's';
+    return s + 's';
+}
+
+// Parse a borg human-formatted size like "3.6 T" / "41.9 G" / "9.6 M" into
+// bytes. Backup reports use 1024-based units (see format_bytes in
+// backup_report.py); this helper must match that base.
+function parseBorgSize(s) {
+    if (s === null || s === undefined) return 0;
+    var m = String(s).match(/^\s*([\d.]+)\s*([KMGTPB]?)/i);
+    if (!m) return 0;
+    var n = parseFloat(m[1]);
+    if (!isFinite(n)) return 0;
+    var unit = (m[2] || 'B').toUpperCase();
+    var mults = { B: 1, K: 1024, M: 1048576, G: 1073741824, T: 1099511627776, P: 1125899906842624 };
+    return n * (mults[unit] || 1);
 }
 
 // Helper function to render backup type icons
@@ -132,8 +152,8 @@ $(document).ready(function () {
             {
                 data: 'duration',
                 render: function (data, type, row) {
-                    if (type === 'display' && data) {
-                        return data + 's';
+                    if (type === 'display') {
+                        return formatDuration(data);
                     }
                     return data || 'N/A';
                 }
@@ -155,21 +175,17 @@ $(document).ready(function () {
                 data: 'backup_types',
                 render: function (data, type, row) {
                     if (type === 'display' && data) {
-                        var types = Object.keys(data);
-                        var totalSize = 0;
-                        var totalCompressed = 0;
-                        
-                        types.forEach(function(type) {
-                            if (data[type] && data[type].borg_statistics) {
-                                // Simple estimation - in real implementation this would be calculated properly
-                                totalSize += 100; // Placeholder
-                                totalCompressed += 70; // Placeholder  
-                            }
+                        var totalOriginal = 0;
+                        var totalDedup = 0;
+                        Object.keys(data).forEach(function (k) {
+                            var bs = data[k] && data[k].borg_statistics;
+                            if (!bs) return;
+                            totalOriginal += parseBorgSize(bs.original_size);
+                            totalDedup    += parseBorgSize(bs.deduplicated_size);
                         });
-                        
-                        if (totalSize > 0) {
-                            var ratio = ((totalSize - totalCompressed) / totalSize * 100).toFixed(1);
-                            return ratio + '% saved';
+                        if (totalOriginal > 0 && totalDedup > 0) {
+                            var saved = (totalOriginal - totalDedup) / totalOriginal * 100;
+                            return saved.toFixed(1) + '% saved';
                         }
                     }
                     return 'N/A';
@@ -522,8 +538,8 @@ $(document).ready(function () {
                             }
                             // Calculate and show efficiency ratio
                             if (stats.original_size && stats.deduplicated_size) {
-                                var origSize = parseFloat(stats.original_size.replace(/[^0-9.]/g, '')) || 0;
-                                var dedupSize = parseFloat(stats.deduplicated_size.replace(/[^0-9.]/g, '')) || 0;
+                                var origSize = parseBorgSize(stats.original_size);
+                                var dedupSize = parseBorgSize(stats.deduplicated_size);
                                 if (origSize > 0 && dedupSize > 0) {
                                     var efficiency = origSize / dedupSize;
                                     content += '<strong>Efficiency:</strong> ' + efficiency.toFixed(1) + 'x';
@@ -569,8 +585,8 @@ $(document).ready(function () {
                             if (stats.efficiency && stats.efficiency !== 'N/A') details.push('<strong>Efficiency:</strong> ' + stats.efficiency + 'x');
                             // Calculate efficiency if not provided
                             if (!stats.efficiency && stats.original_size && stats.deduplicated_size) {
-                                var origSize = parseFloat(stats.original_size.replace(/[^0-9.]/g, '')) || 0;
-                                var dedupSize = parseFloat(stats.deduplicated_size.replace(/[^0-9.]/g, '')) || 0;
+                                var origSize = parseBorgSize(stats.original_size);
+                                var dedupSize = parseBorgSize(stats.deduplicated_size);
                                 if (origSize > 0 && dedupSize > 0) {
                                     var efficiency = origSize / dedupSize;
                                     details.push('<strong>Efficiency:</strong> ' + efficiency.toFixed(1) + 'x');
