@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import RFB from '@novnc/novnc/core/rfb'
+import RFB from '@novnc/novnc'
 
 interface Props {
   viewer: {
