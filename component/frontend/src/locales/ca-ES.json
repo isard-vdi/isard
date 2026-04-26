@@ -71,6 +71,10 @@
       "title": "Gestió de desplegaments",
       "subtitle": "Consulta els detalls del desplegament i revisa l'estat dels usuaris"
     },
+    "deployment-videowall": {
+      "title": "Videowall",
+      "subtitle": "Vista en directe de cada escriptori del desplegament"
+    },
     "shared-deployments": {
       "title": "Compartits amb tu",
       "subtitle": "Comença a treballar amb desplegaments creats per a tu"
@@ -661,6 +665,17 @@
         "previous": "Anterior",
         "next": "Següent",
         "create-deployment": "Crea el desplegament"
+      }
+    },
+    "deployment-videowall": {
+      "gpu-warning": "El videowall no funciona amb visors RDP",
+      "desktop-not-available": "Escriptori no disponible",
+      "filter-placeholder": "Filtra per usuari",
+      "only-started": "Només iniciats",
+      "back-to-deployment": "Torna al desplegament",
+      "view": {
+        "grid": "Vista en graella",
+        "single": "Vista completa"
       }
     },
     "shared-deployments": {

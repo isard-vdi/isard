@@ -71,6 +71,10 @@
       "title": "Gestión de despliegues",
       "subtitle": "Consulta los detalles del despliegue y revisa el estado de los usuarios"
     },
+    "deployment-videowall": {
+      "title": "Videowall",
+      "subtitle": "Vista en directo de cada escritorio del despliegue"
+    },
     "shared-deployments": {
       "title": "Compartidos contigo",
       "subtitle": "Empieza a trabajar con despliegues creados para ti"
@@ -661,6 +665,17 @@
         "previous": "Anterior",
         "next": "Siguiente",
         "create-deployment": "Crear Despliegue"
+      }
+    },
+    "deployment-videowall": {
+      "gpu-warning": "El videowall no funciona con visores RDP",
+      "desktop-not-available": "Escritorio no disponible",
+      "filter-placeholder": "Filtrar por usuario",
+      "only-started": "Solo iniciados",
+      "back-to-deployment": "Volver al despliegue",
+      "view": {
+        "grid": "Vista en cuadrícula",
+        "single": "Vista completa"
       }
     },
     "shared-deployments": {

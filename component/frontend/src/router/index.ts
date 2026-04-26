@@ -222,6 +222,15 @@ const router = createRouter({
                 title: 'router.deployment.title',
                 subtitle: 'router.deployment.subtitle'
               }
+            },
+            {
+              path: ':deploymentId/videowall',
+              name: 'deployment-videowall',
+              component: () => import('../views/deployments/DeploymentVideowallView.vue'),
+              meta: {
+                title: 'router.deployment-videowall.title',
+                subtitle: 'router.deployment-videowall.subtitle'
+              }
             }
           ]
         },

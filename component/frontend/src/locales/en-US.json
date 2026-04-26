@@ -78,6 +78,10 @@
       "title": "Deployment management",
       "subtitle": "View deployment details and review user status"
     },
+    "deployment-videowall": {
+      "title": "Videowall",
+      "subtitle": "Live view of every desktop in this deployment"
+    },
     "shared-deployments": {
       "title": "Shared with you",
       "subtitle": "Start working with deployments created for you"
@@ -740,6 +744,17 @@
         "previous": "Previous",
         "next": "Next",
         "create-deployment": "Create Deployment"
+      }
+    },
+    "deployment-videowall": {
+      "gpu-warning": "Videowall does not work with RDP viewers",
+      "desktop-not-available": "Desktop not available",
+      "filter-placeholder": "Filter by user",
+      "only-started": "Only started",
+      "back-to-deployment": "Back to deployment",
+      "view": {
+        "grid": "Grid view",
+        "single": "Full view"
       }
     },
     "shared-deployments": {
