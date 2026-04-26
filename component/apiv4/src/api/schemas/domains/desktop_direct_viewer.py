@@ -50,6 +50,7 @@ class ViewerProtocol(str, Enum):
     VNC = "vnc"
     RDP = "rdp"
     RDPGW = "rdpgw"
+    RDPVPN = "rdpvpn"
 
 
 class ScheduledModel(BaseModel):
@@ -84,14 +85,41 @@ class BrowserVNCViewer(BaseModel):
     values: BrowserVNCValues
 
 
+class BrowserRDPValues(BaseModel):
+    vmName: str
+    vmHost: str
+    vmUsername: str
+    vmPassword: str
+    host: str
+    port: str
+    exp: float
+
+
 class BrowserRDPViewer(BaseModel):
     kind: ViewerKind
     protocol: ViewerProtocol
+    viewer: str
+    urlp: str
+    cookie: str
+    values: BrowserRDPValues
 
 
 class FileRDPGWViewer(BaseModel):
     kind: ViewerKind
     protocol: ViewerProtocol
+    name: str
+    ext: str
+    mime: str
+    content: str
+
+
+class FileRDPVPNViewer(BaseModel):
+    kind: ViewerKind
+    protocol: ViewerProtocol
+    name: str
+    ext: str
+    mime: str
+    content: str
 
 
 class ViewersModel(BaseModel):
@@ -99,6 +127,7 @@ class ViewersModel(BaseModel):
     browser_vnc: Optional[BrowserVNCViewer] = Field(None, alias="browser-vnc")
     browser_rdp: Optional[BrowserRDPViewer] = Field(None, alias="browser-rdp")
     file_rdpgw: Optional[FileRDPGWViewer] = Field(None, alias="file-rdpgw")
+    file_rdpvpn: Optional[FileRDPVPNViewer] = Field(None, alias="file-rdpvpn")
 
     model_config = {"populate_by_name": True}
 
