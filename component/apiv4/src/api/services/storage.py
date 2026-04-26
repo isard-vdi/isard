@@ -128,7 +128,7 @@ def get_user_ready_disks(user_id):
                     "domains": r.table("domains")
                     .get_all(disk["id"], index="storage_ids")
                     .filter({"user": user_id})
-                    .pluck("id", "name")
+                    .pluck("id", "name", "status")
                     .coerce_to("array"),
                 }
             )
