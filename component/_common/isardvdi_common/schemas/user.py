@@ -8,7 +8,7 @@ USER_ROLE = Literal["user", "advanced", "manager", "admin"]
 class UserFromCSV(BaseModel):
     """_From api/schemas/user_from_csv.yml_"""
 
-    username: str = Field(pattern="^[A-Za-z0-9._@%+-]+$", max_length=40)
+    username: str = Field(pattern="^[\\-A-Za-z0-9._@%+]+$", max_length=40)
     name: str = Field(max_length=50)
     email: str = ""
     group: str
