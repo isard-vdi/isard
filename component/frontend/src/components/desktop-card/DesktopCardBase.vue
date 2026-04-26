@@ -138,12 +138,16 @@ const desktopKindStyle = computed(() => {
         </ContextMenu>
       </div>
 
-      <div
-        :class="cardImageVariants({ size })"
-        :style="{
-          backgroundImage: `url(${props.imageUrl})`
-        }"
-      >
+      <div :class="cardImageVariants({ size })">
+        <slot name="image">
+          <div
+            class="absolute inset-0 bg-center bg-cover"
+            :style="{
+              backgroundImage: `url(${props.imageUrl})`
+            }"
+          />
+        </slot>
+
         <div :class="cardHeaderActionsVariants({ size })">
           <slot name="header-actions" />
         </div>

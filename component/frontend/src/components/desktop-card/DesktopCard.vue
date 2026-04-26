@@ -19,7 +19,8 @@ import {
   DesktopCardHeader,
   DesktopCardHeaderActions,
   DesktopCardIp,
-  DesktopCardNetworksOverlay
+  DesktopCardNetworksOverlay,
+  DesktopCardPreview
 } from '.'
 import { ContextMenuContent, ContextMenuItem } from '@/components/ui/context-menu'
 
@@ -118,6 +119,14 @@ const desktopKind = computed(() => {
     :desktop-kind="desktopKind"
     :image-url="props.desktop.image?.url ?? ''"
   >
+    <template #image>
+      <DesktopCardPreview
+        :desktop="desktop"
+        :image-url="props.desktop.image?.url ?? ''"
+        :size="props.size"
+      />
+    </template>
+
     <template #debug-options-content>
       <ContextMenuContent class="bg-white border border-gray-warm-300 rounded-lg">
         <ContextMenuItem @click="copyToClipboard(props.desktop.id)">{{
