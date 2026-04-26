@@ -72,7 +72,7 @@ export const desktopActionsData = (status: string, needsBooking = false): Deskto
         viewers: false,
         text: {
           icon: 'loading-02',
-          iconClass: 'motion-safe:animate-[spin_2s_linear_infinite]',
+          iconClass: 'animate-spin',
           iconColor: 'gray-600'
         }
       }

@@ -18,12 +18,7 @@ const props = withDefaults(defineProps<Props>(), {})
 <template>
   <div class="text-base-white text-sm font-medium flex items-center gap-2">
     <template v-if="props.desktopStatus === DesktopStatusEnum.WAITING_IP">
-      <Icon
-        name="loading-02"
-        size="md"
-        class="motion-safe:animate-[spin_2s_linear_infinite]"
-        stroke-color="base-white"
-      />
+      <Icon name="loading-02" size="md" class="animate-spin" stroke-color="base-white" />
       {{ t('components.desktops.desktop-card.status.waitingip.text') }}
     </template>
     <template v-else-if="props.desktopIp">
