@@ -62,6 +62,20 @@ WARNING_STATUSES = {"WARNING"}
 ERROR_STATUSES = {"ERROR", "FAILED"}
 FATAL_STATUSES = {"FATAL", "CRITICAL"}
 
+# Patterns whose presence alone should not raise an action above SUCCESS.
+# Borg always prints these on stderr regardless of severity; treating them as
+# warnings created false alarms and pointless WARNING reports.
+INFORMATIONAL_PATTERNS_GLOBAL: Tuple[str, ...] = (
+    "Attempting to access a previously unknown unencrypted repository",
+    "Backing up source finished with warnings",
+)
+# Per-action-type informational patterns. "file changed while we backed it up"
+# is expected for live VM disk backup but would be a real concern if it
+# appeared during a controlled dump (db, redis, config), so it is scoped.
+INFORMATIONAL_PATTERNS_BY_TYPE: Dict[str, Tuple[str, ...]] = {
+    "disks": ("file changed while we backed it up",),
+}
+
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -76,6 +90,7 @@ class BackupAction:
     status: str = "UNKNOWN"
     duration: Optional[float] = None
     messages: List[str] = field(default_factory=list)
+    info_messages: List[str] = field(default_factory=list)
     borg_statistics: Optional[Dict[str, Any]] = None
     compact_results: Optional[Dict[str, Any]] = None
 
@@ -294,6 +309,21 @@ def log_mtime_year(log_path: str) -> int:
         return datetime.now().year
 
 
+def _is_informational(line: str, action_kind: str) -> bool:
+    if any(p in line for p in INFORMATIONAL_PATTERNS_GLOBAL):
+        return True
+    for p in INFORMATIONAL_PATTERNS_BY_TYPE.get(action_kind, ()):
+        if p in line:
+            return True
+    return False
+
+
+def _demote_informational_warnings(actions: List["BackupAction"]) -> None:
+    for a in actions:
+        if a.status in WARNING_STATUSES and not a.messages and a.info_messages:
+            a.status = "SUCCESS"
+
+
 # ---------------------------------------------------------------------------
 # Log parsing
 # ---------------------------------------------------------------------------
@@ -447,8 +477,12 @@ class BackupLogParser:
             elif current and (
                 "Warning:" in line or "Error:" in line or "Fatal:" in line
             ):
-                current.messages.append(line)
+                if _is_informational(line, current.classify()):
+                    current.info_messages.append(line)
+                else:
+                    current.messages.append(line)
 
+        _demote_informational_warnings(actions)
         return actions
 
     # -----------------------------------------------------------------------
@@ -639,6 +673,7 @@ def _action_to_dict(action: BackupAction) -> Dict[str, Any]:
         "status": action.status,
         "duration": action.duration,
         "messages": action.messages,
+        "info_messages": action.info_messages,
     }
     if action.start_time:
         out["start_time"] = action.start_time.isoformat()
