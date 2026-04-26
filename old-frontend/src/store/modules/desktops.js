@@ -122,7 +122,23 @@ export default {
       state.directLink.enabled = null
     },
     setDesktops: (state, desktops) => {
-      state.desktops = desktops
+      // Race guard: a WS desktop_update can land between fetchDesktops
+      // dispatch and the REST response. If the REST snapshot still shows a
+      // transient state ("updating", "starting", "stopping", ...) but the
+      // in-memory copy has already advanced to a terminal state via WS
+      // ("started", "stopped", "failed"), keep the in-memory state — the
+      // REST snapshot is older than what the user already saw on screen.
+      const transient = ['updating', 'starting', 'stopping', 'shutting-down', 'creating', 'downloading', 'maintenance', 'working']
+      const terminal = ['started', 'stopped', 'failed', 'waitingip']
+      const prevById = new Map(state.desktops.map(d => [d.id, d]))
+      state.desktops = desktops.map(d => {
+        const prev = prevById.get(d.id)
+        if (!prev || !prev.state || !d.state) return d
+        const newS = String(d.state).toLowerCase()
+        const prevS = String(prev.state).toLowerCase()
+        if (transient.includes(newS) && terminal.includes(prevS)) return prev
+        return d
+      })
       state.desktops_loaded = true
     },
     updateViewers: (state, viewers) => {
