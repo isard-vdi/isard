@@ -24,6 +24,8 @@ from uuid import uuid4
 
 from api.services.cards import CardService
 from api.services.error import Error
+from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.desktop_nonpersistent_events import (
@@ -59,6 +61,23 @@ from isardvdi_common.models.targets import Targets as RethinkTargets
 from isardvdi_common.models.user import User as RethinkUser
 from isardvdi_common.models.videos import Video as RethinkVideos
 from isardvdi_common.schemas.domains import DesktopStatusEnum
+
+# Short TTL coalesces accidental double-clicks on the desktop card "View"
+# button. Each .vv download spawns a virt-viewer that opens a fresh SPICE
+# session, kicking the previous session — so a fast-fingered click would
+# previously leave the user with a frozen screen. 2 seconds is long enough
+# to swallow a double-click but far shorter than the time it takes the
+# engine to actually restart a domain (which is when the SPICE password
+# would legitimately rotate), so cache hits cannot serve stale credentials.
+_GET_DESKTOP_VIEWER_CACHE: TTLCache = TTLCache(maxsize=64, ttl=2)
+
+
+def _get_desktop_viewer_cache_key(
+    user_id, desktop_id, viewer_type, is_admin=False, request=None
+):
+    # Exclude `request` (unhashable) but keep user_id so each caller still
+    # gets an audit-log entry written on first hit within the TTL window.
+    return hashkey(user_id, desktop_id, viewer_type, is_admin)
 
 
 class DesktopService:
@@ -646,8 +665,12 @@ class DesktopService:
                 f"Desktop with ID {desktop_id} not found",
                 description_code="not_found",
             )
-        Logging.logs_domain_stop_api(desktop_id, user_id)
+        # Status flip BEFORE the audit-log write — same reasoning as in
+        # `start_desktop`. Otherwise the audit-log update emits a changefeed
+        # event with the unchanged status and the frontend's optimistic
+        # `Stopping` reverts visibly before settling.
         DesktopEvents.desktop_stop(desktop_id=desktop_id, force=force)
+        Logging.logs_domain_stop_api(desktop_id, user_id)
         SchedulerHelper.remove_desktop_timeouts(desktop_id)
         return desktop_id
 
@@ -755,8 +778,14 @@ class DesktopService:
             except Error as e:
                 if payload["role_id"] not in ["admin", "manager"]:
                     raise e
-        Logging.logs_domain_start_api(desktop_id, user_id, user_request=request)
+        # Flip status to Starting BEFORE writing the audit-log id. Both
+        # writes hit the `domains` row, but only the status flip carries the
+        # new status — if the audit-log update lands first, its changefeed
+        # event emits status=Stopped (unchanged), which races the optimistic
+        # frontend flip and makes the desktop card visibly flicker
+        # Stopped → Starting → Stopped → Starting before settling.
         DesktopEvents.desktop_start(desktop_id=desktop_id)
+        Logging.logs_domain_start_api(desktop_id, user_id, user_request=request)
         SchedulerHelper.add_desktop_timeouts(payload, desktop_id)
 
         return desktop_id
@@ -1099,6 +1128,7 @@ class DesktopService:
             RethinkTargets.update_domain_target(desktop_id, bastion_data)
 
     @staticmethod
+    @cached(_GET_DESKTOP_VIEWER_CACHE, key=_get_desktop_viewer_cache_key)
     def get_desktop_viewer(
         user_id, desktop_id, viewer_type, is_admin=False, request=None
     ):

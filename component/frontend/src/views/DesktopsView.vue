@@ -56,6 +56,7 @@ import {
 import { cn } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
+import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
 
 import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
 
@@ -176,24 +177,40 @@ const quotaExceededModalData = ref<{
   cancelLabel: string
 } | null>(null)
 
+const desktopsKey = getUserDesktopsApiV4ItemsDesktopsGetQueryKey()
+
 const {
   mutate: desktopStart,
   mutateAsync: desktopStartAsync,
   isPending: desktopStartIsPending,
   isError: desktopStartIsError,
   error: desktopStartError
-} = useMutation({
-  ...startDesktopApiV4ItemDesktopDesktopIdStartPutMutation(),
-  onError: (error: ErrorResponse) => {
-    if (error.description_code === 'desktop_start_user_quota_exceeded') {
-      quotaExceededModalData.value = {
-        title: t('components.desktops.start-quota-exceeded-modal.title'),
-        description: t('components.desktops.start-quota-exceeded-modal.description'),
-        cancelLabel: t('components.desktops.start-quota-exceeded-modal.cancel')
+} = useMutation(
+  withOptimisticItemStatus<{ path: { desktop_id: string } }, UserDesktop, 'desktops'>({
+    queryClient,
+    queryKey: desktopsKey,
+    listKey: 'desktops',
+    extractItemId: (vars) => vars.path.desktop_id,
+    nextStatus: DesktopStatusEnum.STARTING,
+    // Mirror DesktopEvents.desktop_start: only Stopped/Failed accept a start.
+    // Skipping the optimistic flip on already-Started rows prevents a flicker
+    // (Started → Starting → Started) from re-firing the engine path and
+    // regenerating the SPICE password live.
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STOPPED || current === DesktopStatusEnum.FAILED,
+    baseMutation: startDesktopApiV4ItemDesktopDesktopIdStartPutMutation(),
+    onError: (error) => {
+      const err = error as ErrorResponse
+      if (err.description_code === 'desktop_start_user_quota_exceeded') {
+        quotaExceededModalData.value = {
+          title: t('components.desktops.start-quota-exceeded-modal.title'),
+          description: t('components.desktops.start-quota-exceeded-modal.description'),
+          cancelLabel: t('components.desktops.start-quota-exceeded-modal.cancel')
+        }
       }
     }
-  }
-})
+  })
+)
 
 const {
   mutate: desktopStop,
@@ -201,7 +218,22 @@ const {
   isPending: desktopStopIsPending,
   isError: desktopStopIsError,
   error: desktopStopError
-} = useMutation(stopDesktopApiV4ItemDesktopDesktopIdStopPutMutation())
+} = useMutation(
+  withOptimisticItemStatus<{ path: { desktop_id: string } }, UserDesktop, 'desktops'>({
+    queryClient,
+    queryKey: desktopsKey,
+    listKey: 'desktops',
+    extractItemId: (vars) => vars.path.desktop_id,
+    nextStatus: DesktopStatusEnum.STOPPING,
+    nextStatusGuard: (current) =>
+      current === DesktopStatusEnum.STARTED ||
+      current === DesktopStatusEnum.WAITING_IP ||
+      current === DesktopStatusEnum.SHUTTING_DOWN ||
+      current === DesktopStatusEnum.PAUSED ||
+      current === DesktopStatusEnum.SUSPENDED,
+    baseMutation: stopDesktopApiV4ItemDesktopDesktopIdStopPutMutation()
+  })
+)
 
 const {
   mutate: submitDesktopUpdateStatus,
@@ -209,7 +241,16 @@ const {
   isPending: submitDesktopUpdateStatusIsPending,
   isError: submitDesktopUpdateStatusIsError,
   error: submitDesktopUpdateStatusError
-} = useMutation(updateStatusDesktopApiV4ItemDesktopDesktopIdUpdateStatusPutMutation())
+} = useMutation(
+  withOptimisticItemStatus<{ path: { desktop_id: string } }, UserDesktop, 'desktops'>({
+    queryClient,
+    queryKey: desktopsKey,
+    listKey: 'desktops',
+    extractItemId: (vars) => vars.path.desktop_id,
+    nextStatus: DesktopStatusEnum.UPDATING,
+    baseMutation: updateStatusDesktopApiV4ItemDesktopDesktopIdUpdateStatusPutMutation()
+  })
+)
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -278,12 +319,18 @@ const {
   isPending: deleteDesktopIsPending,
   isError: deleteDesktopIsError,
   error: deleteDesktopError
-} = useMutation({
-  ...deleteDesktopApiV4ItemDesktopDesktopIdDeleteMutation(),
-  onSuccess: () => {
-    closeDeleteModal()
-  }
-})
+} = useMutation(
+  withOptimisticItemRemoval<{ path: { desktop_id: string } }, UserDesktop, 'desktops'>({
+    queryClient,
+    queryKey: desktopsKey,
+    listKey: 'desktops',
+    extractItemId: (vars) => vars.path.desktop_id,
+    baseMutation: deleteDesktopApiV4ItemDesktopDesktopIdDeleteMutation(),
+    onSuccess: () => {
+      closeDeleteModal()
+    }
+  })
+)
 
 const closeDeleteModal = () => {
   deleteModalRecicleBinChecked.value = recycleBinDefaultDelete.value
@@ -338,60 +385,79 @@ const anyDesktopStarted = computed(() => {
       DesktopStatusEnum.STARTING,
       DesktopStatusEnum.STARTED,
       DesktopStatusEnum.SHUTTING_DOWN,
+      DesktopStatusEnum.STOPPING,
       DesktopStatusEnum.WAITING_IP
     ].includes(desktop.status)
   )
 })
 
-const fetchAndOpenViewer = async (
+// In-flight de-dup: a SPICE viewer download triggers `virt-viewer` to open
+// a new SPICE session, and SPICE servers don't multiplex by default — a
+// second viewer kicks the first. Coalesce overlapping clicks for the same
+// (desktop, viewer_type) so a double-click produces one .vv, not two.
+const viewerFetchInflight = new Map<string, Promise<void>>()
+
+const fetchAndOpenViewer = (
   desktopId: string,
   viewer: GetDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGetData['path']['viewer_type']
-) => {
+): Promise<void> => {
   // TODO: use a mutation
-  const { error, data } = await getDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGet({
-    path: {
-      desktop_id: desktopId,
-      viewer_type: viewer // as GetDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGetData['path']['viewer_type']
+  const key = `${desktopId}:${viewer}`
+  const existing = viewerFetchInflight.get(key)
+  if (existing) return existing
+
+  const run = async () => {
+    const { error, data } = await getDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGet({
+      path: {
+        desktop_id: desktopId,
+        viewer_type: viewer
+      }
+    })
+
+    if (error) {
+      console.error('Error fetching desktop info:', error)
+      return
     }
+
+    // store prefered viewer in localStorage
+    const updatedPreferedViewers = {
+      ...preferedViewers.value,
+      [desktopId]: viewer
+    }
+    localStorage.value = JSON.stringify(updatedPreferedViewers)
+
+    if (data.kind === 'browser') {
+      const cookieOpts: CookieSetOptions = {
+        path: '/',
+        sameSite: 'strict'
+      }
+
+      if (data.protocol === 'rdp') {
+        cookies.set('viewerToken', cookies.get(sessionTokenName), cookieOpts)
+      }
+      cookies.set('browser_viewer', data.cookie, cookieOpts)
+
+      window.open(data.viewer || undefined, '_blank')
+    } else if (data.kind === 'file') {
+      // TODO: check if this can be done without creating an element
+      const el = document.createElement('a')
+      el.setAttribute(
+        'href',
+        `data:${data.mime};charset=utf-8,${encodeURIComponent(data.content || '')}`
+      )
+      el.setAttribute('download', `${data.name}.${data.ext}`)
+      el.style.display = 'none'
+      document.body.appendChild(el)
+      el.click()
+      document.body.removeChild(el)
+    }
+  }
+
+  const promise = run().finally(() => {
+    viewerFetchInflight.delete(key)
   })
-
-  if (error) {
-    console.error('Error fetching desktop info:', error)
-    return
-  }
-
-  // store prefered viewer in localStorage
-  const updatedPreferedViewers = {
-    ...preferedViewers.value,
-    [desktopId]: viewer
-  }
-  localStorage.value = JSON.stringify(updatedPreferedViewers)
-
-  if (data.kind === 'browser') {
-    const cookieOpts: CookieSetOptions = {
-      path: '/',
-      sameSite: 'strict'
-    }
-
-    if (data.protocol === 'rdp') {
-      cookies.set('viewerToken', cookies.get(sessionTokenName), cookieOpts)
-    }
-    cookies.set('browser_viewer', data.cookie, cookieOpts)
-
-    window.open(data.viewer || undefined, '_blank')
-  } else if (data.kind === 'file') {
-    // TODO: check if this can be done without creating an element
-    const el = document.createElement('a')
-    el.setAttribute(
-      'href',
-      `data:${data.mime};charset=utf-8,${encodeURIComponent(data.content || '')}`
-    )
-    el.setAttribute('download', `${data.name}.${data.ext}`)
-    el.style.display = 'none'
-    document.body.appendChild(el)
-    el.click()
-    document.body.removeChild(el)
-  }
+  viewerFetchInflight.set(key, promise)
+  return promise
 }
 
 // --------------------------------------------------
