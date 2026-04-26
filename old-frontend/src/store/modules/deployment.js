@@ -166,7 +166,14 @@ export default {
       }
     },
     fetchDeployment (context, data) {
-      axios.get(`${apiV3Segment}/item/deployment/${data.id}`).then(response => {
+      // The Vue 2 detail page (Deployment.vue) renders a flat list of desktops
+      // tagged in the deployment. apiv4's /item/deployment/{id} returns
+      // {info, users} where each user only carries desktops_statuses counts,
+      // so it's not enough on its own. The /videowall endpoint returns the
+      // legacy flat {…, desktops:[…]} shape parseDeployment was written for,
+      // and apiv4 also enriches it with total_users/total_desktops/desktops_each_user
+      // so the recreate confirmation count is populated.
+      axios.get(`${apiV3Segment}/item/deployment/${data.id}/videowall`).then(response => {
         context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -182,9 +189,16 @@ export default {
     setSelectedDesktop (context, selectedDesktop) {
       context.commit('setSelectedDesktop', selectedDesktop)
     },
-    toggleVisible (_, payload) {
+    toggleVisible (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(payload.visible ? 'messages.info.making-invisible-deployment' : 'messages.info.making-visible-deployment'), '', true, 1000)
-      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/toggle-visibility`, { stop_started_domains: payload.stopStartedDomains }).catch(e => {
+      axios.put(`${apiV3Segment}/item/deployment/${payload.id}/toggle-visibility`, { stop_started_domains: payload.stopStartedDomains }).then(() => {
+        // The change-handler `deployments_update` event will eventually push
+        // the new value, but apply it locally now so the StatusBar icon and
+        // the in-flight modal show the new state immediately.
+        if (context.state.deployment && context.state.deployment.id === payload.id) {
+          context.commit('update_deployment', { visible: !payload.visible })
+        }
+      }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
@@ -275,8 +289,7 @@ export default {
         }
       })
     },
-    goToEditDeployment (context, editDeploymentId) {
-      context.commit('setEditDeploymentId', editDeploymentId)
+    goToEditDeployment (_context, editDeploymentId) {
       router.replace({ name: 'deploymentEdit', params: { id: editDeploymentId } })
     },
     fetchDeploymentInfo (context, deploymentId) {

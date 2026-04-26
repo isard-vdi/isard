@@ -1109,7 +1109,7 @@
   "messages": {
     "confirmation": {
       "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?",
-      "recreate-deployment": "\"{name}\"ren ezabatutako mahaigainak birsortuko dira, jarraitu?",
+      "recreate-deployment": "\"{name}\": {count} mahaigain falta dira eta sortuko dira oraindik ez dutenentzat. Jarraitu?",
       "visible-deployment": "Mahaigainak ikusgai egongo dira",
       "delete-event": "\"{name}\"ren erreserba ezabatuko da, jarraitu?",
       "start-deployment-desktops": "'{name}'ren mahaigainak abiaraziko dira, jarraitu?",

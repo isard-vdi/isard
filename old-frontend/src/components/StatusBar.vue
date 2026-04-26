@@ -671,7 +671,10 @@ export default {
             setDisableRecreateButton(false)
           }
 
-          context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name })}`, {
+          const existing = (deployment.value.desktops || []).length
+          const target = deployment.value.totalDesktops || 0
+          const toCreate = Math.max(0, target - existing)
+          context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name, count: toCreate })}`, {
             position: 'centerTop',
             buttons: [
               { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },

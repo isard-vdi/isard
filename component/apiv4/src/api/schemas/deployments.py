@@ -561,10 +561,12 @@ class CoOwnerUser(BaseModel):
 
     id: str = Field(description="User ID")
     name: str = Field(description="User full name")
+    uid: Optional[str] = Field(default=None, description="User uid")
     photo: Optional[str] = Field(default=None, description="User photo URL")
 
 
 class CoOwnersResponse(BaseModel):
+    owner: CoOwnerUser = Field(description="Primary owner of the deployment")
     co_owners: list[CoOwnerUser] = Field(
         description="List of co-owners of the deployment"
     )

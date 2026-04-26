@@ -1426,7 +1426,7 @@
     "confirmation": {
       "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
       "visible-deployment": "Los escritorios serán visibles",
-      "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
+      "recreate-deployment": "'{name}': se crearán {count} escritorio(s) que faltan para los usuarios de los grupos/usuarios permitidos que aún no tienen uno. ¿Continuar?",
       "edit-deployment": "Los escritorios de '{name}' se editarán, continuar?",
       "delete-deployment": "'{name}' se borrará, continuar?",
       "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
