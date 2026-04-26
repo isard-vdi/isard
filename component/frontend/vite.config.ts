@@ -36,6 +36,9 @@ export default defineConfig({
     __INTLIFY_DROP_MESSAGE_COMPILER__: false
   },
   build: {
+    // ES2022 needed for top-level await — used by @novnc/novnc 1.6+ in
+    // core/util/browser.js for the H.264 WebCodecs capability probe.
+    target: 'es2022',
     commonjsOptions: {
       transformMixedEsModules: true
     }
