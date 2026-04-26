@@ -14,6 +14,7 @@ from gen_changefeed_asyncapi import (
     _camel,
     _change_schema,
     _envelope_schema,
+    _nullable_row_schema,
     _permissive_row_schema,
     _row_schema_from_model,
     _try_load_model,
@@ -183,21 +184,33 @@ class TestPermissiveRowSchema:
         assert schema["properties"] == {"table": {"type": "string"}}
 
 
+class TestNullableRowSchema:
+    def test_oneOf_ref_and_null(self):
+        # Naming the wrapper (rather than inlining oneOf inside _change_schema)
+        # is the regression guard against modelina's "anonymous_schema_N
+        # → AnyModel" warnings that wiped out new_val / old_val typing.
+        schema = _nullable_row_schema("DomainsRow")
+
+        variants = schema["oneOf"]
+        assert {"$ref": "#/components/schemas/DomainsRow"} in variants
+        assert {"type": "null"} in variants
+
+
 class TestChangeSchema:
     def test_has_old_and_new_val(self):
-        schema = _change_schema("DomainsRow")
+        schema = _change_schema("NullableDomainsRow")
 
         assert schema["type"] == "object"
         assert "new_val" in schema["properties"]
         assert "old_val" in schema["properties"]
 
-    def test_both_values_are_nullable_refs(self):
-        schema = _change_schema("DomainsRow")
+    def test_both_values_reference_nullable_row(self):
+        schema = _change_schema("NullableDomainsRow")
 
         for key in ("new_val", "old_val"):
-            variants = schema["properties"][key]["oneOf"]
-            assert {"$ref": "#/components/schemas/DomainsRow"} in variants
-            assert {"type": "null"} in variants
+            assert schema["properties"][key] == {
+                "$ref": "#/components/schemas/NullableDomainsRow"
+            }
 
 
 class TestEnvelopeSchema:
@@ -362,13 +375,14 @@ class TestBuildSpec:
         msg = spec["components"]["messages"]["FooChangeEnvelope"]
         assert msg["payload"] == {"$ref": "#/components/schemas/FooChangeEnvelope"}
 
-    def test_three_schemas_per_table(self, monkeypatch):
+    def test_four_schemas_per_table(self, monkeypatch):
         monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
 
         spec = build_spec([{"table": "foo"}])
 
         schemas = spec["components"]["schemas"]
         assert "FooRow" in schemas
+        assert "NullableFooRow" in schemas
         assert "FooChange" in schemas
         assert "FooChangeEnvelope" in schemas
 
@@ -498,10 +512,10 @@ class TestRealTablesJson:
         assert len(spec["channels"]) == table_count + stream_count
         # One operation per channel
         assert len(spec["operations"]) == table_count + stream_count
-        # Three schemas per table (Row + Change + Envelope)
-        assert len(spec["components"]["schemas"]) == 3 * table_count
+        # Four schemas per table (Row + NullableRow + Change + Envelope)
+        assert len(spec["components"]["schemas"]) == 4 * table_count
 
-    def test_every_table_has_its_three_schemas(self, monkeypatch, real_tables):
+    def test_every_table_has_its_four_schemas(self, monkeypatch, real_tables):
         monkeypatch.setattr("gen_changefeed_asyncapi.TABLE_TO_CLASS", {})
 
         spec = build_spec(real_tables)
@@ -510,6 +524,7 @@ class TestRealTablesJson:
         for entry in real_tables:
             camel = _camel(entry["table"])
             assert f"{camel}Row" in schemas
+            assert f"Nullable{camel}Row" in schemas
             assert f"{camel}Change" in schemas
             assert f"{camel}ChangeEnvelope" in schemas
 

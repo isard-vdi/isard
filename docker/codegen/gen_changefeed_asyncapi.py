@@ -60,6 +60,10 @@ def _row_schema_name(table: str) -> str:
     return f"{_camel(table)}Row"
 
 
+def _nullable_row_schema_name(table: str) -> str:
+    return f"Nullable{_camel(table)}Row"
+
+
 def _envelope_schema_name(table: str) -> str:
     return f"{_camel(table)}ChangeEnvelope"
 
@@ -179,9 +183,21 @@ def _permissive_row_schema() -> dict[str, Any]:
     }
 
 
-def _change_schema(row_ref: str) -> dict[str, Any]:
-    row = {"$ref": f"#/components/schemas/{row_ref}"}
-    nullable_row = {"oneOf": [row, {"type": "null"}]}
+def _nullable_row_schema(row_ref: str) -> dict[str, Any]:
+    # Naming this wrapper (rather than inlining ``oneOf: [$ref, null]`` inside
+    # the change schema) is what stops modelina from emitting one
+    # ``anonymous_schema_N`` warning per table and falling back to ``AnyModel``
+    # for ``new_val`` / ``old_val`` in the generated Pydantic *Change models.
+    return {
+        "oneOf": [
+            {"$ref": f"#/components/schemas/{row_ref}"},
+            {"type": "null"},
+        ],
+    }
+
+
+def _change_schema(nullable_row_ref: str) -> dict[str, Any]:
+    nullable_row = {"$ref": f"#/components/schemas/{nullable_row_ref}"}
     return {
         "type": "object",
         "properties": {
@@ -218,6 +234,7 @@ def build_spec(tables: list[dict[str, Any]]) -> dict[str, Any]:
         is_stream = bool(entry.get("stream"))
         camel = _camel(table_name)
         row_name = _row_schema_name(table_name)
+        nullable_row_name = _nullable_row_schema_name(table_name)
         change_name = _change_schema_name(table_name)
         envelope_name = _envelope_schema_name(table_name)
 
@@ -229,8 +246,9 @@ def build_spec(tables: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             schemas[row_name] = _permissive_row_schema()
 
-        # Change + envelope schemas
-        schemas[change_name] = _change_schema(row_name)
+        # Nullable row + change + envelope schemas
+        schemas[nullable_row_name] = _nullable_row_schema(row_name)
+        schemas[change_name] = _change_schema(nullable_row_name)
         schemas[envelope_name] = _envelope_schema(table_name, change_name)
 
         # Message
@@ -273,6 +291,9 @@ def build_spec(tables: list[dict[str, Any]]) -> dict[str, Any]:
             }
 
     return {
+        # Pinned to 3.0.0 because @asyncapi/cli@6.0.0's bundled Python model
+        # generator (modelina) cannot parse 3.1.0 specs and emits zero models.
+        # Bumping is gated on modelina shipping 3.1.0 support.
         "asyncapi": "3.0.0",
         "info": {
             "title": "IsardVDI Changefeed",
