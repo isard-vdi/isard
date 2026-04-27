@@ -214,7 +214,7 @@ class Actions:
                 "element": "select2",
                 "ajax": {
                     "type": "POST",
-                    "url": "/admin/alloweds/term/domains",
+                    "url": "/admin/allowed/term/domains",
                     "url_id": None,
                     "data": {"pluck": ["id", "name"]},
                     "ids": "id",
@@ -244,7 +244,7 @@ class Actions:
                 "element": "select2",
                 "ajax": {
                     "type": "POST",
-                    "url": "/admin/alloweds/term/deployments",
+                    "url": "/admin/allowed/term/deployments",
                     "url_id": None,
                     "data": {"pluck": ["id", "name"]},
                     "ids": "id",
@@ -523,7 +523,7 @@ class Actions:
 
     def delete_expired_notifications_data(**kwargs):
         try:
-            api_client.delete("/notifications/expired")
+            api_client.delete("/items/notifications/expired")
         except:
             log.error(
                 "Exception when deleting expired notifications: "
