@@ -342,10 +342,6 @@ unit-test-changefeed:
 
 unit-test-webapp:
   <<: *python-test-base
-  rules:
-    - changes:
-        - webapp/**/*
-        - component/_common/**/*
   before_script:
     - apt-get update -qq && apt-get install -y -qq git > /dev/null
     - pip install -q -r webapp/docker/requirements.txt

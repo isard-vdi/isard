@@ -98,7 +98,12 @@ ci-lint:
 ci-test:
 	docker compose -f docker-compose.ci.yml run --rm check-codegen-freshness
 	docker compose -f docker-compose.ci.yml run --rm unit-test-apiv4
+	docker compose -f docker-compose.ci.yml run --rm unit-test-webapp
 	docker compose -f docker-compose.ci.yml run --rm unit-test-go
+
+.PHONY: ci-test-webapp
+ci-test-webapp:
+	docker compose -f docker-compose.ci.yml run --rm unit-test-webapp
 
 .PHONY: ci-fix
 ci-fix:

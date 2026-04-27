@@ -5,7 +5,6 @@ queues async deletes. Tests pin the not-found dispatch + the queue
 enqueue payload shape.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -63,29 +62,24 @@ class TestRestoreRecycleBinEntry:
 
 
 class TestDeleteRecycleBinEntry:
-    """The delete path is `async def`. apiv4's test deps don't include
-    `pytest-asyncio` yet, so drive each coroutine with `asyncio.run`
-    to keep tests dependency-free.
-    """
-
     @patch("api.services.recycle_bin.RethinkUser.exists", return_value=True)
     @patch("api.services.recycle_bin.RethinkRecycleBin.exists", return_value=True)
-    def test_enqueues_delete_action(self, _rb, _user):
+    async def test_enqueues_delete_action(self, _rb, _user):
         with patch("api.services.recycle_bin.RecycleBinDeleteQueue") as mock_q:
             instance = mock_q.return_value
             instance.enqueue = AsyncMock()
-            asyncio.run(RecycleBinService.delete_recycle_bin_entry("rb1", "u1"))
+            await RecycleBinService.delete_recycle_bin_entry("rb1", "u1")
             instance.enqueue.assert_awaited_once_with(
                 {"action": "delete", "recycle_bin_id": "rb1", "user_id": "u1"}
             )
 
     @patch("api.services.recycle_bin.RethinkRecycleBin.exists", return_value=False)
-    def test_raises_not_found_for_missing_entry(self, _rb):
+    async def test_raises_not_found_for_missing_entry(self, _rb):
         with pytest.raises(Error):
-            asyncio.run(RecycleBinService.delete_recycle_bin_entry("ghost", "u1"))
+            await RecycleBinService.delete_recycle_bin_entry("ghost", "u1")
 
     @patch("api.services.recycle_bin.RethinkUser.exists", return_value=False)
     @patch("api.services.recycle_bin.RethinkRecycleBin.exists", return_value=True)
-    def test_raises_not_found_for_missing_user(self, _rb, _user):
+    async def test_raises_not_found_for_missing_user(self, _rb, _user):
         with pytest.raises(Error):
-            asyncio.run(RecycleBinService.delete_recycle_bin_entry("rb1", "ghost"))
+            await RecycleBinService.delete_recycle_bin_entry("rb1", "ghost")
