@@ -21,10 +21,10 @@
 import os
 import re
 import time
-import urllib.request
 from urllib.parse import quote, urlparse
 from uuid import uuid4
 
+import requests
 from api.services.error import Error
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.helpers import Helpers
@@ -232,41 +232,59 @@ class MediaService:
         from isardvdi_common.helpers.url_validation import validate_url_not_internal
 
         validate_url_not_internal(quoted_url)
+
+        # Probe the source URL to confirm it's reachable and learn the
+        # advertised size. We use ``requests.get(stream=True)`` so the
+        # body is never downloaded — we just read response headers and
+        # close. Both the primary and the Mozilla-UA retry carry an
+        # explicit ``timeout`` to bound how long the apiv4 worker can
+        # wait on a remote server: the previous urllib retry passed no
+        # timeout at all, which wedged the entire async event loop the
+        # one time archive.org stalled mid-handshake.
+        _MOZILLA_UA = (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/35.0.1916.47 Safari/537.36"
+        )
         try:
-            response = urllib.request.urlopen(quoted_url, timeout=30)
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
+            probe = requests.get(
+                quoted_url, stream=True, allow_redirects=True, timeout=30
+            )
+            if probe.status_code == 404:
                 raise Error(
                     "not_found",
                     "The URL could not be found.",
                     description_code="media_url_not_found",
                 )
-            # Set Mozilla as user agent to avoid getting forbidden from download servers
-            req = urllib.request.Request(
-                quoted_url,
-                data=None,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36"
-                },
-            )
-            try:
-                response = urllib.request.urlopen(req)
-            except Exception:
+            if probe.status_code >= 400:
+                # Some upstreams 403 on the default UA; retry once with
+                # a browser-style UA before declaring the URL unreachable.
+                probe.close()
+                probe = requests.get(
+                    quoted_url,
+                    stream=True,
+                    allow_redirects=True,
+                    timeout=30,
+                    headers={"User-Agent": _MOZILLA_UA},
+                )
+            if probe.status_code >= 400:
+                probe.close()
                 raise Error(
                     "bad_request",
                     "The URL is not valid or accessible.",
                     description_code="media_url_not_valid",
                 )
-        except Exception:
+            content_length = probe.headers.get("Content-Length")
+            probe.close()
+        except Error:
+            raise
+        except requests.RequestException:
             raise Error(
                 "bad_request",
                 "The URL is not valid or accessible.",
                 description_code="media_url_not_valid",
             )
 
-        content_length = response.info().get("content-Length") or response.info().get(
-            "Content-Length"
-        )
         media_size = float(content_length) if content_length else 0
 
         Quotas.media_create(payload["user_id"], media_size)
