@@ -19,6 +19,9 @@ from io import StringIO
 import libvirt
 import paramiko
 import xmltodict
+from libpci import LibPCI
+from lxml import etree
+
 from engine.config import *
 from engine.services.db import (
     get_hyp_info,
@@ -60,8 +63,6 @@ from engine.services.lib.functions import (
 from engine.services.lib.libvirt_dicts import virDomainState
 from engine.services.lib.status import get_hypervisor_video_status
 from engine.services.log import *
-from libpci import LibPCI
-from lxml import etree
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = (
@@ -2507,8 +2508,9 @@ class hyp(object):
         }
 
         # Update database
-        from engine.services.db import close_rethink_connection, new_rethink_connection
         from rethinkdb import r
+
+        from engine.services.db import close_rethink_connection, new_rethink_connection
 
         r_conn = new_rethink_connection()
         try:

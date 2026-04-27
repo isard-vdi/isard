@@ -81,21 +81,30 @@ class TestDomainsDelegate:
         return h
 
     @pytest.mark.asyncio
-    @patch("isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status", return_value=True)
+    @patch(
+        "isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status",
+        return_value=True,
+    )
     async def test_delegate_insert_desktop(self, mock_status, handler):
         new_val = FakeRow(kind="desktop", status="Started", user="u1")
         await handler._delegate("on_insert", new_val)
         handler.desktop_handler.on_insert.assert_awaited_once_with(new_val)
 
     @pytest.mark.asyncio
-    @patch("isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status", return_value=True)
+    @patch(
+        "isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status",
+        return_value=True,
+    )
     async def test_delegate_insert_template(self, mock_status, handler):
         new_val = FakeRow(kind="template", status="Stopped", user="u1")
         await handler._delegate("on_insert", new_val)
         handler.template_handler.on_insert.assert_awaited_once_with(new_val)
 
     @pytest.mark.asyncio
-    @patch("isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status", return_value=True)
+    @patch(
+        "isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status",
+        return_value=True,
+    )
     async def test_delegate_update(self, mock_status, handler):
         old = FakeRow(kind="desktop", status="Stopped", user="u1")
         new = FakeRow(kind="desktop", status="Started", user="u1")
@@ -103,14 +112,20 @@ class TestDomainsDelegate:
         handler.desktop_handler.on_update.assert_awaited_once_with(old, new)
 
     @pytest.mark.asyncio
-    @patch("isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status", return_value=True)
+    @patch(
+        "isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status",
+        return_value=True,
+    )
     async def test_delegate_delete(self, mock_status, handler):
         old = FakeRow(kind="desktop", status="Stopped", user="u1")
         await handler._delegate("on_delete", old)
         handler.desktop_handler.on_delete.assert_awaited_once_with(old)
 
     @pytest.mark.asyncio
-    @patch("isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status", return_value=False)
+    @patch(
+        "isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status",
+        return_value=False,
+    )
     async def test_delegate_skips_engine_status(self, mock_status, handler):
         """Engine-transactional statuses should not be forwarded."""
         new_val = FakeRow(kind="desktop", status="CreatingDisk", user="u1")
@@ -119,7 +134,10 @@ class TestDomainsDelegate:
         handler.template_handler.on_insert.assert_not_awaited()
 
     @pytest.mark.asyncio
-    @patch("isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status", return_value=True)
+    @patch(
+        "isardvdi_change_handler.handlers.domains.Helpers._is_frontend_desktop_status",
+        return_value=True,
+    )
     async def test_delegate_insert_uses_new_val_for_kind(self, mock_status, handler):
         """on_insert passes new_val as positional old_val — _delegate must handle this."""
         new_val = FakeRow(kind="template", status="Stopped", user="u1")
@@ -128,7 +146,10 @@ class TestDomainsDelegate:
 
 
 @pytest.mark.asyncio
-@patch("isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop", side_effect=lambda d: d)
+@patch(
+    "isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop",
+    side_effect=lambda d: d,
+)
 async def test_desktop_owner_change_does_not_double_emit(
     mock_parse, desktop_handler, fake_socketio, domain_row_factory
 ):
@@ -150,7 +171,10 @@ async def test_desktop_owner_change_does_not_double_emit(
 @pytest.mark.asyncio
 @patch("isardvdi_change_handler.handlers.domains.Logging")
 @patch("isardvdi_change_handler.handlers.domains.Scheduler")
-@patch("isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop", side_effect=lambda d: d)
+@patch(
+    "isardvdi_change_handler.handlers.domains.DesktopsProcessed._parse_desktop",
+    side_effect=lambda d: d,
+)
 async def test_on_update_strips_start_logs_id_from_emitted_payload(
     mock_parse,
     mock_scheduler,

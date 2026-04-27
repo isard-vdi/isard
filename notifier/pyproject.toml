@@ -23,3 +23,10 @@ packages = ["src/notifier"]
 [tool.isardvdi.system-deps]
 apk-build = ["build-base", "libffi-dev", "musl-dev", "openssl-dev"]
 apk-runtime = ["libffi", "openssl", "util-linux"]
+
+[dependency-groups]
+test = [
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
+]

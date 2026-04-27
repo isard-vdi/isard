@@ -55,6 +55,7 @@ def __getattr__(name):
             if real is not None:
                 return real
         from isardvdi_common.helpers.error_base import ErrorBase
+
         return ErrorBase
     _resolving = True
     try:

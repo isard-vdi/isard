@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import isardvdi_changefeed.table_changefeed as table_changefeed
 import pytest
 import redis.exceptions as redis_err
-import isardvdi_changefeed.table_changefeed as table_changefeed
 from isardvdi_changefeed.table_changefeed import TableChangefeed
 
 

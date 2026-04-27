@@ -18,6 +18,7 @@ from time import sleep
 import libvirt
 import paramiko
 import xmltodict
+
 from engine.services.db import gen_new_mac, update_domain_status
 from engine.services.db.config import table_config_created_and_populated
 from engine.services.db.domains import (

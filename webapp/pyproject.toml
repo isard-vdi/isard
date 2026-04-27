@@ -15,9 +15,10 @@ dependencies = [
 
 [dependency-groups]
 test = [
-  "pytest==8.4.1",
-  "pytest-cov==6.2.1",
+  "pytest",
+  "pytest-cov",
   "pytest-mock==3.14.0",
+  "pytest-xdist",
 ]
 
 [build-system]

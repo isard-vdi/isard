@@ -25,11 +25,11 @@ import uuid
 from uuid import uuid4
 
 import grpc
-from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2
 from pydantic import BaseModel, Field
 from pydantic.experimental.missing_sentinel import MISSING
 from rethinkdb import r

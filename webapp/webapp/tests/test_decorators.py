@@ -21,6 +21,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+
 from webapp.views.decorators import (
     _get_maintenance,
     isAdmin,

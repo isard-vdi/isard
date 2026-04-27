@@ -18,3 +18,10 @@ packages = ["src/isardvdi_socketio"]
 [tool.isardvdi.system-deps]
 apk-build = ["build-base", "libffi-dev", "musl-dev", "openssl-dev"]
 apk-runtime = ["libffi", "openssl"]
+
+[dependency-groups]
+test = [
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
+]

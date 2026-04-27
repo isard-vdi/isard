@@ -12,6 +12,11 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from time import sleep
 
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.models.domain import Domain
+from rethinkdb import r
+from tabulate import tabulate
+
 from engine.config import (
     POLLING_INTERVAL_BACKGROUND,
     STATUS_POLLING_INTERVAL,
@@ -49,10 +54,6 @@ from engine.services.lib.functions import (
 from engine.services.lib.status import get_next_disk, get_next_hypervisor
 from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
-from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
-from isardvdi_common.models.domain import Domain
-from rethinkdb import r
-from tabulate import tabulate
 
 WAIT_HYP_ONLINE = 2.0
 

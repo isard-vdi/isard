@@ -30,10 +30,10 @@ dependencies = [
 
 [dependency-groups]
 test = [
-  "httpx==0.28.1",
-  "pytest==8.4.1",
-  "pytest-cov==6.2.1",
-  "pytest-xdist==3.6.1",
+  "httpx",
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
   "rethinkdb-mock @ git+https://github.com/isard-vdi/rethinkdb-mock.git@082aec0f78baa619e77bcb63d1f2fa6e2581e7a5",
 ]
 

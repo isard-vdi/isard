@@ -20,6 +20,10 @@ from pprint import pprint
 
 import xmltodict
 from cachetools import TTLCache, cached
+from lxml import etree
+from schema import And, Optional, Schema, Use
+from yattag import indent
+
 from engine.services.db import (
     get_and_update_personal_vlan_id_from_domain_id,
     get_dict_from_item_in_table,
@@ -37,9 +41,6 @@ from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
 from engine.services.lib.storage import _get_filename
 from engine.services.log import *
-from lxml import etree
-from schema import And, Optional, Schema, Use
-from yattag import indent
 
 DEFAULT_SPICE_VIDEO_COMPRESSION = "auto_glz"
 

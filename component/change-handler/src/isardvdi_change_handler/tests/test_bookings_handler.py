@@ -92,7 +92,10 @@ class TestBookingsHandler:
         "isardvdi_change_handler.handlers.bookings.DesktopsProcessed._parse_desktop",
         return_value={"id": "desk1", "user": "u1"},
     )
-    @patch("isardvdi_change_handler.handlers.bookings.Domain.get", return_value={"id": "desk1"})
+    @patch(
+        "isardvdi_change_handler.handlers.bookings.Domain.get",
+        return_value={"id": "desk1"},
+    )
     async def test_desktop_booking_emits_single_desktop_update(
         self, _mock_domain, _mock_parse, handler
     ):
@@ -108,9 +111,13 @@ class TestBookingsHandler:
         deployments / desktops. Anything other than those two `item_type`
         values is silently dropped — pin that contract.
         """
-        with patch("isardvdi_change_handler.handlers.bookings.DeploymentsProcessed") as mock_dep, patch(
+        with patch(
+            "isardvdi_change_handler.handlers.bookings.DeploymentsProcessed"
+        ) as mock_dep, patch(
             "isardvdi_change_handler.handlers.bookings.DesktopsProcessed"
-        ) as mock_desk, patch("isardvdi_change_handler.handlers.bookings.Domain") as mock_domain:
+        ) as mock_desk, patch(
+            "isardvdi_change_handler.handlers.bookings.Domain"
+        ) as mock_domain:
             await handler.on_insert(_booking(item_type=item_type))
             events = [c[0][0] for c in handler.socketio_server.emit.call_args_list]
             assert events == ["booking_add", "bookingitem_add"]
