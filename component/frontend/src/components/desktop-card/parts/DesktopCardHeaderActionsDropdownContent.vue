@@ -28,6 +28,7 @@ const emit = defineEmits<{
   createTemplate: []
   bookDesktop: []
   changeImage: []
+  showStorageModal: []
 }>()
 </script>
 
@@ -54,6 +55,17 @@ const emit = defineEmits<{
           icon-size="md"
         >
           {{ t('components.desktops.desktop-card.actions.change-image') }}
+        </Button>
+      </DropdownMenuItem>
+      <DropdownMenuItem @click="emit('showStorageModal')">
+        <Button
+          size="sm"
+          class="mr-2 w-full justify-start"
+          hierarchy="link-gray"
+          icon="hard-drive"
+          icon-size="md"
+        >
+          {{ t('components.desktops.desktop-card.actions.storage') }}
         </Button>
       </DropdownMenuItem>
       <DropdownMenuItem @click="emit('createTemplate')">

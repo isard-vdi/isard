@@ -35,6 +35,7 @@ const emit = defineEmits<{
   createTemplate: []
   bookDesktop: []
   changeImage: []
+  showStorageModal: []
 }>()
 
 const bastionEnabled =
@@ -112,6 +113,7 @@ const iconButtonClass = (active: boolean) =>
         @create-template="emit('createTemplate')"
         @book-desktop="emit('bookDesktop')"
         @change-image="emit('changeImage')"
+        @show-storage-modal="emit('showStorageModal')"
       />
     </DropdownMenuContent>
   </DropdownMenu>

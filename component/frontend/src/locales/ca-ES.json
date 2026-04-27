@@ -1218,7 +1218,8 @@
           "info": "Informació",
           "recreate": "Recrea",
           "template": "Converteix en plantilla",
-          "change-image": "Canvia la imatge"
+          "change-image": "Canvia la imatge",
+          "storage": "Emmagatzematge"
         },
         "debug-options": {
           "copy-id": "Copia l'ID de l'escriptori"
@@ -1311,6 +1312,55 @@
           "downloadfailed": {
             "text": "Baixada fallida"
           }
+        }
+      },
+      "desktop-storage-modal": {
+        "title": "Emmagatzematge — {name}",
+        "description": "Discs d'emmagatzematge associats a aquest escriptori. Les accions estan disponibles mentre l'escriptori està aturat.",
+        "close": "Tanca",
+        "no-storages": "Aquest escriptori no té emmagatzematge associat.",
+        "load-error": "No s'han pogut carregar les dades de l'emmagatzematge.",
+        "virtual-size": "Mida virtual",
+        "actual-size": "Mida real",
+        "status": {
+          "ready": "Preparat",
+          "maintenance": "En manteniment",
+          "deleted": "Esborrat",
+          "orphan": "Orfe",
+          "broken_chain": "Cadena trencada",
+          "non_existing": "Encara no creat",
+          "downloading": "Descarregant",
+          "unknown": "Desconegut"
+        },
+        "actions": {
+          "cancel": "Cancel·la l'operació",
+          "cancel-tooltip": "Cancel·la la tasca d'emmagatzematge en curs sobre aquest disc.",
+          "increase": "Augmenta la mida",
+          "increase-tooltip": "Afegeix capacitat al disc.",
+          "increase-needs-stopped": "L'escriptori ha d'estar aturat per augmentar la mida del disc.",
+          "increase-needs-ready": "El disc ha d'estar preparat per a redimensionar-lo.",
+          "no-actions": "No hi ha accions disponibles per a aquest emmagatzematge."
+        },
+        "cancel-modal": {
+          "title": "Cancel·lar l'operació d'emmagatzematge?",
+          "description": "Vols cancel·lar la tasca d'emmagatzematge en curs sobre {name}? Els fitxers parcials es netejaran després d'avortar la tasca.",
+          "dismiss": "Mantén-la",
+          "confirm": "Cancel·la l'operació",
+          "fallback-error": "No s'ha pogut cancel·lar l'operació d'emmagatzematge."
+        },
+        "increase-modal": {
+          "title": "Augmentar la mida del disc",
+          "description": "Afegeix capacitat al disc de l'escriptori. L'increment s'aplica sobre la mida virtual i no es pot desfer.",
+          "field-label": "Increment en GB",
+          "field-placeholder": "10",
+          "help": "El disc creix segons la quantitat de gigabytes especificada. Les quotes es validen al servidor.",
+          "dismiss": "Cancel·la",
+          "confirm": "Augmenta",
+          "fallback-error": "No s'ha pogut augmentar la mida del disc."
+        },
+        "error": {
+          "title": "L'acció d'emmagatzematge ha fallat",
+          "close": "Tanca"
         }
       },
       "direct-viewer-modal": {

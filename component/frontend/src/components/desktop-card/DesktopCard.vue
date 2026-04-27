@@ -70,6 +70,7 @@ const emit = defineEmits<{
   bookDesktop: []
   createTemplate: []
   changeImage: []
+  showStorageModal: []
   // goTo*: []
 }>()
 
@@ -163,6 +164,7 @@ const desktopKind = computed(() => {
         @create-template="emit('createTemplate')"
         @book-desktop="emit('bookDesktop')"
         @change-image="emit('changeImage')"
+        @show-storage-modal="emit('showStorageModal')"
       />
     </template>
 

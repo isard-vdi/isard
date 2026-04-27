@@ -1130,11 +1130,181 @@ $(document).ready(function() {
                 }).on('pnotify.cancel', function () {
                 });
                 break;
+            case 'btn-storage':
+                openDesktopStorageModal(data);
+                break;
         }
     });
 
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
+
+// Fetch the storage IDs attached to the desktop and render the per-row
+// Desktop Storage modal. Reuses ``GET /api/v4/admin/domain/storage/<id>``
+// — the same endpoint the Maintenance ``btn-cancel`` flow already uses,
+// so admin/manager scoping is identical.
+function openDesktopStorageModal(desktop) {
+    $('#modalDesktopStorage .modal-title-name').text(desktop.name || desktop.id);
+    var $list = $('#modalDesktopStorage #desktop-storage-list');
+    $list.empty().append('<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>');
+    $('#modalDesktopStorage').data('desktop-status', desktop.status || '').modal('show');
+
+    $.ajax({
+        type: 'GET',
+        url: '/api/v4/admin/domain/storage/' + desktop.id,
+        contentType: 'application/json',
+        cache: false,
+        error: function (xhr) {
+            $list.empty().append(renderDesktopStorageError(xhr));
+        },
+        success: function (storageList) {
+            if (!storageList || storageList.length === 0) {
+                $list.empty().append('<p class="text-muted">This desktop has no storage attached.</p>');
+                return;
+            }
+            $list.empty();
+            $.each(storageList, function (_idx, storage) {
+                $list.append(renderDesktopStorageItem(storage, desktop));
+            });
+        }
+    });
+}
+
+function renderDesktopStorageError(xhr) {
+    var msg = xhr && xhr.responseJSON ? (xhr.responseJSON.description || xhr.responseJSON.description_code) : 'Could not load storage details.';
+    return '<div class="alert alert-danger">' + $('<div>').text(msg).html() + '</div>';
+}
+
+// One <div> per storage. Action buttons reuse data attributes the
+// inline handlers in this file already understand — keeping the modal
+// dumb HTML and concentrating behaviour in the click handlers below.
+function renderDesktopStorageItem(storage, desktop) {
+    var sid = storage.id || '';
+    var status = storage.status || 'unknown';
+    var size = renderQemuSize(storage);
+    var canCancel = !!storage.task;
+    var desktopStopped = (desktop.status === 'Stopped');
+    var canIncrease = desktopStopped && status === 'ready';
+
+    var actions = '';
+    if (canCancel) {
+        actions += '<button type="button" class="btn btn-warning btn-xs btn-desktop-storage-cancel" data-storage-id="' + escapeAttr(sid) + '" data-desktop-id="' + escapeAttr(desktop.id) + '" title="Cancel current operation"><i class="fa fa-ban"></i> Cancel</button> ';
+    }
+    actions += '<button type="button" class="btn btn-info btn-xs btn-desktop-storage-increase" data-storage-id="' + escapeAttr(sid) + '"' + (canIncrease ? '' : ' disabled') + ' title="' + (canIncrease ? 'Increase the disk size' : 'Desktop must be stopped and storage ready to increase') + '"><i class="fa fa-plus"></i> Increase</button>';
+    if (!canCancel && !canIncrease) {
+        actions += '<span class="text-muted">No actions available</span>';
+    }
+
+    return ''
+        + '<div class="desktop-storage-row" style="border:1px solid #ddd; border-radius:4px; padding:10px; margin-bottom:8px;">'
+        + '  <div style="display:flex; justify-content:space-between; align-items:start; gap:10px;">'
+        + '    <div style="min-width:0; flex:1;">'
+        + '      <div style="font-family:monospace; color:#888; font-size:11px; word-break:break-all;">' + escapeHtml(sid) + '</div>'
+        + '      <div style="margin-top:4px;"><span class="label label-default">' + escapeHtml(status) + '</span></div>'
+        + '    </div>'
+        + '    <div style="text-align:right; font-size:11px; color:#666;">' + size + '</div>'
+        + '  </div>'
+        + '  <div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">' + actions + '</div>'
+        + '</div>';
+}
+
+function renderQemuSize(storage) {
+    var info = storage['qemu-img-info'];
+    if (!info) { return ''; }
+    var virt = info['virtual-size'];
+    var actual = info['actual-size'];
+    return '<div><b>Virtual:</b> ' + formatBytes(virt) + '</div>'
+         + '<div><b>Actual:</b> ' + formatBytes(actual) + '</div>';
+}
+
+function formatBytes(n) {
+    if (n === undefined || n === null || isNaN(n)) { return '—'; }
+    var units = ['B','KiB','MiB','GiB','TiB'];
+    var i = 0;
+    var v = Number(n);
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return v.toFixed(v >= 100 || i === 0 ? 0 : 1) + ' ' + units[i];
+}
+
+function escapeHtml(s) { return $('<div>').text(s == null ? '' : String(s)).html(); }
+function escapeAttr(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
+
+// Per-storage Cancel from the Desktop Storage modal. Mirrors the
+// Maintenance-row btn-cancel flow but scoped to a single storage rather
+// than fanning out to every storage attached to the desktop.
+$(document).on('click', '.btn-desktop-storage-cancel', function () {
+    var storageId = $(this).data('storage-id');
+    var desktopId = $(this).data('desktop-id');
+    new PNotify({
+        title: 'Confirmation Needed',
+        text: 'Cancel the current storage operation on this disk?',
+        hide: false,
+        opacity: 0.9,
+        confirm: { confirm: true },
+        buttons: { closer: false, sticker: false },
+        history: { history: false },
+        addclass: 'pnotify-center'
+    }).get().on('pnotify.confirm', function () {
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v4/item/storage/' + storageId + '/abort-operations',
+            contentType: 'application/json',
+            cache: false,
+            error: function (xhr) {
+                new PNotify({
+                    title: 'ERROR cancelling storage operation',
+                    text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+                    type: 'error', hide: true, icon: 'fa fa-warning', delay: 5000, opacity: 1
+                });
+            },
+            success: function () {
+                new PNotify({
+                    title: 'Cancelling storage operation...',
+                    text: '', type: 'success', hide: true, icon: 'fa fa-info', delay: 5000, opacity: 1
+                });
+                $('#modalDesktopStorage').modal('hide');
+            }
+        });
+    }).on('pnotify.cancel', function () {});
+});
+
+// Per-storage Increase from the Desktop Storage modal. Prompts for an
+// integer GB increment and posts to the apiv4 endpoint with priority
+// "low" — same default v3 enforced for non-admins.
+$(document).on('click', '.btn-desktop-storage-increase', function () {
+    var storageId = $(this).data('storage-id');
+    var raw = window.prompt('Increment in GB to add to the disk:', '10');
+    if (raw === null) { return; }
+    var increment = parseInt(raw, 10);
+    if (!isFinite(increment) || increment <= 0 || String(increment) !== String(raw).trim()) {
+        new PNotify({
+            title: 'Invalid increment',
+            text: 'Enter a positive integer number of GB.',
+            type: 'error', hide: true, delay: 4000, opacity: 1, icon: 'fa fa-warning'
+        });
+        return;
+    }
+    $.ajax({
+        type: 'PUT',
+        url: '/api/v4/item/storage/' + storageId + '/priority/low/increase/' + increment,
+        contentType: 'application/json',
+        cache: false,
+        error: function (xhr) {
+            new PNotify({
+                title: 'ERROR increasing storage size',
+                text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+                type: 'error', hide: true, icon: 'fa fa-warning', delay: 5000, opacity: 1
+            });
+        },
+        success: function () {
+            new PNotify({
+                title: 'Increasing disk size...',
+                text: '', type: 'success', hide: true, icon: 'fa fa-info', delay: 5000, opacity: 1
+            });
+            $('#modalDesktopStorage').modal('hide');
+        }
+    });
+});
 
 function desktopAddUpdateSocketHandle(data) {
     var data = JSON.parse(data);
@@ -1932,7 +2102,8 @@ function renderHypStarted(data){
 function renderAction(data){
     var status=data.status;
     if(status=='Stopped'){
-        return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
+        return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>'
+            + renderStorageActionsButton(data);
     }
     if(status=='Failed'){
         return '<button type="button" id="btn-update" class="btn btn-pill btn-warning btn-xs"><i class="fa fa-refresh"></i> Retry</button>'
@@ -1957,6 +2128,13 @@ function renderAction(data){
     }
 
     return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
+}
+
+// Per-row "Storage" button that opens the Desktop Storage modal. Only
+// shown on Stopped desktops because all storage actions exposed in the
+// modal require the desktop to be unlocked.
+function renderStorageActionsButton(data) {
+    return ' <button type="button" id="btn-storage" class="btn btn-pill btn-info btn-xs" title="Storage actions"><i class="fa fa-hdd-o"></i></button>';
 }
 
 

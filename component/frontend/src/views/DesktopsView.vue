@@ -69,6 +69,7 @@ import {
   DesktopNetworksModal
 } from '@/components/desktops'
 import ChangeImageModal from '@/components/domain/ChangeImageModal.vue'
+import { DesktopStorageModal } from '@/components/desktop-card/desktop-storage-modal'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { BadgeMini } from '@/components/badge/mini'
@@ -283,6 +284,8 @@ const networksModalData = ref<{
 // --------------------------------------------------
 
 const showDesktopInfoModal = ref(false)
+
+const storageModalDesktop = ref<UserDesktop | null>(null)
 const {
   mutate: fetchDesktopDetails,
   isPending: fetchDesktopDetailsIsPending,
@@ -1551,6 +1554,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         @create-template="goToNewTemplate(routeDesktop.id)"
         @book-desktop="goToBookingDesktop(routeDesktop.id)"
         @change-image="openChangeImageModal(routeDesktop)"
+        @show-storage-modal="storageModalDesktop = routeDesktop"
       />
 
       <EmptyContent class="flex-row">
@@ -1797,6 +1801,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
           @create-template="(dktp) => goToNewTemplate(dktp.id)"
           @book-desktop="(dktp) => goToBookingDesktop(dktp.id)"
           @change-image="(dktp) => openChangeImageModal(dktp)"
+          @show-storage-modal="(dktp: UserDesktop) => (storageModalDesktop = dktp)"
         />
 
         <div
@@ -1844,10 +1849,17 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
               @create-template="goToNewTemplate(dktp.id)"
               @book-desktop="goToBookingDesktop(dktp.id)"
               @change-image="openChangeImageModal(dktp)"
+              @show-storage-modal="storageModalDesktop = dktp"
             />
           </template>
         </div>
       </template>
     </div>
+
+    <DesktopStorageModal
+      :open="storageModalDesktop !== null"
+      :desktop="storageModalDesktop ?? undefined"
+      @close="storageModalDesktop = null"
+    />
   </main>
 </template>
