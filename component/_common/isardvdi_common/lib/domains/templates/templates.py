@@ -293,6 +293,13 @@ class TemplatesProcessed(RethinkSharedConnection):
 
         create_dict = Helpers._parse_media_info({"hardware": hardware})
         create_dict["origin"] = desktop_id
+        # ``CreateDictDomainTemplate`` requires ``personal_vlans`` (no
+        # default), so the template row must carry it forward from the
+        # source desktop. The default-False fallback covers very old
+        # desktops that pre-date the field landing in ``CreateDictDomain``.
+        create_dict["personal_vlans"] = desktop["create_dict"].get(
+            "personal_vlans", False
+        )
 
         if desktop["create_dict"].get("reservables"):
             create_dict = {
@@ -329,6 +336,7 @@ class TemplatesProcessed(RethinkSharedConnection):
             "allowed": Allowed(**allowed).model_dump(mode="json"),
             "enabled": enabled,
             "tag": False,
+            "tag_name": False,
             "tag_visible": False,
             "favourite_hyp": desktop.get("favourite_hyp", False),
             "forced_hyp": desktop.get("forced_hyp", False),

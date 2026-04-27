@@ -295,7 +295,16 @@ class DesktopsProcessed(RethinkSharedConnection):
                             "create_dict": result["create_dict"],
                         }
                     )
-                time.sleep(0.25)
+                # Throttle ported from the legacy gevent.spawn version
+                # (api/src/api/libv2/api_desktops_persistent.py on main).
+                # Under gevent the original ``time.sleep(0.25)`` was
+                # monkey-patched into a cooperative yield, so other
+                # greenlets (including HTTP handlers) ran during the
+                # nap. Under asyncio ``time.sleep`` blocks the entire
+                # event loop — for a 22-desktop deployment that's
+                # 5.5 s during which no other request to apiv4 can be
+                # served, so the UX freezes. ``asyncio.sleep`` yields.
+                await asyncio.sleep(0.25)
             send_socket_user(
                 "end_creating_desktops",
                 {"deployment_id": deployment["id"]},
@@ -524,6 +533,7 @@ class DesktopsProcessed(RethinkSharedConnection):
             # dependant purges.
             "parents": (template.get("parents") or []) + [template["id"]],
             "tag": False,
+            "tag_name": False,
             "tag_visible": False,
             "booking_id": False,
         }
