@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Pre-commit hook: runs lint checks relevant to changed files
-# Install: git config core.hooksPath .githooks
+# Install: git config core.hooksPath .githooks  (or `make setup-hooks`)
 
 set -e
 
-COMPOSE="docker compose -f docker-compose.ci.yml"
 CHANGED=$(git diff --cached --name-only --diff-filter=ACM)
 
 if [ -z "$CHANGED" ]; then
@@ -15,28 +14,32 @@ FAILED=0
 
 # Python files
 if echo "$CHANGED" | grep -qE '\.py$'; then
-    echo ">> Running check-python..."
-    $COMPOSE run --rm check-python || FAILED=1
+    echo ">> Running lint-python..."
+    make lint-python || FAILED=1
 fi
 
-# Vue3 frontend
-if echo "$CHANGED" | grep -q '^old-vue3-frontend/'; then
-    echo ">> Running check-vue3-format..."
-    $COMPOSE run --rm check-vue3-format || FAILED=1
-    echo ">> Running check-vue3-lint..."
-    $COMPOSE run --rm check-vue3-lint || FAILED=1
+# Vue 3 frontend
+if echo "$CHANGED" | grep -q '^component/frontend/'; then
+    echo ">> Running lint-frontend..."
+    make lint-frontend || FAILED=1
 fi
 
 # Old frontend
 if echo "$CHANGED" | grep -q '^old-frontend/'; then
-    echo ">> Running check-old-frontend..."
-    $COMPOSE run --rm check-old-frontend || FAILED=1
+    echo ">> Running lint-old-frontend..."
+    make lint-old-frontend || FAILED=1
 fi
 
 # Protobuf
 if echo "$CHANGED" | grep -qE '\.proto$|buf\.yaml'; then
-    echo ">> Running check-protobuf..."
-    $COMPOSE run --rm check-protobuf || FAILED=1
+    echo ">> Running lint-protobuf..."
+    make lint-protobuf || FAILED=1
+fi
+
+# Dockerfiles / system-deps pyproject sections
+if echo "$CHANGED" | grep -qE '(^|/)Dockerfile$|pyproject\.toml$'; then
+    echo ">> Running lint-system-deps..."
+    make lint-system-deps || FAILED=1
 fi
 
 if [ $FAILED -ne 0 ]; then

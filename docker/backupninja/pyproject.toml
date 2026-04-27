@@ -1,0 +1,21 @@
+[project]
+name = "isardvdi-backupninja"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "isardvdi-common",
+  "pyjwt==2.10.1",
+  "requests==2.32.4",
+  "rethinkdb==2.4.10.post1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.isardvdi.system-deps]
+apk-build = ["build-base", "libffi-dev", "libjpeg-turbo-dev", "musl-dev", "openssl-dev", "zlib-dev"]
+apk-runtime = ["bash", "borgbackup", "coreutils", "curl", "envsubst", "flock", "jq", "libffi", "libjpeg-turbo", "nfs-utils", "openssl", "redis", "zlib"]
