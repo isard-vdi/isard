@@ -546,16 +546,11 @@ class TestAdminUserDisplays:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  User-facing endpoints (token_router)
-#
-#  NOTE — admin/notifications.py also declares user-facing routes
-#    GET /notifications/status-bar
-#    GET /notification/user/displays/{trigger}
-#    GET /notification/user/{trigger}/{display}
-#    DELETE /notifications/expired
-#  but those URLs are ALREADY claimed by routes/notifications.py
-#  (imported earlier in api/__init__.py — first registration wins on
-#  the same router). Coverage for the live endpoints lives in
-#  test_notifications.py; the admin/notifications.py copies are dead
-#  code and should be deleted in a follow-up cleanup PR.
+#  User-facing endpoints (token_router) — coverage lives in
+#  test_notifications.py. The dead-code copies that used to live in
+#  admin/notifications.py (shadowed by routes/notifications.py via
+#  first-match registration order) were removed; this comment block
+#  stays as a routing-collision tripwire — if a future refactor
+#  re-adds user-facing endpoints here without removing the live ones,
+#  it'll silently shadow them again.
 # ══════════════════════════════════════════════════════════════════════════
