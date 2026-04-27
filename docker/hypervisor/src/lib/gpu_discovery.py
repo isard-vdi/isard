@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import subprocess
+import time
 import urllib.request
 from datetime import datetime, timezone
 
@@ -390,6 +391,113 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
     return gpus
 
 
+def _nvidia_smi_gpu_reset(pci_bus_id):
+    """Issue ``nvidia-smi -r -i <BDF>`` on a GPU. Best-effort.
+
+    Clears driver-core state that wiping mdev sysfs entries does not reach
+    (stale VF bindings, lingering vgpu-vfio allocations). Requires no
+    active consumers on the GPU; caller is expected to wipe live mdevs
+    via :func:`_reset_sysfs_mdevs` first. Logs and returns False on any
+    failure — a failed driver reset must never abort hypervisor start.
+    """
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "-r", "-i", pci_bus_id],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log.warning("GPU %s: nvidia-smi -r error: %s", pci_bus_id, e)
+        return False
+    if result.returncode != 0:
+        log.warning(
+            "GPU %s: nvidia-smi -r rc=%d: %s",
+            pci_bus_id,
+            result.returncode,
+            (result.stderr or result.stdout).strip()[:200],
+        )
+        return False
+    log.info("GPU %s: nvidia-smi -r completed", pci_bus_id)
+    return True
+
+
+def _cycle_sriov_vfs(sysfs_pci_id):
+    """Tear down every VF and re-create all of them at ``sriov_totalvfs``.
+
+    Uses NVIDIA's ``sriov-manage`` tool (bind-mounted from the host) which
+    handles the pci-pf-stub dance required to destroy and recreate VFs.
+    The nvidia driver rejects direct sriov_numvfs writes while the PF is
+    nvidia-bound; sriov-manage works around this by temporarily binding
+    to pci-pf-stub.
+    """
+    base = f"/sys/bus/pci/devices/{sysfs_pci_id}"
+    try:
+        with open(f"{base}/sriov_totalvfs") as f:
+            totalvfs = int(f.read().strip())
+    except (OSError, ValueError):
+        return False
+    if totalvfs <= 0:
+        return False
+
+    try:
+        r = subprocess.run(
+            ["sriov-manage", "-d", sysfs_pci_id],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if r.returncode != 0:
+            log.warning(
+                "GPU %s: sriov-manage -d failed: %s",
+                sysfs_pci_id,
+                (r.stderr or r.stdout).strip()[:200],
+            )
+            return False
+        r = subprocess.run(
+            ["sriov-manage", "-e", sysfs_pci_id],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if r.returncode != 0:
+            log.warning(
+                "GPU %s: sriov-manage -e failed: %s",
+                sysfs_pci_id,
+                (r.stderr or r.stdout).strip()[:200],
+            )
+            return False
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log.warning("GPU %s: sriov-manage error: %s", sysfs_pci_id, e)
+        return False
+
+    log.info("GPU %s: cycled SR-IOV VFs via sriov-manage", sysfs_pci_id)
+    return True
+
+
+def _wait_sriov_numvfs(sysfs_pci_id, timeout=10):
+    """Poll for ``sriov_numvfs`` to reappear after a GPU driver reset.
+
+    ``nvidia-smi -r`` triggers a PCI bus reset; the nvidia driver re-probes
+    asynchronously and ``sriov_numvfs`` only reappears once
+    ``pci_enable_sriov()`` is called again.  Without this wait,
+    :func:`_ensure_sriov_max_vfs` would silently skip because
+    ``sriov_numvfs`` cannot be read.
+    """
+    path = f"/sys/bus/pci/devices/{sysfs_pci_id}/sriov_numvfs"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if os.path.exists(path):
+            return True
+        time.sleep(0.5)
+    log.warning(
+        "GPU %s: sriov_numvfs did not reappear within %ds after driver reset",
+        sysfs_pci_id,
+        timeout,
+    )
+    return False
+
+
 def _ensure_sriov_max_vfs(sysfs_pci_id):
     """Ensure SR-IOV exposes all VFs (sriov_numvfs == sriov_totalvfs).
 
@@ -592,15 +700,26 @@ def _aggregate_subdevice_profiles(pci_bus_id):
         _reset_sysfs_mdevs(main_path)
         return main_profiles, None, None
 
-    # Ensure every VF is bound so its mdev_supported_types is exposed.
-    # Without this the engine caps the mdev pool below hardware capacity
-    # whenever sriov_numvfs was raised after the original discovery scan.
-    _ensure_sriov_max_vfs(sysfs_pci_id)
+    # SR-IOV reset (Ampere/Ada/Blackwell vGPU cards):
+    # 1. wipe live mdevs so VFs have no active consumers,
+    # 2. cycle VFs (write 0 → totalvfs to sriov_numvfs) — destroys and
+    #    recreates every VF, clearing all mdev/vgpu-vfio state.
+    # nvidia-smi -r is reserved for the fallback path: it bus-resets the
+    # GPU which causes sriov_numvfs to vanish until the driver re-probes,
+    # so calling it before the VF cycle would cause ENOENT.
+    _reset_sysfs_mdevs(main_path)
+    has_sriov = os.path.exists(f"{main_path}/sriov_totalvfs")
+    if has_sriov and not _cycle_sriov_vfs(sysfs_pci_id):
+        # VF cycle failed on an SR-IOV card (EBUSY from stuck mdevs, etc.).
+        # nvidia-smi -r bus-resets the GPU to unstick the driver, then
+        # wait for sriov_numvfs to reappear before topping up VFs.
+        _nvidia_smi_gpu_reset(pci_bus_id)
+        _wait_sriov_numvfs(sysfs_pci_id)
+        _ensure_sriov_max_vfs(sysfs_pci_id)
 
-    # Wipe pre-existing mdevs on every VF. Must happen after
-    # _ensure_sriov_max_vfs (so every VF is present) and before enumeration,
-    # so engine's reconcile later sees empty VFs and its canonical UUIDs are
-    # the only ones that end up bound.
+    # Safety net: after the cycle fresh VFs have no mdevs, so this is a
+    # no-op on the happy path. Still needed on the fallback branch where
+    # VFs retained their previous bindings.
     _reset_sysfs_mdevs(main_path)
 
     # Prefer SR-IOV enumeration via virtfn* symlinks (authoritative for
@@ -692,6 +811,10 @@ def discover_gpus():
     # T", triggering an authoritative rebuild of vgpus.mdevs and stopping any
     # domains still holding now-removed UUIDs.
     mdevs_reset_at = datetime.now(timezone.utc).isoformat()
+    # SR-IOV cards get a full driver+VF reset inside
+    # _aggregate_subdevice_profiles before enumeration. Stamp the same run
+    # timestamp so admins / scripts can confirm the reset fired.
+    gpu_reset_at = mdevs_reset_at
 
     gpus = []
     for gpu_index, gpu in enumerate(raw_gpus):
@@ -711,6 +834,7 @@ def discover_gpus():
             "model": normalize_gpu_model(gpu["name"], profiles),
             "gpu_uuid": gpu.get("gpu_uuid"),
             "mdevs_reset_at": mdevs_reset_at,
+            "gpu_reset_at": gpu_reset_at,
         }
 
         if mig_mode != "[N/A]":
@@ -1241,96 +1365,28 @@ def ensure_sriov_vfs():
         if os.path.isdir(os.path.join(dev_path, "mdev_supported_types")):
             continue
 
-        print(f"Enabling {totalvfs} SR-IOV VFs on {dev}...")
-        _enable_sriov_for_gpu(dev, totalvfs)
+        print(f"Enabling SR-IOV VFs on {dev} (totalvfs={totalvfs})...")
+        _enable_sriov_for_gpu(dev)
 
 
-def _check_iommu_available():
-    """Check if IOMMU is active (required for SR-IOV VF nvidia binding)."""
+def _enable_sriov_for_gpu(pci_bdf):
+    """Enable SR-IOV VFs using NVIDIA's sriov-manage tool."""
     try:
-        groups = os.listdir("/sys/kernel/iommu_groups")
-        return len(groups) > 0
-    except OSError:
-        return False
-
-
-def _enable_sriov_for_gpu(pci_bdf, totalvfs):
-    """Run the pci-pf-stub dance to enable SR-IOV VFs for one GPU."""
-
-    def _run(cmd):
-        return subprocess.run(
-            cmd,
-            shell=True,
+        r = subprocess.run(
+            ["sriov-manage", "-e", pci_bdf],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=60,
         )
-
-    if not _check_iommu_available():
-        print(
-            f"  WARNING: IOMMU not active — VFs will be created but nvidia "
-            f"cannot bind them (vGPU mdev creation will fail). "
-            f"Enable IOMMU in BIOS and add iommu=pt to kernel cmdline."
-        )
-
-    # Get vendor:device for pci-pf-stub new_id
-    r = _run(f"lspci -n -s {pci_bdf}")
-    if r.returncode != 0:
-        print(f"  FAILED: lspci for {pci_bdf}: {r.stderr.strip()}")
-        return
-    parts = r.stdout.split()
-    vend_dev = parts[2].replace(":", " ") if len(parts) >= 3 else ""
-    if not vend_dev:
-        print(f"  FAILED: could not parse vendor:device for {pci_bdf}")
-        return
-
-    steps = [
-        # Ensure pci-pf-stub module is loaded
-        ("modprobe pci-pf-stub", False),
-        # Get nvidia unbindLock
-        (f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock", True),
-        # Unbind PF from nvidia
-        (f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind", True),
-        # Register device with pci-pf-stub and bind
-        (f"echo '{vend_dev}' > /sys/bus/pci/drivers/pci-pf-stub/new_id", True),
-        (
-            f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
-            f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
-            False,
-        ),
-        ("sleep 0.5", False),
-        # Create VFs
-        (
-            f"echo {totalvfs} > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs",
-            False,
-        ),
-        # Unbind from pci-pf-stub
-        (f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind", True),
-        (
-            f"echo '{vend_dev}' > /sys/bus/pci/drivers/pci-pf-stub/remove_id",
-            True,
-        ),
-        # Bind all VFs to nvidia driver (enumerate via virtfn symlinks)
-        (
-            f"for vf in /sys/bus/pci/devices/{pci_bdf}/virtfn*/; do "
-            f"vf_bdf=$(basename $(readlink -f $vf)); "
-            f"[ -e /sys/bus/pci/devices/$vf_bdf/driver ] && "
-            f"echo $vf_bdf > /sys/bus/pci/devices/$vf_bdf/driver/unbind 2>/dev/null || true; "
-            f"echo $vf_bdf > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true; "
-            f"done",
-            True,
-        ),
-        # Rebind PF to nvidia
-        (f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/bind", True),
-        ("nvidia-smi -pm 1 2>/dev/null", True),
-    ]
-
-    for cmd, ignore_error in steps:
-        r = _run(cmd)
-        if r.returncode != 0 and not ignore_error:
-            print(f"  FAILED at: {cmd}")
-            print(f"  stderr: {r.stderr.strip()}")
+        if r.returncode != 0:
+            print(
+                f"  FAILED: sriov-manage -e {pci_bdf}: "
+                f"{(r.stderr or r.stdout).strip()[:200]}"
+            )
             return
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"  FAILED: sriov-manage error: {e}")
+        return
 
     # Verify VFs created
     try:
