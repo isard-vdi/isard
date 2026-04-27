@@ -44,11 +44,16 @@ _DOMAIN_PRE_READY_STATUSES = frozenset(
         "DiskNew",
         "Failed",
         "Unknown",
-        "CreatingDisk",
-        "CreatingDiskFromScratch",
+        # Creating / CreatingDisk / CreatingDiskFromScratch /
+        # CreatingAndStarting are handled by the Phase A task chain —
+        # ``domain_change_storage`` (the trailing dependent of
+        # ``storage_update``) transitions them to ``CreatingDomain`` so
+        # engine's libvirt-define can run. Promoting them here would
+        # short-circuit the chain and leave the domain at ``Stopped``
+        # with no libvirt XML, so non-persistent desktops never
+        # auto-start.
         "CreatingDomain",
         "CreatingDomainFromDisk",
-        "CreatingAndStarting",
         "CreatingTemplate",
         "CreatingTemplateDisk",
         "TemplateDiskCreated",
@@ -391,7 +396,7 @@ def media_update(**media_dict):
             Media.init_document(**media_dict)
         else:
             for dependency in task.dependencies:
-                if dependency.task in ("check_media_existence"):
+                if dependency.task in ("check_media_existence", "download_url"):
                     media_update(**dependency.result)
 
 
@@ -432,9 +437,63 @@ def send_storage_socket_user(event, storage_id):
     )
 
 
+_DOMAIN_CREATE_TO_CREATING_DOMAIN = frozenset(
+    {
+        "Creating",
+        "CreatingAndStarting",
+        "CreatingDisk",
+        "CreatingDiskFromScratch",
+    }
+)
+
+
+_DOMAIN_CREATING_TO_CREATING_DISK = frozenset(
+    {
+        "Creating",
+        "CreatingDiskFromScratch",
+    }
+)
+
+
+def domain_creating_disk(domain_id):
+    """Advance a domain from its initial create status to ``CreatingDisk``
+    at the start of the task-based creation chain.
+
+    Template-from-template and desktop-from-media both land here: apiv4
+    inserts with ``Creating`` for the former and ``CreatingDiskFromScratch``
+    for the latter; either one flips to ``CreatingDisk`` so the change-feed
+    emits an intermediate signal while the storage worker is still
+    producing the qcow2. ``parse_frontend_desktop_status`` collapses this
+    to ``Creating`` for end-user display. Leaves any other status alone.
+
+    :param domain_id: Domain ID
+    :type domain_id: str
+    """
+    if not Domain.exists(domain_id):
+        return
+    domain = Domain(domain_id)
+    if domain.status in _DOMAIN_CREATING_TO_CREATING_DISK:
+        domain.status = "CreatingDisk"
+
+
 def domain_change_storage(domain_id, storage_id):
     """
-    Change a domain's storage.
+    Wire a storage into a domain's first disk and, when the domain is in
+    a pre-libvirt creation status, advance it to ``CreatingDomain`` so the
+    engine's libvirt-define handler takes over.
+
+    Used in two flows:
+      * the task-based create chain — finalizes a freshly-created qcow2
+        by linking it to the domain and flipping the status forward.
+      * the storage recreate chain — swaps a domain from its old storage
+        to a newly-rebuilt one.
+
+    In the create flow, when the upstream chain failed the storage row
+    is left at a non-"ready" status; raising here propagates the failure
+    to the trailing ``update_status`` dependent, which marks the domain
+    and storage as ``Failed``. The recreate flow never puts the domain
+    in a create allow-list status, so its ordering (storage still
+    "non_existing" when this task runs) is unaffected.
 
     :param domain_id: Domain ID
     :type domain_id: str
@@ -443,10 +502,26 @@ def domain_change_storage(domain_id, storage_id):
     """
     if not Domain.exists(domain_id):
         return
+    if not Storage.exists(storage_id):
+        return
     domain = Domain(domain_id)
+    storage = Storage(storage_id)
+
+    if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN and storage.status != "ready":
+        raise Exception(
+            f"Cannot finalize domain {domain_id}: storage {storage_id} is "
+            f"not ready (status={storage.status!r})."
+        )
+
     c_dict = domain.create_dict
-    c_dict["hardware"]["disks"][0]["storage_id"] = storage_id
+    disk = c_dict["hardware"]["disks"][0]
+    disk["storage_id"] = storage_id
+    disk["file"] = storage.path
+    disk["parent"] = storage.parent
     domain.create_dict = c_dict
+
+    if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN:
+        domain.status = "CreatingDomain"
 
 
 def _valid_storage_pool(storage, new_path):

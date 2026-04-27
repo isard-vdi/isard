@@ -42,3 +42,4 @@ services:
       REDIS_WORKERS:
       RETHINKDB_HOST:
       LOG_LEVEL:
+      URL_DOWNLOAD_INSECURE_SSL:

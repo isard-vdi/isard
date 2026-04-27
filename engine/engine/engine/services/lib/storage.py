@@ -72,22 +72,6 @@ def create_storage(disk, user, force_parent=False, perms=["r", "w"]):
     return storage_id
 
 
-def insert_storage(disk, perms=["r", "w"]):
-    storage_id = disk.get("storage_id")
-    if storage_id:
-        storage = get_dict_from_item_in_table("storage", storage_id)
-        if not storage:
-            return False
-        disk.update(
-            {
-                "file": _get_filename(storage),
-                "parent": storage.get("parent"),
-                "path_selected": storage.get("directory_path"),
-                "perms": perms,
-            }
-        )
-
-
 def update_storage_status(storage_id, status):
     if storage_id:
         data = {

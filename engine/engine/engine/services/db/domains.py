@@ -16,7 +16,6 @@ from engine.services.db import (
     rethink_conn,
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
-from engine.services.lib.storage import update_storage_deleted_domain
 from engine.services.log import logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -51,19 +50,64 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if only_domain_id:
-        results = (
+        candidates = list(
             rtable.get_all(only_domain_id, index="id")
             .filter(lambda d: r.expr(status_to_delete).contains(d["status"]))
-            .delete()
             .run(r_conn)
         )
     else:
-        results = (
+        candidates = list(
             rtable.get_all(r.args(status_to_delete), index="status")
             .filter({"kind": kind})
-            .delete()
             .run(r_conn)
         )
+
+    # Skip any candidate whose first disk points at a storage with an
+    # active task. That signals task-based disk creation is in flight
+    # (apiv4 pre-created the storage and kicked off the RQ chain) and
+    # deleting the domain would orphan the storage row and the qcow2.
+    storage_ids = [
+        sid
+        for domain in candidates
+        for sid in [
+            (
+                (domain.get("create_dict") or {})
+                .get("hardware", {})
+                .get("disks", [{}])[0]
+                .get("storage_id")
+            )
+        ]
+        if sid
+    ]
+    active_storage_ids = set()
+    if storage_ids:
+        active_storage_ids = set(
+            row["id"]
+            for row in r.table("storage")
+            .get_all(r.args(list(set(storage_ids))), index="id")
+            .filter(lambda s: s.has_fields("task") & (s["task"] != None))  # noqa: E711
+            .pluck("id")
+            .run(r_conn)
+        )
+
+    domains_to_delete = [
+        d["id"]
+        for d in candidates
+        if (
+            (d.get("create_dict") or {})
+            .get("hardware", {})
+            .get("disks", [{}])[0]
+            .get("storage_id")
+        )
+        not in active_storage_ids
+    ]
+
+    if domains_to_delete:
+        results = (
+            rtable.get_all(r.args(domains_to_delete), index="id").delete().run(r_conn)
+        )
+    else:
+        results = {"deleted": 0, "errors": 0, "skipped": 0, "inserted": 0}
     close_rethink_connection(r_conn)
     return results
 
@@ -267,7 +311,6 @@ def update_domain_status(
     hyp_id=None,
     detail="",
     keep_hyp_id=False,
-    storage_id=None,
 ):
     if DEBUG_CHANGES:
         thread_name = threading.currentThread().name
@@ -364,16 +407,6 @@ def update_domain_status(
                     .run(conn)
                 )
 
-        if status == "DiskDeleted":
-            try:
-                update_storage_deleted_domain(
-                    storage_id, results.get("changes", [{}])[0].get("new_val")
-                )
-            except Exception as e:
-                logs.main.error("Exception in update_storage_deleted_domain")
-                logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
-                logs.main.error("Exception message: {}".format(e))
-
         if status == "Failed":
             remove_fieds_when_stopped(id_domain)
 
@@ -433,29 +466,6 @@ def get_domain_hyp_started(id_domain):
     if not results:
         return False
     return results.get("hyp_started")
-
-
-def get_custom_dict_from_domain(id_domain):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = rtable.get(id_domain).pluck("custom").run(r_conn)
-    close_rethink_connection(r_conn)
-    if results is None:
-        return False
-    if "custom" not in results.keys():
-        return False
-    if len(results["custom"]) == 0:
-        return False
-
-    return results["custom"]
-
-
-def update_custom_all_dict(id_domain, d_custom):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    results = rtable.get(id_domain).update({"custom": d_custom}).run(r_conn)
-    close_rethink_connection(r_conn)
-    return results
 
 
 def get_domain_hyp_started_and_status_and_detail(id_domain):
@@ -530,33 +540,6 @@ def update_domain_dict_create_dict(id, create_dict):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     results = rtable.get(id).update({"create_dict": create_dict}).run(r_conn)
-    close_rethink_connection(r_conn)
-    return results
-
-
-def update_domain_dict_hardware(domain_id, domain_dict, xml=False):
-    """Update domain xml.
-
-    NOTE: No longer writes hardware to root - field is deprecated.
-    The domain_dict parameter is kept for signature compatibility but ignored.
-
-    Args:
-        domain_id: The domain ID
-        domain_dict: DEPRECATED - Hardware dictionary (ignored, kept for compatibility)
-        xml: Optional XML string to update
-    """
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    update_dict = {}
-    if xml is not False:
-        update_dict["xml"] = xml
-
-    if update_dict:
-        results = rtable.get(domain_id).update(update_dict).run(r_conn)
-    else:
-        results = {}
-
     close_rethink_connection(r_conn)
     return results
 
@@ -1132,15 +1115,6 @@ def insert_domain(dict_domain):
     rtable = r.table("domains")
 
     result = rtable.insert(dict_domain).run(r_conn)
-    close_rethink_connection(r_conn)
-    return result
-
-
-def remove_domain(id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    result = rtable.get(id).delete().run(r_conn)
     close_rethink_connection(r_conn)
     return result
 

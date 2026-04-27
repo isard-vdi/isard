@@ -22,10 +22,12 @@ from uuid import uuid4
 
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.alloweds import Alloweds
+from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
 from rethinkdb import r
+from rq.job import JobStatus
 
 from ..schemas.media import MediaStatusEnum
 from ..schemas.shared.allowed import Allowed
@@ -142,6 +144,130 @@ class Media(RethinkCustomBase):
                             },
                         },
                     },
+                }
+            ],
+        )
+        return self.task
+
+    @classmethod
+    def resolve_download_path(cls, user_id, category_id, relative_path, kind):
+        """Compute the absolute filesystem path to download a media into.
+
+        Replaces the legacy ``get_path_to_disk(type_path="media")`` plumbing
+        that read the per-category ``pool_paths["media"]`` map. Now the
+        path is derived from the user's storage pool directly, matching
+        how :class:`Storage` resolves its own paths — single source of
+        truth across desktop disks and media.
+
+        :param user_id: The owner of the media (drives pool selection).
+        :param category_id: The user's category id (used in non-default
+            pool path layout, mirroring
+            ``Storage.path_in_pool``).
+        :param relative_path: Per-media relative directory + name (the
+            ``urlpath`` apiv4 builds: cat/group/provider/uid-username/name).
+        :param kind: ``iso`` / ``floppy`` / ``qcow2`` (used as extension).
+        :return: Tuple ``(pool, absolute_path)``.
+        """
+        pool = StoragePool.get_by_user_kind(user_id, "media")
+        usage_path = pool.get_usage_path("media")
+        if pool.id == DEFAULT_STORAGE_POOL_ID:
+            base_dir = f"{pool.mountpoint}/{usage_path}"
+        else:
+            base_dir = f"{pool.mountpoint}/{category_id}/{usage_path}"
+        return pool, f"{base_dir}/{relative_path}.{kind}"
+
+    def enqueue_download_chain(
+        self,
+        user_id,
+        url,
+        headers=None,
+        insecure_ssl=False,
+        google_drive_cookie=None,
+        priority="low",
+        retry: int = 0,
+    ):
+        """Enqueue the chain that downloads this media via isard-storage.
+
+        Replaces the engine's SSH-curl ``DownloadThread`` flow. The
+        ``download_url`` task is dispatched to the user's media pool
+        worker on a *low priority* queue so concurrent disk creation
+        keeps precedence. Status transitions:
+
+            queued       → DownloadStarting (set by caller before enqueue)
+            running      → Downloading      (flipped inside download_url)
+            finished     → Downloaded       (dependent update_status)
+            failed/canceled → DownloadFailed (dependent update_status)
+
+        Cancellation: ``Task(self.task).cancel()`` publishes the generic
+        ``task:cancel:<task_id>`` pub/sub signal that ``download_url``'s
+        :class:`TaskCancelWatcher` listens to. apiv4's
+        ``abort_media_download`` is just that one call.
+
+        :return: Root task id.
+        """
+        if not self.path_downloaded:
+            raise Error(
+                "precondition_required",
+                f"Media {self.id} has no path_downloaded; cannot enqueue download.",
+                description_code="media_no_path",
+            )
+        pool = StoragePool.get_best_for_action(
+            "download", path=self.path_downloaded.rsplit("/", 1)[0]
+        )
+        if pool is None:
+            raise Error(
+                "precondition_required",
+                f"No storage pool found for media {self.id}",
+                description_code="media_no_pool",
+            )
+
+        download_kwargs = {
+            "media_id": self.id,
+            "url": url,
+            "dest_path": self.path_downloaded,
+            "headers": list(headers or []),
+            "insecure_ssl": bool(insecure_ssl),
+            "google_drive_cookie": google_drive_cookie,
+        }
+
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{pool.id}.{priority}",
+            task="download_url",
+            retry=retry,
+            retry_intervals=15,
+            job_kwargs={"kwargs": download_kwargs},
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "media_update",
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "finished": {
+                                            "Downloaded": {
+                                                "media": [self.id],
+                                            },
+                                        },
+                                        JobStatus.FAILED: {
+                                            "DownloadFailed": {
+                                                "media": [self.id],
+                                            },
+                                        },
+                                        JobStatus.CANCELED: {
+                                            "DownloadFailed": {
+                                                "media": [self.id],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        }
+                    ],
                 }
             ],
         )

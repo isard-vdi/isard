@@ -29,7 +29,6 @@ from engine.services.db import (
     get_domain_hyp_started,
     get_hypers_ids_with_status,
     get_if_all_disk_template_created,
-    remove_domain,
     update_domain_history_from_id_domain,
 )
 from engine.services.db.db import (
@@ -37,10 +36,7 @@ from engine.services.db.db import (
     update_table_dict,
     update_table_field,
 )
-from engine.services.db.domains import (
-    update_domain_start_after_created,
-    update_domain_status,
-)
+from engine.services.db.domains import update_domain_status
 from engine.services.db.hypervisors import update_all_hyps_status
 from engine.services.db.storage_pool import get_storage_pool_ids
 from engine.services.lib.functions import (
@@ -54,7 +50,6 @@ from engine.services.lib.functions import (
 from engine.services.lib.status import get_next_disk, get_next_hypervisor
 from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
-from engine.services.threads.download_thread import launch_thread_download_changes
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.models.domain import Domain
 from rethinkdb import r
@@ -99,7 +94,9 @@ class Engine(object):
         self.t_changes_domains = None
         self.t_broom = None
         self.t_background = None
-        self.t_downloads_changes = None
+        # Media downloads were retired from the engine: they now run as
+        # ``download_url`` storage RQ tasks on isard-storage workers
+        # (low-priority queue). Apiv4 enqueues the chain directly.
         self.quit = False
 
         self.threads_info_main = {}
@@ -152,11 +149,6 @@ class Engine(object):
             q = self.manager.q.background
             first_loop = True
             pool_id = "default"
-            # can't launch downloads if download changes thread is not ready and hyps are not online
-            update_table_field(
-                "hypervisors_pools", pool_id, "download_changes", "Stopped"
-            )
-
             # if domains have intermedite states (updating, download_aborting...)
             # to Failed, Stopped or Delete
             clean_intermediate_status()
@@ -365,13 +357,6 @@ class Engine(object):
                         self.manager.diskoperations_pools[pool_id] = PoolDiskoperations(
                             pool_id
                         )
-
-                    # launch downloads changes thread
-                    self.manager.t_downloads_changes = launch_thread_download_changes(
-                        self.manager,
-                        self.manager.q.workers,
-                        self.manager.t_disk_operations,
-                    )
 
                     # launch brom thread
                     self.manager.t_broom = launch_thread_broom(self.manager)
@@ -620,7 +605,12 @@ class Engine(object):
                     ):
                         old_status = c["old_val"]["status"]
                         new_status = c["new_val"]["status"]
-                        new_detail = c["new_val"]["detail"]
+                        # ``detail`` is optional: apiv4's Pydantic schemas
+                        # (DesktopFromTemplate, DomainModel) do not declare
+                        # it, so rows inserted through those paths omit the
+                        # field entirely and pluck yields no key. Default
+                        # to None so the change-handler keeps flowing.
+                        new_detail = c["new_val"].get("detail")
                         domain_id = c["new_val"]["id"]
                         logs.changes.debug("domain_id: {}".format(domain_id))
                         # if engine is stopped/restarting or not hypervisors online
@@ -640,12 +630,6 @@ class Engine(object):
                             #       format(domain_id,old_status,new_status,new_detail))
                             pass
 
-                    if new_domain is True and new_status == "CreatingDiskFromScratch":
-                        self._submit_action(ui.creating_disk_from_scratch, domain_id)
-
-                    if new_domain is True and new_status == "Creating":
-                        self._submit_action(ui.creating_disks_from_template, domain_id)
-
                     # apiv4 edit (routes/domains/desktops.py PUT .../edit
                     # → parse_domain_update) flips status to "Updating".
                     # The engine validates the new XML and moves to
@@ -661,80 +645,32 @@ class Engine(object):
                             ui.updating_from_create_dict, domain_id, True
                         )
 
-                    if new_domain is True and new_status == "CreatingAndStarting":
-
-                        def _creating_and_starting(domain_id):
-                            update_domain_start_after_created(domain_id)
-                            ui.creating_disks_from_template(domain_id)
-
-                        self._submit_action(_creating_and_starting, domain_id)
-
-                        # INFO TO DEVELOPER
-                        # recoger template de la que hay que derivar
-                        # verificar que realmente es una template
-                        # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
-
                     if (
-                        old_status in ["CreatingDisk", "CreatingDiskFromScratch"]
+                        old_status
+                        in [
+                            "CreatingDisk",
+                            "CreatingDiskFromScratch",
+                            "CreatingAndStarting",
+                        ]
                         and new_status == "CreatingDomain"
-                    ) or (
-                        new_domain is True and new_status == "CreatingDomainFromDisk"
                     ):
                         logs.changes.debug(
                             "llamo a creating_and_test_xml con domain id {}".format(
                                 domain_id
                             )
                         )
-                        if (
-                            new_status == "CreatingDomain"
-                            or new_status == "CreatingDomainFromDisk"
-                        ):
-                            self._submit_action(
-                                ui.creating_and_test_xml_start,
-                                domain_id,
-                                creating_from_create_dict=True,
-                                ssl=True,
-                                start_paused=False,
-                            )
+                        self._submit_action(
+                            ui.creating_and_test_xml_start,
+                            domain_id,
+                            creating_from_create_dict=True,
+                            ssl=True,
+                            start_paused=False,
+                        )
 
                     if old_status == "Stopped" and new_status == "CreatingTemplate":
                         self._submit_action(
                             ui.create_template_disks_from_domain, domain_id
                         )
-
-                    if (
-                        old_status not in ["Started", "Shutting-down"]
-                        and new_status == "Deleting"
-                    ):
-                        # or \
-                        #     old_status == 'Failed' and new_status == "Deleting" or \
-                        #     old_status == 'Downloaded' and new_status == "Deleting":
-                        self._submit_action(ui.deleting_disks_from_domain, domain_id)
-
-                    if (
-                        old_status == "DeletingDomainDisk"
-                        and new_status == "DiskDeleted"
-                    ):
-
-                        def _disk_deleted_action(domain_id):
-                            logs.changes.debug(
-                                "disk deleted, mow remove domain form database"
-                            )
-                            remove_domain(domain_id)
-                            if get_domain(domain_id) is None:
-                                logs.changes.info(
-                                    "domain {} deleted from database".format(domain_id)
-                                )
-                            else:
-                                update_domain_status(
-                                    "Failed",
-                                    domain_id,
-                                    detail="domain {} can not be deleted from database".format(
-                                        domain_id
-                                    ),
-                                )
-
-                        self._submit_action(_disk_deleted_action, domain_id)
 
                     if (
                         old_status == "CreatingTemplateDisk"
@@ -871,23 +807,6 @@ class Engine(object):
 
                         self._submit_action(_stopped_storage_refresh, domain_id)
 
-                    if (
-                        old_status == "Started" and new_status == "StoppingAndDeleting"
-                    ) or (
-                        old_status == "Suspended"
-                        and new_status == "StoppingAndDeleting"
-                    ):
-
-                        def _stopping_and_deleting_action(domain_id):
-                            hyp_started = get_domain_hyp_started(domain_id)
-                            ui.stop_domain(
-                                id_domain=domain_id,
-                                hyp_id=hyp_started,
-                                delete_after_stopped=True,
-                            )
-
-                        self._submit_action(_stopping_and_deleting_action, domain_id)
-
                     if new_domain is False and new_status == "ForceDeleting":
                         self._submit_action(ui.force_deleting, domain_id, old_status)
 
@@ -917,7 +836,6 @@ class Engine(object):
         for name in [
             "events",
             "broom",
-            "downloads_changes",
             "orchestrator",
             "changes_domains",
         ]:
