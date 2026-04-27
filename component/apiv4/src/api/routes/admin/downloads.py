@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Optional
 
@@ -49,7 +50,11 @@ tag = "admin_downloads"
 )
 async def admin_downloads(request: Request):
     try:
-        result = AdminDownloadsService.get_downloads()
+        # AdminDownloadsService.get_downloads() makes a synchronous HTTP
+        # call to the upstream updates server (``requests`` with a 10s
+        # timeout). Offload to the threadpool so a slow upstream
+        # doesn't freeze the apiv4 event loop for every other client.
+        result = await asyncio.to_thread(AdminDownloadsService.get_downloads)
         return JSONResponse(content=result, status_code=200)
     except Error:
         raise
@@ -85,8 +90,12 @@ async def admin_downloads_kind(
     ),
 ):
     try:
-        result = AdminDownloadsService.get_downloads_kind(
-            kind, request.token_payload["user_id"]
+        # See ``admin_downloads`` above: this also calls the updates
+        # server synchronously and must not block the event loop.
+        result = await asyncio.to_thread(
+            AdminDownloadsService.get_downloads_kind,
+            kind,
+            request.token_payload["user_id"],
         )
         return JSONResponse(content=result, status_code=200)
     except Error:
@@ -115,7 +124,8 @@ async def admin_downloads_kind(
 )
 async def admin_downloads_register(request: Request):
     try:
-        AdminDownloadsService.register()
+        # ``register()`` POSTs to the updates server synchronously.
+        await asyncio.to_thread(AdminDownloadsService.register)
         return JSONResponse(
             content=EmptyResponse().model_dump(mode="json"),
             status_code=200,
@@ -154,8 +164,14 @@ async def admin_downloads_action(
     kind: str = Path(..., description="Download kind"),
 ):
     try:
-        AdminDownloadsService.download_action(
-            action, kind, request.token_payload["user_id"]
+        # ``download_action`` enqueues storage chains and may probe the
+        # updates server synchronously — same threadpool offload as the
+        # other download endpoints.
+        await asyncio.to_thread(
+            AdminDownloadsService.download_action,
+            action,
+            kind,
+            request.token_payload["user_id"],
         )
         return JSONResponse(
             content=EmptyResponse().model_dump(mode="json"),
@@ -192,8 +208,15 @@ async def admin_downloads_action_id(
 ):
     try:
         body = await request.json() if await request.body() else None
-        AdminDownloadsService.download_action(
-            action, kind, request.token_payload["user_id"], id=id, data=body
+        # Same threadpool offload as the no-id variant; the registry
+        # download path also calls Storage / Scheduler synchronously.
+        await asyncio.to_thread(
+            AdminDownloadsService.download_action,
+            action,
+            kind,
+            request.token_payload["user_id"],
+            id=id,
+            data=body,
         )
         return JSONResponse(
             content=EmptyResponse().model_dump(mode="json"),

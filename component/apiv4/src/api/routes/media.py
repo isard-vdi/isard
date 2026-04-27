@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Literal, Optional
 
@@ -482,7 +483,16 @@ async def delete_media(request: Request, media_id=Depends(owns_media_id)):
 async def create_media(media_data: CreateMediaRequest, request: Request):
     """Create a new media item."""
     try:
-        media_id = MediaService.create_media(media_data, request.token_payload)
+        # ``MediaService.create_media`` is synchronous: it probes the
+        # source URL with ``requests`` and runs several RethinkDB
+        # writes. Calling it directly from an ``async def`` handler
+        # blocks the apiv4 event loop for the full duration of the
+        # probe — a slow upstream (archive.org, mirrors) wedges every
+        # other in-flight request behind it. Offload to the default
+        # threadpool so the event loop stays free.
+        media_id = await asyncio.to_thread(
+            MediaService.create_media, media_data, request.token_payload
+        )
         return JSONResponse(
             content=SimpleResponse(id=str(media_id)).model_dump(mode="json"),
             status_code=201,
