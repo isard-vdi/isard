@@ -20,7 +20,7 @@
 
 import traceback
 
-from api import admin_router, disclaimer_router, manager_router, token_router
+from api import admin_router, disclaimer_router, manager_router
 from api.schemas.admin_authentication import (
     MigrationExceptionCreateRequest,
     PolicyCreateRequest,
@@ -303,60 +303,14 @@ async def get_disclaimer(request: Request):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  Provider Config (export/import status)
+#  Provider Config (export/import status) — see migrations.py
 # ══════════════════════════════════════════════════════════════════════════
-
-
-@token_router.get(
-    "/authentication/export/{provider_id}",
-    tags=[tag],
-    summary="Get export enabled status for provider",
-    description="Returns whether export is enabled for a specific provider.",
-    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
-)
-async def export_provider_enabled(request: Request, provider_id: str):
-    try:
-        enabled = (
-            AdminAuthenticationService.get_provider_config(provider_id)
-            .get("migration", {})
-            .get("export", False)
-        )
-        return JSONResponse(content={"enabled": enabled}, status_code=200)
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to get export status",
-            traceback.format_exc(),
-        )
-
-
-@token_router.get(
-    "/authentication/import/{provider_id}",
-    tags=[tag],
-    summary="Get import enabled status for provider",
-    description="Returns whether import is enabled for a specific provider.",
-    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
-)
-async def import_provider_enabled(request: Request, provider_id: str):
-    try:
-        enabled = (
-            AdminAuthenticationService.get_provider_config(provider_id)
-            .get("migration", {})
-            .get("import", False)
-        )
-        return JSONResponse(content={"enabled": enabled}, status_code=200)
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to get import status",
-            traceback.format_exc(),
-        )
+#
+# ``GET /authentication/{export,import}/{provider_id}`` lives on
+# migration_router in routes/migrations.py. Earlier copies on token_router
+# were registered first, shadowed the migration_router handlers, and made
+# the endpoint unreachable for users holding ``user-migration-required``
+# tokens — the very flow that needs the provider-config check. Removed.
 
 
 # ══════════════════════════════════════════════════════════════════════════

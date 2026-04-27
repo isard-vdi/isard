@@ -4,14 +4,17 @@
 flags, disclaimer template, provider config (with secret stripping), and
 migration exceptions.
 
-The router mixes four FastAPI routers with different auth gates:
+The router mixes three FastAPI routers with different auth gates:
     admin_router       (is_admin)            policies, force_validate, provider config, exceptions
     manager_router     (is_admin_or_manager) /admin/authentication/providers
-    token_router       (has_token)           /authentication/{export,import}/{provider}
     disclaimer_router  (has_token_disclaimer) /disclaimer
 
 Each test pins the auth gate (admin allowed, manager/user blocked where
 appropriate) plus the happy/error path of the underlying service call.
+
+The /authentication/{export,import}/{provider} endpoints used to live
+here on token_router and are now exclusively on migration_router in
+routes/migrations.py — see test_migrations.py for their coverage.
 """
 
 from api.routes.tests.helpers import MockJWT
@@ -424,61 +427,12 @@ class TestDisclaimerEndpoint:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  Provider config — token_router (export/import) + admin_router (full CRUD)
+#  Provider config — admin_router (full CRUD)
+#
+#  /authentication/{export,import}/{provider} is now exclusively on
+#  migration_router (see test_migrations.py) — the token_router copies
+#  that lived in admin/authentication.py were dead-code shadows.
 # ══════════════════════════════════════════════════════════════════════════
-
-
-class TestExportImportEnabled:
-    """token_router: any authenticated user can ask whether
-    export/import is enabled for a given provider.
-    """
-
-    def test_export_enabled_returns_flag(self, monkeypatch, test_client):
-        monkeypatch.setattr(
-            "api.routes.admin.authentication.AdminAuthenticationService.get_provider_config",
-            staticmethod(lambda p: {"migration": {"export": True}}),
-        )
-        response = test_client(
-            url="/authentication/export/google", jwt=MockJWT(role_id="user")
-        )
-        assert response.status_code == 200
-        assert response.json() == {"enabled": True}
-
-    def test_export_missing_migration_defaults_to_false(self, monkeypatch, test_client):
-        """No `migration` key on config → response defaults `enabled` to False."""
-        monkeypatch.setattr(
-            "api.routes.admin.authentication.AdminAuthenticationService.get_provider_config",
-            staticmethod(lambda p: {}),
-        )
-        response = test_client(
-            url="/authentication/export/google", jwt=MockJWT(role_id="user")
-        )
-        assert response.status_code == 200
-        assert response.json() == {"enabled": False}
-
-    def test_import_enabled_returns_flag(self, monkeypatch, test_client):
-        monkeypatch.setattr(
-            "api.routes.admin.authentication.AdminAuthenticationService.get_provider_config",
-            staticmethod(lambda p: {"migration": {"import": True}}),
-        )
-        response = test_client(
-            url="/authentication/import/google", jwt=MockJWT(role_id="user")
-        )
-        assert response.status_code == 200
-        assert response.json() == {"enabled": True}
-
-    def test_unknown_provider_returns_404(self, monkeypatch, test_client):
-        def not_found(provider):
-            raise Error("not_found", "Provider config not found")
-
-        monkeypatch.setattr(
-            "api.routes.admin.authentication.AdminAuthenticationService.get_provider_config",
-            staticmethod(not_found),
-        )
-        response = test_client(
-            url="/authentication/export/ghost", jwt=MockJWT(role_id="user")
-        )
-        assert response.status_code == 404
 
 
 class TestProviderConfig:

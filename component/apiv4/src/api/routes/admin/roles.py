@@ -18,28 +18,10 @@ tag = "admin_roles"
 # =============================================================================
 # ROLES ENDPOINTS (admin_router)
 # =============================================================================
-
-
-@admin_router.get(
-    "/admin/roles",
-    tags=[tag],
-    summary="List all roles",
-    description="Returns all available user roles.",
-    responses={500: {"model": ErrorResponse}},
-)
-async def admin_list_roles(request: Request):
-    try:
-        roles = AdminRolesService.get_roles()
-        return JSONResponse(content=roles, status_code=200)
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to list roles",
-            traceback.format_exc(),
-        )
+#
+# ``GET /admin/roles`` lives on manager_router in admin/users.py and
+# is registered first, so any handler defined here would be dead code.
+# Only the per-role lookup belongs here.
 
 
 @admin_router.get(
