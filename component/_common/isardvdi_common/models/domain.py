@@ -84,6 +84,13 @@ class DomainModel(PydanticBase):
     os: str | None = None
     parents: list[str] | None = None
     persistent: bool
+    # ``progress`` is written by the storage worker's
+    # ``download_url_for_domain`` task on registry desktop downloads
+    # so the same frontend keys (received / total_percent /
+    # speed_current / time_left) the media-download path renders work
+    # for the desktop card too. Optional: only registry-download
+    # desktops carry it during the curl run.
+    progress: dict | None = None
     server: bool | str | None = None
     status: DesktopStatusEnum
     tag: str | bool | None = False

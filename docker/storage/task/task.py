@@ -41,6 +41,7 @@ from subprocess import (
 from time import sleep, time
 
 from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
+from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
 from isardvdi_common.models.task import Task
 from rq import Queue, get_current_job
@@ -389,6 +390,136 @@ def _media_aborting(media_id):
         return True
 
 
+def _domain_aborting(domain_id):
+    """Same pattern as ``_media_aborting`` but for the domain table.
+
+    The registry-download chain flips the row status to
+    ``DownloadAborting`` when apiv4 cancels — the
+    :class:`TaskCancelWatcher` checks this once on entry to close the
+    pub/sub-before-subscribe race.
+    """
+    try:
+        return Domain(domain_id).status == "DownloadAborting"
+    except Exception:
+        return True
+
+
+def _run_curl_download(
+    *,
+    url,
+    dest_path,
+    headers,
+    insecure_ssl,
+    google_drive_cookie,
+    flush_progress,
+    is_aborting,
+):
+    """Run the curl download with live progress reporting and pub/sub
+    cancellation. ``flush_progress`` and ``is_aborting`` are callbacks
+    so the same body can drive media-row updates *or* domain-row
+    updates without duplicating the curl plumbing.
+
+    Returns ``True`` on success, raises ``CalledProcessError`` on
+    failure (RQ marks the chain FAILED so the dependent
+    ``update_status`` can flip the row terminal).
+    """
+    job = get_current_job()
+    makedirs(dirname(dest_path), exist_ok=True)
+
+    curl_cmd = ["curl"]
+    if insecure_ssl:
+        curl_cmd.append("-k")
+    curl_cmd.extend(
+        [
+            "-L",
+            "--max-redirs",
+            "5",
+            "--connect-timeout",
+            "30",
+            "--no-netrc",
+            "-o",
+            dest_path,
+        ]
+    )
+    if google_drive_cookie:
+        curl_cmd.extend(["-b", google_drive_cookie])
+    for h in headers or []:
+        curl_cmd.extend(["-H", h])
+    curl_cmd.append(url)
+
+    process = Popen(
+        curl_cmd,
+        stdout=PIPE,
+        stderr=PIPE,
+        preexec_fn=os.setsid,
+    )
+
+    # Skip the two header lines curl prints before the progress meter.
+    process.stderr.readline()
+    process.stderr.readline()
+
+    last_flush = 0.0
+    line = ""
+    aborted = False
+    with TaskCancelWatcher(job.id, initial_check=is_aborting) as watcher:
+        while process.poll() is None:
+            if watcher.cancelled:
+                aborted = True
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                break
+
+            c = process.stderr.read(1)
+            if not c:
+                sleep(0.1)
+                continue
+            ch = c.decode("utf-8", errors="replace")
+            if ch in ("\r", "\n"):
+                progress = _curl_progress_dict(line)
+                line = ""
+                now = time()
+                if progress and (now - last_flush) >= _DOWNLOAD_PROGRESS_FLUSH_SECONDS:
+                    last_flush = now
+                    try:
+                        flush_progress(progress)
+                    except Exception:
+                        log.exception("download: failed to persist progress")
+                    if progress.get("received_percent") is not None:
+                        job.meta["progress"] = progress["received_percent"] / 100.0
+                        job.save_meta()
+                        Queue("core", connection=job.connection).enqueue(
+                            "task.feedback", task_id=job.id, result_ttl=0
+                        )
+                continue
+            line += ch
+
+    process.wait(timeout=10)
+
+    if aborted:
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(returncode=130, cmd=curl_cmd)
+
+    if process.returncode != 0:
+        stderr = process.stderr.read().decode("utf-8", errors="replace")
+        log.error("download failed (rc=%s): %s", process.returncode, stderr.strip())
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(
+            returncode=process.returncode, cmd=curl_cmd, stderr=stderr
+        )
+
+    job.meta["progress"] = 1.0
+    job.save_meta()
+    return True
+
+
 def download_url(
     media_id,
     url,
@@ -453,94 +584,97 @@ def download_url(
     except Exception:
         log.exception("download_url: failed to flip media %s to Downloading", media_id)
 
-    process = Popen(
-        curl_cmd,
-        stdout=PIPE,
-        stderr=PIPE,
-        preexec_fn=os.setsid,  # so we can kill the whole curl process group
+    def _flush(progress):
+        Media(media_id).progress = progress
+
+    _run_curl_download(
+        url=url,
+        dest_path=dest_path,
+        headers=headers,
+        insecure_ssl=insecure_ssl,
+        google_drive_cookie=google_drive_cookie,
+        flush_progress=_flush,
+        is_aborting=lambda: _media_aborting(media_id),
     )
 
-    # Skip the two header lines curl prints before the progress meter.
-    process.stderr.readline()
-    process.stderr.readline()
-
-    last_flush = 0.0
-    line = ""
-    aborted = False
-    # Subscribe to the generic pub/sub cancellation channel for this
-    # job. ``initial_check`` covers the publish-before-subscribe race
-    # by reading the persistent ``Media.status`` flag once on entry.
-    with TaskCancelWatcher(
-        job.id,
-        initial_check=lambda: _media_aborting(media_id),
-    ) as watcher:
-        while process.poll() is None:
-            if watcher.cancelled:
-                aborted = True
-                try:
-                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-                break
-
-            c = process.stderr.read(1)
-            if not c:
-                sleep(0.1)
-                continue
-            ch = c.decode("utf-8", errors="replace")
-            if ch in ("\r", "\n"):
-                progress = _curl_progress_dict(line)
-                line = ""
-                now = time()
-                if progress and (now - last_flush) >= _DOWNLOAD_PROGRESS_FLUSH_SECONDS:
-                    last_flush = now
-                    try:
-                        Media(media_id).progress = progress
-                    except Exception:
-                        log.exception(
-                            "download_url: failed to persist progress for %s",
-                            media_id,
-                        )
-                    # Mirror the percentage onto the RQ job meta so the
-                    # generic task panel + task.feedback emit a useful
-                    # value.
-                    if progress.get("received_percent") is not None:
-                        job.meta["progress"] = progress["received_percent"] / 100.0
-                        job.save_meta()
-                        Queue("core", connection=job.connection).enqueue(
-                            "task.feedback", task_id=job.id, result_ttl=0
-                        )
-                continue
-            line += ch
-
-    process.wait(timeout=10)
-
-    if aborted:
-        # Surface as a controlled failure so the dependent update_status
-        # task sees the FAILED outcome and flips the row back to a
-        # terminal state.
-        try:
-            os.unlink(dest_path)
-        except OSError:
-            pass
-        raise CalledProcessError(returncode=130, cmd=curl_cmd)
-
-    if process.returncode != 0:
-        stderr = process.stderr.read().decode("utf-8", errors="replace")
-        log.error("download_url failed (rc=%s): %s", process.returncode, stderr.strip())
-        try:
-            os.unlink(dest_path)
-        except OSError:
-            pass
-        raise CalledProcessError(
-            returncode=process.returncode, cmd=curl_cmd, stderr=stderr
-        )
-
-    # Final 100% mark.
-    job.meta["progress"] = 1.0
-    job.save_meta()
     return {
         "id": media_id,
+        "path_downloaded": dest_path,
+    }
+
+
+def download_url_for_domain(
+    domain_id,
+    storage_id,
+    url,
+    dest_path,
+    headers=None,
+    insecure_ssl=False,
+    google_drive_cookie=None,
+):
+    """Download a URL into the storage path of a registry-download desktop.
+
+    Replaces the engine's deleted SSH-curl path for ``domains`` rows
+    (the ``DownloadThread.table == "domains"`` branch in the
+    pre-merge ``download_thread.py``). The chain that wraps this task
+    looks like::
+
+        storage.{pool}.low: download_url_for_domain
+          -> storage.{pool}.low: qemu_img_info_backing_chain
+            -> core: storage_update          # flips storage to ``ready``
+              -> core: update_status         # FAILED/CANCELED → Failed
+
+    On the success path ``storage_update`` calls
+    ``_promote_domains_to_stopped`` which transitions the domain row
+    from ``DownloadStarting`` / ``Downloading`` → ``Stopped``, mirroring
+    the legacy "Downloaded → Stopped" pair the engine used to emit.
+
+    Cancellation rides the same ``task:cancel:<id>`` pub/sub primitive
+    used by media downloads. apiv4 sets ``Domain.status =
+    DownloadAborting`` to cover the publish-before-subscribe race
+    (the watcher's ``initial_check``).
+
+    :param domain_id: Domain row id whose ``status`` / ``progress`` to update
+    :param storage_id: Pre-allocated Storage row id (the row already
+        exists with ``status="non_existing"``; ``qemu_img_info_backing_chain``
+        flips it to ``ready`` after the file is on disk)
+    :param url: Source URL (validated by apiv4)
+    :param dest_path: Absolute path to write the qcow2 to (matches
+        ``Storage(storage_id).path``)
+    :raises CalledProcessError: when curl exits non-zero (RQ marks
+        the job FAILED → dependent ``update_status`` flips domain +
+        storage to ``Failed``)
+    """
+    log.info(
+        "download_url_for_domain: domain=%s storage=%s dest=%s",
+        domain_id,
+        storage_id,
+        dest_path,
+    )
+    try:
+        Domain(domain_id).status = "Downloading"
+    except Exception:
+        log.exception(
+            "download_url_for_domain: failed to flip domain %s to Downloading",
+            domain_id,
+        )
+
+    def _flush(progress):
+        Domain(domain_id).progress = progress
+
+    _run_curl_download(
+        url=url,
+        dest_path=dest_path,
+        headers=headers,
+        insecure_ssl=insecure_ssl,
+        google_drive_cookie=google_drive_cookie,
+        flush_progress=_flush,
+        is_aborting=lambda: _domain_aborting(domain_id),
+    )
+
+    return {
+        "id": domain_id,
+        "storage_id": storage_id,
         "path_downloaded": dest_path,
     }
 

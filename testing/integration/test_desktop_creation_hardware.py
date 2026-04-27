@@ -225,11 +225,10 @@ def _media_then_template(
     desktop and template are persistent until the session-end cleanup
     removes them by the namespace prefix.
 
-    This replaces the older registry-domain path because the merge
-    only migrated the *media* URL chain to the storage RQ tasks; the
-    registry-domain ``DownloadStarting`` handler used to live in the
-    deleted ``engine/services/threads/download_thread.py`` and has not
-    yet been ported.
+    This is the media-source variant of the template setup. The
+    registry-domain alternative (``_registry_then_template``) is
+    used by the dedicated registry tests; both end up with a
+    template ready to derive desktops from.
     """
     media_name = f"{test_namespace}{prefix}_tmpl_media"
     media = admin_client.post(
@@ -271,6 +270,65 @@ def _media_then_template(
         max_wait=TEMPLATE_TIMEOUT,
     )
     return template_id, src_id, media_id
+
+
+REGISTRY_IMAGE_NAME = os.environ.get("E2E_REGISTRY_IMAGE", "TetrOS")
+
+
+def _trigger_registry_download(admin_client: IsardClient, name: str) -> str:
+    """Find the registry entry for ``name``, trigger its download via the
+    apiv4 admin endpoint, wait for the new ``Stopped`` desktop to
+    appear, and return its id. Skips the test cleanly when the
+    registry entry isn't ``Available`` (offline registry, network
+    block, ...).
+
+    Pins the new registry-domain task chain end-to-end:
+
+        apiv4 POST /admin/downloads/download/domains/<url-isard>
+          -> Storage.new_dict + enqueue_registry_download_chain_for_domain
+          -> storage.{pool}.low: download_url_for_domain
+            -> storage.{pool}.low: qemu_img_info_backing_chain
+              -> core: storage_update (storage→ready, _promote_domains_to_stopped)
+                -> core: update_status (FAILED/CANCELED → Failed)
+    """
+    entries = admin_client.get("/api/v4/admin/downloads/domains")
+    entry = None
+    for e in entries:
+        if (e.get("name") or "").lower() == name.lower():
+            entry = e
+            break
+    if entry is None or entry.get("status") not in (None, "Available"):
+        pytest.skip(f"{name!r} not Available in registry")
+
+    existing_rows = (
+        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
+    )
+    existing_ids = {r["id"] for r in existing_rows if (r.get("name") or "") == name}
+
+    admin_client.post(
+        f"/api/v4/admin/downloads/download/domains/"
+        f"{entry.get('url-isard') or entry['id']}",
+        expected=(200, 201, 204),
+    )
+
+    deadline = time.monotonic() + DOWNLOAD_TIMEOUT
+    while time.monotonic() < deadline:
+        rows = (
+            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
+            or []
+        )
+        for row in rows:
+            if (
+                (row.get("name") or "") == name
+                and row["id"] not in existing_ids
+                and row.get("status") == "Stopped"
+            ):
+                return row["id"]
+        time.sleep(2)
+    raise TimeoutError(
+        f"registry download for {name!r} did not reach Stopped within "
+        f"{DOWNLOAD_TIMEOUT}s"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -523,6 +581,77 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
 
 
 _CDROM_RE = re.compile(r"<disk[^>]*type=\"file\"[^>]*device=\"cdrom\"[^>]*>", re.DOTALL)
+
+
+@pytest.mark.real
+@pytest.mark.slow
+def test_registry_download_lands_desktop_as_stopped_via_new_chain(
+    admin_client: IsardClient,
+    test_namespace: str,
+):
+    """End-to-end pin for the ported registry-domain download chain.
+
+    The ``feat/create-disk-via-task`` merge migrated *media* URL
+    downloads to the storage RQ task chain but left the
+    ``DownloadStarting`` handler for ``domains`` rows nowhere — the
+    deleted ``engine/services/threads/download_thread.py`` used to
+    own both. This test verifies the port:
+
+    * apiv4 ``POST /admin/downloads/download/domains/<url-isard>``
+      with no body builds the registry entry server-side, allocates
+      a Storage row, and enqueues
+      ``Storage.enqueue_registry_download_chain_for_domain``.
+    * The new ``download_url_for_domain`` task on the storage worker
+      curls the qcow2 to the storage path, flips the domain row to
+      ``Downloading`` while curl runs, and produces a 12-key
+      progress dict on the row so the frontend renders.
+    * ``qemu_img_info_backing_chain`` validates the file and flips
+      the storage row to ``ready``; ``storage_update`` then promotes
+      the linked desktop to ``Stopped``.
+
+    TetrOS is the canonical small-disk registry image
+    (~5 MB, also used by ``test_registry_download_lifecycle.py``).
+    Skips if the registry is unreachable or the entry isn't
+    Available.
+    """
+    desktop_id = _trigger_registry_download(admin_client, REGISTRY_IMAGE_NAME)
+
+    # ── Pin (1): the desktop is Stopped — the chain ran to
+    # completion (storage_update flipped storage to ``ready`` and
+    # _promote_domains_to_stopped lifted the row from
+    # DownloadStarting/Downloading). Asserted via the admin listing
+    # before any subsequent edit, since edit transitions Stopped →
+    # Updating → Stopped.
+    rows = (
+        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
+    )
+    row = next((d for d in rows if d.get("id") == desktop_id), None)
+    assert row is not None, "registry desktop disappeared from admin listing"
+    assert row.get("status") == "Stopped", (
+        f"registry desktop reached Stopped via the chain but immediately "
+        f"flipped to {row.get('status')!r} — investigate the changefeed."
+    )
+
+    # ── Pin (2): the storage row got created and is ``ready`` (the
+    # downloaded file is on disk and qemu-img info validated it).
+    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}/get-details")
+    disks = details.get("disks") or []
+    assert disks, "registry desktop has no disks attached"
+    storage_id = disks[0].get("id")
+    assert storage_id, f"first disk missing storage id: {disks[0]!r}"
+
+    # ── Pin (3): rename into test prefix so teardown finds it.
+    # Wait for the post-edit Updating → Stopped sweep before
+    # finishing — leaving the desktop in Updating would crash later
+    # tests that scan ``/items/desktops``.
+    admin_client.raw(
+        "PUT",
+        f"/api/v4/item/desktop/{desktop_id}/edit",
+        json={"name": f"{test_namespace}registry_tetros", "description": "registry"},
+    )
+    admin_client.poll_desktop_status(
+        desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
+    )
 
 
 @pytest.mark.real
