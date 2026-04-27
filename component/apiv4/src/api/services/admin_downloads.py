@@ -246,6 +246,40 @@ class AdminDownloadsService:
 
         if action == "download":
             if id:
+                if data is None:
+                    # Webapp / Vue clients always send the row dict in
+                    # the body (see webapp/static/admin/js/updates.js).
+                    # API-only callers (CI integration tests, scripts)
+                    # can rely on the id alone — fetch the matching
+                    # registry entry server-side so the download still
+                    # fires.
+                    #
+                    # Subtlety: for "new" (not-yet-downloaded) items
+                    # ``get_downloads_kind`` minted a fresh ``uuid4()``
+                    # for ``id`` on every call, so the id passed by an
+                    # API client may not appear in the newest GET.
+                    # Match against the stable ``url-isard`` /
+                    # ``url-web`` canonical keys as well, and against
+                    # ``name`` as a last resort. Failing through
+                    # silently was the old behavior the integration
+                    # suite surfaced.
+                    items = AdminDownloadsService.get_downloads_kind(kind, user_id)
+                    matches = [
+                        d
+                        for d in items
+                        if d.get("id") == id
+                        or d.get("url-isard") == id
+                        or d.get("url-web") == id
+                        or d.get("name") == id
+                    ]
+                    if not matches:
+                        raise Error(
+                            "not_found",
+                            f"No registry {kind} entry matching id "
+                            f"{id!r}; pass the row body or use a stable "
+                            f"identifier (url-isard / url-web / name).",
+                        )
+                    data = matches[0]
                 if data and kind == "domains":
                     missing_resources = AdminDownloadsService._get_missing_resources(
                         data, user_id
