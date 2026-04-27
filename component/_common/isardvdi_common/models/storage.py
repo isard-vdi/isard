@@ -525,17 +525,22 @@ class Storage(RethinkCustomBase):
                     f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
                     "storage_invalid_status_for_move",
                 )
-        elif self.status != "ready" and action not in ("create", "delete"):
+        elif self.status != "ready" and action not in (
+            "create",
+            "delete",
+            "download",
+        ):
             raise Exception(
                 "precondition_required",
                 f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
                 "storage_not_ready",
             )
-        # "create" is a fresh-storage action — the domain being wired in
-        # is the whole point, and by construction it is not yet Stopped
-        # (it is in a Creating* state) and the storage has no children.
-        # Skip the two invariants that only apply to pre-existing storage.
-        if action != "create":
+        # "create" / "download" are fresh-storage actions — the domain
+        # being wired in is the whole point, and by construction it is
+        # not yet Stopped (it is in a Creating* / DownloadStarting
+        # state) and the storage has no children. Skip the two
+        # invariants that only apply to pre-existing storage.
+        if action not in ("create", "download"):
             domains = self.domains
             if any(domain.status != "Stopped" for domain in domains):
                 raise Exception(
@@ -1613,6 +1618,105 @@ class Storage(RethinkCustomBase):
                                             ],
                                         }
                                     ],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+
+        return self.task
+
+    def enqueue_registry_download_chain_for_domain(
+        self,
+        domain_id,
+        url,
+        headers=None,
+        insecure_ssl=False,
+        google_drive_cookie=None,
+        priority="low",
+        retry: int = 0,
+    ):
+        """Enqueue the chain that downloads a registry-domain qcow2.
+
+        Replaces the engine's deleted ``DownloadThread.table=='domains'``
+        SSH-curl path with the same RQ-task topology already used by
+        media URL downloads. Status transitions:
+
+            queued       → DownloadStarting (set by caller before insert)
+            running      → Downloading      (flipped inside download_url_for_domain)
+            finished     → Stopped          (via storage_update →
+                                              _promote_domains_to_stopped)
+            failed/canceled → Failed        (dependent update_status)
+
+        Cancellation rides ``Task(self.task).cancel()``; the
+        ``download_url_for_domain`` body's :class:`TaskCancelWatcher`
+        notices via the generic ``task:cancel:<id>`` pub/sub channel.
+
+        :return: Root task id.
+        """
+        pool = self.pool
+        if pool is None:
+            raise Exception(
+                "precondition_required",
+                f"No storage pool found for domain {domain_id}",
+            )
+
+        download_kwargs = {
+            "domain_id": domain_id,
+            "storage_id": self.id,
+            "url": url,
+            "dest_path": self.path,
+            "headers": list(headers or []),
+            "insecure_ssl": bool(insecure_ssl),
+            "google_drive_cookie": google_drive_cookie,
+        }
+
+        self.set_maintenance("download")
+        self.create_task(
+            user_id=self.user_id,
+            queue=f"storage.{pool.id}.{priority}",
+            task="download_url_for_domain",
+            retry=retry,
+            retry_intervals=15,
+            job_kwargs={"kwargs": download_kwargs},
+            dependents=[
+                {
+                    "queue": f"storage.{pool.id}.{priority}",
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "update_status",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "statuses": {
+                                                JobStatus.FAILED: {
+                                                    "Failed": {
+                                                        "domain": [domain_id],
+                                                        "storage": [self.id],
+                                                    }
+                                                },
+                                                JobStatus.CANCELED: {
+                                                    "Failed": {
+                                                        "domain": [domain_id],
+                                                        "storage": [self.id],
+                                                    }
+                                                },
+                                            },
+                                        },
+                                    },
                                 }
                             ],
                         }

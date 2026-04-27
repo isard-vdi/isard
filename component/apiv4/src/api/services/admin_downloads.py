@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import os
 import time
 import xml.etree.ElementTree as ET
 from uuid import uuid4
@@ -31,6 +32,12 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.error_factory import Error
 from rethinkdb import r
+
+# Mirror ``api.services.media`` so registry-domain downloads honour the
+# same ``URL_DOWNLOAD_INSECURE_SSL`` toggle the legacy engine path used.
+URL_DOWNLOAD_INSECURE_SSL = (
+    os.environ.get("URL_DOWNLOAD_INSECURE_SSL", "true").lower() == "true"
+)
 
 
 class AdminDownloadsService:
@@ -291,14 +298,26 @@ class AdminDownloadsService:
                             except Exception:
                                 AdminTablesService.update_table_item(k, resource)
                 if data:
+                    pending_storage = None
                     if kind == "domains":
                         data = AdminDownloadsService._format_domains([data], user_id)[0]
+                        pending_storage = (
+                            AdminDownloadsService._allocate_storage_for_pending_domain(
+                                data, user_id
+                            )
+                        )
                     elif kind == "media":
                         data = AdminDownloadsService._format_medias([data], user_id)[0]
                     try:
                         AdminTablesService.insert_table_item(kind, data)
                     except Exception:
                         AdminTablesService.update_table_item(kind, data)
+                    AdminDownloadsService._kick_off_download_chain(
+                        kind,
+                        data,
+                        pending_storage=pending_storage,
+                        insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
+                    )
             else:
                 items = AdminDownloadsService.get_downloads_kind(kind, user_id)
                 items = [d for d in items if d["new"] is True]
@@ -307,10 +326,23 @@ class AdminDownloadsService:
                 elif kind == "media":
                     items = AdminDownloadsService._format_medias(items, user_id)
                 for item in items:
+                    pending_storage = None
+                    if kind == "domains":
+                        pending_storage = (
+                            AdminDownloadsService._allocate_storage_for_pending_domain(
+                                item, user_id
+                            )
+                        )
                     try:
                         AdminTablesService.insert_table_item(kind, item)
                     except Exception:
                         AdminTablesService.update_table_item(kind, item)
+                    AdminDownloadsService._kick_off_download_chain(
+                        kind,
+                        item,
+                        pending_storage=pending_storage,
+                        insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
+                    )
         elif action == "abort":
             data = {"id": id, "status": "DownloadAborting"}
             AdminTablesService.update_table_item(kind, data)
@@ -433,8 +465,80 @@ class AdminDownloadsService:
         return result
 
     @staticmethod
+    def _kick_off_download_chain(
+        kind: str, data: dict, pending_storage=None, insecure_ssl: bool = False
+    ) -> None:
+        """Fire the storage RQ chain for a freshly inserted registry row.
+
+        For ``media`` we delegate to the existing
+        :meth:`Media.enqueue_download_chain`. For ``domains`` we use
+        the new :meth:`Storage.enqueue_registry_download_chain_for_domain`
+        which mirrors the chain shape but updates the desktop row
+        instead of a media row. Skips the no-op cases (already-
+        downloaded re-trigger, ISO-only desktops with no disk).
+        """
+        if kind == "media":
+            from isardvdi_common.models.media import Media as RethinkMedia
+
+            media_id = data.get("id")
+            if not media_id:
+                return
+            try:
+                media = RethinkMedia(media_id)
+            except Exception:
+                return
+            url = data.get("url") or data.get("url-isard") or data.get("url-web")
+            if not url:
+                return
+            try:
+                media.enqueue_download_chain(
+                    user_id=data.get("user") or media.user,
+                    url=str(url),
+                    insecure_ssl=insecure_ssl,
+                )
+            except Exception:
+                # Best-effort: insert succeeded; surfaced via the media
+                # row's stuck DownloadStarting status if the chain didn't
+                # fire. Logged at apiv4 level by the route's outer try.
+                raise
+
+        elif kind == "domains":
+            if pending_storage is None:
+                # ISO-only desktop or already-downloaded re-trigger:
+                # nothing to download.
+                return
+            registry_url, code, _ = AdminDownloadsService._get_cfg()
+            url_isard = data.get("url-isard") or ""
+            url_web = data.get("url-web") or ""
+            # Match the engine's deleted ``DownloadChangesThread.run``
+            # build (``url_resources + "/storage/" + table + "/" + url-isard``)
+            # so the existing registry server keeps serving the same
+            # paths. ``url-web`` is the optional alternate (rare).
+            if url_web and not str(url_isard):
+                full_url = url_web
+                headers = []
+            else:
+                full_url = (
+                    f"{registry_url.rstrip('/')}/storage/domains/"
+                    f"{str(url_isard).lstrip('/')}"
+                )
+                headers = [f"Authorization: {code}"] if code else []
+            pending_storage.enqueue_registry_download_chain_for_domain(
+                domain_id=data["id"],
+                url=full_url,
+                headers=headers,
+                insecure_ssl=insecure_ssl,
+            )
+
+    @staticmethod
     def _format_domains(data: list, user_id: str) -> list:
-        """Format domain data for download insertion."""
+        """Format domain data for download insertion.
+
+        Pure: no DB side effects. Storage allocation happens later in
+        :meth:`_allocate_storage_for_pending_domain` (called from
+        ``download_action`` after the row has been inserted), so the
+        unit tests for this formatter don't need a live RethinkDB.
+        """
         from isardvdi_common.helpers.helpers import Helpers
         from isardvdi_common.helpers.isard_viewer import default_guest_properties
 
@@ -452,8 +556,17 @@ class AdminDownloadsService:
             d["accessed"] = int(time.time())
             d["hypervisors_pools"] = d["create_dict"]["hypervisors_pools"]
             interfaces = d["create_dict"]["hardware"]["interfaces"]
+            # Tolerate already-normalized rows from
+            # ``_get_domain_if_already_downloaded`` (each retry would
+            # otherwise re-wrap dict entries into ``{"id": <dict>, "mac": …}``,
+            # producing the triple-nested ``{"id": {"id": {"id": …}}}``
+            # shape that breaks ``r.table('interfaces').get(id)``).
             d["create_dict"]["hardware"]["interfaces"] = [
-                {"id": interface, "mac": Helpers.gen_random_mac()}
+                (
+                    interface
+                    if isinstance(interface, dict) and "id" in interface
+                    else {"id": interface, "mac": Helpers.gen_random_mac()}
+                )
                 for interface in interfaces
             ]
             disks = d["create_dict"]["hardware"].get("disks", [])
@@ -476,6 +589,34 @@ class AdminDownloadsService:
             d.update(AdminDownloadsService._get_user_data(user_id))
             new_data.append(d)
         return new_data
+
+    @staticmethod
+    def _allocate_storage_for_pending_domain(data: dict, user_id: str):
+        """Allocate the ``Storage`` row that the registry download
+        chain will write into and stamp ``storage_id`` + ``file`` on
+        ``create_dict.hardware.disks[0]``.
+
+        Returns the ``Storage`` instance (None for ISO-only desktops
+        with no disks). Mutates ``data`` in place so the subsequent
+        insert carries the storage references.
+        """
+        from isardvdi_common.models.storage import Storage
+
+        if not data.get("create_dict", {}).get("hardware", {}).get("disks"):
+            return None
+        pending_storage = Storage.new_dict(
+            user_id=user_id,
+            pool_usage="desktop",
+            parent_id=None,
+        )
+        pending_storage.status_logs = [{"time": int(time.time()), "status": "created"}]
+        data["create_dict"]["hardware"]["disks"][0].update(
+            {
+                "storage_id": pending_storage.id,
+                "file": pending_storage.path,
+            }
+        )
+        return pending_storage
 
     @staticmethod
     def _format_medias(data: list, user_id: str) -> list:
