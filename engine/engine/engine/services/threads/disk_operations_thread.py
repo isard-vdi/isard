@@ -7,11 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from engine.services.db.hypervisors import update_hyp_thread_status
 from engine.services.lib.functions import get_tid, try_ssh_command
 from engine.services.log import log, logs
-from engine.services.threads.threads import (
-    TIMEOUT_QUEUES,
-    launch_action_create_template_disk,
-    launch_delete_disk_action,
-)
+from engine.services.threads.threads import TIMEOUT_QUEUES, launch_delete_disk_action
 
 # Define the global maximum number of threads
 GLOBAL_MAX_THREADS = 5
@@ -54,9 +50,6 @@ class DiskOperationsThread(threading.Thread):
         # number of connections
         self.executors = {
             "delete_disk": LimitedThreadPoolExecutor(max_workers=5),
-            "create_template_disk_from_domain": LimitedThreadPoolExecutor(
-                max_workers=2
-            ),
         }
 
     def run(self):
@@ -121,16 +114,6 @@ class DiskOperationsThread(threading.Thread):
         try:
             if action["type"] == "delete_disk":
                 launch_delete_disk_action(action, self.hostname, self.user, self.port)
-            elif action["type"] == "create_template_disk_from_domain":
-                log.info(
-                    f"Processing create_template_disk_from_domain action for domain {action.get('id_domain')}..."
-                )
-                launch_action_create_template_disk(
-                    action, self.hostname, self.user, self.port
-                )
-                log.info(
-                    f"create_template_disk_from_domain action for domain {action.get('id_domain')} processed."
-                )
         except Exception as e:
             log.error(f"Error processing action {action}: {e}")
 

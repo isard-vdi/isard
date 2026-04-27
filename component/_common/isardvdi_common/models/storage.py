@@ -1628,6 +1628,206 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    def enqueue_template_creation_chain_from_desktop(
+        self,
+        desktop_id,
+        template_id,
+        template_storage_id,
+        priority="default",
+        retry: int = 0,
+        timeout=43200,
+    ):
+        """Enqueue the chain that turns this desktop's qcow2 into a template
+        base disk plus a fresh overlay at the desktop's old path.
+
+        Replaces the engine's deleted SSH path
+        (``ui_actions.create_template_disks_from_domain`` +
+        ``threads.launch_action_create_template_disk``) with an RQ task
+        chain that mirrors the topology of
+        :meth:`enqueue_disk_creation_chain_for_domain`.
+
+        Caller invariants (apiv4 ``CommonTemplates.new_template``):
+          * ``self`` is the desktop's existing Storage row,
+            ``status == "ready"``.
+          * ``template_storage_id`` already exists with
+            ``status == "non_existing"``, allocated under the template pool,
+            with ``parent = self.parent`` (so it inherits the desktop's
+            backing chain root).
+          * Both the desktop and template ``domains`` rows exist with
+            ``status == "CreatingTemplate"``. The desktop is *not*
+            ``Stopped`` — that prevents any other caller from acquiring
+            either storage row via :meth:`set_maintenance` while the chain
+            runs, so we deliberately do NOT call ``set_maintenance`` on
+            ``self``.
+
+        Chain (``move`` runs on the destination pool — that worker writes
+        the new template file; the source-side backing-chain refresh runs
+        on the source pool because that worker can read the desktop's
+        rewritten overlay):
+
+            storage.{dst_pool}.{prio}: move(method="auto",
+                                            origin=desktop.path,
+                                            destination=template.path,
+                                            remove_source_file=True)
+              -> storage.{dst_pool}.{prio}: create(storage_path=desktop.path,
+                                                    storage_type=qcow2,
+                                                    parent_path=template.path,
+                                                    parent_type=qcow2)
+                -> storage.{dst_pool}.{prio}: qemu_img_info_backing_chain(template)
+                  -> core: storage_update           # template -> ready,
+                                                    # _promote_domains_to_stopped
+                    -> storage.{src_pool}.{prio}: qemu_img_info_backing_chain(desktop)
+                      -> core: storage_update       # desktop -> ready,
+                                                    # parent flipped to template
+                        -> core: update_status      # FAILED/CANCELED -> Failed
+                                                    # for both rows + both domains
+
+        Status transitions:
+            queued       → CreatingTemplate (set by caller before insert)
+            running      → CreatingTemplate (no flip needed; rsync progress
+                                              streams via task.feedback)
+            finished     → Stopped          (via storage_update →
+                                              _promote_domains_to_stopped on
+                                              both storages)
+            failed/canceled → Failed        (dependent update_status)
+
+        :param desktop_id: Source desktop domain id.
+        :param template_id: New template domain id (already inserted).
+        :param template_storage_id: New template storage id (already
+            allocated via ``Storage.new_dict``).
+        :param priority: RQ priority bucket (default ``"default"``).
+        :param retry: Number of retries on the root ``move`` task.
+        :param timeout: Per-task timeout in seconds (default 12 h, matches
+            :meth:`rsync`).
+        :return: Root task id.
+        """
+        if not Storage.exists(template_storage_id):
+            raise Exception(
+                "not_found",
+                f"Template storage {template_storage_id} not found",
+            )
+        template_storage = Storage(template_storage_id)
+        dst_pool = template_storage.pool
+        src_pool = self.pool
+        if dst_pool is None or src_pool is None:
+            raise Exception(
+                "precondition_required",
+                f"No storage pool resolved for template {template_storage_id} "
+                f"or desktop {desktop_id}",
+            )
+
+        # The new template storage is fresh (status="non_existing"); the
+        # "create" maintenance label is allowlisted for that and skips the
+        # domain-stopped check (the template domain is in CreatingTemplate
+        # by construction). The desktop's existing storage is left in
+        # "ready" — see docstring for the locking argument.
+        template_storage.set_maintenance("create")
+
+        self.create_task(
+            user_id=self.user_id,
+            queue=f"storage.{dst_pool.id}.{priority}",
+            task="move",
+            retry=retry,
+            retry_intervals=15,
+            job_kwargs={
+                "kwargs": {
+                    "origin_path": self.path,
+                    "destination_path": template_storage.path,
+                    "method": "auto",
+                    "remove_source_file": True,
+                },
+                "timeout": timeout,
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{dst_pool.id}.{priority}",
+                    "task": "create",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_path": self.path,
+                            "storage_type": self.type,
+                            "parent_path": template_storage.path,
+                            "parent_type": template_storage.type,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": f"storage.{dst_pool.id}.{priority}",
+                            "task": "qemu_img_info_backing_chain",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": template_storage_id,
+                                    "storage_path": template_storage.path,
+                                }
+                            },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "storage_update",
+                                    "dependents": [
+                                        {
+                                            "queue": f"storage.{src_pool.id}.{priority}",
+                                            "task": "qemu_img_info_backing_chain",
+                                            "job_kwargs": {
+                                                "kwargs": {
+                                                    "storage_id": self.id,
+                                                    "storage_path": self.path,
+                                                }
+                                            },
+                                            "dependents": [
+                                                {
+                                                    "queue": "core",
+                                                    "task": "storage_update",
+                                                    "dependents": [
+                                                        {
+                                                            "queue": "core",
+                                                            "task": "update_status",
+                                                            "job_kwargs": {
+                                                                "kwargs": {
+                                                                    "statuses": {
+                                                                        JobStatus.FAILED: {
+                                                                            "Failed": {
+                                                                                "domain": [
+                                                                                    desktop_id,
+                                                                                    template_id,
+                                                                                ],
+                                                                                "storage": [
+                                                                                    self.id,
+                                                                                    template_storage_id,
+                                                                                ],
+                                                                            },
+                                                                        },
+                                                                        JobStatus.CANCELED: {
+                                                                            "Failed": {
+                                                                                "domain": [
+                                                                                    desktop_id,
+                                                                                    template_id,
+                                                                                ],
+                                                                                "storage": [
+                                                                                    self.id,
+                                                                                    template_storage_id,
+                                                                                ],
+                                                                            },
+                                                                        },
+                                                                    },
+                                                                },
+                                                            },
+                                                        }
+                                                    ],
+                                                }
+                                            ],
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+
+        return self.task
+
     def enqueue_registry_download_chain_for_domain(
         self,
         domain_id,

@@ -11,7 +11,6 @@ from engine.services.db import (
     get_domain,
     get_domains_started_in_hyp,
     update_all_domains_status,
-    update_disk_template_created,
 )
 from engine.services.db.domains import get_domain_status, update_domain_status
 from engine.services.db.downloads import update_status_media_from_path
@@ -21,39 +20,18 @@ from engine.services.db.hypervisors import (
     update_hyp_thread_status,
 )
 from engine.services.lib.functions import (
-    TIMEOUT_MOVE_OPERATIONS,
     PriorityQueueIsard,
     dict_domain_libvirt_state_to_isard_state,
-    execute_command_with_progress,
     execute_commands,
     state_and_cause_to_str,
 )
-from engine.services.lib.qcow import (
-    create_cmds_disk_template_from_domain,
-    verify_output_cmds1_template_from_domain,
-    verify_output_cmds2,
-    verify_output_cmds3,
-)
-from engine.services.lib.storage import update_storage_status
 from engine.services.log import *
-from isardvdi_common.models.storage import Storage
 
 TIMEOUT_QUEUES = float(CONFIG_DICT["TIMEOUTS"]["timeout_queues"])
 TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE = max(
     2.0, float(CONFIG_DICT["TIMEOUTS"]["timeout_between_retries_hyp_is_alive"])
 )
 RETRIES_HYP_IS_ALIVE = max(8, int(CONFIG_DICT["TIMEOUTS"]["retries_hyp_is_alive"]))
-
-
-def create_disk_action_dict(
-    id_domain, path_template_disk, path_domain_disk, disk_index_in_bus=0
-):
-    action = {}
-    action["id_domain"] = id_domain
-    action["type"] = "create_template_disk_from_domain"
-    action["path_template_disk"] = path_template_disk
-    action["path_domain_disk"] = path_domain_disk
-    action["disk_index"] = disk_index_in_bus
 
 
 def threading_enumerate():
@@ -154,134 +132,6 @@ def launch_delete_media(action, hostname, user, port, final_status="Deleted"):
         log.error("failed deleting media {}".format(id_media))
         update_status_media_from_path(path, "FailedDeleted")
         return False
-
-
-def launch_action_create_template_disk(action, hostname, user, port):
-    path_template_disk = action["path_template_disk"]
-    path_domain_disk = action["path_domain_disk"]
-    id_domain = action["id_domain"]
-    disk_index = action["disk_index"]
-
-    cmds1, cmds2, cmds3 = create_cmds_disk_template_from_domain(
-        path_template_disk, path_domain_disk
-    )
-
-    # cmds1: Firsts commands: test if perms, df, files are ok
-    cmds_done = execute_commands(
-        hostname, ssh_commands=cmds1, dict_mode=True, user=user, port=port
-    )
-    error_severity, move_tool, cmd_to_move = verify_output_cmds1_template_from_domain(
-        cmds_done, path_domain_disk, path_template_disk, id_domain
-    )
-    if error_severity == None:
-        # move file
-        log.debug("commnad to move disk template: {}".format(cmd_to_move))
-        if move_tool == "mv":
-            cmds_done = execute_commands(
-                hostname,
-                ssh_commands=[cmd_to_move],
-                dict_mode=False,
-                user=user,
-                port=port,
-                timeout=TIMEOUT_MOVE_OPERATIONS,
-            )
-
-        if move_tool == "rsync":
-            execute_command_with_progress(
-                hostname=hostname,
-                ssh_command=cmd_to_move,
-                id_domain=id_domain,
-                user=user,
-                port=port,
-                timeout=TIMEOUT_MOVE_OPERATIONS,
-            )
-
-        # cmds2: Seconds commands: test if perms, df, files are ok
-        cmds_done = execute_commands(
-            hostname, ssh_commands=cmds2, dict_mode=True, user=user, port=port
-        )
-        error = verify_output_cmds2(
-            cmds_done, path_domain_disk, path_template_disk, id_domain
-        )
-        if error is None:
-            cmds_done = execute_commands(
-                hostname, ssh_commands=cmds3, dict_mode=True, user=user, port=port
-            )
-            error, backing_chain_domain, backing_chain_template = verify_output_cmds3(
-                cmds_done, path_domain_disk, path_template_disk, id_domain
-            )
-            if error is None:
-                # update_domain to status: TemplateDiskCreated
-                #####  CREATED OK ######
-
-                update_storage_status(action.get("storage_id"), "ready")
-                update_disk_template_created(id_domain, disk_index)
-
-                # Create find tasks for both domain storage and template storage
-                domain_dict = get_domain(id_domain)
-                user_id = domain_dict.get("user") if domain_dict else None
-                if user_id:
-                    # Find task for domain storage (parent disk that was rebased)
-                    domain_storage_id = action.get("domain_storage_id")
-                    if domain_storage_id and Storage.exists(domain_storage_id):
-                        try:
-                            Storage(domain_storage_id).find(user_id, blocking=False)
-                        except Exception as e:
-                            log.debug(
-                                f"Could not create find task for domain storage {domain_storage_id}: {e}"
-                            )
-                    # Find task for template storage (newly created template disk)
-                    template_storage_id = action.get("storage_id")
-                    if template_storage_id and Storage.exists(template_storage_id):
-                        try:
-                            Storage(template_storage_id).find(user_id, blocking=False)
-                        except Exception as e:
-                            log.debug(
-                                f"Could not create find task for template storage {template_storage_id}: {e}"
-                            )
-
-                update_domain_status(
-                    status="TemplateDiskCreated",
-                    id_domain=id_domain,
-                    hyp_id=False,
-                    detail="new template disk {} for template created from domain {}".format(
-                        path_template_disk, id_domain
-                    ),
-                )
-
-            else:
-                update_domain_status(
-                    "Crashed",
-                    id_domain,
-                    detail="new template disk from domain {} ok, but domain and disk is unknown, details in logs".format(
-                        id_domain
-                    ),
-                )
-        else:
-            if error == "Crashed":
-                update_domain_status(
-                    "Crashed",
-                    id_domain,
-                    detail="new template from domain {} failed and disk is unknown, details in logs".format(
-                        id_domain
-                    ),
-                )
-            else:
-                update_domain_status(
-                    "Stopped",
-                    id_domain,
-                    detail="new template from domain {} failed, disk domain remain in place, details in logs".format(
-                        id_domain
-                    ),
-                )
-    else:
-        update_domain_status(
-            "Stopped",
-            id_domain,
-            detail="new template from domain {} failed, details in logs".format(
-                id_domain
-            ),
-        )
 
 
 def launch_thread_worker(hyp_id, q_event_register, queue_master):

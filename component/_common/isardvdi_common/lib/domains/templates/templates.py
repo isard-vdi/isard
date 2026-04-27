@@ -31,6 +31,7 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.user import User
 from isardvdi_common.schemas.shared.allowed import Allowed
 from rethinkdb import r
@@ -216,8 +217,79 @@ class TemplatesProcessed(RethinkSharedConnection):
 
         parent_disk = resolve_parent_disk(desktop)
 
+        # Resolve the desktop's existing storage row. The chain rewrites
+        # its on-disk file from a base disk into an overlay backed by the
+        # new template — the row stays bound to the desktop and its
+        # ``parent`` is flipped to the template by the trailing
+        # ``qemu_img_info_backing_chain`` -> ``storage_update`` pair.
+        desktop_disks = (
+            desktop.get("create_dict", {}).get("hardware", {}).get("disks") or []
+        )
+        if not desktop_disks:
+            raise Error(
+                "internal_server",
+                "Desktop has no disks",
+                traceback.format_exc(),
+                description_code="desktop_no_disks",
+            )
+        if len(desktop_disks) > 1:
+            # Legacy engine looped ``for i in range(1)`` — multi-disk
+            # templates were never wired, and the apiv4 chain isn't
+            # designed for them. Stay explicit until that lands.
+            raise Error(
+                "not_implemented",
+                "Multi-disk templates are not supported",
+                description_code="multi_disk_templates_unsupported",
+            )
+        desktop_storage_id = desktop_disks[0].get("storage_id")
+        if not desktop_storage_id:
+            raise Error(
+                "internal_server",
+                "Desktop disk has no storage_id",
+                description_code="desktop_disk_no_storage_id",
+            )
+        desktop_storage = Storage(desktop_storage_id)
+        if desktop_storage.status != "ready":
+            raise Error(
+                "precondition_required",
+                f"Desktop storage is not ready (status={desktop_storage.status})",
+                description_code="desktop_storage_not_ready",
+            )
+
+        if Domain.exists(template_id):
+            raise Error(
+                "conflict",
+                "Template id already exists: " + str(template_id),
+                description_code="template_already_exists" + str(template_id),
+            )
+
+        # Allocate the new template Storage row. ``pool_usage="template"``
+        # routes the file under the pool's templates dir AND sets
+        # ``perms=["r"]`` (read-only) — matches the engine's legacy
+        # ``create_storage(..., perms=["r"])`` call. Inheriting
+        # ``desktop_storage.parent`` keeps the new template at the same
+        # backing-chain depth the desktop disk currently sits at.
+        template_storage = Storage.new_dict(
+            user_id=user_id,
+            pool_usage="template",
+            parent_id=desktop_storage.parent,
+        )
+        template_storage.status_logs = [{"time": int(time.time()), "status": "created"}]
+
         hardware = desktop["create_dict"]["hardware"]
-        hardware["disks"] = [{"extension": "qcow2", "parent": parent_disk}]
+        # Pre-wire the template disk with both ``storage_id`` and
+        # ``file`` *before* domain insert — same invariant
+        # ``DesktopService.create_from_media`` enforces, so apiv4 restart
+        # cleanup can trace the in-flight chain via the
+        # ``domains.storage_ids`` multi-index.
+        hardware["disks"] = [
+            {
+                "extension": "qcow2",
+                "parent": parent_disk,
+                "storage_id": template_storage.id,
+                "file": template_storage.path,
+            }
+        ]
 
         create_dict = Helpers._parse_media_info({"hardware": hardware})
         create_dict["origin"] = desktop_id
@@ -262,23 +334,23 @@ class TemplatesProcessed(RethinkSharedConnection):
             "forced_hyp": desktop.get("forced_hyp", False),
         }
 
-        if not Domain.exists(template_id):
-            with cls._rdb_context():
-                # TODO(move-domains-to-common): pydantic
-                r.table("domains").get(desktop_id).update(
-                    {
-                        "create_dict": {"template_dict": template_dict},
-                        "status": "CreatingTemplate",
-                    }
-                ).run(cls._rdb_connection)
+        new_desktop_parents = (desktop.get("parents") or []) + [template_id]
+        with cls._rdb_context():
+            r.table("domains").insert(template_dict).run(cls._rdb_connection)
+            r.table("domains").get(desktop_id).update(
+                {
+                    "status": "CreatingTemplate",
+                    "parents": new_desktop_parents,
+                }
+            ).run(cls._rdb_connection)
 
-            return template_id
-        else:
-            raise Error(
-                "conflict",
-                "Template id already exists: " + str(template_id),
-                description_code="template_already_exists" + str(template_id),
-            )
+        desktop_storage.enqueue_template_creation_chain_from_desktop(
+            desktop_id=desktop_id,
+            template_id=template_id,
+            template_storage_id=template_storage.id,
+        )
+
+        return template_id
 
     @classmethod
     def duplicate_template(

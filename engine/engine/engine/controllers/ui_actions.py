@@ -17,7 +17,6 @@ from engine.models.domain_xml import (
     recreate_xml_to_start,
 )
 from engine.services.db import (
-    create_disk_template_created_list_in_domain,
     delete_domain,
     domains_with_attached_disk,
     domains_with_attached_storage_id,
@@ -29,10 +28,7 @@ from engine.services.db import (
     get_table_field,
     get_table_fields,
     insert_domain,
-    remove_dict_new_template_from_domain,
-    remove_disk_template_created_list_in_domain,
     update_domain_status,
-    update_origin_and_parents_to_new_template,
     update_table_field,
     update_vgpu_info_if_stopped,
     update_vgpu_uuid_domain_action,
@@ -62,7 +58,6 @@ Q_PRIORITY_STOP = 40  # Destroy
 Q_PRIORITY_SHUTDOWN = 80  # Soft Shut-Down
 Q_PRIORITY_PERSONAL_UNIT = 130  # Mount personal unit inside a desktop
 
-Q_LONGOPERATIONS_PRIORITY_CREATE_TEMPLATE_DISK = 50
 Q_LONGOPERATIONS_PRIORITY_CREATE_DISK_FROM_TEMPLATE = 40
 Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE = 40
 
@@ -937,191 +932,6 @@ class UiActions(object):
             )
             log.error("Traceback: \n .{}".format(traceback.format_exc()))
             log.error("Exception message: {}".format(e))
-            return False
-
-    def create_template_disks_from_domain(self, id_domain):
-        dict_domain = get_domain(id_domain)
-        if dict_domain is None:
-            log.error(
-                "CREATE_TEMPLATE_DISKS_FROM_DOMAIN: Domain {} not found in database. Not creating any disk.".format(
-                    id_domain
-                )
-            )
-            return False
-        create_dict = dict_domain["create_dict"]
-
-        pool_id = get_category_storage_pool_id(dict_domain.get("category"))
-        if pool_id is None:
-            log.error(
-                "CREATE_TEMPLATE_DISKS_FROM_DOMAIN: No storage pool available for domain {} in category {}. Not creating any disk.".format(
-                    id_domain,
-                    dict_domain.get("category"),
-                )
-            )
-            return False
-        try:
-            dict_new_template = create_dict["template_dict"]
-        except KeyError as e:
-            update_domain_status(
-                status="Stopped",
-                id_domain=id_domain,
-                hyp_id=False,
-                detail="Action Creating Template from domain failed. No template_json in domain dictionary",
-            )
-            log.error(
-                "No template_dict in keys of domain dictionary, when creating template form domain {}. Exception: {}".format(
-                    id_domain, str(e)
-                )
-            )
-            return False
-
-        if not Domain(id_domain).storage_ready:
-            update_domain_status(
-                "Stopped",
-                id_domain,
-                detail="Desktop storages aren't ready",
-            )
-            return False
-
-        disk_index_in_bus = 0
-        create_hw = dict_domain.get("create_dict", {}).get("hardware", {})
-        if "disks" in create_hw and len(create_hw["disks"]):
-            create_disk_template_created_list_in_domain(id_domain)
-            for i in range(1):
-                path_domain_disk = get_storage_id_filename(
-                    dict_domain["create_dict"]["hardware"]["disks"][i]["storage_id"]
-                )
-
-                type_path_selected = "template"
-
-                new_file, path_selected = get_path_to_disk(
-                    category_id=dict_domain.get("category"),
-                    type_path=type_path_selected,
-                    extension=dict_new_template["create_dict"]["hardware"]["disks"][i][
-                        "extension"
-                    ],
-                )
-                path_absolute_template_disk = new_file = new_file.replace("//", "/")
-                dict_new_template["create_dict"]["hardware"]["disks"][i][
-                    "file"
-                ] = new_file
-                dict_new_template["create_dict"]["hardware"]["disks"][i][
-                    "path_selected"
-                ] = path_selected
-
-                disk = dict_new_template["create_dict"]["hardware"]["disks"][i]
-                create_storage(
-                    disk,
-                    dict_new_template.get("user"),
-                    force_parent=None,
-                    perms=["r"],
-                )
-                update_table_field("domains", id_domain, "create_dict", create_dict)
-
-                action = {}
-                action["id_domain"] = id_domain
-                action["type"] = "create_template_disk_from_domain"
-                action["path_template_disk"] = path_absolute_template_disk
-                action["path_domain_disk"] = path_domain_disk
-                action["disk_index"] = disk_index_in_bus
-                action["storage_id"] = disk.get("storage_id")
-                action["domain_storage_id"] = dict_domain["create_dict"]["hardware"][
-                    "disks"
-                ][i]["storage_id"]
-
-                hyp_to_disk_create = get_host_disk_operations_from_path(
-                    self.manager,
-                    pool=pool_id,
-                    type_path=type_path_selected,
-                )
-
-                # INFO TO DEVELOPER: falta terminar de ver que hacemos con el pool para crear
-                # discos, debería haber un disk operations por pool
-                try:
-                    update_domain_status(
-                        status="CreatingTemplateDisk",
-                        id_domain=id_domain,
-                        hyp_id=False,
-                        detail="Creating template disk operation is launched in hostname {} ({} operations in queue)".format(
-                            hyp_to_disk_create,
-                            self.manager.q_disk_operations[hyp_to_disk_create].qsize(),
-                        ),
-                    )
-                    self.manager.q_disk_operations[hyp_to_disk_create].put(
-                        action, Q_LONGOPERATIONS_PRIORITY_CREATE_TEMPLATE_DISK
-                    )
-                except Exception as e:
-                    logs.exception_id.debug("0012")
-                    update_domain_status(
-                        status="Stopped",
-                        id_domain=id_domain,
-                        hyp_id=False,
-                        detail="Creating template operation failed when insert action in queue for disk operations",
-                    )
-                    log.error(
-                        "Creating disk operation failed when insert action in queue for disk operations in host {}. Exception: {}".format(
-                            hyp_to_disk_create, e
-                        )
-                    )
-                    return False
-
-                    disk_index_in_bus = disk_index_in_bus + 1
-
-            return True
-
-            # first: move and rename disk to templates folder
-
-    def create_template_in_db(self, id_domain):
-        domain_dict = get_domain(id_domain)
-        if domain_dict is None:
-            log.error(
-                "CREATE_TEMPLATE_IN_DB_FROM_DOMAIN: Domain {} not found in database. Not creating any disk.".format(
-                    id_domain
-                )
-            )
-            return False
-        template_dict = domain_dict["create_dict"]["template_dict"]
-        template_dict["status"] = "CreatingNewTemplateInDB"
-        template_id = template_dict["id"]
-        for d_disk in template_dict["create_dict"]["hardware"].get("disks", {}):
-            if "storage_id" in d_disk.keys():
-                for k in list(d_disk.keys()):
-                    if k != "storage_id":
-                        d_disk.pop(k)
-        if insert_domain(template_dict)["inserted"] == 1:
-            update_table_field("domains", template_id, "xml", domain_dict["xml"])
-            remove_disk_template_created_list_in_domain(id_domain)
-            remove_dict_new_template_from_domain(id_domain)
-            if "parents" in domain_dict.keys():
-                domain_parents_chain_update = domain_dict["parents"].copy()
-            else:
-                domain_parents_chain_update = []
-
-            domain_parents_chain_update.append(template_id)
-            update_table_field(
-                "domains", id_domain, "parents", domain_parents_chain_update
-            )
-            update_origin_and_parents_to_new_template(id_domain, template_id)
-            # update_table_field('domains', template_id, 'xml', xml_parsed, merge_dict=False)
-            update_domain_status(
-                status="Stopped",
-                id_domain=template_id,
-                hyp_id=False,
-                detail="Template created, ready to create domains from this template",
-            )
-            update_domain_status(
-                status="Stopped",
-                id_domain=id_domain,
-                hyp_id=False,
-                detail="Template created from this domain, now domain is ready to start again",
-            )
-
-        else:
-            log.error(
-                "template {} can not be inserted in rethink, domain_id duplicated??".format(
-                    template_id
-                )
-            )
             return False
 
     def force_deleting(self, domain_id, old_status):

@@ -218,14 +218,16 @@ class IsardClient:
         max_wait: float = 180.0,
         interval: float = 2.0,
     ) -> None:
-        """Wait until engine finishes writing the template row.
+        """Wait until the template-creation task chain finishes.
 
         apiv4 has no GET that exposes a template's ``status`` field
         (``/items/templates`` and ``/admin/domains?kind=template`` both
-        pluck it out). Instead, observe the source desktop — engine
-        transitions it Stopped → CreatingTemplate → CreatingTemplateDisk
-        → Stopped, and the template row only appears in the DB after
-        the final Stopped transition. We poll both:
+        pluck it out). Instead, observe the source desktop: apiv4
+        inserts the template row immediately (status ``CreatingTemplate``)
+        and flips the desktop to the same status, then fires the
+        isard-storage move/create chain. The chain's final
+        ``storage_update`` promotes both rows back to ``Stopped``. We
+        poll both:
         (1) the source desktop back to Stopped, AND
         (2) the template id visible in ``/items/templates``.
         """
