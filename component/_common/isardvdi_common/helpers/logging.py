@@ -259,39 +259,47 @@ class Logging(RethinkSharedConnection):
 
     @classmethod
     async def _logs_domain_start_engine(cls, start_logs_id, dom_id, hyp_started=None):
-        if not start_logs_id:
-            # It could be a server desktop started by engine
-            cls._logs_domain_start(
-                dom_id, cls.parse_user_request(), server_hyp_started=hyp_started
-            )
-            return
-        # It has a logs_desktops id, try to update it
-        # When user started, it will have a valid uuid and update should work
-        # When engine started, it could fail because of old id. There is no way to know
-        # if it is and old id or a current id. So we try to update it and if it fails
-        # we add it as a new log
-        result = {}
-        try:
-            with cls._rdb_context():
-                result = (
-                    r.table("logs_desktops")
-                    .get(start_logs_id)
-                    .update(
-                        {
-                            "started_time": r.epoch_time(time()),
-                            "hyp_started": hyp_started,
-                        },
-                        durability="soft",
-                    )
-                    .run(cls._rdb_connection)
+        # Whole body is sync RethinkDB writes; spawned via
+        # ``asyncio.create_task`` from the public method, so we own
+        # the event loop here. Offload the sync work to a thread so
+        # log-write latency doesn't pile up on the loop while
+        # change-handler events fire in bursts.
+        def _sync_body():
+            if not start_logs_id:
+                # It could be a server desktop started by engine
+                cls._logs_domain_start(
+                    dom_id, cls.parse_user_request(), server_hyp_started=hyp_started
                 )
-        except Exception:
-            log.warning("Unable to update start time in logs")
-            log.debug(traceback.format_exc())
-        if result.get("skipped"):
-            cls._logs_domain_start(
-                dom_id, cls.parse_user_request(), server_hyp_started=hyp_started
-            )
+                return
+            # It has a logs_desktops id, try to update it
+            # When user started, it will have a valid uuid and update should work
+            # When engine started, it could fail because of old id. There is no way to know
+            # if it is and old id or a current id. So we try to update it and if it fails
+            # we add it as a new log
+            result = {}
+            try:
+                with cls._rdb_context():
+                    result = (
+                        r.table("logs_desktops")
+                        .get(start_logs_id)
+                        .update(
+                            {
+                                "started_time": r.epoch_time(time()),
+                                "hyp_started": hyp_started,
+                            },
+                            durability="soft",
+                        )
+                        .run(cls._rdb_connection)
+                    )
+            except Exception:
+                log.warning("Unable to update start time in logs")
+                log.debug(traceback.format_exc())
+            if result.get("skipped"):
+                cls._logs_domain_start(
+                    dom_id, cls.parse_user_request(), server_hyp_started=hyp_started
+                )
+
+        await asyncio.to_thread(_sync_body)
 
     # STOP DESKTOP
     @classmethod
@@ -340,52 +348,57 @@ class Logging(RethinkSharedConnection):
 
     @classmethod
     async def _logs_domain_stop_engine(cls, start_logs_id, new_status=""):
-        if not start_logs_id:
-            log.warning("Engine stop domain without start_logs_id")
-            return
-        try:
-            with cls._rdb_context():
-                desktop = (
-                    r.table("logs_desktops")
-                    .get(start_logs_id)
-                    .update(
-                        r.branch(
-                            r.row.has_fields("stopping_time"),
-                            {
-                                "stopped_time": r.epoch_time(time()),
-                                "stopped_status": new_status,
-                            },
-                            {
-                                "stopped_time": r.epoch_time(time()),
-                                "stopped_by": "isard-engine",
-                                "stopped_status": new_status,
-                            },
-                        ),
-                        return_changes="always",
-                        durability="soft",
-                    )
-                    .run(cls._rdb_connection)
-                )
-            if not desktop:
-                log.warning(
-                    "Unable to update stopped time at desktop: "
-                    + str(desktop_id)
-                    + " as it does not exist anymore"
-                )
+        # Two sequential sync RethinkDB writes — offload as a unit so
+        # the event loop stays free during burst stop events.
+        def _sync_body():
+            if not start_logs_id:
+                log.warning("Engine stop domain without start_logs_id")
                 return
-            desktop_id = desktop["changes"][0]["new_val"]["desktop_id"]
-        except Exception:
-            log.warning("Unable to update stopped time for desktop")
-            log.debug(traceback.format_exc())
-            return
-        try:
-            with cls._rdb_context():
-                r.table("domains").get(desktop_id).update(
-                    {"start_logs_id": None}, durability="soft"
-                ).run(cls._rdb_connection)
-        except Exception:
-            log.warning("Unable to remove start_logs_id from domain")
-            log.debug(traceback.format_exc())
+            try:
+                with cls._rdb_context():
+                    desktop = (
+                        r.table("logs_desktops")
+                        .get(start_logs_id)
+                        .update(
+                            r.branch(
+                                r.row.has_fields("stopping_time"),
+                                {
+                                    "stopped_time": r.epoch_time(time()),
+                                    "stopped_status": new_status,
+                                },
+                                {
+                                    "stopped_time": r.epoch_time(time()),
+                                    "stopped_by": "isard-engine",
+                                    "stopped_status": new_status,
+                                },
+                            ),
+                            return_changes="always",
+                            durability="soft",
+                        )
+                        .run(cls._rdb_connection)
+                    )
+                if not desktop:
+                    log.warning(
+                        "Unable to update stopped time at desktop: "
+                        + str(desktop_id)
+                        + " as it does not exist anymore"
+                    )
+                    return
+                desktop_id = desktop["changes"][0]["new_val"]["desktop_id"]
+            except Exception:
+                log.warning("Unable to update stopped time for desktop")
+                log.debug(traceback.format_exc())
+                return
+            try:
+                with cls._rdb_context():
+                    r.table("domains").get(desktop_id).update(
+                        {"start_logs_id": None}, durability="soft"
+                    ).run(cls._rdb_connection)
+            except Exception:
+                log.warning("Unable to remove start_logs_id from domain")
+                log.debug(traceback.format_exc())
+
+        await asyncio.to_thread(_sync_body)
 
     # UPDATE EVENTS (unused now)
 
@@ -462,24 +475,31 @@ class Logging(RethinkSharedConnection):
         viewer_type="",
         user_request=None,
     ):
-        try:
-            with cls._rdb_context():
-                r.table("logs_desktops").get(start_logs_id).update(
-                    {
-                        "events": r.row["events"].append(
-                            {
-                                **user_request,
-                                **{
-                                    "event": event,
-                                    "time": r.epoch_time(time()),
-                                    "action_user": action_user,
-                                    "viewer_type": viewer_type,
-                                },
-                            }
-                        )
-                    },
-                    durability="soft",
-                ).run(cls._rdb_connection)
-        except Exception:
-            log.warning("Unable to update " + str(event) + " event logs")
-            log.debug(traceback.format_exc())
+        # Sync RethinkDB write — offload so per-event logging
+        # latency doesn't compound on the asyncio loop. Bursts of
+        # viewer-open events from rapid client reconnects routinely
+        # land here in chunks.
+        def _sync_body():
+            try:
+                with cls._rdb_context():
+                    r.table("logs_desktops").get(start_logs_id).update(
+                        {
+                            "events": r.row["events"].append(
+                                {
+                                    **user_request,
+                                    **{
+                                        "event": event,
+                                        "time": r.epoch_time(time()),
+                                        "action_user": action_user,
+                                        "viewer_type": viewer_type,
+                                    },
+                                }
+                            )
+                        },
+                        durability="soft",
+                    ).run(cls._rdb_connection)
+            except Exception:
+                log.warning("Unable to update " + str(event) + " event logs")
+                log.debug(traceback.format_exc())
+
+        await asyncio.to_thread(_sync_body)

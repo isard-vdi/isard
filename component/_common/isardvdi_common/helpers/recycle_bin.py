@@ -85,10 +85,18 @@ class RecycleBinDeleteQueue(RethinkSharedConnection):
     async def enqueue(self, item):
         recycle_bin_id = item.get("recycle_bin_id")
         if recycle_bin_id not in self.recycle_bin_ids:
-            Helpers.update_status(
-                recycle_bin_id, item.get("user_id"), RecycleBinStatusEnum.queued.value
+            # Both helpers are sync RethinkDB writes. Offload them so
+            # callers awaiting ``enqueue`` from inside an asyncio
+            # request handler don't block the event loop on every
+            # bulk-delete iteration.
+            await asyncio.to_thread(
+                Helpers.update_status,
+                recycle_bin_id,
+                item.get("user_id"),
+                RecycleBinStatusEnum.queued.value,
             )
-            Helpers.add_log(
+            await asyncio.to_thread(
+                Helpers.add_log,
                 "queued",
                 recycle_bin_id,
                 "system",
