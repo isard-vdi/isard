@@ -972,10 +972,14 @@ class DeploymentsProcessed(RethinkSharedConnection):
             parsed_desktops.append(desktop)
 
         # Check the parsed desktops reservables, all of them must be the same, ignoring the ones that have the field vgpus as None
+        # ``reservables`` itself is Optional on ``CreateDesktopRequest`` —
+        # Vue 3 deployments without a GPU pin omit the key entirely, so
+        # the entry is ``None``. Treat that as "no vgpus" rather than
+        # crashing with ``NoneType.get``.
         valid_vgpus = [
-            tuple(d["reservables"].get("vgpus"))
+            tuple((d.get("reservables") or {}).get("vgpus"))
             for d in parsed_desktops
-            if d["reservables"].get("vgpus") is not None
+            if (d.get("reservables") or {}).get("vgpus") is not None
         ]
         if valid_vgpus and any(v != valid_vgpus[0] for v in valid_vgpus):
             raise Error(
@@ -1572,10 +1576,14 @@ class DeploymentsProcessed(RethinkSharedConnection):
             parsed_desktops.append(desktop)
 
         # Check the parsed desktops reservables, all of them must be the same, ignoring the ones that have the field vgpus as None
+        # ``reservables`` itself is Optional on ``CreateDesktopRequest`` —
+        # Vue 3 deployments without a GPU pin omit the key entirely, so
+        # the entry is ``None``. Treat that as "no vgpus" rather than
+        # crashing with ``NoneType.get``.
         valid_vgpus = [
-            tuple(d["reservables"].get("vgpus"))
+            tuple((d.get("reservables") or {}).get("vgpus"))
             for d in parsed_desktops
-            if d["reservables"].get("vgpus") is not None
+            if (d.get("reservables") or {}).get("vgpus") is not None
         ]
         if valid_vgpus and any(v != valid_vgpus[0] for v in valid_vgpus):
             raise Error(

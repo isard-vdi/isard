@@ -19,6 +19,7 @@
 
 
 from enum import Enum
+from typing import Optional
 
 from pydantic import UUID4, BaseModel
 
@@ -33,7 +34,13 @@ class CreateDictDeployment(BaseModel):
     hardware: Hardware
     image: Image
     name: str
-    reservables: Reservables
+    # Vue 3 deployments without a GPU pin omit ``reservables`` entirely;
+    # the apiv4 ``CreateDesktopRequest.reservables`` is already
+    # Optional but the deployment-internal ``create_dict[*].reservables``
+    # was strict, so the route-side response model rejected the
+    # legitimate ``None`` value with ``Input should be a valid
+    # dictionary or instance of Reservables``.
+    reservables: Optional[Reservables] = None
     template: str
     tag_desktop_id: UUID4
 
