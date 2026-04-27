@@ -180,7 +180,7 @@ async def get_user_password_policy(request: Request):
 
 
 @token_router.get(
-    "item/user/get-vpn",
+    "/item/user/get-vpn",
     tags=[tag],
     summary="Get the user vpn",
     description="Returns the VPN for the user.",
