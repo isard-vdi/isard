@@ -229,7 +229,7 @@
             />
             <!-- Main action button persistent-->
             <DesktopButton
-              v-else-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState === desktopStates.stopped )"
+              v-else-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state)"
               class="card-button"
               :active="!isPendingOperation(desktop.id)"
               :button-class="buttCssColor"
@@ -240,7 +240,7 @@
             />
             <!-- Delete action button-->
             <DesktopButton
-              v-if="desktop.state && desktop.type === 'nonpersistent'"
+              v-if="desktop.state && desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped"
               class="card-button"
               :active="true"
               button-class="btn-red"
