@@ -144,11 +144,16 @@ def get_jwt_payload(token=None):
         )
 
     try:
+        # Allow 60s of clock skew between service callers (e.g. remote
+        # backupninja hosts) and the API server. Service tokens are only
+        # valid for 120s, so leeway can never extend validity beyond a few
+        # minutes.
         payload = jwt.decode(
             token,
             secret,
             algorithms=["HS256"],
             options=dict(verify_aud=False, verify_sub=False, verify_exp=True),
+            leeway=60,
         )
     except jwt.ExpiredSignatureError:
         raise Error(

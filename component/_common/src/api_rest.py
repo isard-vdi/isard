@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import ipaddress
 import json
 import logging
 import os
@@ -28,35 +29,44 @@ from datetime import datetime, timedelta
 import jwt
 import requests
 
+JWT_SERVICE_TTL_SECONDS = 120
+
 
 def header_auth(service):
+    secret = os.environ.get("API_ISARDVDI_SECRET")
+    if not secret:
+        raise RuntimeError(
+            "API_ISARDVDI_SECRET environment variable is not set; "
+            "cannot mint a service token."
+        )
     token = jwt.encode(
         {
-            "exp": datetime.utcnow() + timedelta(seconds=20),
+            "exp": datetime.utcnow() + timedelta(seconds=JWT_SERVICE_TTL_SECONDS),
             "kid": "isardvdi",
             "session_id": "isardvdi-service",
             "data": {"role_id": "admin", "category_id": "*", "user_id": service},
         },
-        os.environ["API_ISARDVDI_SECRET"],
+        secret,
         algorithm="HS256",
     )
     return {"Authorization": "Bearer " + token}
 
 
+def _is_private_or_loopback_ip(value):
+    """True if `value` parses as a private or loopback IPv4/IPv6 address."""
+    try:
+        addr = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return addr.is_private or addr.is_loopback
+
+
 def is_ip(ip):
     try:
-        parts = ip.split(".")
-        if len(parts) != 4:
-            return False
-        for x in parts:
-            if not x.isdigit():
-                return False
-            i = int(x)
-            if i < 0 or i > 255:
-                return False
-    except:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
         return False
-    return True
 
 
 container_base_path = {
@@ -71,8 +81,9 @@ class ApiRest:
     def __init__(self, service="isard-api", base_url=None):
         if base_url:
             self.base_url = base_url
-            self.verify_cert = False if base_url.startswith("http://") else True
+            self.verify_cert = not base_url.startswith("http://")
         else:
+            actual_server = None
             if service == "isard-api":
                 actual_server = os.environ.get("API_DOMAIN")
             if service == "isard-scheduler":
@@ -102,7 +113,9 @@ class ApiRest:
                     self.base_url = (
                         "https://" + actual_server + container_base_path[service]
                     )
-                    self.verify_cert = False if is_ip(actual_server) else True
+                    # Only skip TLS verification for private/loopback addresses
+                    # reached by IP. Public IPs still require a valid cert.
+                    self.verify_cert = not _is_private_or_loopback_ip(actual_server)
             else:
                 self.base_url = (
                     "http://" + service + ":5000" + container_base_path[service]
