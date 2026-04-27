@@ -84,7 +84,7 @@ test.describe.serial('GPU desktop tests', () => {
         await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_01, categories)
 
         const card = await getDesktopCard(page, desktopsData.gpu.name)
-        const menuBtn = card.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
+        const menuBtn = card.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').last()
         await performClick(page, menuBtn, 500)
 
         await expect(page.getByText(/edit/i).first()).toBeVisible({ timeout: 10000 })
@@ -105,7 +105,7 @@ test.describe.serial('GPU desktop tests', () => {
         await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_01, categories)
 
         const gpuCard = await getDesktopCard(page, desktopsData.gpu.name)
-        const menuBtn = gpuCard.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
+        const menuBtn = gpuCard.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').last()
         await performClick(page, menuBtn, 500)
 
         const bookOption = page.getByText(/book|reserve/i).first()
@@ -159,7 +159,7 @@ test.describe.serial('GPU desktop tests', () => {
         await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_01, categories)
 
         const card = await getDesktopCard(page, desktopsData.gpu.name)
-        const menuBtn = card.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
+        const menuBtn = card.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').last()
         await performClick(page, menuBtn, 500)
 
         const editOption = page.getByText(/edit/i).first()
@@ -170,16 +170,17 @@ test.describe.serial('GPU desktop tests', () => {
         expect(page.url()).toMatch(/\/desktops\/[0-9a-fA-F-]{10,}\/edit/)
     })
 
-    test('desktop without bastion_target does NOT show bastion menu option', async ({ page, users, categories, desktopHelpers, desktopsData }) => {
+    test('desktop without bastion_target does NOT show bastion icon', async ({ page, users, categories, desktopHelpers, desktopsData }) => {
         await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_01, categories)
 
         const regularCard = await getDesktopCard(page, desktopsData.gpu.name)
-        const menuBtn = regularCard.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
-        await menuBtn.click()
-        await page.waitForTimeout(500)
-
-        const bastionOption = page.locator('[role="menuitem"]').filter({ hasText: /bastion/i }).first()
-        await expect(bastionOption).not.toBeVisible({ timeout: 3000 }).catch(() => { })
+        // Bastion icon is conditionally rendered based on
+        // desktop.bastion_target?.http?.enabled || ssh?.enabled. A desktop
+        // without a bastion target should not surface the icon at all.
+        const bastionIcon = regularCard.locator(
+            'div.absolute.top-3.right-3.flex.items-center.z-20 button:has(img[alt*="globe-04"])'
+        )
+        await expect(bastionIcon).toHaveCount(0, { timeout: 5000 })
     })
 })
 
@@ -227,21 +228,27 @@ test('unknown status desktop CANNOT be edited', async ({ page, users, categories
     await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_06, categories)
 
     const card = await getDesktopCard(page, desktopsData.unknown.name)
-    const menuBtn = card.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
-    await performClick(page, menuBtn, 500)
 
+    // The info icon is a top-level card button (not in the dropdown anymore).
+    // It is always rendered regardless of status, so it must be visible here.
+    const infoIcon = card.locator(
+        'div.absolute.top-3.right-3.flex.items-center.z-20 button:has(img[alt*="info-circle"])'
+    )
+    await expect(infoIcon).toBeVisible({ timeout: 10000 })
+
+    // The dropdown should still hide the Edit menu entry on Unknown status —
+    // edit is only offered when the desktop is Stopped.
+    const menuBtn = card.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').last()
+    await performClick(page, menuBtn, 500)
     const editOption = page.getByText(/^edit$/i).first()
     await expect(editOption).not.toBeVisible({ timeout: 3000 }).catch(() => { })
-
-    const infoOption = page.getByText(/info/i).first()
-    await expect(infoOption).toBeVisible({ timeout: 10000 })
 })
 
 test('recreate desktop shows modal', async ({ page, users, categories, desktopHelpers, desktopsData }) => {
     await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_07, categories)
 
     const recreableCard = await getDesktopCard(page, desktopsData.recreable.name)
-    const menuBtn = recreableCard.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
+    const menuBtn = recreableCard.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').last()
     await expect(menuBtn).toBeVisible({ timeout: 10000 })
     await menuBtn.click()
     await page.waitForTimeout(1000)
@@ -259,31 +266,33 @@ test('recreate desktop shows modal', async ({ page, users, categories, desktopHe
     await recreateBtn.click()
 })
 
-// All bastion tests share admin_e2e_08 and must run serially
+// All bastion tests share admin_e2e_08 and must run serially.
+//
+// Bastion access used to live as an entry inside the per-card "⋮" dropdown.
+// The card now exposes a dedicated top-right "globe-04" icon that's only
+// rendered when the desktop's bastion target has http or ssh enabled —
+// clicking it toggles an in-card overlay; the "Details" button inside the
+// overlay opens the modal that previously lived in the dropdown path.
+const BASTION_ICON = 'div.absolute.top-3.right-3.flex.items-center.z-20 button:has(img[alt*="globe-04"])'
 test.describe.serial('Bastion modal', () => {
-    test('desktop with bastion_target shows bastion menu option', async ({ page, users, categories, desktopHelpers, desktopsData }) => {
+    test('desktop with bastion_target shows the bastion icon', async ({ page, users, categories, desktopHelpers, desktopsData }) => {
         await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_08, categories)
 
         const bastionCard = await getDesktopCard(page, desktopsData.bastion.name)
-        const menuBtn = bastionCard.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
-        await menuBtn.click()
-        await page.waitForTimeout(500)
-
-        const bastionOption = page.locator('[role="menuitem"]').filter({ hasText: /bastion/i }).first()
-        await expect(bastionOption).toBeVisible({ timeout: 10000 })
+        const bastionIcon = bastionCard.locator(BASTION_ICON)
+        await expect(bastionIcon).toBeVisible({ timeout: 10000 })
     })
 
     test('bastion modal shows HTTP/HTTPS URLs when HTTP enabled', async ({ page, users, categories, desktopHelpers, desktopsData }) => {
         await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_08, categories)
 
         const bastionCard = await getDesktopCard(page, desktopsData.bastion.name)
-        const menuBtn = bastionCard.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
-        await menuBtn.click()
+        await bastionCard.locator(BASTION_ICON).click()
         await page.waitForTimeout(500)
 
-        const bastionOption = page.locator('[role="menuitem"]').filter({ hasText: /bastion/i }).first()
-        await expect(bastionOption).toBeVisible({ timeout: 10000 })
-        await bastionOption.click()
+        const detailsBtn = bastionCard.getByRole('button', { name: /details/i }).first()
+        await expect(detailsBtn).toBeVisible({ timeout: 5000 })
+        await detailsBtn.click()
         await page.waitForTimeout(1000)
 
         const modal = page.locator('[role="dialog"]').first()
@@ -297,13 +306,11 @@ test.describe.serial('Bastion modal', () => {
         await desktopHelpers.loginAndGoToDesktops(page, users.admin_e2e_08, categories)
 
         const bastionCard = await getDesktopCard(page, desktopsData.bastion.name)
-        const menuBtn = bastionCard.locator('div.absolute.top-3.right-3.flex.items-center.z-20 button').nth(1)
-        await menuBtn.click()
+        await bastionCard.locator(BASTION_ICON).click()
         await page.waitForTimeout(500)
 
-        const bastionOption = page.locator('[role="menuitem"]').filter({ hasText: /bastion/i }).first()
-        await expect(bastionOption).toBeVisible({ timeout: 10000 })
-        await bastionOption.click()
+        const detailsBtn = bastionCard.getByRole('button', { name: /details/i }).first()
+        await detailsBtn.click()
         await page.waitForTimeout(1000)
 
         const modal = page.locator('[role="dialog"]').first()

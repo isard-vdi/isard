@@ -96,10 +96,19 @@ class TestToggleVisibility:
     @patch("api.services.deployments.RethinkDeployment")
     @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
     def test_flips_tag_visible(self, _exists, mock_d):
+        # The service now delegates to model.toggle_visible(stop_started_domains),
+        # which cascades the new value to every tagged desktop instead of just
+        # flipping the row's tag_visible.
         instance = mock_d.return_value
-        instance.tag_visible = False
         DeploymentService.toggle_visibility("d1")
-        assert instance.tag_visible is True
+        instance.toggle_visible.assert_called_once_with(True)
+
+    @patch("api.services.deployments.RethinkDeployment")
+    @patch("api.services.deployments.RethinkDeployment.exists", return_value=True)
+    def test_passes_stop_started_domains_through(self, _exists, mock_d):
+        instance = mock_d.return_value
+        DeploymentService.toggle_visibility("d1", stop_started_domains=False)
+        instance.toggle_visible.assert_called_once_with(False)
 
     @patch("api.services.deployments.RethinkDeployment.exists", return_value=False)
     def test_raises_not_found(self, _exists):

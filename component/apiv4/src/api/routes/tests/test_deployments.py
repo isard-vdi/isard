@@ -103,11 +103,18 @@ def test_stop_all_desktops_in_deployment(monkeypatch, test_client):
 
 
 def test_toggle_deployment_visibility(monkeypatch, test_client):
+    # The route now accepts an optional body {stop_started_domains: bool}
+    # and forwards it to the service. Default when no body is sent is True
+    # (matches the apiv3 contract Vue 2 has always relied on).
     jwt = MockJWT(role_id="advanced")
     calls = []
     monkeypatch.setattr(
         "api.services.deployments.DeploymentService.toggle_visibility",
-        staticmethod(lambda deployment_id: calls.append(deployment_id)),
+        staticmethod(
+            lambda deployment_id, stop_started_domains: calls.append(
+                (deployment_id, stop_started_domains)
+            )
+        ),
     )
     _bypass_owns_deployment_id(monkeypatch)
 
@@ -119,15 +126,49 @@ def test_toggle_deployment_visibility(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert response.json() == {"id": "dep-1"}
-    assert calls == ["dep-1"]
+    assert calls == [("dep-1", True)]
+
+
+def test_toggle_deployment_visibility_with_body(monkeypatch, test_client):
+    jwt = MockJWT(role_id="advanced")
+    calls = []
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.toggle_visibility",
+        staticmethod(
+            lambda deployment_id, stop_started_domains: calls.append(
+                (deployment_id, stop_started_domains)
+            )
+        ),
+    )
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/toggle-visibility",
+        method="PUT",
+        jwt=jwt,
+        body={"stop_started_domains": False},
+    )
+
+    assert response.status_code == 200
+    assert calls == [("dep-1", False)]
 
 
 def test_get_deployment_co_owners(monkeypatch, test_client):
+    # The service now returns the full {owner, co_owners} dict so vue 2
+    # (which displays the primary owner) and vue 3 (co-owners list) both
+    # render from a single fetch.
     jwt = MockJWT(role_id="advanced")
-    stub = [
-        {"id": "user-1", "name": "User One", "photo": None},
-        {"id": "user-2", "name": "User Two", "photo": "https://example.com/p.png"},
+    co_owners = [
+        {"id": "user-1", "name": "User One", "uid": "u1", "photo": None},
+        {
+            "id": "user-2",
+            "name": "User Two",
+            "uid": "u2",
+            "photo": "https://example.com/p.png",
+        },
     ]
+    owner = {"id": "user-0", "name": "Owner Zero", "uid": "u0", "photo": None}
+    stub = {"owner": owner, "co_owners": co_owners}
     monkeypatch.setattr(
         "api.services.deployments.DeploymentService.get_co_owners",
         staticmethod(lambda deployment_id: stub),
@@ -137,7 +178,7 @@ def test_get_deployment_co_owners(monkeypatch, test_client):
     response = test_client(url="/item/deployment/dep-1/co-owners", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == {"co_owners": stub}
+    assert response.json() == {"owner": owner, "co_owners": co_owners}
 
 
 def test_update_deployment_co_owners(monkeypatch, test_client):
