@@ -313,7 +313,16 @@ const router = createRouter({
       path: '/maintenance',
       name: 'maintenance',
       component: () => import('../views/MaintenanceView.vue'),
-      meta: { title: 'router.maintenance.title' }
+      // public: true — MaintenanceView.vue is designed to render for
+      // both authenticated and anonymous visitors. The view branches
+      // its queries on the JWT (`enabled: !getAuthToken(cookies)` for
+      // the public-facing maintenance text, `enabled: !!getAuthToken(cookies)`
+      // for the per-category maintenance config) and self-redirects
+      // to `/` when neither flag indicates active maintenance. Without
+      // public:true the global beforeEach guard bounced anonymous
+      // visitors to /login, defeating the whole point of a "we're
+      // down" page that strangers can land on.
+      meta: { title: 'router.maintenance.title', public: true }
     },
     {
       path: '/vw/:token',

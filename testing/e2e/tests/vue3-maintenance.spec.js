@@ -1,45 +1,50 @@
 import { test, expect } from '../fixtures/login.js'
-import { commonHelpers } from '../fixtures/common.js'
 
 // Smoke coverage for the Vue 3 /maintenance route, served by
 // MaintenanceView.vue.
 //
-// IMPORTANT: ``/maintenance`` is NOT marked ``meta.public: true`` in
-// router/index.ts (line 312-317). The global beforeEach guard
-// redirects anonymous users to /login, so the page is only reachable
-// with an authenticated session. This spec pins the CURRENT behavior;
-// if a future change marks the route public (likely the eventual
-// intent for displaying global maintenance text on a logged-out
-// landing), `test_public_route_redirects_anon_to_login` will start
-// failing — flip it then to ``test_public_route_renders_for_anon``
-// per the new contract.
+// /maintenance is ``meta.public: true`` so anonymous visitors AND
+// authenticated users alike can land on it. MaintenanceView.vue
+// branches its queries on the JWT — anon path uses
+// ``maintenanceStatusApiV4MaintenanceStatusGetOptions`` (no auth) plus
+// the public maintenance-text endpoint; auth path additionally fetches
+// the per-category maintenance config. When NEITHER status flag is
+// true (the dev/CI default — maintenance mode OFF), the view does
+// ``window.location.pathname = '/'`` so visitors are bounced off the
+// "we're down" page. Both tests below pin that bounce-when-off
+// contract: anon ends up at /login (since / requires auth), authed
+// admin ends up at the home route.
 
 const MAINTENANCE_URL = '/maintenance'
 
 test.describe('Vue 3 Maintenance view', () => {
-  test('anonymous visit is redirected to /login (current behavior)', async ({
+  test('anonymous visit is bounced off /maintenance when maintenance is off', async ({
     page,
   }) => {
+    // The route is public so the global beforeEach guard does NOT
+    // redirect to /login. The view itself decides whether to render
+    // (maintenance ON) or self-redirect to / (maintenance OFF). In
+    // the dev/CI stack maintenance is OFF, so the view redirects
+    // and the anonymous visitor then gets bounced to /login by the
+    // home route's auth guard. Either way, the URL must NOT stay on
+    // /maintenance — that's the contract.
     await page.goto(MAINTENANCE_URL)
-    await page.waitForURL(/\/login(\/|$|\?)/, { timeout: 10000 })
-    expect(page.url()).toMatch(/\/login/)
+    await page.waitForURL((u) => !u.toString().includes('/maintenance'), {
+      timeout: 15000,
+    })
+    expect(page.url()).not.toContain('/maintenance')
   })
 
-  test('authenticated admin is redirected away when maintenance is off', async ({
+  test('authenticated admin is bounced off /maintenance when maintenance is off', async ({
     page,
     adminPerWorker,
     categories,
     loginHelpers,
   }) => {
-    // MaintenanceView.vue (lines 120-128) does
-    // ``window.location.pathname = '/'`` when neither
-    // ``maintenanceStatus.enabled`` nor ``maintenance.enabled`` is
-    // true — the page is meant to render only during a real
-    // maintenance window. In the dev/CI stack maintenance is OFF, so
-    // an authenticated admin landing on /maintenance must be bounced
-    // to the home route. Pin the redirect-away contract so a future
-    // refactor that drops the watcher (and strands admins on a
-    // "we're down" page) fails loud.
+    // Same self-redirect mechanism (MaintenanceView.vue:120-128 does
+    // ``window.location.pathname = '/'`` when isMaintenance is false).
+    // Authed admin lands at /, which the SPA routes to the home view
+    // (NOT /login since the admin has a valid session).
     await loginHelpers.login(page, adminPerWorker, categories)
     await page.goto(MAINTENANCE_URL)
     await page.waitForURL((u) => !u.toString().includes('/maintenance'), {
