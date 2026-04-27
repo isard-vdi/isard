@@ -1431,10 +1431,21 @@ class DesktopsProcessed(RethinkSharedConnection):
                 # Delete booking when the vGPU profile is changed
                 Bookings.delete_item_bookings("desktop", d)
 
+            update_payload = {**desktop}
+            # Only refresh ``create_dict.hardware`` when the edit
+            # actually carried a hardware change. Always nesting
+            # ``{"create_dict": {"hardware": desktop.get("hardware")}}``
+            # wiped the live hardware to None on hardware-less edits
+            # (forced_hyp/name/description/...), and the engine then
+            # crashed in ``resolve_hardware_from_create_dict`` with
+            # ``argument of type 'NoneType' is not iterable``.
+            if "hardware" in desktop:
+                update_payload["create_dict"] = {"hardware": desktop["hardware"]}
+
             with cls._rdb_context():
-                r.table("domains").get(d).update(
-                    {"create_dict": {"hardware": desktop.get("hardware")}, **desktop}
-                ).run(cls._rdb_connection)
+                r.table("domains").get(d).update(update_payload).run(
+                    cls._rdb_connection
+                )
 
     @classmethod
     def update_desktop_reservables(cls, desktop_id, reservables):

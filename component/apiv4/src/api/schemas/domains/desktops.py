@@ -140,7 +140,7 @@ class DesktopDetailsResponse(BaseModel):
     name: str = Field(
         description="Name of the desktop.",
     )
-    description: str = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Description of the desktop.",
     )
@@ -193,7 +193,7 @@ class DesktopDetailsResponse(BaseModel):
     interfaces: list[DesktopNetwork] = Field(
         description="List of network interfaces attached to the desktop. Each interface will have an ID, a name, and a MAC address.",
     )
-    credentials: DomainGuestProperties._GuestPropertiesCredentials = Field(
+    credentials: Optional[DomainGuestProperties._GuestPropertiesCredentials] = Field(
         default=None,
         description="Credentials to access the desktop, if available. The keys of the dictionary will be the types of credentials, such as 'rdp', 'vnc', 'ssh', and the values will be the corresponding credentials, such as the password or the private key.",
     )
