@@ -21,16 +21,39 @@
 
 import contextlib
 import gc
+import os
 from typing import Literal
 from unittest.mock import MagicMock
+
+# Shared HS256 secret for JWTs minted by MockJWT and verified by
+# isardvdi_common.helpers.token. setdefault so CI can still override.
+os.environ.setdefault("API_ISARDVDI_SECRET", "test-secret")
 
 import httpx
 import pytest
 from api import app
 from api.routes.tests.helpers import MockJWT, create_indexes
+from api.services.error import Error
 from cachetools import Cache
 from fastapi.testclient import TestClient
+from isardvdi_common.helpers.bastion import Bastion
 from rethinkdb_mock import MockThink
+
+
+@pytest.fixture(autouse=True)
+def _mock_bastion_grpc(monkeypatch):
+    """Prevent tests from hitting the real haproxy-sync gRPC service.
+
+    `Bastion._call_grpc_with_infinite_retry` waits up to 30s on
+    `wait_for_ready=True` when the service is unreachable (no container in
+    the test env). Callers (sync_category_branding_domains, update map path)
+    ignore the return value, so a no-op MagicMock is sufficient.
+    """
+    monkeypatch.setattr(
+        Bastion,
+        "_call_grpc_with_infinite_retry",
+        staticmethod(MagicMock(return_value=None)),
+    )
 
 
 @pytest.fixture()

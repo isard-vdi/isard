@@ -35,11 +35,26 @@ down:
 reset: down up
 
 .PHONY: test
-test: test-go test-e2e test-apiv4
+test: test-go test-python test-e2e
 
 .PHONY: test-go
 test-go:
 	go test -race -cover ./...
+
+.PHONY: test-python
+test-python: test-apiv4 test-common test-change-handler test-changefeed
+
+.PHONY: test-python-cov
+test-python-cov:
+	$(MAKE) PYTEST_COV_ARGS='__COV__' test-python
+	@echo "HTML coverage under component/*/src/htmlcov/"
+
+# Internal: if PYTEST_COV_ARGS is set to the sentinel, expand to per-package coverage flags.
+# Otherwise it's empty (fast default).
+_apiv4_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=api --cov-report=html:component/apiv4/src/htmlcov,)
+_common_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_common --cov-report=html:component/_common/src/htmlcov,)
+_chandler_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_change_handler --cov-report=html:component/change-handler/src/htmlcov,)
+_cfeed_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_changefeed --cov-report=html:component/changefeed/src/htmlcov,)
 
 .PHONY: test-engine
 test-engine:
@@ -73,17 +88,19 @@ test-e2e: test-e2e-seed
 
 .PHONY: test-apiv4
 test-apiv4:
-	docker exec -it isard-apiv4 pip install -r /test.requirements.txt
-	@echo "Installing rethinkdb-mock fork..."
-	-docker exec -it -u root isard-apiv4 bash -c "\
-		apt update && \
-		apt install -y git && \
-		git clone -b core-document-manipulation \
-			https://github.com/isard-vdi/rethinkdb-mock.git /rethinkdb-mock && \
-		pip install /rethinkdb-mock \
-	"
-	docker exec -it isard-apiv4 pytest /app --cov=/app --cov-report=html
-	@echo "HTML coverage report at ${ISARDVDI_SRC}component/apiv4/src/htmlcov/index.html"
+	uv run --group test --package isardvdi-apiv4 pytest component/apiv4/src -n auto $(_apiv4_cov)
+
+.PHONY: test-common
+test-common:
+	uv run --group test --package isardvdi-common pytest component/_common/src/isardvdi_common -n auto $(_common_cov)
+
+.PHONY: test-change-handler
+test-change-handler:
+	uv run --group test --package isardvdi-change-handler pytest component/change-handler/src/isardvdi_change_handler/tests -n auto $(_chandler_cov)
+
+.PHONY: test-changefeed
+test-changefeed:
+	uv run --group test --package isardvdi-changefeed pytest component/changefeed/src/isardvdi_changefeed/tests -n auto $(_cfeed_cov)
 
 .PHONY: setup-hooks
 setup-hooks:

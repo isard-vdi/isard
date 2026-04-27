@@ -27,7 +27,7 @@ class AdminOperationsService:
         """List hypervisors via operations gRPC."""
         import grpc
         from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
-        from operations.v1 import operations_pb2
+        from isardvdi_protobuf.operations.v1 import operations_pb2
 
         try:
             # Get gRPC client
@@ -100,7 +100,7 @@ class AdminOperationsService:
     def start_hypervisor(hypervisor_id: str):
         """Start a hypervisor via operations gRPC."""
         import grpc
-        from operations.v1 import operations_pb2
+        from isardvdi_protobuf.operations.v1 import operations_pb2
 
         try:
             client = _get_operations_client()
@@ -122,7 +122,7 @@ class AdminOperationsService:
     def stop_hypervisor(hypervisor_id: str):
         """Stop a hypervisor via operations gRPC."""
         import grpc
-        from operations.v1 import operations_pb2
+        from isardvdi_protobuf.operations.v1 import operations_pb2
 
         try:
             client = _get_operations_client()

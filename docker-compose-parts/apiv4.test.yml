@@ -1,5 +1,0 @@
-services:
-  isard-apiv4:
-    container_name: isard-apiv4
-    volumes:
-      - ${BUILD_ROOT_PATH}/component/apiv4/docker/test.requirements.txt:/test.requirements.txt

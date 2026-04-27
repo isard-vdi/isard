@@ -44,7 +44,6 @@ services:
       REDIS_HOST:
       REDIS_PORT:
       REDIS_PASSWORD:
-      PYTHONPATH: "/opt/isardvdi:/opt/isardvdi/asyncapi_changefeed"
       # OVS Security Configuration (automatic based on API_DOMAIN)
       API_DOMAIN: ${API_DOMAIN:-}
       DOCKER_NET: ${DOCKER_NET:-172.31.255}

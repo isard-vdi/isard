@@ -1,25 +1,19 @@
-# Use an official Python runtime as a parent image
-FROM python:3.13-alpine
+FROM python:3.13-alpine AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-# Copy the application code
-ENV PYTHONPATH /opt/isardvdi
-COPY component/socketio/src /opt/isardvdi/isardvdi_socketio
-COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
+RUN apk add --no-cache build-base libffi-dev musl-dev openssl-dev
 
-# Install the dependencies. ``git`` is needed by pip to fetch the
-# isard-vdi/rethinkdb-python fork from requirements.txt; dropped
-# after install. ``RETHINKDB_FORK_SHA`` is resolved by CI per
-# pipeline and busts the layer cache when the branch advances.
-COPY component/socketio/docker/requirements.txt /tmp/
-ARG RETHINKDB_FORK_SHA=unknown
-RUN apk add --no-cache --virtual .build_deps git \
-    && python3 -m venv venv \
-    && echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
-    && venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
-    && apk del .build_deps
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-socketio --no-editable
 
-# Expose the port the app runs on
+FROM python:3.13-alpine AS runtime
+RUN apk add --no-cache libffi openssl
+
+WORKDIR /app
+COPY --from=builder /workspace/.venv /app/.venv
+COPY component/socketio/src /app
+ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 5000
-
-# uvicorn command
-CMD ["venv/bin/uvicorn", "isardvdi_socketio:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["uvicorn", "isardvdi_socketio:app", "--host", "0.0.0.0", "--port", "5000"]

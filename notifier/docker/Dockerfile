@@ -1,23 +1,21 @@
-FROM alpine:3.22.0
+FROM python:3.13-alpine AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-RUN apk -U upgrade --no-cache
-RUN apk add --no-cache python3 py3-pip uuidgen
+RUN apk add --no-cache build-base libffi-dev musl-dev openssl-dev
 
-COPY notifier/docker/requirements.txt .
-# ``RETHINKDB_FORK_SHA`` is resolved by CI per pipeline (see
-# resolve-rethinkdb-fork-sha in .gitlab-ci.yml) and busts Docker's
-# layer cache when the modernize-python-client branch tip advances.
-# git is needed only at install time for pip's git+https fetch.
-ARG RETHINKDB_FORK_SHA=unknown
-RUN apk add --no-cache --virtual .build_deps git \
-    && echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
-    && pip install -r requirements.txt --break-system-package \
-    && rm requirements.txt \
-    && apk del .build_deps
-ENV PYTHONPATH /opt/isardvdi
-COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
-COPY notifier/src /opt/isardvdi/src
-WORKDIR /opt/isardvdi/src
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-notifier --no-editable
 
-CMD ["/bin/sh", "-c", "rq worker --url \"redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0\" notifier.default -n notifier:isard-notifier:$(uuidgen) -P /opt/isardvdi/src/notifier/lib & python3 -u /opt/isardvdi/src/start.py"]
+FROM python:3.13-alpine AS runtime
+RUN apk add --no-cache libffi openssl util-linux
+
+COPY --from=builder /workspace/.venv /.venv
+COPY notifier/src /isard
+
+ENV PATH="/.venv/bin:$PATH"
+WORKDIR /isard
+
+CMD ["/bin/sh", "-c", "rq worker --url \"redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0\" notifier.default -n notifier:isard-notifier:$(uuidgen) -P /isard/notifier/lib & python3 -u /isard/start.py"]
 USER nobody

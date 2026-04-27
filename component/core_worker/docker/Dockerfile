@@ -1,29 +1,22 @@
-FROM alpine:3.22
+FROM python:3.13-alpine AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-RUN apk -U upgrade --no-cache
-# git is required by pip to fetch the isard-vdi/rethinkdb-python fork
-# from requirements.txt (``git+https://...``); we add it as a virtual
-# build-deps tag and remove it after the install to keep the runtime
-# image lean.
-RUN apk add --no-cache python3 py3-pip \
-    && apk add --no-cache --virtual .build_deps git
+RUN apk add --no-cache build-base libffi-dev musl-dev openssl-dev
 
-COPY component/core_worker/docker/requirements.txt .
-# ``RETHINKDB_FORK_SHA`` is the current branch HEAD of
-# isard-vdi/rethinkdb-python @ modernize-python-client. CI resolves
-# it once per pipeline (see ``resolve-rethinkdb-fork-sha`` in
-# .gitlab-ci.yml) and passes it via ``--build-arg``. Embedding it in
-# the layer command via ``echo`` busts Docker's layer cache whenever
-# the branch advances.
-ARG RETHINKDB_FORK_SHA=unknown
-RUN echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
-    && pip install -r requirements.txt --break-system-package \
-    && rm requirements.txt \
-    && apk del .build_deps
-ENV PYTHONPATH /opt/isardvdi
-COPY component/core_worker/docker/uuidgen.py /opt/isardvdi/uuidgen.py
-COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
-COPY component/core_worker/src /opt/isardvdi/isardvdi_core_worker
-COPY pkg/gen/proto/python_old /opt/isardvdi/isardvdi_protobuf_old
-CMD ["/bin/sh", "-c", "REDIS_WORKERS=${REDIS_WORKERS:-3}; for i in $(seq 1 $REDIS_WORKERS); do rq worker --url \"redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0\" --connection-class='isardvdi_common.connections.redis_retry.RedisRetry' --worker-class='isardvdi_common.helpers.worker.Worker' core.feedback core -n core:isard-core_worker:$(python3 /opt/isardvdi/uuidgen.py) -P /opt/isardvdi/isardvdi_core_worker --with-scheduler & done; wait"]
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-core-worker --no-editable
+
+FROM python:3.13-alpine AS runtime
+RUN apk add --no-cache libffi openssl
+
+WORKDIR /app
+COPY --from=builder /workspace/.venv /app/.venv
+COPY component/core_worker/src /app
+COPY component/core_worker/docker/uuidgen.py /app/uuidgen.py
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD ["/bin/sh", "-c", "REDIS_WORKERS=${REDIS_WORKERS:-3}; for i in $(seq 1 $REDIS_WORKERS); do rq worker --url \"redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0\" --connection-class='isardvdi_common.connections.redis_retry.RedisRetry' --worker-class='isardvdi_common.helpers.worker.Worker' core.feedback core -n core:isard-core_worker:$(python3 /app/uuidgen.py) -P /app/isardvdi_core_worker --with-scheduler & done; wait"]
+
 USER nobody

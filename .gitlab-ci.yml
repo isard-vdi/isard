@@ -142,6 +142,14 @@ check-python:
     - isort --check .
     - black --check .
 
+check-system-deps:
+  stage: lint
+  image: python:3.13-slim
+  script:
+    - pip install uv==0.11.7
+    - uv sync --dev
+    - uv run python docker/lib/check-system-deps.py
+
 check-golang:
   stage: lint
   image: golangci/golangci-lint
@@ -309,16 +317,15 @@ unit-test-apiv4:
   <<: *python-test-base
   before_script:
     - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q -r component/apiv4/docker/requirements.txt
-    - pip install -q -r component/apiv4/docker/test.requirements.txt
+    - pip install -q uv==0.11.7
+    - uv sync --no-dev --group test --package isardvdi-apiv4
   variables:
     PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
-    PYTHONPATH: "${CI_PROJECT_DIR}/component/apiv4/src:${CI_PROJECT_DIR}/component/_common:${CI_PROJECT_DIR}/pkg/gen/proto/python"
-    API_ISARDVDI_SECRET: "ci-test-secret"
+    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
     USAGE: "production"
   script:
     - cd component/apiv4/src
-    - python -m pytest api/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=api --cov-report=term --cov-report=xml:coverage.xml
+    - uv run --no-dev --group test --package isardvdi-apiv4 pytest api/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=api --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     when: always
     reports:
@@ -332,14 +339,14 @@ unit-test-change-handler:
   <<: *python-test-base
   before_script:
     - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q pytest pytest-asyncio pytest-cov
-    - pip install -q -r component/change-handler/docker/requirements.txt
+    - pip install -q uv==0.11.7
+    - uv sync --no-dev --group test --package isardvdi-change-handler
   variables:
     PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
-    PYTHONPATH: "${CI_PROJECT_DIR}/component/_common:${CI_PROJECT_DIR}/pkg/gen/proto/python:${CI_PROJECT_DIR}/pkg/gen/asyncapi/changefeed"
+    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   script:
     - cd component/change-handler/src
-    - python -m pytest tests/ -q --tb=short --junitxml=report.xml --cov=handlers --cov-report=term --cov-report=xml:coverage.xml
+    - uv run --no-dev --group test --package isardvdi-change-handler pytest isardvdi_change_handler/tests/ -q --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     when: always
     reports:
@@ -347,19 +354,20 @@ unit-test-change-handler:
         coverage_format: cobertura
         path: component/change-handler/src/coverage.xml
       junit: component/change-handler/src/report.xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
 
 unit-test-changefeed:
   <<: *python-test-base
   before_script:
     - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q pytest pytest-asyncio pytest-cov
-    - pip install -q -r component/changefeed/docker/requirements.txt
+    - pip install -q uv==0.11.7
+    - uv sync --no-dev --group test --package isardvdi-changefeed
   variables:
     PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
-    PYTHONPATH: "${CI_PROJECT_DIR}/component/_common:${CI_PROJECT_DIR}/pkg/gen/proto/python:${CI_PROJECT_DIR}/component/changefeed/src"
+    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   script:
     - cd component/changefeed/src
-    - python -m pytest tests/ -q --tb=short --junitxml=report.xml --cov=. --cov-report=term --cov-report=xml:coverage.xml
+    - uv run --no-dev --group test --package isardvdi-changefeed pytest isardvdi_changefeed/tests/ -q --tb=short --junitxml=report.xml --cov=isardvdi_changefeed --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     when: always
     reports:
@@ -367,21 +375,22 @@ unit-test-changefeed:
         coverage_format: cobertura
         path: component/changefeed/src/coverage.xml
       junit: component/changefeed/src/report.xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
 
 unit-test-webapp:
   <<: *python-test-base
   before_script:
     - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q -r webapp/docker/requirements.txt
-    - pip install -q -r webapp/docker/test.requirements.txt
+    - pip install -q uv==0.11.7
+    - uv sync --no-dev --group test --package isardvdi-webapp
   variables:
     PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
-    PYTHONPATH: "${CI_PROJECT_DIR}/webapp/webapp:${CI_PROJECT_DIR}/component/_common"
+    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
     USAGE: "test"
     API_ISARDVDI_SECRET: "ci-test-secret"
   script:
     - cd webapp/webapp
-    - python -m pytest tests/ -q --tb=short --junitxml=report.xml --cov=webapp --cov-report=term --cov-report=xml:coverage.xml
+    - uv run --no-dev --group test --package isardvdi-webapp pytest tests/ -q --tb=short --junitxml=report.xml --cov=webapp --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     when: always
     reports:
@@ -392,29 +401,25 @@ unit-test-webapp:
   coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
 
 unit-test-common:
-  # isardvdi_common/lib transitively pulls in apiv4 + change-handler +
-  # socketio deps (interval math, html sanitizer, etc.), so the full
-  # module-load graph is exercised against pinned apiv4 requirements.
   <<: *python-test-base
   before_script:
     - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q pytest pytest-asyncio pytest-cov
-    - pip install -q -r component/change-handler/docker/requirements.txt
-    - pip install -q -r component/socketio/docker/requirements.txt
-    - pip install -q -r component/apiv4/docker/requirements.txt
+    - pip install -q uv==0.11.7
+    - uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
   variables:
     PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
-    PYTHONPATH: "${CI_PROJECT_DIR}/component/_common:${CI_PROJECT_DIR}/pkg/gen/proto/python"
+    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   script:
-    - cd component/_common
-    - python -m pytest isardvdi_common -q --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml
+    - cd component/_common/src
+    - uv run --no-dev --group test --package isardvdi-common pytest isardvdi_common -q --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml
   artifacts:
     when: always
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: component/_common/coverage.xml
-      junit: component/_common/report.xml
+        path: component/_common/src/coverage.xml
+      junit: component/_common/src/report.xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+\d+%/'
 
 check-codegen-freshness:
   # Catches commits that modify ``pkg/oas/apiv4/*.json`` / ``.proto`` /
@@ -550,7 +555,7 @@ unit-test-engine:
           set -e
           mkdir -p /ci-results
           cp -r /build/engine/engine/. /isard/
-          cp -r /build/component/_common/isardvdi_common /opt/isardvdi/isardvdi_common 2>/dev/null || true
+          cp -r /build/component/_common/src/isardvdi_common /opt/isardvdi/isardvdi_common 2>/dev/null || true
           apk add --no-cache py3-pip >/dev/null 2>&1 || true
           pip install --no-cache-dir --break-system-packages pytest >/dev/null
           pytest engine/models engine/services/threads -q --tb=short --junitxml=/ci-results/report.xml
