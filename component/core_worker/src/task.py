@@ -396,7 +396,7 @@ def media_update(**media_dict):
             Media.init_document(**media_dict)
         else:
             for dependency in task.dependencies:
-                if dependency.task in ("check_media_existence"):
+                if dependency.task in ("check_media_existence", "download_url"):
                     media_update(**dependency.result)
 
 

@@ -18,7 +18,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
+import os
+import shlex
 import shutil
+import signal
 import tempfile
 from json import loads
 from os import environ, makedirs, remove, rename
@@ -35,8 +38,10 @@ from subprocess import (
     check_output,
     run,
 )
-from time import sleep
+from time import sleep, time
 
+from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
+from isardvdi_common.models.media import Media
 from isardvdi_common.models.task import Task
 from rq import Queue, get_current_job
 
@@ -328,6 +333,216 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
                     storage_data["status"] = "broken_chain"
 
     return storage_data
+
+
+_CURL_PROGRESS_KEYS = (
+    "total_percent",
+    "total",
+    "received_percent",
+    "received",
+    "xferd_percent",
+    "xferd",
+    "speed_download_average",
+    "speed_upload_average",
+    "time_total",
+    "time_spent",
+    "time_left",
+    "speed_current",
+)
+
+_DOWNLOAD_PROGRESS_FLUSH_SECONDS = 1.0
+
+
+def _curl_progress_dict(line):
+    """Parse a single curl progress meter line into the legacy 12-key dict.
+
+    Curl's default progress meter prints whitespace-separated columns
+    matching ``_CURL_PROGRESS_KEYS``. This mirrors the parser the engine's
+    ``DownloadThread`` used to ship — kept identical so the frontend
+    renders the same fields without any change.
+    """
+    values = line.split()
+    if len(values) != len(_CURL_PROGRESS_KEYS):
+        return None
+    progress = dict(zip(_CURL_PROGRESS_KEYS, values))
+    try:
+        progress["total_percent"] = int(float(progress["total_percent"]))
+        progress["received_percent"] = int(float(progress["received_percent"]))
+    except ValueError:
+        progress["total_percent"] = 0
+        progress["received_percent"] = 0
+    return progress
+
+
+def _media_aborting(media_id):
+    """Return True if the media row's status was flipped to DownloadAborting.
+
+    This is the one-shot startup check used by ``TaskCancelWatcher`` to
+    close the narrow race where apiv4 publishes the cancel signal before
+    the worker subscribes. After startup, the pub/sub listener is the
+    primary signal — no per-iteration rethink lookup.
+    """
+    try:
+        return Media(media_id).status == "DownloadAborting"
+    except Exception:
+        # If the row vanished mid-flight, treat as abort.
+        return True
+
+
+def download_url(
+    media_id,
+    url,
+    dest_path,
+    headers=None,
+    insecure_ssl=False,
+    google_drive_cookie=None,
+):
+    """Download a URL to ``dest_path`` reporting progress on the media row.
+
+    Replaces the engine's SSH-to-hypervisor curl path with an RQ task on
+    isard-storage. The curl invocation matches what
+    ``engine/services/threads/download_thread.py`` used to issue. Progress
+    is written live to ``Media(media_id).progress`` so the existing
+    frontend keeps rendering the same fields (received / total_percent /
+    speed_current / time_left). The single ``job.meta['progress']`` float
+    is also kept up to date for the generic task panel.
+
+    :param media_id: Media row id to update progress on
+    :param url: Source URL (already validated by apiv4)
+    :param dest_path: Absolute destination path under the media pool mount
+    :param headers: List of ``"Header: value"`` strings to forward to curl
+    :param insecure_ssl: When True, pass ``-k`` (mirrors
+        ``URL_DOWNLOAD_INSECURE_SSL`` on the legacy engine path)
+    :param google_drive_cookie: Path to a cookie jar file when ``url`` is a
+        Google Drive sharing link (requires the upstream to issue a
+        confirmation cookie). Optional; the regular curl branch handles
+        ordinary URLs.
+    :raises CalledProcessError: when curl exits non-zero (RQ marks the
+        job FAILED → dependent ``update_status`` task flips media to
+        ``DownloadFailed``)
+    """
+    job = get_current_job()
+    makedirs(dirname(dest_path), exist_ok=True)
+
+    curl_cmd = ["curl"]
+    if insecure_ssl:
+        curl_cmd.append("-k")
+    curl_cmd.extend(
+        [
+            "-L",
+            "--max-redirs",
+            "5",
+            "--connect-timeout",
+            "30",
+            "--no-netrc",
+            "-o",
+            dest_path,
+        ]
+    )
+    if google_drive_cookie:
+        curl_cmd.extend(["-b", google_drive_cookie])
+    for h in headers or []:
+        curl_cmd.extend(["-H", h])
+    curl_cmd.append(url)
+
+    log.info("download_url: media=%s dest=%s", media_id, dest_path)
+    # Flip the row to Downloading so the user sees curl is now actually
+    # running (the chain root shows DownloadStarting while queued).
+    try:
+        Media(media_id).status = "Downloading"
+    except Exception:
+        log.exception("download_url: failed to flip media %s to Downloading", media_id)
+
+    process = Popen(
+        curl_cmd,
+        stdout=PIPE,
+        stderr=PIPE,
+        preexec_fn=os.setsid,  # so we can kill the whole curl process group
+    )
+
+    # Skip the two header lines curl prints before the progress meter.
+    process.stderr.readline()
+    process.stderr.readline()
+
+    last_flush = 0.0
+    line = ""
+    aborted = False
+    # Subscribe to the generic pub/sub cancellation channel for this
+    # job. ``initial_check`` covers the publish-before-subscribe race
+    # by reading the persistent ``Media.status`` flag once on entry.
+    with TaskCancelWatcher(
+        job.id,
+        initial_check=lambda: _media_aborting(media_id),
+    ) as watcher:
+        while process.poll() is None:
+            if watcher.cancelled:
+                aborted = True
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                break
+
+            c = process.stderr.read(1)
+            if not c:
+                sleep(0.1)
+                continue
+            ch = c.decode("utf-8", errors="replace")
+            if ch in ("\r", "\n"):
+                progress = _curl_progress_dict(line)
+                line = ""
+                now = time()
+                if progress and (now - last_flush) >= _DOWNLOAD_PROGRESS_FLUSH_SECONDS:
+                    last_flush = now
+                    try:
+                        Media(media_id).progress = progress
+                    except Exception:
+                        log.exception(
+                            "download_url: failed to persist progress for %s",
+                            media_id,
+                        )
+                    # Mirror the percentage onto the RQ job meta so the
+                    # generic task panel + task.feedback emit a useful
+                    # value.
+                    if progress.get("received_percent") is not None:
+                        job.meta["progress"] = progress["received_percent"] / 100.0
+                        job.save_meta()
+                        Queue("core", connection=job.connection).enqueue(
+                            "task.feedback", task_id=job.id, result_ttl=0
+                        )
+                continue
+            line += ch
+
+    process.wait(timeout=10)
+
+    if aborted:
+        # Surface as a controlled failure so the dependent update_status
+        # task sees the FAILED outcome and flips the row back to a
+        # terminal state.
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(returncode=130, cmd=curl_cmd)
+
+    if process.returncode != 0:
+        stderr = process.stderr.read().decode("utf-8", errors="replace")
+        log.error("download_url failed (rc=%s): %s", process.returncode, stderr.strip())
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(
+            returncode=process.returncode, cmd=curl_cmd, stderr=stderr
+        )
+
+    # Final 100% mark.
+    job.meta["progress"] = 1.0
+    job.save_meta()
+    return {
+        "id": media_id,
+        "path_downloaded": dest_path,
+    }
 
 
 def check_media_existence(media_id, path):
