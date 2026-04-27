@@ -33,6 +33,7 @@ from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.user import User
+from isardvdi_common.schemas.domains import TemplateCreation
 from isardvdi_common.schemas.shared.allowed import Allowed
 from rethinkdb import r
 
@@ -342,9 +343,28 @@ class TemplatesProcessed(RethinkSharedConnection):
             "forced_hyp": desktop.get("forced_hyp", False),
         }
 
+        # Validate the template_dict before insert. Mirrors the
+        # desktop-side validation in ``DesktopsProcessed.new_from_template``
+        # (desktops.py around the ``DesktopFromTemplate(**new_desktop)``
+        # call). Without this, any future field-drop slips into the
+        # ``domains`` table and only blows up on the next
+        # "create desktop from this template" — exactly how the
+        # ``personal_vlans`` regression on 2026-04-27 went undetected.
+        try:
+            valid_template = TemplateCreation(**template_dict).model_dump(
+                mode="json", exclude_unset=True
+            )
+        except Exception:
+            raise Error(
+                "bad_request",
+                "new_template: Invalid template data",
+                traceback.format_exc(),
+                description_code="invalid_template_data",
+            )
+
         new_desktop_parents = (desktop.get("parents") or []) + [template_id]
         with cls._rdb_context():
-            r.table("domains").insert(template_dict).run(cls._rdb_connection)
+            r.table("domains").insert(valid_template).run(cls._rdb_connection)
             r.table("domains").get(desktop_id).update(
                 {
                     "status": "CreatingTemplate",

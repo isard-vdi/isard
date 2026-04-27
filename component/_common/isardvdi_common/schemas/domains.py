@@ -182,6 +182,59 @@ class DesktopCreated(BaseModel):
     xml: Optional[str] = None
 
 
+class TemplateCreation(BaseModel):
+    """Validation gate for ``CommonTemplates.new_template``.
+
+    Mirrors :class:`DesktopFromTemplate` (which is for *desktops*
+    being created from a template) with the template-specific
+    differences: ``enabled`` and ``tag_name`` are written, ``persistent``
+    and ``from_template`` are not (templates are not persistent and
+    have no parent template), and ``status`` is ``CreatingTemplate``
+    (per :class:`TemplateStatusEnum`).
+
+    The point of running this at insert time is defense-in-depth: the
+    ``personal_vlans`` regression on 2026-04-27 silently dropped a
+    required ``create_dict`` field for ~16 hours because no schema
+    guarded the ``r.table('domains').insert(template_dict)`` call.
+    Any future field-drop now fails the insert instead of slipping
+    into RethinkDB and surfacing as a 400 on the next
+    "create desktop from this template".
+    """
+
+    id: str
+    name: str = Field(min_length=4)
+    description: str | None = None
+    kind: DomainKindEnum
+    user: str
+    username: str
+    status: TemplateStatusEnum
+    category: str
+    group: str
+    icon: str
+    image: Image
+    os: str
+    guest_properties: GuestProperties
+    create_dict: CreateDictDomainTemplate
+    hypervisors_pools: list[str]
+    parents: list[str]
+    allowed: Allowed
+    accessed: float
+    enabled: bool
+    detail: str | None = None
+    tag: str | bool | None = None
+    # ``tag_name`` is *required* — making it optional with a default
+    # silently masked the apiv4 port forgetting to write it. Defenders
+    # inside ``CommonTemplates.new_template`` write ``False`` for
+    # non-deployment templates and a string for deployment-tagged
+    # templates; both shapes are accepted, ``None`` and missing
+    # are not.
+    tag_name: str | bool
+    tag_visible: bool | None = None
+    favourite_hyp: bool | None = None
+    forced_hyp: bool | None = None
+    xml: Optional[str] = ""
+
+
 class DomainStatus(BaseModel):
     accessed: float
     status: DomainStatusEnum
