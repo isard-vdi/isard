@@ -28,12 +28,12 @@ from typing import Literal
 
 import dns.resolver
 import grpc
-from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2
 from rethinkdb import r
 
 try:

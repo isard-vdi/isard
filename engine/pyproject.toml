@@ -29,7 +29,7 @@ dependencies = [
 
 [dependency-groups]
 test = [
-  "pytest==8.4.1",
+  "pytest",
 ]
 
 [build-system]

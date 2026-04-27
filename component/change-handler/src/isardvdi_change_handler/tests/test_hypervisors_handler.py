@@ -16,7 +16,10 @@ class TestHypervisorsHandler:
         return HypervisorsHandler(sio, "hypervisors")
 
     @pytest.mark.asyncio
-    @patch("isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops", return_value=5)
+    @patch(
+        "isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops",
+        return_value=5,
+    )
     async def test_on_insert_fetches_hypervisor(self, mock_count, handler):
         row = FakeRow(id="h1")
         await handler.on_insert(row)
@@ -28,7 +31,10 @@ class TestHypervisorsHandler:
         assert payload["desktops_started"] == 5
 
     @pytest.mark.asyncio
-    @patch("isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops", return_value=3)
+    @patch(
+        "isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops",
+        return_value=3,
+    )
     async def test_on_update_same_status_enriches_model(self, mock_count, handler):
         old = FakeRow(id="h1", status="Online")
         new = FakeRow(id="h1", status="Online")
@@ -42,7 +48,10 @@ class TestHypervisorsHandler:
         "isardvdi_change_handler.handlers.hypervisors.Hypervisor.get_hypervisor",
         return_value={"id": "h1", "status": "Offline"},
     )
-    @patch("isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops", return_value=0)
+    @patch(
+        "isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops",
+        return_value=0,
+    )
     async def test_on_update_status_change_fetches_hypervisor(
         self, mock_count, mock_get, handler
     ):
@@ -55,7 +64,10 @@ class TestHypervisorsHandler:
 
     @pytest.mark.asyncio
     @patch("isardvdi_change_handler.handlers.hypervisors.Hypervisor.get_hypervisor")
-    @patch("isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops", return_value=7)
+    @patch(
+        "isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops",
+        return_value=7,
+    )
     async def test_on_update_online_same_status_no_refetch(
         self, mock_count, mock_get, handler
     ):
@@ -72,7 +84,9 @@ class TestHypervisorsHandler:
 
     @pytest.mark.asyncio
     @patch("isardvdi_change_handler.handlers.hypervisors.Hypervisor.get_hypervisor")
-    @patch("isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops")
+    @patch(
+        "isardvdi_change_handler.handlers.hypervisors.Hypervisor.count_started_desktops"
+    )
     async def test_on_update_offline_same_status_forces_zero(
         self, mock_count, mock_get, handler
     ):

@@ -24,11 +24,12 @@ import pathlib
 import subprocess
 from shlex import quote
 
+from libvirt import libvirtError, virDomain
+from libvirt_qemu import qemuAgentCommand
+
 from engine.services.db.domains import PersonalUnit as DbPersonalUnit
 from engine.services.db.domains import get_personal_unit_from_domain
 from engine.services.log import logs
-from libvirt import libvirtError, virDomain
-from libvirt_qemu import qemuAgentCommand
 
 NOTIFIER_CMD_LINUX = None
 with open(

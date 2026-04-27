@@ -3,6 +3,9 @@ import time
 from datetime import datetime
 
 import pytz
+from rethinkdb import r
+from rethinkdb.errors import ReqlNonExistenceError
+
 from engine.services.db import (
     MAX_LEN_PREV_STATUS_HYP,
     cleanup_hypervisor_gpus,
@@ -12,8 +15,6 @@ from engine.services.db import (
 )
 from engine.services.db.domains import get_vgpus_mdevs
 from engine.services.log import log, logs
-from rethinkdb import r
-from rethinkdb.errors import ReqlNonExistenceError
 
 # ─── Ephemeral hypervisor thread status (engine-process RAM) ────────────────
 #

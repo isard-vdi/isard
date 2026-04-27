@@ -22,6 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from flask import Flask, g
+
 from webapp.lib.flask_rethink import RDB
 from webapp.lib.load_config import load_config, loadConfig
 

@@ -15,6 +15,9 @@ import traceback
 
 from changefeed_subscribers.engine import EngineSubscriber
 from changefeed_subscribers.hypervisors import HypervisorsSubscriber
+from isardvdi_common.redis_stream import RedisStreamConsumer
+from rethinkdb import r
+
 from engine.config import CONFIG_DICT
 from engine.models.pool_hypervisors import move_actions_to_others_hypers
 from engine.services.db import (
@@ -43,8 +46,6 @@ from engine.services.threads.threads import (
     launch_disk_operations_thread,
     launch_thread_worker,
 )
-from isardvdi_common.redis_stream import RedisStreamConsumer
-from rethinkdb import r
 
 # virtio_test_disk_relative_path = 'admin/admin/admin/virtio_testdisk.qcow2'
 # ui.creating_test_disk(test_disk_relative_route=virtio_test_disk_relative_path)

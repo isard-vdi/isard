@@ -22,6 +22,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from changefeed_models.hypervisors_row import HypervisorsRow
+
 from engine.models.hypervisor_orchestrator import HypervisorChangesThread
 
 

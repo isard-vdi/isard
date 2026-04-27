@@ -9,6 +9,7 @@ from queue import Queue
 
 from changefeed_models.hypervisors_change import HypervisorsChange
 from changefeed_models.hypervisors_row import HypervisorsRow
+
 from engine.models.hypervisor_orchestrator import HypervisorChangesThread
 
 

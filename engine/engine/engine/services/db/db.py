@@ -9,6 +9,8 @@ import threading
 from contextlib import contextmanager
 from functools import wraps
 
+from rethinkdb import r
+
 from engine.config import (
     MAX_QUEUE_DOMAINS_STATUS,
     RETHINK_DB,
@@ -16,7 +18,6 @@ from engine.config import (
     RETHINK_PORT,
 )
 from engine.services.log import *
-from rethinkdb import r
 
 MAX_LEN_PREV_STATUS_HYP = 10
 

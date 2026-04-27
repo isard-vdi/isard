@@ -77,6 +77,7 @@ class Token:
     @classmethod
     def get_jwt_payload(cls, token=None):
         from isardvdi_common.helpers.error_factory import Error
+
         if not token:
             token = cls.get_token_auth_header()
         try:
@@ -149,6 +150,7 @@ class Token:
     @classmethod
     def get_user_migration_payload(cls, token):
         from isardvdi_common.helpers.error_factory import Error
+
         payload = cls.get_jwt_payload(token)
 
         if payload.get("type", "") != "user-migration":
@@ -163,6 +165,7 @@ class Token:
     @classmethod
     def get_unverified_external_jwt_payload(cls):
         from isardvdi_common.helpers.error_factory import Error
+
         token = cls.get_token_auth_header()
         try:
             claims = jwt.decode(token, options={"verify_signature": False})
@@ -193,6 +196,7 @@ class Token:
     @classmethod
     def verify_external_jwt(cls, token, secret):
         from isardvdi_common.helpers.error_factory import Error
+
         try:
             payload = jwt.decode(
                 token,

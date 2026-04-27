@@ -98,7 +98,7 @@ test-go:
 	go test -race -cover ./...
 
 .PHONY: test-python
-test-python: test-apiv4 test-common test-change-handler test-changefeed
+test-python: test-apiv4 test-common test-change-handler test-changefeed test-socketio test-core-worker test-openapi test-notifier test-scheduler test-webapp
 
 .PHONY: test-python-cov
 test-python-cov:
@@ -157,6 +157,31 @@ test-change-handler:
 test-changefeed:
 	uv run --group test --package isardvdi-changefeed pytest component/changefeed/src/isardvdi_changefeed/tests -n auto $(_cfeed_cov)
 
+.PHONY: test-socketio
+test-socketio:
+	uv run --group test --package isardvdi-socketio pytest component/socketio/src/isardvdi_socketio/tests -n auto
+
+.PHONY: test-core-worker
+test-core-worker:
+	uv run --group test --package isardvdi-core-worker pytest component/core_worker/src/isardvdi_core_worker/tests -n auto
+
+.PHONY: test-openapi
+test-openapi:
+	uv run --group test --package isardvdi-openapi pytest component/openapi/src/isardvdi_openapi/tests -n auto
+
+.PHONY: test-notifier
+test-notifier:
+	uv run --group test --package isardvdi-notifier pytest notifier/tests -n auto
+
+.PHONY: test-scheduler
+test-scheduler:
+	uv run --group test --package isardvdi-scheduler pytest scheduler/tests -n auto
+
+.PHONY: test-webapp
+test-webapp:
+	uv sync --no-dev --group test --package isardvdi-webapp
+	uv run --no-dev --group test --package isardvdi-webapp pytest webapp/webapp/tests -n auto
+
 # CI test targets: emit JUnit + Cobertura XML so GitLab CI can consume them
 # via artifacts.reports.*. Paths must match .gitlab-ci.yml byte-identical.
 
@@ -188,8 +213,38 @@ ci-test-changefeed:
 	uv sync --no-dev --group test --package isardvdi-changefeed
 	cd component/changefeed/src && uv run --no-dev --group test --package isardvdi-changefeed pytest isardvdi_changefeed/tests/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_changefeed --cov-report=term --cov-report=xml:coverage.xml
 
+.PHONY: ci-test-socketio
+ci-test-socketio:
+	uv sync --no-dev --group test --package isardvdi-socketio
+	cd component/socketio/src && uv run --no-dev --group test --package isardvdi-socketio pytest isardvdi_socketio/tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_socketio --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-core-worker
+ci-test-core-worker:
+	uv sync --no-dev --group test --package isardvdi-core-worker
+	cd component/core_worker/src && uv run --no-dev --group test --package isardvdi-core-worker pytest isardvdi_core_worker/tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_core_worker --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-openapi
+ci-test-openapi:
+	uv sync --no-dev --group test --package isardvdi-openapi
+	cd component/openapi/src && uv run --no-dev --group test --package isardvdi-openapi pytest isardvdi_openapi/tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_openapi --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-notifier
+ci-test-notifier:
+	uv sync --no-dev --group test --package isardvdi-notifier
+	cd notifier && uv run --no-dev --group test --package isardvdi-notifier pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=notifier --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-scheduler
+ci-test-scheduler:
+	uv sync --no-dev --group test --package isardvdi-scheduler
+	cd scheduler && uv run --no-dev --group test --package isardvdi-scheduler pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=scheduler --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-webapp
+ci-test-webapp:
+	uv sync --no-dev --group test --package isardvdi-webapp
+	cd webapp/webapp && uv run --no-dev --group test --package isardvdi-webapp pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=webapp --cov-report=term --cov-report=xml:coverage.xml
+
 .PHONY: ci-test-python
-ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-webapp
+ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-core-worker ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp
 
 .PHONY: setup-hooks
 setup-hooks:
@@ -201,11 +256,6 @@ ci-lint: lint
 
 .PHONY: ci-test
 ci-test: ci-test-go ci-test-python
-
-.PHONY: ci-test-webapp
-ci-test-webapp:
-	uv sync --no-dev --group test --package isardvdi-webapp
-	cd webapp/webapp && USAGE=test API_ISARDVDI_SECRET=ci-test-secret uv run --no-dev --group test --package isardvdi-webapp pytest tests/ -q --tb=short --junitxml=report.xml --cov=webapp --cov-report=term --cov-report=xml:coverage.xml
 
 .PHONY: ci-fix
 ci-fix: format

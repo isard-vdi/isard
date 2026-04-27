@@ -30,9 +30,9 @@ os.environ.setdefault("API_ISARDVDI_SECRET", "test-secret")
 
 import pytest
 from flask_login import login_user
-from webapp.auth.authentication import User
 
 from webapp import app as flask_app
+from webapp.auth.authentication import User
 
 
 @pytest.fixture()

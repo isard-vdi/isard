@@ -12,6 +12,15 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from pprint import pformat
 
+from isardvdi_common.connections.api_rest import ApiRest
+from libvirt import (
+    VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
+    VIR_DOMAIN_START_PAUSED,
+    VIR_ERR_NO_DOMAIN,
+    libvirtError,
+)
+from requests.exceptions import ReadTimeout as requests_ReadTimeout
+
 from engine.models.domain_xml import DomainXML
 from engine.models.hyp import hyp
 from engine.services.db import (
@@ -61,14 +70,6 @@ from engine.services.threads.threads import (
     launch_delete_media,
     launch_killall_curl,
 )
-from isardvdi_common.connections.api_rest import ApiRest
-from libvirt import (
-    VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
-    VIR_DOMAIN_START_PAUSED,
-    VIR_ERR_NO_DOMAIN,
-    libvirtError,
-)
-from requests.exceptions import ReadTimeout as requests_ReadTimeout
 
 api_client = ApiRest("isard-apiv4")
 

@@ -22,7 +22,9 @@ def _plan(**overrides):
 class TestResourcePlannerHandler:
     @pytest.fixture
     def handler(self):
-        from isardvdi_change_handler.handlers.resource_planner import ResourcePlannerHandler
+        from isardvdi_change_handler.handlers.resource_planner import (
+            ResourcePlannerHandler,
+        )
 
         sio = AsyncMock()
         # Production instantiates this handler with table="plannings" — see

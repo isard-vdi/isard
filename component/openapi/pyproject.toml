@@ -17,3 +17,10 @@ packages = ["src/isardvdi_openapi"]
 [tool.isardvdi.system-deps]
 apk-build = ["build-base", "libffi-dev", "musl-dev", "openssl-dev"]
 apk-runtime = ["curl", "libffi", "openssl"]
+
+[dependency-groups]
+test = [
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
+]

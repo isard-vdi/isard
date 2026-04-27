@@ -27,10 +27,10 @@ dependencies = [
 
 [dependency-groups]
 test = [
-  "pytest==8.4.1",
-  "pytest-asyncio==1.0.0",
-  "pytest-cov==6.2.1",
-  "pytest-xdist==3.6.1",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
+  "pytest-xdist",
 ]
 
 [build-system]

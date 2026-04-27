@@ -6,6 +6,8 @@
 import pprint
 import threading
 
+from isardvdi_common.models.storage import Storage
+
 from engine.models.hyp import hyp
 from engine.services.db import (
     get_domain,

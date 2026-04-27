@@ -15,7 +15,7 @@ bypass-selection = true
 
 [dependency-groups]
 test = [
-  "pytest==8.4.1",
+  "pytest",
   "python-socketio[client]==5.13.0",
   "requests==2.32.4",
   "websocket-client==1.8.0",

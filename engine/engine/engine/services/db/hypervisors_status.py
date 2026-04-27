@@ -1,6 +1,7 @@
+from rethinkdb import r
+
 from engine.services.db import close_rethink_connection, new_rethink_connection
 from engine.services.log import *
-from rethinkdb import r
 
 
 def get_last_hyp_status(id):
