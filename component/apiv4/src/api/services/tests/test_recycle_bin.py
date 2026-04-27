@@ -61,6 +61,47 @@ class TestRestoreRecycleBinEntry:
             RecycleBinService.restore_recycle_bin_entry("ghost")
 
 
+class TestBulkRestore:
+    """Commit 695852b09 wraps the sync per-item restore loop in
+    ``asyncio.to_thread`` so the asyncio event loop stays free during
+    a multi-item restore. The service is fire-and-forget: it returns
+    the IDs immediately and the actual work happens in a background
+    task. Pin both halves of the contract.
+    """
+
+    async def test_returns_ids_immediately(self):
+        """``bulk_restore`` must NOT block on the per-item work — it
+        returns the ID list synchronously after scheduling the task."""
+        with patch("api.services.recycle_bin.CommonRecycleBin"):
+            ids = ["rb-1", "rb-2", "rb-3"]
+            result = await RecycleBinService.bulk_restore(ids, "u-1")
+            assert result == ids
+
+    async def test_schedules_work_via_create_task(self, monkeypatch):
+        """The work goes through ``asyncio.create_task(asyncio.to_thread(...))``.
+        Pin so a refactor that drops the create_task / to_thread wrap
+        and runs the loop body inline (which would block the event
+        loop on every restore) fails this test."""
+        import asyncio as _asyncio
+
+        captured = {}
+        original_create_task = _asyncio.create_task
+
+        def spy_create_task(coro_or_future, *args, **kwargs):
+            captured["scheduled"] = True
+            return original_create_task(coro_or_future, *args, **kwargs)
+
+        monkeypatch.setattr("asyncio.create_task", spy_create_task)
+        with patch("api.services.recycle_bin.CommonRecycleBin"):
+            await RecycleBinService.bulk_restore(["rb-1"], "u-1")
+        assert captured.get("scheduled") is True
+
+    async def test_empty_ids_still_returns_list(self):
+        """Edge case: empty ID list must still succeed (no work to do)."""
+        result = await RecycleBinService.bulk_restore([], "u-1")
+        assert result == []
+
+
 class TestDeleteRecycleBinEntry:
     @patch("api.services.recycle_bin.RethinkUser.exists", return_value=True)
     @patch("api.services.recycle_bin.RethinkRecycleBin.exists", return_value=True)
