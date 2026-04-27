@@ -54,19 +54,19 @@ _DOMAIN_PRE_READY_STATUSES = frozenset(
         # auto-start.
         "CreatingDomain",
         "CreatingDomainFromDisk",
-        # ``CreatingTemplate`` is engine-driven — leave it alone so
-        # ``create_template_disks_from_domain`` can transition it to
-        # ``CreatingTemplateDisk``. Promoting it from a stray
-        # ``storage_update`` (e.g. the ``find`` task that
-        # ``launch_action_create_template_disk`` enqueues for the source
-        # storage at line 228 of threads.py) flips the source desktop
-        # to ``Stopped`` mid-disk-copy. Then the SSH op finishes and
-        # tries to set ``TemplateDiskCreated`` — but the engine's state
-        # handler only fires ``_template_disk_created_action`` on the
-        # ``CreatingTemplateDisk → TemplateDiskCreated`` transition, so
-        # the template never gets inserted.
-        # ``CreatingTemplateDisk`` and ``TemplateDiskCreated`` are
-        # engine-managed transient states for the same reason.
+        # ``CreatingTemplate`` is set by ``CommonTemplates.new_template`` on
+        # both the source desktop and the new template row before firing
+        # ``Storage.enqueue_template_creation_chain_from_desktop``. The
+        # chain's trailing pair of ``storage_update`` tasks (one for the
+        # template storage, one for the desktop storage) call
+        # ``_promote_domains_to_stopped`` once each storage transitions to
+        # ``ready`` — that's the only path back to ``Stopped`` for the two
+        # domains, so this entry is load-bearing. Without it, both rows
+        # stay in ``CreatingTemplate`` indefinitely after a successful
+        # chain. ``CreatingTemplateDisk`` and ``TemplateDiskCreated`` are
+        # legacy engine-SSH-only states with no remaining writers and
+        # stay out of the set.
+        "CreatingTemplate",
         # Maintenance is set by Storage.set_maintenance(action) on every linked
         # domain when the storage enters a paired maintenance/ready cycle
         # (resize, sparsify, virt-win-reg, etc.). The cycle ends with
