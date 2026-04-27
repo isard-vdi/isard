@@ -14,8 +14,7 @@
     "docker/hypervisor",
     "docker/vpn",
     "docker/storage",
-    "pkg/gen/proto/python/src",
-    "pkg/gen/proto/python_old/src"
+    "pkg/gen/proto/python/src"
   ],
   "exclude": [
     "**/__pycache__",

@@ -93,11 +93,6 @@ pkg/gen/**
 !pkg/gen/proto/python/src/
 !pkg/gen/proto/python/src/isardvdi_protobuf/
 !pkg/gen/proto/python/src/isardvdi_protobuf/__init__.py
-!pkg/gen/proto/python_old/
-!pkg/gen/proto/python_old/pyproject.toml
-!pkg/gen/proto/python_old/src/
-!pkg/gen/proto/python_old/src/isardvdi_protobuf_old/
-!pkg/gen/proto/python_old/src/isardvdi_protobuf_old/__init__.py
 !pkg/gen/asyncapi/
 !pkg/gen/asyncapi/changefeed/
 !pkg/gen/asyncapi/changefeed/pyproject.toml

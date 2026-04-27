@@ -16,7 +16,6 @@ rm -rf pkg/gen/proto/go
 rm -rf pkg/gen/proto/docs
 rm -rf pkg/gen/proto/js
 rm -rf pkg/gen/proto/python/src
-rm -rf pkg/gen/proto/python_old/src
 rm -rf pkg/gen/oas
 rm -rf component/frontend/src/gen
 rm -f ./*/**/testing_*_mock.go

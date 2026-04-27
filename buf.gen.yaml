@@ -22,7 +22,5 @@ plugins:
   # remote plugin so codegen does not depend on buf.build rate limits.
   - local: grpc_python_plugin
     out: pkg/gen/proto/python/src/isardvdi_protobuf
-  - local: protoc-gen-python_betterproto
-    out: pkg/gen/proto/python_old/src/isardvdi_protobuf_old
   - local: protoc-gen-es
     out: pkg/gen/proto/js
