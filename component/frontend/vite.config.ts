@@ -42,5 +42,15 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true
     }
+  },
+  optimizeDeps: {
+    // Dev-mode dep pre-bundling defaults to older browser targets that
+    // reject the @novnc/novnc 1.6+ top-level await; mirror build.target.
+    esbuildOptions: { target: 'es2022' },
+    // @novnc/novnc 1.6 ships CJS files that contain top-level await
+    // (lib/util/browser.js:179). esbuild cannot bundle CJS-with-TLA
+    // because sibling files use `require()` to load it — illegal in
+    // CJS. Skip pre-bundling so Vite's runtime ESM loader handles it.
+    exclude: ['@novnc/novnc']
   }
 })
