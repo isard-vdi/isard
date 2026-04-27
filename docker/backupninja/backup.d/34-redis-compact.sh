@@ -10,9 +10,14 @@ fi
 REPO_PATH="/backup/redis"
 LOG_PREFIX="BORG_STATS_REDIS"
 
-# Check if today is Saturday (6)
-if [ $(date +%u) -eq 6 ]; then
-    # Check if the path exists
+# Compact is opt-out via env var (default: Saturday-only). Set
+# BACKUP_COMPACT_ENABLED=false on very large repos where compact takes
+# longer than the daily backup window and would otherwise block the
+# next day's borg create. The stats collection below still runs.
+if [ "${BACKUP_COMPACT_ENABLED:-true}" != "true" ]; then
+    echo "Compact disabled via BACKUP_COMPACT_ENABLED=false. Skipping /backup/redis compact."
+elif [ $(date +%u) -eq 6 ]; then
+    # Saturday-only compact
     if [ -d "/backup/redis" ]; then
         echo "Compacting Borg repository at /backup/redis..."
         borg compact --progress --cleanup-commits --verbose --threshold 5 "/backup/redis"
