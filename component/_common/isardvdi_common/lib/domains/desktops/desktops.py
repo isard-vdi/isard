@@ -505,6 +505,12 @@ class DesktopsProcessed(RethinkSharedConnection):
             "detail": None,
             "category": user["category"],
             "group": user["group"],
+            # Legacy ``api_desktops_persistent.py`` set ``"xml": None``
+            # explicitly. The engine writes the real XML on first start
+            # and any reader that does ``row['xml']`` (raw dict access,
+            # not ``.get()``) would otherwise KeyError on the new
+            # apiv4-created desktop. Match legacy.
+            "xml": None,
             "icon": template.get("icon", ""),
             "image": image or template.get("image"),
             "server": False,

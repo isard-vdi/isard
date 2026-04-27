@@ -236,3 +236,66 @@ def test_create_dict_template_schema_requires_personal_vlans():
 
     # Adding the field makes it pass.
     CreateDictDomainTemplate(**{**base, "personal_vlans": False})
+
+
+def _valid_template_dict():
+    """Full template_dict shape that ``TemplateCreation`` should accept,
+    matching what ``new_template`` writes after my fixes."""
+    desktop = _make_source_desktop(personal_vlans=False)
+    user = {"id": "u-1", "username": "u1", "category": "cat", "group": "grp"}
+    return _assemble_template_dict(desktop, "valid-name", "tpl-uuid", user)
+
+
+def test_template_creation_schema_accepts_well_formed_dict():
+    """Sanity check: the dict ``new_template`` builds today must
+    pass ``TemplateCreation`` so the new validation gate doesn't
+    immediately break the happy path."""
+    from isardvdi_common.schemas.domains import TemplateCreation
+
+    template_dict = _valid_template_dict()
+    TemplateCreation(**template_dict)
+
+
+def test_template_creation_schema_rejects_missing_personal_vlans():
+    """Defense-in-depth: the new validation gate must reject a
+    template_dict that drops ``create_dict.personal_vlans`` — the
+    exact regression that motivated the fix. Without this, a future
+    refactor that re-introduces the drop would slip through."""
+    from isardvdi_common.schemas.domains import TemplateCreation
+    from pydantic import ValidationError
+
+    template_dict = _valid_template_dict()
+    template_dict["create_dict"].pop("personal_vlans")
+
+    with pytest.raises(ValidationError) as exc:
+        TemplateCreation(**template_dict)
+    assert "personal_vlans" in str(exc.value)
+
+
+def test_template_creation_schema_rejects_missing_tag_name():
+    """The schema also pins ``tag_name`` so the legacy parity gap
+    can't reopen silently."""
+    from isardvdi_common.schemas.domains import TemplateCreation
+    from pydantic import ValidationError
+
+    template_dict = _valid_template_dict()
+    template_dict.pop("tag_name")
+
+    with pytest.raises(ValidationError) as exc:
+        TemplateCreation(**template_dict)
+    assert "tag_name" in str(exc.value)
+
+
+def test_template_creation_schema_status_enum_is_template_specific():
+    """Templates carry ``CreatingTemplate``, not ``Creating``. Pin the
+    enum so a future copy-paste from ``DesktopFromTemplate`` (which
+    uses ``DesktopStatusEnum``) doesn't accidentally let
+    ``"Stopped"`` or ``"Started"`` past validation."""
+    from isardvdi_common.schemas.domains import TemplateCreation
+    from pydantic import ValidationError
+
+    template_dict = _valid_template_dict()
+    template_dict["status"] = "Started"
+
+    with pytest.raises(ValidationError):
+        TemplateCreation(**template_dict)
