@@ -1735,6 +1735,10 @@ class Storage(RethinkCustomBase):
                     "destination_path": template_storage.path,
                     "method": "auto",
                     "remove_source_file": True,
+                    # Surface rsync progress on the new template's row so
+                    # the templates list in old-frontend / Vue 3 can render
+                    # the same kind of progress bar Media downloads have.
+                    "progress_domain_id": template_id,
                 },
                 "timeout": timeout,
             },

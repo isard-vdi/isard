@@ -88,8 +88,24 @@ export type WsDesktopsQueuePayload = Record<string, WsDesktopsQueueEntry>
 // /userspace, raw DB doc for /administrators)
 // ---------------------------------------------------------------------------
 
-/** Template payload on /userspace — same shape as desktop (kind != desktop) */
-export type WsTemplatePayload = WsDesktopPayload
+/** Progress dict written by the storage worker's ``move()`` task during the
+ *  rsync branch of the apiv4 template-creation chain. Mirrors the shape used
+ *  by ``WsMediaProgress`` so the templates list can render the same kind of
+ *  progress bar as the media list. */
+export interface WsTemplateProgress {
+  total_percent?: number
+  received_percent?: number
+}
+
+/** Template payload on /userspace — same shape as desktop (kind != desktop)
+ *  with two extras: ``status`` (e.g. ``CreatingTemplate`` while the chain
+ *  runs, ``Stopped`` when finished) and ``progress`` (only present for
+ *  templates currently being created). Both are also surfaced in the initial
+ *  ``GET /items/templates`` response so the bar shows on first page load. */
+export interface WsTemplatePayload extends WsDesktopPayload {
+  status?: string
+  progress?: WsTemplateProgress
+}
 
 // ---------------------------------------------------------------------------
 // Deployments — emitted by DeploymentsThread

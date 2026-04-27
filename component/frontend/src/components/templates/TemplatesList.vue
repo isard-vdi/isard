@@ -3,6 +3,7 @@ import { TemplateDataTable } from '@/components/data-table'
 import { Icon } from '@/components/icon'
 import { AvatarLabel } from '@/components/avatar-label'
 import { Button } from '@/components/ui/button'
+import Progress from '@/components/ui/progress/Progress.vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
@@ -180,7 +181,18 @@ const tableIsError = computed(() => {
       </template>
 
       <template #cell-description="{ row }">
-        <p class="text-xs font-medium text-gray-warm-600 line-clamp-2">
+        <div v-if="row.status === 'CreatingTemplate'">
+          <div class="text-end text-xs mb-0.5">
+            {{ (row.progress as { total_percent?: number } | undefined)?.total_percent ?? 0 }}%
+          </div>
+          <Progress
+            :class="'h-2 text-info-400 w-50'"
+            :model-value="
+              (row.progress as { total_percent?: number } | undefined)?.total_percent ?? 0
+            "
+          />
+        </div>
+        <p v-else class="text-xs font-medium text-gray-warm-600 line-clamp-2">
           {{ row.description }}
         </p>
       </template>

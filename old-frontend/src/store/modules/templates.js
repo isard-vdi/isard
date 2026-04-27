@@ -82,6 +82,16 @@ export default {
         Object.assign(item, template)
       }
     },
+    add_template: (state, template) => {
+      // Insert the new template at the front of the list so the user
+      // sees it immediately while the apiv4 task chain creates it.
+      // ``setTemplates`` re-fetches will canonicalise the order on the
+      // next page load.
+      const exists = state.templates.some(t => t.id === template.id)
+      if (!exists) {
+        state.templates = [template, ...state.templates]
+      }
+    },
     setTemplatesLoaded: (state, templatesLoaded) => {
       state.templates_loaded = templatesLoaded
     },
@@ -163,6 +173,21 @@ export default {
     socket_templateDelete (context, data) {
       const template = JSON.parse(data)
       context.commit('remove_template', template)
+    },
+    socket_templateAdd (context, data) {
+      // change-handler emits ``template_add`` (full row payload) when
+      // apiv4 inserts a new template row. Without this handler the
+      // user would only see the template after a manual refresh.
+      const template = DesktopUtils.parseTemplate(JSON.parse(data))
+      context.commit('add_template', template)
+    },
+    socket_templateUpdate (context, data) {
+      // change-handler emits ``template_update`` on every row change,
+      // including the periodic ``progress`` writes the move() task
+      // makes during the rsync branch of the template-creation chain.
+      // Forwarding the payload keeps the progress bar live.
+      const template = DesktopUtils.parseTemplate(JSON.parse(data))
+      context.commit('update_templates', template)
     },
     fetchConvertToDesktop (context, data) {
       axios.get(`${apiV3Segment}/item/template/${data.template.id}/get-tree`).then(response => {

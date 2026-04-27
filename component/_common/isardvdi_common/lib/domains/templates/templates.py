@@ -572,6 +572,11 @@ class TemplatesProcessed(RethinkSharedConnection):
                             "user",
                             "description",
                             "status",
+                            # Surfaced for templates in CreatingTemplate
+                            # status so the UI can render a progress bar
+                            # (written by ``move()`` during the chain's
+                            # rsync branch).
+                            "progress",
                         },
                         {"create_dict": {"hardware": {"disks": {"storage_id": True}}}},
                     )
