@@ -3,7 +3,7 @@ import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
-import { getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDesktopInfoOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { UserDesktop } from '@/gen/oas/apiv4/'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
@@ -25,7 +25,7 @@ const emit = defineEmits<{ showInfoModal: [] }>()
 const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
 const { data: info, isPending } = useQuery(
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  getDesktopInfoOptions({
     path: { desktop_id: props.desktop.id }
   })
 )

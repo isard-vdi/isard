@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  getUserMediaApiV4ItemsMediaGetOptions,
-  getUserSharedMediaApiV4ItemsMediaGetSharedGetOptions,
-  startMediaDownloadApiV4ItemMediaMediaIdDownloadPutMutation,
-  abortMediaDownloadApiV4ItemMediaMediaIdAbortPutMutation,
-  deleteMediaApiV4ItemMediaMediaIdDeleteMutation,
-  checkQuotaNewMediaApiV4QuotaMediaNewGetOptions
+  getUserMediaOptions,
+  getUserSharedMediaOptions,
+  startMediaDownloadMutation,
+  abortMediaDownloadMutation,
+  deleteMediaMutation,
+  checkQuotaNewMediaOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { MediaStatusEnum, type ErrorResponse } from '@/gen/oas/apiv4'
 import DataTable from '@/components/data-table/DataTable.vue'
@@ -48,7 +48,7 @@ const openNewMediaModal = async () => {
   checkQuotaIsPending.value = true
   try {
     await queryClient.fetchQuery({
-      ...checkQuotaNewMediaApiV4QuotaMediaNewGetOptions(),
+      ...checkQuotaNewMediaOptions(),
       staleTime: QUOTA_STALE_TIME
     })
     checkQuotaIsPending.value = false
@@ -65,7 +65,7 @@ const {
   isError: userMediaIsError,
   error: userMediaError,
   data: userMedia
-} = useQuery(getUserMediaApiV4ItemsMediaGetOptions())
+} = useQuery(getUserMediaOptions())
 
 const {
   isFetching: sharedMediaIsFetching,
@@ -74,7 +74,7 @@ const {
   data: sharedMedia,
   refetch: fetchSharedMedia
 } = useQuery({
-  ...getUserSharedMediaApiV4ItemsMediaGetSharedGetOptions(),
+  ...getUserSharedMediaOptions(),
   enabled: false
 })
 
@@ -86,7 +86,7 @@ const formatErrorDetail = (error: unknown): string => {
 }
 
 const { mutate: downloadMedia } = useMutation({
-  ...startMediaDownloadApiV4ItemMediaMediaIdDownloadPutMutation(),
+  ...startMediaDownloadMutation(),
   onError: (error) => {
     actionErrorModal.value = {
       messageKey: 'views.media.action-error-modal.download',
@@ -96,7 +96,7 @@ const { mutate: downloadMedia } = useMutation({
 })
 
 const { mutate: abortDownload } = useMutation({
-  ...abortMediaDownloadApiV4ItemMediaMediaIdAbortPutMutation(),
+  ...abortMediaDownloadMutation(),
   onError: (error) => {
     actionErrorModal.value = {
       messageKey: 'views.media.action-error-modal.abort',
@@ -106,7 +106,7 @@ const { mutate: abortDownload } = useMutation({
 })
 
 const { mutate: deleteMedia, isPending: deleteMediaIsPending } = useMutation({
-  ...deleteMediaApiV4ItemMediaMediaIdDeleteMutation(),
+  ...deleteMediaMutation(),
   onError: (error) => {
     actionErrorModal.value = {
       messageKey: 'views.media.action-error-modal.delete',

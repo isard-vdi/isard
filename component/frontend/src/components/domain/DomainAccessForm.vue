@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/vue-query'
 import {
   getTemplateInfoOptions,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions
+  getDesktopInfoOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Switch } from '@/components/ui/switch'
 import { Icon } from '@/components/icon'
@@ -130,7 +130,7 @@ const {
   error: desktopError,
   data: desktopData
 } = useQuery({
-  ...getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  ...getDesktopInfoOptions({
     path: {
       desktop_id: props.desktopId!
     }

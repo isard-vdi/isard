@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { UserDesktop } from '@/gen/oas/apiv4/'
+import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
 
 import { desktopNeedsBooking, desktopActionsData, desktopNotificationText } from '@/lib/desktops'
 import { copyToClipboard } from '@/lib/utils'
@@ -24,7 +24,7 @@ import {
 import { ViewerSelect } from '@/components/viewer-select'
 
 interface Props {
-  desktops: UserDesktop[]
+  desktops: ApiSchemasDomainsDesktopsUserDesktop[]
   preferedViewers: Record<string, string>
 }
 
@@ -34,29 +34,29 @@ const props = withDefaults(defineProps<Props>(), {})
 
 const emit = defineEmits<{
   // --- Main actions ---
-  desktopStart: [UserDesktop]
-  desktopStop: [UserDesktop]
-  desktopUpdateStatus: [UserDesktop]
-  desktopAbortOperation: [UserDesktop]
-  desktopFetchBooking: [UserDesktop]
-  // desktop*: [UserDesktop]
+  desktopStart: [ApiSchemasDomainsDesktopsUserDesktop]
+  desktopStop: [ApiSchemasDomainsDesktopsUserDesktop]
+  desktopUpdateStatus: [ApiSchemasDomainsDesktopsUserDesktop]
+  desktopAbortOperation: [ApiSchemasDomainsDesktopsUserDesktop]
+  desktopFetchBooking: [ApiSchemasDomainsDesktopsUserDesktop]
+  // desktop*: [ApiSchemasDomainsDesktopsUserDesktop]
   // --- Viewers ---
-  openViewer: [{ dktp: UserDesktop; viewer: string }]
+  openViewer: [{ dktp: ApiSchemasDomainsDesktopsUserDesktop; viewer: string }]
   // --- Modals ---
-  fetchNetworks: [UserDesktop]
-  showNetworksModal: [UserDesktop]
-  showInfoModal: [UserDesktop]
-  showBastionModal: [UserDesktop]
-  showDirectLinkModal: [UserDesktop]
-  showDeleteModal: [UserDesktop]
-  showRecreateModal: [UserDesktop]
-  // show*Modal: [UserDesktop]
+  fetchNetworks: [ApiSchemasDomainsDesktopsUserDesktop]
+  showNetworksModal: [ApiSchemasDomainsDesktopsUserDesktop]
+  showInfoModal: [ApiSchemasDomainsDesktopsUserDesktop]
+  showBastionModal: [ApiSchemasDomainsDesktopsUserDesktop]
+  showDirectLinkModal: [ApiSchemasDomainsDesktopsUserDesktop]
+  showDeleteModal: [ApiSchemasDomainsDesktopsUserDesktop]
+  showRecreateModal: [ApiSchemasDomainsDesktopsUserDesktop]
+  // show*Modal: [ApiSchemasDomainsDesktopsUserDesktop]
   // --- Redirects ---
-  editDesktop: [UserDesktop]
-  createTemplate: [UserDesktop]
-  changeImage: [UserDesktop]
-  showStorageModal: [UserDesktop]
-  // goTo*: [UserDesktop]
+  editDesktop: [ApiSchemasDomainsDesktopsUserDesktop]
+  createTemplate: [ApiSchemasDomainsDesktopsUserDesktop]
+  changeImage: [ApiSchemasDomainsDesktopsUserDesktop]
+  showStorageModal: [ApiSchemasDomainsDesktopsUserDesktop]
+  // goTo*: [ApiSchemasDomainsDesktopsUserDesktop]
 }>()
 
 const headers = [

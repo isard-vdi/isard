@@ -10,7 +10,7 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
-  logViewerClickApiV4ItemDesktopTokenTokenViewerProtocolPostMutation: () => ({})
+  logViewerClickMutation: () => ({})
 }))
 
 vi.mock('jwt-decode', () => ({

@@ -4,7 +4,7 @@ import { MainLayout } from '@/layouts/main'
 import { useAuthStore } from '@/stores/auth'
 import { useSessionStore } from '@/stores/session'
 import { useSocketStore } from '@/stores/socket'
-import { getUserConfigApiV4ItemUserGetConfigGet } from '@/gen/oas/apiv4'
+import { getUserConfig } from '@/gen/oas/apiv4'
 import { resolveVue2Path, type FrontendMode } from '@/lib/frontendModeMap'
 
 const router = createRouter({
@@ -357,7 +357,7 @@ let cachedFrontendMode: FrontendMode | null = null
 async function getFrontendMode(): Promise<FrontendMode> {
   if (cachedFrontendMode) return cachedFrontendMode
   try {
-    const { data } = await getUserConfigApiV4ItemUserGetConfigGet()
+    const { data } = await getUserConfig()
     const mode = (data as { frontend_mode?: FrontendMode } | undefined)?.frontend_mode
     cachedFrontendMode = mode ?? 'deprecated'
   } catch {

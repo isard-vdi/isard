@@ -12,10 +12,7 @@ import * as z from 'zod'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 
 import type { CreateDesktopRequest, ErrorResponse } from '@/gen/oas/apiv4'
-import {
-  getTemplateInfo,
-  getTemplateDetails
-} from '@/gen/oas/apiv4'
+import { getTemplateInfo, getTemplateDetails } from '@/gen/oas/apiv4'
 import {
   createDeploymentMutation,
   getUserQuotasOptions,
@@ -59,7 +56,7 @@ const {
 } = useQuery(getUserQuotasOptions())
 
 const {
-  mutate: createDeploymentMutation,
+  mutate: createDeployment,
   mutateAsync: createDeploymentAsync,
   isPending: createDeploymentIsPending,
   isError: createDeploymentIsError,
@@ -109,7 +106,7 @@ const {
 })
 
 const {
-  mutate: getTemplateInfo,
+  mutate: getTemplateInfoMutate,
   mutateAsync: getTemplateInfoAsync,
   isPending: getTemplateInfoIsPending,
   isError: getTemplateInfoIsError,

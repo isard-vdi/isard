@@ -9,7 +9,7 @@ import Icon from '@/components/icon/Icon.vue'
 import LabFormSettings from '@/components/lab/LabFormSettings.vue'
 import LabFormDesktops from '@/components/lab/LabFormDesktops.vue'
 import UnsavedChangesModal from '@/components/modal/UnsavedChangesModal.vue'
-import { Tab, TabsList, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsContent } from '@/components/ui/tabs'
 import TabsTrigger from '@/components/ui/tabs/TabsTrigger.vue'
 
 import {
@@ -109,13 +109,9 @@ const getSaveButtonTooltip = computed(() => {
 
 const { data: currentUser } = useQuery(getUserOptions())
 
-const { isPending: getAllUsersIsPending, data: users } = useQuery(
-  getAllUsersOptions()
-)
+const { isPending: getAllUsersIsPending, data: users } = useQuery(getAllUsersOptions())
 
-const { isPending: getAllGroupsIsPending, data: groups } = useQuery(
-  getAllGroupsOptions()
-)
+const { isPending: getAllGroupsIsPending, data: groups } = useQuery(getAllGroupsOptions())
 
 const {
   data: lab,
@@ -124,9 +120,7 @@ const {
   error
 } = useQuery(getDeploymentOptions({ path: { deployment_id: labId as string } }))
 
-const editDeploymentMut = useMutation(
-  editDeploymentMutation()
-)
+const editDeploymentMut = useMutation(editDeploymentMutation())
 
 const transformFormDataToApiFormat = (data: {
   name: string
@@ -361,7 +355,7 @@ window.addEventListener('beforeunload', (e) => {
 
 <template>
   <div class="flex flex-col w-full items-center gap-24 max-w-320">
-    <Tab v-model="activeTab" class="w-full" default-value="info">
+    <Tabs v-model="activeTab" class="w-full" default-value="info">
       <div class="w-full flex items-center justify-between gap-4">
         <div class="flex-1 flex">
           <TabsList
@@ -452,7 +446,7 @@ window.addEventListener('beforeunload', (e) => {
           />
         </TabsContent>
       </div>
-    </Tab>
+    </Tabs>
 
     <UnsavedChangesModal
       :open="showUnsavedChangesModal"

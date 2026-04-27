@@ -2,10 +2,10 @@
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import {
-  getAllSharedDeploymentsApiV4ItemsDeploymentsGetSharedGetOptions,
-  getUserDetailsApiV4ItemUserGetDetailsGetOptions
+  getAllSharedDeploymentsOptions,
+  getUserDetailsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getDeploymentUserDesktopsDetailApiV4ItemDeploymentDeploymentIdDesktopsUserUserIdDetailGet } from '@/gen/oas/apiv4/'
+import { getDeploymentUserDesktopsDetail } from '@/gen/oas/apiv4/'
 import { type SharedDeployment } from '@/gen/oas/apiv4'
 import type { DomainInfoItem } from '@/components/desktops'
 import { DesktopCardBaseStacked, DesktopCardHeader } from '@/components/desktop-card'
@@ -29,7 +29,7 @@ const {
   isError: deploymentsIsError,
   error: deploymentsError,
   data: deployments
-} = useQuery(getAllSharedDeploymentsApiV4ItemsDeploymentsGetSharedGetOptions())
+} = useQuery(getAllSharedDeploymentsOptions())
 
 const {
   mutate: fetchAndOpenDeploymentDesktopsModal,
@@ -37,16 +37,13 @@ const {
   reset: resetDeploymentDesktops
 } = useMutation({
   mutationFn: async ({ deploymentId, userId }: { deploymentId: string; userId: string }) => {
-    const { data } =
-      await getDeploymentUserDesktopsDetailApiV4ItemDeploymentDeploymentIdDesktopsUserUserIdDetailGet(
-        {
-          path: {
-            deployment_id: deploymentId,
-            user_id: userId
-          },
-          throwOnError: true
-        }
-      )
+    const { data } = await getDeploymentUserDesktopsDetail({
+      path: {
+        deployment_id: deploymentId,
+        user_id: userId
+      },
+      throwOnError: true
+    })
     return data
   },
   onSuccess: () => {
@@ -54,7 +51,7 @@ const {
   }
 })
 
-const { data: user } = useQuery(getUserDetailsApiV4ItemUserGetDetailsGetOptions())
+const { data: user } = useQuery(getUserDetailsOptions())
 
 const { width: windowWidth } = useWindowSize()
 

@@ -2,7 +2,7 @@
 import { ref, computed, defineProps, defineEmits, withDefaults } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { UserDesktop } from '@/gen/oas/apiv4/'
+import type { ApiSchemasDomainsDesktopsUserDesktop } from '@/gen/oas/apiv4/'
 import type { CardSize } from '.'
 
 import { cn, copyToClipboard } from '@/lib/utils'
@@ -32,7 +32,7 @@ import { ContextMenuContent, ContextMenuItem } from '@/components/ui/context-men
 const { t, d } = useI18n()
 
 interface Props {
-  desktop: UserDesktop
+  desktop: ApiSchemasDomainsDesktopsUserDesktop
   preferredViewer?: string
   blank?: boolean
   size?: CardSize

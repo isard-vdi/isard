@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 
-import { getDeploymentVideowallApiV4ItemDeploymentDeploymentIdVideowallGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDeploymentVideowallOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import NoVNC from '@/components/noVNC/NoVNC.vue'
 import DeploymentVideowallCard from '@/components/deployment-videowall/DeploymentVideowallCard.vue'
@@ -27,7 +27,7 @@ const { t } = useI18n()
 const deploymentId = computed(() => route.params.deploymentId as string)
 
 const { data, isPending } = useQuery(
-  getDeploymentVideowallApiV4ItemDeploymentDeploymentIdVideowallGetOptions({
+  getDeploymentVideowallOptions({
     path: { deployment_id: deploymentId.value }
   })
 )

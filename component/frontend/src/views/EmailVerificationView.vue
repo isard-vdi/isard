@@ -35,7 +35,7 @@ const form = useForm({
     successMessage.value = ''
 
     try {
-      await setUserEmailMutation({ body: { email: value.email } })
+      await setUserEmail({ body: { email: value.email } })
       successMessage.value = t('views.verify-email.success')
     } catch (error: unknown) {
       const descriptionCode =
@@ -54,9 +54,7 @@ const form = useForm({
   }
 })
 
-const { mutateAsync: setUserEmailMutation, isPending: isSubmitting } = useMutation(
-  setUserEmailMutation()
-)
+const { mutateAsync: setUserEmail, isPending: isSubmitting } = useMutation(setUserEmailMutation())
 
 const isValid = form.useStore((state) => state.isValid)
 const emailValue = form.useStore((state) => state.values.email)

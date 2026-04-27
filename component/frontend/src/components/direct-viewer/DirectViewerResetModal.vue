@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useMutation } from '@tanstack/vue-query'
-import { resetDesktopApiV4ItemDesktopTokenTokenResetDesktopPutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { resetDesktopMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
 
-const reset = useMutation(resetDesktopApiV4ItemDesktopTokenTokenResetDesktopPutMutation())
+const reset = useMutation(resetDesktopMutation())
 
 function handleReset() {
   reset.mutate(

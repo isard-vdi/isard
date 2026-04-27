@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/vue-query'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import {
   getTemplateInfoOptions,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions
+  getDesktopInfoOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 interface Props {
@@ -36,7 +36,7 @@ const {
   error: desktopError,
   data: desktopData
 } = useQuery({
-  ...getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  ...getDesktopInfoOptions({
     path: {
       desktop_id: props.desktopId!
     }

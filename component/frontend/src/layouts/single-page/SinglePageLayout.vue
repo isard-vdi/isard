@@ -13,9 +13,9 @@ const router = useRouter()
 const { t } = useI18n()
 
 interface Props {
-  goBack: boolean
-  avatar: boolean
-  user: {
+  goBack?: boolean
+  avatar?: boolean
+  user?: {
     name: string
     role: string
     img: string

@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 
 import { DesktopStatusEnum, type UserDesktop, type BrowserVncValues } from '@/gen/oas/apiv4/'
-import { getDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGet } from '@/gen/oas/apiv4/'
+import { getDesktopViewerByType } from '@/gen/oas/apiv4/'
 
 import NoVNC from '@/components/noVNC/NoVNC.vue'
 import type { CardSize } from '..'
@@ -38,7 +38,7 @@ const fetchViewer = async () => {
   if (fetchInflight.value || viewerValues.value) return
   fetchInflight.value = true
   try {
-    const { data, error } = await getDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGet({
+    const { data, error } = await getDesktopViewerByType({
       path: {
         desktop_id: props.desktop.id,
         viewer_type: 'browser-vnc'

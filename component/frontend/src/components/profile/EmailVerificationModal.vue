@@ -10,10 +10,7 @@ import { InputField } from '@/components/input-field'
 import { Icon } from '@/components/icon'
 import { useI18n } from 'vue-i18n'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import {
-  setUserEmailMutation,
-  getUserOptions
-} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { setUserEmailMutation, getUserOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 interface Props {
   open?: boolean
@@ -55,7 +52,7 @@ const form = useForm({
     apiError.value = ''
 
     try {
-      await setUserEmailMutation({ body: { email: form.getFieldValue('email') } })
+      await setUserEmail({ body: { email: form.getFieldValue('email') } })
       await queryClient.invalidateQueries({ queryKey: getUserOptions() })
       handleClose()
     } catch (error: unknown) {
@@ -96,9 +93,8 @@ const handleClose = () => {
   apiError.value = ''
 }
 
-const { mutateAsync: setUserEmailMutation, isPending: isRequestingVerification } = useMutation(
-  setUserEmailMutation()
-)
+const { mutateAsync: setUserEmail, isPending: isRequestingVerification } =
+  useMutation(setUserEmailMutation())
 
 const isValid = form.useStore((state) => state.isValid)
 const emailValue = form.useStore((state) => state.values.email)

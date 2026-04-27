@@ -31,13 +31,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const { data: recycleBinDefaultDelete } = useQuery(
-  getRecycleBinDefaultDeleteConfigOptions()
-)
+const { data: recycleBinDefaultDelete } = useQuery(getRecycleBinDefaultDeleteConfigOptions())
 
-const { data: recycleBinCutoffTime } = useQuery(
-  getRecycleBinCutoffTimeOptions()
-)
+const { data: recycleBinCutoffTime } = useQuery(getRecycleBinCutoffTimeOptions())
 
 const deleteModalRecycleBinChecked = ref(recycleBinDefaultDelete.value)
 
@@ -45,7 +41,7 @@ watch(recycleBinDefaultDelete, (val) => {
   deleteModalRecycleBinChecked.value = val
 })
 
-const { mutate: deleteDeploymentMutation, isPending: deleteDeploymentIsPending } = useMutation({
+const { mutate: deleteDeployment, isPending: deleteDeploymentIsPending } = useMutation({
   ...deleteDeploymentMutation(),
   onSuccess: () => {
     handleClose()
@@ -59,7 +55,7 @@ const deploymentNameLabel = computed(() => props.deploymentName || undefined)
 
 const confirmDelete = () => {
   if (!props.deploymentId) return
-  deleteDeploymentMutation({
+  deleteDeployment({
     path: { deployment_id: props.deploymentId },
     query: {
       permanent:

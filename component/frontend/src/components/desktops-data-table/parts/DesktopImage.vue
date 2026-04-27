@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { UserDesktop } from '@/gen/oas/apiv4/'
+import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
 
 import { desktopKindStyle as desktopKindStyleFunc } from '@/lib/desktops'
 

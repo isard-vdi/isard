@@ -5,8 +5,8 @@ import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 
 import {
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGetOptions,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions,
+  getDesktopDetailsOptions,
+  getDesktopInfoOptions,
   createTemplateMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
@@ -55,14 +55,14 @@ const emit = defineEmits<{
 const desktopId = ref<string>(props.desktopId)
 
 const { data: desktopInfo, isPending: desktopInfoIsPending } = useQuery(
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  getDesktopInfoOptions({
     path: {
       desktop_id: desktopId.value
     }
   })
 )
 const { data: desktopDetails, isPending: desktopDetailsIsPending } = useQuery(
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGetOptions({
+  getDesktopDetailsOptions({
     path: {
       desktop_id: desktopId.value
     }
@@ -75,7 +75,7 @@ const imageUrl = computed(() => {
 
 const createTemplateErrorCode = ref<string | undefined>(undefined)
 const {
-  mutate: createTemplateMutation,
+  mutate: createTemplate,
   mutateAsync: createTemplateAsync,
   isPending: createTemplateIsPending,
   isError: createTemplateIsError,

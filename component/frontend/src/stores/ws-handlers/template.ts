@@ -1,9 +1,9 @@
 import { patchEntityList } from '@/lib/utils'
 import type { WsDeletePayload, WsTemplatePayload } from '@/types/ws-events'
 import { QueryClient } from '@tanstack/vue-query'
-import { getUserTemplatesApiV4ItemsTemplatesGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getUserTemplatesOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-const key = getUserTemplatesApiV4ItemsTemplatesGetOptions().queryKey
+const key = getUserTemplatesOptions().queryKey
 
 export const templateEventHandlers = {
   template_add: (queryClient: QueryClient, payload: string) => {

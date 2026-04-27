@@ -7,7 +7,7 @@ import Progress from '@/components/ui/progress/Progress.vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 import {
-  getUserTemplatesApiV4ItemsTemplatesGetOptions,
+  getUserTemplatesOptions,
   //   // getUserSharedTemplates
   getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -52,7 +52,7 @@ const {
   data: userTemplates,
   isEnabled: userTemplatesIsEnabled
 } = useQuery({
-  ...getUserTemplatesApiV4ItemsTemplatesGetOptions(),
+  ...getUserTemplatesOptions(),
   enabled: computed(() => user?.value?.role !== 'user')
 })
 

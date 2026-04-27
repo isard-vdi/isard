@@ -7,9 +7,9 @@ import { z } from 'zod'
 import { useForm } from '@tanstack/vue-form'
 
 import {
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions,
-  editDesktopApiV4ItemDesktopDesktopIdEditPutMutation,
-  getUserDesktopsApiV4ItemUserDesktopsGetQueryKey
+  getDesktopInfoOptions,
+  editDesktopMutation,
+  getUserDesktopsLegacyQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
@@ -31,7 +31,7 @@ const {
   isError: desktopLoadError,
   data: desktopData
 } = useQuery({
-  ...getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  ...getDesktopInfoOptions({
     path: { desktop_id: desktopId.value }
   }),
   enabled: computed(() => !!desktopId.value)
@@ -85,9 +85,9 @@ const areFormsValid = computed(
 const submitError = ref<string | null>(null)
 
 const { mutate: submitEdit, isPending: submitPending } = useMutation({
-  ...editDesktopApiV4ItemDesktopDesktopIdEditPutMutation(),
+  ...editDesktopMutation(),
   onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: getUserDesktopsApiV4ItemUserDesktopsGetQueryKey() })
+    queryClient.invalidateQueries({ queryKey: getUserDesktopsLegacyQueryKey() })
     router.push({ name: 'desktops' })
   },
   onError: (error) => {

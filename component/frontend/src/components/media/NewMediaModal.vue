@@ -67,7 +67,7 @@ const formSchema = z.object({
 
 const creationError = ref<string | null>(null)
 
-const { mutate: createMediaMutation, isPending: createMediaIsPending } = useMutation({
+const { mutate: createMedia, isPending: createMediaIsPending } = useMutation({
   ...createMediaMutation(),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['getUserMedia'] })
@@ -99,7 +99,7 @@ const form = useForm({
   },
   onSubmit: ({ value }) => {
     creationError.value = null
-    createMediaMutation({
+    createMedia({
       body: {
         name: value.name,
         url: value.url,

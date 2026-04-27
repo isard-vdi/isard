@@ -9,9 +9,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
 
 import {
-  getUserDesktopsQueryKey,
   getUserDesktopsOptions,
-  getDesktopViewerOptions,
   getUserConfigOptions,
   getDesktopNetworksOptions,
   updateStatusDesktopMutation,
@@ -36,21 +34,19 @@ import {
   stopDesktop,
   stopDesktops,
   getDesktopNetworks,
-  getDesktopInfo,
+  getDesktopDetails as getDesktopInfo,
   deleteDesktop,
-  getDesktopBastion,
   updateDesktopBastionDomain,
   updateDesktopBastionAuthorizedKeys,
-  getDesktopViewer,
-  type GetDesktopViewerData,
-  type DesktopBastionResponse,
+  getDesktopViewerByType as getDesktopViewer,
+  type GetDesktopViewerByTypeData as GetDesktopViewerData,
   type DesktopNetwork,
   type GetDesktopNetworksData,
   DesktopStatusEnum,
-  type UserDesktop,
+  type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop,
   getMaxBookingDate,
   type ErrorResponse,
-  getBookingReservablesAvailable
+  getBookingReservablesAvailable as getBookingReservablesAvailable
 } from '@/gen/oas/apiv4/'
 
 import { cn } from '@/lib/utils'
@@ -320,7 +316,7 @@ const deleteModalDesktopData = ref<{
 const deleteModalRecicleBinChecked = ref(recycleBinDefaultDelete.value)
 
 const {
-  mutate: deleteDesktop,
+  mutate: deleteDesktopMutate,
   mutateAsync: deleteDesktopAsync,
   isPending: deleteDesktopIsPending,
   isError: deleteDesktopIsError,
@@ -980,7 +976,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         hierarchy="destructive"
         :disabled="deleteDesktopIsPending"
         @click="
-          deleteDesktop({
+          deleteDesktopMutate({
             path: { desktop_id: deleteModalDesktopData.id },
             query: {
               permanent:

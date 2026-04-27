@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 
 import {
-  getUserTemplatesApiV4ItemsTemplatesGetOptions,
+  getUserTemplatesOptions,
   getUserSharedTemplatesOptions,
   checkQuotaNewTemplateOptions,
   checkQuotaNewDesktopOptions
@@ -53,7 +53,7 @@ const {
   isError: userTemplatesIsError,
   error: userTemplatesError,
   data: userTemplates
-} = useQuery(getUserTemplatesApiV4ItemsTemplatesGetOptions())
+} = useQuery(getUserTemplatesOptions())
 
 const {
   isFetching: sharedTemplatesIsFetching,
