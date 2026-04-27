@@ -20,18 +20,86 @@
 
 import traceback
 
-from api import admin_router
+from api import admin_router, manager_router
 from api.schemas.admin_login_config import (
     LoginNotificationEnableRequest,
     LoginNotificationUpdateRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
+from api.services.admin_categories import AdminCategoryService
 from api.services.admin_login_config import AdminLoginConfigService
 from api.services.error import Error
-from fastapi import Request
+from fastapi import Path, Request
 from fastapi.responses import JSONResponse
 
 tag = "admin-login-config"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Read login config (raw, for admin editing)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+@manager_router.get(
+    "/admin/login-config",
+    tags=[tag],
+    summary="Get global login config (raw)",
+    description=(
+        "Admin-only raw read of the global login configuration. Returns "
+        "the unmerged ``Configuration.login`` payload so the admin "
+        "edit-modal can show the current state. The public "
+        "``GET /item/login-config`` returns the same content but goes "
+        "through the same typed response model."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_login_config_get(request: Request):
+    try:
+        result = AdminCategoryService.admin_get_login_config()
+        return JSONResponse(content=result, status_code=200)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve admin login config",
+            traceback.format_exc(),
+        )
+
+
+@manager_router.get(
+    "/admin/login-config/{category_id}",
+    tags=[tag],
+    summary="Get per-category login config (raw)",
+    description=(
+        "Admin-only raw read of a single category's login notification "
+        "configuration. Unmerged — used by the webapp admin "
+        '"Edit category login notification" modal. The public '
+        "``GET /item/login-config/{category_id}`` returns the merged "
+        "global + category arrays for the login page."
+    ),
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def admin_login_config_by_category(
+    request: Request,
+    category_id: str = Path(..., description="Category ID"),
+):
+    try:
+        result = AdminCategoryService.admin_get_login_config(category_id)
+        return JSONResponse(content=result, status_code=200)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve admin login config for category '{category_id}'",
+            traceback.format_exc(),
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════
