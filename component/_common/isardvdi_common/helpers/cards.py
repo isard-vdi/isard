@@ -24,6 +24,7 @@ import importlib.util
 import logging as log
 import mimetypes
 import os
+import shutil
 import traceback
 import uuid
 from io import BytesIO
@@ -58,6 +59,7 @@ elif api_spec and api_spec.origin == "/app/api/__init__.py":
     USERS_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/user")
     if not os.path.exists(USERS_CARDS):
         os.makedirs(USERS_CARDS, exist_ok=True)
+    STOCK_ASSETS_SEED = os.path.join(APP_ROOT, "static/stock_assets")
 
 
 def _safe_card_path(base_dir, filename):
@@ -71,6 +73,26 @@ def _safe_card_path(base_dir, filename):
 
 
 class Cards(RethinkSharedConnection):
+    @classmethod
+    def seed_stock_cards(cls):
+        # Mirrors apiv3's Flask startup behavior (api/src/api/__init__.py
+        # on main / apiv4-and-websockets): copy bundled stock images into
+        # STOCK_CARDS so isard-static (nginx) serves them via the shared
+        # host bind-mount on fresh installs.
+        seed_dir = globals().get("STOCK_ASSETS_SEED")
+        if not seed_dir or not os.path.isdir(seed_dir):
+            return
+        for filename in os.listdir(seed_dir):
+            src = os.path.join(seed_dir, filename)
+            if not os.path.isfile(src):
+                continue
+            dst = os.path.join(STOCK_CARDS, filename)
+            if os.path.isfile(dst):
+                if os.stat(src).st_mtime - os.stat(dst).st_mtime > 1:
+                    shutil.copy2(src, dst)
+            else:
+                shutil.copy(src, dst)
+
     @classmethod
     def read_stock_cards(cls):
         return [
