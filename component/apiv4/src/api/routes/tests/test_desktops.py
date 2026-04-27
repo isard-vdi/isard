@@ -632,6 +632,56 @@ def test_update_bastion_authorized_keys_requires_can_use_bastion(
 # ─── Change-owner (desktop/template/media) ────────────────────────────
 
 
+def test_edit_desktop_propagates_forced_hyp_for_admin(monkeypatch, test_client):
+    """``PUT /item/desktop/{id}/edit`` accepts ``forced_hyp`` in the body
+    and forwards it to ``DesktopService.edit_desktop`` together with the
+    JWT payload, so the service's downstream
+    ``CommonDesktops.update_desktop(... admin_or_manager=True ...)`` can
+    apply it. This pins the wire contract that ``pkg/sdk`` Go SDK relies
+    on (DesktopUpdate with ForcedHyp, called from check/check/check.go);
+    the schema field has been on ``DesktopEditRequest`` since the
+    apiv3→apiv4 cutover but no apiv4 route test pinned the propagation.
+    """
+    jwt = MockJWT(role_id="admin")
+    captured = {}
+
+    def fake_edit_desktop(desktop_id, data, payload):
+        captured["desktop_id"] = desktop_id
+        captured["data"] = data
+        captured["role_id"] = payload["role_id"]
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.edit_desktop",
+        staticmethod(fake_edit_desktop),
+    )
+    _bypass_owns_domain_id(monkeypatch)
+    # check_domain_kind builds a new closure per route, so override the
+    # Domain class lookup it uses to assert kind == "desktop".
+
+    class _FakeDomain:
+        def __init__(self, _id):
+            self.kind = "desktop"
+
+    monkeypatch.setattr("api.dependencies.domains.Domain", _FakeDomain)
+
+    response = test_client(
+        url="/item/desktop/desktop-1/edit",
+        method="PUT",
+        body={"forced_hyp": ["hyp-a", "hyp-b"]},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"id": "desktop-1"}
+    assert captured["desktop_id"] == "desktop-1"
+    assert captured["role_id"] == "admin"
+    # ``model_dump(exclude_unset=True)`` so only the field we sent appears
+    # in the service payload — the route must not invent defaults like a
+    # blank ``name`` or ``hardware`` block, otherwise the common-lib
+    # update path would silently overwrite existing values.
+    assert captured["data"] == {"forced_hyp": ["hyp-a", "hyp-b"]}
+
+
 def test_change_desktop_owner(monkeypatch, test_client):
     """PUT /item/desktop/{id}/change-owner/{user_id} — webapp calls
     this to reassign a persistent desktop to a different user. v3
