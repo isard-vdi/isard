@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
   <div class="flex h-full min-h-screen overflow-y-auto">
     <!-- Left panel (cover image) -->
     <div
-      class="hidden md:block w-1/2 h-screen bg-cover bg-center bg-cover-img flex px-20 content-center fixed"
+      class="hidden w-1/2 h-screen bg-cover bg-center bg-cover-img md:flex flex-col justify-center gap-4 px-20 content-center fixed"
     >
       <slot name="cover" />
     </div>

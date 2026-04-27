@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import html
 import json
 from urllib.parse import urlparse
 
@@ -30,7 +31,7 @@ from isardvdi_common.configuration import Configuration
 from api import app
 
 from ..libv2.validators import _validate_item
-from .decorators import check_permissions, is_admin
+from .decorators import check_permissions, is_admin, is_admin_or_manager
 from .PublicView import clear_login_config_cache
 
 
@@ -112,6 +113,33 @@ def _handle_login_notification_enable(notification_type, category_id=None):
     clear_login_config_cache()
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/login_config", methods=["GET"])
+@app.route("/api/v3/admin/login_config/<category_id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_login_config(payload, category_id=None):
+    if category_id and Category.exists(category_id):
+        login_config = Category(category_id).login_notification or {}
+    else:
+        login_config = Configuration.login or {}
+    for key in ("notification_cover", "notification_form"):
+        notification = login_config.get(key)
+        if not notification:
+            continue
+        for field in ("title", "description"):
+            if notification.get(field):
+                notification[field] = html.unescape(notification[field])
+        button = notification.get("button")
+        if button:
+            for field in ("text", "url"):
+                if button.get(field):
+                    button[field] = html.unescape(button[field])
+    return (
+        json.dumps(login_config),
         200,
         {"Content-Type": "application/json"},
     )
