@@ -14,6 +14,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 )
 
@@ -230,7 +231,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 				}
 
 				if !gExists {
-					if err := a.registerGroup(group); err != nil {
+					if err := a.registerGroup(ctx, group); err != nil {
 						return "", "", fmt.Errorf("auto register group: %w", err)
 					}
 				}
@@ -244,7 +245,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		}
 
 		// Automatic registration!
-		if err := a.registerUser(u); err != nil {
+		if err := a.registerUser(ctx, u); err != nil {
 			return "", "", fmt.Errorf("auto register user: %w", err)
 		}
 	} else if needsUpdate {
@@ -264,11 +265,15 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 	}
 
 	// Check if the user needs to acknowledge the disclaimer.
-	dscl, err := a.API.AdminUserRequiredDisclaimerAcknowledgement(ctx, u.ID)
+	dsclRsp, err := a.API.AdminCheckDisclaimer(ctx, apiv4.AdminCheckDisclaimerParams{UserID: u.ID})
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: %w", err)
 	}
-	if dscl {
+	dsclCheck, ok := dsclRsp.(*apiv4.RequiredCheckResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: unexpected response type %T", dsclRsp)
+	}
+	if dsclCheck.Required {
 		ss, err := token.SignDisclaimerAcknowledgementRequiredToken(a.Secret, u.ID)
 		if err != nil {
 			return "", "", err
@@ -288,11 +293,15 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 	}
 
 	// Check if the user has the email verified.
-	vfEmail, err := a.API.AdminUserRequiredEmailVerification(ctx, u.ID)
+	vfEmailRsp, err := a.API.AdminCheckEmailVerification(ctx, apiv4.AdminCheckEmailVerificationParams{UserID: u.ID})
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to verify the email: %w", err)
 	}
-	if vfEmail {
+	vfEmailCheck, ok := vfEmailRsp.(*apiv4.RequiredCheckResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user needs to verify the email: unexpected response type %T", vfEmailRsp)
+	}
+	if vfEmailCheck.Required {
 		ss, err := token.SignEmailVerificationRequiredToken(a.Secret, u)
 		if err != nil {
 			return "", "", err
@@ -301,11 +310,15 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return ss, redirect, nil
 	}
 
-	pwdRst, err := a.API.AdminUserRequiredPasswordReset(ctx, u.ID)
+	pwdRstRsp, err := a.API.AdminCheckPasswordResetRequired(ctx, apiv4.AdminCheckPasswordResetRequiredParams{UserID: u.ID})
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to reset the password: %w", err)
 	}
-	if pwdRst {
+	pwdRstCheck, ok := pwdRstRsp.(*apiv4.RequiredCheckResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user needs to reset the password: unexpected response type %T", pwdRstRsp)
+	}
+	if pwdRstCheck.Required {
 		ss, err := token.SignPasswordResetRequiredToken(a.Secret, u.ID)
 		if err != nil {
 			return "", "", err
@@ -347,13 +360,17 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 	}
 
 	// Call API to check if the user has fullpage notifications pending, if so redirect to /notifications/login.
-	rsp, err := a.API.AdminUserNotificationsDisplays(ctx, u.ID)
+	rsp, err := a.API.AdminGetUserNotificationDisplays(ctx, apiv4.AdminGetUserNotificationDisplaysParams{UserID: u.ID, Trigger: "login"})
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user has notifications pending: %w", err)
 	}
+	notifDisplays, ok := rsp.(*apiv4.AdminUserDisplaysResponse)
+	if !ok {
+		return "", "", fmt.Errorf("check if the user has notifications pending: unexpected response type %T", rsp)
+	}
 
-	a.Log.Info().Str("rsp", fmt.Sprintf("%v", rsp)).Msg("notifications displays")
-	for _, display := range rsp {
+	a.Log.Info().Str("rsp", fmt.Sprintf("%v", notifDisplays.Displays)).Msg("notifications displays")
+	for _, display := range notifDisplays.Displays {
 		if display == "fullpage" {
 			redirect = "/notifications/login"
 			break

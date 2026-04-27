@@ -2,17 +2,21 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
 type IsardVDIAPI struct {
 	Log *zerolog.Logger
-	cli sdk.Interface
+	cli apiv4.Invoker
+	ctx context.Context
 
 	descScrapeDuration               *prometheus.Desc
 	descScrapeSuccess                *prometheus.Desc
@@ -28,10 +32,11 @@ type IsardVDIAPI struct {
 	descDeploymentNumberCategory     *prometheus.Desc
 }
 
-func NewIsardVDIAPI(log *zerolog.Logger, cli *sdk.Client) *IsardVDIAPI {
+func NewIsardVDIAPI(ctx context.Context, log *zerolog.Logger, cli apiv4.Invoker) *IsardVDIAPI {
 	a := &IsardVDIAPI{
 		Log: log,
 		cli: cli,
+		ctx: ctx,
 	}
 
 	a.descScrapeDuration = prometheus.NewDesc(
@@ -132,80 +137,213 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 
 	success := 1
-
-	ctx := context.Background()
-
-	usr, err := a.cli.StatsUsers(ctx)
-	if err != nil {
-		a.Log.Error().Str("collector", a.String()).Err(err).Msg("list users")
+	var successMu sync.Mutex
+	failScrape := func() {
+		successMu.Lock()
 		success = 0
+		successMu.Unlock()
 	}
 
-	for _, u := range usr {
-		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, sdk.GetString(u.ID), sdk.GetString(u.Role), sdk.GetString(u.Category), sdk.GetString(u.Group))
+	type userMetric struct {
+		id, role, category, group string
+	}
+	type domainStatusMetric struct {
+		typ, status string
+		number      float64
+	}
+	type desktopMetric struct {
+		id, user string
+	}
+	type categoryMetric struct {
+		id        string
+		desktops  float64
+		templates float64
+	}
+	type hypervisorMetric struct {
+		id, status string
+		onlyForced bool
+	}
+	type deploymentMetric struct {
+		category string
+		count    float64
 	}
 
-	dom, err := a.cli.StatsDomainsStatus(ctx)
-	if err != nil {
-		a.Log.Error().Str("collector", a.String()).Err(err).Msg("get domains status")
-		success = 0
-	}
-	if dom != nil {
-		for state, number := range dom.Desktop {
-			ch <- prometheus.MustNewConstMetric(a.descDomainStatus, prometheus.GaugeValue, float64(number), "destkop", string(state))
+	var (
+		users         []userMetric
+		domainStatus  []domainStatusMetric
+		desktops      []desktopMetric
+		desktopNumber float64
+		desktopsOK    bool
+		categories    []categoryMetric
+		templateCount float64
+		templatesOK   bool
+		hypervisors   []hypervisorMetric
+		deployments   []deploymentMetric
+	)
+
+	var wg sync.WaitGroup
+
+	wg.Go(func() {
+		res, err := a.cli.StatsUsers(a.ctx)
+		if err != nil {
+			a.Log.Error().Str("collector", a.String()).Err(err).Msg("list users")
+			failScrape()
+			return
 		}
-		for state, number := range dom.Template {
-			ch <- prometheus.MustNewConstMetric(a.descDomainStatus, prometheus.GaugeValue, float64(number), "template", string(state))
+		v, ok := res.(*apiv4.StatsUsersOKApplicationJSON)
+		if !ok {
+			a.Log.Error().Str("collector", a.String()).Str("type", fmt.Sprintf("%T", res)).Err(ogenclient.AsAPIError(res)).Msg("list users")
+			failScrape()
+			return
 		}
-	}
+		for _, u := range []apiv4.StatsKindUser(*v) {
+			users = append(users, userMetric{id: u.ID, role: u.Role, category: u.Category, group: u.Group})
+		}
+	})
 
-	dsk, err := a.cli.StatsDesktops(ctx)
-	if err != nil {
-		a.Log.Error().Str("collector", a.String()).Err(err).Msg("list desktops")
-		success = 0
-	}
+	wg.Go(func() {
+		res, err := a.cli.StatsDomainsStatus(a.ctx)
+		if err != nil {
+			a.Log.Error().Str("collector", a.String()).Err(err).Msg("get domains status")
+			failScrape()
+			return
+		}
+		v, ok := res.(*apiv4.StatsDomainsStatusResponse)
+		if !ok {
+			a.Log.Error().Str("collector", a.String()).Str("type", fmt.Sprintf("%T", res)).Err(ogenclient.AsAPIError(res)).Msg("get domains status")
+			failScrape()
+			return
+		}
+		if desktop, ok := v.Desktop.Get(); ok {
+			for state, number := range desktop {
+				domainStatus = append(domainStatus, domainStatusMetric{typ: "destkop", status: state, number: float64(number)})
+			}
+		}
+		if template, ok := v.Template.Get(); ok {
+			for state, number := range template {
+				domainStatus = append(domainStatus, domainStatusMetric{typ: "template", status: state, number: float64(number)})
+			}
+		}
+	})
 
-	ch <- prometheus.MustNewConstMetric(a.descDesktopNumber, prometheus.GaugeValue, float64(len(dsk)))
-	for _, d := range dsk {
-		ch <- prometheus.MustNewConstMetric(a.descDesktopInfo, prometheus.GaugeValue, 1, sdk.GetString(d.ID), sdk.GetString(d.User))
-	}
+	wg.Go(func() {
+		res, err := a.cli.StatsDesktops(a.ctx)
+		if err != nil {
+			a.Log.Error().Str("collector", a.String()).Err(err).Msg("list desktops")
+			failScrape()
+			return
+		}
+		v, ok := res.(*apiv4.StatsDesktopsOKApplicationJSON)
+		if !ok {
+			a.Log.Error().Str("collector", a.String()).Str("type", fmt.Sprintf("%T", res)).Err(ogenclient.AsAPIError(res)).Msg("list desktops")
+			failScrape()
+			return
+		}
+		dsks := []apiv4.StatsKindDesktop(*v)
+		desktopNumber = float64(len(dsks))
+		desktopsOK = true
+		for _, d := range dsks {
+			desktops = append(desktops, desktopMetric{id: d.ID, user: d.User})
+		}
+	})
 
-	cat, err := a.cli.StatsCategoryList(ctx)
-	if err != nil {
-		a.Log.Error().Str("collector", a.String()).Err(err).Msg("get category statistics")
-		success = 0
-	}
+	wg.Go(func() {
+		res, err := a.cli.StatsCategories(a.ctx)
+		if err != nil {
+			a.Log.Error().Str("collector", a.String()).Err(err).Msg("get category statistics")
+			failScrape()
+			return
+		}
+		v, ok := res.(*apiv4.StatsCategoriesResponse)
+		if !ok {
+			a.Log.Error().Str("collector", a.String()).Str("type", fmt.Sprintf("%T", res)).Err(ogenclient.AsAPIError(res)).Msg("get category statistics")
+			failScrape()
+			return
+		}
+		for catID, detail := range v.Category {
+			categories = append(categories, categoryMetric{id: catID, desktops: float64(detail.Desktops.Total), templates: float64(detail.Templates.Total)})
+		}
+	})
 
-	for _, c := range cat {
-		ch <- prometheus.MustNewConstMetric(a.descDesktopNumberCategory, prometheus.GaugeValue, float64(sdk.GetInt(c.DesktopNum)), sdk.GetString(c.ID))
-		ch <- prometheus.MustNewConstMetric(a.descTemplateNumberCategory, prometheus.GaugeValue, float64(sdk.GetInt(c.TemplateNum)), sdk.GetString(c.ID))
-	}
+	wg.Go(func() {
+		res, err := a.cli.StatsTemplates(a.ctx)
+		if err != nil {
+			a.Log.Error().Str("collector", a.String()).Err(err).Msg("list templates")
+			failScrape()
+			return
+		}
+		v, ok := res.(*apiv4.StatsTemplatesOKApplicationJSON)
+		if !ok {
+			a.Log.Error().Str("collector", a.String()).Str("type", fmt.Sprintf("%T", res)).Err(ogenclient.AsAPIError(res)).Msg("list templates")
+			failScrape()
+			return
+		}
+		templateCount = float64(len([]apiv4.StatsKindTemplate(*v)))
+		templatesOK = true
+	})
 
-	tmpl, err := a.cli.StatsTemplates(ctx)
-	if err != nil {
-		a.Log.Error().Str("collector", a.String()).Err(err).Msg("list templates")
-		success = 0
-	}
-	ch <- prometheus.MustNewConstMetric(a.descTemplateNumber, prometheus.GaugeValue, float64(len(tmpl)))
+	wg.Go(func() {
+		res, err := a.cli.StatsHypervisors(a.ctx)
+		if err != nil {
+			a.Log.Error().Str("collector", a.String()).Err(err).Msg("list hypervisors")
+			failScrape()
+			return
+		}
+		v, ok := res.(*apiv4.StatsHypervisorsOKApplicationJSON)
+		if !ok {
+			a.Log.Error().Str("collector", a.String()).Str("type", fmt.Sprintf("%T", res)).Err(ogenclient.AsAPIError(res)).Msg("list hypervisors")
+			failScrape()
+			return
+		}
+		for _, h := range []apiv4.StatsKindHypervisor(*v) {
+			hypervisors = append(hypervisors, hypervisorMetric{id: h.ID, status: h.Status, onlyForced: h.OnlyForced})
+		}
+	})
 
-	hyp, err := a.cli.StatsHypervisors(ctx)
-	if err != nil {
-		a.Log.Error().Str("collector", a.String()).Err(err).Msg("list hypervisors")
-		success = 0
-	}
+	wg.Go(func() {
+		res, err := a.cli.StatsCategoriesDeployments(a.ctx)
+		if err != nil {
+			a.Log.Error().Str("collector", a.String()).Err(err).Msg("get deployments statistics")
+			failScrape()
+			return
+		}
+		v, ok := res.(*apiv4.StatsCategoriesDeploymentsResponse)
+		if !ok {
+			a.Log.Error().Str("collector", a.String()).Str("type", fmt.Sprintf("%T", res)).Err(ogenclient.AsAPIError(res)).Msg("get deployments statistics")
+			failScrape()
+			return
+		}
+		for catID, count := range v.Categories {
+			deployments = append(deployments, deploymentMetric{category: catID, count: float64(count)})
+		}
+	})
 
-	for _, h := range hyp {
-		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, sdk.GetString(h.ID), string(*h.Status), strconv.FormatBool(sdk.GetBool(h.OnlyForced)))
-	}
+	wg.Wait()
 
-	dply, err := a.cli.StatsDeploymentByCategory(ctx)
-	if err != nil {
-		a.Log.Error().Str("collector", a.String()).Err(err).Msg("get deployments statistics")
-		success = 0
+	for _, u := range users {
+		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, u.id, u.role, u.category, u.group)
 	}
-
-	for _, d := range dply {
-		ch <- prometheus.MustNewConstMetric(a.descDeploymentNumberCategory, prometheus.GaugeValue, float64(sdk.GetInt(d.DeploymentNum)), sdk.GetString(d.CategoryID))
+	for _, d := range domainStatus {
+		ch <- prometheus.MustNewConstMetric(a.descDomainStatus, prometheus.GaugeValue, d.number, d.typ, d.status)
+	}
+	if desktopsOK {
+		ch <- prometheus.MustNewConstMetric(a.descDesktopNumber, prometheus.GaugeValue, desktopNumber)
+	}
+	for _, d := range desktops {
+		ch <- prometheus.MustNewConstMetric(a.descDesktopInfo, prometheus.GaugeValue, 1, d.id, d.user)
+	}
+	for _, c := range categories {
+		ch <- prometheus.MustNewConstMetric(a.descDesktopNumberCategory, prometheus.GaugeValue, c.desktops, c.id)
+		ch <- prometheus.MustNewConstMetric(a.descTemplateNumberCategory, prometheus.GaugeValue, c.templates, c.id)
+	}
+	if templatesOK {
+		ch <- prometheus.MustNewConstMetric(a.descTemplateNumber, prometheus.GaugeValue, templateCount)
+	}
+	for _, h := range hypervisors {
+		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, h.id, h.status, strconv.FormatBool(h.onlyForced))
+	}
+	for _, d := range deployments {
+		ch <- prometheus.MustNewConstMetric(a.descDeploymentNumberCategory, prometheus.GaugeValue, d.count, d.category)
 	}
 
 	duration := time.Since(start)

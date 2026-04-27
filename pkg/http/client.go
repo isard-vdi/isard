@@ -6,8 +6,6 @@ import (
 
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	"gitlab.com/isard/isardvdi/pkg/jwt"
-
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 func NewIsardVDIClient(secret string) *http.Client {
@@ -33,28 +31,6 @@ func (a *authenticatedTransport) RoundTrip(req *http.Request) (*http.Response, e
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", ss))
 
 	return a.Transport.RoundTrip(req)
-}
-
-func NewAPIClient(addr, secret string) (sdk.Interface, error) {
-	cli, err := sdk.NewClient(&sdk.Cfg{
-		Host: addr,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	cli.BeforeRequestHook = func(c *sdk.Client) error {
-		ss, err := jwt.SignAPIJWT(secret)
-		if err != nil {
-			return err
-		}
-
-		c.SetToken(ss)
-
-		return nil
-	}
-
-	return cli, nil
 }
 
 func NewNotifierClient(addr, secret string) (notifier.Invoker, error) {

@@ -11,10 +11,12 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/transport/http"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	pkgHttp "gitlab.com/isard/isardvdi/pkg/http"
 	"gitlab.com/isard/isardvdi/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
 func main() {
@@ -30,7 +32,8 @@ func main() {
 		log.Fatal().Err(err).Msg("connect to the database")
 	}
 
-	apiCli, err := pkgHttp.NewAPIClient(cfg.API.Address, cfg.Authentication.Secret)
+	httpClient := ogenclient.NewHTTPClient()
+	apiCli, err := apiv4.NewClient(cfg.API.Address, ogenclient.APIv4Source{Secret: cfg.Authentication.Secret}, apiv4.WithClient(httpClient))
 	if err != nil {
 		log.Fatal().Err(err).Msg("create the API client")
 	}

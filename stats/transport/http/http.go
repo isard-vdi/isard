@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"net/http"
-	"sync"
 	"time"
 
 	"gitlab.com/isard/isardvdi/stats/collector"
@@ -19,7 +18,6 @@ type StatsServer struct {
 	Collectors []collector.Collector
 
 	Log *zerolog.Logger
-	WG  *sync.WaitGroup
 }
 
 func (s *StatsServer) Serve(ctx context.Context, log *zerolog.Logger) {
@@ -58,5 +56,4 @@ func (s *StatsServer) Serve(ctx context.Context, log *zerolog.Logger) {
 	defer cancel()
 
 	srv.Shutdown(timeout)
-	s.WG.Done()
 }

@@ -180,4 +180,3 @@ python /gen_changefeed_subscribers.py \
 
 # Go mocks
 mockery
-cd pkg/sdk && mockery && cd -

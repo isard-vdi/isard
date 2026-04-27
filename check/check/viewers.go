@@ -16,7 +16,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"gitlab.com/isard/isardvdi/pkg/ssh"
 	stdSSH "golang.org/x/crypto/ssh"
 )
@@ -28,46 +29,67 @@ var (
 	ErrViewerRDPVPN        = errors.New("viewer RDP through VPN failed")
 )
 
+// ogen viewer type constants matching the generated enum values.
+const (
+	viewerTypeFileSpice  = apiv4.GetDesktopViewerByTypeViewerTypeFileSpice
+	viewerTypeFileRdpGW  = apiv4.GetDesktopViewerByTypeViewerTypeFileRdpgw
+	viewerTypeFileRdpVPN = apiv4.GetDesktopViewerByTypeViewerTypeFileRdpvpn
+)
+
 // TODO: RDP Web, noVNC
-func (c *Check) testViewers(ctx context.Context, log *zerolog.Logger, cli sdk.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
-	// const port = 9000
-	// service, err := selenium.NewGeckoDriverService("geckodriver", port)
-	// if err != nil {
-	// 	return fmt.Errorf("start the selenium service: %w", err)
-	// }
-	// defer service.Stop()
-
-	// wd, err := selenium.NewRemote(selenium.Capabilities{"browserName": "firefox", firefox.CapabilitiesKey: firefox.Capabilities{Args: []string{"-headless"}}}, fmt.Sprintf("http://localhost:%d", port))
-	// if err != nil {
-	// 	return fmt.Errorf("connect to the selenium remote: %w", err)
-	// }
-	// defer wd.Quit()
-
-	log.Debug().Str("viewer", string(sdk.DesktopViewerSpice)).Msg("testing viewer")
+func (c *Check) testViewers(ctx context.Context, log *zerolog.Logger, cli apiv4.Invoker, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
+	log.Debug().Str("viewer", string(viewerTypeFileSpice)).Msg("testing viewer")
 	if err := c.testSpice(ctx, cli, sshCli, id); err != nil {
 		return err
 	}
 
-	log.Debug().Str("viewer", string(sdk.DesktopViewerRdpGW)).Msg("testing viewer")
+	log.Debug().Str("viewer", string(viewerTypeFileRdpGW)).Msg("testing viewer")
 	if err := c.testRdpGW(ctx, cli, sshCli, failSelfSigned, id); err != nil {
 		return err
 	}
 
-	log.Debug().Str("viewer", string(sdk.DesktopViewerRdpVPN)).Msg("testing viewer")
+	log.Debug().Str("viewer", string(viewerTypeFileRdpVPN)).Msg("testing viewer")
 	if err := c.testRdpVPN(ctx, cli, sshCli, failSelfSigned, id); err != nil {
 		return err
 	}
 
-	// c.log.Debug().Str("viewer", string(client.DesktopViewerVNCBrowser)).Msg("testing viewer")
-	// if err := testWebVNC(ctx, wd, cli, id); err != nil {
-	// 	return err
-	// }
-
 	return nil
 }
 
-func (c *Check) testSpice(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, id string) error {
-	spice, err := cli.DesktopViewer(ctx, sdk.DesktopViewerSpice, id)
+func getViewerContent(ctx context.Context, cli apiv4.Invoker, viewerType apiv4.GetDesktopViewerByTypeViewerType, id string) (string, error) {
+	res, err := cli.GetDesktopViewerByType(ctx, apiv4.GetDesktopViewerByTypeParams{
+		DesktopID:  id,
+		ViewerType: viewerType,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	v, ok := res.(*apiv4.DesktopGetViewerResponse)
+	if !ok {
+		return "", ogenclient.AsAPIError(res)
+	}
+
+	switch v.Kind {
+	case apiv4.DesktopGetViewerResponseKindFile:
+		s, ok := v.Content.Get()
+		if !ok {
+			return "", errors.New("empty response content")
+		}
+		return s, nil
+	case apiv4.DesktopGetViewerResponseKindBrowser:
+		s, ok := v.Urlp.Get()
+		if !ok {
+			return "", errors.New("empty response url")
+		}
+		return s, nil
+	default:
+		return "", fmt.Errorf("unknown response kind: %s", v.Kind)
+	}
+}
+
+func (c *Check) testSpice(ctx context.Context, cli apiv4.Invoker, sshCli *stdSSH.Client, id string) error {
+	spice, err := getViewerContent(ctx, cli, viewerTypeFileSpice, id)
 	if err != nil {
 		return fmt.Errorf("get spice viewer: %w", err)
 	}
@@ -84,24 +106,24 @@ func (c *Check) testSpice(ctx context.Context, cli sdk.Interface, sshCli *stdSSH
 	return nil
 }
 
-func (c *Check) testRdpGW(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
-	if err := c.testRDP(ctx, cli, sshCli, sdk.DesktopViewerRdpGW, failSelfSigned, id); err != nil {
+func (c *Check) testRdpGW(ctx context.Context, cli apiv4.Invoker, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
+	if err := c.testRDP(ctx, cli, sshCli, viewerTypeFileRdpGW, failSelfSigned, id); err != nil {
 		return fmt.Errorf("%w: %w", ErrViewerRDPGW, err)
 	}
 
 	return nil
 }
 
-func (c *Check) testRdpVPN(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
-	if err := c.testRDP(ctx, cli, sshCli, sdk.DesktopViewerRdpVPN, failSelfSigned, id); err != nil {
+func (c *Check) testRdpVPN(ctx context.Context, cli apiv4.Invoker, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
+	if err := c.testRDP(ctx, cli, sshCli, viewerTypeFileRdpVPN, failSelfSigned, id); err != nil {
 		return fmt.Errorf("%w: %w", ErrViewerRDPVPN, err)
 	}
 
 	return nil
 }
 
-func (c *Check) testRDP(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, viewer sdk.DesktopViewer, failSelfSigned bool, id string) error {
-	rdp, err := cli.DesktopViewer(ctx, viewer, id)
+func (c *Check) testRDP(ctx context.Context, cli apiv4.Invoker, sshCli *stdSSH.Client, viewer apiv4.GetDesktopViewerByTypeViewerType, failSelfSigned bool, id string) error {
+	rdp, err := getViewerContent(ctx, cli, viewer, id)
 	if err != nil {
 		return fmt.Errorf("get %s viewer: %w", viewer, err)
 	}
@@ -258,16 +280,3 @@ attemptsLoop:
 
 	return fmt.Errorf("%w: \n%s", ErrViewerOutOfAttempts, out)
 }
-
-// func testWebVNC(ctx context.Context, wd selenium.WebDriver, cli client.Interface, id string) error {
-// 	vnc, err := cli.DesktopViewer(ctx, client.DesktopViewerVNCBrowser, id)
-// 	if err != nil {
-// 		return fmt.Errorf("get web vnc viewer: %w", err)
-// 	}
-
-// 	if err := wd.Get(vnc); err != nil {
-// 		return fmt.Errorf("navigate to the viewer page: %w", err)
-// 	}
-
-// 	return errors.New("not implemented yet, GECKO!!")
-// }

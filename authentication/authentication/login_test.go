@@ -13,10 +13,10 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +34,7 @@ func TestLogin(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareDB       func(*r.Mock)
-		PrepareAPI      func(*sdk.MockSdk)
+		PrepareAPI      func(*apiv4.MockInvoker)
 		PrepareSessions func(*grpcmock.Server)
 
 		RemoteAddr  string
@@ -147,11 +147,11 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserNotificationsDisplays", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return([]string{}, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: "login"}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []string{}}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -244,11 +244,11 @@ func TestLogin(t *testing.T) {
 					Updated: 1,
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserNotificationsDisplays", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return([]string{}, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: "login"}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []string{}}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -340,11 +340,11 @@ func TestLogin(t *testing.T) {
 					Updated: 1,
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserNotificationsDisplays", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return([]string{}, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: "login"}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []string{}}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -467,11 +467,11 @@ func TestLogin(t *testing.T) {
 					Updated: 1,
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserNotificationsDisplays", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return([]string{}, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminGetUserNotificationDisplays", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminGetUserNotificationDisplaysParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Trigger: "login"}).Return(&apiv4.AdminUserDisplaysResponse{Displays: []string{}}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -694,8 +694,8 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			Provider:   "form",
 			CategoryID: "default",
@@ -769,9 +769,9 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
@@ -848,10 +848,10 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
-				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
@@ -1221,8 +1221,8 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			Provider:   "form",
 			CategoryID: "default",
@@ -1282,8 +1282,8 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			Provider:   "form",
 			CategoryID: "default",
@@ -1320,7 +1320,7 @@ func TestLogin(t *testing.T) {
 			dbMock := r.NewMock()
 			tc.PrepareDB(dbMock)
 
-			apiMock := sdk.NewMockSdk(t)
+			apiMock := apiv4.NewMockInvoker(t)
 			if tc.PrepareAPI != nil {
 				tc.PrepareAPI(apiMock)
 			}

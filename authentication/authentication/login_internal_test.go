@@ -12,13 +12,13 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/providermanager"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -28,7 +28,7 @@ func TestStartLogin(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareDB       func(*r.Mock)
-		PrepareAPI      func(*sdk.MockSdk)
+		PrepareAPI      func(*apiv4.MockInvoker)
 		PrepareProvider func(*provider.MockProvider)
 
 		RemoteAddr       string
@@ -62,7 +62,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
@@ -142,20 +142,25 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {
-				genID := "uuid here!"
-				c.On("AdminGroupCreate", mock.AnythingOfType("context.backgroundCtx"), "default", "category", "category", "some description", "provider-saml", "my group ID").Return(&sdk.Group{
-					ID:  &genID,
-					UID: &genID,
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminCreateGroup", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AdminGroupCreateData) bool {
+					return req.Name == "category" && req.ParentCategory.Value == "default" && req.ExternalGid.Value == "my group ID"
+				})).Return(&apiv4.AdminGroup{
+					ID:  "uuid here!",
+					UID: apiv4.NewOptString("uuid here!"),
 				}, nil)
-				c.On("AdminGroupCreate", mock.AnythingOfType("context.backgroundCtx"), "default", "category", "category", "some description", "provider-saml", "other secondary group").Return(&sdk.Group{
-					ID:  &genID,
-					UID: &genID,
+				c.On("AdminCreateGroup", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AdminGroupCreateData) bool {
+					return req.Name == "category" && req.ParentCategory.Value == "default" && req.ExternalGid.Value == "other secondary group"
+				})).Return(&apiv4.AdminGroup{
+					ID:  "uuid here!",
+					UID: apiv4.NewOptString("uuid here!"),
 				}, nil)
-				c.On("AdminUserAutoRegister", mock.AnythingOfType("context.backgroundCtx"), mock.AnythingOfType("string"), "advanced", "uuid here!", []string{"imagine an UUID here", "uuid here!"}).Return("user ID", nil)
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(false, nil)
-				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(false, nil)
-				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(true, nil)
+				c.On("AdminAutoRegister", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *apiv4.AutoRegisterRequest) bool {
+					return req.RoleID == "advanced" && req.GroupID == "uuid here!"
+				})).Return(&apiv4.AutoRegisterResponse{ID: "user ID"}, nil)
+				c.On("AdminCheckDisclaimer", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckDisclaimerParams{UserID: "user ID"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckEmailVerification", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckEmailVerificationParams{UserID: "user ID"}).Return(&apiv4.RequiredCheckResponse{Required: false}, nil)
+				c.On("AdminCheckPasswordResetRequired", mock.AnythingOfType("context.backgroundCtx"), apiv4.AdminCheckPasswordResetRequiredParams{UserID: "user ID"}).Return(&apiv4.RequiredCheckResponse{Required: true}, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
@@ -214,7 +219,7 @@ func TestStartLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("categories").Get("default")).Return(nil, fmt.Errorf("Category error"))
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 
 			Provider:   "local",
 			CategoryID: "default",
@@ -256,7 +261,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(s *sdk.MockSdk) {},
+			PrepareAPI: func(s *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
@@ -306,7 +311,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 
 			Provider:   "local",
 			CategoryID: "default",
@@ -342,7 +347,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 
 			Provider:   "local",
 			CategoryID: "default",
@@ -378,7 +383,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 
 			Provider:   "local",
 			CategoryID: "default",
@@ -419,7 +424,7 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
@@ -474,7 +479,7 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
@@ -524,7 +529,7 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
@@ -579,7 +584,7 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
@@ -632,7 +637,7 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
@@ -683,7 +688,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 
 			Provider:   "saml",
 			CategoryID: "default",
@@ -720,7 +725,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 
 			Provider:   "google",
 			CategoryID: "default",
@@ -757,7 +762,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 
 			Provider:   "ldap",
 			CategoryID: "default",
@@ -793,7 +798,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 
 			Provider:   "local",
 			CategoryID: "default",
@@ -827,7 +832,7 @@ func TestStartLogin(t *testing.T) {
 			dbMock := r.NewMock()
 			tc.PrepareDB(dbMock)
 
-			apiMock := sdk.NewMockSdk(t)
+			apiMock := apiv4.NewMockInvoker(t)
 			if tc.PrepareAPI != nil {
 				tc.PrepareAPI(apiMock)
 			}
@@ -877,7 +882,7 @@ func TestFinishCategorySelect(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareDB              func(*r.Mock)
-		PrepareAPI             func(*sdk.MockSdk)
+		PrepareAPI             func(*apiv4.MockInvoker)
 		PrepareProviderManager func(*testing.T, *providermanager.MockProvidermanager)
 
 		RemoteAddr   string
@@ -891,7 +896,7 @@ func TestFinishCategorySelect(t *testing.T) {
 	}{
 		"should handle the errors correctly": {
 			PrepareDB:  func(m *r.Mock) {},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
 				uid := "90c658f3-0c9b-41b7-9710-44c98f74630f"
 				name := "Néfix Estrada Campañá"
@@ -976,7 +981,7 @@ func TestFinishCategorySelect(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "test-category"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
 				username := "nefix"
 				name := "Néfix Estrada"
@@ -1046,7 +1051,7 @@ func TestFinishCategorySelect(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "test-category"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
 				username := "saml-uid"
 				name := "SAML User"
@@ -1134,7 +1139,7 @@ func TestFinishCategorySelect(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "test-category"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
 				username := "nefix"
 				name := "Néfix Estrada"
@@ -1193,7 +1198,7 @@ func TestFinishCategorySelect(t *testing.T) {
 		},
 		"should return error on invalid token": {
 			PrepareDB:              func(m *r.Mock) {},
-			PrepareAPI:             func(c *sdk.MockSdk) {},
+			PrepareAPI:             func(c *apiv4.MockInvoker) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {},
 
 			RemoteAddr: "127.0.0.1",
@@ -1218,7 +1223,7 @@ func TestFinishCategorySelect(t *testing.T) {
 			dbMock := r.NewMock()
 			tc.PrepareDB(dbMock)
 
-			apiMock := sdk.NewMockSdk(t)
+			apiMock := apiv4.NewMockInvoker(t)
 			if tc.PrepareAPI != nil {
 				tc.PrepareAPI(apiMock)
 			}
