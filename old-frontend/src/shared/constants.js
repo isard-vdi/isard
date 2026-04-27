@@ -29,6 +29,11 @@ export const desktopStates = {
   updating: 'updating',
   maintenance: 'maintenance',
   creating: 'creating',
+  // Source desktop is having its qcow2 turned into a template by the
+  // apiv4 + isard-storage chain; the template row is in the same
+  // status. Lower-cased to match getState's case-insensitive
+  // whitelist check.
+  creatingTemplate: 'creatingtemplate',
   unknown: 'unknown',
   verifying: 'verifying'
 }

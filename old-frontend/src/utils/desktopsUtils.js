@@ -53,7 +53,7 @@ export class DesktopUtils {
   }
 
   static parseTemplate (item) {
-    const { description, icon, id, name, category, category_name: categoryName, group, group_name: groupName, user_name: userName, image, editable, allowed, enabled, status } = item
+    const { description, icon, id, name, category, category_name: categoryName, group, group_name: groupName, user_name: userName, image, editable, allowed, enabled, status, progress } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -70,7 +70,10 @@ export class DesktopUtils {
       editable,
       allowed,
       enabled,
-      status: this.getState(status)
+      status: this.getState(status),
+      // Forwarded so Templates.vue can render a progress bar while the
+      // apiv4 task chain is creating the template (move/rsync stage).
+      progress
     }
   }
 
@@ -111,7 +114,7 @@ export class DesktopUtils {
     // spinner instead of "Temporarily unavailable" during the brief window
     // where a callsite hasn't been handed a state yet.
     if (!state) return desktopStates.working
-    return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying, desktopStates.updating].includes(state.toLowerCase()) ? state : desktopStates.working
+    return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying, desktopStates.updating, desktopStates.creatingTemplate].includes(state.toLowerCase()) ? state : desktopStates.working
   }
 
   static viewerNeedsIp (viewer) {

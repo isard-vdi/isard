@@ -65,6 +65,24 @@ class UserTemplate(BaseModel):
     enabled: bool = Field(
         description="Whether the template is visible to other users",
     )
+    status: Optional[str] = Field(
+        default=None,
+        description=(
+            "Domain status of the template row. ``CreatingTemplate`` while "
+            "the apiv4 + isard-storage task chain is rewriting the source "
+            "desktop's qcow2 into the template; ``Stopped`` once the chain "
+            "finishes; ``Failed`` on chain failure."
+        ),
+    )
+    progress: Optional[dict] = Field(
+        default=None,
+        description=(
+            "Progress dict written by the storage worker's ``move()`` task "
+            "while the rsync branch of the template-creation chain runs. "
+            "Carries ``total_percent`` and ``received_percent`` (both "
+            "0-100). Absent for templates not currently being created."
+        ),
+    )
 
 
 class UserTemplatesPaginationResponse(PaginationResponseList[UserTemplate]):

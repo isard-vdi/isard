@@ -90,6 +90,12 @@ def test_get_all_templates(test_client, templates_db_factory):
                 "description": "Test template 1",
                 "image": {"id": "img-test", "type": "stock", "url": None},
                 "enabled": True,
+                # ``status`` and ``progress`` were added so the templates
+                # list can render a progress bar while the apiv4 +
+                # isard-storage chain is creating the template. Both are
+                # absent in this fixture row, so they serialize as null.
+                "status": None,
+                "progress": None,
             }
         ]
     }

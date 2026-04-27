@@ -131,7 +131,7 @@ def extract_progress_from_rsync_output(process):
         raise ValueError("Source rsync file not found")
 
 
-def run_with_progress(command, extract_progress):
+def run_with_progress(command, extract_progress, on_progress=None):
     """
     Run command reporting progress to RQ job metadata.
 
@@ -139,22 +139,41 @@ def run_with_progress(command, extract_progress):
     :type command: List of str
     :param extract_progress: Function to extract progress from stdout of command executed
     :type extrct_progress: Callable function with progress as firt parameter
+    :param on_progress: Optional callback invoked with the rounded progress
+        fraction (0.0–1.0) on each tick AND once with ``1.0`` on success.
+        Used by ``move()`` to mirror the rsync percentage onto a Domain row's
+        ``progress`` field so the user-facing templates list can render a
+        progress bar the same way Media downloads do.
+    :type on_progress: Callable[[float], None] | None
     :return: Exit code of command executed
     :rtype: int
     """
     job = get_current_job()
     with Popen(command, stdout=PIPE) as process:
         while process.poll() is None:
-            job.meta["progress"] = round(extract_progress(process), 2)
+            pct = round(extract_progress(process), 2)
+            job.meta["progress"] = pct
             job.save_meta()
             Queue("core", connection=job.connection).enqueue(
                 "task.feedback", task_id=job.id, result_ttl=0
             )
+            if on_progress is not None:
+                try:
+                    on_progress(pct)
+                except Exception:
+                    log.exception("run_with_progress: on_progress callback failed")
             sleep(5)
             process.stdout.read1()
         if process.returncode == 0:
             job.meta["progress"] = 1
             job.save_meta()
+            if on_progress is not None:
+                try:
+                    on_progress(1.0)
+                except Exception:
+                    log.exception(
+                        "run_with_progress: final on_progress callback failed"
+                    )
         return process.returncode
 
 
@@ -718,7 +737,14 @@ def check_backing_filename():
     return result
 
 
-def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=True):
+def move(
+    origin_path,
+    destination_path,
+    method,
+    bwlimit=0,
+    remove_source_file=True,
+    progress_domain_id=None,
+):
     """
     Move disk.
 
@@ -733,6 +759,15 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
         the probe it falls back to ``rsync`` — works cross-fs and creates the
         destination dir.
     :type method: str
+    :param progress_domain_id: Optional Domain row id to receive a
+        ``progress = {"total_percent", "received_percent"}`` field for every
+        rsync tick (and a final 100 on success). Mirrors the
+        ``Media.progress`` pattern that drives the existing list-page
+        progress bars in old-frontend (``Media.vue``) and Vue 3
+        (``MediaView.vue``). For the ``mv`` branch the file move is
+        instantaneous, so progress is written once at completion. Has no
+        effect when ``None``.
+    :type progress_domain_id: str | None
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
@@ -759,8 +794,25 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
             )
             method = "rsync"
 
+    on_progress = None
+    if progress_domain_id is not None:
+
+        def _flush_domain_progress(pct):
+            percent_int = int(round(pct * 100))
+            Domain(progress_domain_id).progress = {
+                "total_percent": percent_int,
+                "received_percent": percent_int,
+            }
+
+        on_progress = _flush_domain_progress
+
     if method == "mv":
         shutil.move(origin_path, destination_path)
+        if on_progress is not None:
+            try:
+                on_progress(1.0)
+            except Exception:
+                log.exception("move(mv): on_progress callback failed")
         return 0
     elif method == "rsync":
         return run_with_progress(
@@ -774,6 +826,7 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
                 destination_path,
             ],
             extract_progress_from_rsync_output,
+            on_progress=on_progress,
         )
     else:
         raise ValueError(f"Invalid move method: {method}")
