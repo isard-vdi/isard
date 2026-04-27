@@ -61,6 +61,7 @@ async def lifespan(app: FastAPI):
     # Startup
     await db_pool.initialize_pool()
     Maintenance.initialization()
+    Cards.seed_stock_cards()
     Cards.cleanup_missing()
     try:
         _sync_haproxy_maps()
