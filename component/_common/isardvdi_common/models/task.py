@@ -294,9 +294,28 @@ class Task(RedisBase):
         return done / todo
 
     def cancel(self):
-        """Cancel this Task and the dependencies of this Task."""
+        """Cancel this Task and the dependencies of this Task.
+
+        This both:
+
+        * tells RQ to drop the queued jobs (no effect on already-running
+          ones — that's the engine's limitation), and
+        * publishes a ``task:cancel:<id>`` pub/sub signal so any
+          long-running task body using
+          :class:`isardvdi_common.helpers.task_cancel.TaskCancelWatcher`
+          can shut itself down cooperatively.
+        """
+        from isardvdi_common.helpers.task_cancel import request_task_cancel
+
         for dependency in self.dependencies:
             dependency.cancel()
+        try:
+            request_task_cancel(self.id)
+        except Exception:
+            # Pub/sub is best-effort — RQ-level cancel below still
+            # handles queued jobs; persistent row flags remain the
+            # back-up signal.
+            pass
         self.job.cancel(enqueue_dependents=True)
 
     def to_dict(self, filter=None):
