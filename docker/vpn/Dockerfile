@@ -65,6 +65,7 @@ COPY docker/vpn/ovs /ovs
 # VPN
 RUN pip3 install --break-system-package --no-cache-dir --upgrade pip
 COPY docker/vpn/requirements.txt /requirements.txt
+ARG RETHINKDB_FORK_SHA=unknown
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
     python3-dev~=3.12 \
@@ -76,6 +77,7 @@ RUN apk add --no-cache --virtual .build_deps \
     libmnl-dev \
     libnftnl-dev \
     git && \
+    echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" && \
     pip3 install --break-system-package --no-cache-dir  -r requirements.txt && \
     rm requirements.txt
     # apk del .build_deps

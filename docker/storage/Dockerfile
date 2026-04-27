@@ -10,7 +10,13 @@ RUN dnf update -y \
     git autoconf automake pkg-config gettext-devel libtool python3-devel gcc rsync \
     virt-install python3-cachetools virt-win-reg
 
-RUN pip3 install --upgrade pip \
+# ``RETHINKDB_FORK_SHA`` is resolved by CI per pipeline (see
+# resolve-rethinkdb-fork-sha in .gitlab-ci.yml) and busts the
+# layer cache when the modernize-python-client branch tip advances.
+# git is already in the dnf install above so pip can fetch the fork.
+ARG RETHINKDB_FORK_SHA=unknown
+RUN echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
+    && pip3 install --upgrade pip \
     && pip3 install --no-cache-dir -r requirements.txt
 
 RUN dnf remove -y git autoconf automake pkg-config gettext-devel libtool python3-devel gcc \

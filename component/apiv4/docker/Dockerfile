@@ -5,16 +5,30 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # System packages: fonts-liberation is needed by gen_image.py to generate
-# placeholder desktop card images via PIL.ImageFont.truetype().
+# placeholder desktop card images via PIL.ImageFont.truetype(). git is
+# needed by pip to fetch the isard-vdi/rethinkdb-python fork from
+# requirements.txt (``git+https://...``); we drop it after install to
+# keep the runtime image small.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends fonts-liberation openssh-client \
+    && apt-get install -y --no-install-recommends fonts-liberation openssh-client git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
 COPY component/apiv4/docker/requirements.txt .
 
-# Install the dependencies
-RUN pip install --no-cache-dir -r requirements.txt --break-system-package
+# Install the dependencies. ``RETHINKDB_FORK_SHA`` is the current
+# branch HEAD of isard-vdi/rethinkdb-python @ modernize-python-client.
+# CI resolves it once per pipeline (see ``resolve-rethinkdb-fork-sha``
+# in .gitlab-ci.yml) and passes it via ``--build-arg``. The ``echo``
+# embeds the SHA in the layer command so Docker's layer cache
+# invalidates whenever the branch advances — without it, the layer
+# would stay cached on the first SHA seen and pip would never
+# refetch.
+ARG RETHINKDB_FORK_SHA=unknown
+RUN echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
+    && pip install --no-cache-dir -r requirements.txt --break-system-package \
+    && apt-get purge -y git \
+    && apt-get autoremove -y
 
 # Copy the rest of the application code
 COPY component/apiv4/src .

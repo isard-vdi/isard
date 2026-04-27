@@ -1,4 +1,4 @@
-rethinkdb==2.4.10.post1
+rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@modernize-python-client
 redis>=5.0
 pydantic~=2.12
 python-iptables==1.0.0

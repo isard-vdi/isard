@@ -1,5 +1,5 @@
 rq==2.0.0
-rethinkdb==2.4.10.post1
+rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@modernize-python-client
 requests~=2.30
 PyJWT==2.8.0
 cachetools~=5.3

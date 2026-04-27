@@ -24,12 +24,18 @@ RUN apk add --no-cache --virtual .build_deps \
     libc-dev \
     libxml2-dev \
     libxslt-dev \
-    gcc
+    gcc \
+    git
 
 RUN apk upgrade openssh-client
 RUN pip3 install --upgrade pip --break-system-package
 COPY engine/docker/requirements.txt /requirements.txt
-RUN pip3 install --no-cache-dir -r /requirements.txt  --break-system-package
+# ``RETHINKDB_FORK_SHA`` is resolved by CI per pipeline (see
+# resolve-rethinkdb-fork-sha in .gitlab-ci.yml) and busts Docker's
+# layer cache when the modernize-python-client branch tip advances.
+ARG RETHINKDB_FORK_SHA=unknown
+RUN echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
+    && pip3 install --no-cache-dir -r /requirements.txt --break-system-package
 RUN apk del .build_deps
 
 RUN apk add --no-cache openssl shadow

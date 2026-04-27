@@ -4,7 +4,7 @@ Flask-Login==0.6.3
 gevent~=25.5
 PyJWT==2.8.0
 requests~=2.32.4
-rethinkdb==2.4.10.post1
+rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@modernize-python-client
 waitress~=3.0.1
 simple-colors~=0.1.5
 python-json-logger==3.3.0

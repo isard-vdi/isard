@@ -2,7 +2,7 @@ Flask~=3.0
 Flask-Cors==5.0.0
 gevent-websocket==0.10.1
 Flask-SocketIO~=5.3.6
-rethinkdb==2.4.10.post1
+rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@modernize-python-client
 requests~=2.32.4
 PyJWT==2.8.0
 APScheduler~=3.10

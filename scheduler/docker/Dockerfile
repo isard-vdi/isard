@@ -8,9 +8,15 @@ RUN pip3 install --break-system-package --upgrade pip
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
     python3-dev \
-    libffi-dev
+    libffi-dev \
+    git
 COPY scheduler/docker/requirements.txt /requirements.txt
-RUN pip3 install --break-system-package --no-cache-dir -r requirements.txt
+# ``RETHINKDB_FORK_SHA`` is resolved by CI per pipeline (see
+# resolve-rethinkdb-fork-sha in .gitlab-ci.yml) and busts Docker's
+# layer cache when the modernize-python-client branch tip advances.
+ARG RETHINKDB_FORK_SHA=unknown
+RUN echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
+    && pip3 install --break-system-package --no-cache-dir -r requirements.txt
 RUN apk del .build_deps
 
 COPY scheduler/src /src
