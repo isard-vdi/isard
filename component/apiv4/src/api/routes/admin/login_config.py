@@ -55,14 +55,19 @@ async def admin_login_notification_update(
 ):
     try:
         dump = data.model_dump()
-        # Validate URL scheme in button URLs to prevent javascript: XSS
         from isardvdi_common.helpers.url_validation import validate_url_scheme
 
         for key in ("cover", "form"):
             if isinstance(dump.get(key), dict):
                 button_url = (dump[key].get("button") or {}).get("url")
                 if button_url:
-                    validate_url_scheme(button_url)
+                    try:
+                        validate_url_scheme(button_url)
+                    except ValueError as e:
+                        # validate_url_scheme is framework-agnostic so it
+                        # raises plain ValueError. Convert to a typed 400
+                        # so admins see "bad URL" instead of generic 500.
+                        raise Error("bad_request", str(e))
         AdminLoginConfigService.update_login_notification(dump)
         return JSONResponse(content={}, status_code=200)
     except Error:
