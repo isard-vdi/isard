@@ -190,7 +190,7 @@ class UiActions(object):
             update_domain_status(
                 "Failed",
                 id_domain,
-                detail="DomainXML can not parse and modify xml to start",
+                detail=f"Engine failed to build XML for start: {e}",
             )
             return False
         else:
@@ -567,7 +567,11 @@ class UiActions(object):
                 and reservables.get("vgpus")
                 and len(reservables.get("vgpus", []))
             ):
-                detail = f"desktop not started: no hypervisors online with GPU model available and profile"
+                gpu_profiles = reservables.get("vgpus", [])
+                detail = (
+                    f"desktop not started: no hypervisors online in pool {pool_id} "
+                    f"with GPU profile {gpu_profiles}"
+                )
             else:
                 detail = f"desktop not started: no hypervisors online in pool {pool_id}"
             update_domain_status(

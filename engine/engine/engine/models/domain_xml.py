@@ -20,10 +20,6 @@ from pprint import pprint
 
 import xmltodict
 from cachetools import TTLCache, cached
-from lxml import etree
-from schema import And, Optional, Schema, Use
-from yattag import indent
-
 from engine.services.db import (
     get_and_update_personal_vlan_id_from_domain_id,
     get_dict_from_item_in_table,
@@ -41,6 +37,9 @@ from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
 from engine.services.lib.storage import _get_filename
 from engine.services.log import *
+from lxml import etree
+from schema import And, Optional, Schema, Use
+from yattag import indent
 
 DEFAULT_SPICE_VIDEO_COMPRESSION = "auto_glz"
 
@@ -464,14 +463,11 @@ class DomainXML(object):
 
                 vm_dict["interfaces"].append(list_dict)
 
-        # Absolute XPath — query the full document, not the last interface
-        # from the loop above. Using `tree` here raised UnboundLocalError
-        # whenever the domain had no <interface> elements.
         vm_dict["boot_order"] = [
-            x.get("dev") for x in xml_tree.xpath("/domain/os/boot[@dev]")
+            x.get("dev") for x in tree.xpath("/domain/os/boot[@dev]")
         ]
         vm_dict["boot_menu_enable"] = [
-            x.get("dev") for x in xml_tree.xpath("/domain/os/bootmenu[@enable]")
+            x.get("dev") for x in tree.xpath("/domain/os/bootmenu[@enable]")
         ]
 
         ## OJO!!!!!!!!!!!!!!
@@ -975,14 +971,14 @@ class DomainXML(object):
             self.tree.xpath("/domain/devices/video/model")[0].set(
                 "heads", str(video["heads"])
             )
+        if video.get("vram"):
+            self.tree.xpath("/domain/devices/video/model")[0].set(
+                "vram", str(video["vram"])
+            )
         if video["type"] == "qxl":
             if video.get("ram"):
                 self.tree.xpath("/domain/devices/video/model")[0].set(
                     "ram", str(video["ram"])
-                )
-            if video.get("vram"):
-                self.tree.xpath("/domain/devices/video/model")[0].set(
-                    "vram", str(video["vram"])
                 )
 
     def add_metadata_isard(self, user_id, group_id, category_id, parent_id):
@@ -2149,6 +2145,11 @@ def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=
     hugepages instead of standard 4K pages.  Only called when the target
     hypervisor has hugepages available.
 
+    NUMA-local allocation is handled by <numatune> (added by add_numa_pinning),
+    not by a nodeset attribute on <page>.  The nodeset attribute on <page>
+    refers to guest NUMA cells and requires explicit guest NUMA topology
+    (<cpu><numa>) which we do not configure.
+
     See https://libvirt.org/formatdomain.html#memory-backing
     """
     parser = etree.XMLParser(remove_blank_text=True)
@@ -2158,30 +2159,39 @@ def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=
         log.error("Exception parsing xml in add_memory_backing: {}".format(e))
         return xml
 
-    # Remove existing memoryBacking (idempotent)
-    for elem in tree.xpath("/domain/memoryBacking"):
-        elem.getparent().remove(elem)
-
-    xml_backing = """<memoryBacking>
-  <hugepages>
-    <page size="{size}" unit="{unit}"/>
-  </hugepages>
-  <allocation mode="immediate" threads="{threads}"/>
-  <locked/>
-</memoryBacking>""".format(
-        size=hugepage_size, unit=hugepage_unit, threads=alloc_threads
-    )
-
-    element = etree.parse(StringIO(xml_backing)).getroot()
-
-    # Insert after currentMemory (standard libvirt XML ordering)
-    current_mem = tree.xpath("/domain/currentMemory")
-    if current_mem:
-        current_mem[0].addnext(element)
-    elif tree.xpath("/domain/memory"):
-        tree.xpath("/domain/memory")[0].addnext(element)
+    existing = tree.xpath("/domain/memoryBacking")
+    if existing:
+        mb_elem = existing[0]
+        # Remove only hugepages/allocation/locked children (which we'll re-add),
+        # preserving other children like <source type="memfd"/> and
+        # <access mode="shared"/> needed by virtiofs.
+        for tag in ("hugepages", "allocation", "locked"):
+            for child in mb_elem.findall(tag):
+                mb_elem.remove(child)
     else:
-        tree.xpath("/domain")[0].insert(0, element)
+        mb_elem = etree.Element("memoryBacking")
+        # Insert after currentMemory (standard libvirt XML ordering)
+        current_mem = tree.xpath("/domain/currentMemory")
+        if current_mem:
+            current_mem[0].addnext(mb_elem)
+        elif tree.xpath("/domain/memory"):
+            tree.xpath("/domain/memory")[0].addnext(mb_elem)
+        else:
+            tree.xpath("/domain")[0].insert(0, mb_elem)
+
+    # Add hugepages, allocation mode, and locked flag
+    xml_hugepages = (
+        "<hugepages>\n"
+        f'  <page size="{hugepage_size}" unit="{hugepage_unit}"/>\n'
+        "</hugepages>"
+    )
+    mb_elem.insert(0, etree.parse(StringIO(xml_hugepages)).getroot())
+    mb_elem.append(
+        etree.parse(
+            StringIO(f'<allocation mode="immediate" threads="{alloc_threads}"/>')
+        ).getroot()
+    )
+    mb_elem.append(etree.parse(StringIO("<locked/>")).getroot())
 
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output

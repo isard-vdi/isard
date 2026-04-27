@@ -40,8 +40,8 @@ RUN apk add --no-cache \
     lz4-libs lzo mesa mesa-egl mesa-gbm mesa-gl netcf-libs openssh openssl \
     openvswitch opus orc ovmf pango pciutils pixman polkit qemu \
     qemu-img qemu-modules qemu-system-x86_64 rsync shadow snappy speedtest-cli \
-    spice-server swtpm tshark usbredir virglrenderer wayland-libs-client \
-    wayland-libs-egl wayland-libs-server wireguard-tools
+    spice-server swtpm tshark usbredir virglrenderer virtiofsd \
+    wayland-libs-client wayland-libs-egl wayland-libs-server wireguard-tools
 
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/

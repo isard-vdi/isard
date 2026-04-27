@@ -115,7 +115,7 @@ function renderXmlSections(sections, capabilities) {
     container.append(navHtml);
 
     // Handle nav link clicks (smooth scroll within modal body)
-    container.on('click', '.xml-nav-link', function(e) {
+    container.off('click', '.xml-nav-link').on('click', '.xml-nav-link', function(e) {
         e.preventDefault();
         var targetId = $(this).data('target');
         var target = document.getElementById(targetId);
@@ -135,7 +135,7 @@ function renderXmlSections(sections, capabilities) {
     });
 
     // Handle XML file upload
-    container.on('change', '#xmlUploadFile', function(e) {
+    container.off('change', '#xmlUploadFile').on('change', '#xmlUploadFile', function(e) {
         var file = e.target.files[0];
         if (!file) return;
 
@@ -315,7 +315,7 @@ function renderXmlSections(sections, capabilities) {
     });
 
     // Handle lock/unlock toggle clicks
-    container.on('click', '.xml-lock-toggle', function() {
+    container.off('click', '.xml-lock-toggle').on('click', '.xml-lock-toggle', function() {
         var panel = $(this).closest('.xml-section-panel');
         var textarea = panel.find('.xml-section-textarea');
         var hiddenInput = panel.find('.xml-section-protect');

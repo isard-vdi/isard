@@ -1175,7 +1175,14 @@ class hyp(object):
             uuids_create = []
             new_profile_mdevs = pci_mdevs[new_profile]
             for uuid_create, d_uuid in new_profile_mdevs.items():
-                type_id = d_uuid["type_id"]
+                type_id = d_uuid.get("type_id")
+                if not type_id:
+                    log.warning(
+                        f"mdev {uuid_create} in {gpu_id}/{new_profile} missing type_id, "
+                        f"defaulting to 'passthrough'"
+                    )
+                    type_id = "passthrough"
+                    new_profile_mdevs[uuid_create]["type_id"] = type_id
                 if type_id == "passthrough":
                     # PCI passthrough: no mdev to create
                     update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
@@ -1264,7 +1271,14 @@ class hyp(object):
             base_path = d_nvidia["path"]
             sub_paths = d_nvidia.get("sub_paths", False)
             for uuid_create, d_uuid in self.mdevs[pci_id][vgpu_profile].items():
-                type_id = d_uuid["type_id"]
+                type_id = d_uuid.get("type_id")
+                if not type_id:
+                    logs.workers.warning(
+                        f"[{self.id_hyp_rethink}] mdev {uuid_create} missing type_id, "
+                        f"defaulting to 'passthrough'"
+                    )
+                    type_id = "passthrough"
+                    d_uuid["type_id"] = type_id
                 if type_id == "passthrough":
                     # PCI passthrough: no mdev to create, mark available immediately
                     update_vgpu_created(vgpu_id, vgpu_profile, uuid_create)
