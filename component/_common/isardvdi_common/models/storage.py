@@ -1113,6 +1113,11 @@ class Storage(RethinkCustomBase):
         """
         Create a task to convert the storage.
 
+        Cancellation rides ``Task(self.task).cancel()``; ``run_with_progress``
+        in the ``convert`` task body listens via :class:`TaskCancelWatcher`
+        and SIGTERMs qemu-img mid-run. The terminal ``update_status``
+        maps ``JobStatus.CANCELED`` to ``deleted`` for ``new_storage``.
+
         :param user_id: User ID of the user executing the task
         :type user_id: str
         :param new_storage: New storage object
@@ -1690,6 +1695,11 @@ class Storage(RethinkCustomBase):
                                               _promote_domains_to_stopped on
                                               both storages)
             failed/canceled → Failed        (dependent update_status)
+
+        Cancellation rides ``Task(self.task).cancel()``; ``run_with_progress``
+        in the ``move`` task body listens via :class:`TaskCancelWatcher`
+        and SIGTERMs rsync mid-run. The terminal ``update_status`` maps
+        both ``FAILED`` and ``CANCELED`` to ``Failed`` on both rows.
 
         :param desktop_id: Source desktop domain id.
         :param template_id: New template domain id (already inserted).

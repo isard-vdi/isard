@@ -131,7 +131,7 @@ def extract_progress_from_rsync_output(process):
         raise ValueError("Source rsync file not found")
 
 
-def run_with_progress(command, extract_progress, on_progress=None):
+def run_with_progress(command, extract_progress, on_progress=None, initial_check=None):
     """
     Run command reporting progress to RQ job metadata.
 
@@ -145,36 +145,73 @@ def run_with_progress(command, extract_progress, on_progress=None):
         ``progress`` field so the user-facing templates list can render a
         progress bar the same way Media downloads do.
     :type on_progress: Callable[[float], None] | None
+    :param initial_check: Optional one-shot callable invoked by
+        :class:`TaskCancelWatcher` on entry to close the
+        publish-before-subscribe race (see ``_media_aborting``). May be
+        ``None`` when the cancel signal can only arrive *after* the
+        subprocess is already running (the usual case for the
+        ``abort-operations`` storage path).
+    :type initial_check: Callable[[], bool] | None
     :return: Exit code of command executed
     :rtype: int
+    :raises subprocess.CalledProcessError: returncode 130 if the run is
+        cancelled mid-flight via :func:`request_task_cancel`. Raising (not
+        returning the rc) is what makes RQ mark the job non-FINISHED so the
+        chain's terminal ``update_status`` sees ``depending_status`` as
+        canceled/failed and can flip the affected rows.
     """
     job = get_current_job()
-    with Popen(command, stdout=PIPE) as process:
-        while process.poll() is None:
-            pct = round(extract_progress(process), 2)
-            job.meta["progress"] = pct
-            job.save_meta()
-            Queue("core", connection=job.connection).enqueue(
-                "task.feedback", task_id=job.id, result_ttl=0
-            )
-            if on_progress is not None:
-                try:
-                    on_progress(pct)
-                except Exception:
-                    log.exception("run_with_progress: on_progress callback failed")
-            sleep(5)
-            process.stdout.read1()
-        if process.returncode == 0:
-            job.meta["progress"] = 1
-            job.save_meta()
-            if on_progress is not None:
-                try:
-                    on_progress(1.0)
-                except Exception:
-                    log.exception(
-                        "run_with_progress: final on_progress callback failed"
-                    )
-        return process.returncode
+    aborted = False
+    # ``preexec_fn=os.setsid`` puts the child in its own process group so
+    # SIGTERM via ``killpg`` reaches qemu-img/rsync (and any helpers they
+    # fork) rather than just the immediate child.
+    process = Popen(command, stdout=PIPE, preexec_fn=os.setsid)
+    try:
+        with TaskCancelWatcher(job.id, initial_check=initial_check) as watcher:
+            while process.poll() is None:
+                if watcher.cancelled:
+                    aborted = True
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    break
+                pct = round(extract_progress(process), 2)
+                job.meta["progress"] = pct
+                job.save_meta()
+                Queue("core", connection=job.connection).enqueue(
+                    "task.feedback", task_id=job.id, result_ttl=0
+                )
+                if on_progress is not None:
+                    try:
+                        on_progress(pct)
+                    except Exception:
+                        log.exception("run_with_progress: on_progress callback failed")
+                sleep(5)
+                process.stdout.read1()
+        try:
+            process.wait(timeout=10)
+        except TimeoutExpired:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+    finally:
+        if process.stdout:
+            process.stdout.close()
+
+    if aborted:
+        raise CalledProcessError(returncode=130, cmd=command)
+    if process.returncode == 0:
+        job.meta["progress"] = 1
+        job.save_meta()
+        if on_progress is not None:
+            try:
+                on_progress(1.0)
+            except Exception:
+                log.exception("run_with_progress: final on_progress callback failed")
+    return process.returncode
 
 
 def create(storage_path, storage_type, size=None, parent_path=None, parent_type=None):
@@ -194,6 +231,9 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     :return: Exit code of qemu-img command
     :rtype: int
     """
+    # Cancel intentionally not wired: typically a thin clone (seconds).
+    # If a future caller needs cancel for fully-allocated creation,
+    # refactor from ``run()`` to Popen + ``run_with_progress``.
     if not isdir(dirname(storage_path)):
         makedirs(dirname(storage_path), exist_ok=True)
     backing_file = []
@@ -916,6 +956,9 @@ def virt_win_reg(storage_path, registry_patch):
     :return: Exit code of regedit command
     :rtype: int
     """
+    # Cancel intentionally not wired: virt-win-reg edits the disk in
+    # place via guestfish; killing it mid-run can corrupt the registry
+    # hive.
     try:
         with tempfile.NamedTemporaryFile() as fp:
             fp.write(registry_patch.encode())
@@ -954,6 +997,9 @@ def resize(storage_path, increment):
     :return: Exit code of qemu-img command
     :rtype: int
     """
+    # Cancel intentionally not wired: qemu-img resize is bounded by
+    # ``QEMU_IMG_TIMEOUT``; killing a shrink mid-run risks truncating
+    # live data inside the qcow2.
     try:
         return run(
             [
@@ -988,6 +1034,8 @@ def find(storage_id, storage_path, full_walk=False):
     :return: Dict with storage id, status, and list of matching files
     :rtype: dict
     """
+    # Cancel intentionally not wired: admin-only filesystem walk; the
+    # fast path is O(1) and the full walk has no user-facing waiter.
     root_dir = "/isard"
     matching_files = []
     status = "deleted"
@@ -1085,6 +1133,9 @@ def sparsify(storage_path):
     :return: Exit code of virt-sparsify command and saved space
     :rtype: dict
     """
+    # Cancel intentionally not wired: ``virt-sparsify --in-place``
+    # modifies the qcow2 directly; killing it mid-run can leave the disk
+    # corrupt.
     try:
         old_size = _get_disk_usage(storage_path)
     except Exception as e:
@@ -1168,6 +1219,9 @@ def disconnect(storage_path):
     :return: Exit code of qemu-img command
     :rtype: int
     """
+    # Cancel intentionally not wired: single-layer qemu-img convert into
+    # a sibling temp file followed by an atomic rename; the operation is
+    # short and the temp-file cleanup on cancel would need its own logic.
     disconnected_path = storage_path + ".wo_chain"
 
     try:
