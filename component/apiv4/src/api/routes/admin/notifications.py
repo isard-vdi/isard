@@ -19,7 +19,7 @@
 
 import traceback
 
-from api import admin_router, token_router
+from api import admin_router
 from api.schemas.admin_notifications import (
     AdminUserDisplaysResponse,
     NotificationActionsResponse,
@@ -40,19 +40,12 @@ from api.schemas.admin_notifications import (
     TemplateUpdateRequest,
 )
 from api.schemas.common import DeleteResponse, EmptyResponse, ErrorResponse
-from api.schemas.notifications import (
-    NotificationsUserDisplaysTriggerResponse,
-    NotificationsUserTriggerDisplayResponse,
-    StatusBarNotificationResponse,
-)
 from api.services.admin_notifications import AdminNotificationService
 from api.services.error import Error
-from api.services.notifications import NotificationService
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 tag = "admin-notifications"
-user_tag = "notifications"
 
 
 # =============================================================================
@@ -676,120 +669,14 @@ async def admin_get_user_notification_displays(
         )
 
 
-# =============================================================================
-# USER-FACING ENDPOINTS (token_router)
-# =============================================================================
-
-
-@token_router.get(
-    "/notifications/status-bar",
-    tags=[user_tag],
-    summary="Get status bar notification",
-    description="Returns status bar notification for the current user's provider.",
-    responses={500: {"model": ErrorResponse}},
-)
-async def get_status_bar_notification(request: Request):
-    try:
-        result = AdminNotificationService.get_status_bar_notification(
-            request.token_payload["provider"]
-        )
-        return JSONResponse(
-            content=result,
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to retrieve status bar notification",
-            traceback.format_exc(),
-        )
-
-
-@token_router.get(
-    "/notification/user/displays/{trigger}",
-    tags=[user_tag],
-    response_model=NotificationsUserDisplaysTriggerResponse,
-    summary="Get user notification displays for a trigger",
-    description="Returns the user's notification displays for the specified trigger.",
-    responses={500: {"model": ErrorResponse}},
-)
-async def get_user_notification_displays_by_trigger(request: Request, trigger: str):
-    try:
-        return JSONResponse(
-            content=NotificationsUserDisplaysTriggerResponse(
-                displays=NotificationService.get_user_trigger_notifications_displays(
-                    request.token_payload, trigger
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to retrieve user notification displays",
-            traceback.format_exc(),
-        )
-
-
-@token_router.get(
-    "/notification/user/{trigger}/{display}",
-    tags=[user_tag],
-    response_model=NotificationsUserTriggerDisplayResponse,
-    summary="Get user trigger notifications",
-    description="Returns the user's notifications for the specified trigger and display.",
-    responses={500: {"model": ErrorResponse}},
-)
-async def get_user_trigger_notifications(request: Request, trigger: str, display: str):
-    try:
-        return JSONResponse(
-            content=NotificationsUserTriggerDisplayResponse(
-                notifications=NotificationService.get_user_trigger_notifications(
-                    request.token_payload, trigger, display
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to retrieve user trigger notifications",
-            traceback.format_exc(),
-        )
-
-
-@token_router.delete(
-    "/notifications/expired",
-    tags=[user_tag],
-    response_model=DeleteResponse,
-    summary="Delete expired notifications",
-    description="Deletes expired user notifications data.",
-    responses={500: {"model": ErrorResponse}},
-)
-async def delete_expired_notifications(request: Request):
-    try:
-        NotificationService.delete_expired_notifications_data()
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Expired notifications data deleted",
-                message_code="item.deleted",
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to delete expired notifications data",
-            traceback.format_exc(),
-        )
+# NOTE: the four user-facing token_router endpoints that used to live
+# below — /notifications/status-bar, /notification/user/displays/{trigger},
+# /notification/user/{trigger}/{display}, and DELETE /notifications/expired —
+# were dead code: routes/notifications.py declares the same paths and is
+# imported BEFORE this module in api/__init__.py, so FastAPI's first-match
+# rule meant these handlers never received a request. Worse, the
+# ``get_status_bar_notification`` here passed ``request.token_payload["provider"]``
+# (a string) to a service that expects the full payload dict, and
+# ``get_user_notification_displays_by_trigger`` was at the wrong URL prefix
+# (vue 3 hits /items/notifications/user/...). Deleted in commit cleanup;
+# coverage of the live endpoints lives in test_notifications.py.
