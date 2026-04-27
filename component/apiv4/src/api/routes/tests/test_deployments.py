@@ -258,6 +258,88 @@ def test_get_user_deployments_with_data(monkeypatch, test_client):
 # ─── §99 audit fix: DELETE deployment must allow co-owners ──────────
 
 
+def test_recreate_deployment_offloads_to_thread(monkeypatch, test_client):
+    """``PUT /item/deployment/{id}/recreate`` wraps the sync
+    ``DeploymentService.recreate_desktops`` in ``asyncio.to_thread`` to
+    keep the event loop free during a multi-desktop recreate (commit
+    695852b09 "offload sync rethinkdb i/o off the asyncio event loop").
+
+    Pin both that the service is called with the right args AND the
+    response shape — the wrapping must not change the wire contract.
+    """
+    jwt = MockJWT(role_id="advanced")
+    captured = {}
+
+    def fake_recreate(payload, deployment_id):
+        captured["role_id"] = payload["role_id"]
+        captured["deployment_id"] = deployment_id
+
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.recreate_desktops",
+        staticmethod(fake_recreate),
+    )
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/recreate",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"id": "dep-1"}
+    assert captured == {"role_id": "advanced", "deployment_id": "dep-1"}
+
+
+def test_recreate_deployment_typed_error_propagates(monkeypatch, test_client):
+    """Service ``Error`` (e.g. not_found) must surface with the right
+    status — the asyncio.to_thread wrapping must NOT swallow Error
+    exceptions raised inside the thread."""
+    from api.services.error import Error
+
+    jwt = MockJWT(role_id="advanced")
+
+    def fail(payload, deployment_id):
+        raise Error("not_found", "Deployment not found")
+
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.recreate_desktops",
+        staticmethod(fail),
+    )
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/ghost/recreate",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 404
+
+
+def test_recreate_deployment_unexpected_exception_returns_500(monkeypatch, test_client):
+    """Bare ``RuntimeError`` from inside the to_thread wrapper still
+    falls into the route's ``except Exception`` branch → 500."""
+    jwt = MockJWT(role_id="advanced")
+
+    def boom(payload, deployment_id):
+        raise RuntimeError("DB unreachable")
+
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.recreate_desktops",
+        staticmethod(boom),
+    )
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(
+        url="/item/deployment/dep-1/recreate",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 500
+
+
 def test_delete_deployment_allows_co_owners(monkeypatch, test_client):
     """``DELETE /item/deployment/{id}`` regressed: v3
     ``DeploymentsView.api_v3_deployments_delete`` calls
