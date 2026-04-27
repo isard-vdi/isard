@@ -268,7 +268,19 @@ class AdminAuthenticationService(RethinkSharedConnection):
         for url_field in ("logout_redirect_url", "redirect_uri"):
             url_val = data.get(url_field, "")
             if url_val:
-                validate_url_scheme(url_val)
+                # validate_url_scheme is framework-agnostic so it raises
+                # plain ValueError. Convert to a typed 400 so the admin
+                # sees the actual rejection reason instead of a generic
+                # 500. Same fix as the login_config helper applied in
+                # the validate_url_scheme sweep.
+                try:
+                    validate_url_scheme(url_val)
+                except ValueError as e:
+                    raise Error(
+                        "bad_request",
+                        str(e),
+                        description_code=f"provider_config_{url_field}_invalid",
+                    )
         # Strip empty secret fields so existing DB values are preserved
         for key in ("password", "client_secret"):
             if key in data and not data[key]:

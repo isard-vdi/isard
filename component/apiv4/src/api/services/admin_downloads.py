@@ -63,11 +63,23 @@ class AdminDownloadsService:
     @staticmethod
     def check_registered():
         """Check if IsardVDI is registered with the updates server."""
-        try:
-            from isardvdi_common.helpers.url_validation import validate_url_not_internal
+        from isardvdi_common.helpers.url_validation import validate_url_not_internal
 
-            url, code, _ = AdminDownloadsService._get_cfg()
+        url, code, _ = AdminDownloadsService._get_cfg()
+        # Surface the SSRF guard as a typed bad_request — without this
+        # the outer ``except Exception: pass`` swallowed the ValueError
+        # entirely and the admin saw a generic gateway_timeout, hiding
+        # the real reason (the configured update server URL points to
+        # internal infrastructure).
+        try:
             validate_url_not_internal(url)
+        except ValueError as e:
+            raise Error(
+                "bad_request",
+                str(e),
+                description_code="updates_url_internal",
+            )
+        try:
             req = requests.get(url, allow_redirects=False, timeout=10)
             if req.status_code == 200:
                 if not code:

@@ -231,7 +231,19 @@ class MediaService:
 
         from isardvdi_common.helpers.url_validation import validate_url_not_internal
 
-        validate_url_not_internal(quoted_url)
+        try:
+            validate_url_not_internal(quoted_url)
+        except ValueError as e:
+            # validate_url_not_internal is framework-agnostic so it
+            # raises plain ValueError. Convert to a typed 400 so the
+            # admin sees "URL resolves to internal address" instead of
+            # a generic 500. Same fix as the login_config helper applied
+            # in the validate_url_scheme sweep.
+            raise Error(
+                "bad_request",
+                str(e),
+                description_code="media_url_internal",
+            )
 
         # Probe the source URL to confirm it's reachable and learn the
         # advertised size. We use ``requests.get(stream=True)`` so the
