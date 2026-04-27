@@ -904,15 +904,6 @@ class AdminUsersService:
         return CommonUsers.get_roles(payload["role_id"])
 
     @staticmethod
-    def get_role(payload, role_id):
-        """Get a specific role."""
-        roles = CommonUsers.get_roles(payload["role_id"])
-        for role in roles:
-            if role["id"] == role_id:
-                return role
-        raise Error("not_found", "Role not found")
-
-    @staticmethod
     def update_role(data):
         """Update a role."""
         AdminTablesService.update_table_item("roles", data)

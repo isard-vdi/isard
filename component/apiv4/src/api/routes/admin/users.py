@@ -1679,34 +1679,6 @@ async def admin_get_roles(request: Request):
         )
 
 
-@admin_router.get(
-    "/admin/role/{role_id}",
-    tags=[tag],
-    summary="Get role",
-    description="Returns a specific role by ID.",
-    responses={
-        200: {"description": "Role retrieved"},
-        404: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
-    },
-)
-async def admin_get_role(request: Request, role_id: str):
-    try:
-        return JSONResponse(
-            content=AdminUsersService.get_role(request.token_payload, role_id),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to retrieve role",
-            traceback.format_exc(),
-        )
-
-
 @admin_router.put(
     "/admin/role/{role_id}",
     tags=[tag],

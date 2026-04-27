@@ -3,9 +3,8 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
-# The /admin/roles endpoint lives on manager_router in admin/users.py and calls
-# AdminUsersService.get_roles(payload). The /admin/role/{id} endpoint also lives
-# in admin/users.py and calls AdminUsersService.get_role(payload, role_id).
+# /admin/roles → manager_router in admin/users.py, AdminUsersService.get_roles(payload).
+# /admin/role/{id} → admin_router in admin/roles.py, AdminRolesService.get_role(role_id).
 
 from api.routes.tests.helpers import MockJWT
 
@@ -68,8 +67,7 @@ def test_admin_list_roles_forbidden_for_basic_user(monkeypatch, test_client):
 
 
 def test_admin_get_role_returns_single(monkeypatch, test_client):
-    """GET /admin/role/{id} hits roles.py (admin_router, imported before users.py)
-    which calls AdminRolesService.get_role(role_id) — no payload arg."""
+    """GET /admin/role/{id} → AdminRolesService.get_role(role_id) (no payload arg)."""
     captured = {}
 
     def fake_get_role(role_id):
