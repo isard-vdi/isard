@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import json
 import traceback
 from typing import Optional
@@ -838,32 +839,7 @@ async def admin_register_vlans(request: Request):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         vlans = data.get("vlans", [])
-        for vlan in vlans:
-            new_vlan = {
-                "id": "v" + vlan,
-                "name": "Vlan " + vlan,
-                "description": "Infrastructure vlan",
-                "ifname": "br-" + vlan,
-                "kind": "bridge",
-                "model": "virtio",
-                "net": "br-" + vlan,
-                "qos_id": False,
-                "allowed": {
-                    "roles": ["admin"],
-                    "categories": False,
-                    "groups": False,
-                    "users": False,
-                },
-            }
-            from isardvdi_common.connections.rethink_shared_connection import (
-                RethinkSharedConnection,
-            )
-            from rethinkdb import r
-
-            with RethinkSharedConnection._rdb_context():
-                r.db("isard").table("interfaces").insert(
-                    new_vlan, conflict="update"
-                ).run(RethinkSharedConnection._rdb_connection)
+        await asyncio.to_thread(AdminHypervisorsService.register_vlans, vlans)
         return JSONResponse(content={}, status_code=200)
     except Error:
         raise
@@ -890,15 +866,11 @@ async def admin_hypervisor_boot_progress(request: Request, hyper_id: str):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         boot_progress = data.get("boot_progress", {})
-        from isardvdi_common.connections.rethink_shared_connection import (
-            RethinkSharedConnection,
+        await asyncio.to_thread(
+            AdminHypervisorsService.update_hyper_boot_progress,
+            hyper_id,
+            boot_progress,
         )
-        from rethinkdb import r
-
-        with RethinkSharedConnection._rdb_context():
-            r.table("hypervisors").get(hyper_id).update(
-                {"boot_progress": boot_progress}
-            ).run(RethinkSharedConnection._rdb_connection)
         return JSONResponse(content={}, status_code=200)
     except Error:
         raise
