@@ -18,9 +18,9 @@ Out of scope (skipped):
 ```bash
 docker run --rm --network isard-network -v /opt/isard/src:/src -w /src \
   -e E2E_ADMIN_USER=admin_e2e_01 -e E2E_ADMIN_PWD='IsardTest1!' \
-  python:3.12-slim bash -c '
-    pip install --quiet -r testing/integration/requirements.txt >/dev/null 2>&1
-    cd testing && pytest integration/audit/ -m audit -v --tb=line --maxfail=0
+  ghcr.io/astral-sh/uv:0.11.7-python3.13-slim bash -c '
+    cd /src && uv sync --frozen --package isardvdi-testing --group test --no-editable
+    cd /src/testing && uv run --group test --package isardvdi-testing pytest integration/audit/ -m audit -v --tb=line --maxfail=0
   '
 ```
 

@@ -5,6 +5,7 @@ old-frontend/node_modules
 .gitlab
 .vscode
 testing
+!testing/pyproject.toml
 e2e
 certs
 *.md

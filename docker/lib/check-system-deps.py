@@ -21,11 +21,31 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 # kind: "fedora" -> expects dnf-build/dnf-runtime
 COMPONENTS: list[tuple[str, str, str]] = [
     ("component/apiv4/docker/Dockerfile", "component/apiv4/pyproject.toml", "alpine"),
-    ("component/changefeed/docker/Dockerfile", "component/changefeed/pyproject.toml", "alpine"),
-    ("component/change-handler/docker/Dockerfile", "component/change-handler/pyproject.toml", "alpine"),
-    ("component/socketio/docker/Dockerfile", "component/socketio/pyproject.toml", "alpine"),
-    ("component/openapi/docker/Dockerfile", "component/openapi/pyproject.toml", "alpine"),
-    ("component/core_worker/docker/Dockerfile", "component/core_worker/pyproject.toml", "alpine"),
+    (
+        "component/changefeed/docker/Dockerfile",
+        "component/changefeed/pyproject.toml",
+        "alpine",
+    ),
+    (
+        "component/change-handler/docker/Dockerfile",
+        "component/change-handler/pyproject.toml",
+        "alpine",
+    ),
+    (
+        "component/socketio/docker/Dockerfile",
+        "component/socketio/pyproject.toml",
+        "alpine",
+    ),
+    (
+        "component/openapi/docker/Dockerfile",
+        "component/openapi/pyproject.toml",
+        "alpine",
+    ),
+    (
+        "component/core_worker/docker/Dockerfile",
+        "component/core_worker/pyproject.toml",
+        "alpine",
+    ),
     ("engine/docker/Dockerfile", "engine/pyproject.toml", "alpine"),
     ("webapp/docker/Dockerfile", "webapp/pyproject.toml", "alpine"),
     ("notifier/docker/Dockerfile", "notifier/pyproject.toml", "alpine"),
@@ -33,6 +53,7 @@ COMPONENTS: list[tuple[str, str, str]] = [
     ("docker/hypervisor/Dockerfile", "docker/hypervisor/pyproject.toml", "alpine"),
     ("docker/vpn/Dockerfile", "docker/vpn/pyproject.toml", "alpine"),
     ("docker/storage/Dockerfile", "docker/storage/pyproject.toml", "fedora"),
+    ("docker/backupninja/Dockerfile", "docker/backupninja/pyproject.toml", "alpine"),
 ]
 
 APK_RE = re.compile(r"apk add(?:\s+--[\w-]+(?:=\S+)?)*\s+(.+?)(?:&&|$)", re.MULTILINE)
@@ -44,7 +65,9 @@ def parse_pkg_list(raw: str) -> set[str]:
     return {t for t in tokens if not t.startswith("-") and t not in {"y"}}
 
 
-def extract_dockerfile_packages(path: pathlib.Path, kind: str) -> tuple[set[str], set[str]]:
+def extract_dockerfile_packages(
+    path: pathlib.Path, kind: str
+) -> tuple[set[str], set[str]]:
     content = path.read_text().replace("\\\n", " ")
     pattern = APK_RE if kind == "alpine" else DNF_RE
     build_pkgs: set[str] = set()
@@ -55,7 +78,9 @@ def extract_dockerfile_packages(path: pathlib.Path, kind: str) -> tuple[set[str]
         # We distinguish by scanning stage names.
         stage_line_start = content.rfind("FROM ", 0, match.start())
         stage_line_end = content.find("\n", stage_line_start)
-        stage_line = content[stage_line_start:stage_line_end] if stage_line_start >= 0 else ""
+        stage_line = (
+            content[stage_line_start:stage_line_end] if stage_line_start >= 0 else ""
+        )
         if "AS builder" in stage_line or "as builder" in stage_line:
             build_pkgs |= pkgs
         elif "AS runtime" in stage_line or "as runtime" in stage_line:
@@ -84,7 +109,9 @@ def main() -> int:
         if df_build != pj_build:
             failures.append(f"[{df}] build mismatch: dockerfile={df_build ^ pj_build}")
         if df_runtime != pj_runtime:
-            failures.append(f"[{df}] runtime mismatch: dockerfile={df_runtime ^ pj_runtime}")
+            failures.append(
+                f"[{df}] runtime mismatch: dockerfile={df_runtime ^ pj_runtime}"
+            )
     if failures:
         print("\n".join(failures))
         return 1

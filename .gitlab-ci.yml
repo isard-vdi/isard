@@ -58,9 +58,11 @@ default:
           - testing/e2e/yarn.lock
       paths:
         - testing/e2e/node_modules
-    - key: "pip-$CI_COMMIT_REF_SLUG"
+    - key:
+        files:
+          - uv.lock
       paths:
-        - .pip-cache
+        - .uv-cache
 
 include:
   - template: Jobs/Dependency-Scanning.gitlab-ci.yml
@@ -78,28 +80,6 @@ stages:
   - test
   - release
   - container-scan
-
-# Resolve the modernize-python-client branch HEAD of the
-# isard-vdi/rethinkdb-python fork ONCE per pipeline. Every Dockerfile
-# that pip-installs the rethinkdb driver from git declares an
-# ``ARG RETHINKDB_FORK_SHA`` and prefixes its pip-install layer with
-# ``RUN echo "...${RETHINKDB_FORK_SHA}"`` so the layer cache is keyed
-# on the SHA — without this, Docker would happily reuse the cached
-# layer pinned to the first SHA seen and pip would never refetch
-# from the branch tip. The dotenv artifact propagates the SHA to
-# every downstream build job in the same pipeline, so all 11
-# component images share one consistent SHA per pipeline.
-resolve-rethinkdb-fork-sha:
-  stage: .pre
-  image: alpine/git:latest
-  script:
-    - SHA=$(git ls-remote https://github.com/isard-vdi/rethinkdb-python.git modernize-python-client | awk '{print $1}')
-    - test -n "$SHA"  # fail the pipeline if the branch is gone
-    - echo "RETHINKDB_FORK_SHA=$SHA" > rethinkdb.env
-    - echo "Pipeline pinned to rethinkdb fork @ $SHA"
-  artifacts:
-    reports:
-      dotenv: rethinkdb.env
 
 commit-lint:
   stage: lint
@@ -130,38 +110,42 @@ check-alloy-config:
   stage: lint
   image: alpine
   before_script:
-    - apk add --no-cache alloy
+    - apk add --no-cache alloy make
   script:
-    - find . -iname "*.alloy" | xargs -n1 alloy fmt -t
+    - make lint-alloy
 
 check-python:
   stage: lint
-  image: python:3.10-bullseye
+  image: ghcr.io/astral-sh/uv:0.11.7-python3.13-alpine
+  before_script:
+    - apk add --no-cache make
+    - uv sync --only-group dev
   script:
-    - pip install isort==5.13.2 black==24.3.0
-    - isort --check .
-    - black --check .
+    - make lint-python
 
 check-system-deps:
   stage: lint
-  image: python:3.13-slim
+  image: ghcr.io/astral-sh/uv:0.11.7-python3.13-alpine
+  before_script:
+    - apk add --no-cache make
+    - uv sync --only-group dev
   script:
-    - pip install uv==0.11.7
-    - uv sync --dev
-    - uv run python docker/lib/check-system-deps.py
+    - make lint-system-deps
 
 check-golang:
   stage: lint
   image: golangci/golangci-lint
+  before_script:
+    - apk add --no-cache make
   script:
-    - golangci-lint fmt --diff
+    - make lint-go
 
 check-frontend:
   stage: lint
   image: oven/bun:1.3-alpine
   parallel:
     matrix:
-      - JOB: "format --write=false --check"
+      - JOB: "format"
       - JOB: "lint"
       # - JOB: "type-check"
       #   # TODO: Remove this when all type errors are fixed
@@ -171,18 +155,18 @@ check-frontend:
       allow_failure: true
     - if: $ALLOW_FAILURE != "true"
       allow_failure: false
+  before_script:
+    - apk add --no-cache make
   script:
-    - cd component/frontend
-    - bun install --frozen-lockfile
-    - bun run $JOB
+    - make lint-frontend-$JOB
 
 check-old-frontend:
   stage: lint
   image: oven/bun:1.3-alpine
+  before_script:
+    - apk add --no-cache make
   script:
-    - cd old-frontend
-    - bun install --frozen-lockfile
-    - bun run lint --no-fix --max-warnings 0
+    - make lint-old-frontend
 
 check-protobuf:
   stage: lint
@@ -190,6 +174,8 @@ check-protobuf:
     name: bufbuild/buf:1.44.0
     entrypoint: [""]
   allow_failure: $[[ inputs.allow-protobuf-lint-failure ]]
+  # bufbuild/buf image is distroless — no package manager to install make.
+  # Keep invocation inline; commands match `make lint-protobuf`.
   script:
     - buf lint
     - buf breaking --against https://gitlab.com/isard/isardvdi.git
@@ -197,9 +183,6 @@ check-protobuf:
 docker-image-codegen:
   image: "docker:${DOCKER_VERSION}"
   stage: build-codegen
-  needs:
-    - job: resolve-rethinkdb-fork-sha
-      artifacts: true
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
@@ -210,10 +193,6 @@ docker-image-codegen:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    # Pass the pipeline-pinned ``RETHINKDB_FORK_SHA`` so the apiv4-venv
-    # pip-install layer in the codegen image busts when the
-    # isard-vdi/rethinkdb-python branch advances (same pattern as the
-    # 11 component images in docker-image).
     - |
       if $[[ inputs.use-image-build-cache ]]
       then
@@ -221,9 +200,9 @@ docker-image-codegen:
         if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
           CACHE_ARGS="--cache-from $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest $CACHE_ARGS"
         fi
-        docker build -f $DOCKERFILE $CACHE_ARGS --build-arg "RETHINKDB_FORK_SHA=${RETHINKDB_FORK_SHA:-unknown}" -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+        docker build -f $DOCKERFILE $CACHE_ARGS -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
       else
-        docker build -f $DOCKERFILE --build-arg "RETHINKDB_FORK_SHA=${RETHINKDB_FORK_SHA:-unknown}" -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+        docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
       fi
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
@@ -290,14 +269,12 @@ unit-test-go:
   needs: ["gen-protobuf"]
   image: golang:1.25.8
   before_script:
-    - apt-get update && apt-get install -y libvirt-dev
+    - apt-get update && apt-get install -y libvirt-dev make
     - go install gotest.tools/gotestsum@latest
     - go install github.com/boumenot/gocover-cobertura@latest
-  script:
     - export PATH=$PATH:~/go/bin
-    - gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
-    - go tool cover -func coverage.out
-    - gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
+  script:
+    - make ci-test-go
   artifacts:
     when: always
     reports:
@@ -307,25 +284,23 @@ unit-test-go:
       junit: report.xml
   coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
-# Shared Python test config — pip cache dir cached via default cache entry.
+# Shared Python test config — uv cache dir cached via default cache entry.
 .python-test-base: &python-test-base
   stage: unit-test
   needs: ["gen-protobuf"]
-  image: python:3.13-slim
+  image: ghcr.io/astral-sh/uv:0.11.7-python3.13-alpine
+  variables:
+    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
+  before_script:
+    - apk add --no-cache git make
 
 unit-test-apiv4:
   <<: *python-test-base
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q uv==0.11.7
-    - uv sync --no-dev --group test --package isardvdi-apiv4
   variables:
-    PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
     UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
     USAGE: "production"
   script:
-    - cd component/apiv4/src
-    - uv run --no-dev --group test --package isardvdi-apiv4 pytest api/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=api --cov-report=term --cov-report=xml:coverage.xml
+    - make ci-test-apiv4
   artifacts:
     when: always
     reports:
@@ -337,16 +312,8 @@ unit-test-apiv4:
 
 unit-test-change-handler:
   <<: *python-test-base
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q uv==0.11.7
-    - uv sync --no-dev --group test --package isardvdi-change-handler
-  variables:
-    PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
-    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   script:
-    - cd component/change-handler/src
-    - uv run --no-dev --group test --package isardvdi-change-handler pytest isardvdi_change_handler/tests/ -q --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml
+    - make ci-test-change-handler
   artifacts:
     when: always
     reports:
@@ -358,16 +325,8 @@ unit-test-change-handler:
 
 unit-test-changefeed:
   <<: *python-test-base
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q uv==0.11.7
-    - uv sync --no-dev --group test --package isardvdi-changefeed
-  variables:
-    PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
-    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   script:
-    - cd component/changefeed/src
-    - uv run --no-dev --group test --package isardvdi-changefeed pytest isardvdi_changefeed/tests/ -q --tb=short --junitxml=report.xml --cov=isardvdi_changefeed --cov-report=term --cov-report=xml:coverage.xml
+    - make ci-test-changefeed
   artifacts:
     when: always
     reports:
@@ -402,16 +361,8 @@ unit-test-webapp:
 
 unit-test-common:
   <<: *python-test-base
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq git > /dev/null
-    - pip install -q uv==0.11.7
-    - uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
-  variables:
-    PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache"
-    UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   script:
-    - cd component/_common/src
-    - uv run --no-dev --group test --package isardvdi-common pytest isardvdi_common -q --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml
+    - make ci-test-common
   artifacts:
     when: always
     reports:
@@ -451,8 +402,6 @@ docker-image:
   needs:
     - docker-compose-build
     - gen-protobuf
-    - job: resolve-rethinkdb-fork-sha
-      artifacts: true
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
@@ -510,12 +459,7 @@ docker-image:
       else
         DOCKERCOMPOSE_FILE=no-cache-docker-compose.$DOCKER_COMPOSE.yml
       fi
-    # Pass the pipeline-pinned ``RETHINKDB_FORK_SHA`` to docker-compose
-    # build via ``--build-arg``. Components that don't declare the
-    # ARG silently ignore it (docker build's documented behaviour);
-    # components that do declare it (the 11 python services) use it
-    # to bust the pip-install layer when the fork branch advances.
-    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build --build-arg "RETHINKDB_FORK_SHA=${RETHINKDB_FORK_SHA:-unknown}"
+    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
@@ -582,7 +526,9 @@ test-e2e:
       alias: docker
   image: "docker:${DOCKER_VERSION}"
   before_script:
-    - apk add bash git docker-compose python3 py3-pip py3-requests yarn nodejs
+    - apk add bash git docker-compose python3 py3-requests yarn nodejs curl
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.local/bin:$PATH"
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - cp isardvdi.cfg.example isardvdi.e2e.cfg
@@ -602,8 +548,8 @@ test-e2e:
     - docker compose -f docker-compose.e2e.yml pull
     - docker compose -f docker-compose.e2e.yml up -d
     - sleep 30
-    - pip install --break-system-packages rethinkdb
-    - python3 testing/db/populate_test_db.py
+    - uv sync --frozen --package isardvdi-testing --group test --no-editable
+    - uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py
   script:
     - cd testing/e2e && yarn install
     - |
@@ -650,7 +596,9 @@ integration-real:
       alias: docker
   image: "docker:${DOCKER_VERSION}"
   before_script:
-    - apk add bash git docker-compose python3 py3-pip
+    - apk add bash git docker-compose python3 curl
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.local/bin:$PATH"
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - cp isardvdi.cfg.example isardvdi.e2e.cfg
@@ -668,8 +616,8 @@ integration-real:
     - "sed -i 's|source: /opt/isard/|source: /tmp/isard-real/opt/isard/|g; s|source: /opt/isard-local/|source: /tmp/isard-real/opt/isard-local/|g' docker-compose.e2e.yml"
     - docker compose -f docker-compose.e2e.yml pull
     - docker compose -f docker-compose.e2e.yml up -d
-    - pip install --break-system-packages rethinkdb
-    - python3 testing/db/populate_test_db.py
+    - uv sync --frozen --package isardvdi-testing --group test --no-editable
+    - uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py
   script:
     - |
       NETWORK_ID="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' isard-portal | tr -d '\n')"
@@ -679,11 +627,11 @@ integration-real:
         -e E2E_ADMIN_USER=admin_e2e_01 \
         -e E2E_ADMIN_PWD='IsardTest1!' \
         -e E2E_SKIP_VM_BOOT=1 \
-        python:3.13-slim bash -c '
+        ghcr.io/astral-sh/uv:0.11.7-python3.13-slim bash -c '
           apt-get update -qq && apt-get install -y -qq curl > /dev/null
           bash /src/testing/integration/wait-for-stack.sh 240
-          pip install --quiet -r integration/requirements.txt
-          pytest integration/ -v -m real --tb=short --junitxml=/src/testing/integration/report.xml
+          cd /src && uv sync --frozen --package isardvdi-testing --group test --no-editable
+          cd /src/testing && uv run --group test --package isardvdi-testing pytest integration/ -v -m real --tb=short --junitxml=/src/testing/integration/report.xml
         '
   after_script:
     - docker compose -f docker-compose.e2e.yml down || true

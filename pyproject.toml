@@ -17,11 +17,15 @@ members = [
   "webapp",
   "notifier",
   "scheduler",
+  "docker/backupninja",
+  "docker/codegen",
+  "docker/db",
   "docker/hypervisor",
   "docker/vpn",
   "docker/storage",
   "pkg/gen/asyncapi/changefeed",
   "pkg/gen/proto/python",
+  "testing",
 ]
 
 [tool.uv.sources]
