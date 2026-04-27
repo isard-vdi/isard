@@ -70,8 +70,10 @@ database/
 .env
 tetris/.env
 
+# Python virtual environment (root workspace)
+/.venv/
+
 /docker-compose*.yml
-/docker-compose.yml.production
 
 #debug
 /debug.yml
@@ -83,7 +85,26 @@ docker/hypervisor/src/vlans/api_client.py
 component/frontend/yarn.lock
 
 # Generated code
-pkg/gen
+# pkg/gen is excluded except pyproject.toml package manifests needed by the uv workspace
+pkg/gen/**
+!pkg/gen/proto/
+!pkg/gen/proto/python/
+!pkg/gen/proto/python/pyproject.toml
+!pkg/gen/proto/python/src/
+!pkg/gen/proto/python/src/isardvdi_protobuf/
+!pkg/gen/proto/python/src/isardvdi_protobuf/__init__.py
+!pkg/gen/proto/python_old/
+!pkg/gen/proto/python_old/pyproject.toml
+!pkg/gen/proto/python_old/src/
+!pkg/gen/proto/python_old/src/isardvdi_protobuf_old/
+!pkg/gen/proto/python_old/src/isardvdi_protobuf_old/__init__.py
+!pkg/gen/asyncapi/
+!pkg/gen/asyncapi/changefeed/
+!pkg/gen/asyncapi/changefeed/pyproject.toml
+!pkg/gen/asyncapi/changefeed/changefeed_models/
+!pkg/gen/asyncapi/changefeed/changefeed_models/__init__.py
+!pkg/gen/asyncapi/changefeed/changefeed_subscribers/
+!pkg/gen/asyncapi/changefeed/changefeed_subscribers/__init__.py
 component/frontend/src/gen
 testing_*_mock.go
 pkg/oas/apiv4/apiv4*.json
@@ -100,6 +121,3 @@ ci-results/
 # npm lockfile (project uses yarn)
 testing/e2e/package-lock.json
 node_modules/
-
-# Local git worktrees (for rebases and parallel work)
-.worktrees/

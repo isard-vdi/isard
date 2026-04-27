@@ -3,6 +3,3 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: scheduler/docker/Dockerfile
-      target: production
-      args:
-        RETHINKDB_FORK_SHA: ${RETHINKDB_FORK_SHA:-unknown}

@@ -1,7 +1,0 @@
-pytest==8.4.1
-pytest-asyncio==0.24.0
-pytest-cov==6.2.1
-pytest-xdist==3.6.1
-httpx==0.28.1
-# Use IsardVDI fork for r.row sub-query, r.branch, MergePolyWithRFunc, recursive set_default_db
-rethinkdb-mock @ git+https://github.com/isard-vdi/rethinkdb-mock.git@082aec0f78baa619e77bcb63d1f2fa6e2581e7a5

@@ -1,0 +1,19 @@
+[project]
+name = "isardvdi-openapi"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi==0.115.12",
+  "uvicorn==0.34.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/isardvdi_openapi"]
+
+[tool.isardvdi.system-deps]
+apk-build = ["build-base", "libffi-dev", "musl-dev", "openssl-dev"]
+apk-runtime = ["curl", "libffi", "openssl"]

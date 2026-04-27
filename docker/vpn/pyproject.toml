@@ -1,0 +1,22 @@
+[project]
+name = "isardvdi-vpn"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "isardvdi-common",
+  "pyjwt==2.10.1",
+  "python-iptables==1.0.1",
+  "requests==2.32.4",
+  "rethinkdb==2.4.10.post1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.isardvdi.system-deps]
+apk-build = ["autoconf", "automake", "build-base", "git", "iptables-dev", "libffi-dev", "libmnl-dev", "libnftnl-dev", "libtool", "linux-headers", "musl-dev", "openssl-dev", "python3-dev"]
+apk-runtime = ["conntrack-tools", "dnsmasq", "guacamole-server", "guacamole-server-dev", "guacamole-server-rdp", "iptables", "iptables-legacy", "libffi", "openssh", "openssl", "openvswitch", "wireguard-tools"]
