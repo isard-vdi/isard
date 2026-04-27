@@ -1,7 +1,7 @@
 fastapi==0.115.12
 uvicorn==0.34.2
 pyjwt==2.10.1
-rethinkdb==2.4.10.post1  # Kept at 2.4.10.post1 as per your request
+rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@modernize-python-client
 pydantic==2.12.0
 websockets==15.0.1
 cachetools==5.5.2

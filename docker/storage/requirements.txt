@@ -1,6 +1,6 @@
 rq==2.0.0
 betterproto~=1.2
-rethinkdb==2.4.10.post1
+rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@modernize-python-client
 PyJWT==2.8.0
 tabulate
 # Required since the download_url / domain_creating_disk task chain

@@ -1,11 +1,25 @@
 FROM alpine:3.22
 
 RUN apk -U upgrade --no-cache
-RUN apk add --no-cache python3 py3-pip
+# git is required by pip to fetch the isard-vdi/rethinkdb-python fork
+# from requirements.txt (``git+https://...``); we add it as a virtual
+# build-deps tag and remove it after the install to keep the runtime
+# image lean.
+RUN apk add --no-cache python3 py3-pip \
+    && apk add --no-cache --virtual .build_deps git
 
 COPY component/core_worker/docker/requirements.txt .
-RUN pip install -r requirements.txt --break-system-package && \
-    rm requirements.txt
+# ``RETHINKDB_FORK_SHA`` is the current branch HEAD of
+# isard-vdi/rethinkdb-python @ modernize-python-client. CI resolves
+# it once per pipeline (see ``resolve-rethinkdb-fork-sha`` in
+# .gitlab-ci.yml) and passes it via ``--build-arg``. Embedding it in
+# the layer command via ``echo`` busts Docker's layer cache whenever
+# the branch advances.
+ARG RETHINKDB_FORK_SHA=unknown
+RUN echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
+    && pip install -r requirements.txt --break-system-package \
+    && rm requirements.txt \
+    && apk del .build_deps
 ENV PYTHONPATH /opt/isardvdi
 COPY component/core_worker/docker/uuidgen.py /opt/isardvdi/uuidgen.py
 COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common

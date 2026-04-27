@@ -1,6 +1,6 @@
 cachetools~=5.5.2
 pydantic==2.12.0
 python-socketio~=5.12.1
-rethinkdb==2.4.10.post1
+rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@modernize-python-client
 redis==5.2.1
 rq==2.3.2

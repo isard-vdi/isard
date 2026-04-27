@@ -79,6 +79,28 @@ stages:
   - release
   - container-scan
 
+# Resolve the modernize-python-client branch HEAD of the
+# isard-vdi/rethinkdb-python fork ONCE per pipeline. Every Dockerfile
+# that pip-installs the rethinkdb driver from git declares an
+# ``ARG RETHINKDB_FORK_SHA`` and prefixes its pip-install layer with
+# ``RUN echo "...${RETHINKDB_FORK_SHA}"`` so the layer cache is keyed
+# on the SHA — without this, Docker would happily reuse the cached
+# layer pinned to the first SHA seen and pip would never refetch
+# from the branch tip. The dotenv artifact propagates the SHA to
+# every downstream build job in the same pipeline, so all 11
+# component images share one consistent SHA per pipeline.
+resolve-rethinkdb-fork-sha:
+  stage: .pre
+  image: alpine/git:latest
+  script:
+    - SHA=$(git ls-remote https://github.com/isard-vdi/rethinkdb-python.git modernize-python-client | awk '{print $1}')
+    - test -n "$SHA"  # fail the pipeline if the branch is gone
+    - echo "RETHINKDB_FORK_SHA=$SHA" > rethinkdb.env
+    - echo "Pipeline pinned to rethinkdb fork @ $SHA"
+  artifacts:
+    reports:
+      dotenv: rethinkdb.env
+
 commit-lint:
   stage: lint
   image: node:lts
@@ -415,7 +437,11 @@ check-codegen-freshness:
 docker-image:
   image: "docker:${DOCKER_VERSION}"
   stage: build
-  needs: ["docker-compose-build", "gen-protobuf"]
+  needs:
+    - docker-compose-build
+    - gen-protobuf
+    - job: resolve-rethinkdb-fork-sha
+      artifacts: true
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
@@ -473,7 +499,12 @@ docker-image:
       else
         DOCKERCOMPOSE_FILE=no-cache-docker-compose.$DOCKER_COMPOSE.yml
       fi
-    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build
+    # Pass the pipeline-pinned ``RETHINKDB_FORK_SHA`` to docker-compose
+    # build via ``--build-arg``. Components that don't declare the
+    # ARG silently ignore it (docker build's documented behaviour);
+    # components that do declare it (the 11 python services) use it
+    # to bust the pip-install layer when the fork branch advances.
+    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build --build-arg "RETHINKDB_FORK_SHA=${RETHINKDB_FORK_SHA:-unknown}"
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
