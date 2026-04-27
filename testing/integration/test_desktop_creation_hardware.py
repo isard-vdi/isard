@@ -822,17 +822,22 @@ def test_nonpersistent_desktop_inherits_template_hardware_in_xml(
     )
 
     np_details = admin_client.get(f"/api/v4/item/desktop/{np_id}/get-details")
-    template_details = admin_client.get(f"/api/v4/admin/domain/{template_id}/details")
-
-    assert int(np_details["vcpu"]) == int(template_details.get("vcpu", 0)), (
-        f"non-persistent vcpu {np_details['vcpu']} != template vcpu "
-        f"{template_details.get('vcpu')}"
+    # ``_media_then_template`` builds the source desktop with vcpus=1
+    # and memory=0.5 GB, then snapshots a template from it; the
+    # non-persistent derive must inherit those values. The apiv4
+    # ``/admin/domains`` endpoint plucks only ``origin`` +
+    # ``reservables`` from the template's ``create_dict`` (no
+    # hardware), so we assert against the helper's known shape
+    # directly rather than reading the template back.
+    expected_vcpus = 1
+    expected_memory_gb = 0.5
+    assert int(np_details["vcpu"]) == expected_vcpus, (
+        f"non-persistent vcpu {np_details['vcpu']} != template-derived "
+        f"expected {expected_vcpus}"
     )
-    assert (
-        abs(np_details["memory"] - float(template_details.get("memory", 0))) < 1e-3
-    ), (
-        f"non-persistent memory {np_details['memory']} != template memory "
-        f"{template_details.get('memory')}"
+    assert abs(np_details["memory"] - expected_memory_gb) < 1e-3, (
+        f"non-persistent memory {np_details['memory']} != template-derived "
+        f"expected {expected_memory_gb}"
     )
 
 
@@ -853,7 +858,10 @@ def test_deployment_desktops_inherit_hardware_from_request(
     except RuntimeError as exc:
         pytest.skip(f"media source unreachable: {exc}")
 
-    # Create a deployment with explicit hardware override.
+    # Create a deployment with explicit hardware override. The
+    # ``CreateDeploymentRequest.validate_allowed_not_empty`` validator
+    # only counts ``users`` and ``groups`` toward the non-empty check,
+    # so allow the test admin's group explicitly.
     dep_vcpus = 2
     dep_memory_gb = 1.0
     dep_name = f"{test_namespace}deployment"
@@ -864,9 +872,9 @@ def test_deployment_desktops_inherit_hardware_from_request(
             "description": "hw-test",
             "allowed": {
                 "users": False,
-                "groups": False,
+                "groups": ["default-default"],
                 "categories": False,
-                "roles": ["admin"],
+                "roles": False,
             },
             "create_owner_desktop": True,
             "visible": False,
@@ -887,14 +895,19 @@ def test_deployment_desktops_inherit_hardware_from_request(
     )
     deployment_id = dep_resp["id"]
 
-    # Wait for the deployment's owner desktop to appear with the right
-    # hardware. The deployment list endpoint returns the desktops it
-    # spawned; we poll until at least one is Stopped.
+    # Wait for the deployment's owner desktop to appear with the
+    # right hardware. ``GET /item/deployment/<id>`` only returns
+    # *counts* (totalDesktops / visibleDesktops / startedDesktops);
+    # the actual desktop rows are queried from ``/admin/domains``
+    # filtered by ``tag == deployment_id``.
     deadline = time.monotonic() + CREATE_TIMEOUT
     deployment_desktops: list = []
     while time.monotonic() < deadline:
-        info = admin_client.get(f"/api/v4/item/deployment/{deployment_id}")
-        deployment_desktops = info.get("desktops") or []
+        rows = (
+            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
+            or []
+        )
+        deployment_desktops = [r for r in rows if r.get("tag") == deployment_id]
         if any(d.get("status") == "Stopped" for d in deployment_desktops):
             break
         time.sleep(2.0)
