@@ -895,35 +895,30 @@ def test_deployment_desktops_inherit_hardware_from_request(
     )
     deployment_id = dep_resp["id"]
 
-    # Wait for the deployment's owner desktop to appear with the
-    # right hardware. ``GET /item/deployment/<id>`` only returns
-    # *counts* (totalDesktops / visibleDesktops / startedDesktops);
-    # the actual desktop rows are queried from ``/admin/domains``
-    # filtered by ``tag == deployment_id``.
+    # Wait for the deployment to spawn at least one desktop, and pick
+    # one that has reached ``Stopped``. The apiv4 ``/items/desktops``
+    # response model strips the ``tag`` field, but
+    # ``/item/deployment/<id>/videowall`` returns the deployment with
+    # the embedded ``desktops`` array (id + status), which is what
+    # the videowall and recreate flows already consume.
+    stopped_id = None
     deadline = time.monotonic() + CREATE_TIMEOUT
-    deployment_desktops: list = []
     while time.monotonic() < deadline:
-        rows = (
-            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
-            or []
+        videowall = admin_client.get(
+            f"/api/v4/item/deployment/{deployment_id}/videowall"
         )
-        deployment_desktops = [r for r in rows if r.get("tag") == deployment_id]
-        if any(d.get("status") == "Stopped" for d in deployment_desktops):
+        desktops = videowall.get("desktops") or []
+        candidates = [d for d in desktops if d.get("status") == "Stopped"]
+        if candidates:
+            stopped_id = candidates[0]["id"]
             break
         time.sleep(2.0)
 
-    assert deployment_desktops, "deployment created no desktops"
-    stopped_desktop = next(
-        (d for d in deployment_desktops if d.get("status") == "Stopped"), None
-    )
-    assert stopped_desktop is not None, (
-        "deployment desktops never reached Stopped: "
-        f"{[d.get('status') for d in deployment_desktops]!r}"
-    )
+    assert (
+        stopped_id is not None
+    ), f"no spawned deployment desktop reached Stopped within {CREATE_TIMEOUT}s"
 
-    detail = admin_client.get(
-        f"/api/v4/item/desktop/{stopped_desktop['id']}/get-details"
-    )
+    detail = admin_client.get(f"/api/v4/item/desktop/{stopped_id}/get-details")
     assert int(detail["vcpu"]) == dep_vcpus, (
         f"deployment desktop vcpu mismatch: got {detail['vcpu']}, "
         f"expected {dep_vcpus}"
