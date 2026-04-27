@@ -71,7 +71,7 @@ class UserDetailsResponse(BaseModel):
 
     id: str = Field(description="The ID of the user.")
     username: str = Field(description="The username of the user.")
-    photo: str = Field(description="The URL of the user's photo.")
+    photo: str = Field(default="", description="The URL of the user's photo.")
     name: str = Field(description="The full name of the user.")
     email: str = Field(description="The email address of the user.")
     email_verified: bool | int | None = Field(
