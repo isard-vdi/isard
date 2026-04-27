@@ -59,6 +59,11 @@ services:
       # backup target for a session to start. Below this the preflight
       # script fails fast and the report is marked CRITICAL (default 10).
       - BACKUP_MIN_FREE_PERCENT=${BACKUP_MIN_FREE_PERCENT-10}
+      # Borg compact opt-out. Default true keeps the existing Saturday-
+      # only compact behaviour. Set BACKUP_COMPACT_ENABLED=false on very
+      # large repos where compact runs longer than the daily window and
+      # would otherwise block the next day's borg create.
+      - BACKUP_COMPACT_ENABLED=${BACKUP_COMPACT_ENABLED-true}
 
       # NFS
       - BACKUP_NFS_ENABLED=${BACKUP_NFS_ENABLED-false}
