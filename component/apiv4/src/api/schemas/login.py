@@ -111,10 +111,19 @@ class LoginConfigMaintenance(BaseModel):
 
 
 class LoginConfigResponse(BaseModel):
-    """Login configuration response model"""
+    """Login configuration response model.
 
-    notification_cover: LoginNotification | None = None
-    notification_form: LoginNotification | None = None
+    ``notification_cover`` and ``notification_form`` are lists so the
+    per-category endpoint can return both the global and category
+    notifications side-by-side. The global-only endpoint returns
+    1-item lists. Pre-feature single-dict notifications are accepted
+    for backwards compatibility and wrapped server-side.
+    """
+
+    notification_cover: list[LoginNotification | None] | LoginNotification | None = (
+        None
+    )
+    notification_form: list[LoginNotification | None] | LoginNotification | None = None
     info: LoginConfigInfo | None = None
     locale: Locale | None = None
     providers: Providers | None = None

@@ -207,29 +207,88 @@ class AdminCategoryService:
 
     @staticmethod
     def get_login_config_for_category(category_id):
-        """Get login configuration for a category, falling back to global.
+        """Get login configuration for a category, merging global + category.
 
-        Returns the same flat shape as ``GET /item/login-config``
-        (``LoginConfigResponse``) so the same frontend helpers can consume
-        both endpoints.
+        Returns the same fields as ``GET /item/login-config``
+        (``LoginConfigResponse``) but with ``notification_cover`` and
+        ``notification_form`` as **lists** so the login page can render
+        both the global notification and the category-specific one
+        simultaneously. Pre-feature single-dict notifications are
+        wrapped into 1-item lists.
         """
+        login_config = Configuration().login or {}
+
+        for key in ("notification_cover", "notification_form"):
+            notification = login_config.get(key)
+            if not notification:
+                continue
+            if not isinstance(notification, list):
+                login_config[key] = [notification]
+
         try:
-            login_notification = Category(category_id).login_notification
+            category_login_config = Category(category_id).login_notification or {}
         except Exception:
-            login_notification = None
-        if login_notification:
-            login_config = login_notification
+            category_login_config = {}
+
+        if category_login_config:
+            login_config = {
+                **login_config,
+                **category_login_config,
+                **{
+                    "notification_cover": [
+                        *(login_config.get("notification_cover") or []),
+                        category_login_config.get("notification_cover"),
+                    ],
+                    "notification_form": [
+                        *(login_config.get("notification_form") or []),
+                        category_login_config.get("notification_form"),
+                    ],
+                },
+            }
+
+        for key in ("notification_cover", "notification_form"):
+            notification = login_config.get(key)
+            if not notification:
+                continue
+            for notification_item in notification:
+                if not notification_item:
+                    continue
+                for field in ("title", "description"):
+                    if notification_item.get(field) is not None:
+                        notification_item[field] = html.unescape(
+                            notification_item[field]
+                        )
+                button = notification_item.get("button")
+                if isinstance(button, dict):
+                    for field in ("text", "url"):
+                        if button.get(field) is not None:
+                            button[field] = html.unescape(button[field])
+
+        return login_config
+
+    @staticmethod
+    def admin_get_login_config(category_id=None):
+        """Admin-only raw read of login config for editing.
+
+        Returns the **unmerged** payload — global config when no category
+        is supplied, the category's own ``login_notification`` row when
+        a category id is given. Used by the webapp admin "Edit login
+        notification" modal which needs to display the raw current
+        state, not the merged user-facing view.
+        """
+        if category_id and Category.exists(category_id):
+            login_config = Category(category_id).login_notification or {}
         else:
             login_config = Configuration().login or {}
 
         for key in ("notification_cover", "notification_form"):
-            notif = login_config.get(key)
-            if not isinstance(notif, dict):
+            notification = login_config.get(key)
+            if not isinstance(notification, dict):
                 continue
             for field in ("title", "description"):
-                if notif.get(field) is not None:
-                    notif[field] = html.unescape(notif[field])
-            button = notif.get("button")
+                if notification.get(field) is not None:
+                    notification[field] = html.unescape(notification[field])
+            button = notification.get("button")
             if isinstance(button, dict):
                 for field in ("text", "url"):
                     if button.get(field) is not None:

@@ -3,7 +3,7 @@ $(document).ready(function () {
         var modal = "#modalEditLoginNotification";
         $.ajax({
             type: "GET",
-            url: "/api/v4/item/login-config",
+            url: "/api/v4/admin/login-config",
         }).done(function (data) {
             populateLoginNotificationForm(modal, data);
         });
@@ -54,7 +54,7 @@ var _updatingCheckboxes = false;
 function showConfig() {
     $.ajax({
         type: "GET",
-        url: "/api/v4/item/login-config",
+        url: "/api/v4/admin/login-config",
     }).done(function (data) {
         _updatingCheckboxes = true;
         $("#enable_cover_notification_checkbox").iCheck(data.notification_cover?.enabled ? 'check' : 'uncheck');
