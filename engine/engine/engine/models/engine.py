@@ -28,7 +28,6 @@ from engine.services.db import (
     get_domain,
     get_domain_hyp_started,
     get_hypers_ids_with_status,
-    get_if_all_disk_template_created,
     update_domain_history_from_id_domain,
 )
 from engine.services.db.db import (
@@ -666,33 +665,6 @@ class Engine(object):
                             ssl=True,
                             start_paused=False,
                         )
-
-                    if old_status == "Stopped" and new_status == "CreatingTemplate":
-                        self._submit_action(
-                            ui.create_template_disks_from_domain, domain_id
-                        )
-
-                    if (
-                        old_status == "CreatingTemplateDisk"
-                        and new_status == "TemplateDiskCreated"
-                    ):
-
-                        def _template_disk_created_action(domain_id):
-                            # create_template_from_dict(dict_new_template)
-                            if get_if_all_disk_template_created(domain_id):
-                                ui.create_template_in_db(domain_id)
-                            else:
-                                # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
-                                # creación de una template con dos discos y ver si pasa por aquí
-                                # waiting to create other disks
-                                update_domain_status(
-                                    status="CreatingTemplateDisk",
-                                    id_domain=domain_id,
-                                    hyp_id=False,
-                                    detail="Waiting to create more disks for template",
-                                )
-
-                        self._submit_action(_template_disk_created_action, domain_id)
 
                     if (old_status == "Stopped" and new_status == "StartingPaused") or (
                         old_status == "Failed" and new_status == "StartingPaused"

@@ -726,8 +726,13 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
     :type origin_path: str
     :param destination_path: Path of the destination file
     :type destination_path: str
-    :param rsync: True to use rsync
-    :type rsync: bool
+    :param method: ``"mv"``, ``"rsync"``, or ``"auto"``. ``"auto"`` compares
+        ``os.stat(dirname(...)).st_dev`` on both sides and picks ``mv`` when
+        the directories share a filesystem (atomic rename, microseconds),
+        otherwise ``rsync`` (cross-fs, with progress). On ``OSError`` during
+        the probe it falls back to ``rsync`` — works cross-fs and creates the
+        destination dir.
+    :type method: str
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
@@ -741,6 +746,19 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
 
     if not isdir(dirname(destination_path)):
         makedirs(dirname(destination_path), exist_ok=True)
+
+    if method == "auto":
+        try:
+            src_dev = os_stat(dirname(origin_path)).st_dev
+            dst_dev = os_stat(dirname(destination_path)).st_dev
+            method = "mv" if src_dev == dst_dev else "rsync"
+        except OSError as exc:
+            log.warning(
+                "move(auto): st_dev probe failed (%s); falling back to rsync",
+                exc,
+            )
+            method = "rsync"
+
     if method == "mv":
         shutil.move(origin_path, destination_path)
         return 0
