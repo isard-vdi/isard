@@ -247,6 +247,12 @@ class DesktopService:
             if hasattr(data, "reservables") and data.reservables
             else {}
         )
+        # Vue 3 ships ``vgpus: ["None"]`` (the literal string list)
+        # to clear the GPU reservable. Coerce here so the booking
+        # layer doesn't treat ``["None"]`` as a real reservable
+        # later (would block start with "booking required").
+        if reservables.get("vgpus") == ["None"]:
+            reservables["vgpus"] = None
 
         user = RethinkUser(user_id)
         media = RethinkMedia(data.media_id)
