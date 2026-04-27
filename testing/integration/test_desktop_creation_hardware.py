@@ -322,7 +322,7 @@ def test_desktop_from_template_uses_explicit_hardware_in_xml(
     )
 
     # --- pin: apiv4 detail response reflects the explicit hardware.
-    details = admin_client.get(f"/api/v4/item/desktop/{derived_id}")
+    details = admin_client.get(f"/api/v4/item/desktop/{derived_id}/get-details")
     assert int(details["vcpu"]) == requested_vcpus
     assert abs(details["memory"] - requested_memory_gb) < 1e-3, (
         f"memory mismatch: got {details['memory']}, " f"expected {requested_memory_gb}"
@@ -389,7 +389,7 @@ def test_desktop_from_media_uses_explicit_hardware_in_xml(
         desktop_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
 
-    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}")
+    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}/get-details")
     assert int(details["vcpu"]) == requested_vcpus
     assert abs(details["memory"] - requested_memory_gb) < 1e-3, (
         f"memory mismatch: got {details['memory']}, " f"expected {requested_memory_gb}"
@@ -492,7 +492,7 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
     )
-    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}")
+    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}/get-details")
     assert int(details["vcpu"]) == v2_vcpus, (
         f"post-edit vcpu mismatch: got {details['vcpu']}, " f"expected {v2_vcpus}"
     )
@@ -582,7 +582,7 @@ def test_from_media_attaches_iso_with_boot_order_and_persists_reservables_shape(
     )
 
     # ── apiv4 detail response: media became an iso entry ───────────
-    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}")
+    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}/get-details")
     iso_ids = [iso.get("id") for iso in (details.get("isos") or [])]
     assert media_id in iso_ids, (
         f"from-media desktop did not include the source media in `isos`; "
@@ -692,7 +692,7 @@ def test_nonpersistent_desktop_inherits_template_hardware_in_xml(
         max_wait=CREATE_TIMEOUT,
     )
 
-    np_details = admin_client.get(f"/api/v4/item/desktop/{np_id}")
+    np_details = admin_client.get(f"/api/v4/item/desktop/{np_id}/get-details")
     template_details = admin_client.get(f"/api/v4/admin/domain/{template_id}/details")
 
     assert int(np_details["vcpu"]) == int(template_details.get("vcpu", 0)), (
@@ -779,7 +779,9 @@ def test_deployment_desktops_inherit_hardware_from_request(
         f"{[d.get('status') for d in deployment_desktops]!r}"
     )
 
-    detail = admin_client.get(f"/api/v4/item/desktop/{stopped_desktop['id']}")
+    detail = admin_client.get(
+        f"/api/v4/item/desktop/{stopped_desktop['id']}/get-details"
+    )
     assert int(detail["vcpu"]) == dep_vcpus, (
         f"deployment desktop vcpu mismatch: got {detail['vcpu']}, "
         f"expected {dep_vcpus}"
@@ -925,11 +927,21 @@ def test_edit_sets_forced_hyp_and_round_trips_to_admin_response(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
     )
 
-    # ── pin: admin GET reflects the persisted forced_hyp value ────
-    admin_resp = admin_client.raw("GET", f"/api/v4/admin/domain/{desktop_id}/details")
-    assert admin_resp.status_code == 200, admin_resp.text[:300]
-    admin_body = admin_resp.json() or {}
-    forced = admin_body.get("forced_hyp") or []
+    # ── pin: admin domains list reflects the persisted forced_hyp ────
+    # ``/admin/domain/<id>/details`` only exposes detail+description;
+    # ``/admin/domains`` is the wider admin listing that includes
+    # ``forced_hyp``, so we go through it to verify persistence.
+    def _admin_forced_hyp(d_id):
+        rows = (
+            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
+            or []
+        )
+        for row in rows:
+            if row.get("id") == d_id:
+                return row.get("forced_hyp") or []
+        raise AssertionError(f"desktop {d_id!r} not found in admin domains list")
+
+    forced = _admin_forced_hyp(desktop_id)
     assert hyp_id in forced, (
         f"forced_hyp not persisted: admin response forced_hyp={forced!r}, "
         f"expected to contain {hyp_id!r}"
@@ -943,10 +955,5 @@ def test_edit_sets_forced_hyp_and_round_trips_to_admin_response(
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
     )
-    admin_resp = admin_client.raw("GET", f"/api/v4/admin/domain/{desktop_id}/details")
-    assert admin_resp.status_code == 200
-    admin_body = admin_resp.json() or {}
-    assert not (admin_body.get("forced_hyp") or []), (
-        f"forced_hyp not cleared on empty-list edit: "
-        f"{admin_body.get('forced_hyp')!r}"
-    )
+    forced = _admin_forced_hyp(desktop_id)
+    assert not forced, f"forced_hyp not cleared on empty-list edit: {forced!r}"
