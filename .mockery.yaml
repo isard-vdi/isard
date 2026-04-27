@@ -44,6 +44,9 @@ packages:
       Interface:
         config:
           mockname: "Mock{{ .PackageName | camelcase }}"
+  gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4:
+    interfaces:
+      Invoker: {}
   gitlab.com/isard/isardvdi/pkg/gen/oas/notifier:
     interfaces:
       Invoker: {}

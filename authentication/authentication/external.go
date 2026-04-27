@@ -45,7 +45,7 @@ func (a *Authentication) ExternalUser(ctx context.Context, tkn string, UserID st
 		g.Description = "This is a auto register created by the authentication service. This group maps a group of an external app"
 		// Get the provider external
 		g.GenerateNameExternal(types.ProviderExternal)
-		err = a.registerGroup(g)
+		err = a.registerGroup(ctx, g)
 		if err != nil {
 			return "", err
 		}
@@ -90,7 +90,7 @@ func (a *Authentication) ExternalUser(ctx context.Context, tkn string, UserID st
 		return u.ID, ErrUserAlreadyExists
 	}
 
-	err = a.registerUser(u)
+	err = a.registerUser(ctx, u)
 	if err != nil {
 		return "", err
 	}

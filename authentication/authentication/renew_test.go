@@ -10,10 +10,10 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -113,7 +113,7 @@ func TestRenew(t *testing.T) {
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
-			apiMock := sdk.NewMockSdk(t)
+			apiMock := apiv4.NewMockInvoker(t)
 			dbMock := r.NewMock()
 
 			if tc.PrepareDB != nil {

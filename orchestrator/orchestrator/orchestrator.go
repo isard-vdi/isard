@@ -3,15 +3,18 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/log"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 
 	"github.com/rs/zerolog"
 )
@@ -30,7 +33,7 @@ type Orchestrator struct {
 	checkCli      checkv1.CheckServiceClient
 	apiAddress    string
 	apiSecret     string
-	apiCli        sdk.Interface
+	apiCli        apiv4.Invoker
 
 	scaleMux sync.Mutex
 	scaling  bool
@@ -53,7 +56,9 @@ type NewOrchestratorOpts struct {
 	CheckCfg cfg.Check
 	CheckCli checkv1.CheckServiceClient
 
-	APICli sdk.Interface
+	APIAddress string
+	APISecret  string
+	APICli     apiv4.Invoker
 }
 
 func New(cfg *NewOrchestratorOpts) *Orchestrator {
@@ -69,11 +74,26 @@ func New(cfg *NewOrchestratorOpts) *Orchestrator {
 		operationsCli: cfg.OperationsCli,
 		checkCfg:      cfg.CheckCfg,
 		checkCli:      cfg.CheckCli,
+		apiAddress:    cfg.APIAddress,
+		apiSecret:     cfg.APISecret,
 		apiCli:        cfg.APICli,
 
 		log: &log2,
 		wg:  cfg.WG,
 	}
+}
+
+func (o *Orchestrator) listOrchestratorHypervisors(ctx context.Context) ([]*model.Hypervisor, error) {
+	res, err := o.apiCli.AdminOrchestratorHypervisorsList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list orchestrator hypervisors: %w", err)
+	}
+
+	if v, ok := res.(*apiv4.AdminOrchestratorHypervisorsListOKApplicationJSON); ok {
+		return model.NewHypervisors([]apiv4.OrchestratorHypervisor(*v)), nil
+	}
+
+	return nil, ogenclient.AsAPIError(res)
 }
 
 func (o *Orchestrator) Start(ctx context.Context) {
@@ -86,7 +106,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 		default:
 			time.Sleep(o.pollingInterval)
 
-			hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
+			hypers, err := o.listOrchestratorHypervisors(ctx)
 			if err != nil {
 				o.log.Error().Err(err).Msg("get hypervisors")
 				continue
@@ -102,7 +122,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 			o.scaleMux.Unlock()
 
 			if !scaling {
-				hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
+				hypers, err := o.listOrchestratorHypervisors(ctx)
 				if err != nil {
 					o.log.Error().Err(err).Msg("get hypervisors")
 					continue

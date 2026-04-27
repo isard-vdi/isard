@@ -1,47 +1,54 @@
 package orchestrator
 
 import (
-	"context"
 	"errors"
 	"testing"
 
+	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
+	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model/testhelper"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestCleanup(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		PrepareAPI            func(*sdk.MockSdk)
-		APIHypervisors        []*sdk.OrchestratorHypervisor
+		PrepareAPI            func(*apiv4.MockInvoker)
+		APIHypervisors        []*model.Hypervisor
 		OperationsHypervisors []*operationsv1.ListHypervisorsResponseHypervisor
 		ExpectedErr           string
 	}{
 		"should kill the zombie hypervisor correctly": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("HypervisorDelete", mock.AnythingOfType("context.backgroundCtx"), "zombie").Return(nil)
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminHypervisorDelete", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminHypervisorDeleteParams{HyperID: "zombie"}).Return(&apiv4.EmptyResponse{}, nil)
 			},
-			APIHypervisors: []*sdk.OrchestratorHypervisor{{
-				ID:                  "zombie",
-				OrchestratorManaged: true,
-				Status:              sdk.HypervisorStatusOffline,
-			}, {
-				ID:                  "unmanaged-zombie",
-				OrchestratorManaged: false,
-				Status:              sdk.HypervisorStatusOffline,
-			}, {
-				ID:                  "just offline",
-				OrchestratorManaged: true,
-				Status:              sdk.HypervisorStatusOffline,
-			}, {
-				ID:                  "online",
-				OrchestratorManaged: true,
-				Status:              sdk.HypervisorStatusOnline,
-			}},
+			APIHypervisors: []*model.Hypervisor{
+				testhelper.Hypervisor(
+					testhelper.WithID("zombie"),
+					testhelper.WithOrchestratorManaged(true),
+					testhelper.WithStatus(model.HypervisorStatusOffline),
+				),
+				testhelper.Hypervisor(
+					testhelper.WithID("unmanaged-zombie"),
+					testhelper.WithOrchestratorManaged(false),
+					testhelper.WithStatus(model.HypervisorStatusOffline),
+				),
+				testhelper.Hypervisor(
+					testhelper.WithID("just offline"),
+					testhelper.WithOrchestratorManaged(true),
+					testhelper.WithStatus(model.HypervisorStatusOffline),
+				),
+				testhelper.Hypervisor(
+					testhelper.WithID("online"),
+					testhelper.WithOrchestratorManaged(true),
+					testhelper.WithStatus(model.HypervisorStatusOnline),
+				),
+			},
 			OperationsHypervisors: []*operationsv1.ListHypervisorsResponseHypervisor{{
 				Id: "just offline",
 			}, {
@@ -49,29 +56,32 @@ func TestCleanup(t *testing.T) {
 			}},
 		},
 		"should return an error if there's an error deleting the hypervisor": {
-			PrepareAPI: func(c *sdk.MockSdk) {
-				c.On("HypervisorDelete", mock.AnythingOfType("context.backgroundCtx"), "zombie").Return(errors.New("oh no :("))
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("AdminHypervisorDelete", mock.AnythingOfType("*context.cancelCtx"), apiv4.AdminHypervisorDeleteParams{HyperID: "zombie"}).Return(nil, errors.New("oh no :("))
 			},
-			APIHypervisors: []*sdk.OrchestratorHypervisor{{
-				ID:                  "zombie",
-				OrchestratorManaged: true,
-				Status:              sdk.HypervisorStatusOffline,
-			}},
+			APIHypervisors: []*model.Hypervisor{
+				testhelper.Hypervisor(
+					testhelper.WithID("zombie"),
+					testhelper.WithOrchestratorManaged(true),
+					testhelper.WithStatus(model.HypervisorStatusOffline),
+				),
+			},
 			OperationsHypervisors: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			ExpectedErr:           "kill zombie hypervisor 'zombie': oh no :(",
+			ExpectedErr:           "kill zombie hypervisor 'zombie': delete hypervisor \"zombie\": oh no :(",
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := sdk.NewMockSdk(t)
+			t.Parallel()
+			api := apiv4.NewMockInvoker(t)
 			o := &Orchestrator{
 				apiCli: api,
 			}
 
 			tc.PrepareAPI(api)
 
-			err := o.cleanup(context.Background(), tc.APIHypervisors, tc.OperationsHypervisors)
+			err := o.cleanup(t.Context(), tc.APIHypervisors, tc.OperationsHypervisors)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

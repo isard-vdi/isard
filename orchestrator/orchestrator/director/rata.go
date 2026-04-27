@@ -8,8 +8,10 @@ import (
 
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/log"
+	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/model"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 
 	"github.com/rs/zerolog"
 )
@@ -28,12 +30,12 @@ type Rata struct {
 	cfg    cfg.DirectorRata
 	dryRun bool
 
-	apiCli sdk.Interface
+	apiCli apiv4.Invoker
 
 	log *zerolog.Logger
 }
 
-func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli sdk.Interface) *Rata {
+func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli apiv4.Invoker) *Rata {
 	return &Rata{
 		cfg:    cfg,
 		dryRun: dryRun,
@@ -56,12 +58,12 @@ func (r *Rata) minCPU() int {
 	return getCurrentHourlyLimit(r.cfg.MinCPUHourly, time.Now())
 }
 
-func (r *Rata) hyperMinRAM(h *sdk.OrchestratorHypervisor) int {
-	return r.cfg.HyperMinRAM + (h.MinFreeMemGB * 1024) // we want it as MB, not GB
+func (r *Rata) hyperMinRAM(h *model.Hypervisor) int {
+	return r.cfg.HyperMinRAM + (h.MinFreeMemGB.Or(0) * 1024) // we want it as MB, not GB
 }
 
 // minRAM is the minimum MB of RAM that need to be free in the pool. If it's zero, it's not going to use it
-func (r *Rata) minRAM(hypers []*sdk.OrchestratorHypervisor) int {
+func (r *Rata) minRAM(hypers []*model.Hypervisor) int {
 	if r.cfg.MinRAMHourly != nil {
 		return getCurrentHourlyLimit(r.cfg.MinRAMHourly, time.Now())
 	}
@@ -99,12 +101,12 @@ func (r *Rata) minRAM(hypers []*sdk.OrchestratorHypervisor) int {
 	return 0
 }
 
-func (r *Rata) hyperMaxRAM(h *sdk.OrchestratorHypervisor) int {
-	return r.cfg.HyperMaxRAM + (h.MinFreeMemGB * 1024) // we want it as MB, not GB
+func (r *Rata) hyperMaxRAM(h *model.Hypervisor) int {
+	return r.cfg.HyperMaxRAM + (h.MinFreeMemGB.Or(0) * 1024) // we want it as MB, not GB
 }
 
 // maxRAM is the maximum MB of RAM that can to be free in the pool. If it's zero, it's not going to use it
-func (r *Rata) maxRAM(hypers []*sdk.OrchestratorHypervisor) int {
+func (r *Rata) maxRAM(hypers []*model.Hypervisor) int {
 	if r.cfg.MaxRAMHourly != nil {
 		return getCurrentHourlyLimit(r.cfg.MaxRAMHourly, time.Now())
 	}
@@ -141,47 +143,47 @@ func (r *Rata) maxRAM(hypers []*sdk.OrchestratorHypervisor) int {
 	return 0
 }
 
-func (r *Rata) needToLimitHypervisor(h *sdk.OrchestratorHypervisor) bool {
+func (r *Rata) needToLimitHypervisor(h *model.Hypervisor) bool {
 	return r.cfg.HyperMinCPU != 0 && (h.CPU.Free <= r.cfg.HyperMinCPU) ||
 		r.cfg.HyperMinRAM != 0 && (h.RAM.Free <= r.hyperMinRAM(h))
 }
 
-func (r *Rata) classifyHypervisors(hypers []*sdk.OrchestratorHypervisor) (
-	hypersToAcknowledge []*sdk.OrchestratorHypervisor,
-	hypersToHandle []*sdk.OrchestratorHypervisor,
-	hypersOnDeadRow []*sdk.OrchestratorHypervisor,
-	hypersLimited []*sdk.OrchestratorHypervisor) {
+func (r *Rata) classifyHypervisors(hypers []*model.Hypervisor) (
+	hypersToAcknowledge []*model.Hypervisor,
+	hypersToHandle []*model.Hypervisor,
+	hypersOnDeadRow []*model.Hypervisor,
+	hypersLimited []*model.Hypervisor) {
 
 	// hypersToAcknowledge are the hypervisors that need to be taken into account for all the calculations by this director
-	hypersToAcknowledge = []*sdk.OrchestratorHypervisor{}
+	hypersToAcknowledge = []*model.Hypervisor{}
 	// hypersToHandle are the hypervisors that can be handled by this director
-	hypersToHandle = []*sdk.OrchestratorHypervisor{}
+	hypersToHandle = []*model.Hypervisor{}
 	// hypersOnDeadRow are the hypervisors that we can handle and are on the dead row
-	hypersOnDeadRow = []*sdk.OrchestratorHypervisor{}
+	hypersOnDeadRow = []*model.Hypervisor{}
 	// hypersLimited are the hypervisors that have an active resource limit (e.g. they have too much CPU or RAM used)
-	hypersLimited = []*sdk.OrchestratorHypervisor{}
+	hypersLimited = []*model.Hypervisor{}
 
 	for _, h := range hypers {
 		// Check if we need to acknowledge the hypervisor
-		if h.Status == sdk.HypervisorStatusOnline &&
-			!h.Buffering &&
-			!h.GPUOnly {
+		if h.Status == model.HypervisorStatusOnline &&
+			!h.BufferingHyper.Or(false) &&
+			!h.GpuOnly.Or(false) {
 
-			if !h.OnlyForced {
+			if !h.OnlyForced.Or(false) {
 				hypersToAcknowledge = append(hypersToAcknowledge, h)
 			}
 
 			// Ensure we don't play with non orchestrator managed hypervisors! :)
-			if h.OrchestratorManaged {
+			if h.OrchestratorManaged.Or(false) {
 				hypersToHandle = append(hypersToHandle, h)
 
 				// Check if the hypervisor is in the dead row
-				if !h.DestroyTime.IsZero() {
+				if !h.DestroyTime().IsZero() {
 					hypersOnDeadRow = append(hypersOnDeadRow, h)
 
 					// If the hypervisor is not on the dead row but is only forced, is currently
 					// being resource limited
-				} else if h.OnlyForced {
+				} else if h.OnlyForced.Or(false) {
 					hypersLimited = append(hypersLimited, h)
 				}
 			}
@@ -231,8 +233,8 @@ func (r *Rata) bestHyperToCreate(hypersAvail []*operationsv1.ListHypervisorsResp
 
 // TODO: CPU
 // TODO: Capabilities
-func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*sdk.OrchestratorHypervisor, ramAvail, minCPU, minRAM int) *sdk.OrchestratorHypervisor {
-	var hyperToPardon *sdk.OrchestratorHypervisor
+func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*model.Hypervisor, ramAvail, minCPU, minRAM int) *model.Hypervisor {
+	var hyperToPardon *model.Hypervisor
 
 	for _, h := range hypersOnDeadRow {
 		enoughRAM := ramAvail+h.RAM.Free > minRAM
@@ -240,7 +242,7 @@ func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*sdk.OrchestratorHypervisor, 
 		if enoughRAM {
 			if hyperToPardon != nil {
 				// Get the hypervisor that has the furthest destroy time
-				if h.DestroyTime.Compare(hyperToPardon.DestroyTime) == 1 {
+				if h.DestroyTime().Compare(hyperToPardon.DestroyTime()) == 1 {
 					hyperToPardon = h
 				}
 
@@ -255,8 +257,8 @@ func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*sdk.OrchestratorHypervisor, 
 
 // TODO: CPU
 // TODO: Capabilities
-func (r *Rata) bestHyperToUnlimit(hypersToAcknowledge []*sdk.OrchestratorHypervisor, ramAvail, minCPU, minRAM int) *sdk.OrchestratorHypervisor {
-	var hyperToUnlimit *sdk.OrchestratorHypervisor
+func (r *Rata) bestHyperToUnlimit(hypersToAcknowledge []*model.Hypervisor, ramAvail, minCPU, minRAM int) *model.Hypervisor {
+	var hyperToUnlimit *model.Hypervisor
 
 	for _, h := range hypersToAcknowledge {
 		enoughRAM := ramAvail+h.RAM.Free > minRAM
@@ -279,12 +281,12 @@ func (r *Rata) bestHyperToUnlimit(hypersToAcknowledge []*sdk.OrchestratorHypervi
 	return hyperToUnlimit
 }
 
-func (r *Rata) bestHyperToDestroy(hypersToHandle []*sdk.OrchestratorHypervisor) *sdk.OrchestratorHypervisor {
+func (r *Rata) bestHyperToDestroy(hypersToHandle []*model.Hypervisor) *model.Hypervisor {
 	for _, h := range hypersToHandle {
 		// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
-		if !h.DestroyTime.IsZero() && (h.DestroyTime.Before(time.Now()) || h.DesktopsStarted == 0) {
+		if !h.DestroyTime().IsZero() && (h.DestroyTime().Before(time.Now()) || h.DesktopsStarted.Or(0) == 0) {
 			// Avoid killing hypervisors that aren't in only forced (are in use) due a mismanagement
-			if !h.OnlyForced {
+			if !h.OnlyForced.Or(false) {
 				r.log.Warn().Str("id", h.ID).Msg("avoided killing hypervisor due not being in only forced")
 				continue
 			}
@@ -298,12 +300,12 @@ func (r *Rata) bestHyperToDestroy(hypersToHandle []*sdk.OrchestratorHypervisor) 
 
 // TODO: CPU
 // TODO: Capabilities
-func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*sdk.OrchestratorHypervisor, ramAvail int) *sdk.OrchestratorHypervisor {
-	var deadRow *sdk.OrchestratorHypervisor
+func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*model.Hypervisor, ramAvail int) *model.Hypervisor {
+	var deadRow *model.Hypervisor
 
 	for _, h := range hypersToHandle {
 		// Calc limits as if the hypervisor was removed
-		reducedHypersToAcknowledge := make([]*sdk.OrchestratorHypervisor, len(hypersToAcknowledge))
+		reducedHypersToAcknowledge := make([]*model.Hypervisor, len(hypersToAcknowledge))
 		copy(reducedHypersToAcknowledge, hypersToAcknowledge)
 
 		for i, hyp := range reducedHypersToAcknowledge {
@@ -316,11 +318,11 @@ func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*s
 		maxRAM := r.maxRAM(reducedHypersToAcknowledge)
 
 		// Ensure the hypervisor is not on the dead row
-		canBeSentenced := h.DestroyTime.IsZero() &&
+		canBeSentenced := h.DestroyTime().IsZero() &&
 			(
 			// If the hypervisor is only forced, the maxRAM límit is set and we've reached the maxRAM limit
 			// (we don't need to check if we can remove it, since it's already not being counted for the ramAvail limit)
-			(h.OnlyForced && maxRAM > 0 && ramAvail > maxRAM) ||
+			(h.OnlyForced.Or(false) && maxRAM > 0 && ramAvail > maxRAM) ||
 				// If the maxRAM limit is set and if we remove it, we'll have enough RAM to meet the minRAM limit
 				(maxRAM > 0 && ramAvail > maxRAM && ramAvail-h.RAM.Free > minRAM))
 
@@ -341,7 +343,7 @@ func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*s
 }
 
 // TODO: Start a smaller available hypervisor in order to scale down afterwards
-func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*sdk.OrchestratorHypervisor) (NeedToScaleHypervisorsResult, error) {
+func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*model.Hypervisor) (NeedToScaleHypervisorsResult, error) {
 	operationsHypersAvail := []*operationsv1.ListHypervisorsResponseHypervisor{}
 availHypersLoop:
 	for _, h := range operationsHypers {
@@ -451,12 +453,12 @@ availHypersLoop:
 	return NeedToScaleHypervisorsResult{}, nil
 }
 
-func (r *Rata) ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHypervisor) error {
+func (r *Rata) ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) error {
 	_, hypersToManage, _, _ := r.classifyHypervisors(hypers)
 	for _, h := range hypersToManage {
 		// Don't run extra operations on hypervisors on the dead row
-		if h.DestroyTime.IsZero() {
-			switch h.OnlyForced {
+		if h.DestroyTime().IsZero() {
+			switch h.OnlyForced.Or(false) {
 			// Set the hypervisors to only forced if there's too much load
 			case false:
 				if r.needToLimitHypervisor(h) {
@@ -465,7 +467,7 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHy
 						r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_min_cpu", r.cfg.HyperMinCPU).Int("hyper_min_ram", r.hyperMinRAM(h)).Msg("set hypervisor to only_forced")
 
 					} else {
-						if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, true); err != nil {
+						if err := r.adminHypervisorOnlyForced(ctx, h.ID, true); err != nil {
 							return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
 						}
 
@@ -478,7 +480,7 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHy
 			case true:
 				// Don't touch hypervisors without desktops, they are probably going to
 				// be killed
-				if h.DesktopsStarted != 0 &&
+				if h.DesktopsStarted.Or(0) != 0 &&
 					// If the hypervisor has now enough free CPU
 					(r.cfg.HyperMaxCPU != 0 && (h.CPU.Free > r.cfg.HyperMaxCPU) ||
 						// If the hypervisor has now enough free RAM
@@ -488,7 +490,7 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHy
 						r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.cfg.HyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM(h)).Msg("remove hypervisor from only_forced")
 
 					} else {
-						if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, false); err != nil {
+						if err := r.adminHypervisorOnlyForced(ctx, h.ID, false); err != nil {
 							return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
 						}
 
@@ -501,6 +503,26 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHy
 	}
 
 	return nil
+}
+
+func (r *Rata) adminHypervisorOnlyForced(ctx context.Context, id string, onlyForced bool) error {
+	body := apiv4.AdminTableUpdateReq{
+		"id":          model.MustJxRaw(id),
+		"only_forced": model.MustJxRaw(onlyForced),
+	}
+
+	res, err := r.apiCli.AdminTableUpdate(ctx, body, apiv4.AdminTableUpdateParams{
+		Table: "hypervisors",
+	})
+	if err != nil {
+		return fmt.Errorf("update hypervisor only_forced: %w", err)
+	}
+
+	if _, ok := res.(*apiv4.EmptyResponse); ok {
+		return nil
+	}
+
+	return ogenclient.AsAPIError(res)
 }
 
 /*

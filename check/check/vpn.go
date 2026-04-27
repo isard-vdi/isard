@@ -8,19 +8,32 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"gitlab.com/isard/isardvdi/pkg/ssh"
 	stdSSH "golang.org/x/crypto/ssh"
 )
 
-func (c *Check) testVPN(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, ip string) error {
-	vpn, err := cli.UserVPN(ctx)
+func (c *Check) testVPN(ctx context.Context, cli apiv4.Invoker, sshCli *stdSSH.Client, ip string) error {
+	res, err := cli.GetUserVpnByKind(ctx, apiv4.GetUserVpnByKindParams{
+		Kind: "config",
+	})
 	if err != nil {
 		return fmt.Errorf("get the VPN file: %w", err)
 	}
 
+	v, ok := res.(*apiv4.UserVpnData)
+	if !ok {
+		return fmt.Errorf("get the VPN file: %w", ogenclient.AsAPIError(res))
+	}
+
+	content, ok := v.Content.Get()
+	if !ok {
+		return errors.New("empty VPN configuration content")
+	}
+
 	fPath := fmt.Sprintf("./%d.conf", time.Now().Unix())
-	if err := ssh.WriteFile(sshCli, fPath, []byte(vpn)); err != nil {
+	if err := ssh.WriteFile(sshCli, fPath, []byte(content)); err != nil {
 		return fmt.Errorf("save VPN configuration: %w", err)
 	}
 
