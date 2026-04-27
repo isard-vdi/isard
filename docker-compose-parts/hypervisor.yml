@@ -28,9 +28,10 @@ services:
       - /dev/vfio:/dev/vfio
       - /dev/hugepages:/dev/hugepages
       - /lib/modules:/lib/modules:ro
-      # NVIDIA GPU support: nvidia-smi binary and management library for GPU discovery
+      # NVIDIA GPU support: binaries and management library for GPU discovery
       - ${NVIDIA_SMI_PATH:-/usr/bin/nvidia-smi}:/usr/bin/nvidia-smi:ro
       - ${NVIDIA_ML_LIB_PATH:-/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1}:/usr/lib/libnvidia-ml.so.1:ro
+      - ${NVIDIA_SRIOV_MANAGE_PATH:-/usr/lib/nvidia/sriov-manage}:/usr/bin/sriov-manage:ro
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard-local/hypervisor/custom_networks:/opt/custom_networks
