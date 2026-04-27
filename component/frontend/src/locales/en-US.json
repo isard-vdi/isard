@@ -1663,7 +1663,8 @@
           "networks": "Networks",
           "direct-link": "Direct Link",
           "recreate": "Recreate",
-          "change-image": "Change image"
+          "change-image": "Change image",
+          "storage": "Storage"
         },
         "overlay": {
           "expand": "Details",
@@ -1755,6 +1756,55 @@
         },
         "debug-options": {
           "copy-id": "Copy Desktop ID"
+        }
+      },
+      "desktop-storage-modal": {
+        "title": "Storage — {name}",
+        "description": "Storage disks attached to this desktop. Actions are available while the desktop is stopped.",
+        "close": "Close",
+        "no-storages": "This desktop has no storage attached.",
+        "load-error": "Could not load storage details.",
+        "virtual-size": "Virtual size",
+        "actual-size": "Actual size",
+        "status": {
+          "ready": "Ready",
+          "maintenance": "In maintenance",
+          "deleted": "Deleted",
+          "orphan": "Orphan",
+          "broken_chain": "Broken chain",
+          "non_existing": "Not yet created",
+          "downloading": "Downloading",
+          "unknown": "Unknown"
+        },
+        "actions": {
+          "cancel": "Cancel operation",
+          "cancel-tooltip": "Cancel the storage task currently running on this disk.",
+          "increase": "Increase size",
+          "increase-tooltip": "Add capacity to the disk.",
+          "increase-needs-stopped": "The desktop must be stopped to increase the disk size.",
+          "increase-needs-ready": "The disk must be ready to be resized.",
+          "no-actions": "No actions available for this storage."
+        },
+        "cancel-modal": {
+          "title": "Cancel storage operation?",
+          "description": "Cancel the running storage task on {name}? Partial files may be cleaned up after the task is aborted.",
+          "dismiss": "Keep running",
+          "confirm": "Cancel operation",
+          "fallback-error": "Could not cancel the storage operation."
+        },
+        "increase-modal": {
+          "title": "Increase disk size",
+          "description": "Add capacity to the desktop's disk. The increment is applied to the virtual size and cannot be undone.",
+          "field-label": "Increment in GB",
+          "field-placeholder": "10",
+          "help": "The disk grows by the specified amount of gigabytes. Quotas are enforced server-side.",
+          "dismiss": "Cancel",
+          "confirm": "Increase",
+          "fallback-error": "Could not increase the disk size."
+        },
+        "error": {
+          "title": "Storage action failed",
+          "close": "Dismiss"
         }
       },
       "quota-exceeded-modal": {

@@ -2085,8 +2085,13 @@ $(document).on('click', '.btn-uuid-set-path', function () {
 });
 
 function detailButtons(storage) {
-  return storage.status == "ready" ?
-    `<div class="col-md-12 col-sm-12 col-xs-12">
+  // Replaces the previous inline button cluster (Move / Increase /
+  // Sparsify / etc.) with a single "Storage actions" button that opens
+  // the existing #modalSearchStorage modal pre-populated for this row.
+  // The modal already shows storage info and the same action buttons,
+  // grouped by role — see storage_modals.html (#storage-action-buttons).
+  if (storage.status != "ready") return "";
+  return `<div class="col-md-12 col-sm-12 col-xs-12">
       <div class="x_panel" style="background-color: #F7F7F7;">
         <div class="row">
           <div class="col-md-12 col-sm-12 col-xs-12">
@@ -2094,37 +2099,10 @@ function detailButtons(storage) {
               <div class="row">
                 <div class="col-md-12 col-sm-12 col-xs-12">
                   <div class="x_panel" style="margin:3px;">
-                    <button class="btn btn-success btn-xs btn-move" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
-                      Move
+                    <button class="btn btn-info btn-xs btn-storage-actions" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Open storage info and actions"><i class="fa fa-cogs m-right-xs"></i>
+                      Storage actions
                     </button>
-                    <!--<button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" data-current_type=${storage.type} type="button"
-                      data-placement="top" title="Convert to another disk format"><i class="fa fa-exchange m-right-xs"></i>
-                      Convert
-                    </button>-->
-                    <button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Add windows registry"><i class="fa fa-edit m-right-xs"></i>
-                      Windows registry
-                    </button>
-                    <button class="btn btn-info btn-xs btn-increase" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Increase disk size"><i class="fa fa-external-link-square m-right-xs"></i>
-                      Increase
-                    </button>
-                ${(function () {
-                  return ($("#user_data").data("role") == "admin") ? `
-                    <button class="btn btn-info btn-xs btn-create" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Create new disk derivated from this one"><i class="fa fa-plus m-right-xs"></i>
-                      Add disk
-                    </button>
-                    <button class="btn btn-info btn-xs btn-sparsify" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Sparsify disk"><i class="fa fa-compress m-right-xs"></i>
-                      Sparsify disk
-                    </button>
-                    <button class="btn btn-info btn-xs btn-disconnect" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Disconnect storage from backing chain"><i class="fa fa-plug m-right-xs"></i>
-                      Disconnect
-                    </button>` : ""
-                  })()}
                   </div>
                 </div>
               </div>
@@ -2132,8 +2110,16 @@ function detailButtons(storage) {
           </div>
         </div>
       </div>
-    </div>` : "";
+    </div>`;
 }
+
+// Single entry point for the per-row actions modal. Mirrors the
+// btn-info handler but lives on the detail-row panel so admins don't
+// have to scroll back up to the per-row info icon after expanding a
+// chain.
+$(document).on('click', '.btn-storage-actions', function () {
+  openStorageSearchModal($(this).data('id'));
+});
 
 function populateDiskFormatSelects(currentType) {
   $("#current-disk_format").append(`<option selected disabled value="${currentType}">.${currentType}</option>`);

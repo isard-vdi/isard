@@ -55,6 +55,7 @@ const emit = defineEmits<{
   editDesktop: [UserDesktop]
   createTemplate: [UserDesktop]
   changeImage: [UserDesktop]
+  showStorageModal: [UserDesktop]
   // goTo*: [UserDesktop]
 }>()
 
@@ -191,6 +192,7 @@ const headers = [
               @show-recreate-modal="emit('showRecreateModal', row)"
               @create-template="emit('createTemplate', row)"
               @change-image="emit('changeImage', row)"
+              @show-storage-modal="emit('showStorageModal', row)"
             />
           </DropdownMenuContent>
         </DropdownMenu>
