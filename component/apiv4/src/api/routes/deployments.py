@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 import traceback
 
 from api import advanced_router, manager_router, token_router
@@ -497,7 +498,16 @@ async def recreate_deployment(
     owns_deployment_id=Depends(owns_deployment_id()),
 ):
     try:
-        DeploymentService.recreate_desktops(request.token_payload, deployment_id)
+        # ``recreate_desktops`` loops over every desktop in the
+        # deployment doing sync ``RethinkDomain.delete()`` per item
+        # plus a recreate dispatch. Offload to a worker thread so
+        # the event loop stays free for SocketIO and concurrent
+        # HTTP traffic during a multi-desktop recreate.
+        await asyncio.to_thread(
+            DeploymentService.recreate_desktops,
+            request.token_payload,
+            deployment_id,
+        )
         return JSONResponse(
             content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
             status_code=200,

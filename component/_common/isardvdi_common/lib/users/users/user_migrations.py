@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 import logging as logger
 import time
 import traceback
@@ -473,41 +474,50 @@ class UserMigrationsProcessed(RethinkSharedConnection):
 
     @classmethod
     async def process_automigrate_user(cls, user_id, target_user_id, migration_token):
-        user_data = Helpers.get_new_user_data(target_user_id)
-        cls.update_user_migration(
-            migration_token, "migrating", migration_start_time=True
-        )
-        result = cls.automigrate_user(user_id, user_data, migration_token)
-        if any(
-            s in result
-            for s in [
-                "desktops_error",
-                "templates_error",
-                "media_error",
-                "deployments_error",
-            ]
-        ):
+        # The whole body is sync RethinkDB I/O plus a long-running
+        # ``automigrate_user`` that walks every desktop / template /
+        # media / deployment owned by the source user. Running on the
+        # asyncio event loop would freeze apiv4 for the duration of
+        # the migration. Offload to a worker thread so the loop stays
+        # responsive.
+        def _sync_body():
+            user_data = Helpers.get_new_user_data(target_user_id)
             cls.update_user_migration(
-                migration_token, "failed", migration_end_time=True
+                migration_token, "migrating", migration_start_time=True
             )
-        else:
-            cls.update_user_migration(
-                migration_token, "migrated", migration_end_time=True
-            )
-            with cls._rdb_context():
-                provider_migration_config = (
-                    r.table("config")
-                    .get(1)["auth"][user_data["payload"]["provider"]]
-                    .run(cls._rdb_connection)
+            result = cls.automigrate_user(user_id, user_data, migration_token)
+            if any(
+                s in result
+                for s in [
+                    "desktops_error",
+                    "templates_error",
+                    "media_error",
+                    "deployments_error",
+                ]
+            ):
+                cls.update_user_migration(
+                    migration_token, "failed", migration_end_time=True
                 )
-            action_after_migrate = provider_migration_config.get("migration", {}).get(
-                "action_after_migrate", ""
-            )
-            if action_after_migrate == "delete":
-                UsersProcessed.delete_user(user_id, user_id, True)
-            elif action_after_migrate == "disable":
-                UsersProcessed.update_user(user_id, {"active": False})
-        return result
+            else:
+                cls.update_user_migration(
+                    migration_token, "migrated", migration_end_time=True
+                )
+                with cls._rdb_context():
+                    provider_migration_config = (
+                        r.table("config")
+                        .get(1)["auth"][user_data["payload"]["provider"]]
+                        .run(cls._rdb_connection)
+                    )
+                action_after_migrate = provider_migration_config.get(
+                    "migration", {}
+                ).get("action_after_migrate", "")
+                if action_after_migrate == "delete":
+                    UsersProcessed.delete_user(user_id, user_id, True)
+                elif action_after_migrate == "disable":
+                    UsersProcessed.update_user(user_id, {"active": False})
+            return result
+
+        return await asyncio.to_thread(_sync_body)
 
     @classmethod
     def automigrate_user(cls, user_id, user_data, migration_token):

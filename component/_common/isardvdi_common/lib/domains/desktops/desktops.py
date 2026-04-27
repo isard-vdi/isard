@@ -276,7 +276,22 @@ class DesktopsProcessed(RethinkSharedConnection):
                 [deployment["user"]] + deployment["co_owners"],
             )
             for desktop in desktops:
-                result = cls.new_from_template(
+                # ``new_from_template`` and ``set_current_booking`` are
+                # both sync and hit RethinkDB / Redis. Running them in
+                # the asyncio event loop blocks every other request
+                # served by this process for the duration of the call
+                # (~250 ms each, more on a slow disk). ``asyncio.to_thread``
+                # offloads the sync work to the default executor while
+                # ``await`` keeps the event loop free for HTTP traffic
+                # and SocketIO broadcasts. The loop body remains
+                # sequential — the rethinkdb sync driver serialises
+                # access through ``_rdb_connection`` anyway, so true
+                # parallelism would need a per-task connection or the
+                # rethinkdb asyncio backend; not the goal here. The
+                # win is just keeping the event loop responsive during
+                # a bulk deployment.
+                result = await asyncio.to_thread(
+                    cls.new_from_template,
                     desktop["name"],
                     desktop["description"],
                     desktop["template_id"],
@@ -288,22 +303,19 @@ class DesktopsProcessed(RethinkSharedConnection):
                     soft=True,
                 )
                 if result is not None:
-                    Helpers.set_current_booking(
+                    await asyncio.to_thread(
+                        Helpers.set_current_booking,
                         {
                             "id": result["id"],
                             "tag": result["tag"],
                             "create_dict": result["create_dict"],
-                        }
+                        },
                     )
                 # Throttle ported from the legacy gevent.spawn version
                 # (api/src/api/libv2/api_desktops_persistent.py on main).
                 # Under gevent the original ``time.sleep(0.25)`` was
-                # monkey-patched into a cooperative yield, so other
-                # greenlets (including HTTP handlers) ran during the
-                # nap. Under asyncio ``time.sleep`` blocks the entire
-                # event loop — for a 22-desktop deployment that's
-                # 5.5 s during which no other request to apiv4 can be
-                # served, so the UX freezes. ``asyncio.sleep`` yields.
+                # monkey-patched into a cooperative yield. Under
+                # asyncio ``await asyncio.sleep`` is the equivalent.
                 await asyncio.sleep(0.25)
             send_socket_user(
                 "end_creating_desktops",

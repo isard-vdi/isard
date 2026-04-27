@@ -113,7 +113,12 @@ class RecycleBinService:
 
     @staticmethod
     async def bulk_restore(recycle_bin_ids: list[str], user_id: str) -> list[str]:
-        async def _process():
+        # ``CommonRecycleBin.restore()`` is sync RethinkDB I/O — running
+        # it on the asyncio loop blocks every other request for
+        # ~50-150 ms per item. Offload the whole sequential body to a
+        # worker thread via ``asyncio.create_task(asyncio.to_thread(...))``
+        # so the loop stays responsive while the bulk operation runs.
+        def _process_sync():
             try:
                 for rb_id in recycle_bin_ids:
                     rb = CommonRecycleBin(id=rb_id)
@@ -122,7 +127,7 @@ class RecycleBinService:
             except Exception as e:
                 log.error("Bulk restore failed: %s", e)
 
-        asyncio.create_task(_process())
+        asyncio.create_task(asyncio.to_thread(_process_sync))
         return recycle_bin_ids
 
     @staticmethod
