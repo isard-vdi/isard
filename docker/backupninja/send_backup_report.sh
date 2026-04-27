@@ -1,18 +1,24 @@
 #!/bin/bash
 
-LOG_FILE="/var/log/backupninja.log"
+set -u
 
-# Determine backup type based on context (default to automated for scheduled runs)
+LOG_FILE="${LOG_FILE:-/var/log/backupninja.log}"
+
+# If the caller set BACKUP_TYPE, honour it (e.g. manual runs). Cron-driven
+# invocations inherit "automated" from the generated 90-session-report-*.sh.
 BACKUP_TYPE_FOR_SESSION="${BACKUP_TYPE:-automated}"
 
-# Add backup session end marker BEFORE calling the parser
-echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: $BACKUP_TYPE_FOR_SESSION full backup completed" >> "$LOG_FILE"
+# Session end marker. The parser reads the timestamp, not the text, so the
+# trailing description is informational only. We still include the type for
+# readability when tailing the log.
+printf '%s Info: BACKUP_SESSION_END: %s backup completed\n' \
+    "$(date '+%Y-%m-%dT%H:%M:%S')" \
+    "$BACKUP_TYPE_FOR_SESSION" >>"$LOG_FILE"
 
-# Force flush to disk
 sync
 
-# Set backup type for the parser
-export BACKUP_TYPE="automated"
+# Parser consults BACKUP_TYPE as a fallback. Export the caller's value; do
+# not overwrite it to "automated".
+export BACKUP_TYPE="$BACKUP_TYPE_FOR_SESSION"
 
-# Execute the backup report script
 python3 /usr/local/bin/backup_report.py

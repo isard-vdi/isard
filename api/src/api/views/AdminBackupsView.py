@@ -26,24 +26,31 @@ from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from ..libv2.api_backups import admin_backup_get, admin_backup_insert, admin_backup_list
-from .decorators import is_admin
+from ..libv2.api_backups import (
+    admin_backup_get,
+    admin_backup_insert,
+    admin_backup_list,
+    get_integrity_enabled,
+    set_integrity_enabled,
+)
+from .decorators import is_admin, is_internal_service
 
 
 @app.route("/api/v3/admin/backups", methods=["GET"])
 @is_admin
 def api_v3_admin_backups(payload):
-    """
-    Backup management endpoint for administrators (read-only)
-    """
+    """Backup management endpoint for administrators (read-only)."""
     options = request.args
-
     if options.get("id"):
-        result = admin_backup_get(options.get("id"), pluck=options.get("pluck"))
-    else:
-        result = admin_backup_list()
+        return admin_backup_get(options.get("id"), pluck=options.get("pluck"))
 
-    return result
+    limit = options.get("limit")
+    try:
+        limit = int(limit) if limit else None
+    except (TypeError, ValueError):
+        raise Error("bad_request", "limit must be an integer")
+
+    return admin_backup_list(limit=limit)
 
 
 @app.route("/api/v3/admin/backups/<backup_id>", methods=["GET"])
@@ -52,23 +59,45 @@ def api_v3_admin_backup(payload, backup_id):
     """
     Individual backup view endpoint (read-only)
     """
-    result = admin_backup_get(backup_id)
-    return result
+    return admin_backup_get(backup_id)
 
 
 @app.route("/api/v3/backups", methods=["POST"])
-@is_admin
+@is_internal_service
 def api_v3_backup_report(payload):
     """
-    Endpoint for backupninja to send backup reports
-    This endpoint accepts backup reports from the backup service
+    Ingestion endpoint for backupninja. Rejects non-service callers so
+    regular admin users cannot forge or pollute backup history.
     """
     try:
         data = request.get_json(force=True)
-        result = admin_backup_insert(data)
-        return result
     except Exception as e:
-        raise Error("bad_request", "Invalid backup report data: " + str(e))
+        raise Error("bad_request", "Invalid JSON payload: " + str(e))
+
+    if not isinstance(data, dict):
+        raise Error("bad_request", "Backup report must be a JSON object")
+
+    return admin_backup_insert(data)
+
+
+@app.route("/api/v3/admin/backups/integrity", methods=["GET"])
+@is_admin
+def api_v3_admin_backup_integrity_get(payload):
+    """Return the weekly borg integrity check toggle."""
+    return {"integrity_enabled": get_integrity_enabled()}
+
+
+@app.route("/api/v3/admin/backups/integrity", methods=["PUT"])
+@is_admin
+def api_v3_admin_backup_integrity_set(payload):
+    """Enable or disable the weekly borg integrity check."""
+    try:
+        data = request.get_json(force=True)
+    except Exception as e:
+        raise Error("bad_request", "Invalid JSON payload: " + str(e))
+    if not isinstance(data, dict) or "integrity_enabled" not in data:
+        raise Error("bad_request", "Expected JSON object with integrity_enabled")
+    return set_integrity_enabled(data["integrity_enabled"])
 
 
 @app.route("/api/v3/admin/backups/config", methods=["GET"])
@@ -83,13 +112,11 @@ def api_v3_admin_backup_config(payload):
         if not schedule_env:
             return None
 
-        # Match patterns like "everyday at 19" or "everyday at 19:00"
         match = re.search(r"at\s+(\d{1,2})(?::\d{2})?", schedule_env)
         if match:
             return int(match.group(1))
         return None
 
-    # Get backup schedule from environment variables
     config = {
         "schedule": {
             "db": parse_backup_schedule(os.getenv("BACKUP_DB_WHEN", "")),
@@ -107,7 +134,6 @@ def api_v3_admin_backup_config(payload):
         },
     }
 
-    # Get the most common schedule hour as the main schedule
     schedule_hours = [h for h in config["schedule"].values() if h is not None]
     if schedule_hours:
         config["main_schedule_hour"] = max(

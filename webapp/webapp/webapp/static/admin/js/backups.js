@@ -5,15 +5,52 @@
 * License: AGPLv3
 */
 
-// Helper function to format duration in seconds to human readable format
+// Helper function to format duration in seconds to human readable format.
+// Picks the largest applicable unit and shows up to two trailing components,
+// e.g. 35421 -> "9h 50m", 125 -> "2m 5s", 95000 -> "1d 2h".
 function formatDuration(seconds) {
-    if (!seconds || seconds < 1) return '< 1s';
-    var minutes = Math.floor(seconds / 60);
-    var remainingSeconds = Math.floor(seconds % 60);
-    if (minutes > 0) {
-        return minutes + 'm ' + remainingSeconds + 's';
+    if (seconds === null || seconds === undefined) return 'N/A';
+    seconds = Math.floor(Number(seconds));
+    if (!isFinite(seconds) || seconds < 1) return '< 1s';
+    var d = Math.floor(seconds / 86400);
+    var h = Math.floor((seconds % 86400) / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    var s = seconds % 60;
+    if (d > 0) return d + 'd ' + h + 'h';
+    if (h > 0) return h + 'h ' + m + 'm';
+    if (m > 0) return m + 'm ' + s + 's';
+    return s + 's';
+}
+
+// Parse a borg human-formatted size like "3.6 T" / "41.9 G" / "9.6 M" into
+// bytes. Backup reports use 1024-based units (see format_bytes in
+// backup_report.py); this helper must match that base.
+function parseBorgSize(s) {
+    if (s === null || s === undefined) return 0;
+    var m = String(s).match(/^\s*([\d.]+)\s*([KMGTPB]?)/i);
+    if (!m) return 0;
+    var n = parseFloat(m[1]);
+    if (!isFinite(n)) return 0;
+    var unit = (m[2] || 'B').toUpperCase();
+    var mults = { B: 1, K: 1024, M: 1048576, G: 1073741824, T: 1099511627776, P: 1125899906842624 };
+    return n * (mults[unit] || 1);
+}
+
+// Format a byte count to a 1024-based human string (matches format_bytes() in
+// backup_report.py). Idempotent: already-formatted strings like "3.6 T" are
+// returned unchanged.
+function formatBytes(value) {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'string' && /[KMGTP]/i.test(value)) return value;
+    var n = Number(value);
+    if (!isFinite(n) || n <= 0) return '0 B';
+    var units = ['B', 'K', 'M', 'G', 'T', 'P'];
+    var i = 0;
+    while (n >= 1024 && i < units.length - 1) {
+        n /= 1024;
+        i++;
     }
-    return remainingSeconds + 's';
+    return n.toFixed(1) + ' ' + units[i];
 }
 
 // Helper function to render backup type icons
@@ -125,8 +162,8 @@ $(document).ready(function () {
             {
                 data: 'duration',
                 render: function (data, type, row) {
-                    if (type === 'display' && data) {
-                        return data + 's';
+                    if (type === 'display') {
+                        return formatDuration(data);
                     }
                     return data || 'N/A';
                 }
@@ -148,21 +185,17 @@ $(document).ready(function () {
                 data: 'backup_types',
                 render: function (data, type, row) {
                     if (type === 'display' && data) {
-                        var types = Object.keys(data);
-                        var totalSize = 0;
-                        var totalCompressed = 0;
-                        
-                        types.forEach(function(type) {
-                            if (data[type] && data[type].borg_statistics) {
-                                // Simple estimation - in real implementation this would be calculated properly
-                                totalSize += 100; // Placeholder
-                                totalCompressed += 70; // Placeholder  
-                            }
+                        var totalOriginal = 0;
+                        var totalDedup = 0;
+                        Object.keys(data).forEach(function (k) {
+                            var bs = data[k] && data[k].borg_statistics;
+                            if (!bs) return;
+                            totalOriginal += parseBorgSize(bs.original_size);
+                            totalDedup    += parseBorgSize(bs.deduplicated_size);
                         });
-                        
-                        if (totalSize > 0) {
-                            var ratio = ((totalSize - totalCompressed) / totalSize * 100).toFixed(1);
-                            return ratio + '% saved';
+                        if (totalOriginal > 0 && totalDedup > 0) {
+                            var saved = (totalOriginal - totalDedup) / totalOriginal * 100;
+                            return saved.toFixed(1) + '% saved';
                         }
                     }
                     return 'N/A';
@@ -206,6 +239,51 @@ $(document).ready(function () {
         backupsTable.ajax.reload();
     });
 
+    // Integrity check toggle
+    function loadIntegrityToggle() {
+        $.ajax({
+            url: '/api/v3/admin/backups/integrity',
+            type: 'GET',
+            success: function (data) {
+                $('#integrity-enabled').prop('checked', !!(data && data.integrity_enabled));
+            }
+        });
+    }
+    loadIntegrityToggle();
+
+    $('#integrity-save').on('click', function () {
+        var enabled = $('#integrity-enabled').is(':checked');
+        $.ajax({
+            url: '/api/v3/admin/backups/integrity',
+            type: 'PUT',
+            data: JSON.stringify({ integrity_enabled: enabled }),
+            contentType: 'application/json',
+            accept: 'application/json',
+            success: function () {
+                new PNotify({
+                    title: 'Integrity check ' + (enabled ? 'enabled' : 'disabled'),
+                    text: 'Restart the backupninja container to apply.',
+                    hide: true,
+                    delay: 3000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: 'success'
+                });
+            },
+            error: function (xhr) {
+                new PNotify({
+                    title: 'Error saving integrity setting',
+                    text: (xhr.responseJSON && xhr.responseJSON.description) || xhr.statusText,
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-alert-sign',
+                    opacity: 1,
+                    type: 'error'
+                });
+            }
+        });
+    });
+
     // Clear filters
     $('#clear-filters').on('click', function () {
         $('#filter-type').val('');
@@ -213,13 +291,12 @@ $(document).ready(function () {
         backupsTable.columns().search('').draw();
     });
 
-    // Apply filters
+    // Apply filters. Column indexes correspond to the <thead> order:
+    //   0 Timestamp, 1 Type, 2 Status, 3 Scope, …
     $('#filter-type, #filter-status').on('change', function () {
-        var typeFilter = $('#filter-type').val();
-        var statusFilter = $('#filter-status').val();
-
-        backupsTable.column(1).search(typeFilter).draw();
-        backupsTable.column(2).search(statusFilter).draw();
+        backupsTable.column(1).search($('#filter-type').val() || '', false, false);
+        backupsTable.column(2).search($('#filter-status').val() || '', false, false);
+        backupsTable.draw();
     });
 
     // View details button
@@ -333,10 +410,11 @@ $(document).ready(function () {
                             if (repoData.latest_archive && repoData.latest_archive.stats) {
                                 var stats = repoData.latest_archive.stats;
                                 if (stats.deduplicated_size) {
-                                    content += ' Size: ' + stats.deduplicated_size;
+                                    content += ' Size: ' + formatBytes(stats.deduplicated_size);
                                 }
-                                if (stats.file_count) {
-                                    content += ', Files: ' + stats.file_count.toLocaleString();
+                                var files = stats.nfiles || stats.file_count;
+                                if (files) {
+                                    content += ', Files: ' + Number(files).toLocaleString();
                                 }
                             }
                             content += '</li>';
@@ -445,8 +523,8 @@ $(document).ready(function () {
                             }
                             // Calculate and show efficiency ratio
                             if (stats.original_size && stats.deduplicated_size) {
-                                var origSize = parseFloat(stats.original_size.replace(/[^0-9.]/g, '')) || 0;
-                                var dedupSize = parseFloat(stats.deduplicated_size.replace(/[^0-9.]/g, '')) || 0;
+                                var origSize = parseBorgSize(stats.original_size);
+                                var dedupSize = parseBorgSize(stats.deduplicated_size);
                                 if (origSize > 0 && dedupSize > 0) {
                                     var efficiency = origSize / dedupSize;
                                     content += '<strong>Efficiency:</strong> ' + efficiency.toFixed(1) + 'x';
@@ -492,8 +570,8 @@ $(document).ready(function () {
                             if (stats.efficiency && stats.efficiency !== 'N/A') details.push('<strong>Efficiency:</strong> ' + stats.efficiency + 'x');
                             // Calculate efficiency if not provided
                             if (!stats.efficiency && stats.original_size && stats.deduplicated_size) {
-                                var origSize = parseFloat(stats.original_size.replace(/[^0-9.]/g, '')) || 0;
-                                var dedupSize = parseFloat(stats.deduplicated_size.replace(/[^0-9.]/g, '')) || 0;
+                                var origSize = parseBorgSize(stats.original_size);
+                                var dedupSize = parseBorgSize(stats.deduplicated_size);
                                 if (origSize > 0 && dedupSize > 0) {
                                     var efficiency = origSize / dedupSize;
                                     details.push('<strong>Efficiency:</strong> ' + efficiency.toFixed(1) + 'x');
@@ -515,12 +593,16 @@ $(document).ready(function () {
                         if (action.messages && action.messages.length > 0) {
                             details.push('<a href="#" onclick="toggleMessages(\'' + action.name.replace(/[^a-zA-Z0-9]/g, '_') + '\'); return false;">Messages: ' + action.messages.length + ' <i class="fa fa-chevron-down"></i></a>');
                         }
-                        
+
+                        if (action.info_messages && action.info_messages.length > 0) {
+                            details.push('<a href="#" onclick="toggleInfoMessages(\'' + action.name.replace(/[^a-zA-Z0-9]/g, '_') + '\'); return false;">Info: ' + action.info_messages.length + ' <i class="fa fa-chevron-down"></i></a>');
+                        }
+
                         content += details.join('<br/>');
                         content += '</small></td>';
-                        
+
                         content += '</tr>';
-                        
+
                         // Add collapsible messages row if action has messages
                         if (action.messages && action.messages.length > 0) {
                             var actionId = action.name.replace(/[^a-zA-Z0-9]/g, '_');
@@ -528,6 +610,17 @@ $(document).ready(function () {
                             content += '<td colspan="4" class="bg-light"><small>';
                             content += '<strong>Messages:</strong><br/>';
                             action.messages.forEach(function(msg, index) {
+                                content += (index + 1) + '. ' + msg + '<br/>';
+                            });
+                            content += '</small></td></tr>';
+                        }
+
+                        if (action.info_messages && action.info_messages.length > 0) {
+                            var actionId = action.name.replace(/[^a-zA-Z0-9]/g, '_');
+                            content += '<tr id="info_messages_' + actionId + '" style="display: none;">';
+                            content += '<td colspan="4" class="bg-light"><small>';
+                            content += '<strong>Info:</strong><br/>';
+                            action.info_messages.forEach(function(msg, index) {
                                 content += (index + 1) + '. ' + msg + '<br/>';
                             });
                             content += '</small></td></tr>';
@@ -556,13 +649,26 @@ $(document).ready(function () {
     // Global function for toggling messages
     window.toggleMessages = function(actionId) {
         var messageRow = $('#messages_' + actionId);
-        var chevron = $('a[onclick*="' + actionId + '"] i');
-        
+        var chevron = $('a[onclick*="toggleMessages(\'' + actionId + '\')"] i');
+
         if (messageRow.is(':visible')) {
             messageRow.hide();
             chevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
         } else {
             messageRow.show();
+            chevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+        }
+    };
+
+    window.toggleInfoMessages = function(actionId) {
+        var infoRow = $('#info_messages_' + actionId);
+        var chevron = $('a[onclick*="toggleInfoMessages(\'' + actionId + '\')"] i');
+
+        if (infoRow.is(':visible')) {
+            infoRow.hide();
+            chevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+        } else {
+            infoRow.show();
             chevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
         }
     };

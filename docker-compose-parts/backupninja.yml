@@ -8,7 +8,17 @@ services:
         max-size: "10m"
         max-file: "5"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    privileged: true
+    # NFS mounting inside the container requires SYS_ADMIN. Historically this
+    # container used privileged:true which also grants every other capability.
+    # Switch to an explicit cap_add so the container follows least-privilege.
+    # If NFS mount breaks on your kernel, try adding:
+    #   security_opt:
+    #     - apparmor=unconfined
+    # or restore privileged:true while you investigate.
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor=unconfined
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.88
@@ -16,6 +26,12 @@ services:
     volumes:
       - ${BACKUP_DIR-/opt/isard-local/backup}:/backup:rw
       - /opt/isard-local/logs/backupninja:/var/log/
+      # Persist borg's chunks/files indexes and security registry on the
+      # host so a container restart doesn't trigger a full cache rebuild.
+      # The rebuild scans every existing archive and on multi-TB repos
+      # can take 24h+, blocking the next nightly borg create.
+      - /opt/isard-local/backup/borg-cache:/root/.cache/borg
+      - /opt/isard-local/backup/borg-config:/root/.config/borg
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       # Stats
@@ -45,6 +61,15 @@ services:
       # API settings for backup reporting
       - API_DOMAIN=${API_DOMAIN-isard-api}
       - API_ISARDVDI_SECRET=${API_ISARDVDI_SECRET}
+      # Preflight threshold: minimum free percentage required on the
+      # backup target for a session to start. Below this the preflight
+      # script fails fast and the report is marked CRITICAL (default 10).
+      - BACKUP_MIN_FREE_PERCENT=${BACKUP_MIN_FREE_PERCENT-10}
+      # Borg compact opt-out. Default true keeps the existing Saturday-
+      # only compact behaviour. Set BACKUP_COMPACT_ENABLED=false on very
+      # large repos where compact runs longer than the daily window and
+      # would otherwise block the next day's borg create.
+      - BACKUP_COMPACT_ENABLED=${BACKUP_COMPACT_ENABLED-true}
 
       # NFS
       - BACKUP_NFS_ENABLED=${BACKUP_NFS_ENABLED-false}

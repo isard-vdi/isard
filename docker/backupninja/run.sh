@@ -14,6 +14,49 @@ umount_nfs() {
     fi
 }
 
+# Derive the `when` clause for a given type's integrity script.
+# Args: <BACKUP_<TYPE>_WHEN value>
+#   - If the backup doesn't touch Saturday -> "disabled" (no install)
+#   - Else -> "saturday at HH[:MM]", reusing the backup's own time slot so
+#     the integrity script runs in the same backupninja cron invocation as
+#     the backup, right after it (alphabetic ordering within a slot:
+#     25-*-integrity.sh runs after 24-*-compact.sh). The admin toggle is
+#     evaluated live at script run time, not here.
+integrity_when_for() {
+    backup_when="$1"
+    hhmm=$(echo "$backup_when" | sed -n 's/.*at[[:space:]]\+\([0-9]\{1,2\}\(:[0-9]\{2\}\)\?\).*/\1/p')
+    if [ -z "$hhmm" ]; then
+        echo "disabled"
+        return
+    fi
+    case "$backup_when" in
+        "everyday at"*|"saturday at"*) echo "saturday at $hhmm" ;;
+        *)                             echo "disabled" ;;
+    esac
+}
+
+# Return the scope name (db|redis|stats|config|disks|full) for a schedule
+# string, based on which BACKUP_*_WHEN variables match it and are enabled.
+scope_for_schedule() {
+    schedule="$1"
+    matches=""
+    for kind in db redis stats config disks; do
+        upper=$(echo "$kind" | tr '[:lower:]' '[:upper:]')
+        eval enabled="\$BACKUP_${upper}_ENABLED"
+        eval when="\$BACKUP_${upper}_WHEN"
+        if [ "$enabled" = "true" ] && [ "$when" = "$schedule" ]; then
+            matches="$matches $kind"
+        fi
+    done
+    # strip leading space
+    matches=$(echo "$matches" | sed 's/^ //')
+    case "$(echo "$matches" | wc -w)" in
+        0) echo "full" ;;
+        1) echo "$matches" ;;
+        *) echo "full" ;;
+    esac
+}
+
 # Prepare BackupNinja
 LOG_FILE="/var/log/backupninja.log"
 export LOG_FILE
@@ -27,6 +70,7 @@ mkdir -p /usr/local/var/log
 mkdir -p /backup
 mkdir -p /dbdump
 mkdir -p /redisdump
+mkdir -p /var/log/backupninja.queue
 
 rm -f /usr/local/etc/backup.d/*
 
@@ -68,12 +112,14 @@ if [ "$BACKUP_DB_ENABLED" = "true" ]; then
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
-    
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_DB_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+
+    INTEGRITY_WHEN_DB="$(integrity_when_for "$BACKUP_DB_WHEN")"
+    if [ "$INTEGRITY_WHEN_DB" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_DB" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 #
@@ -92,12 +138,14 @@ if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
-    
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_REDIS_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+
+    INTEGRITY_WHEN_REDIS="$(integrity_when_for "$BACKUP_REDIS_WHEN")"
+    if [ "$INTEGRITY_WHEN_REDIS" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_REDIS" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 #
@@ -116,12 +164,14 @@ if [ "$BACKUP_STATS_ENABLED" = "true" ]; then
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
-    
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_STATS_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+
+    INTEGRITY_WHEN_STATS="$(integrity_when_for "$BACKUP_STATS_WHEN")"
+    if [ "$INTEGRITY_WHEN_STATS" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_STATS" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 #
@@ -140,12 +190,14 @@ if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
-    
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+
+    INTEGRITY_WHEN_CONFIG="$(integrity_when_for "$BACKUP_CONFIG_WHEN")"
+    if [ "$INTEGRITY_WHEN_CONFIG" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_CONFIG" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 #
@@ -191,12 +243,14 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
-    
-    for job in $static_jobs; do
-        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-        # Add when clause to static jobs so they get scheduled
-        sed -i "1a\\when = $BACKUP_DISKS_WHEN" "/usr/local/etc/backup.d/$job"
-    done
+
+    INTEGRITY_WHEN_DISKS="$(integrity_when_for "$BACKUP_DISKS_WHEN")"
+    if [ "$INTEGRITY_WHEN_DISKS" != "disabled" ]; then
+        for job in $static_jobs; do
+            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_DISKS" "/usr/local/etc/backup.d/$job"
+        done
+    fi
 fi
 
 # Add session start and end markers for automated backups based on 'when' schedules
@@ -208,58 +262,66 @@ ENABLED_WHEN_SCHEDULES=""
 [ "$BACKUP_DISKS_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_DISKS_WHEN"
 
 # Get unique when schedules (preserve whole phrases using | as delimiter)
-UNIQUE_SCHEDULES=$(echo "$ENABLED_WHEN_SCHEDULES" | tr '|' '\n' | grep -v "^$" | sort -u | grep -v "disabled")
+UNIQUE_SCHEDULES=$(echo "$ENABLED_WHEN_SCHEDULES" | tr '|' '\n' | grep -v "^$" | sort -u | grep -v "disabled" || true)
 
-# Create session start and end markers for each unique schedule
-if [ -n "$UNIQUE_SCHEDULES" ] && [ "$UNIQUE_SCHEDULES" != "" ]; then
-    SCHEDULE_INDEX=0
-    echo "$UNIQUE_SCHEDULES" | while IFS= read -r SCHEDULE; do
-        if [ -n "$SCHEDULE" ]; then
-            # Create start marker script for this schedule
-            START_SCRIPT="/usr/local/etc/backup.d/10-session-start-$SCHEDULE_INDEX.sh"
-            cat > "$START_SCRIPT" << EOF
+# Create session start and end markers for each unique schedule. Use a
+# here-doc into a temporary file so that SCHEDULE_INDEX increments in the
+# current shell rather than a subshell spawned by a pipe.
+SCHEDULE_INDEX=0
+if [ -n "$UNIQUE_SCHEDULES" ]; then
+    TMPFILE=$(mktemp)
+    printf '%s\n' "$UNIQUE_SCHEDULES" >"$TMPFILE"
+    while IFS= read -r SCHEDULE; do
+        [ -n "$SCHEDULE" ] || continue
+
+        SCOPE=$(scope_for_schedule "$SCHEDULE")
+
+        # Start marker script for this schedule
+        START_SCRIPT="/usr/local/etc/backup.d/10-session-start-$SCHEDULE_INDEX.sh"
+        cat >"$START_SCRIPT" <<EOF
 #!/bin/sh
-# Add backup session start marker for automated backups
+# Add backup session start marker for automated backups (ISO-8601 timestamp)
 LOG_FILE="/var/log/backupninja.log"
-echo "\$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: automated full backup initiated by cron (schedule: $SCHEDULE)" >> \$LOG_FILE
+echo "\$(date '+%Y-%m-%dT%H:%M:%S') Info: BACKUP_SESSION_START: automated $SCOPE backup initiated by cron (schedule: $SCHEDULE)" >> \$LOG_FILE
 EOF
-            chmod 700 "$START_SCRIPT"
-            # Add when clause to start marker
-            sed -i "1a\\when = $SCHEDULE" "$START_SCRIPT"
+        chmod 700 "$START_SCRIPT"
+        sed -i "1a\\when = $SCHEDULE" "$START_SCRIPT"
 
-            # Create session-level NFS mount script for this schedule
-            if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
-                NFS_MOUNT_SCRIPT="/usr/local/etc/backup.d/11-session-nfs-mount-$SCHEDULE_INDEX.sh"
-                envsubst < "/usr/local/share/backup.d/05-session-nfs-mount.sh" > "$NFS_MOUNT_SCRIPT"
-                chmod 700 "$NFS_MOUNT_SCRIPT"
-                # Add when clause to NFS mount script
-                sed -i "1a\\when = $SCHEDULE" "$NFS_MOUNT_SCRIPT"
-            fi
+        if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
+            NFS_MOUNT_SCRIPT="/usr/local/etc/backup.d/11-session-nfs-mount-$SCHEDULE_INDEX.sh"
+            envsubst < "/usr/local/share/backup.d/05-session-nfs-mount.sh" > "$NFS_MOUNT_SCRIPT"
+            chmod 700 "$NFS_MOUNT_SCRIPT"
+            sed -i "1a\\when = $SCHEDULE" "$NFS_MOUNT_SCRIPT"
+        fi
 
-            # Create end marker and report sender as shell script for this schedule
-            END_SCRIPT="/usr/local/etc/backup.d/90-session-report-$SCHEDULE_INDEX.sh"
-            cat > "$END_SCRIPT" << EOF
+        # Preflight free-space check (runs after NFS mount so it sees the
+        # real target). A FATAL here forces the eventual report to
+        # CRITICAL even if no individual borg action fails.
+        PREFLIGHT_SCRIPT="/usr/local/etc/backup.d/15-session-preflight-$SCHEDULE_INDEX.sh"
+        cp /usr/local/bin/session_preflight.sh "$PREFLIGHT_SCRIPT"
+        chmod 700 "$PREFLIGHT_SCRIPT"
+        sed -i "1a\\when = $SCHEDULE" "$PREFLIGHT_SCRIPT"
+
+        END_SCRIPT="/usr/local/etc/backup.d/90-session-report-$SCHEDULE_INDEX.sh"
+        cat >"$END_SCRIPT" <<EOF
 #!/bin/sh
 # Send backup report to API after automated backup completion
 export BACKUP_TYPE="automated"
 /usr/local/bin/send_backup_report.sh
 EOF
-            chmod 700 "$END_SCRIPT"
-            # Add when clause to end marker
-            sed -i "1a\\when = $SCHEDULE" "$END_SCRIPT"
+        chmod 700 "$END_SCRIPT"
+        sed -i "1a\\when = $SCHEDULE" "$END_SCRIPT"
 
-            # Create session-level NFS unmount script for this schedule
-            if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
-                NFS_UMOUNT_SCRIPT="/usr/local/etc/backup.d/91-session-nfs-umount-$SCHEDULE_INDEX.sh"
-                envsubst < "/usr/local/share/backup.d/95-session-nfs-umount.sh" > "$NFS_UMOUNT_SCRIPT"
-                chmod 700 "$NFS_UMOUNT_SCRIPT"
-                # Add when clause to NFS unmount script
-                sed -i "1a\\when = $SCHEDULE" "$NFS_UMOUNT_SCRIPT"
-            fi
-
-            SCHEDULE_INDEX=$((SCHEDULE_INDEX + 1))
+        if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
+            NFS_UMOUNT_SCRIPT="/usr/local/etc/backup.d/91-session-nfs-umount-$SCHEDULE_INDEX.sh"
+            envsubst < "/usr/local/share/backup.d/95-session-nfs-umount.sh" > "$NFS_UMOUNT_SCRIPT"
+            chmod 700 "$NFS_UMOUNT_SCRIPT"
+            sed -i "1a\\when = $SCHEDULE" "$NFS_UMOUNT_SCRIPT"
         fi
-    done
+
+        SCHEDULE_INDEX=$((SCHEDULE_INDEX + 1))
+    done <"$TMPFILE"
+    rm -f "$TMPFILE"
 fi
 
 # Set correct permissions to the files
@@ -313,15 +375,15 @@ case "$1" in
         # Mount NFS if enabled
         mount_nfs
 
-        # Add backup session start marker
-        echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: manual $2 backup initiated by user" >> "$LOG_FILE"
+        # Add backup session start marker (ISO-8601 timestamp, scoped to arg)
+        echo "$(date '+%Y-%m-%dT%H:%M:%S') Info: BACKUP_SESSION_START: manual $2 backup initiated by user" >> "$LOG_FILE"
 
         # Execute backup, continuing even if it fails
         backup_args "$2" || true
         execute_now "$BACKUP_SCRIPTS_PREFIX" || true
 
         # Add backup session end marker
-        echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: manual $2 backup completed" >> "$LOG_FILE"
+        echo "$(date '+%Y-%m-%dT%H:%M:%S') Info: BACKUP_SESSION_END: manual $2 backup completed" >> "$LOG_FILE"
 
         # Force flush to ensure marker is written before parser reads
         sync
@@ -347,8 +409,8 @@ case "$1" in
         # Mount NFS if enabled
         mount_nfs
 
-        # Add backup session start marker for all backups
-        echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: manual full backup initiated by user" >> "$LOG_FILE"
+        # Add backup session start marker for all backups (ISO-8601)
+        echo "$(date '+%Y-%m-%dT%H:%M:%S') Info: BACKUP_SESSION_START: manual full backup initiated by user" >> "$LOG_FILE"
 
         # Execute all backup types, continuing even if individual ones fail
         for backup_type in "db" "redis" "stats" "config" "disks"; do
@@ -357,7 +419,7 @@ case "$1" in
         done
 
         # Add backup session end marker
-        echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: manual full backup completed" >> "$LOG_FILE"
+        echo "$(date '+%Y-%m-%dT%H:%M:%S') Info: BACKUP_SESSION_END: manual full backup completed" >> "$LOG_FILE"
 
         # Force flush to ensure marker is written before parser reads
         sync
@@ -435,6 +497,12 @@ case "$1" in
         ;;
 
     "")
+        # Detect an orphaned session from a previous run (container was
+        # killed or restarted mid-backup) and report it as CRITICAL before
+        # we start serving the next cron tick. Non-fatal: any failure here
+        # must not stop us from starting crond.
+        /usr/local/bin/detect_orphaned_session.sh || true
+
         # Start the cron daemon and follow the logs
         crond
         tail -f $LOG_FILE
@@ -451,4 +519,3 @@ case "$1" in
         exit 1
         ;;
 esac
-

@@ -18,68 +18,87 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import os
+from datetime import datetime
+
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
 
-r = RethinkDB()
-
 from .flask_rethink import RDB
 
-db = RDB(app)
-db.init_app(app)
-
-import json
-from datetime import datetime
-
-from rethinkdb import RethinkDB
-
-from api import app
-
 r = RethinkDB()
-from .flask_rethink import RDB
-
 db = RDB(app)
 db.init_app(app)
 
 
-def admin_backup_list():
-    """
-    Get list of backups for admin users (simplified for 30 records)
-    """
+# Integrity check toggle. Stored at config[1].backups.integrity_enabled.
+# Off by default: borg check is an expensive full-repo verification, and we
+# don't want existing deployments to silently inherit a multi-hour nightly
+# job. Admins opt in from the webapp; the backupninja container fetches the
+# value at boot and schedules the integrity scripts for Saturday only.
+INTEGRITY_ENABLED_DEFAULT = False
+
+
+def get_integrity_enabled():
     with app.app_context():
-        # Simple query - no indexes needed for 30 records
-        query = r.table("backups").order_by(r.desc("timestamp")).limit(30)
+        cfg = r.table("config").get(1).run(db.conn) or {}
+    value = (cfg.get("backups") or {}).get("integrity_enabled")
+    if value is None:
+        return INTEGRITY_ENABLED_DEFAULT
+    return bool(value)
+
+
+def set_integrity_enabled(value):
+    if not isinstance(value, bool):
+        raise Error("bad_request", "integrity_enabled must be a boolean")
+    with app.app_context():
+        r.table("config").get(1).update({"backups": {"integrity_enabled": value}}).run(
+            db.conn
+        )
+    return {"integrity_enabled": value}
+
+
+def _retention():
+    """How many backup records to keep. Configurable via env."""
+    try:
+        value = int(os.environ.get("BACKUP_RETENTION", "30"))
+    except ValueError:
+        value = 30
+    return max(1, value)
+
+
+def _normalize_timestamp(value):
+    """Return ISO string for a RethinkDB datetime, Unix int, or ISO string."""
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    if isinstance(value, (int, float)):
+        ts = value / 1000 if value > 1e10 else value
+        return datetime.fromtimestamp(ts).isoformat()
+    return value
+
+
+def _normalize_times(item):
+    for key in ("timestamp", "received_at", "created_at", "backup_start_time"):
+        if key in item:
+            item[key] = _normalize_timestamp(item[key])
+    return item
+
+
+def admin_backup_list(limit=None):
+    """Get list of backups for admin users. Returns most recent first."""
+    with app.app_context():
+        query = r.table("backups").order_by(r.desc("timestamp"))
+        if limit is None:
+            limit = _retention()
+        query = query.limit(limit)
+
         result = list(query.run(db.conn))
-
-        # Convert datetime/timestamp objects to ISO strings in Python
         for item in result:
-            if "timestamp" in item:
-                if hasattr(item["timestamp"], "isoformat"):
-                    # It's a datetime object
-                    item["timestamp"] = item["timestamp"].isoformat()
-                elif isinstance(item["timestamp"], (int, float)):
-                    # It's a Unix timestamp
-                    from datetime import datetime
-
-                    ts = item["timestamp"]
-                    # If timestamp is > 1e10, it's likely in milliseconds
-                    if ts > 1e10:
-                        ts = ts / 1000
-                    item["timestamp"] = datetime.fromtimestamp(ts).isoformat()
-            if "created_at" in item:
-                if hasattr(item["created_at"], "isoformat"):
-                    item["created_at"] = item["created_at"].isoformat()
-                elif isinstance(item["created_at"], (int, float)):
-                    from datetime import datetime
-
-                    ts = item["created_at"]
-                    # If timestamp is > 1e10, it's likely in milliseconds
-                    if ts > 1e10:
-                        ts = ts / 1000
-                    item["created_at"] = datetime.fromtimestamp(ts).isoformat()
-
+            _normalize_times(item)
         return result
 
 
@@ -94,154 +113,129 @@ def admin_backup_get(backup_id, pluck=None):
             query = query.pluck(*pluck)
 
         result = query.run(db.conn)
-        if result:
-            # Convert datetime/timestamp objects to ISO strings in Python
-            if "timestamp" in result:
-                if hasattr(result["timestamp"], "isoformat"):
-                    result["timestamp"] = result["timestamp"].isoformat()
-                elif isinstance(result["timestamp"], (int, float)):
-                    from datetime import datetime
-
-                    ts = result["timestamp"]
-                    # If timestamp is > 1e10, it's likely in milliseconds
-                    if ts > 1e10:
-                        ts = ts / 1000
-                    result["timestamp"] = datetime.fromtimestamp(ts).isoformat()
-            if "created_at" in result:
-                if hasattr(result["created_at"], "isoformat"):
-                    result["created_at"] = result["created_at"].isoformat()
-                elif isinstance(result["created_at"], (int, float)):
-                    from datetime import datetime
-
-                    ts = result["created_at"]
-                    # If timestamp is > 1e10, it's likely in milliseconds
-                    if ts > 1e10:
-                        ts = ts / 1000
-                    result["created_at"] = datetime.fromtimestamp(ts).isoformat()
-
-            return result
-        else:
+        if not result:
             raise Error("not_found", "Backup not found")
+
+        _normalize_times(result)
+        return result
 
 
 def cleanup_old_backups():
-    """
-    Remove old backup records, keeping only the most recent 30 entries
-    """
+    """Keep only the N most recent backup records (N = BACKUP_RETENTION)."""
+    keep = _retention()
+
     with app.app_context():
-        # Get the total count of backup records
         total_count = r.table("backups").count().run(db.conn)
+        if total_count <= keep:
+            return 0
 
-        if total_count > 30:
-            # Get the IDs of the oldest records to delete (all except the most recent 30)
-            old_backup_ids = list(
-                r.table("backups")
-                .order_by(r.desc("timestamp"))
-                .skip(30)
-                .pluck("id")
-                .run(db.conn)
-            )
+        old_ids = [
+            row["id"]
+            for row in r.table("backups")
+            .order_by(r.desc("timestamp"))
+            .skip(keep)
+            .pluck("id")
+            .run(db.conn)
+        ]
+        if not old_ids:
+            return 0
 
-            if old_backup_ids:
-                # Extract just the IDs from the result
-                ids_to_delete = [backup["id"] for backup in old_backup_ids]
-
-                # Delete the old records
-                delete_result = (
-                    r.table("backups").get_all(*ids_to_delete).delete().run(db.conn)
-                )
-
-                # Log the cleanup operation (optional)
-                print(
-                    f"Cleaned up {delete_result['deleted']} old backup records, keeping 30 most recent"
-                )
+        result = r.table("backups").get_all(*old_ids).delete().run(db.conn)
+        return result.get("deleted", 0)
 
 
 def admin_backup_insert(data):
     """
-    Insert a new backup record (used by backupninja service)
+    Insert a new backup record (used by backupninja service).
     """
-    # Validate required fields
     required_fields = ["timestamp", "status", "type", "scope"]
     for field in required_fields:
         if field not in data:
             raise Error("bad_request", f"Missing required field: {field}")
 
-    # Validate backup type
     if data["type"] not in ["automated", "manual"]:
         raise Error("bad_request", "Backup type must be 'automated' or 'manual'")
 
-    # Validate backup scope
     valid_scopes = ["full", "db", "redis", "stats", "config", "disks"]
     if data["scope"] not in valid_scopes:
         raise Error(
             "bad_request", f"Backup scope must be one of: {', '.join(valid_scopes)}"
         )
 
-    # Process details field for better structure
     if "details" in data and isinstance(data["details"], dict):
         details = data["details"]
-
-        # Ensure checks is an array of objects with name and status
         if "checks" in details and isinstance(details["checks"], list):
-            for check in details["checks"]:
-                if isinstance(check, dict) and "name" in check and "status" in check:
-                    # Valid check structure
-                    pass
-                else:
-                    # Convert simple string checks to structured format
-                    if isinstance(check, str):
-                        check = {"name": check, "status": "success"}
-
-        # Ensure warnings is an array
+            details["checks"] = [_normalize_check(check) for check in details["checks"]]
         if "warnings" in details and not isinstance(details["warnings"], list):
             details["warnings"] = [str(details["warnings"])]
-
-        # Ensure time_breakdown is a dict
         if "time_breakdown" in details and not isinstance(
             details["time_breakdown"], dict
         ):
             details["time_breakdown"] = {}
 
-    # Set the timestamp to current time when the record is created
-    # Store the original client timestamp as backup_start_time if provided
-    if "timestamp" in data:
-        data["backup_start_time"] = data["timestamp"]
+    # Preserve the client-supplied timestamp as the authoritative backup time.
+    # Unix ints become RethinkDB datetimes so indexes and ordering work.
+    data["timestamp"] = _client_timestamp_to_rdb(data["timestamp"])
+    data["received_at"] = r.now()
+    data.setdefault("created_at", data["received_at"])
 
-    # Always set timestamp to current time for uniqueness
-    data["timestamp"] = r.now()
-
-    # Add creation timestamp if not provided
-    if "created_at" not in data:
-        data["created_at"] = r.now()
-
-    # Insert the backup record
     result = r.table("backups").insert(data).run(db.conn)
-
-    if result["inserted"] == 1:
-        backup_id = result["generated_keys"][0]
-
-        # Check if we need to clean up old records (keep only last 30)
-        cleanup_old_backups()
-
-        return {
-            "id": backup_id,
-            "status": "success",
-            "message": "Backup record created successfully",
-        }
-    else:
+    if result.get("inserted") != 1:
         raise Error("internal_error", "Failed to create backup record")
+
+    backup_id = result["generated_keys"][0]
+    cleanup_old_backups()
+
+    # Email admins when the backup did not finish cleanly. Imported lazily
+    # so this module does not depend on the notifier at import time.
+    if data.get("status") in ("CRITICAL", "ERROR"):
+        try:
+            from .api_notifier import notify_backup_failure
+
+            notify_backup_failure(data)
+        except Exception:
+            # Never let notification problems fail the insert.
+            pass
+
+    return {
+        "id": backup_id,
+        "status": "success",
+        "message": "Backup record created successfully",
+    }
+
+
+def _client_timestamp_to_rdb(value):
+    """Accept Unix int/float/ISO string and return a ReQL time."""
+    if isinstance(value, (int, float)):
+        seconds = value / 1000 if value > 1e10 else value
+        return r.epoch_time(seconds)
+    if isinstance(value, str):
+        try:
+            return r.iso8601(value)
+        except Exception:
+            return r.now()
+    if hasattr(value, "isoformat"):
+        return r.iso8601(value.isoformat())
+    return r.now()
+
+
+def _normalize_check(check):
+    if isinstance(check, dict) and "name" in check and "status" in check:
+        return check
+    if isinstance(check, str):
+        return {"name": check, "status": "success"}
+    return {"name": str(check), "status": "success"}
 
 
 def admin_backup_update(backup_id, data):
     """
-    Update an existing backup (deprecated - backups should be read-only)
+    Backup records are immutable once written.
     """
     raise Error("forbidden", "Backup records cannot be modified")
 
 
 def admin_backup_delete(backup_id):
     """
-    Delete a backup (deprecated - backups should be read-only)
+    Backup records are immutable once written.
     """
     raise Error("forbidden", "Backup records cannot be deleted")

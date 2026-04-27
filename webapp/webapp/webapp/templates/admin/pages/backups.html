@@ -74,6 +74,40 @@
         <div class="x_panel">
             <div class="x_title">
                 <h3>
+                    <i class="fa fa-shield"></i>
+                    Integrity Check
+                    <small>Weekly borg verification of all backup repositories</small>
+                </h3>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <div class="form-group">
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" id="integrity-enabled">
+                            Run weekly integrity check
+                        </label>
+                    </div>
+                    <p class="help-block">
+                        Runs <code>borg check</code> on every backup repository on
+                        Saturdays, right after that day's backup finishes. This is
+                        the slow, thorough verification &mdash; disable it on
+                        installations where the I/O cost is unacceptable.
+                        Changes take effect on the next scheduled run; no
+                        container restart is required.
+                    </p>
+                    <button class="btn btn-primary" id="integrity-save">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3>
                     <i class="fa fa-database"></i>
                     Backup Reports
                     <small>Backup execution history and status</small>
@@ -93,22 +127,23 @@
             <div class="x_content">
                 <!-- Filters -->
                 <div class="row mb-3">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <select id="filter-type" class="form-control">
                             <option value="">All Types</option>
-                            <option value="automatic">Automatic</option>
+                            <option value="automated">Automated</option>
                             <option value="manual">Manual</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <select id="filter-status" class="form-control">
                             <option value="">All Statuses</option>
-                            <option value="success">Success</option>
-                            <option value="failed">Failed</option>
-                            <option value="partial">Partial</option>
+                            <option value="SUCCESS">Success</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                            <option value="CRITICAL">Critical</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <button id="clear-filters" class="btn btn-secondary">Clear Filters</button>
                     </div>
                 </div>
