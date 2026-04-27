@@ -54,9 +54,19 @@ _DOMAIN_PRE_READY_STATUSES = frozenset(
         # auto-start.
         "CreatingDomain",
         "CreatingDomainFromDisk",
-        "CreatingTemplate",
-        "CreatingTemplateDisk",
-        "TemplateDiskCreated",
+        # ``CreatingTemplate`` is engine-driven — leave it alone so
+        # ``create_template_disks_from_domain`` can transition it to
+        # ``CreatingTemplateDisk``. Promoting it from a stray
+        # ``storage_update`` (e.g. the ``find`` task that
+        # ``launch_action_create_template_disk`` enqueues for the source
+        # storage at line 228 of threads.py) flips the source desktop
+        # to ``Stopped`` mid-disk-copy. Then the SSH op finishes and
+        # tries to set ``TemplateDiskCreated`` — but the engine's state
+        # handler only fires ``_template_disk_created_action`` on the
+        # ``CreatingTemplateDisk → TemplateDiskCreated`` transition, so
+        # the template never gets inserted.
+        # ``CreatingTemplateDisk`` and ``TemplateDiskCreated`` are
+        # engine-managed transient states for the same reason.
         # Maintenance is set by Storage.set_maintenance(action) on every linked
         # domain when the storage enters a paired maintenance/ready cycle
         # (resize, sparsify, virt-win-reg, etc.). The cycle ends with
