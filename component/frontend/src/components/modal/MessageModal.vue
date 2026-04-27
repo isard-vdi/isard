@@ -7,7 +7,7 @@ import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { useMessageModalStore } from '@/stores/message-modal'
-import { extendDesktopTimeoutApiV4ItemDesktopDesktopIdExtendTimeoutPutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { extendDesktopTimeoutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const { t, te } = useI18n()
 const store = useMessageModalStore()
@@ -19,7 +19,7 @@ const description = computed(() => {
 })
 
 const { mutate: extendTimeout, isPending: isExtending } = useMutation({
-  ...extendDesktopTimeoutApiV4ItemDesktopDesktopIdExtendTimeoutPutMutation(),
+  ...extendDesktopTimeoutMutation(),
   onSuccess: () => store.hide()
 })
 

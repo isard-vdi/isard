@@ -226,34 +226,9 @@
         "title": "Hi han hagut errors en el procés de migració:"
       },
       "success": {
-        "title": "Migració completada",
-        "description": {
-          "ok": "Els teus elements s'han migrat correctament al nou compte. Ara pots tornar a la pàgina principal.",
-          "error": "Hi ha hagut errors durant el procés i alguns dels teus elements no pogut migrat al nou compte. Si us plau, contacta amb un administrador. Ara pots tornar a la pàgina principal."
-        },
-        "progress": {
-          "desktops-progress": "Migrant escriptoris...",
-          "desktops-ok": "Escriptoris migrats",
-          "desktops-error": "Escriptoris no migrats",
-          "templates-progress": "Migrant plantilles...",
-          "templates-ok": "Plantilles migrades",
-          "templates-error": "Plantilles no migrades",
-          "media-progress": "Migrant mitjans...",
-          "media-ok": "Mitjans migrats",
-          "media-error": "Mitjans no migrats",
-          "deployments-progress": "Migrant desplegaments...",
-          "deployments-ok": "Desplegaments migrats",
-          "deployments-error": "Desplegaments no migrats",
-          "recycle-bin-progress": "Buidant la paperera...",
-          "recycle-bin-ok": "Paperera buidada"
-        },
-        "buttons": {
-          "ok": "OK",
-          "logout": "Tancar sessió"
-        },
-        "errors": {
-          "generic": "Hi ha hagut un error mentre es migraven els teus {type}, si us plau, contacta amb un administrador."
-        }
+        "title": "Migració iniciada",
+        "description": "La migració s'ha posat en cua. Els elements es processaran en segon pla; pots tornar als teus escriptoris mentre s'acaba.",
+        "button": "Vés als escriptoris"
       }
     },
     "recycle-bin": {

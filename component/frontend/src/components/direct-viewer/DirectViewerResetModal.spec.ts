@@ -9,7 +9,7 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
-  resetDesktopApiV4ItemDesktopTokenTokenResetDesktopPutMutation: () => ({})
+  resetDesktopMutation: () => ({})
 }))
 
 vi.mock('vue-i18n', () => ({

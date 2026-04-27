@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
-  createPlanApiV4ItemReservablesPlannerPostMutation,
-  updatePlanApiV4ItemReservablesPlannerPlanIdStartEndPutMutation,
-  deletePlanApiV4ItemReservablesPlannerPlanIdDeleteMutation
+  createPlanMutation,
+  updatePlanMutation,
+  deletePlanMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 export function usePlanningMutations() {
@@ -10,22 +10,22 @@ export function usePlanningMutations() {
 
   const invalidatePlanningQueries = () => {
     queryClient.invalidateQueries({
-      queryKey: ['getItemPlansApiV4ItemReservablesPlannerByItemItemIdGet']
+      queryKey: ['getItemPlans']
     })
   }
 
   const createPlan = useMutation({
-    ...createPlanApiV4ItemReservablesPlannerPostMutation(),
+    ...createPlanMutation(),
     onSuccess: invalidatePlanningQueries
   })
 
   const updatePlan = useMutation({
-    ...updatePlanApiV4ItemReservablesPlannerPlanIdStartEndPutMutation(),
+    ...updatePlanMutation(),
     onSuccess: invalidatePlanningQueries
   })
 
   const deletePlan = useMutation({
-    ...deletePlanApiV4ItemReservablesPlannerPlanIdDeleteMutation(),
+    ...deletePlanMutation(),
     onSuccess: invalidatePlanningQueries
   })
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import type { UserDesktop } from '@/gen/oas/apiv4/'
+import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 import { Button } from '@/components/ui/button'

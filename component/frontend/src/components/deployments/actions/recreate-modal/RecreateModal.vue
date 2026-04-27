@@ -29,7 +29,7 @@ const handleClose = () => {
   emit('close')
 }
 
-const { mutate: recreateDeploymentMutation, isPending: recreateDeploymentIsPending } = useMutation({
+const { mutate: recreateDeployment, isPending: recreateDeploymentIsPending } = useMutation({
   ...recreateDeploymentMutation(),
   onSuccess: () => {
     handleClose()
@@ -39,7 +39,7 @@ const { mutate: recreateDeploymentMutation, isPending: recreateDeploymentIsPendi
 
 const handleRecreateDeployment = () => {
   if (!props.deploymentId) return
-  recreateDeploymentMutation({
+  recreateDeployment({
     path: { deployment_id: props.deploymentId }
   })
 }

@@ -2,12 +2,12 @@ import { QueryClient } from '@tanstack/vue-query'
 
 // Invalidate-only pattern: payload is ignored — we refetch to match Vue 2 behavior.
 const invalidateBookingQueries = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries({ queryKey: ['getUserBookingsApiV4ItemsBookingsGet'] })
+  queryClient.invalidateQueries({ queryKey: ['getUserBookings'] })
   queryClient.invalidateQueries({
-    queryKey: ['getBookingDesktopApiV4ItemBookingGetDesktopItemIdGet']
+    queryKey: ['getBookingDesktop']
   })
   queryClient.invalidateQueries({
-    queryKey: ['getBookingDesktopApiV4ItemBookingGetDeploymentItemIdGet']
+    queryKey: ['getBookingDeployment']
   })
 }
 

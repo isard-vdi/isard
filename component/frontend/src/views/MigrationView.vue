@@ -4,18 +4,13 @@ import { useI18n } from 'vue-i18n'
 import { SinglePageLayout } from '@/layouts/single-page'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Icon } from '@/components/icon'
-import { MigrationItemBox, MigrationItemTable, MigrationResultItem } from '@/components/migration'
+import { MigrationItemBox, MigrationItemTable } from '@/components/migration'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  migrationMigrateUserApiV4ItemUserMigrationMigrateUserPost as postUserMigrationAuto,
-  type MigrationMigrateUserApiV4ItemUserMigrationMigrateUserPostResponse as PostUserMigrationAutoResponse,
-  type MigrationListItemsApiV4ItemUserMigrationListItemsGetError as GetUserMigrationItemsError,
-  type MigrationListItemsApiV4ItemUserMigrationListItemsGetResponse as GetUserMigrationItemsResponse
-} from '@/gen/oas/apiv4'
+import { migrationMigrateUser } from '@/gen/oas/apiv4'
 
 import { useQuery } from '@tanstack/vue-query'
 
-import { useForm } from '@tanstack/vue-form'
+import { useForm, type AnyFieldApi } from '@tanstack/vue-form'
 import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
@@ -23,22 +18,18 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldError, FieldLabel, FieldContent } from '@/components/ui/field'
 
 import {
-  getUserApiV4ItemUserGetOptions as getUserOptions,
-  migrationListItemsApiV4ItemUserMigrationListItemsGetOptions as getUserMigrationItemsOptions,
-  migrationListItemsApiV4ItemUserMigrationListItemsGetQueryKey as getUserMigrationItemsQueryKey
+  getUserDetailsOptions,
+  migrationListItemsOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-const { t, te, d } = useI18n()
+const { t, te } = useI18n()
 
-const userMigrationItemsOpts = computed(() => getUserMigrationItemsOptions())
-const userMigrationItemsQueryKey = computed(() => getUserMigrationItemsQueryKey())
 const {
   isPending: userMigrationItemsIsPending,
   isError: userMigrationItemsIsError,
   error: userMigrationItemsError,
   data: userMigrationItems
-} = useQuery<GetUserMigrationItemsResponse, Error>({
-  queryKey: userMigrationItemsQueryKey.value,
-  ...userMigrationItemsOpts.value,
+} = useQuery({
+  ...migrationListItemsOptions(),
   retry: false
 })
 
@@ -48,16 +39,14 @@ const {
   isError: getUserIsError,
   error: getUserError, // TODO: handle this error
   data: getUser
-} = useQuery(getUserOptions())
+} = useQuery(getUserDetailsOptions())
 
 const isPending = computed(() => userMigrationItemsIsPending.value || getUserIsPending.value)
 const isError = computed(() => userMigrationItemsIsError.value || getUserIsError.value)
 const error = computed(() => userMigrationItemsError.value)
 
 // TODO: Type this!
-type UserMigrationItemsError =
-  | GetUserMigrationItemsError['errors'][number]['description_code']
-  | 'unknown'
+type UserMigrationItemsError = string | 'unknown'
 
 // const isUserMigrationItemsError = (error: string): error is UserMigrationItemsError => {
 //   switch (error) {
@@ -84,7 +73,9 @@ const userMigrationItemsErrorMsgs = computed(() => {
   }
 
   // TODO: This is horrible
-  const aaa = JSON.parse(userMigrationItemsError.value.message) as GetUserMigrationItemsError
+  const aaa = JSON.parse((userMigrationItemsError.value as unknown as Error).message) as {
+    errors?: { description: string; description_code: string }[]
+  }
 
   const errorMsgs: string[] = []
   const baseKey = 'api.user_migration.errors.'
@@ -112,40 +103,53 @@ const userMigrationItemsErrorMsgs = computed(() => {
 /*
  * View logic
  */
-const itemsKind = ref([
+type MigrationItemKind = 'desktops' | 'templates' | 'media' | 'deployments'
+
+const itemsKind = ref<
+  {
+    title: string
+    key: MigrationItemKind
+    count: number
+    colorClass: string
+    icon: string
+  }[]
+>([
   {
     title: 'Desktops',
+    key: 'desktops',
     count: 0,
     colorClass: 'text-brand-600',
     icon: 'monitor-02'
   },
   {
     title: 'Templates',
+    key: 'templates',
     count: 0,
     colorClass: 'text-brand-600',
     icon: 'colors'
   },
   {
     title: 'Media',
+    key: 'media',
     count: 0,
     colorClass: 'text-brand-600',
     icon: 'disc-02'
   },
   {
     title: 'Deployments',
+    key: 'deployments',
     count: 0,
     colorClass: 'text-brand-600',
     icon: 'layout-alt-04'
   }
 ])
 
-const shownTables = ref(Array<string>())
+const shownTables = ref<MigrationItemKind[]>([])
 
-const showItemTable = (title: string) => {
-  const lowerCaseTitle = title.toLowerCase()
-  shownTables.value = shownTables.value.includes(lowerCaseTitle)
-    ? shownTables.value.filter((item) => item !== lowerCaseTitle)
-    : [...shownTables.value, lowerCaseTitle]
+const showItemTable = (key: MigrationItemKind) => {
+  shownTables.value = shownTables.value.includes(key)
+    ? shownTables.value.filter((item) => item !== key)
+    : [...shownTables.value, key]
 }
 
 /*
@@ -159,8 +163,7 @@ const formSchema = z.object({
 
 const migrationSubmitted = ref(false)
 const migrationSuccess = ref(false)
-const migrationResponse = ref({} as PostUserMigrationAutoResponse)
-const userMigrationError = ref<string[] | undefined>(undefined)
+const userMigrationError = ref<string[]>([])
 const form = useForm({
   defaultValues: {
     accept: false
@@ -168,34 +171,29 @@ const form = useForm({
   validators: {
     onSubmit: formSchema
   },
-  onSubmit: async ({ value }) => {
+  onSubmit: async () => {
     // Prevent multiple submissions
     if (migrationSubmitted.value === true) {
       return
     }
     migrationSubmitted.value = true
 
-    const { data, error } = await postUserMigrationAuto()
+    const { error } = await migrationMigrateUser()
 
     if (error !== undefined) {
-      console.error('migration auto error', error)
-      if (error.errors) {
-        userMigrationError.value = error.errors
-        return
-      }
-
-      userMigrationError.value = ['unknown']
+      const descriptionCode =
+        typeof error === 'object' && error !== null && 'description_code' in error
+          ? (error as { description_code?: string }).description_code
+          : undefined
+      userMigrationError.value = [descriptionCode ?? 'unknown']
       return
     }
 
-    migrationResponse.value = data
     migrationSuccess.value = true
   }
 })
 
-function isInvalid(field) {
-  return field.state.meta.isTouched && !field.state.meta.isValid
-}
+const isInvalid = (field: AnyFieldApi) => field.state.meta.isTouched && !field.state.meta.isValid
 
 const goToDesktops = () => {
   window.location.pathname = '/desktops'
@@ -291,121 +289,41 @@ const itemQuotaExceeded = (item: string) => {
             t('views.migration.success.title')
           }}</AlertTitle>
           <AlertDescription class="p-4 flex flex-col gap-4">
-            <!-- Migration result list -->
-            <div class="flex flex-col gap-4 p-4">
-              <MigrationResultItem
-                v-if="migrationResponse?.migrated_desktops !== undefined"
-                :title="
-                  migrationResponse?.migrated_desktops
-                    ? t('views.migration.success.progress.desktops-ok')
-                    : t('views.migration.success.progress.desktops-error')
-                "
-                :success="migrationResponse?.migrated_desktops"
-                :description="
-                  migrationResponse?.desktops_error
-                    ? t('views.migration.success.errors.generic', {
-                        type: t('domains.desktops', 2)
-                      })
-                    : undefined
-                "
-              />
-              <MigrationResultItem
-                v-if="migrationResponse?.migrated_templates !== undefined"
-                :title="
-                  migrationResponse?.migrated_templates
-                    ? t('views.migration.success.progress.templates-ok')
-                    : t('views.migration.success.progress.templates-error')
-                "
-                :success="migrationResponse?.migrated_templates"
-                :description="
-                  migrationResponse?.templates_error
-                    ? t('views.migration.success.errors.generic', {
-                        type: t('domains.templates', 2)
-                      })
-                    : undefined
-                "
-              />
-              <MigrationResultItem
-                v-if="migrationResponse?.migrated_media !== undefined"
-                :title="
-                  migrationResponse?.migrated_media
-                    ? t('views.migration.success.progress.media-ok')
-                    : t('views.migration.success.progress.media-error')
-                "
-                :success="migrationResponse?.migrated_media"
-                :description="
-                  migrationResponse?.media_error
-                    ? t('views.migration.success.errors.generic', {
-                        type: t('domains.media', 2)
-                      })
-                    : undefined
-                "
-              />
-              <MigrationResultItem
-                v-if="migrationResponse?.migrated_deployments !== undefined"
-                :title="
-                  migrationResponse?.migrated_deployments
-                    ? t('views.migration.success.progress.deployments-ok')
-                    : t('views.migration.success.progress.deployments-error')
-                "
-                :success="migrationResponse?.migrated_deployments"
-                :description="
-                  migrationResponse?.deployments_error
-                    ? t('views.migration.success.errors.generic', {
-                        type: t('domains.deployments', 2)
-                      })
-                    : undefined
-                "
-              />
-              <MigrationResultItem
-                v-if="migrationResponse?.rb_deleted !== undefined"
-                :title="t('views.migration.success.progress.recycle-bin-ok')"
-                :success="migrationResponse?.rb_deleted"
-              />
-            </div>
-
             <p class="px-8">
-              {{
-                migrationResponse?.migrated_desktops === false ||
-                migrationResponse?.migrated_templates === false ||
-                migrationResponse?.migrated_media === false ||
-                migrationResponse?.migrated_deployments === false
-                  ? t('views.migration.success.description.error')
-                  : t('views.migration.success.description.ok')
-              }}
+              {{ t('views.migration.success.description') }}
             </p>
 
             <div class="flex flex-row items-center justify-end">
               <Button class="px-8" @click="goToDesktops">{{
-                t('views.migration.success.buttons.ok')
+                t('views.migration.success.button')
               }}</Button>
             </div>
           </AlertDescription>
         </Alert>
       </div>
 
-      <div v-else class="flex flex-col items-center justify-center gap-8 mb-[32px]">
+      <div
+        v-else-if="userMigrationItems"
+        class="flex flex-col items-center justify-center gap-8 mb-[32px]"
+      >
         <div class="w-full flex flex-row flex-wrap gap-8 items-start justify-center">
-          <template v-for="item in itemsKind" :key="item.title">
-            <div
-              v-if="userMigrationItems[item.title.toLowerCase()].length > 0"
-              class="w-64 flex flex-col gap-4"
-            >
+          <template v-for="item in itemsKind" :key="item.key">
+            <div v-if="userMigrationItems[item.key].length > 0" class="w-64 flex flex-col gap-4">
               <MigrationItemBox
                 :loading="isPending"
-                :title="t(`domains.capitalized.${item.title.toLowerCase()}`, 2)"
-                :count="userMigrationItems[item.title.toLowerCase()].length"
+                :title="t(`domains.capitalized.${item.key}`, 2)"
+                :count="userMigrationItems[item.key].length"
                 :color-class="item.colorClass"
-                :warning="itemQuotaExceeded(item.title.toLowerCase())"
+                :warning="itemQuotaExceeded(item.key)"
                 :icon="item.icon"
                 class="transition-transform duration-300 ease-in-out transform hover:scale-105 cursor-pointer"
-                @click="showItemTable(item.title)"
+                @click="showItemTable(item.key)"
               />
               <MigrationItemTable
-                v-if="!shownTables.includes(item.title.toLowerCase())"
+                v-if="!shownTables.includes(item.key)"
                 :loading="isPending"
-                :title="t(`domains.capitalized.${item.title.toLowerCase()}`, 2)"
-                :items="userMigrationItems[item.title.toLowerCase()]"
+                :title="t(`domains.capitalized.${item.key}`, 2)"
+                :items="userMigrationItems[item.key]"
                 class="max-h-[30vh] overflow-y-auto"
               />
             </div>
@@ -424,7 +342,7 @@ const itemQuotaExceeded = (item: string) => {
               </h1>
             </AlertTitle>
             <AlertDescription>
-              <p v-if="userMigrationItems?.origin_user_delete === true" class="font-semibold">
+              <p v-if="userMigrationItems?.action_after_migrate === 'delete'" class="font-semibold">
                 {{
                   t('views.migration.notification.description.delete_user', {
                     old_user_name: userMigrationItems?.users[0].name,
@@ -456,7 +374,7 @@ const itemQuotaExceeded = (item: string) => {
                   :name="field.name"
                   :aria-invalid="isInvalid(field)"
                   :model-value="field.state.value"
-                  @update:model-value="field.handleChange($event)"
+                  @update:model-value="field.handleChange($event === true)"
                 />
                 <FieldContent class="ml-2">
                   <FieldLabel :for="field.name">

@@ -1,12 +1,12 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { getBookingPriorityDesktopApiV4ItemsBookingsGetPriorityDesktopItemIdGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getBookingPriorityDesktopOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { parsePriority } from '@/lib/booking/adapter'
 
 export function useBookingPriority(itemId: MaybeRefOrGetter<string | null>) {
   const query = useQuery(
     computed(() => ({
-      ...getBookingPriorityDesktopApiV4ItemsBookingsGetPriorityDesktopItemIdGetOptions({
+      ...getBookingPriorityDesktopOptions({
         path: { item_id: toValue(itemId) ?? '' }
       }),
       enabled: Boolean(toValue(itemId))

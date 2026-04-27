@@ -7,21 +7,14 @@ import { getToken as getAuthToken, useCookies as useAuthCookies, getBearer } fro
 import {
   apiV4LoginConfigOptions,
   getMaintenanceOptions,
-  getMaintenanceOptions,
   maintenanceStatusOptions,
-  maintenanceStatusOptions,
-  getMaintenanceTextFrontendOptions,
   getMaintenanceTextFrontendOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const cookies = useAuthCookies()
 
-const maintenanceTextOpts = computed(() =>
-  getMaintenanceTextFrontendOptions()
-)
-const maintenanceTextQueryKey = computed(() =>
-  getMaintenanceTextFrontendOptions()
-)
+const maintenanceTextOpts = computed(() => getMaintenanceTextFrontendOptions())
+const maintenanceTextQueryKey = computed(() => getMaintenanceTextFrontendOptions())
 
 const {
   isPending: maintenanceTextIsPending,
@@ -35,15 +28,13 @@ const {
 })
 
 const maintenanceStatusOpts = computed(() => maintenanceStatusOptions())
-const maintenanceStatusQueryKey = computed(() =>
-  maintenanceStatusOptions()
-)
+const maintenanceStatusQueryKey = computed(() => maintenanceStatusOptions())
 
 const {
   isPending: maintenanceStatusIsPending,
   isError: maintenanceStatusIsError,
   error: maintenanceStatusError,
-  data: maintenanceStatusOptions
+  data: maintenanceStatus
 } = useQuery({
   ...maintenanceStatusOpts.value,
   queryKey: maintenanceStatusQueryKey,
@@ -114,7 +105,7 @@ const isMaintenance = computed(() => {
   if (isPending.value) {
     return true
   }
-  return maintenanceStatusOptions.value?.enabled === true || maintenance.value?.enabled === true
+  return maintenanceStatus.value?.enabled === true || maintenance.value?.enabled === true
 })
 
 // redirect to / if there's no maintenance

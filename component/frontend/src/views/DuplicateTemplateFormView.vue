@@ -68,7 +68,7 @@ const imageUrl = computed(() => {
 
 const duplicateTemplateErrorCode = ref<string | undefined>(undefined)
 const {
-  mutate: duplicateTemplateMutation,
+  mutate: duplicateTemplate,
   mutateAsync: duplicateTemplateAsync,
   isPending: duplicateTemplateIsPending,
   isError: duplicateTemplateIsError,

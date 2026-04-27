@@ -1,11 +1,8 @@
 import { QueryClient } from '@tanstack/vue-query'
-import {
-  getUserApiV4ItemUserGetOptions,
-  getUserDetailsApiV4ItemUserGetDetailsGetOptions
-} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getUserOptions, getUserDetailsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-const userKey = getUserApiV4ItemUserGetOptions().queryKey
-const userDetailsKey = getUserDetailsApiV4ItemUserGetDetailsGetOptions().queryKey
+const userKey = getUserOptions().queryKey
+const userDetailsKey = getUserDetailsOptions().queryKey
 
 export const usersEventHandlers = {
   users_data: (queryClient: QueryClient, _payload: string) => {

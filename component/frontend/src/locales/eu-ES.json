@@ -182,34 +182,9 @@
         "title": "Akatsak izan dira migrazio-prozesuan:"
       },
       "success": {
-        "title": "Migrazioa osatuta",
-        "description": {
-          "ok": "Zure elementuak kontu berrira ongi migratu dira. Orain orri nagusira itzul zaitezke.",
-          "error": "Akats batzuk izan dira prozesuan eta zure elementu batzuk ez dira kontu berrira migratu. Mesedez, jarri administratzaile batekin harremanetan. Orain orri nagusira itzul zaitezke."
-        },
-        "progress": {
-          "desktops-progress": "Mahaigainak migratzen...",
-          "desktops-ok": "Mahaigainak migratuta",
-          "desktops-error": "Mahaigainak ez dira migratu",
-          "templates-progress": "Txantiloiak migratzen...",
-          "templates-ok": "Txantiloiak migratuta",
-          "templates-error": "Txantiloiak ez dira migratu",
-          "media-progress": "Euskarriak migratzen...",
-          "media-ok": "Euskarriak migratuta",
-          "media-error": "Euskarriak ez dira migratu",
-          "deployments-progress": "Hedapenak migratzen...",
-          "deployments-ok": "Hedapenak migratuta",
-          "deployments-error": "Hedapenak ez dira migratu",
-          "recycle-bin-progress": "Zakarrontzia husten...",
-          "recycle-bin-ok": "Zakarrontzia hustuta"
-        },
-        "buttons": {
-          "ok": "Ados",
-          "logout": "Saioa itxi"
-        },
-        "errors": {
-          "generic": "Akats bat gertatu da {type} migratzerakoan, mesedez, jarri administratzaile batekin harremanetan."
-        }
+        "title": "Migrazioa hasita",
+        "description": "Migrazioa ilaran jarri da. Elementuak bigarren mailan prozesatuko dira; bitartean zure mahaigainetara itzul zaitezke.",
+        "button": "Joan mahaigainetara"
       }
     },
     "recycle-bin": {

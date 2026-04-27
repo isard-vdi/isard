@@ -1,6 +1,9 @@
 import { computed } from 'vue'
 
-import { DesktopStatusEnum, type UserDesktop } from '@/gen/oas/apiv4/'
+import {
+  DesktopStatusEnum,
+  type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop
+} from '@/gen/oas/apiv4/'
 
 export type UserDesktopWithQueue = UserDesktop & { queue?: number }
 

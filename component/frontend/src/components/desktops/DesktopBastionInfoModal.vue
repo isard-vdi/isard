@@ -7,7 +7,7 @@ import { useForm } from '@tanstack/vue-form'
 
 import {
   getUserConfigOptions,
-  getDesktopBastionApiV4ItemDesktopDesktopIdGetBastionGetOptions,
+  getDesktopBastionLegacyOptions,
   updateDesktopBastionAuthorizedKeysMutation,
   updateDesktopBastionDomainMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
@@ -52,7 +52,7 @@ const {
   error: bastionTargetDataError,
   refetch: refetchBastionTargetData
 } = useQuery(
-  getDesktopBastionApiV4ItemDesktopDesktopIdGetBastionGetOptions({
+  getDesktopBastionLegacyOptions({
     path: {
       desktop_id: props.desktopId
     }

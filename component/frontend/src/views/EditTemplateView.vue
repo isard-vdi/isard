@@ -7,9 +7,9 @@ import { z } from 'zod'
 import { useForm } from '@tanstack/vue-form'
 
 import {
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions,
-  updateTemplateApiV4ItemTemplateTemplateIdEditPutMutation,
-  getUserTemplatesApiV4ItemsTemplatesGetQueryKey
+  getTemplateInfoOptions,
+  updateTemplateMutation,
+  getUserTemplatesQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import DomainAccessForm from '@/components/domain/DomainAccessForm.vue'
@@ -31,7 +31,7 @@ const {
   isError: templateLoadError,
   data: templateData
 } = useQuery({
-  ...getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions({
+  ...getTemplateInfoOptions({
     path: { template_id: templateId.value }
   }),
   enabled: computed(() => !!templateId.value)
@@ -85,9 +85,9 @@ const areFormsValid = computed(
 const submitError = ref<string | null>(null)
 
 const { mutate: submitEdit, isPending: submitPending } = useMutation({
-  ...updateTemplateApiV4ItemTemplateTemplateIdEditPutMutation(),
+  ...updateTemplateMutation(),
   onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: getUserTemplatesApiV4ItemsTemplatesGetQueryKey() })
+    queryClient.invalidateQueries({ queryKey: getUserTemplatesQueryKey() })
     router.push({ name: 'templates' })
   },
   onError: (error) => {

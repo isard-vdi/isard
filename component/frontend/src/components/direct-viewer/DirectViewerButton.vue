@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useMutation } from '@tanstack/vue-query'
 import { jwtDecode } from 'jwt-decode'
 import { useCookies } from '@vueuse/integrations/useCookies'
-import { logViewerClickApiV4ItemDesktopTokenTokenViewerProtocolPostMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { logViewerClickMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -60,7 +60,7 @@ const helpKey = computed(() =>
     : 'views.direct-viewer.help.rdp.rdp-help'
 )
 
-const logClick = useMutation(logViewerClickApiV4ItemDesktopTokenTokenViewerProtocolPostMutation())
+const logClick = useMutation(logViewerClickMutation())
 
 function openViewer() {
   const viewer = props.viewer

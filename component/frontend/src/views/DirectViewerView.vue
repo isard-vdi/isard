@@ -6,10 +6,10 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { io, type Socket } from 'socket.io-client'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import {
-  getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetOptions,
-  getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetQueryKey,
-  getViewerDocsApiV4ItemDesktopGetViewersDocsGetOptions,
-  apiV4LoginConfigApiV4ItemLoginConfigGetOptions
+  getDesktopViewerByTokenOptions,
+  getDesktopViewerByTokenQueryKey,
+  getViewerDocsOptions,
+  apiV4LoginConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum, type DesktopViewerResponse, type ErrorResponse } from '@/gen/oas/apiv4'
 import { webSockets } from '@/lib/constants'
@@ -40,12 +40,12 @@ const showResetModal = ref(false)
 const helpModal = ref<'spice' | 'rdp' | null>(null)
 
 const viewerQueryOptions = computed(() =>
-  getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetOptions({
+  getDesktopViewerByTokenOptions({
     path: { token: token.value }
   })
 )
 const viewerQueryKey = computed(() =>
-  getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetQueryKey({
+  getDesktopViewerByTokenQueryKey({
     path: { token: token.value }
   })
 )
@@ -60,8 +60,8 @@ const {
   retry: false
 })
 
-const { data: viewerDocs } = useQuery(getViewerDocsApiV4ItemDesktopGetViewersDocsGetOptions())
-const { data: loginConfig } = useQuery(apiV4LoginConfigApiV4ItemLoginConfigGetOptions())
+const { data: viewerDocs } = useQuery(getViewerDocsOptions())
+const { data: loginConfig } = useQuery(apiV4LoginConfigOptions())
 
 const errorMessage = computed(() => {
   if (!viewerError.value) return null

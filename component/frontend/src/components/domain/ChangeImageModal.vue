@@ -4,10 +4,10 @@ import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import {
-  getDesktopImagesApiV4ItemsDesktopsGetImagesGetOptions,
-  getDesktopImagesApiV4ItemsDesktopsGetImagesGetQueryKey,
-  editDesktopApiV4ItemDesktopDesktopIdEditPutMutation,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetQueryKey
+  getDesktopImagesOptions,
+  getDesktopImagesQueryKey,
+  editDesktopMutation,
+  getDesktopInfoQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { DomainImageOutput } from '@/gen/oas/apiv4/types.gen'
 
@@ -45,7 +45,7 @@ const {
   isPending: imagesLoading,
   isError: imagesError
 } = useQuery({
-  ...getDesktopImagesApiV4ItemsDesktopsGetImagesGetOptions({
+  ...getDesktopImagesOptions({
     query: { desktop_id: props.desktopId }
   }),
   enabled: computed(() => props.open && !!props.desktopId)
@@ -77,15 +77,15 @@ function selectImage(image: DomainImageOutput) {
 const saveErrorCode = ref<string | undefined>(undefined)
 
 const { mutate: saveImage, isPending: saveIsPending } = useMutation({
-  ...editDesktopApiV4ItemDesktopDesktopIdEditPutMutation(),
+  ...editDesktopMutation(),
   onSuccess: () => {
     queryClient.invalidateQueries({
-      queryKey: getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetQueryKey({
+      queryKey: getDesktopInfoQueryKey({
         path: { desktop_id: props.desktopId }
       })
     })
     queryClient.invalidateQueries({
-      queryKey: getDesktopImagesApiV4ItemsDesktopsGetImagesGetQueryKey({
+      queryKey: getDesktopImagesQueryKey({
         query: { desktop_id: props.desktopId }
       })
     })
@@ -117,16 +117,16 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const uploadErrorCode = ref<string | undefined>(undefined)
 
 const { mutate: uploadImage, isPending: uploadIsPending } = useMutation({
-  ...editDesktopApiV4ItemDesktopDesktopIdEditPutMutation(),
+  ...editDesktopMutation(),
   onSuccess: () => {
     uploadErrorCode.value = undefined
     queryClient.invalidateQueries({
-      queryKey: getDesktopImagesApiV4ItemsDesktopsGetImagesGetQueryKey({
+      queryKey: getDesktopImagesQueryKey({
         query: { desktop_id: props.desktopId }
       })
     })
     queryClient.invalidateQueries({
-      queryKey: getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetQueryKey({
+      queryKey: getDesktopInfoQueryKey({
         path: { desktop_id: props.desktopId }
       })
     })

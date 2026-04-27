@@ -357,7 +357,11 @@ const { mutate: deleteUserDesktops, isPending: isDeletingUser } = useMutation(
   deleteUserDeploymentDesktopsMutation()
 )
 
-function showDeleteUserConfirmation({ path }: { path: { deployment_id: string; user_id: string } }) {
+function showDeleteUserConfirmation({
+  path
+}: {
+  path: { deployment_id: string; user_id: string }
+}) {
   userToDelete.value = path.user_id
   showDeleteUserModal.value = true
   deleteUserError.value = ''
@@ -397,7 +401,7 @@ function getDeleteUserModalDescription() {
 
 const showRecreateModal = ref(false)
 const recreateError = ref('')
-const { mutate: recreateDeploymentMutation, isPending: isRecreating } = useMutation(
+const { mutate: recreateDeployment, isPending: isRecreating } = useMutation(
   recreateDeploymentMutation()
 )
 
@@ -407,7 +411,7 @@ function showRecreateConfirmation() {
 }
 
 function confirmRecreate() {
-  recreateDeploymentMutation(
+  recreateDeployment(
     { path: { deployment_id: labId } },
     {
       onSuccess: () => {
@@ -654,7 +658,9 @@ function confirmToggleUserVisibility() {
                 icon-size="md"
                 :title="t('views.deployment.delete-user.title')"
                 @click="
-                  showDeleteUserConfirmation({ path: { deployment_id: labId, user_id: row.user_id } })
+                  showDeleteUserConfirmation({
+                    path: { deployment_id: labId, user_id: row.user_id }
+                  })
                 "
               />
             </div>

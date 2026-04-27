@@ -5,9 +5,9 @@ import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 
 import {
-  getMediaApiV4ItemMediaMediaIdGetOptions,
-  listMediaInstallsApiV4ItemsMediaInstallsGetOptions,
-  createDesktopFromMediaApiV4ItemDesktopFromMediaPostMutation
+  getMediaOptions,
+  listMediaInstallsOptions,
+  createDesktopFromMediaMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { CreateDesktopFromMedia } from '@/gen/oas/apiv4'
 
@@ -42,7 +42,7 @@ const {
   isPending: mediaLoading,
   isError: mediaError
 } = useQuery(
-  getMediaApiV4ItemMediaMediaIdGetOptions({
+  getMediaOptions({
     path: { media_id: mediaId.value }
   })
 )
@@ -51,9 +51,7 @@ if (mediaError.value) {
   router.push({ name: 'media' })
 }
 
-const { data: osTemplates, isPending: osTemplatesLoading } = useQuery(
-  listMediaInstallsApiV4ItemsMediaInstallsGetOptions()
-)
+const { data: osTemplates, isPending: osTemplatesLoading } = useQuery(listMediaInstallsOptions())
 
 const selectedOsTemplateId = ref<string>('')
 
@@ -101,7 +99,7 @@ const {
   isPending: createIsPending,
   isError: createIsError
 } = useMutation({
-  ...createDesktopFromMediaApiV4ItemDesktopFromMediaPostMutation(),
+  ...createDesktopFromMediaMutation(),
   onSuccess: (data) => {
     isDirty.value = false
     router.push({

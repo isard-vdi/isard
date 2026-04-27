@@ -36,14 +36,14 @@ const isError = computed(() => notificationsIsError.value)
 const error = computed(() => notificationsError.value)
 const data = computed(() => notificationsData.value)
 
-const { data: getUserOptions } = useQuery(getUserOptions())
+const { data: user } = useQuery(getUserOptions())
 
 const goToDesktops = () => {
   window.location.pathname = '/'
 }
 </script>
 <template>
-  <SinglePageLayout :go-back="false" :avatar="true" :user="getUserOptions">
+  <SinglePageLayout :go-back="false" :avatar="true" :user="user">
     <template #title>
       <h1 class="mt-[46px] mb-3 text-center text-display-md font-bold text-gray-warm-800">
         {{ t('views.notifications.title') }}

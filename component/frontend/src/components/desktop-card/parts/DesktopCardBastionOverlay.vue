@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
 import {
-  getUserConfigApiV4ItemUserGetConfigGetOptions,
-  getDesktopBastionApiV4ItemDesktopDesktopIdGetBastionGetOptions
+  getUserConfigOptions,
+  getDesktopBastionLegacyOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { UserDesktop } from '@/gen/oas/apiv4/'
 
@@ -26,9 +26,9 @@ const emit = defineEmits<{ showBastionModal: [] }>()
 
 const size = inject(CARD_SIZE_INJECTION_KEY, 'lg')
 
-const { data: userConfig } = useQuery(getUserConfigApiV4ItemUserGetConfigGetOptions())
+const { data: userConfig } = useQuery(getUserConfigOptions())
 const { data: target, isPending } = useQuery(
-  getDesktopBastionApiV4ItemDesktopDesktopIdGetBastionGetOptions({
+  getDesktopBastionLegacyOptions({
     path: { desktop_id: props.desktop.id }
   })
 )
