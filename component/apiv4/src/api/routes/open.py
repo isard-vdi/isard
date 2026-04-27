@@ -25,6 +25,7 @@ import traceback
 
 from api import admin_router, advanced_router, manager_router, open_router, token_router
 from api.schemas.common import ErrorResponse
+from api.schemas.login import LoginConfigResponse
 from api.schemas.open import ApiVersion
 from api.services.admin_categories import AdminCategoryService
 from api.services.categories import CategoryService
@@ -197,17 +198,20 @@ async def get_logo(request: Request):
 @open_router.get(
     "/item/login-config/{category_id}",
     tags=["categories"],
+    response_model=LoginConfigResponse,
     summary="Get login config for category",
     description="Returns login configuration for a specific category, falling back to global.",
     responses={
-        200: {"description": "Login configuration"},
         500: {"model": ErrorResponse},
     },
 )
 async def get_login_config_by_category(request: Request, category_id: str):
     try:
         config = AdminCategoryService.get_login_config_for_category(category_id)
-        return JSONResponse(content=config, status_code=200)
+        return JSONResponse(
+            content=LoginConfigResponse(**config).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

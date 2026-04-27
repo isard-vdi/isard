@@ -18,6 +18,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import html
+
 from api.services.error import Error
 from isardvdi_common.configuration import Configuration
 from isardvdi_common.helpers.bastion import Bastion
@@ -205,15 +207,35 @@ class AdminCategoryService:
 
     @staticmethod
     def get_login_config_for_category(category_id):
-        """Get login configuration for a specific category, falling back to global."""
+        """Get login configuration for a category, falling back to global.
+
+        Returns the same flat shape as ``GET /item/login-config``
+        (``LoginConfigResponse``) so the same frontend helpers can consume
+        both endpoints.
+        """
         try:
-            cat = Category(category_id)
-            login_notification = cat.login_notification
+            login_notification = Category(category_id).login_notification
         except Exception:
             login_notification = None
         if login_notification:
-            return {"login": {"notification": login_notification}}
-        return {"login": Configuration().login or {}}
+            login_config = login_notification
+        else:
+            login_config = Configuration().login or {}
+
+        for key in ("notification_cover", "notification_form"):
+            notif = login_config.get(key)
+            if not isinstance(notif, dict):
+                continue
+            for field in ("title", "description"):
+                if notif.get(field) is not None:
+                    notif[field] = html.unescape(notif[field])
+            button = notif.get("button")
+            if isinstance(button, dict):
+                for field in ("text", "url"):
+                    if button.get(field) is not None:
+                        button[field] = html.unescape(button[field])
+
+        return login_config
 
 
 def _strip_authentication_secrets(auth):
