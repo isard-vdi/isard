@@ -61,8 +61,8 @@ class Hardware(BaseModel):
 class GuestProperties(BaseModel):
 
     class _GuestPropertiesCredentials(BaseModel):
-        username: str
-        password: str
+        username: str = "isard"
+        password: str = "pirineus"
 
     class _GuestPropertiesViewers(BaseModel):
         browser_rdp: dict | MISSING = MISSING
@@ -71,8 +71,14 @@ class GuestProperties(BaseModel):
         file_rdpvpn: dict | MISSING = MISSING
         file_spice: dict | MISSING = MISSING
 
-    credentials: _GuestPropertiesCredentials
-    fullscreen: bool
+    # Vue 3 from-media payloads omit ``credentials`` and ``fullscreen``;
+    # template-derive then inherits the same shape so the
+    # ``DesktopFromTemplate`` Pydantic validation has to tolerate the
+    # missing keys (otherwise every persistent-from-template create
+    # 400s with ``new_from_template: Invalid desktop data``). The
+    # defaults match the apiv4 ``DomainGuestProperties`` defaults.
+    credentials: _GuestPropertiesCredentials = _GuestPropertiesCredentials()
+    fullscreen: bool = False
     viewers: _GuestPropertiesViewers
 
 
