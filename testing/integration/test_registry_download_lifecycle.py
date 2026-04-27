@@ -107,7 +107,7 @@ def test_registry_download_full_lifecycle(
 
     # --- Step 2: trigger download ---
     admin_client.post(
-        f"/api/v4/admin/downloads/download/domains/{registry_entry['id']}",
+        f"/api/v4/admin/downloads/download/domains/{registry_entry.get('url-isard') or registry_entry['id']}",
         expected=(200, 201, 204),
     )
 

@@ -67,8 +67,6 @@ DEFAULT_MEDIA_URL = os.environ.get(
     "https://distro.ibiblio.org/damnsmall/dsl-n/current/dsl-n-01RC4.iso",
 )
 
-REGISTRY_IMAGE_NAME = os.environ.get("E2E_REGISTRY_IMAGE", "TetrOS")
-
 # Engine timeouts: download is generous (small ISO, but flaky archive),
 # disk creation is fast (qcow2 on an already-present parent), template
 # creation includes a second qcow2 op.
@@ -218,33 +216,61 @@ def _start_then_settle(
     )
 
 
-def _find_registry_entry(admin_client: IsardClient, name: str) -> Optional[dict]:
-    entries = admin_client.get("/api/v4/admin/downloads/domains")
-    for entry in entries:
-        if (entry.get("name") or "").lower() == name.lower():
-            return entry
-    return None
+def _media_then_template(
+    admin_client: IsardClient, test_namespace: str, prefix: str
+) -> tuple:
+    """Build a usable template via the new task chain: download a small
+    ISO, derive a desktop, snapshot a template from it. Returns the
+    ``(template_id, source_desktop_id, media_id)`` triple — the source
+    desktop and template are persistent until the session-end cleanup
+    removes them by the namespace prefix.
 
+    This replaces the older registry-domain path because the merge
+    only migrated the *media* URL chain to the storage RQ tasks; the
+    registry-domain ``DownloadStarting`` handler used to live in the
+    deleted ``engine/services/threads/download_thread.py`` and has not
+    yet been ported.
+    """
+    media_name = f"{test_namespace}{prefix}_tmpl_media"
+    media = admin_client.post(
+        "/api/v4/item/media",
+        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    )
+    media_id = media["id"]
+    admin_client.poll_media_status(
+        media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
+    )
 
-def _wait_download_appears(
-    admin_client: IsardClient,
-    name: str,
-    exclude_ids: set,
-    timeout: float,
-) -> str:
-    """Poll admin domains until a desktop named ``name`` (registry-
-    download desktop) appears whose id is not in ``exclude_ids``."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        rows = (
-            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
-            or []
-        )
-        for row in rows:
-            if (row.get("name") or "") == name and row["id"] not in exclude_ids:
-                return row["id"]
-        time.sleep(2)
-    raise TimeoutError(f"no new desktop named {name!r} appeared within {timeout}s")
+    src_name = f"{test_namespace}{prefix}_tmpl_src"
+    src = admin_client.post(
+        "/api/v4/item/desktop/from-media",
+        json_body=_desktop_from_media_payload(
+            media_id,
+            src_name,
+            _hardware_dict(vcpus=1, memory_gb=0.5, disk_size_gb=1),
+        ),
+    )
+    src_id = src["id"]
+    admin_client.poll_desktop_status(src_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT)
+
+    template_name = f"{test_namespace}{prefix}_tmpl"
+    template = admin_client.post(
+        "/api/v4/item/template",
+        json_body={
+            "desktop_id": src_id,
+            "name": template_name,
+            "description": "",
+            "allowed": {"users": False, "groups": False},
+            "enabled": True,
+        },
+    )
+    template_id = template["id"]
+    admin_client.wait_for_template_created(
+        source_desktop_id=src_id,
+        template_id=template_id,
+        max_wait=TEMPLATE_TIMEOUT,
+    )
+    return template_id, src_id, media_id
 
 
 # ---------------------------------------------------------------------------
@@ -262,65 +288,15 @@ def test_desktop_from_template_uses_explicit_hardware_in_xml(
     Branch contract: deriving a desktop from a template via the
     task-based flow must record the *requested* hardware, not the
     template's, in both the apiv4 detail response and the engine's
-    XML. We use TetrOS as the source template (any ready template
-    works; TetrOS happens to be present after registry seeding).
+    XML. The template is built from a media-derived desktop so the
+    whole new chain (download_url + create) is exercised end-to-end.
     """
-    registry_entry = _find_registry_entry(admin_client, REGISTRY_IMAGE_NAME)
-    if registry_entry is None or registry_entry.get("status") not in (
-        None,
-        "Available",
-    ):
-        pytest.skip(
-            f"{REGISTRY_IMAGE_NAME!r} not Available in registry — "
-            "template-derive test cannot run"
+    try:
+        template_id, _src_id, _media_id = _media_then_template(
+            admin_client, test_namespace, prefix="hw"
         )
-
-    # --- ensure the registry desktop is downloaded so we have a
-    # ready, stopped source to derive a template from. ---
-    existing_rows = (
-        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
-    )
-    existing_ids = {
-        r["id"] for r in existing_rows if (r.get("name") or "") == REGISTRY_IMAGE_NAME
-    }
-    admin_client.post(
-        f"/api/v4/admin/downloads/download/domains/{registry_entry['id']}",
-        expected=(200, 201, 204),
-    )
-    src_id = _wait_download_appears(
-        admin_client,
-        REGISTRY_IMAGE_NAME,
-        exclude_ids=existing_ids,
-        timeout=60,
-    )
-    # Rename into the test prefix so teardown finds it.
-    admin_client.raw(
-        "PUT",
-        f"/api/v4/item/desktop/{src_id}/edit",
-        json={"name": f"{test_namespace}hw_src", "description": "src"},
-    )
-    admin_client.poll_desktop_status(
-        src_id, want={"Stopped"}, max_wait=DOWNLOAD_TIMEOUT
-    )
-
-    # --- create a template from the downloaded desktop. ---
-    template_name = f"{test_namespace}hw_template"
-    template = admin_client.post(
-        "/api/v4/item/template",
-        json_body={
-            "desktop_id": src_id,
-            "name": template_name,
-            "description": "",
-            "allowed": {"users": False, "groups": False},
-            "enabled": True,
-        },
-    )
-    template_id = template["id"]
-    admin_client.wait_for_template_created(
-        source_desktop_id=src_id,
-        template_id=template_id,
-        max_wait=TEMPLATE_TIMEOUT,
-    )
+    except RuntimeError as exc:
+        pytest.skip(f"media source unreachable: {exc}")
 
     # --- derive a desktop with EXPLICIT hardware. ---
     requested_vcpus = 2
@@ -693,53 +669,12 @@ def test_nonpersistent_desktop_inherits_template_hardware_in_xml(
     that chain races the engine's XML render, the ``vcpu`` / memory
     values can briefly desync — we poll, not assert-once.
     """
-    # Set up: download TetrOS, make a template out of it.
-    registry_entry = _find_registry_entry(admin_client, REGISTRY_IMAGE_NAME)
-    if registry_entry is None or registry_entry.get("status") not in (
-        None,
-        "Available",
-    ):
-        pytest.skip(f"{REGISTRY_IMAGE_NAME!r} not Available in registry")
-
-    existing_rows = (
-        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
-    )
-    existing_ids = {
-        r["id"] for r in existing_rows if (r.get("name") or "") == REGISTRY_IMAGE_NAME
-    }
-    admin_client.post(
-        f"/api/v4/admin/downloads/download/domains/{registry_entry['id']}",
-        expected=(200, 201, 204),
-    )
-    src_id = _wait_download_appears(
-        admin_client, REGISTRY_IMAGE_NAME, exclude_ids=existing_ids, timeout=60
-    )
-    admin_client.raw(
-        "PUT",
-        f"/api/v4/item/desktop/{src_id}/edit",
-        json={"name": f"{test_namespace}np_src", "description": "src"},
-    )
-    admin_client.poll_desktop_status(
-        src_id, want={"Stopped"}, max_wait=DOWNLOAD_TIMEOUT
-    )
-
-    template_name = f"{test_namespace}np_template"
-    template = admin_client.post(
-        "/api/v4/item/template",
-        json_body={
-            "desktop_id": src_id,
-            "name": template_name,
-            "description": "",
-            "allowed": {"users": False, "groups": False},
-            "enabled": True,
-        },
-    )
-    template_id = template["id"]
-    admin_client.wait_for_template_created(
-        source_desktop_id=src_id,
-        template_id=template_id,
-        max_wait=TEMPLATE_TIMEOUT,
-    )
+    try:
+        template_id, _src_id, _media_id = _media_then_template(
+            admin_client, test_namespace, prefix="np"
+        )
+    except RuntimeError as exc:
+        pytest.skip(f"media source unreachable: {exc}")
 
     # Non-persistent create: minimal payload, no hardware override.
     np_resp = admin_client.post(
@@ -782,53 +717,12 @@ def test_deployment_desktops_inherit_hardware_from_request(
     template + a hardware override. Pin: each materialized desktop
     carries the deployment's requested hardware, not the template's.
     """
-    # Set up: download TetrOS, make a template out of it.
-    registry_entry = _find_registry_entry(admin_client, REGISTRY_IMAGE_NAME)
-    if registry_entry is None or registry_entry.get("status") not in (
-        None,
-        "Available",
-    ):
-        pytest.skip(f"{REGISTRY_IMAGE_NAME!r} not Available in registry")
-
-    existing_rows = (
-        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
-    )
-    existing_ids = {
-        r["id"] for r in existing_rows if (r.get("name") or "") == REGISTRY_IMAGE_NAME
-    }
-    admin_client.post(
-        f"/api/v4/admin/downloads/download/domains/{registry_entry['id']}",
-        expected=(200, 201, 204),
-    )
-    src_id = _wait_download_appears(
-        admin_client, REGISTRY_IMAGE_NAME, exclude_ids=existing_ids, timeout=60
-    )
-    admin_client.raw(
-        "PUT",
-        f"/api/v4/item/desktop/{src_id}/edit",
-        json={"name": f"{test_namespace}dep_src", "description": "src"},
-    )
-    admin_client.poll_desktop_status(
-        src_id, want={"Stopped"}, max_wait=DOWNLOAD_TIMEOUT
-    )
-
-    template_name = f"{test_namespace}dep_template"
-    template = admin_client.post(
-        "/api/v4/item/template",
-        json_body={
-            "desktop_id": src_id,
-            "name": template_name,
-            "description": "",
-            "allowed": {"users": False, "groups": False},
-            "enabled": True,
-        },
-    )
-    template_id = template["id"]
-    admin_client.wait_for_template_created(
-        source_desktop_id=src_id,
-        template_id=template_id,
-        max_wait=TEMPLATE_TIMEOUT,
-    )
+    try:
+        template_id, _src_id, _media_id = _media_then_template(
+            admin_client, test_namespace, prefix="dep"
+        )
+    except RuntimeError as exc:
+        pytest.skip(f"media source unreachable: {exc}")
 
     # Create a deployment with explicit hardware override.
     dep_vcpus = 2

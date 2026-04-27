@@ -3,3 +3,8 @@ betterproto~=1.2
 rethinkdb==2.4.10.post1
 PyJWT==2.8.0
 tabulate
+# Required since the download_url / domain_creating_disk task chain
+# imports isardvdi_common.models.* — pydantic backs the schemas and
+# ``helpers/alloweds.py`` pulls in gevent at import time.
+pydantic==2.12.0
+gevent==25.5.1
