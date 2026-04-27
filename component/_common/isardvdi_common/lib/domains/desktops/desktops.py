@@ -373,7 +373,15 @@ class DesktopsProcessed(RethinkSharedConnection):
                 create_dict["hardware"].update(new_data["hardware"])
 
             if new_data.get("reservables"):
-                # If reservables are provided, update them at create_dict level
+                # The Vue 3 client ships ``vgpus: ["None"]`` (the
+                # literal string list) when the user clears the
+                # reservable. Coerce to ``None`` here, same as the
+                # from-media + edit paths already do — without this
+                # the desktop persists ``["None"]``, which the booking
+                # layer treats as a real reservable and demands a
+                # booking on every start, even for non-GPU desktops.
+                if new_data["reservables"].get("vgpus") == ["None"]:
+                    new_data["reservables"]["vgpus"] = None
                 create_dict["reservables"] = new_data["reservables"]
 
             # If new_data contains guest_properties, merge only the provided keys
@@ -554,10 +562,19 @@ class DesktopsProcessed(RethinkSharedConnection):
             )
         if image:
             image_data = image
+            # ``domain_id`` is the optional pre-allocated id passed by
+            # callers that insert themselves (``insert=False``); for the
+            # default ``insert=True`` path the row id we just wrote is
+            # ``valid_desktop["id"]``. Picking it up here avoids the
+            # ``r.table('domains').get(None)`` ReqlNonExistenceError that
+            # turned every persistent-from-template create with an
+            # ``image`` payload into a 500 (the Vue 3 client always
+            # ships ``image`` in its create body).
+            target_id = domain_id or valid_desktop["id"]
             if not image_data.get("file"):
-                Cards.update(domain_id, image_data["id"], image_data["type"])
+                Cards.update(target_id, image_data["id"], image_data["type"])
             else:
-                Cards.upload(domain_id, image_data)
+                Cards.upload(target_id, image_data)
         return new_desktop
 
     @classmethod
