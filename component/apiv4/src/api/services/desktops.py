@@ -56,6 +56,7 @@ from isardvdi_common.lib.storage.storage import StorageProcessed as CommonStorag
 from isardvdi_common.models.boots import Boot as RethinkBoot
 from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.media import Media as RethinkMedia
+from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.targets import Targets
 from isardvdi_common.models.targets import Targets as RethinkTargets
 from isardvdi_common.models.user import User as RethinkUser
@@ -298,6 +299,33 @@ class DesktopService:
                     "parent": None,
                 }
             ]
+
+        # Pre-allocate the storage row up-front. The branch's task
+        # chain (``Storage.enqueue_disk_creation_chain_for_domain``)
+        # requires the domain's ``create_dict.hardware.disks[0]`` to
+        # carry both ``storage_id`` and ``file`` *before* the domain
+        # row is inserted, so engine restart cleanup can trace the
+        # in-flight task via the ``storage_ids`` multi-index.
+        # ISO-only desktops (no disks at all) skip this — they have
+        # no qcow2 to create.
+        pending_storage = None
+        pending_size = None
+        if hardware.get("disks"):
+            pending_size = hardware["disks"][0].get("size")
+            pending_storage = Storage.new_dict(
+                user_id=user_id,
+                pool_usage="desktop",
+                parent_id=None,
+            )
+            pending_storage.status_logs = [
+                {"time": int(time.time()), "status": "created"}
+            ]
+            hardware["disks"][0].update(
+                {
+                    "storage_id": pending_storage.id,
+                    "file": pending_storage.path,
+                }
+            )
         image_data = None
         if hasattr(data, "image") and data.image:
             if isinstance(data.image, str):
@@ -343,6 +371,15 @@ class DesktopService:
             "booking_id": False,
         }
         RethinkDomain.init_document(**desktop)
+
+        # Spin up the task chain that builds the qcow2 file and links
+        # it back into the domain row. ``creating_disk_from_scratch``
+        # is the wait-state the engine sees while the chain runs.
+        if pending_storage is not None:
+            pending_storage.enqueue_disk_creation_chain_for_domain(
+                domain_id=desktop_id,
+                size=pending_size,
+            )
 
         return desktop_id
 

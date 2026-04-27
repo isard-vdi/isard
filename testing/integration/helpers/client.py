@@ -37,6 +37,7 @@ class IsardClient:
         self.token: Optional[str] = None
         self.user_id: Optional[str] = None
         self._session = requests.Session()
+        self._login_args: Optional[tuple] = None
 
     def login(
         self,
@@ -45,6 +46,11 @@ class IsardClient:
         category_id: str = "default",
         provider: str = "form",
     ) -> str:
+        # Remember the credentials so we can transparently refresh the
+        # token if it expires mid-test. Long-running suites
+        # (download_url + qcow2 create + start/stop cycles) routinely
+        # outlive the JWT TTL.
+        self._login_args = (username, password, category_id, provider)
         resp = self._session.post(
             f"{self.auth_url}/authentication/login",
             params={"provider": provider, "category_id": category_id},
@@ -63,6 +69,24 @@ class IsardClient:
         details = self.get("/api/v4/item/user/get-details")
         self.user_id = details["id"]
         return self.token
+
+    def _relogin(self) -> None:
+        """Refresh the JWT in place. No-op if no prior login() was made."""
+        if not self._login_args:
+            return
+        username, password, category_id, provider = self._login_args
+        resp = self._session.post(
+            f"{self.auth_url}/authentication/login",
+            params={"provider": provider, "category_id": category_id},
+            files={
+                "username": (None, username),
+                "password": (None, password),
+            },
+            headers={"X-Forwarded-For": "127.0.0.1"},
+            timeout=self.timeout,
+        )
+        if resp.status_code == 200:
+            self.token = resp.text.strip()
 
     # --- REST primitives -------------------------------------------------
 
@@ -84,14 +108,28 @@ class IsardClient:
         expected: Optional[tuple] = None,
         timeout: Optional[float] = None,
     ) -> Any:
-        resp = self._session.request(
-            method,
-            self._url(path),
-            json=json_body,
-            params=params,
-            headers=self._headers(),
-            timeout=timeout or self.timeout,
-        )
+        def _send():
+            return self._session.request(
+                method,
+                self._url(path),
+                json=json_body,
+                params=params,
+                headers=self._headers(),
+                timeout=timeout or self.timeout,
+            )
+
+        resp = _send()
+        # Long-running tests routinely outlive the JWT TTL. Retry once
+        # after refreshing the token before reporting an assertion error
+        # — without this the suite is full of false positives the moment
+        # the worker hits a multi-minute download/create.
+        if resp.status_code == 401 and self._login_args:
+            try:
+                self._relogin()
+            except Exception:
+                pass
+            else:
+                resp = _send()
         if expected is not None and resp.status_code not in expected:
             raise AssertionError(
                 f"{method} {path} -> HTTP {resp.status_code}; expected {expected}; body={resp.text[:500]}"
@@ -136,13 +174,26 @@ class IsardClient:
     # --- raw request (no expectation) — used by cleanup/polling ---------
 
     def raw(self, method: str, path: str, **kw) -> requests.Response:
-        return self._session.request(
-            method,
-            self._url(path),
-            headers=self._headers(),
-            timeout=kw.pop("timeout", self.timeout),
-            **kw,
-        )
+        timeout = kw.pop("timeout", self.timeout)
+
+        def _send():
+            return self._session.request(
+                method,
+                self._url(path),
+                headers=self._headers(),
+                timeout=timeout,
+                **kw,
+            )
+
+        resp = _send()
+        if resp.status_code == 401 and self._login_args:
+            try:
+                self._relogin()
+            except Exception:
+                pass
+            else:
+                resp = _send()
+        return resp
 
     # --- domain-status polling ------------------------------------------
 
