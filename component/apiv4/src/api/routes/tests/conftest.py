@@ -84,12 +84,12 @@ def test_client_with_conn(monkeypatch, client):
         if body:
             request_params["json"] = body
 
-        api_call = getattr(client, method.lower(), None)
-
-        if not api_call:
-            raise ValueError(f"Method {method} is not supported by TestClient.")
-
-        return api_call(**request_params)
+        # Use ``client.request(method, url, ...)`` instead of e.g.
+        # ``client.delete(url, json=...)`` because httpx's TestClient.delete
+        # signature doesn't accept ``json=`` (it's an httpx convention that
+        # body-on-DELETE goes via the generic request method). Matters for
+        # routes like DELETE /admin/notification/{id} that accept a body.
+        return client.request(method.upper(), **request_params)
 
     return client_factory
 
