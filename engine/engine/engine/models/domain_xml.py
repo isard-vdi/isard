@@ -2159,30 +2159,39 @@ def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=
         log.error("Exception parsing xml in add_memory_backing: {}".format(e))
         return xml
 
-    # Remove existing memoryBacking (idempotent)
-    for elem in tree.xpath("/domain/memoryBacking"):
-        elem.getparent().remove(elem)
-
-    xml_backing = (
-        "<memoryBacking>\n"
-        "  <hugepages>\n"
-        f'    <page size="{hugepage_size}" unit="{hugepage_unit}"/>\n'
-        "  </hugepages>\n"
-        f'  <allocation mode="immediate" threads="{alloc_threads}"/>\n'
-        "  <locked/>\n"
-        "</memoryBacking>"
-    )
-
-    element = etree.parse(StringIO(xml_backing)).getroot()
-
-    # Insert after currentMemory (standard libvirt XML ordering)
-    current_mem = tree.xpath("/domain/currentMemory")
-    if current_mem:
-        current_mem[0].addnext(element)
-    elif tree.xpath("/domain/memory"):
-        tree.xpath("/domain/memory")[0].addnext(element)
+    existing = tree.xpath("/domain/memoryBacking")
+    if existing:
+        mb_elem = existing[0]
+        # Remove only hugepages/allocation/locked children (which we'll re-add),
+        # preserving other children like <source type="memfd"/> and
+        # <access mode="shared"/> needed by virtiofs.
+        for tag in ("hugepages", "allocation", "locked"):
+            for child in mb_elem.findall(tag):
+                mb_elem.remove(child)
     else:
-        tree.xpath("/domain")[0].insert(0, element)
+        mb_elem = etree.Element("memoryBacking")
+        # Insert after currentMemory (standard libvirt XML ordering)
+        current_mem = tree.xpath("/domain/currentMemory")
+        if current_mem:
+            current_mem[0].addnext(mb_elem)
+        elif tree.xpath("/domain/memory"):
+            tree.xpath("/domain/memory")[0].addnext(mb_elem)
+        else:
+            tree.xpath("/domain")[0].insert(0, mb_elem)
+
+    # Add hugepages, allocation mode, and locked flag
+    xml_hugepages = (
+        "<hugepages>\n"
+        f'  <page size="{hugepage_size}" unit="{hugepage_unit}"/>\n'
+        "</hugepages>"
+    )
+    mb_elem.insert(0, etree.parse(StringIO(xml_hugepages)).getroot())
+    mb_elem.append(
+        etree.parse(
+            StringIO(f'<allocation mode="immediate" threads="{alloc_threads}"/>')
+        ).getroot()
+    )
+    mb_elem.append(etree.parse(StringIO("<locked/>")).getroot())
 
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output
