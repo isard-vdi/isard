@@ -3,8 +3,12 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
-# /admin/roles → manager_router in admin/users.py, AdminUsersService.get_roles(payload).
-# /admin/role/{id} → admin_router in admin/roles.py, AdminRolesService.get_role(role_id).
+# /admin/roles is on manager_router in admin/users.py
+#   → AdminUsersService.get_roles(payload).
+# /admin/role/{id} is on admin_router in admin/roles.py
+#   → AdminRolesService.get_role(role_id).
+# (admin/roles.py used to also register a shadowed admin_router /admin/roles;
+# that handler was removed because manager_router wins in include order.)
 
 from api.routes.tests.helpers import MockJWT
 

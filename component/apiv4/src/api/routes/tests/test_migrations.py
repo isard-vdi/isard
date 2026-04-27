@@ -109,3 +109,89 @@ def test_list_user_migration_items_returns_428_when_helper_reports_errors(
     response = test_client(url="/item/user-migration/list-items", jwt=jwt)
     assert response.status_code == 428
     assert response.json() == {"errors": ["target_user_missing"]}
+
+
+# ── migration_router /authentication/{export,import}/{provider} ────────────
+#
+# These two routes used to be shadowed by token_router copies in
+# admin/authentication.py. token_router rejects ``user-migration-required``
+# tokens (it requires a regular login), so the migration UI ended up
+# unable to query its own provider's export/import flag. Removing the
+# token_router shadow let the migration_router handler win — these tests
+# pin both that login tokens still work AND that migration tokens now do.
+
+
+def test_provider_export_enabled_with_login_token(monkeypatch, test_client):
+    """Login JWT can read /authentication/export/{provider} via migration_router."""
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": True, "import": False}}),
+    )
+    jwt = MockJWT()
+    response = test_client(url="/authentication/export/local", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json() == {"enabled": True}
+
+
+def test_provider_export_enabled_with_migration_token(monkeypatch, test_client):
+    """The shadow-fix: a user-migration-required token can now reach the
+    migration_router handler. Before the fix the token_router copy claimed
+    the path first and rejected this token type with 403."""
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": True, "import": False}}),
+    )
+    jwt = MockJWT(token_type="user-migration-required")
+    response = test_client(url="/authentication/export/local", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json() == {"enabled": True}
+
+
+def test_provider_export_defaults_to_false_when_unconfigured(monkeypatch, test_client):
+    """Provider config without a migration section → enabled=False
+    (the route does ``.get('migration', {}).get('export', False)``)."""
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {}),
+    )
+    jwt = MockJWT()
+    response = test_client(url="/authentication/export/local", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json() == {"enabled": False}
+
+
+def test_provider_import_enabled_with_login_token(monkeypatch, test_client):
+    """Sibling route to export, same routing semantics."""
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": False, "import": True}}),
+    )
+    jwt = MockJWT()
+    response = test_client(url="/authentication/import/google", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json() == {"enabled": True}
+
+
+def test_provider_import_enabled_with_migration_token(monkeypatch, test_client):
+    """Migration token reaches the import handler too — same shadow-fix."""
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": False, "import": True}}),
+    )
+    jwt = MockJWT(token_type="user-migration-required")
+    response = test_client(url="/authentication/import/google", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json() == {"enabled": True}
+
+
+def test_provider_export_rejects_other_token_types(monkeypatch, test_client):
+    """has_migration_required_or_login_token only accepts type in
+    {"user-migration-required", "login", ""}. A direct-viewer token
+    must not slip through to the migration check."""
+    monkeypatch.setattr(
+        "api.services.config.ConfigService.get_provider_config",
+        staticmethod(lambda pid: {"migration": {"export": True}}),
+    )
+    jwt = MockJWT(token_type="direct-viewer")
+    response = test_client(url="/authentication/export/local", jwt=jwt)
+    assert response.status_code == 403
