@@ -50,7 +50,6 @@ from engine.services.lib.functions import (
 from engine.services.lib.status import get_next_disk, get_next_hypervisor
 from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
-from engine.services.threads.download_thread import launch_thread_download_changes
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.models.domain import Domain
 from rethinkdb import r
@@ -95,7 +94,9 @@ class Engine(object):
         self.t_changes_domains = None
         self.t_broom = None
         self.t_background = None
-        self.t_downloads_changes = None
+        # Media downloads were retired from the engine: they now run as
+        # ``download_url`` storage RQ tasks on isard-storage workers
+        # (low-priority queue). Apiv4 enqueues the chain directly.
         self.quit = False
 
         self.threads_info_main = {}
@@ -148,11 +149,6 @@ class Engine(object):
             q = self.manager.q.background
             first_loop = True
             pool_id = "default"
-            # can't launch downloads if download changes thread is not ready and hyps are not online
-            update_table_field(
-                "hypervisors_pools", pool_id, "download_changes", "Stopped"
-            )
-
             # if domains have intermedite states (updating, download_aborting...)
             # to Failed, Stopped or Delete
             clean_intermediate_status()
@@ -361,13 +357,6 @@ class Engine(object):
                         self.manager.diskoperations_pools[pool_id] = PoolDiskoperations(
                             pool_id
                         )
-
-                    # launch downloads changes thread
-                    self.manager.t_downloads_changes = launch_thread_download_changes(
-                        self.manager,
-                        self.manager.q.workers,
-                        self.manager.t_disk_operations,
-                    )
 
                     # launch brom thread
                     self.manager.t_broom = launch_thread_broom(self.manager)
@@ -847,7 +836,6 @@ class Engine(object):
         for name in [
             "events",
             "broom",
-            "downloads_changes",
             "orchestrator",
             "changes_domains",
         ]:

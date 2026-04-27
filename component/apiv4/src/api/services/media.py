@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import os
 import re
 import time
 import urllib.request
@@ -31,9 +32,19 @@ from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib.media.media import MediaProcessed as CommonMedia
 from isardvdi_common.models.media import Media as RethinkMedia
 from isardvdi_common.models.media import MediaModel
+from isardvdi_common.models.task import Task
 from isardvdi_common.models.user import User as RethinkUser
 from isardvdi_common.schemas.media import MediaStatusEnum
 from rethinkdb import r
+
+# When True, the storage download_url task passes ``-k`` to curl.
+# The legacy engine path hardcoded this to True; we default to the
+# same value so existing deployments keep downloading from upstreams
+# with self-signed certs without operator action. Set to ``false`` to
+# enforce strict TLS validation.
+URL_DOWNLOAD_INSECURE_SSL = (
+    os.environ.get("URL_DOWNLOAD_INSECURE_SSL", "true").lower() == "true"
+)
 
 
 class MediaService:
@@ -291,6 +302,17 @@ class MediaService:
             + media_data.name.replace(" ", "_")
         )
 
+        # Resolve the absolute destination path under the user's media
+        # storage pool *before* inserting the row so the download task
+        # has it from the start. Replaces the engine's
+        # ``get_path_to_disk(type_path="media")`` plumbing.
+        _pool, dest_path = RethinkMedia.resolve_download_path(
+            user_id=payload["user_id"],
+            category_id=payload["category_id"],
+            relative_path=urlpath,
+            kind=media_data.kind.value,
+        )
+
         media_dict = {
             "name": media_data.name,
             "description": media_data.description,
@@ -326,7 +348,7 @@ class MediaService:
             "url-isard": False,
             "accessed": int(time.time()),
             "icon": "fa-circle-o",
-            "path_downloaded": "",
+            "path_downloaded": dest_path,
             "detail": "",
         }
 
@@ -334,6 +356,16 @@ class MediaService:
         media = media_model.model_dump(mode="json", by_alias=True)
 
         RethinkMedia.insert_document(media)
+
+        # Kick off the download chain on isard-storage's low-priority
+        # queue. The chain handles status transitions
+        # (Downloading → Downloaded / DownloadFailed) and progress
+        # writes back to the media row.
+        RethinkMedia(media_model.id).enqueue_download_chain(
+            user_id=payload["user_id"],
+            url=str(media_data.url),
+            insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
+        )
 
         return media_model.id
 
@@ -351,59 +383,103 @@ class MediaService:
 
     @staticmethod
     def abort_media_download(media_id: str):
-        """Abort a media download by setting status to DownloadAborting."""
+        """Abort a media download.
+
+        Sets the media row to ``DownloadAborting`` (back-up signal for
+        the storage task's ``initial_check``) and asks the running task
+        to cancel via the generic pub/sub primitive
+        (``Task.cancel()`` publishes ``task:cancel:<id>``). The
+        ``download_url`` task's :class:`TaskCancelWatcher` notices
+        within ~500 ms, kills curl, deletes the partial file and
+        raises; the dependent ``update_status`` then flips the row to
+        ``DownloadFailed``.
+        """
         if not RethinkMedia.exists(media_id):
             raise Error(
                 "not_found",
                 f"Media with ID {media_id} not found.",
             )
 
-        current_status = RethinkMedia.get(media_id).get("status")
+        media = RethinkMedia(media_id)
 
-        # Only allow aborting if download is in progress
         allowed_statuses = [
             MediaStatusEnum.downloading.value,
             MediaStatusEnum.download_starting.value,
             MediaStatusEnum.download.value,
         ]
-
-        if current_status not in allowed_statuses:
+        if media.status not in allowed_statuses:
             raise Error(
                 "bad_request",
-                f"Cannot abort download for media in status '{current_status}'. "
+                f"Cannot abort download for media in status '{media.status}'. "
                 f"Only allowed for statuses: {', '.join(allowed_statuses)}",
                 description_code="media_status_invalid_for_abort",
             )
 
-        RethinkMedia.update_document(
-            media_id, {"status": MediaStatusEnum.download_aborting.value}
-        )
+        # Persistent flag: covers the publish-before-subscribe race in
+        # ``download_url``'s initial_check. The pub/sub signal is the
+        # primary mechanism once the watcher is live.
+        media.status = MediaStatusEnum.download_aborting.value
+
+        if media.task and Task.exists(media.task):
+            try:
+                Task(media.task).cancel()
+            except Exception:
+                # cancel() best-effort: row flag still drives the
+                # initial_check on the worker side, and the dependent
+                # update_status will finalize the row when curl exits.
+                pass
 
     @staticmethod
     def start_media_download(media_id: str):
-        """Start a media download by setting status to DownloadStarting."""
+        """(Re-)start a media download.
+
+        Used to retry a previously failed download. Resets the row to
+        ``DownloadStarting`` and enqueues a fresh chain — the user has
+        already accepted that any partial file from the previous
+        attempt was unusable.
+        """
         if not RethinkMedia.exists(media_id):
             raise Error(
                 "not_found",
                 f"Media with ID {media_id} not found.",
             )
 
-        current_status = RethinkMedia.get(media_id).get("status")
+        media = RethinkMedia(media_id)
 
-        # Only allow starting if download is not in progress
         allowed_statuses = [
             MediaStatusEnum.download.value,
             MediaStatusEnum.download_failed.value,
+            # Allow retrying after an aborted/invalid-format download
+            # too — same UX as legacy engine path.
+            MediaStatusEnum.download_failed_invalid_format.value,
         ]
-
-        if current_status not in allowed_statuses:
+        if media.status not in allowed_statuses:
             raise Error(
                 "bad_request",
-                f"Cannot start download for media in status '{current_status}'. "
+                f"Cannot start download for media in status '{media.status}'. "
                 f"Only allowed for statuses: {', '.join(allowed_statuses)}",
                 description_code="media_status_invalid_for_start",
             )
 
-        RethinkMedia.update_document(
-            media_id, {"status": MediaStatusEnum.download_starting.value}
+        media.status = MediaStatusEnum.download_starting.value
+        # Reset progress so the UI doesn't show stale percentages.
+        media.progress = {
+            "received": "0",
+            "received_percent": 0,
+            "speed_current": "",
+            "speed_download_average": "",
+            "speed_upload_average": "",
+            "time_left": "",
+            "time_spent": "",
+            "time_total": "",
+            "total": "",
+            "total_percent": 0,
+            "xferd": "0",
+            "xferd_percent": "0",
+        }
+
+        media.enqueue_download_chain(
+            user_id=media.user,
+            url=media.url,
+            insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
         )

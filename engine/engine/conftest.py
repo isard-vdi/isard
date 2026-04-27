@@ -24,7 +24,6 @@ _STUBBED_MODULES = [
     "engine.services.db.downloads",
     "engine.services.db.hypervisors",
     "engine.services.db.storage_pool",
-    "engine.services.lib.download",
     "engine.services.lib.functions",
     "engine.services.lib.qcow",
     "engine.services.lib.storage",
