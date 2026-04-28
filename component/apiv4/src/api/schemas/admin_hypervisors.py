@@ -149,7 +149,7 @@ class OrchestratorHypervisor(BaseModel):
     only_forced: bool = False
     buffering_hyper: bool = False
     destroy_time: Optional[str] = None
-    stats: dict = {}
+    stats: Optional[OrchestratorHypervisorStats] = None
     orchestrator_managed: bool = False
     min_free_mem_gb: int = 0
     gpu_only: bool = False

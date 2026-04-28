@@ -12,7 +12,8 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from pprint import pformat
 
-from isardvdi_common.connections.api_rest import ApiRest
+import httpx
+from isardvdi_apiv4_client_auth import build_client
 from libvirt import (
     VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
     VIR_DOMAIN_START_PAUSED,
@@ -70,9 +71,6 @@ from engine.services.threads.threads import (
     launch_delete_media,
     launch_killall_curl,
 )
-
-api_client = ApiRest("isard-apiv4")
-
 
 ITEMS_STATUS_MAP = {
     "start_paused_domain": "Checking",
@@ -2087,13 +2085,28 @@ class HypWorkerThread(threading.Thread):
 
         # Only send if there are items
         if positioned_items:
+            # ---------------------------------------------------------------
+            # Deliberate escape hatch.
+            #
+            # This call uses get_httpx_client().request() directly (not the
+            # generated admin_notify_desktop_queue method) because it is a
+            # fire-and-forget send with timeout=0.0000000001: we post the
+            # queue update and intentionally do not wait for a response. The
+            # generated client raises on timeout and ignores the response
+            # semantics we want.
+            #
+            # Do not migrate this to the typed client without first building
+            # a fire-and-forget helper around the generated method.
+            # ---------------------------------------------------------------
             try:
-                api_client.put(
-                    f"/admin/notify/desktops/queue/{self.hyp_id}",
-                    data=positioned_items,
-                    timeout=0.0000000001,  # Very small timeout as in original code
-                )
-            except requests_ReadTimeout:
+                with build_client("isard-engine") as client:
+                    client.get_httpx_client().request(
+                        "PUT",
+                        f"/api/v4/admin/notify/desktops/queue/{self.hyp_id}",
+                        json=positioned_items,
+                        timeout=0.0000000001,  # Very small timeout as in original code
+                    )
+            except (httpx.TimeoutException, httpx.ReadTimeout):
                 # Expected due to very small timeout
                 pass
             except Exception as e:

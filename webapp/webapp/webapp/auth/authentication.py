@@ -20,10 +20,11 @@
 
 import json
 
-import requests
 from flask import render_template, request
 from flask_login import LoginManager, UserMixin
-from isardvdi_common.connections.api_rest import ApiRest
+from isardvdi_apiv4_client.api.role_manager import admin_get_user_raw
+from isardvdi_apiv4_client.api.role_user import get_user_details
+from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from rethinkdb import RethinkDB
 
 from webapp import app
@@ -61,13 +62,14 @@ def get_authenticated_user():
     if not auth:
         return None
 
-    response = requests.get(
-        "http://isard-apiv4:5000/api/v4/item/user/get-details",
-        headers={"Authorization": auth},
-        timeout=5,
-    )
+    # Forward the end-user's JWT so apiv4 resolves them (not the service
+    # identity). build_client accepts either service creds or a caller
+    # token; strip the Bearer prefix since the client adds it back.
+    tkn = auth.split(" ", 1)[1] if auth.startswith("Bearer ") else auth
+    with build_client("isard-webapp", user_jwt=tkn) as client:
+        response = get_user_details.sync_detailed(client=client)
     if response.status_code == 200:
-        return User(json.loads(response.text))
+        return User(json.loads(response.content.decode("utf-8")))
     return None
 
 
@@ -75,20 +77,30 @@ def get_authenticated_user():
 @login_manager.user_loader
 def user_loader(user_id):
     try:
-        user = ApiRest().get(f"/admin/user/{user_id}/raw")
+        with build_client("isard-webapp") as client:
+            resp = admin_get_user_raw.sync_detailed(client=client, user_id=user_id)
+            raise_for_status(resp)
+        user = json.loads(resp.content.decode("utf-8")) if resp.content else None
         if user is None:
             return
         return User(user)
-    except:
+    except ApiV4Error:
+        return render_template("maintenance.html"), 503
+    except Exception:
         return render_template("maintenance.html"), 503
 
 
 @maintenance
 def user_reloader(user_id):
     try:
-        user = ApiRest().get(f"/admin/user/{user_id}/raw")
+        with build_client("isard-webapp") as client:
+            resp = admin_get_user_raw.sync_detailed(client=client, user_id=user_id)
+            raise_for_status(resp)
+        user = json.loads(resp.content.decode("utf-8")) if resp.content else None
         if user is None:
             return
         return User(user)
-    except:
+    except ApiV4Error:
+        return render_template("maintenance.html"), 503
+    except Exception:
         return render_template("maintenance.html"), 503

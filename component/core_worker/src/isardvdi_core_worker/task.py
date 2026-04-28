@@ -20,13 +20,21 @@
 import json
 
 from cachetools import TTLCache, cached
-from isardvdi_common.connections.api_rest import ApiRest
+from isardvdi_apiv4_client.api.role_admin import admin_emit_socketio
+from isardvdi_apiv4_client.api.role_manager import (
+    admin_user_exists,
+    update_recycle_bin_task,
+)
+from isardvdi_apiv4_client.models import (
+    RecycleBinUpdateTaskRequest,
+    SocketioEmitRequest,
+)
+from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
 from isardvdi_common.models.storage import Storage, StoragePool
 from isardvdi_common.models.task import Task
-from requests.exceptions import HTTPError
 from rq import get_current_job
 from socketio import RedisManager
 
@@ -93,7 +101,12 @@ def _promote_domains_to_stopped(storage_object):
 def socketio(data):
     for event in data:
         redis_manager.emit(**event)
-    ApiRest().post("/admin/socketio", data=data)
+    with build_client("isard-core-worker") as client:
+        resp = admin_emit_socketio.sync_detailed(
+            client=client,
+            body=[SocketioEmitRequest.from_dict(event) for event in data],
+        )
+        raise_for_status(resp)
 
 
 @cached(TTLCache(maxsize=10, ttl=60))
@@ -106,12 +119,14 @@ def user_info(user_id):
     :rtype: dict
     """
     try:
-        return ApiRest().get(f"/admin/user/{user_id}/exists")
-    except HTTPError as http_err:
-        if http_err.response.status_code == 404:
+        with build_client("isard-core-worker") as client:
+            resp = admin_user_exists.sync_detailed(client=client, user_id=user_id)
+            raise_for_status(resp)
+            return resp.parsed
+    except ApiV4Error as e:
+        if e.status_code == 404:
             return None
-        else:
-            raise
+        raise
 
 
 def feedback(task_id=None):
@@ -383,14 +398,16 @@ def recycle_bin_update(**recycle_bin_dict):
     Update recycle bin if task success.
     """
     task = Task(get_current_job().dependency.dependency.id)
-    ApiRest().put(
-        "/item/recycle-bin/update-task",
-        data={
-            "recycle_bin_id": recycle_bin_dict["recycle_bin_id"],
-            "id": task.id,
-            "status": task.status,
-        },
-    )
+    with build_client("isard-core-worker") as client:
+        resp = update_recycle_bin_task.sync_detailed(
+            client=client,
+            body=RecycleBinUpdateTaskRequest(
+                recycle_bin_id=recycle_bin_dict["recycle_bin_id"],
+                id=task.id,
+                status=task.status,
+            ),
+        )
+        raise_for_status(resp)
 
 
 def media_update(**media_dict):

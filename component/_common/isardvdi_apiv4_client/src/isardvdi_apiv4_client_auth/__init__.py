@@ -10,13 +10,14 @@ iteration or implement a per-request httpx.Auth if TTL matters.
 convenience.
 """
 
-from typing import Literal, Optional
-
-from isardvdi_apiv4_client import AuthenticatedClient
+from typing import TYPE_CHECKING, Literal, Optional
 
 from ._errors import ApiV4Error, raise_for_status
 from ._jwt import Role, mint_service_token
 from ._url import resolve_base_url
+
+if TYPE_CHECKING:
+    from isardvdi_apiv4_client import AuthenticatedClient
 
 __all__ = ["ApiV4Error", "build_client", "raise_for_status"]
 
@@ -26,7 +27,7 @@ def build_client(
     *,
     role: Role = "admin",
     user_jwt: Optional[str] = None,
-) -> AuthenticatedClient:
+) -> "AuthenticatedClient":
     """Return an ``AuthenticatedClient`` ready to call apiv4.
 
     Parameters
@@ -41,6 +42,8 @@ def build_client(
         user's Authorization header). When provided, no service JWT is
         minted.
     """
+    from isardvdi_apiv4_client import AuthenticatedClient
+
     base_url, verify_ssl = resolve_base_url()
     token = user_jwt if user_jwt is not None else mint_service_token(service, role=role)
     return AuthenticatedClient(

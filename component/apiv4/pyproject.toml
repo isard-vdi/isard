@@ -9,6 +9,7 @@ dependencies = [
   "fastapi==0.115.12",
   "gevent==25.5.1",
   "html-sanitizer==2.6.0",
+  "isardvdi-authentication-client",
   "isardvdi-common",
   "isardvdi-protobuf",
   "pillow==11.0.0",
@@ -32,6 +33,7 @@ dependencies = [
 test = [
   "httpx",
   "pytest",
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-xdist",
   "rethinkdb-mock @ https://github.com/isard-vdi/rethinkdb-mock/archive/082aec0f78baa619e77bcb63d1f2fa6e2581e7a5.tar.gz",

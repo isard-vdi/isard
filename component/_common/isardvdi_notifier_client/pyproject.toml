@@ -1,0 +1,22 @@
+[project]
+name = "isardvdi-notifier-client"
+version = "0.0.0"
+description = "Client for the IsardVDI isard-notifier HTTP API"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "httpx>=0.27,<1",
+  "pydantic>=2.6,<3",
+  "attrs>=23",
+  "python-dateutil>=2.8,<3",
+  "isardvdi-apiv4-client",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+  "src/isardvdi_notifier_client",
+  "src/isardvdi_notifier_client_auth",
+]

@@ -100,7 +100,7 @@ async def has_token(
     kid = jwt_payload.get("kid", "")
     if session_id == "isardvdi-service":
         # Internal service tokens: skip session validation and grant admin access
-        # This covers ApiRest service calls (kid=isardvdi) and hypervisor
+        # This covers admin service tokens (kid=isardvdi) and hypervisor
         # calls (kid=isardvdi-hypervisors) that use their own secrets
         if kid == "isardvdi-hypervisors":
             payload["role_id"] = "admin"
