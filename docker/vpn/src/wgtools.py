@@ -436,6 +436,17 @@ class Wg(object):
                             "options:remote_ip=" + address,
                         ]
                     )
+                    subprocess.run(
+                        [
+                            "ovs-vsctl",
+                            "set",
+                            "Interface",
+                            peer["id"],
+                            "bfd:enable=true",
+                            "bfd:min_tx=1000",
+                            "bfd:min_rx=1000",
+                        ]
+                    )
 
                     port = check_output(
                         ("ovs-vsctl", "get", "Interface", peer["id"], "ofport"),
