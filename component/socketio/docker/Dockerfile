@@ -4,7 +4,9 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 RUN apk add --no-cache build-base libffi-dev musl-dev openssl-dev
 
-WORKDIR /workspace
+# Use the same path as the runtime stage so the venv's hard-coded
+# shebangs (#!/app/.venv/bin/python) keep resolving after the COPY.
+WORKDIR /app
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-socketio --no-editable
 
@@ -12,7 +14,7 @@ FROM python:3.13-alpine AS runtime
 RUN apk add --no-cache libffi openssl
 
 WORKDIR /app
-COPY --from=builder /workspace/.venv /app/.venv
+COPY --from=builder /app/.venv /app/.venv
 COPY component/socketio/src /app
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 5000
