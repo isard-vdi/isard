@@ -1,0 +1,8 @@
+package_name_override: isardvdi_authentication_client
+project_name_override: isardvdi-authentication-client
+use_path_prefixes_for_title_model_names: false
+field_constraints:
+  allow_additional_properties: true
+post_hooks:
+  - ruff check . --fix --exit-zero
+  - ruff format .

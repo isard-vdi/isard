@@ -28,6 +28,7 @@ class ApiV4Error(Exception):
     on ``e.description_code`` for business-logic branches (e.g. typed
     404 from ``RethinkBase.__init__``).
     """
+
     status_code: int
     error: str
     description: str = ""
@@ -65,7 +66,9 @@ def raise_for_status(response: _ResponseLike) -> None:
 
     if isinstance(body, dict):
         error = str(body.get("error") or "http_error")
-        description = str(body.get("description") or response.content.decode("utf-8", "replace"))
+        description = str(
+            body.get("description") or response.content.decode("utf-8", "replace")
+        )
         description_code = str(body.get("description_code") or "")
     else:
         error = "http_error"

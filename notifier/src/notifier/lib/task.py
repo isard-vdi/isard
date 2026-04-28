@@ -22,13 +22,16 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate, make_msgid
-from time import sleep
 
-from isardvdi_common.connections.api_rest import ApiRest
+from isardvdi_apiv4_client.api.role_admin import admin_smtp_get
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 
 def mail(address: list, subject: str, text: str, html: str):
-    smtp = ApiRest("isard-apiv4").get("/smtp")
+    with build_client("isard-notifier") as client:
+        resp = admin_smtp_get.sync_detailed(client=client)
+        raise_for_status(resp)
+        smtp = resp.parsed
     if not smtp.get("enabled"):
         raise Exception("SMTP not enabled")
     message = MIMEMultipart("alternative")

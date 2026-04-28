@@ -24,9 +24,10 @@ from functools import wraps
 from cachetools import TTLCache, cached
 from flask import redirect, render_template
 from flask_login import current_user, logout_user
-from isardvdi_common.connections.api_rest import ApiRest
-
-_MAINTENANCE_API_ENDPOINT = "/maintenance"
+from isardvdi_apiv4_client.api.open_ import maintenance_status
+from isardvdi_apiv4_client.api.role_admin import get_category_maintenance
+from isardvdi_apiv4_client.models import MaintenanceStatusResponse
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 
 def checkRole(fn):
@@ -66,11 +67,17 @@ def isAdminManager(fn):
 @cached(TTLCache(maxsize=1, ttl=5))
 def _get_maintenance(category_id=None):
     logging.debug("Check api maintenance mode")
-    result = ApiRest().get(
-        _MAINTENANCE_API_ENDPOINT + "/" + category_id
-        if category_id
-        else _MAINTENANCE_API_ENDPOINT
-    )
+    with build_client("isard-webapp") as client:
+        if category_id:
+            resp = get_category_maintenance.sync_detailed(
+                client=client, category_id=category_id
+            )
+        else:
+            resp = maintenance_status.sync_detailed(client=client)
+        raise_for_status(resp)
+        result = resp.parsed
+    if isinstance(result, MaintenanceStatusResponse):
+        return bool(result.enabled)
     if isinstance(result, dict):
         return bool(result.get("enabled", False))
     return bool(result)

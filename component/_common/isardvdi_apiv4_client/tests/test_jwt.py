@@ -1,16 +1,14 @@
 """Contract tests for isardvdi_apiv4_client_auth._jwt.
 
-The minted JWT has to be byte-for-byte compatible with the existing
-hand-written clients (``api_rest.py`` and the various local
-``api_client.py`` files), because apiv4 verifies the ``kid`` + secret
-before anything else.
+The minted JWT has to be byte-for-byte compatible with the service
+tokens the legacy hand-written REST wrappers produced, because apiv4
+verifies the ``kid`` + secret before anything else.
 """
 
 from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
-
 from isardvdi_apiv4_client_auth._jwt import mint_service_token
 
 

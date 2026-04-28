@@ -49,6 +49,7 @@ from api.schemas.admin_users import (
     AdminUserDeleteResponse,
     AdminUserSearchData,
     AdminUserUpdateData,
+    AutoRegisterRequest,
     AutoRegisterResponse,
     RequiredCheckResponse,
 )
@@ -754,7 +755,9 @@ async def admin_reset_password(request: Request, data: AdminPasswordResetData):
 async def admin_check_password_reset_required(request: Request, user_id: str):
     try:
         return JSONResponse(
-            content=RequiredCheckResponse(required=AdminUsersService.check_password_expiration(user_id)).model_dump(mode="json"),
+            content=RequiredCheckResponse(
+                required=AdminUsersService.check_password_expiration(user_id)
+            ).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
@@ -782,7 +785,9 @@ async def admin_check_password_reset_required(request: Request, user_id: str):
 async def admin_check_email_verification(request: Request, user_id: str):
     try:
         return JSONResponse(
-            content=RequiredCheckResponse(required=AdminUsersService.check_email_verified(user_id)).model_dump(mode="json"),
+            content=RequiredCheckResponse(
+                required=AdminUsersService.check_email_verified(user_id)
+            ).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
@@ -2015,13 +2020,11 @@ async def admin_get_user_by_email_category(request: Request, email: str, categor
         500: {"model": ErrorResponse},
     },
 )
-async def admin_auto_register(request: Request):
+async def admin_auto_register(request: Request, data: AutoRegisterRequest):
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        user_id = AdminUsersService.auto_register_user(request.token_payload, data)
+        user_id = AdminUsersService.auto_register_user(
+            request.token_payload, data.model_dump(exclude_none=True)
+        )
         return JSONResponse(
             content=AutoRegisterResponse(id=user_id).model_dump(mode="json"),
             status_code=200,

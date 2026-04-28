@@ -5,10 +5,9 @@ import traceback
 from pprint import pprint
 from subprocess import DEVNULL, check_call, check_output
 
-from api_client import ApiClient
+from isardvdi_apiv4_client.api.role_admin import admin_hypervisor_vpn
+from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from pythonping import ping
-
-apic = ApiClient()
 
 
 def connect(peer):
@@ -36,7 +35,10 @@ while not ok:
     try:
         hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
 
-        peer = apic.get("hypervisor_vpn/" + hyper_id)
+        with build_client("isard-hypervisor", role="hypervisor") as client:
+            resp = admin_hypervisor_vpn.sync_detailed(client=client, hyper_id=hyper_id)
+            raise_for_status(resp)
+            peer = resp.parsed
         if not peer:
             print("Api unable to connect to this host:port through ssh-keyscan.")
             time.sleep(1)
@@ -49,7 +51,11 @@ while not ok:
         else:
             print("Can not get hypervisor wg VPNc config from api. Retrying...")
             time.sleep(4)
-    except:
+    except ApiV4Error:
+        peer = False
+        print("Could not contact api to get wg VPNc config. Retrying...")
+        time.sleep(1)
+    except Exception:
         peer = False
         print("Could not contact api to get wg VPNc config. Retrying...")
         time.sleep(1)

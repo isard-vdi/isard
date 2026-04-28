@@ -3,10 +3,10 @@
 Matches the contract the apiv4 auth middleware expects: ``kid`` +
 ``session_id: "isardvdi-service"`` + ``data.role_id`` + secret.
 
-The shape is lifted verbatim from
-``component/_common/isardvdi_common/connections/api_rest.py::header_auth``
-(admin role) and ``docker/hypervisor/src/lib/api_client.py::header_auth``
-(hypervisor role). apiv4 verifies these tokens in
+The shape replicates the ``header_auth`` semantics of the legacy REST
+wrappers (admin role for most services; hypervisor role for the
+hypervisor container, which uses a distinct secret and ``kid``). apiv4
+verifies these tokens in
 ``component/apiv4/src/api/dependencies/jwt_token.py``.
 """
 
@@ -43,8 +43,8 @@ def mint_service_token(
         different ``kid`` values.
     ttl_seconds:
         JWT expiry offset. Default matches the 20s used by the legacy
-        ``ApiRest`` wrapper. Do not raise this without reviewing the
-        refresh strategy in long-running loops.
+        REST wrapper. Do not raise this without reviewing the refresh
+        strategy in long-running loops.
     """
     now = datetime.now(tz=timezone.utc)
     exp = now + timedelta(seconds=ttl_seconds)

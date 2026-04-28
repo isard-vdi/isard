@@ -106,9 +106,12 @@ class AdminPasswordResetData(BaseModel):
 class AdminGroupCreateData(BaseModel):
     """Request body for creating a group."""
 
+    uid: Optional[str] = None
     name: str
     description: str = ""
     parent_category: Optional[str] = None
+    external_app_id: Optional[str] = None
+    external_gid: Optional[str] = None
 
 
 class AdminGroupUpdateData(BaseModel):
@@ -290,6 +293,12 @@ class RequiredCheckResponse(BaseModel):
     required: bool
 
 
+class AutoRegisterRequest(BaseModel):
+    role_id: str
+    group_id: str
+    secondary_groups: Optional[List[str]] = None
+
+
 class AutoRegisterResponse(BaseModel):
     id: str
 
@@ -300,6 +309,7 @@ class AdminUserDeleteResponse(BaseModel):
 
 class AdminGroup(BaseModel):
     id: str
+    uid: Optional[str] = None
     name: str
     parent_category: str
     auto: bool = False

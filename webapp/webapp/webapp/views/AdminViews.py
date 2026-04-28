@@ -22,6 +22,8 @@ import os
 
 from flask import jsonify, make_response, redirect, render_template
 from flask_login import current_user, login_required, login_user, logout_user
+from isardvdi_apiv4_client.api.open_ import api_v4_category_custom_url
+from isardvdi_apiv4_client_auth import build_client
 from isardvdi_common.helpers.token_flask import TokenFlask
 
 from webapp import app
@@ -112,9 +114,10 @@ def remote_logout():
 @app.route("/isard-admin/logout")
 @login_required
 def logout():
-    response = requests.get(
-        f"http://isard-apiv4:5000/api/v4/item/category/{current_user.category}/custom_url"
-    )
+    with build_client("isard-webapp") as client:
+        api_response = api_v4_category_custom_url.sync_detailed(
+            client=client, category_id=current_user.category
+        )
     if request.cookies.get("isardvdi_session"):
         user_session = TokenFlask.get_expired_user_data(
             request.cookies.get("isardvdi_session")
@@ -124,8 +127,10 @@ def logout():
             if user_session.get("provider") in ["local", "ldap"]
             else user_session.get("provider")
         )
-        if response.status_code == 200:
-            login_path = f"/login/{provider}/{response.text}"
+        if api_response.status_code == 200:
+            login_path = (
+                f"/login/{provider}/{api_response.content.decode('utf-8').strip('\"')}"
+            )
         else:
             login_path = f"/login/{provider}"
     else:

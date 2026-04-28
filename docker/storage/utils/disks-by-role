@@ -28,21 +28,21 @@ import subprocess
 import threading
 from datetime import datetime
 
-from isardvdi_common.api_rest import ApiRest
+import httpx
+from isardvdi_apiv4_client.api.role_admin import admin_storage_by_role
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 lock = threading.Lock()
-
-api = ApiRest()
 
 roles = ["advanced", "manager", "admin"]
 
 
 def get_storages_by_role(role):
     """Get all storages by role."""
-    storages = api.get(
-        f"/admin/storage/by-role/{role}",
-        timeout=120,
-    )
+    with build_client("isard-storage").with_timeout(httpx.Timeout(120.0)) as client:
+        resp = admin_storage_by_role.sync_detailed(client=client, role=role)
+        raise_for_status(resp)
+        storages = resp.parsed
     storages = [
         storage
         for storage in storages

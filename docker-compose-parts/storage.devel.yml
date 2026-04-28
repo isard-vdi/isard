@@ -2,5 +2,11 @@ services:
   isard-storage:
     volumes:
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/isardvdi_notifier_client:/opt/isardvdi/isardvdi_notifier_client
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
+      - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
       - ${BUILD_ROOT_PATH}/docker/storage/task:/opt/isardvdi/isardvdi_task
       - ${BUILD_ROOT_PATH}/docker/storage/utils:/utils

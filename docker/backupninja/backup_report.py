@@ -16,7 +16,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from isardvdi_common.api_rest import ApiRest
+from isardvdi_apiv4_client.api.role_admin import admin_backup_report
+from isardvdi_apiv4_client.models import BackupReportRequest
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1427,14 +1429,19 @@ if __name__ == "__main__":
     if args.json:
         print(json.dumps(report.to_dict(), indent=2))
     else:
-        # Send to API using ApiRest directly
         try:
-            if args.api_domain and args.api_domain.startswith("http"):
-                api = ApiRest(service="isard-apiv4", base_url=args.api_domain)
-            else:
-                api = ApiRest(service="isard-apiv4")
-
-            result = api.post("/backups", data=report.to_dict())
+            report_dict = report.to_dict()
+            body = BackupReportRequest(
+                timestamp=report_dict.pop("timestamp"),
+                status=report_dict.pop("status"),
+                type_=report_dict.pop("type"),
+                scope=report_dict.pop("scope"),
+            )
+            for k, v in report_dict.items():
+                body[k] = v
+            with build_client("isard-backupninja") as client:
+                resp = admin_backup_report.sync_detailed(client=client, body=body)
+                raise_for_status(resp)
             logger.info("Backup report sent successfully")
         except Exception as e:
             logger.error(f"Failed to send backup report: {e}")
@@ -1448,10 +1455,19 @@ else:
         logger.info("No backup report generated")
         exit(0)
 
-    # Send to API using ApiRest directly
     try:
-        api = ApiRest(service="isard-apiv4")
-        result = api.post("/backups", data=report.to_dict())
+        report_dict = report.to_dict()
+        body = BackupReportRequest(
+            timestamp=report_dict.pop("timestamp"),
+            status=report_dict.pop("status"),
+            type_=report_dict.pop("type"),
+            scope=report_dict.pop("scope"),
+        )
+        for k, v in report_dict.items():
+            body[k] = v
+        with build_client("isard-backupninja") as client:
+            resp = admin_backup_report.sync_detailed(client=client, body=body)
+            raise_for_status(resp)
         logger.info("Backup report sent successfully")
     except Exception as e:
         logger.error(f"Failed to send backup report: {e}")

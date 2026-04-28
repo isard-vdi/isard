@@ -1,19 +1,19 @@
 [project]
 name = "isardvdi-apiv4-client"
-version = "0.1.0"
+version = "0.0.0"
 description = "Client for the IsardVDI apiv4 HTTP API"
-requires-python = ">=3.10"
+requires-python = ">=3.13,<3.14"
 dependencies = [
   "httpx>=0.27,<1",
   "pydantic>=2.6,<3",
   "attrs>=23",
-  "pyjwt>=2.8,<3",
+  "pyjwt>=2.10,<3",
   "python-dateutil>=2.8,<3",
 ]
 
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.setuptools]
-packages = ["isardvdi_apiv4_client", "isardvdi_apiv4_client_auth"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/isardvdi_apiv4_client", "src/isardvdi_apiv4_client_auth"]

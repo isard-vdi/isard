@@ -5,6 +5,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "flask==3.1.0",
     "html-sanitizer==2.6.0",
+    "isardvdi-apiv4-client",
     "isardvdi-common",
     "jinja2==3.1.6",
     "pydantic==2.12.0",

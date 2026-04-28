@@ -7,7 +7,6 @@ from importlib.machinery import SourceFileLoader
 from pprint import pprint
 from time import sleep
 
-from api_client import ApiClient
 from gpu_discovery import (
     discover_gpus,
     discover_hugepages,
@@ -15,6 +14,16 @@ from gpu_discovery import (
     discover_pci_devices,
     ensure_sriov_vfs,
 )
+from isardvdi_apiv4_client.api.role_admin import (
+    admin_hypervisor_create,
+    admin_hypervisor_delete,
+    admin_hypervisor_enable,
+)
+from isardvdi_apiv4_client.models import (
+    AdminHypervisorCreateData,
+    AdminHypervisorEnableData,
+)
+from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 
 DEFAULT_STORAGE_POOL_ID = (
     SourceFileLoader(
@@ -23,12 +32,6 @@ DEFAULT_STORAGE_POOL_ID = (
     .load_module()
     .DEFAULT_STORAGE_POOL_ID
 )
-
-# Instantiate connection
-try:
-    apic = ApiClient()
-except:
-    raise
 
 flavour = os.environ.get("FLAVOUR", False)
 ## We only check the flavours that have hypervisor:
@@ -101,14 +104,23 @@ def SetupHypervisor():
 
     ## Adding hyper. Received dict with certs and number
     ok = False
+    data = None
     while not ok:
         try:
-            data = apic.post("hypervisor", data=HYPERVISOR)
+            with build_client("isard-hypervisor", role="hypervisor") as client:
+                body = AdminHypervisorCreateData.from_dict(HYPERVISOR)
+                resp = admin_hypervisor_create.sync_detailed(client=client, body=body)
+                raise_for_status(resp)
+                data = resp.parsed
             if not data:
                 print("Api does not answer OK... retrying...")
                 sleep(2)
                 continue
-        except:
+        except ApiV4Error:
+            print("Could not contact api to register me... retrying...")
+            sleep(2)
+            continue
+        except Exception:
             print("Could not contact api to register me... retrying...")
             sleep(2)
             continue
@@ -161,10 +173,14 @@ def DeleteHypervisor():
     (with its own timeout-bounded DELETE), so this function is only left
     as a CLI entry point for manual operator use.
     """
+    hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
     try:
-        return apic.delete(
-            "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor")
-        )
+        with build_client("isard-hypervisor", role="hypervisor") as client:
+            resp = admin_hypervisor_delete.sync_detailed(
+                client=client, hyper_id=hyper_id
+            )
+            raise_for_status(resp)
+            return resp.parsed
     except Exception as e:
         print(f"Could not contact api to delete me: {e}")
         return False
@@ -188,10 +204,13 @@ def _refresh_numa_topology_with_libvirt():
         return
     hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
     try:
-        apic.update(
-            "hypervisor/" + hyper_id,
-            data={"numa_topology": topo, "enabled": True},
-        )
+        with build_client("isard-hypervisor", role="hypervisor") as client:
+            resp = admin_hypervisor_enable.sync_detailed(
+                client=client,
+                hyper_id=hyper_id,
+                body=AdminHypervisorEnableData(enabled=True, numa_topology=topo),
+            )
+            raise_for_status(resp)
         print(
             f"NUMA refresh: libvirt_numa_ok={topo.get('libvirt_numa_ok')} "
             f"reason={topo.get('reason')} nodes={list(topo.get('nodes', {}).keys())}"
@@ -202,32 +221,30 @@ def _refresh_numa_topology_with_libvirt():
 
 def EnableHypervisor():
     _refresh_numa_topology_with_libvirt()
-    data = {"enabled": True}
-    ok = False
-    while not ok:
-        try:
-            enabled = apic.update(
-                "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"),
-                data=data,
-            )
-            ok = True
-        except:
-            print("Could not contact api to enable me... retrying...")
-            sleep(1)
-    return enabled
+    return _set_enabled(True)
 
 
 def DisableHypervisor():
-    data = {"enabled": False}
+    return _set_enabled(False)
+
+
+def _set_enabled(enabled):
+    hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
+    action = "enable" if enabled else "disable"
     ok = False
+    result = None
     while not ok:
         try:
-            enabled = apic.update(
-                "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"),
-                data=data,
-            )
+            with build_client("isard-hypervisor", role="hypervisor") as client:
+                resp = admin_hypervisor_enable.sync_detailed(
+                    client=client,
+                    hyper_id=hyper_id,
+                    body=AdminHypervisorEnableData(enabled=enabled),
+                )
+                raise_for_status(resp)
+                result = resp.parsed
             ok = True
-        except:
-            print("Could not contact api to disable me... retrying...")
+        except Exception:
+            print(f"Could not contact api to {action} me... retrying...")
             sleep(1)
-    return enabled
+    return result

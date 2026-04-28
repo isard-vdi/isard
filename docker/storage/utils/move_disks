@@ -31,7 +31,19 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from pprint import pprint
 
-from isardvdi_common.api_rest import ApiRest
+import httpx
+from isardvdi_apiv4_client.api.role_admin import find_storage as find_storage_op
+from isardvdi_apiv4_client.api.role_admin import (
+    get_storage_statuses as get_storage_statuses_op,
+)
+from isardvdi_apiv4_client.api.role_admin import list_storage_pools
+from isardvdi_apiv4_client.api.role_admin import (
+    rsync_storage_to_storage_pool as rsync_storage_to_storage_pool_op,
+)
+from isardvdi_apiv4_client.api.role_manager import admin_storage_by_status
+from isardvdi_apiv4_client.api.role_user import get_task as get_task_op
+from isardvdi_apiv4_client.models import StorageRsyncToStoragePoolRequest
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 
 def timestamp():
@@ -106,11 +118,10 @@ def get_dated_moved_filename():
 
 def get_storage_pools():
     """Get all storage pools from the system."""
-    api = ApiRest()
-    return api.get(
-        "/admin/storage_pools",
-        timeout=30,
-    )
+    with build_client("isard-storage").with_timeout(httpx.Timeout(30.0)) as client:
+        resp = list_storage_pools.sync_detailed(client=client)
+        raise_for_status(resp)
+        return resp.parsed
 
 
 def get_storage_pool_by_name(pool_name):
@@ -167,11 +178,12 @@ def show_storage_pools_info():
 
 
 def get_storage_statuses(storage_id):
-    api = ApiRest()
-    return api.get(
-        f"/storage/{storage_id}/statuses",
-        timeout=30,
-    )
+    with build_client("isard-storage").with_timeout(httpx.Timeout(30.0)) as client:
+        resp = get_storage_statuses_op.sync_detailed(
+            client=client, storage_id=storage_id
+        )
+        raise_for_status(resp)
+        return resp.parsed
 
 
 def get_storage_details_for_logging(storage_id, file_path=None):
@@ -234,12 +246,11 @@ def get_all_recycled_storage():
     Returns:
         dict: Mapping of storage_id -> storage info for all recycled storage
     """
-    api = ApiRest()
     try:
-        storages = api.get(
-            "/admin/storage/recycled",
-            timeout=60,
-        )
+        with build_client("isard-storage").with_timeout(httpx.Timeout(60.0)) as client:
+            resp = admin_storage_by_status.sync_detailed(client=client, status="recycled")
+            raise_for_status(resp)
+            storages = resp.parsed
         # Create lookup dict for O(1) access: {storage_id: storage_info}
         return {s["id"]: s for s in storages}
     except Exception as e:
@@ -254,12 +265,11 @@ def trigger_find_task(storage_id):
     Returns:
         str: Task ID or None if failed
     """
-    api = ApiRest()
     try:
-        task_id = api.get(
-            f"/storage/{storage_id}/find",
-            timeout=30,
-        )
+        with build_client("isard-storage").with_timeout(httpx.Timeout(30.0)) as client:
+            resp = find_storage_op.sync_detailed(client=client, storage_id=storage_id)
+            raise_for_status(resp)
+            task_id = resp.parsed
         log(f"[FIND] Storage {storage_id} | Task ID: {task_id} | Task type: find")
         return task_id
     except Exception as e:
@@ -277,13 +287,17 @@ def wait_for_task(task_id, timeout=300):
     Returns:
         dict: Task result or None if failed/timeout
     """
-    api = ApiRest()
     start_time = time.time()
     last_log_time = start_time
 
     while time.time() - start_time < timeout:
         try:
-            task = api.get(f"/task/{task_id}", timeout=10)
+            with build_client("isard-storage").with_timeout(
+                httpx.Timeout(10.0)
+            ) as client:
+                resp = get_task_op.sync_detailed(client=client, task_id=task_id)
+                raise_for_status(resp)
+                task = resp.parsed
 
             # Log progress every 30 seconds
             if time.time() - last_log_time >= 30:
@@ -385,17 +399,18 @@ def verify_storage_path_and_find(storage_id, expected_path, destination_pool_pat
 
 def rsync_to_storage_pool(storage_id, storage_pool_id):
     global BWLIMIT
-    api = ApiRest()
-    data = {
-        "destination_storage_pool_id": storage_pool_id,
-        "remove_source_file": True,
-        "bwlimit": BWLIMIT,
-    }
-    return api.put(
-        f"/storage/{storage_id}/rsync/to-storage-pool",
-        data=data,
-        timeout=30,
-    )
+    with build_client("isard-storage").with_timeout(httpx.Timeout(30.0)) as client:
+        resp = rsync_storage_to_storage_pool_op.sync_detailed(
+            client=client,
+            storage_id=storage_id,
+            body=StorageRsyncToStoragePoolRequest(
+                destination_storage_pool_id=storage_pool_id,
+                remove_source_file=True,
+                bwlimit=BWLIMIT,
+            ),
+        )
+        raise_for_status(resp)
+        return resp.parsed
 
 
 def wait_ready(storage_id, timeout_seconds, stop_requested=None):

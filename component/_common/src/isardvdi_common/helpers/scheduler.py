@@ -18,18 +18,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
-
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
-from rethinkdb import r
-
-log = logging.getLogger(__name__)
 import traceback
 from datetime import datetime, timedelta
 
 import pytz
-from isardvdi_common.connections.api_rest import ApiRest
+from isardvdi_common.connections.rethink_connection_factory import (
+    RethinkSharedConnection,
+)
 from isardvdi_common.helpers.api_notify import notify_desktop, notify_user
 from isardvdi_common.helpers.desktop_nonpersistent_events import (
     DesktopNonpersistentEvents,
@@ -37,16 +32,105 @@ from isardvdi_common.helpers.desktop_nonpersistent_events import (
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.models.config import Config
+from rethinkdb import r
 
-# from rethinkdb import RethinkDB
+log = logging.getLogger(__name__)
 
-# from .api_nonpersistentdesktop_events import desktop_non_persistent_delete
-# from .caches import get_config
+_SERVICE = "isard-scheduler"
+
+
+def _build_scheduler_client():
+    """Return a fresh ``AuthenticatedClient`` for isard-scheduler.
+
+    Import lazily so services that never instantiate ``Scheduler`` don't
+    need the generated package on ``sys.path``. Mint a new token per
+    call — the service JWT has a short TTL (~20 s).
+    """
+    from isardvdi_scheduler_client_auth import build_client
+
+    return build_client(_SERVICE)
+
+
+def _build_advanced_date_body(data):
+    """Convert a v3-style ``{date, id?, kwargs?, ...}`` dict into the
+    generated ``SchedulerAddAdvancedDateRequest`` body.
+
+    Extra top-level keys in ``data`` (e.g. legacy ``"message"``) are
+    dropped — the scheduler service never forwarded them to APScheduler
+    anyway (``add_advanced_date`` pops ``date``/``id``/``kwargs`` and
+    ignores the rest).
+    """
+    from isardvdi_scheduler_client.models import (
+        SchedulerAddAdvancedDateRequest,
+        SchedulerJobKwargs,
+    )
+    from isardvdi_scheduler_client.types import UNSET
+
+    kwargs_val = UNSET
+    raw_kwargs = data.get("kwargs")
+    if raw_kwargs is not None:
+        kwargs_val = SchedulerJobKwargs()
+        kwargs_val.additional_properties = dict(raw_kwargs)
+
+    id_val = data.get("id")
+    body = SchedulerAddAdvancedDateRequest(
+        date=data["date"],
+        id=id_val if id_val is not None else UNSET,
+        kwargs=kwargs_val,
+    )
+    return body
+
+
+def _post_advanced_date(type_, action, data):
+    """Best-effort POST /scheduler/advanced/date/{type}/{action}.
+
+    Mirrors the fire-and-forget semantics of the legacy ``ApiRest``
+    caller: all exceptions are caught and logged; the scheduler call is
+    never load-bearing for the caller's flow.
+    """
+    from isardvdi_scheduler_client.api.jobs import post_scheduler_advanced_date
+
+    try:
+        body = _build_advanced_date_body(data)
+        with _build_scheduler_client() as client:
+            post_scheduler_advanced_date.sync_detailed(
+                client=client, type_=type_, action=action, body=body
+            )
+    except Exception:
+        log.error(
+            "could not contact scheduler service at /advanced/date/" f"{type_}/{action}"
+        )
+
+
+def _delete_jobs_startswith(prefix):
+    """Best-effort DELETE /scheduler/startswith/{prefix}."""
+    from isardvdi_scheduler_client.api.jobs import delete_scheduler_jobs_startswith
+
+    try:
+        with _build_scheduler_client() as client:
+            delete_scheduler_jobs_startswith.sync_detailed(client=client, job_id=prefix)
+    except Exception:
+        log.error(
+            "Could not contact scheduler service at /scheduler/startswith/"
+            f"{prefix} method DELETE. " + traceback.format_exc()
+        )
+
+
+def _delete_jobs_bulk(ids):
+    """Best-effort DELETE /scheduler/delete_jobs with a list of ids."""
+    from isardvdi_scheduler_client.api.jobs import delete_scheduler_jobs_bulk
+    from isardvdi_scheduler_client.models import SchedulerDeleteJobsRequest
+
+    try:
+        with _build_scheduler_client() as client:
+            delete_scheduler_jobs_bulk.sync_detailed(
+                client=client, body=SchedulerDeleteJobsRequest(jobs_ids=list(ids))
+            )
+    except Exception:
+        log.error("could not contact scheduler service at /delete_jobs")
 
 
 class Scheduler(RethinkSharedConnection):
-
-    api_rest = ApiRest("isard-scheduler")
 
     #     """
     #     GENERIC METHODS
@@ -54,15 +138,7 @@ class Scheduler(RethinkSharedConnection):
 
     @classmethod
     def remove_scheduler_startswith_id(cls, id):
-        try:
-            cls.api_rest.delete("/startswith/" + id + ".")
-        except Exception:
-            log.error(
-                "Could not contact scheduler service at /scheduler/"
-                + id
-                + " method DELETE. "
-                + traceback.format_exc()
-            )
+        _delete_jobs_startswith(id + ".")
 
     #     """
     #     DESKTOPS SCHEDULING
@@ -177,24 +253,14 @@ class Scheduler(RethinkSharedConnection):
             data["kwargs"]["msg"][
                 "msg_lang"
             ] = "en"  # TODO Needs to be the frontend user lang
-            try:
-                cls.api_rest.post("/advanced/date/desktop/desktop_notify", data)
-            except Exception:
-                log.error(
-                    "could not contact scheduler service at /advanced/date/desktop/desktop_notify"
-                )
+            _post_advanced_date("desktop", "desktop_notify", data)
             data["id"] = desktop_id + ".shutdown-5m"
             data["date"] = (booking["end"] - timedelta(minutes=5)).strftime(
                 "%Y-%m-%dT%H:%M%z"
             )
             data["kwargs"]["msg"]["type"] = "danger"
             data["kwargs"]["msg"]["params"]["minutes"] = 5
-            try:
-                cls.api_rest.post("/advanced/date/desktop/desktop_notify", data)
-            except Exception:
-                log.error(
-                    "could not contact scheduler service at /advanced/date/desktop/desktop_notify"
-                )
+            _post_advanced_date("desktop", "desktop_notify", data)
             return
 
         timeouts = Quotas.get_shutdown_timeouts(payload, desktop_id)
@@ -206,7 +272,10 @@ class Scheduler(RethinkSharedConnection):
         stop_date = start_date + timedelta(minutes=time_remaining)
         data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         absolute_end_time = data["date"]
-        data["kwargs"]["msg"]["params"] = {"date": stop_date, "minutes": time_remaining}
+        data["kwargs"]["msg"]["params"] = {
+            "date": absolute_end_time,
+            "minutes": time_remaining,
+        }
         if timeouts.get("notify_intervals"):
             for interval in timeouts["notify_intervals"]:
                 if interval["time"] == 0:
@@ -234,9 +303,10 @@ class Scheduler(RethinkSharedConnection):
                     # Program in max time + NEGATIVE INTERVAL TIME minutes
                     time_remaining = timeouts["max"] + interval["time"]
                     data["id"] = desktop_id + ".shutdown-" + str(interval["time"]) + "m"
-                    data["date"] = start_date + timedelta(minutes=time_remaining)
                     data["date"] = (
-                        data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+                        (start_date + timedelta(minutes=time_remaining))
+                        .astimezone(pytz.UTC)
+                        .strftime("%Y-%m-%dT%H:%M%z")
                     )
                     data["kwargs"]["msg"]["params"] = {
                         "date": absolute_end_time,
@@ -247,36 +317,21 @@ class Scheduler(RethinkSharedConnection):
                     data["kwargs"]["msg"][
                         "msg_lang"
                     ] = "en"  # TODO Needs to be the frontend user lang
-                    try:
-                        cls.api_rest.post("/advanced/date/desktop/desktop_notify", data)
-                    except Exception:
-                        log.error(
-                            "could not contact scheduler service at /advanced/date/desktop/desktop_notify"
-                        )
+                    _post_advanced_date("desktop", "desktop_notify", data)
 
         # Stop desktop (Shutting down)
         data["id"] = desktop_id + ".shutdown"
         stop_date = stop_date + timedelta(minutes=1)
         data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["kwargs"] = {"desktop_id": desktop_id}
-        try:
-            cls.api_rest.post("/advanced/date/desktop/desktop_stop", data)
-        except Exception:
-            log.error(
-                "could not contact scheduler service at /advanced/date/desktop/desktop_stop"
-            )
+        _post_advanced_date("desktop", "desktop_stop", data)
 
         # Stop desktop (Force down)
         data["id"] = desktop_id + ".shutdown-force"
         stop_date = stop_date + timedelta(minutes=1)
         data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["kwargs"] = {"desktop_id": desktop_id}
-        try:
-            cls.api_rest.post("/advanced/date/desktop/desktop_stop", data)
-        except Exception:
-            log.error(
-                "could not contact scheduler service at /advanced/date/desktop/desktop_stop"
-            )
+        _post_advanced_date("desktop", "desktop_stop", data)
 
         # Update end time in domain
         with cls._rdb_context():
@@ -313,46 +368,26 @@ class Scheduler(RethinkSharedConnection):
         data["date"] = start_date - timedelta(0, 17 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["message"] = "This desktop will be stopped in 15 minutes"
-        try:
-            cls.api_rest.post("/advanced/date/bookings/gpu_desktops_notify", data)
-        except Exception:
-            log.error(
-                "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_notify"
-            )
+        _post_advanced_date("bookings", "gpu_desktops_notify", data)
 
         # end -5m: user message, immediate shutdown
         data["id"] = plan_id + ".gpu_user_advice-5"
         data["date"] = start_date - timedelta(0, 7 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["message"] = "This desktop will be stopped in 5 minutes"
-        try:
-            cls.api_rest.post("/advanced/date/bookings/gpu_desktops_notify", data)
-        except Exception:
-            log.error(
-                "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_notify"
-            )
+        _post_advanced_date("bookings", "gpu_desktops_notify", data)
 
         # end -2m: shutdown desktops
         data["id"] = plan_id + ".gpu_desktops_destroy"
         data["date"] = start_date - timedelta(0, 2 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
-        try:
-            cls.api_rest.post("/advanced/date/bookings/gpu_desktops_destroy", data)
-        except Exception:
-            log.error(
-                "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_destroy"
-            )
+        _post_advanced_date("bookings", "gpu_desktops_destroy", data)
 
         # end -1m: call engine to set item_id (gpu card) to profile data["profile"]
         data["id"] = plan_id + ".gpu_profile_set"
         data["date"] = start_date - timedelta(0, 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
-        try:
-            cls.api_rest.post("/advanced/date/bookings/gpu_profile_set", data)
-        except Exception:
-            log.error(
-                "could not contact scheduler service at /advanced/date/bookings/gpu_profile_set"
-            )
+        _post_advanced_date("bookings", "gpu_profile_set", data)
 
     @classmethod
     def bookings_schedule(cls, booking_id, item_type, item_id, start, end):
@@ -377,24 +412,14 @@ class Scheduler(RethinkSharedConnection):
         data["id"] = booking_id + ".in_reservable"
         data["date"] = start_date
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
-        try:
-            cls.api_rest.post("/advanced/date/bookings/domain_reservable_set", data)
-        except Exception:
-            log.error(
-                "could not contact scheduler service at /advanced/date/bookings/domain_reservable_set"
-            )
+        _post_advanced_date("bookings", "domain_reservable_set", data)
 
         # end -1s: set in_reservable
         data["id"] = booking_id + ".not_in_reservable"
         data["date"] = end_date
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["kwargs"]["booking_id"] = False
-        try:
-            cls.api_rest.post("/advanced/date/bookings/domain_reservable_set", data)
-        except Exception:
-            log.error(
-                "could not contact scheduler service at /advanced/date/bookings/domain_reservable_set"
-            )
+        _post_advanced_date("bookings", "domain_reservable_set", data)
 
     @classmethod
     def bookings_reschedule_item_id(cls, item_id, on_date):
@@ -414,8 +439,6 @@ class Scheduler(RethinkSharedConnection):
                     .filter({"kwargs": {"item_id": item_id}})["id"]
                     .run(cls._rdb_connection)
                 )
-            if ids:
-                cls.api_rest.delete("/delete_jobs", {"jobs_ids": ids})
         except Exception:
             log.error(
                 "Could not reschedule scheduler jobs for item_id "
@@ -425,6 +448,9 @@ class Scheduler(RethinkSharedConnection):
                 + ": "
                 + traceback.format_exc()
             )
+            return
+        if ids:
+            _delete_jobs_bulk(ids)
 
     @classmethod
     def bookings_remove_scheduler_item_id(cls, item_id):
@@ -446,9 +472,10 @@ class Scheduler(RethinkSharedConnection):
                     .filter({"kwargs": {"item_id": item_id}})["id"]
                     .run(cls._rdb_connection)
                 )
-            cls.api_rest.delete("/delete_jobs", {"jobs_ids": ids})
         except Exception:
             log.error("could not contact scheduler service at /delete_jobs")
+            return
+        _delete_jobs_bulk(ids)
 
     @classmethod
     def add_nonpersistent_desktop_delete_timeout(cls, desktop_id):
@@ -461,21 +488,17 @@ class Scheduler(RethinkSharedConnection):
             DesktopNonpersistentEvents.desktop_non_persistent_delete(desktop_id)
             return
         else:
-            try:
-                cls.api_rest.post(
-                    "/advanced/date/desktop/nonpersistent_delete_timeout",
-                    {
-                        "id": desktop_id + ".nonpersistent_delete",
-                        "date": (
-                            datetime.now()
-                            + timedelta(minutes=nonpersistent_desktops_inactivity_limit)
-                        )
-                        .astimezone(pytz.UTC)
-                        .strftime("%Y-%m-%dT%H:%M%z"),
-                        "kwargs": {"desktop_id": desktop_id},
-                    },
-                )
-            except Exception:
-                log.error(
-                    "could not contact scheduler service at /advanced/date/nonpersistent/delete"
-                )
+            _post_advanced_date(
+                "desktop",
+                "nonpersistent_delete_timeout",
+                {
+                    "id": desktop_id + ".nonpersistent_delete",
+                    "date": (
+                        datetime.now()
+                        + timedelta(minutes=nonpersistent_desktops_inactivity_limit)
+                    )
+                    .astimezone(pytz.UTC)
+                    .strftime("%Y-%m-%dT%H:%M%z"),
+                    "kwargs": {"desktop_id": desktop_id},
+                },
+            )
