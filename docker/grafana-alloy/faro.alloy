@@ -1,0 +1,79 @@
+// Grafana Faro receiver — captures frontend errors shipped by the
+// Vue 3 frontend, the legacy Vue 2 old-frontend, and the Flask webapp
+// via @grafana/faro-web-sdk. Loaded conditionally by run.sh when
+// FARO_ENABLED=true.
+
+faro.receiver "frontend" {
+	server {
+		listen_address           = "0.0.0.0"
+		listen_port              = 12347
+		cors_allowed_origins     = ["https://" + env("DOMAIN")]
+		max_allowed_payload_size = "5MiB"
+	}
+
+	// Resolve minified stacktraces to original source. Alloy's
+	// `location.path` accepts an http:// URL, so we point it at the same
+	// nginx container that served the JS to the browser, reached over the
+	// docker bridge as plain HTTP. `minified_path_prefix` keeps the public
+	// host because that is what the browser reports; `path` swaps it for
+	// the in-network address. Locations are tried top-down; the most
+	// specific prefix must come first so the broader fallback only catches
+	// what the earlier blocks miss.
+	//
+	// - Vue 3 frontend: served at `/frontend/...` from
+	//   `/usr/share/nginx/html/frontend/`.
+	// - Old-frontend (Vue 2): served at the document root (e.g. `/js/...`,
+	//   `/css/...`) from `/usr/share/nginx/html/old-frontend/`. The webapp
+	//   ships no sourcemaps so its requests fall through harmlessly.
+	sourcemaps {
+		location {
+			minified_path_prefix = "https://" + env("DOMAIN") + "/frontend/"
+			path                 = "http://isard-static/frontend/"
+		}
+
+		location {
+			minified_path_prefix = "https://" + env("DOMAIN") + "/"
+			path                 = "http://isard-static/old-frontend/"
+		}
+	}
+
+	output {
+		logs   = [loki.process.faro.receiver]
+		traces = []
+	}
+}
+
+loki.process "faro" {
+	forward_to = [loki.write.monitor.receiver]
+
+	// Faro logfmt keys: app_name, app_version, app_environment, kind,
+	// value_<field>, user_* (id/email/username/attr_<k>). We extract only
+	// the fields we promote to labels or want cheaper to query.
+	stage.logfmt {
+		mapping = {
+			app_name        = "",
+			app_environment = "",
+			app_version     = "",
+			user_attr_role  = "",
+		}
+	}
+
+	// Labels are global indices in Loki — promote only values with bounded
+	// cardinality. app: small enum (isardvdi-frontend, isardvdi-old-frontend,
+	// isardvdi-webapp). app_environment: 1 per deployment. app_version:
+	// bounded by release cadence. user_attr_role: small enum.
+	stage.labels {
+		values = {
+			app             = "app_name",
+			app_environment = "",
+			app_version     = "",
+			user_attr_role  = "",
+		}
+	}
+
+	stage.static_labels {
+		values = {
+			source = "faro",
+		}
+	}
+}

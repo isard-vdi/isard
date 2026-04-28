@@ -34,6 +34,7 @@ import router from './router'
 import store from './store'
 
 import axiosSetup from './utils/axios'
+import { setFaroError } from '@/lib/faro'
 
 // Websockets
 import VueSocketIOExt from 'vue-socket.io-extended'
@@ -64,6 +65,16 @@ Vue.use(VueFab)
 Vue.use(VueSocketIOExt, socket, { store })
 
 Vue.config.productionTip = false
+
+// Forward Vue-internal errors (render/watcher/lifecycle) to Faro. Without
+// this Vue 2 swallows them before window.onerror fires. setFaroError is a
+// no-op when Faro is disabled/uninitialized.
+Vue.config.errorHandler = (err, vm, info) => {
+  console.error(err)
+  const opts = vm?.$options
+  const componentName = opts?.name || opts?._componentTag
+  setFaroError(err, { info, component: componentName })
+}
 
 Vue.filter('truncate', function (value, size) {
   if (!value) return ''

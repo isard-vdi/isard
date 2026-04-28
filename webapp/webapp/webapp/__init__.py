@@ -86,6 +86,15 @@ def send_static_js(path):
     return send_from_directory(os.path.join(app.root_path, "static"), path)
 
 
+@app.context_processor
+def inject_faro():
+    enabled = os.getenv("FARO_ENABLED", "false").lower() == "true"
+    return {
+        "faro_enabled": enabled,
+        "faro_url": (os.getenv("FARO_URL") or "/faro/collect") if enabled else None,
+    }
+
+
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template("page_404.html"), 404

@@ -6,6 +6,7 @@ import { useSessionStore } from '@/stores/session'
 import { useSocketStore } from '@/stores/socket'
 import { getUserConfig } from '@/gen/oas/apiv4'
 import { resolveVue2Path, type FrontendMode } from '@/lib/frontendModeMap'
+import { ensureFaroInitialized, setFaroView } from '@/lib/faro-hook'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -352,18 +353,29 @@ const router = createRouter({
   ]
 })
 
+// Cache the authenticated frontend-mode lookup so the guard runs once per
+// session instead of on every navigation. The /item/user/get-config response
+// also drives Faro initialization, so we kick that off here too.
 let cachedFrontendMode: FrontendMode | null = null
 
 async function getFrontendMode(): Promise<FrontendMode> {
   if (cachedFrontendMode) return cachedFrontendMode
   try {
     const { data } = await getUserConfig()
-    const mode = (data as { frontend_mode?: FrontendMode } | undefined)?.frontend_mode
-    cachedFrontendMode = mode ?? 'deprecated'
+    if (!data) {
+      cachedFrontendMode = 'deprecated'
+      return cachedFrontendMode
+    }
+    if (data.faro) {
+      // Fire-and-forget: Faro init must not block navigation.
+      void ensureFaroInitialized(data.faro)
+    }
+    cachedFrontendMode = data.frontend_mode ?? 'deprecated'
+    return cachedFrontendMode
   } catch {
     cachedFrontendMode = 'deprecated'
+    return cachedFrontendMode
   }
-  return cachedFrontendMode
 }
 
 router.beforeEach(async (to, from, next) => {
@@ -470,5 +482,12 @@ function getRedirectForTokenType(type: TokenType) {
       return { name: 'home' }
   }
 }
+
+// Keep Faro's view.name in sync with the active route so `view_name` in
+// Loki maps to the URL path the user is actually on (e.g.
+// `/frontend/deployments/shared`) rather than the internal route name.
+router.afterEach((to) => {
+  setFaroView(to.path)
+})
 
 export default router

@@ -4,10 +4,36 @@ import { sessionCookieName } from '../shared/constants'
 import { getCookie } from 'tiny-cookie'
 import store from '@/store'
 import { jwtDecode } from 'jwt-decode'
+import { setFaroApiEvent, setFaroError } from '@/lib/faro'
+
+// Strip token-bearing path segments and querystrings so Faro's
+// route_template stays a low-cardinality, OpenAPI-shaped value.
+function routeTemplateFor (urlString) {
+  try {
+    const parsed = new URL(urlString, window.location.origin)
+    return parsed.pathname
+  } catch {
+    return urlString.split('?')[0]
+  }
+}
+
+function clientFor (urlString) {
+  if (urlString.includes('/authentication')) return 'auth'
+  if (urlString.includes('/api/v3') || urlString.includes('/api/v4')) return 'api'
+  return 'api'
+}
 
 export default function axiosSetUp () {
   // point to your API endpoint
   axios.defaults.baseURL = `${window.location.protocol}//${window.location.host}`
+  // Track request start time so Faro can report duration on failures.
+  axios.interceptors.request.use(
+    function (config) {
+      config.metadata = { ...(config.metadata || {}), faroStart: performance.now() }
+      return config
+    }
+  )
+
   // Add a request interceptor
   axios.interceptors.request.use(
     // Spinning show
@@ -86,9 +112,27 @@ export default function axiosSetUp () {
         document.querySelector('[type="submit"]').removeAttribute('disabled')
       }
 
+      const cfg = error.config || {}
+      const url = cfg.url || ''
+      const started = cfg.metadata?.faroStart ?? performance.now()
+      const responseSize = Number(error.response?.headers?.['content-length']) || undefined
+      const requestId = error.response?.headers?.['x-request-id'] || undefined
+
+      setFaroApiEvent({
+        client: clientFor(url),
+        method: (cfg.method || 'GET').toUpperCase(),
+        route_template: routeTemplateFor(url),
+        duration_ms: Math.round(performance.now() - started),
+        error_type: error.response ? 'http' : 'network',
+        status: error.response?.status,
+        request_id: requestId,
+        response_size: responseSize
+      })
+
       // Check if error.response exists (network errors don't have response)
       if (!error.response) {
         console.error('Network error or request cancelled:', error.message)
+        setFaroError(error, { source: 'axios', info: 'api_network_error' })
         return Promise.reject(error)
       }
 

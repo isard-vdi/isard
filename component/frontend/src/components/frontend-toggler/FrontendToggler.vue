@@ -1,16 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
+import { useQuery } from '@tanstack/vue-query'
 
 import { getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import {
-  EDIT_FORM_ROUTES,
-  VUE3_TO_VUE2,
-  resolveVue2Path,
-  type FrontendMode
-} from '@/lib/frontendModeMap'
+import { EDIT_FORM_ROUTES, VUE3_TO_VUE2, resolveVue2Path } from '@/lib/frontendModeMap'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -21,7 +16,7 @@ const { data: userConfig } = useQuery({
 })
 
 const visible = computed(() => {
-  const mode = (userConfig.value as { frontend_mode?: FrontendMode } | undefined)?.frontend_mode
+  const mode = userConfig.value?.frontend_mode
   if (mode !== 'all') return false
   const name = route.name as string | undefined
   if (!name) return false

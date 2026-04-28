@@ -23,6 +23,7 @@
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@fontsource-variable/montserrat": "^5.1.0",
     "@fontsource/fira-mono": "^5.2.7",
+    "@grafana/faro-web-sdk": "2.4.0",
     "@hey-api/client-fetch": "^0.3.1",
     "@novnc/novnc": "1.6.0",
     "@tailwindcss/vite": "^4.1.17",

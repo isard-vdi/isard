@@ -8,6 +8,7 @@ import { appTitle } from '../shared/constants'
 import { resolveVue3Path } from '@/shared/frontendModeMap'
 import i18n from '@/i18n'
 import store from '@/store'
+import { setFaroView } from '@/lib/faro'
 
 Vue.use(VueRouter)
 
@@ -505,6 +506,12 @@ router.beforeEach(async (to, from, next) => {
       next()
     }
   }
+})
+
+// Keep Faro's view.name in sync with the active route so `view_name` in
+// Loki maps to the URL path the user is actually on.
+router.afterEach((to) => {
+  setFaroView(to.path)
 })
 
 export default router

@@ -798,6 +798,14 @@ WG_GUESTS_RESERVED_HOSTS=20
 #TEMPO_ADDRESS=http://isard-tempo:3200
 #TEMPO_ADDRESS_OTEL_GRPC=isard-tempo:4317
 
+# ------ Faro (Frontend errors) ------------------------------------------
+#
+# Captures Vue 3 frontend errors (uncaught exceptions, unhandled promise
+# rejections, console.error and console.warn) and ships them to Loki via
+# Grafana Alloy. Requires the stats flavour, or set FARO_URL to point to an
+# external Faro receiver (e.g. Grafana Cloud).
+#FARO_ENABLED=false
+#FARO_URL=/faro/collect
 
 # ------ OCI Collector -----------------------------------------------------
 #STATS_COLLECTORS_OCI_ENABLE=false

@@ -12,6 +12,10 @@ if [ "$LOG_LEVEL" = "DEBUG" ] || [ "$LOG_LEVEL" = "debug" ]; then
 	cp /usr/local/etc/alloy/debug.alloy /etc/alloy/debug.alloy
 fi
 
+if [ "$FARO_ENABLED" = "true" ]; then
+	cp /usr/local/etc/alloy/faro.alloy /etc/alloy/faro.alloy
+fi
+
 alloy run \
         --storage.path=/var/lib/alloy/data \
         --server.http.listen-addr=0.0.0.0:12345 \

@@ -1,3 +1,7 @@
 services:
   isard-haproxy:
     image: ${DOCKER_IMAGE_PREFIX}haproxy:${DOCKER_IMAGE_TAG-latest}
+    environment:
+      # Explicit default so the Faro ACL in 16_12_fe_http_secured_services.cfg
+      # always sees a concrete value. Mirrors stats.yml.
+      FARO_ENABLED: ${FARO_ENABLED:-false}

@@ -495,9 +495,6 @@ class UsersProcessed(RethinkSharedConnection):
         else:
             bastion_allowed = False
             bastion_domain = None
-        frontend_mode = getenv("FRONTEND_MODE", "deprecated")
-        if frontend_mode not in ("deprecated", "actual", "all"):
-            frontend_mode = "deprecated"
         # If the session id is isard-service it means that it's an impersonated user
         if payload.get("session_id") in ["isardvdi-service", "api-key"]:
             session = {
@@ -512,6 +509,20 @@ class UsersProcessed(RethinkSharedConnection):
                 "max_renew_time": user_session.time.max_renew_time.ToSeconds(),
                 "max_time": user_session.time.max_time.ToSeconds(),
             }
+
+        frontend_mode_raw = getenv("FRONTEND_MODE", "deprecated")
+        frontend_mode = (
+            frontend_mode_raw
+            if frontend_mode_raw in ("deprecated", "actual", "all")
+            else "deprecated"
+        )
+
+        faro_enabled = getenv("FARO_ENABLED", "false").lower() == "true"
+        faro = {
+            "enabled": faro_enabled,
+            "url": (getenv("FARO_URL") or "/faro/collect") if faro_enabled else None,
+        }
+
         return {
             **{
                 "show_bookings_button": show_bookings_button,
@@ -542,6 +553,7 @@ class UsersProcessed(RethinkSharedConnection):
                 "migrations_block": cls.is_blocked_migration(payload["user_id"]),
                 "session": session,
                 "frontend_mode": frontend_mode,
+                "faro": faro,
             },
         }
 
