@@ -56,6 +56,25 @@ def _mock_bastion_grpc(monkeypatch):
     )
 
 
+@pytest.fixture(autouse=True)
+def _mock_log_user(monkeypatch):
+    """Prevent ``Token.log_user`` from opening a real TCP connection to
+    ``isard-db:28015`` on every authenticated request.
+
+    ``LogsUsers.__init__`` calls ``r.connect(host="isard-db", ...)`` —
+    the actual rethinkdb driver, *not* the mock. When the host is
+    unreachable (no container in the test env) the connect blocks for
+    ~5 s before ``Token.log_user``'s try/except swallows the failure.
+    Multiplied by ~1.8k authenticated tests this is hours per CI run,
+    and it caused ``test_update_branding_does_not_block_on_grpc`` to
+    fail at its 2 s ceiling for reasons unrelated to gRPC.
+    """
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.token.Token.log_user",
+        classmethod(lambda cls, payload: None),
+    )
+
+
 @pytest.fixture()
 def client():
     """
