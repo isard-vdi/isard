@@ -21,16 +21,19 @@
 from flask import has_request_context, jsonify, request
 from isardvdi_common.helpers.error_base import ErrorBase
 
+# This module is the Flask-flavoured ``Error``. It only runs in Flask
+# services (webapp, scheduler, notifier). The historical ``from api
+# import app`` first-fallback dated from apiv3 and silently bound to
+# apiv4's FastAPI ``app`` after the migration — FastAPI has no
+# ``.logger`` attribute, so the class body crashed at import time when
+# any Flask service was loaded inside the same uv workspace as apiv4.
 try:
-    from api import app
+    from webapp import app
 except Exception:
     try:
-        from webapp import app
+        from scheduler import app
     except Exception:
-        try:
-            from scheduler import app
-        except Exception:
-            from notifier import app
+        from notifier import app
 
 
 class Error(ErrorBase):

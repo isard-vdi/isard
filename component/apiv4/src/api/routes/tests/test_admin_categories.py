@@ -475,9 +475,11 @@ class TestCategoryLoginNotification:
 class TestLoginConfigByCategory:
     @pytest.mark.clear_cache
     def test_returns_category_login_notification(self, test_client):
-        """The category's login_notification is returned as a flat shape
-        matching ``LoginConfigResponse`` so the same JS helpers used for the
-        global ``/item/login-config`` endpoint work unchanged."""
+        """The endpoint returns ``notification_cover`` and
+        ``notification_form`` as **lists** so the login page can render
+        the global notification and the category-specific one
+        side-by-side. With no global notifications and a category that
+        defines its own, each list has one item — the category's."""
         response = test_client(
             url="/item/login-config/test-cat",
             db_tables_data=_db(),
@@ -486,15 +488,18 @@ class TestLoginConfigByCategory:
         data = response.json()
         # Flat shape — no {"login": {"notification": ...}} wrapper.
         assert "login" not in data
-        assert data["notification_cover"]["enabled"] is False
-        assert data["notification_cover"]["title"] == "Hello"
-        assert data["notification_form"]["enabled"] is True
-        assert data["notification_form"]["title"] == "Form"
+        assert isinstance(data["notification_cover"], list)
+        assert data["notification_cover"][0]["enabled"] is False
+        assert data["notification_cover"][0]["title"] == "Hello"
+        assert isinstance(data["notification_form"], list)
+        assert data["notification_form"][0]["enabled"] is True
+        assert data["notification_form"][0]["title"] == "Form"
 
     @pytest.mark.clear_cache
     def test_falls_back_to_global_config(self, test_client):
-        """When the category has no ``login_notification`` set, the response
-        comes from the global ``Configuration.login`` — also flat."""
+        """When the category has no ``login_notification``, the merged
+        list contains only the global ``Configuration.login`` items
+        (each wrapped as a 1-item list)."""
         cat = _make_test_category()
         cat.pop("login_notification", None)
         response = test_client(
@@ -514,16 +519,19 @@ class TestLoginConfigByCategory:
         assert response.status_code == 200
         data = response.json()
         assert "login" not in data
-        assert data["notification_cover"]["enabled"] is False
-        assert data["notification_form"]["enabled"] is False
+        assert isinstance(data["notification_cover"], list)
+        assert data["notification_cover"][0]["enabled"] is False
+        assert isinstance(data["notification_form"], list)
+        assert data["notification_form"][0]["enabled"] is False
 
     @pytest.mark.clear_cache
     def test_html_unescapes_notification_fields(self, test_client):
         """Title/description and button text/url come out of the DB
-        HTML-escaped (``&amp;`` etc.). The endpoint must unescape them so
-        the form pre-fills with the original value the admin typed —
-        parity with ``ConfigService.get_login_config`` and main's apiv3
-        ``/api/v3/login_config/<cat>``."""
+        HTML-escaped (``&amp;`` etc.). The endpoint must unescape every
+        item in the merged ``notification_cover`` / ``notification_form``
+        list so each form pre-fills with the original value the admin
+        typed — parity with ``ConfigService.get_login_config`` and
+        main's apiv3 ``/api/v3/login_config/<cat>``."""
         cat = _make_test_category(
             login_notification={
                 "notification_cover": {
@@ -549,7 +557,7 @@ class TestLoginConfigByCategory:
             },
         )
         assert response.status_code == 200
-        cover = response.json()["notification_cover"]
+        cover = response.json()["notification_cover"][0]
         assert cover["title"] == "Cover & Form"
         assert cover["description"] == "1 < 2"
         assert cover["button"]["text"] == 'Click "here"'
