@@ -132,52 +132,6 @@ const {
 
 const categoriesDropdownModel = ref<GetCategoriesResponse[number] | undefined>(undefined)
 
-const categoryConfigId = computed(() => {
-  if (category.value) {
-    return category.value.id
-  }
-  if (categories.value?.length === 1) {
-    return categories.value[0].id
-  }
-  return undefined
-})
-
-const categoryConfigOpts = computed(() =>
-  getLoginConfigByCategoryOptions({
-    path: {
-      category_id: categoryConfigId.value || ''
-    }
-  })
-)
-const categoryConfigQKey = computed(() =>
-  getLoginConfigByCategoryQueryKey({
-    path: {
-      category_id: categoryConfigId.value || ''
-    }
-  })
-)
-const {
-  isPending: categoryConfigIsPending,
-  isError: categoryConfigIsError,
-  error: categoryConfigError,
-  data: categoryConfig
-} = useQuery({
-  ...categoryConfigOpts.value,
-  queryKey: categoryConfigQKey,
-  enabled: computed(() => !!categoryConfigId.value)
-})
-
-const configIsPending = computed(() =>
-  categoryConfigId.value ? categoryConfigIsPending.value : globalConfigIsPending.value
-)
-const configIsError = computed(() =>
-  categoryConfigId.value ? categoryConfigIsError.value : globalConfigIsError.value
-)
-const configError = computed(() =>
-  categoryConfigId.value ? categoryConfigError.value : globalConfigError.value
-)
-const config = computed(() => (categoryConfigId.value ? categoryConfig.value : globalConfig.value))
-
 const providersCategoryId = computed(() => {
   if (category.value) {
     return category.value.id
@@ -190,6 +144,44 @@ const providersCategoryId = computed(() => {
   }
   return 'default'
 })
+
+const categoryConfigOpts = computed(() =>
+  getLoginConfigByCategoryOptions({
+    path: {
+      category_id: providersCategoryId.value || ''
+    }
+  })
+)
+const categoryConfigQKey = computed(() =>
+  getLoginConfigByCategoryQueryKey({
+    path: {
+      category_id: providersCategoryId.value || ''
+    }
+  })
+)
+const {
+  isPending: categoryConfigIsPending,
+  isError: categoryConfigIsError,
+  error: categoryConfigError,
+  data: categoryConfig
+} = useQuery({
+  ...categoryConfigOpts.value,
+  queryKey: categoryConfigQKey,
+  enabled: computed(() => !!providersCategoryId.value)
+})
+
+const configIsPending = computed(() =>
+  providersCategoryId.value ? categoryConfigIsPending.value : globalConfigIsPending.value
+)
+const configIsError = computed(() =>
+  providersCategoryId.value ? categoryConfigIsError.value : globalConfigIsError.value
+)
+const configError = computed(() =>
+  providersCategoryId.value ? categoryConfigError.value : globalConfigError.value
+)
+const config = computed(() =>
+  providersCategoryId.value ? categoryConfig.value : globalConfig.value
+)
 
 const providersOpts = computed(() =>
   providersOptions({
@@ -643,8 +635,14 @@ watch(categoryError, (newErr) => {
     :title="category?.name || config?.info?.title"
     :description="categorySelectToken ? t('views.login.select-category') : description"
   >
-    <template v-if="config?.notification_cover?.enabled" #cover>
-      <LoginNotification :config="config.notification_cover" class="border-error-600" />
+    <template #cover>
+      <template v-for="(notification, index) in config?.notification_cover" :key="index">
+        <LoginNotification
+          v-if="notification?.enabled"
+          :config="notification"
+          class="border-error-600"
+        />
+      </template>
     </template>
 
     <template #default>
@@ -656,10 +654,9 @@ watch(categoryError, (newErr) => {
         }}</Alert>
 
         <template v-else>
-          <LoginNotification
-            v-if="config?.notification_form?.enabled"
-            :config="config.notification_form"
-          />
+          <template v-for="(notification, index) in config?.notification_form" :key="index">
+            <LoginNotification v-if="notification?.enabled" :config="notification" />
+          </template>
           <Alert v-if="loginError" variant="destructive">
             <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
           </Alert>

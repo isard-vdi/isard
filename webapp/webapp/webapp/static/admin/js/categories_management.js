@@ -923,7 +923,7 @@ function actionsCategoryDetail() {
         // Fetch category login notification data, populate form and preview
         $.ajax({
             type: "GET",
-            url: "/api/v3/login_config/" + pk,
+            url: "/api/v3/admin/login_config/" + pk,
             contentType: "application/json",
             success: function (data) {
                 populateLoginNotificationForm(modal, data, "category_enable_");

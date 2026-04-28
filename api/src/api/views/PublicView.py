@@ -92,22 +92,49 @@ def clear_login_config_cache():
 @app.route("/api/v3/login_config", methods=["GET"])
 @app.route("/api/v3/login_config/<category_id>", methods=["GET"])
 def api_v3_login_config(category_id=None):
-    if category_id and Category.exists(category_id):
-        login_config = Category(category_id).login_notification or {}
-    else:
-        login_config = Configuration.login or {}
+    login_config = Configuration.login or {}
+
     for key in ("notification_cover", "notification_form"):
         notification = login_config.get(key)
         if not notification:
             continue
-        for field in ("title", "description"):
-            if notification.get(field):
-                notification[field] = html.unescape(notification[field])
-        button = notification.get("button")
-        if button:
-            for field in ("text", "url"):
-                if button.get(field):
-                    button[field] = html.unescape(button[field])
+        if not isinstance(notification, list):
+            login_config[key] = [notification]
+
+    if category_id and Category.exists(category_id):
+        category_login_config = Category(category_id).login_notification or {}
+
+        login_config = {
+            **login_config,
+            **category_login_config,
+            **{
+                "notification_cover": [
+                    *login_config.get("notification_cover"),
+                    category_login_config.get("notification_cover"),
+                ],
+                "notification_form": [
+                    *login_config.get("notification_form"),
+                    category_login_config.get("notification_form"),
+                ],
+            },
+        }
+
+    for key in ("notification_cover", "notification_form"):
+        notification = login_config.get(key)
+
+        for notification_item in notification:
+            if not notification_item:
+                continue
+
+            for field in ("title", "description"):
+                if notification_item.get(field):
+                    notification_item[field] = html.unescape(notification_item[field])
+            button = notification_item.get("button")
+            if button:
+                for field in ("text", "url"):
+                    if button.get(field):
+                        button[field] = html.unescape(button[field])
+
     return (
         json.dumps(login_config),
         200,
