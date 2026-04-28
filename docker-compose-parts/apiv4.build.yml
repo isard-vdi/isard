@@ -6,3 +6,4 @@ services:
       # target: production
       args:
         SRC_VERSION_ID: $SRC_VERSION_ID
+        RETHINKDB_FORK_SHA: ${RETHINKDB_FORK_SHA:-unknown}

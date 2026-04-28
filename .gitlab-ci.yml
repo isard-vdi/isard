@@ -189,7 +189,9 @@ check-protobuf:
 docker-image-codegen:
   image: "docker:${DOCKER_VERSION}"
   stage: build-codegen
-  needs: []
+  needs:
+    - job: resolve-rethinkdb-fork-sha
+      artifacts: true
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
@@ -200,6 +202,10 @@ docker-image-codegen:
     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
+    # Pass the pipeline-pinned ``RETHINKDB_FORK_SHA`` so the apiv4-venv
+    # pip-install layer in the codegen image busts when the
+    # isard-vdi/rethinkdb-python branch advances (same pattern as the
+    # 11 component images in docker-image).
     - |
       if $[[ inputs.use-image-build-cache ]]
       then
@@ -207,9 +213,9 @@ docker-image-codegen:
         if [ -n "$BUILDKIT_CACHE_REGISTRY" ]; then
           CACHE_ARGS="--cache-from $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest $CACHE_ARGS"
         fi
-        docker build -f $DOCKERFILE $CACHE_ARGS -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+        docker build -f $DOCKERFILE $CACHE_ARGS --build-arg "RETHINKDB_FORK_SHA=${RETHINKDB_FORK_SHA:-unknown}" -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
       else
-        docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+        docker build -f $DOCKERFILE --build-arg "RETHINKDB_FORK_SHA=${RETHINKDB_FORK_SHA:-unknown}" -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
       fi
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
