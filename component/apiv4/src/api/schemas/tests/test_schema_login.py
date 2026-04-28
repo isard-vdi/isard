@@ -148,8 +148,77 @@ class TestLoginConfigResponse:
             logo={"hide": True},
             providers={"form": {"description": "Local"}},
         )
+        # Single-dict form is preserved (not auto-wrapped) — backwards
+        # compat with the pre-feature wire shape.
         assert r.notification_cover.enabled is True
         assert r.providers.form.description == "Local"
+
+    def test_notification_cover_accepts_list(self):
+        """Per-category endpoint returns ``notification_cover`` as a
+        2-item list: ``[global, category]`` — the login page renders
+        both side-by-side. Pin the union so the schema doesn't silently
+        drop one."""
+        r = LoginConfigResponse(
+            notification_cover=[
+                {"enabled": True, "title": "Global"},
+                {"enabled": True, "title": "Cat-specific"},
+            ]
+        )
+        assert isinstance(r.notification_cover, list)
+        assert len(r.notification_cover) == 2
+        assert r.notification_cover[0].title == "Global"
+        assert r.notification_cover[1].title == "Cat-specific"
+
+    def test_notification_form_accepts_list(self):
+        r = LoginConfigResponse(
+            notification_form=[
+                {"enabled": False, "title": "Global"},
+                {"enabled": True, "title": "Cat"},
+            ]
+        )
+        assert isinstance(r.notification_form, list)
+        assert len(r.notification_form) == 2
+        assert r.notification_form[0].enabled is False
+        assert r.notification_form[1].enabled is True
+
+    def test_notification_list_accepts_none_entries(self):
+        """Either side of the [global, category] pair may be absent —
+        the schema accepts ``None`` entries so the consumer can render
+        only what's set."""
+        r = LoginConfigResponse(
+            notification_cover=[None, {"enabled": True, "title": "Only cat"}]
+        )
+        assert r.notification_cover[0] is None
+        assert r.notification_cover[1].title == "Only cat"
+
+    def test_notification_list_accepts_empty(self):
+        """Empty list is valid — neither global nor category notification
+        is set. Renderer treats it as ``no notifications`` rather than 500."""
+        r = LoginConfigResponse(notification_cover=[], notification_form=[])
+        assert r.notification_cover == []
+        assert r.notification_form == []
+
+    def test_notification_invalid_item_rejected(self):
+        """A non-dict, non-None entry inside the list must fail
+        validation — pin so the union doesn't silently coerce a string
+        through the `LoginNotification` arm."""
+        with pytest.raises(ValidationError):
+            LoginConfigResponse(
+                notification_cover=[{"enabled": True}, "not-a-notification"]
+            )
+
+    def test_round_trips_list_form(self):
+        """``model_dump`` round-trips the list form unchanged — confirms
+        Pydantic doesn't silently flatten a 1-item list to a single
+        dict (which would break the consumer's ``Array.isArray()`` check)."""
+        original = LoginConfigResponse(
+            notification_cover=[{"enabled": True, "title": "Only-global"}]
+        )
+        dumped = original.model_dump(exclude_none=True)
+        restored = LoginConfigResponse(**dumped)
+        assert isinstance(restored.notification_cover, list)
+        assert len(restored.notification_cover) == 1
+        assert restored.notification_cover[0].title == "Only-global"
 
 
 class TestDisclaimerResponse:
