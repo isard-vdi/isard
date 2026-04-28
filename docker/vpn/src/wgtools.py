@@ -477,6 +477,17 @@ class Wg(object):
                             "options:remote_ip=" + wg_address,
                         ]
                     )
+                    subprocess.run(
+                        [
+                            "ovs-vsctl",
+                            "set",
+                            "Interface",
+                            peer["id"],
+                            "bfd:enable=true",
+                            "bfd:min_tx=1000",
+                            "bfd:min_rx=1000",
+                        ]
+                    )
 
                 # BFD + VLAN 4095 flow rules apply in both the new-port
                 # and existing-port paths so fresh hypervisors are not
