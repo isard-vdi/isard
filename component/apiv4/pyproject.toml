@@ -20,7 +20,7 @@ dependencies = [
   "pytz==2025.2",
   "redis==5.2.1",
   "requests==2.32.4",
-  "rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@5d314f8cbdd1942f261ae5743ec99bbdf584bf3e",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/5d314f8cbdd1942f261ae5743ec99bbdf584bf3e.tar.gz",
   "rq==2.3.2",
   "specktre==0.3.0",
   "user-agents==2.2.0",
@@ -34,7 +34,7 @@ test = [
   "pytest",
   "pytest-cov",
   "pytest-xdist",
-  "rethinkdb-mock @ git+https://github.com/isard-vdi/rethinkdb-mock.git@082aec0f78baa619e77bcb63d1f2fa6e2581e7a5",
+  "rethinkdb-mock @ https://github.com/isard-vdi/rethinkdb-mock/archive/082aec0f78baa619e77bcb63d1f2fa6e2581e7a5.tar.gz",
 ]
 
 [build-system]
