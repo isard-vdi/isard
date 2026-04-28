@@ -25,7 +25,7 @@ class TestListBackups:
     def test_admin_lists_all(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.backups.AdminBackupsService.list_backups",
-            staticmethod(lambda: [{"id": "b1"}, {"id": "b2"}]),
+            staticmethod(lambda limit=None: [{"id": "b1"}, {"id": "b2"}]),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
@@ -79,7 +79,7 @@ class TestListBackups:
     def test_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.backups.AdminBackupsService.list_backups",
-            staticmethod(lambda: []),
+            staticmethod(lambda limit=None: []),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="user"))
         assert response.status_code == 403
@@ -87,7 +87,7 @@ class TestListBackups:
     def test_manager_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.backups.AdminBackupsService.list_backups",
-            staticmethod(lambda: []),
+            staticmethod(lambda limit=None: []),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="manager"))
         assert response.status_code == 403
@@ -264,11 +264,13 @@ class TestBackupReport:
         )
         assert response.status_code in (400, 422)
 
-    def test_unexpected_exception_returns_400(self, monkeypatch, test_client):
-        """The handler's generic except branch wraps non-Error exceptions
-        as bad_request (NOT internal_server) — backupninja runs this
-        endpoint with externally-supplied data, so a parse failure is
-        a client error, not a server crash. Pin that contract.
+    def test_unexpected_exception_returns_500(self, monkeypatch, test_client):
+        """The handler's generic except branch surfaces non-Error
+        exceptions as internal_server (500). Main commit 803e4392f
+        explicitly dropped the blanket-except that turned every server
+        error into a 400 — backupninja's data is service-token gated and
+        Pydantic validates the request body, so anything that still
+        reaches the except branch is a real server fault.
         """
 
         def boom(data):
@@ -284,7 +286,7 @@ class TestBackupReport:
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
         )
-        assert response.status_code == 400
+        assert response.status_code == 500
 
     def test_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -309,5 +311,109 @@ class TestBackupReport:
             method="POST",
             jwt=MockJWT(role_id="manager"),
             body=self._payload(),
+        )
+        assert response.status_code == 403
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  GET/PUT /admin/backups/integrity   (saturday borg-check toggle)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestBackupIntegrityToggle:
+    URL = "/admin/backups/integrity"
+
+    def test_admin_gets_toggle_disabled_default(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "api.routes.admin.backups.AdminBackupsService.get_integrity_enabled",
+            staticmethod(lambda: False),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        assert response.json() == {"integrity_enabled": False}
+
+    def test_admin_gets_toggle_enabled(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "api.routes.admin.backups.AdminBackupsService.get_integrity_enabled",
+            staticmethod(lambda: True),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        assert response.json() == {"integrity_enabled": True}
+
+    def test_user_forbidden_get(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "api.routes.admin.backups.AdminBackupsService.get_integrity_enabled",
+            staticmethod(lambda: False),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="user"))
+        assert response.status_code == 403
+
+    def test_admin_sets_toggle(self, monkeypatch, test_client):
+        captured = {}
+
+        def fake_set(value):
+            captured["value"] = value
+            return {"integrity_enabled": value}
+
+        monkeypatch.setattr(
+            "api.routes.admin.backups.AdminBackupsService.set_integrity_enabled",
+            staticmethod(fake_set),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={"integrity_enabled": True},
+        )
+        assert response.status_code == 200
+        assert captured["value"] is True
+        assert response.json() == {"integrity_enabled": True}
+
+    def test_set_rejects_non_bool(self, monkeypatch, test_client):
+        """Pydantic body validation must reject non-boolean values
+        before the service is invoked."""
+
+        def should_not_run(value):
+            raise AssertionError("Service must not be called on bad input")
+
+        monkeypatch.setattr(
+            "api.routes.admin.backups.AdminBackupsService.set_integrity_enabled",
+            staticmethod(should_not_run),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={"integrity_enabled": "yes-please"},
+        )
+        assert response.status_code in (400, 422)
+
+    def test_set_typed_error_propagates(self, monkeypatch, test_client):
+        def fail(value):
+            raise Error("bad_request", "integrity_enabled must be a boolean")
+
+        monkeypatch.setattr(
+            "api.routes.admin.backups.AdminBackupsService.set_integrity_enabled",
+            staticmethod(fail),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={"integrity_enabled": True},
+        )
+        assert response.status_code == 400
+
+    def test_user_forbidden_set(self, monkeypatch, test_client):
+        monkeypatch.setattr(
+            "api.routes.admin.backups.AdminBackupsService.set_integrity_enabled",
+            staticmethod(lambda v: {"integrity_enabled": v}),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="user"),
+            body={"integrity_enabled": True},
         )
         assert response.status_code == 403
