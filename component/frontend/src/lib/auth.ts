@@ -44,7 +44,7 @@ export interface LoginClaims extends TypeClaims {
 
 export interface LoginClaimsData {
   provider: string
-  id: string
+  user_id: string
   role_id: Role
   category_id: string
   group_id: string

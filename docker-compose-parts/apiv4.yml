@@ -37,6 +37,8 @@ services:
       LOG_LEVEL:
       DEBUG_STATS: "false"
       DEBUG_WEBSOCKETS: "false"
+      FARO_ENABLED:
+      FARO_URL:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
       RETHINKDB_DB:

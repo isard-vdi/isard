@@ -5,7 +5,7 @@ import '@fontsource/fira-mono'
 // Must run before any module that constructs zod schemas at import time.
 import './lib/zod-config'
 
-import { computed, createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import { createPinia } from 'pinia'
 
 import { client as authClient } from './gen/oas/authentication/client.gen'
@@ -24,7 +24,8 @@ authClient.setConfig({
   baseUrl: '/authentication'
 })
 
-import { watch } from 'vue'
+import { setFaroError } from './lib/faro-hook'
+import { instrumentClient } from './lib/faro-api'
 
 localStorage.language ? setLocale(localStorage.language) : setBrowserLocale(i18n)
 
@@ -44,6 +45,18 @@ const vueQueryPluginOptions: VueQueryPluginOptions = {
 }
 
 const app = createApp(App)
+
+// Forward Vue-internal errors (render/watcher/lifecycle/computed) to Faro.
+// Without this Vue 3 swallows them before Faro's window.onerror hook fires.
+// setFaroError is a no-op when Faro is disabled/unloaded.
+app.config.errorHandler = (err, instance, info) => {
+  // Preserve dev console output — we augment, not replace.
+  console.error(err)
+  const opts = (instance as { $options?: { name?: string; __name?: string } } | null)?.$options
+  const componentName = opts?.name ?? opts?.__name
+  setFaroError(err, { info, component: componentName })
+}
+
 const pinia = createPinia()
 
 app.use(pinia)
@@ -84,6 +97,13 @@ apiv4Client.interceptors.response.use(async (response) => {
   }
   return response
 })
+
+// Faro instrumentation — observer-only, must run after the auth + 401
+// interceptors so the observer sees the final (post-auth) Request and
+// the original Response. Safe no-op when FARO_ENABLED=false.
+instrumentClient(authClient, 'auth')
+instrumentClient(apiClient, 'api')
+instrumentClient(apiv4Client, 'apiv4')
 
 // Configure API OAS client headers on token changes
 watch(

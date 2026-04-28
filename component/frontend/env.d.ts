@@ -9,3 +9,5 @@ declare module 'vue-cal' {
 
 declare module 'vue-cal/dist/vuecal.css'
 declare module 'vue-cal/dist/i18n/*'
+
+declare const __APP_VERSION__: string

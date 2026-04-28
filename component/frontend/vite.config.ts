@@ -63,12 +63,18 @@ export default defineConfig({
     // `compile()` path instead, which is CSP-safe. The flag name is
     // counter-intuitive — "JIT" here means the safe path.
     __INTLIFY_JIT_COMPILATION__: true,
-    __INTLIFY_DROP_MESSAGE_COMPILER__: false
+    __INTLIFY_DROP_MESSAGE_COMPILER__: false,
+    // Build-time injection of the IsardVDI release id so Faro tags every
+    // event with the exact frontend bundle that produced it.
+    __APP_VERSION__: JSON.stringify(process.env.SRC_VERSION_ID ?? 'dev'),
   },
   build: {
     // ES2022 needed for top-level await — used by @novnc/novnc 1.6+ in
     // core/util/browser.js for the H.264 WebCodecs capability probe.
     target: 'es2022',
+    // Public source maps so Faro / Grafana resolve minified stack traces.
+    // Frontend is open source — no IP exposure concern.
+    sourcemap: true,
     commonjsOptions: {
       transformMixedEsModules: true
     }

@@ -32,6 +32,9 @@ RUN bun run build
 #
 FROM oven/bun:1.3-alpine AS frontend
 
+ARG SRC_VERSION_ID
+ENV SRC_VERSION_ID=$SRC_VERSION_ID
+
 WORKDIR /build
 
 COPY component/frontend/package.json /build
