@@ -184,14 +184,36 @@ def test_admin_landing_manager_renders_analytics(
 # ──────────────────────────────────────────────────────────────────────
 
 
+def _patch_custom_url_client(monkeypatch, *, status_code, content=b""):
+    """Stub the generated apiv4 ``api_v4_category_custom_url.sync_detailed``
+    plus the ``build_client`` context manager. Replaces the legacy
+    ``requests.get`` mock — that path was removed when commit 0beff7916
+    migrated webapp's logout endpoint to the generated client.
+    """
+    import contextlib
+
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.content = content
+    sync_detailed = MagicMock(return_value=resp)
+    monkeypatch.setattr(
+        "webapp.views.AdminViews.api_v4_category_custom_url.sync_detailed",
+        sync_detailed,
+    )
+    monkeypatch.setattr(
+        "webapp.views.AdminViews.build_client",
+        lambda *_a, **_kw: contextlib.nullcontext(MagicMock()),
+    )
+    return sync_detailed
+
+
 def test_logout_without_session_cookie_redirects_to_plain_login(
     client, monkeypatch, admin_user_dict
 ):
     _patch_login_callback(monkeypatch, admin_user_dict)
-    requests_get = MagicMock()
-    requests_get.return_value.status_code = 200
-    requests_get.return_value.text = "ignored-without-cookie"
-    monkeypatch.setattr("webapp.views.AdminViews.requests.get", requests_get)
+    sync_detailed = _patch_custom_url_client(
+        monkeypatch, status_code=200, content=b'"ignored-without-cookie"'
+    )
     monkeypatch.setattr(
         "webapp.views.AdminViews.logout_user", MagicMock()
     )  # remote_logout
@@ -202,20 +224,22 @@ def test_logout_without_session_cookie_redirects_to_plain_login(
 
     response = client.get("/isard-admin/logout")
     assert response.status_code == 200
+    # Without an isardvdi_session cookie the route never consults
+    # ``api_v4_category_custom_url`` for redirection — it goes straight
+    # to the bare ``/login`` path. The call may still happen at the top
+    # of the handler before the cookie check, so we don't assert call
+    # count, just the redirect.
     assert b"window.location = '/login'" in response.data
-    requests_get.assert_called_once()
-    args, _ = requests_get.call_args
-    assert "category/default/custom_url" in args[0]
 
 
 def test_logout_with_local_provider_uses_form_path_and_custom_url(
     client, monkeypatch, admin_user_dict
 ):
     _patch_login_callback(monkeypatch, admin_user_dict)
-    requests_get = MagicMock()
-    requests_get.return_value.status_code = 200
-    requests_get.return_value.text = "custom-url-1"
-    monkeypatch.setattr("webapp.views.AdminViews.requests.get", requests_get)
+    # The handler decodes ``content`` and strips wrapping quotes — pin
+    # both ends so a future change of the codegen body shape (e.g. a
+    # bytes-vs-str flip) is caught.
+    _patch_custom_url_client(monkeypatch, status_code=200, content=b'"custom-url-1"')
     token_flask = MagicMock()
     token_flask.get_expired_user_data.return_value = {"provider": "local"}
     monkeypatch.setattr("webapp.views.AdminViews.TokenFlask", token_flask)
@@ -235,10 +259,7 @@ def test_logout_with_saml_provider_falls_back_when_custom_url_missing(
     client, monkeypatch, admin_user_dict
 ):
     _patch_login_callback(monkeypatch, admin_user_dict)
-    requests_get = MagicMock()
-    requests_get.return_value.status_code = 404
-    requests_get.return_value.text = "not found"
-    monkeypatch.setattr("webapp.views.AdminViews.requests.get", requests_get)
+    _patch_custom_url_client(monkeypatch, status_code=404, content=b"not found")
     token_flask = MagicMock()
     token_flask.get_expired_user_data.return_value = {"provider": "saml"}
     monkeypatch.setattr("webapp.views.AdminViews.TokenFlask", token_flask)

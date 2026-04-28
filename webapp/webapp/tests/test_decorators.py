@@ -224,32 +224,66 @@ def test_maintenance_uses_user_category(app, monkeypatch):
 # ──────────────────────────────────────────────────────────────────────
 
 
+def _patch_maintenance_clients(monkeypatch, *, parsed):
+    """Stub the generated apiv4 client wiring ``_get_maintenance`` uses.
+
+    The legacy ``ApiRest`` wrapper was replaced by ``build_client`` +
+    ``get_category_maintenance.sync_detailed`` / ``maintenance_status.sync_detailed``
+    when commit 0beff7916 migrated webapp to the generated client.
+
+    Returns the (with_category, without_category) sync_detailed mocks so
+    each test can assert which one was called.
+    """
+    import contextlib
+
+    with_cat = MagicMock(return_value=MagicMock(parsed=parsed))
+    without_cat = MagicMock(return_value=MagicMock(parsed=parsed))
+    monkeypatch.setattr(
+        "webapp.views.decorators.get_category_maintenance.sync_detailed", with_cat
+    )
+    monkeypatch.setattr(
+        "webapp.views.decorators.maintenance_status.sync_detailed", without_cat
+    )
+    monkeypatch.setattr(
+        "webapp.views.decorators.build_client",
+        lambda *_a, **_kw: contextlib.nullcontext(MagicMock()),
+    )
+    monkeypatch.setattr("webapp.views.decorators.raise_for_status", lambda _resp: None)
+    return with_cat, without_cat
+
+
 def test_get_maintenance_returns_false_on_disabled(monkeypatch):
-    api_rest = MagicMock()
-    api_rest.return_value.get.return_value = {"enabled": False}
-    monkeypatch.setattr("webapp.views.decorators.ApiRest", api_rest)
-    # Bust the TTLCache so this test is deterministic.
+    """Generated client returns a typed ``MaintenanceStatusResponse``;
+    ``_get_maintenance`` reads ``.enabled`` and coerces to bool."""
+    from isardvdi_apiv4_client.models import MaintenanceStatusResponse
+
+    with_cat, _ = _patch_maintenance_clients(
+        monkeypatch, parsed=MaintenanceStatusResponse(enabled=False)
+    )
     _get_maintenance.cache_clear()
 
     assert _get_maintenance("test-cat-1") is False
-    api_rest.return_value.get.assert_called_once()
+    with_cat.assert_called_once()
     _get_maintenance.cache_clear()
 
 
 def test_get_maintenance_returns_true_on_enabled(monkeypatch):
-    api_rest = MagicMock()
-    api_rest.return_value.get.return_value = {"enabled": True}
-    monkeypatch.setattr("webapp.views.decorators.ApiRest", api_rest)
+    from isardvdi_apiv4_client.models import MaintenanceStatusResponse
+
+    _patch_maintenance_clients(
+        monkeypatch, parsed=MaintenanceStatusResponse(enabled=True)
+    )
     _get_maintenance.cache_clear()
 
     assert _get_maintenance("test-cat-2") is True
     _get_maintenance.cache_clear()
 
 
-def test_get_maintenance_handles_non_dict_truthy_response(monkeypatch):
-    api_rest = MagicMock()
-    api_rest.return_value.get.return_value = True
-    monkeypatch.setattr("webapp.views.decorators.ApiRest", api_rest)
+def test_get_maintenance_handles_dict_response(monkeypatch):
+    """Backwards-compat: if ``parsed`` is a plain dict (older client
+    version or codegen flag flip) the helper falls back to
+    ``result.get("enabled")`` so it still produces a usable bool."""
+    _patch_maintenance_clients(monkeypatch, parsed={"enabled": True})
     _get_maintenance.cache_clear()
 
     assert _get_maintenance("test-cat-3") is True
@@ -257,13 +291,17 @@ def test_get_maintenance_handles_non_dict_truthy_response(monkeypatch):
 
 
 def test_get_maintenance_no_category(monkeypatch):
-    api_rest = MagicMock()
-    api_rest.return_value.get.return_value = {"enabled": False}
-    monkeypatch.setattr("webapp.views.decorators.ApiRest", api_rest)
+    """``category_id=None`` routes through ``maintenance_status``
+    (the bare ``/maintenance`` path) rather than the per-category
+    endpoint — pin the branch."""
+    from isardvdi_apiv4_client.models import MaintenanceStatusResponse
+
+    with_cat, without_cat = _patch_maintenance_clients(
+        monkeypatch, parsed=MaintenanceStatusResponse(enabled=False)
+    )
     _get_maintenance.cache_clear()
 
     assert _get_maintenance() is False
-    # Without category, endpoint should be the bare /maintenance path.
-    args, _ = api_rest.return_value.get.call_args
-    assert args[0] == "/maintenance"
+    without_cat.assert_called_once()
+    with_cat.assert_not_called()
     _get_maintenance.cache_clear()

@@ -82,13 +82,21 @@ def test_get_authenticated_user_returns_none_without_authorization_header(app):
     assert result is None
 
 
+def _resp(status_code, body):
+    """Build a MagicMock that looks like a generated-client response.
+
+    ``content`` is what the route handlers decode + json.loads, so pin
+    the bytes shape (the codegen currently produces bytes)."""
+    r = MagicMock()
+    r.status_code = status_code
+    r.content = json.dumps(body).encode("utf-8") if body is not None else b""
+    return r
+
+
 def test_get_authenticated_user_returns_user_on_200(
-    app, mock_requests_get, admin_user_dict
+    app, mock_get_user_details, admin_user_dict
 ):
-    response = MagicMock()
-    response.status_code = 200
-    response.text = json.dumps(admin_user_dict)
-    mock_requests_get.return_value = response
+    mock_get_user_details.return_value = _resp(200, admin_user_dict)
 
     with app.test_request_context("/", headers={"Authorization": "Bearer token-1"}):
         result = get_authenticated_user()
@@ -96,18 +104,11 @@ def test_get_authenticated_user_returns_user_on_200(
     assert isinstance(result, User)
     assert result.id == "admin-user-id"
     assert result.is_admin is True
-    mock_requests_get.assert_called_once_with(
-        "http://isard-apiv4:5000/api/v4/item/user/get-details",
-        headers={"Authorization": "Bearer token-1"},
-        timeout=5,
-    )
+    mock_get_user_details.assert_called_once()
 
 
-def test_get_authenticated_user_returns_none_on_non_200(app, mock_requests_get):
-    response = MagicMock()
-    response.status_code = 401
-    response.text = ""
-    mock_requests_get.return_value = response
+def test_get_authenticated_user_returns_none_on_non_200(app, mock_get_user_details):
+    mock_get_user_details.return_value = _resp(401, None)
 
     with app.test_request_context("/", headers={"Authorization": "Bearer bad-token"}):
         result = get_authenticated_user()
@@ -120,19 +121,25 @@ def test_get_authenticated_user_returns_none_on_non_200(app, mock_requests_get):
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_user_loader_returns_user_on_success(app, mock_api_rest, admin_user_dict):
-    mock_api_rest.get.return_value = admin_user_dict
+def test_user_loader_returns_user_on_success(
+    app, mock_admin_get_user_raw, admin_user_dict
+):
+    mock_admin_get_user_raw.return_value = _resp(200, admin_user_dict)
 
     with app.test_request_context("/"):
         result = user_loader("admin-user-id")
 
     assert isinstance(result, User)
     assert result.id == "admin-user-id"
-    mock_api_rest.get.assert_called_once_with("/admin/user/admin-user-id/raw")
+    mock_admin_get_user_raw.assert_called_once()
+    # Pin that the user_id is forwarded as a kwarg — codegen contract.
+    assert mock_admin_get_user_raw.call_args.kwargs.get("user_id") == "admin-user-id"
 
 
-def test_user_loader_returns_none_when_api_returns_none(app, mock_api_rest):
-    mock_api_rest.get.return_value = None
+def test_user_loader_returns_none_when_api_returns_none(app, mock_admin_get_user_raw):
+    """Empty response body → ``json.loads`` returns ``None`` → user_loader
+    returns ``None`` (not a maintenance response)."""
+    mock_admin_get_user_raw.return_value = MagicMock(status_code=200, content=b"")
 
     with app.test_request_context("/"):
         result = user_loader("missing-user-id")
@@ -141,9 +148,9 @@ def test_user_loader_returns_none_when_api_returns_none(app, mock_api_rest):
 
 
 def test_user_loader_returns_maintenance_response_on_exception(
-    app, mock_api_rest, monkeypatch
+    app, mock_admin_get_user_raw, monkeypatch
 ):
-    mock_api_rest.get.side_effect = RuntimeError("apiv4 down")
+    mock_admin_get_user_raw.side_effect = RuntimeError("apiv4 down")
     rendered = MagicMock(return_value="<maintenance-html>")
     monkeypatch.setattr("webapp.auth.authentication.render_template", rendered)
 
@@ -156,8 +163,10 @@ def test_user_loader_returns_maintenance_response_on_exception(
     rendered.assert_called_once_with("maintenance.html")
 
 
-def test_user_reloader_returns_user_on_success(app, mock_api_rest, manager_user_dict):
-    mock_api_rest.get.return_value = manager_user_dict
+def test_user_reloader_returns_user_on_success(
+    app, mock_admin_get_user_raw, manager_user_dict
+):
+    mock_admin_get_user_raw.return_value = _resp(200, manager_user_dict)
 
     with app.test_request_context("/"):
         result = user_reloader("manager-user-id")

@@ -126,25 +126,51 @@ def disable_maintenance(monkeypatch):
 
 
 @pytest.fixture()
-def mock_api_rest(monkeypatch):
-    """Patches isardvdi_common.connections.api_rest.ApiRest with a MagicMock instance.
+def mock_admin_get_user_raw(monkeypatch):
+    """Stub the generated apiv4 ``admin_get_user_raw.sync_detailed`` +
+    ``build_client`` chain that ``user_loader`` / ``user_reloader``
+    walk. Replaces the legacy ``mock_api_rest`` fixture — the
+    ``ApiRest`` wrapper was removed when commit 0beff7916 migrated
+    webapp to the generated apiv4 client.
 
-    Returns the mock instance. Tests configure return values on it directly:
-        mock_api_rest.get.return_value = {"id": "x", ...}
+    Tests configure return values on the returned mock:
+        mock_admin_get_user_raw.return_value = MagicMock(
+            content=json.dumps({...}).encode("utf-8")
+        )
     """
-    instance = MagicMock()
-    factory = MagicMock(return_value=instance)
-    # Patch the ApiRest class wherever it is imported in webapp modules.
-    monkeypatch.setattr("isardvdi_common.connections.api_rest.ApiRest", factory)
-    monkeypatch.setattr("webapp.views.decorators.ApiRest", factory, raising=False)
-    monkeypatch.setattr("webapp.auth.authentication.ApiRest", factory, raising=False)
-    return instance
+    import contextlib
+
+    sync_detailed = MagicMock()
+    monkeypatch.setattr(
+        "webapp.auth.authentication.admin_get_user_raw.sync_detailed",
+        sync_detailed,
+    )
+    monkeypatch.setattr(
+        "webapp.auth.authentication.build_client",
+        lambda *_a, **_kw: contextlib.nullcontext(MagicMock()),
+    )
+    monkeypatch.setattr(
+        "webapp.auth.authentication.raise_for_status", lambda _resp: None
+    )
+    return sync_detailed
 
 
 @pytest.fixture()
-def mock_requests_get(monkeypatch):
-    """Patches requests.get used by webapp.auth.authentication and AdminViews."""
-    mock = MagicMock()
-    monkeypatch.setattr("webapp.auth.authentication.requests.get", mock)
-    monkeypatch.setattr("webapp.views.AdminViews.requests.get", mock, raising=False)
-    return mock
+def mock_get_user_details(monkeypatch):
+    """Stub the generated apiv4 ``get_user_details.sync_detailed`` +
+    ``build_client`` chain that ``get_authenticated_user`` walks.
+    Replaces the legacy ``mock_requests_get`` fixture for the
+    auth-side path (``requests.get`` was removed when the same migration
+    repointed JWT validation through the generated client)."""
+    import contextlib
+
+    sync_detailed = MagicMock()
+    monkeypatch.setattr(
+        "webapp.auth.authentication.get_user_details.sync_detailed",
+        sync_detailed,
+    )
+    monkeypatch.setattr(
+        "webapp.auth.authentication.build_client",
+        lambda *_a, **_kw: contextlib.nullcontext(MagicMock()),
+    )
+    return sync_detailed
