@@ -4,6 +4,10 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 RUN apk add --no-cache build-base libffi-dev musl-dev openssl-dev
 
+# UV_PROJECT_ENVIRONMENT points the venv at the runtime path so the
+# venv's hard-coded shebangs (#!/.venv/bin/python) keep resolving
+# after COPY --from=builder /.venv /.venv.
+ENV UV_PROJECT_ENVIRONMENT=/.venv
 WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-notifier --no-editable
@@ -11,7 +15,7 @@ RUN uv sync --frozen --no-dev --package isardvdi-notifier --no-editable
 FROM python:3.13-alpine AS runtime
 RUN apk add --no-cache libffi openssl util-linux
 
-COPY --from=builder /workspace/.venv /.venv
+COPY --from=builder /.venv /.venv
 COPY notifier/src /isard
 
 ENV PATH="/.venv/bin:$PATH"
