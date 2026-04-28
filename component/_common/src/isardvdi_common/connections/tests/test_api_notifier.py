@@ -56,9 +56,18 @@ def stub_notifier_client(monkeypatch):
 
 @pytest.fixture
 def stub_rdb(monkeypatch):
-    """Provide an ``RethinkSharedConnection._rdb_context`` no-op and a
-    rigged ``r.table(...).get_all(...)...run()`` chain returning the
-    admin list under test.
+    """Stub the rdb plumbing ``notify_backup_failure`` walks.
+
+    We patch ``_rdb_context`` (a classmethod, safe to override on the
+    class) and ``r.table`` (the chain whole-cloth). We deliberately do
+    not touch ``RethinkSharedConnection._rdb_connection`` — it is a
+    metaclass-level descriptor with a setter that writes to a
+    process-wide fallback slot, and monkeypatch's restore cycle leaks
+    that fallback into other tests in the same process (notably
+    ``test_rethink_pool.py::test_connection_is_none_outside_any_context``,
+    which asserts the class-level read is ``None``). The connection
+    arg passed to ``.run(...)`` lands on a MagicMock so its identity
+    doesn't matter — we don't need a stub there.
 
     Returns a setter the test calls with the desired admin list.
     """
@@ -70,11 +79,6 @@ def stub_rdb(monkeypatch):
         RethinkSharedConnection,
         "_rdb_context",
         contextlib.nullcontext,
-    )
-    monkeypatch.setattr(
-        RethinkSharedConnection,
-        "_rdb_connection",
-        MagicMock(),
     )
 
     state = {"admins": [], "raise": None}
