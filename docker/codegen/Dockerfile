@@ -8,7 +8,9 @@ RUN apk -U upgrade --no-cache
 # grpc-plugins ships grpc_python_plugin so buf.gen.yaml can call it locally
 # instead of fetching buf.build/grpc/python over the network on every codegen
 # (avoids resource_exhausted / deadline_exceeded rate-limit failures).
-RUN apk add --no-cache python3 npm protoc grpc-plugins
+# git is required by pip to fetch the isard-vdi/rethinkdb-python fork
+# from /apiv4_requirements.txt (``git+https://...``).
+RUN apk add --no-cache git python3 npm protoc grpc-plugins
 
 RUN go install github.com/bufbuild/buf/cmd/buf@v1.50.0 && \
   go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2 && \
@@ -25,7 +27,17 @@ RUN python3 -m venv /venv && \
 
 
 COPY component/apiv4/docker/requirements.txt /apiv4_requirements.txt
-RUN python3 -m venv /apiv4-venv && \
+# RETHINKDB_FORK_SHA is the current branch HEAD of
+# isard-vdi/rethinkdb-python @ modernize-python-client. CI resolves
+# it once per pipeline (see ``resolve-rethinkdb-fork-sha`` in
+# .gitlab-ci.yml) and passes it via ``--build-arg``. Embedding the
+# SHA in the layer command makes Docker invalidate the apiv4-venv
+# pip-install layer when the branch advances; without it the layer
+# would stay cached on the first SHA seen and pip would never
+# refetch.
+ARG RETHINKDB_FORK_SHA=unknown
+RUN echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" && \
+  python3 -m venv /apiv4-venv && \
   source /apiv4-venv/bin/activate && \
   pip3 install --no-cache-dir -r /apiv4_requirements.txt && \
   pip3 install "pyyaml==6.0.2"

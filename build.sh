@@ -253,6 +253,23 @@ create_env(){
 			echo SRC_VERSION_ID="$version" >> .env
 		fi
 	fi
+	# Resolve the modernize-python-client branch HEAD of the
+	# isard-vdi/rethinkdb-python fork once per build so component
+	# pip-install layers bust when the fork advances. Mirrors CI's
+	# resolve-rethinkdb-fork-sha job. cfg-set value (uncommented in
+	# isardvdi.cfg) wins; otherwise live git ls-remote; otherwise
+	# leave unset and let each Dockerfile's ARG default ("unknown")
+	# take over with a warning. docker compose auto-loads .env, so
+	# downstream `${RETHINKDB_FORK_SHA}` substitutions in
+	# docker-compose-parts/*.build.yml see the value.
+	if [ -z "$RETHINKDB_FORK_SHA" ]; then
+		RETHINKDB_FORK_SHA=$(git ls-remote https://github.com/isard-vdi/rethinkdb-python.git modernize-python-client 2>/dev/null | awk '{print $1}')
+		if [ -z "$RETHINKDB_FORK_SHA" ]; then
+			echo "WARNING: could not resolve RETHINKDB_FORK_SHA from github.com; falling back to image ARG default. Component pip-install layers may keep a stale rethinkdb fork." >&2
+		else
+			echo "RETHINKDB_FORK_SHA=$RETHINKDB_FORK_SHA" >> .env
+		fi
+	fi
 }
 
 parts_files(){
@@ -632,10 +649,13 @@ generate_code(){
 		USAGE="production"
 	fi
 
-	case "$USAGE" in 
+	case "$USAGE" in
 	build)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
-		docker build --pull -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
+		# RETHINKDB_FORK_SHA is resolved once in create_env() above
+		# and propagated here so the codegen image's apiv4-venv
+		# pip-install layer busts when the fork branch advances.
+		docker build --pull --build-arg "RETHINKDB_FORK_SHA=${RETHINKDB_FORK_SHA:-unknown}" -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
 		;;
 	devel | test | production)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"

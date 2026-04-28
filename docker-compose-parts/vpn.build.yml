@@ -6,3 +6,4 @@ services:
       target: production
       args:
         GOLANG_BUILD_IMAGE: ${GOLANG_BUILD_IMAGE:-golang:1.25.8-alpine3.22}
+        RETHINKDB_FORK_SHA: ${RETHINKDB_FORK_SHA:-unknown}

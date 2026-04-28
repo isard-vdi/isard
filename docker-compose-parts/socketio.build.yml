@@ -3,3 +3,5 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: component/socketio/docker/Dockerfile
+      args:
+        RETHINKDB_FORK_SHA: ${RETHINKDB_FORK_SHA:-unknown}

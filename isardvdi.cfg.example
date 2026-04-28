@@ -1,4 +1,4 @@
-# Isard main config v2.35.4
+# Isard main config v2.35.5
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -394,6 +394,14 @@ DOCKER_IMAGE_TAG=main
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
 HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22
+
+# rethinkdb-python fork pin. By default `bash build.sh` resolves the
+# isard-vdi/rethinkdb-python @ modernize-python-client branch HEAD via
+# `git ls-remote` at build start and propagates it as a build-arg so
+# component pip-install layers bust when the fork advances. Uncomment
+# and set to a specific 40-hex SHA to pin (air-gapped builds, bisecting,
+# reproducibility).
+#RETHINKDB_FORK_SHA=
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
