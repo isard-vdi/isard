@@ -7,12 +7,16 @@ get/set pair. Route tests stub the service; these tests stub the DB.
 """
 
 import contextlib
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 from api.services.admin_backups import (
     INTEGRITY_ENABLED_DEFAULT,
     AdminBackupsService,
+    _normalize_check,
+    _normalize_times,
+    _normalize_timestamp,
     _retention,
 )
 from api.services.error import Error
@@ -210,3 +214,123 @@ class TestSetIntegrityEnabled:
         with pytest.raises(Error):
             AdminBackupsService.set_integrity_enabled(None)
         update.assert_not_called()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  _normalize_timestamp / _normalize_times
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestNormalizeTimestamp:
+    """The DB layer hands back a mix of types depending on which writer
+    inserted the row: rethinkdb-mock returns native ints, the live
+    driver returns ``datetime``, and old records still carry ISO
+    strings. Normalise to a single ISO string for the wire."""
+
+    def test_none_passthrough(self):
+        assert _normalize_timestamp(None) is None
+
+    def test_datetime_isoformatted(self):
+        dt = datetime(2026, 1, 15, 10, 30, 0)
+        assert _normalize_timestamp(dt) == "2026-01-15T10:30:00"
+
+    def test_unix_seconds(self):
+        """``< 1e10`` is treated as Unix seconds (epoch ~ 2286).
+        2026-01-15 10:30:00 UTC = 1768487400."""
+        result = _normalize_timestamp(1768487400)
+        # Local-tz dependent; pin only the date part.
+        assert result.startswith("2026-01-1")
+
+    def test_unix_milliseconds_detected(self):
+        """``> 1e10`` is treated as Unix milliseconds. The cutoff
+        between s and ms is ~ 2286 — beyond a sane window for any
+        legacy ``timestamp`` field."""
+        result = _normalize_timestamp(1768487400000)
+        assert result.startswith("2026-01-1")
+
+    def test_float_seconds(self):
+        result = _normalize_timestamp(1768487400.5)
+        assert result.startswith("2026-01-1")
+
+    def test_iso_string_passthrough(self):
+        """ISO strings are returned untouched — no double-formatting."""
+        assert _normalize_timestamp("2026-04-27T12:00:00") == "2026-04-27T12:00:00"
+
+    def test_unknown_type_passthrough(self):
+        """Bytes / lists / dicts have no ``isoformat`` and aren't
+        numeric — drop through unchanged so a future field rename
+        doesn't produce a 500 here."""
+        assert _normalize_timestamp([1, 2]) == [1, 2]
+
+
+class TestNormalizeTimes:
+    def test_normalises_each_known_timestamp_field(self):
+        item = {
+            "id": "b1",
+            "status": "ok",
+            "timestamp": 1768487400,
+            "received_at": "2026-04-27T12:00:00",
+            "created_at": datetime(2026, 4, 27, 12, 0, 0),
+            "backup_start_time": None,
+        }
+        out = _normalize_times(item)
+        # In-place mutation — pin the contract.
+        assert out is item
+        assert isinstance(item["timestamp"], str)
+        assert item["received_at"] == "2026-04-27T12:00:00"
+        assert item["created_at"] == "2026-04-27T12:00:00"
+        assert item["backup_start_time"] is None
+        # Non-time fields untouched.
+        assert item["id"] == "b1"
+        assert item["status"] == "ok"
+
+    def test_skips_absent_fields(self):
+        """A row that only has ``timestamp`` doesn't get the others
+        injected as ``None`` — pin so a future refactor that adds
+        ``setdefault`` is caught."""
+        item = {"timestamp": 1768487400}
+        _normalize_times(item)
+        assert "received_at" not in item
+        assert "created_at" not in item
+        assert "backup_start_time" not in item
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  _normalize_check
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestNormalizeCheck:
+    """``insert_backup`` calls this on every entry of
+    ``data["details"]["checks"]`` to coerce historical formats
+    (string, raw object) into the canonical
+    ``{"name": str, "status": str}`` shape the webapp renders."""
+
+    def test_canonical_dict_passthrough(self):
+        check = {"name": "borg-init", "status": "success"}
+        assert _normalize_check(check) is check
+
+    def test_canonical_dict_with_extra_keys_passthrough(self):
+        """Extra keys are preserved — the function only enforces the
+        two required ones."""
+        check = {"name": "borg-init", "status": "warning", "details": "..."}
+        assert _normalize_check(check) is check
+
+    def test_string_wrapped(self):
+        assert _normalize_check("borg-init") == {
+            "name": "borg-init",
+            "status": "success",
+        }
+
+    def test_partial_dict_treated_as_unknown(self):
+        """A dict missing ``name`` or ``status`` falls through to the
+        ``str(check)`` branch — the result is a syntactically valid
+        check object even if its name field looks ugly. Pin this so
+        a future change that raises here is a deliberate choice."""
+        out = _normalize_check({"name": "borg-init"})  # missing 'status'
+        assert out["status"] == "success"
+        assert out["name"] == str({"name": "borg-init"})
+
+    def test_arbitrary_object_stringified(self):
+        out = _normalize_check(42)
+        assert out == {"name": "42", "status": "success"}
