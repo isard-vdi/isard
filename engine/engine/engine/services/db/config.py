@@ -1,9 +1,10 @@
 import traceback
 
+from rethinkdb import r
+
 from engine.config import RETHINK_DB, RETHINK_HOST, RETHINK_PORT
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.log import logs
-from rethinkdb import r
 
 
 def get_config_branch(key):

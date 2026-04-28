@@ -20,13 +20,14 @@
 import time
 from pathlib import PurePath
 
+from rethinkdb import r
+
 from engine.services.db import (
     get_dict_from_item_in_table,
     insert_table_dict,
     update_table_dict,
     update_table_field,
 )
-from rethinkdb import r
 
 
 def _get_filename(storage):

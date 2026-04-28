@@ -1,0 +1,30 @@
+[project]
+name = "isardvdi-change-handler"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "isardvdi-common",
+  "python-socketio==5.13.0",
+  "redis==5.2.1",
+  "rethinkdb==2.4.10.post1",
+]
+
+[dependency-groups]
+test = [
+  "isardvdi-changefeed-asyncapi",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
+  "pytest-xdist",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/isardvdi_change_handler"]
+
+[tool.isardvdi.system-deps]
+apk-build = ["build-base", "libffi-dev", "musl-dev", "openssl-dev"]
+apk-runtime = ["libffi", "openssl"]

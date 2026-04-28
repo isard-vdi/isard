@@ -1,8 +1,9 @@
 from pprint import pformat
 
+from rethinkdb import r
+
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.log import log, logs
-from rethinkdb import r
 
 
 class RethinkHypEvent(object):

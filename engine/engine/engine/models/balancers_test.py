@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+
 from engine.models.balancers import (
     Balancer_available_ram,
     Balancer_available_ram_percent,

@@ -3,4 +3,3 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/backupninja/Dockerfile
-      target: production

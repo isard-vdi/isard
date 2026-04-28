@@ -135,9 +135,8 @@ def _patch_login_callback(monkeypatch, user_dict):
     the module-level binding does not affect what _load_user actually calls.
     The stable hook is the LoginManager._user_callback attribute itself.
     """
-    from webapp.auth.authentication import User
-
     from webapp import app as flask_app
+    from webapp.auth.authentication import User
 
     monkeypatch.setattr(
         flask_app.login_manager,

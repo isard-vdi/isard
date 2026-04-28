@@ -1,0 +1,48 @@
+[project]
+name = "isardvdi-common"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "bcrypt==4.2.1",
+  "cachetools==5.5.0",
+  "dnspython==2.8.0",
+  "flask==3.1.0",
+  "gevent==25.5.1",
+  "html-sanitizer==2.6.0",
+  "isardvdi-protobuf",
+  "pillow==11.0.0",
+  "portion==2.6.1",
+  "pydantic==2.12.0",
+  "pyjwt==2.10.1",
+  "python-json-logger==3.3.0",
+  "python-socketio==5.13.0",
+  "pytz==2025.2",
+  "redis==5.2.1",
+  "requests==2.32.4",
+  "rethinkdb @ git+https://github.com/isard-vdi/rethinkdb-python.git@5d314f8cbdd1942f261ae5743ec99bbdf584bf3e",
+  "rq==2.3.2",
+  "simple-colors==0.1.5",
+  "specktre==0.3.0",
+]
+
+[dependency-groups]
+test = [
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
+  "pytest-xdist",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/isardvdi_common"]
+
+[tool.isardvdi.system-deps]
+apk-build = ["build-base", "libffi-dev", "libjpeg-turbo-dev", "musl-dev", "openssl-dev", "zlib-dev"]
+apk-runtime = ["libffi", "libjpeg-turbo", "openssl", "zlib"]

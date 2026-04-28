@@ -22,6 +22,7 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
+
 from webapp.auth.authentication import (
     User,
     get_authenticated_user,

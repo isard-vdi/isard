@@ -15,14 +15,12 @@ plugins:
     out: pkg/gen/proto/go
     opt: paths=source_relative
   - protoc_builtin: python
-    out: pkg/gen/proto/python
+    out: pkg/gen/proto/python/src/isardvdi_protobuf
   - protoc_builtin: pyi
-    out: pkg/gen/proto/python
+    out: pkg/gen/proto/python/src/isardvdi_protobuf
   # Use the local grpc_python_plugin (apk grpc-plugins) instead of the BSR
   # remote plugin so codegen does not depend on buf.build rate limits.
   - local: grpc_python_plugin
-    out: pkg/gen/proto/python
-  - local: protoc-gen-python_betterproto
-    out: pkg/gen/proto/python_old
+    out: pkg/gen/proto/python/src/isardvdi_protobuf
   - local: protoc-gen-es
     out: pkg/gen/proto/js

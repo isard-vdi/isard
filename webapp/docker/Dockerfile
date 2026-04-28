@@ -1,31 +1,25 @@
-FROM alpine:3.22.0
+FROM python:3.13-alpine AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-RUN apk -U upgrade --no-cache
-RUN apk add --no-cache python3 py3-pip yarn
+RUN apk add --no-cache build-base libffi-dev libjpeg-turbo-dev musl-dev openssl-dev zlib-dev
 
-COPY webapp/docker/requirements.txt .
-# ``RETHINKDB_FORK_SHA`` is resolved by CI per pipeline (see
-# resolve-rethinkdb-fork-sha in .gitlab-ci.yml) and busts Docker's
-# layer cache when the modernize-python-client branch tip advances.
-# git is needed only at install time for pip's git+https fetch.
-ARG RETHINKDB_FORK_SHA=unknown
-RUN apk add --no-cache --virtual .build_deps git \
-    && echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
-    && pip install -r requirements.txt --break-system-package \
-    && rm requirements.txt \
-    && apk del .build_deps
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-webapp --no-editable
 
-# Copy the isard source
+FROM python:3.13-alpine AS runtime
+RUN apk add --no-cache libffi libjpeg-turbo openssl yarn zlib
+
+COPY --from=builder /workspace/.venv /.venv
 COPY webapp/webapp /isard
-
-RUN cd /isard/webapp && yarn install
-ENV PYTHONPATH /opt/isardvdi
-COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
-EXPOSE 5000
 COPY webapp/docker/healthcheck.js /
+RUN cd /isard/webapp && yarn install
+ENV PATH="/.venv/bin:$PATH"
+EXPOSE 5000
 HEALTHCHECK --interval=12s --timeout=12s --start-period=30s \
     CMD node /healthcheck.js
 WORKDIR /isard
-CMD [ "python3", "-u", "start.py" ]
+CMD ["python3", "-u", "start.py"]
 STOPSIGNAL SIGINT
 USER nobody

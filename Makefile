@@ -34,21 +34,91 @@ down:
 .PHONY: reset
 reset: down up
 
+.PHONY: lint
+lint: lint-python lint-system-deps lint-go lint-frontend lint-old-frontend lint-protobuf
+
+.PHONY: format
+format: format-python format-frontend format-old-frontend
+
+.PHONY: lint-python
+lint-python:
+	uv run isort --check .
+	uv run black --check .
+
+.PHONY: format-python
+format-python:
+	uv run isort .
+	uv run black .
+
+.PHONY: lint-system-deps
+lint-system-deps:
+	uv run python docker/lib/check-system-deps.py
+
+.PHONY: lint-go
+lint-go:
+	golangci-lint fmt --diff
+
+.PHONY: lint-frontend
+lint-frontend: lint-frontend-format lint-frontend-lint
+
+.PHONY: lint-frontend-format
+lint-frontend-format:
+	cd component/frontend && bun install --frozen-lockfile && bun run format --write=false --check
+
+.PHONY: lint-frontend-lint
+lint-frontend-lint:
+	cd component/frontend && bun install --frozen-lockfile && bun run lint
+
+.PHONY: format-frontend
+format-frontend:
+	cd component/frontend && bun install --frozen-lockfile && bun run format && bun run lint:fix
+
+.PHONY: lint-old-frontend
+lint-old-frontend:
+	cd old-frontend && bun install --frozen-lockfile && bun run lint --no-fix --max-warnings 0
+
+.PHONY: format-old-frontend
+format-old-frontend:
+	cd old-frontend && bun install --frozen-lockfile && bun run lint --fix
+
+.PHONY: lint-protobuf
+lint-protobuf:
+	buf lint
+	buf breaking --against https://gitlab.com/isard/isardvdi.git
+
+.PHONY: lint-alloy
+lint-alloy:
+	find . -iname "*.alloy" | xargs -n1 alloy fmt -t
+
 .PHONY: test
-test: test-go test-e2e test-apiv4
+test: test-go test-python test-e2e
 
 .PHONY: test-go
 test-go:
 	go test -race -cover ./...
 
+.PHONY: test-python
+test-python: test-apiv4 test-common test-change-handler test-changefeed test-socketio test-core-worker test-openapi test-notifier test-scheduler test-webapp
+
+.PHONY: test-python-cov
+test-python-cov:
+	$(MAKE) PYTEST_COV_ARGS='__COV__' test-python
+	@echo "HTML coverage under component/*/src/htmlcov/"
+
+# Internal: if PYTEST_COV_ARGS is set to the sentinel, expand to per-package coverage flags.
+# Otherwise it's empty (fast default).
+_apiv4_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=api --cov-report=html:component/apiv4/src/htmlcov,)
+_common_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_common --cov-report=html:component/_common/src/htmlcov,)
+_chandler_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_change_handler --cov-report=html:component/change-handler/src/htmlcov,)
+_cfeed_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_changefeed --cov-report=html:component/changefeed/src/htmlcov,)
+
 .PHONY: test-engine
 test-engine:
-	docker exec isard-engine sh -c "pip install -q --break-system-packages pytest >/dev/null 2>&1 || true; cd /isard && python3 -m pytest engine/models engine/services/threads -v --tb=short"
+	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/services/threads -v --tb=short"
 
 .PHONY: test-e2e-seed
 test-e2e-seed:
-	pip install rethinkdb 2>/dev/null || pip install --break-system-packages rethinkdb
-	python3 testing/db/populate_test_db.py
+	uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py
 
 .PHONY: test-e2e
 test-e2e: test-e2e-seed
@@ -73,17 +143,108 @@ test-e2e: test-e2e-seed
 
 .PHONY: test-apiv4
 test-apiv4:
-	docker exec -it isard-apiv4 pip install -r /test.requirements.txt
-	@echo "Installing rethinkdb-mock fork..."
-	-docker exec -it -u root isard-apiv4 bash -c "\
-		apt update && \
-		apt install -y git && \
-		git clone -b core-document-manipulation \
-			https://github.com/isard-vdi/rethinkdb-mock.git /rethinkdb-mock && \
-		pip install /rethinkdb-mock \
-	"
-	docker exec -it isard-apiv4 pytest /app --cov=/app --cov-report=html
-	@echo "HTML coverage report at ${ISARDVDI_SRC}component/apiv4/src/htmlcov/index.html"
+	uv run --group test --package isardvdi-apiv4 pytest component/apiv4/src -n auto $(_apiv4_cov)
+
+.PHONY: test-common
+test-common:
+	uv run --group test --package isardvdi-common pytest component/_common/src/isardvdi_common -n auto $(_common_cov)
+
+.PHONY: test-change-handler
+test-change-handler:
+	uv run --group test --package isardvdi-change-handler pytest component/change-handler/src/isardvdi_change_handler/tests -n auto $(_chandler_cov)
+
+.PHONY: test-changefeed
+test-changefeed:
+	uv run --group test --package isardvdi-changefeed pytest component/changefeed/src/isardvdi_changefeed/tests -n auto $(_cfeed_cov)
+
+.PHONY: test-socketio
+test-socketio:
+	uv run --group test --package isardvdi-socketio pytest component/socketio/src/isardvdi_socketio/tests -n auto
+
+.PHONY: test-core-worker
+test-core-worker:
+	uv run --group test --package isardvdi-core-worker pytest component/core_worker/src/isardvdi_core_worker/tests -n auto
+
+.PHONY: test-openapi
+test-openapi:
+	uv run --group test --package isardvdi-openapi pytest component/openapi/src/isardvdi_openapi/tests -n auto
+
+.PHONY: test-notifier
+test-notifier:
+	uv run --group test --package isardvdi-notifier pytest notifier/tests -n auto
+
+.PHONY: test-scheduler
+test-scheduler:
+	uv run --group test --package isardvdi-scheduler pytest scheduler/tests -n auto
+
+.PHONY: test-webapp
+test-webapp:
+	uv sync --no-dev --group test --package isardvdi-webapp
+	uv run --no-dev --group test --package isardvdi-webapp pytest webapp/webapp/tests -n auto
+
+# CI test targets: emit JUnit + Cobertura XML so GitLab CI can consume them
+# via artifacts.reports.*. Paths must match .gitlab-ci.yml byte-identical.
+
+.PHONY: ci-test-go
+ci-test-go:
+	@command -v gotestsum >/dev/null 2>&1 || { echo "gotestsum not found. Install with: go install gotest.tools/gotestsum@latest"; exit 1; }
+	@command -v gocover-cobertura >/dev/null 2>&1 || { echo "gocover-cobertura not found. Install with: go install github.com/boumenot/gocover-cobertura@latest"; exit 1; }
+	gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
+	go tool cover -func coverage.out
+	gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
+
+.PHONY: ci-test-apiv4
+ci-test-apiv4:
+	uv sync --no-dev --group test --package isardvdi-apiv4
+	cd component/apiv4/src && USAGE=$${USAGE:-production} uv run --no-dev --group test --package isardvdi-apiv4 pytest api/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=api --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-common
+ci-test-common:
+	uv sync --no-dev --group test --package isardvdi-common --package isardvdi-apiv4 --package isardvdi-change-handler --package isardvdi-socketio
+	cd component/_common/src && uv run --no-dev --group test --package isardvdi-common pytest isardvdi_common -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_common --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-change-handler
+ci-test-change-handler:
+	uv sync --no-dev --group test --package isardvdi-change-handler
+	cd component/change-handler/src && uv run --no-dev --group test --package isardvdi-change-handler pytest isardvdi_change_handler/tests/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_change_handler --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-changefeed
+ci-test-changefeed:
+	uv sync --no-dev --group test --package isardvdi-changefeed
+	cd component/changefeed/src && uv run --no-dev --group test --package isardvdi-changefeed pytest isardvdi_changefeed/tests/ -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_changefeed --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-socketio
+ci-test-socketio:
+	uv sync --no-dev --group test --package isardvdi-socketio
+	cd component/socketio/src && uv run --no-dev --group test --package isardvdi-socketio pytest isardvdi_socketio/tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_socketio --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-core-worker
+ci-test-core-worker:
+	uv sync --no-dev --group test --package isardvdi-core-worker
+	cd component/core_worker/src && uv run --no-dev --group test --package isardvdi-core-worker pytest isardvdi_core_worker/tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_core_worker --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-openapi
+ci-test-openapi:
+	uv sync --no-dev --group test --package isardvdi-openapi
+	cd component/openapi/src && uv run --no-dev --group test --package isardvdi-openapi pytest isardvdi_openapi/tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_openapi --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-notifier
+ci-test-notifier:
+	uv sync --no-dev --group test --package isardvdi-notifier
+	cd notifier && uv run --no-dev --group test --package isardvdi-notifier pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=notifier --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-scheduler
+ci-test-scheduler:
+	uv sync --no-dev --group test --package isardvdi-scheduler
+	cd scheduler && uv run --no-dev --group test --package isardvdi-scheduler pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=scheduler --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-webapp
+ci-test-webapp:
+	uv sync --no-dev --group test --package isardvdi-webapp
+	cd webapp/webapp && uv run --no-dev --group test --package isardvdi-webapp pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=webapp --cov-report=term --cov-report=xml:coverage.xml
+
+.PHONY: ci-test-python
+ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-core-worker ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp
 
 .PHONY: setup-hooks
 setup-hooks:
@@ -91,30 +252,13 @@ setup-hooks:
 	@echo "Git hooks installed from .githooks/"
 
 .PHONY: ci-lint
-ci-lint:
-	docker compose -f docker-compose.ci.yml --profile lint up --abort-on-container-exit
+ci-lint: lint
 
 .PHONY: ci-test
-ci-test:
-	docker compose -f docker-compose.ci.yml run --rm check-codegen-freshness
-	docker compose -f docker-compose.ci.yml run --rm unit-test-apiv4
-	docker compose -f docker-compose.ci.yml run --rm unit-test-webapp
-	docker compose -f docker-compose.ci.yml run --rm unit-test-go
-
-.PHONY: ci-test-webapp
-ci-test-webapp:
-	docker compose -f docker-compose.ci.yml run --rm unit-test-webapp
+ci-test: ci-test-go ci-test-python
 
 .PHONY: ci-fix
-ci-fix:
-	docker compose -f docker-compose.ci.yml --profile fix up
-
-.PHONY: ci-integration-test
-ci-integration-test:
-	docker compose -f docker-compose.ci.yml run --rm integration-test-change-handler
-	docker compose -f docker-compose.ci.yml run --rm integration-test-changefeed
-	docker compose -f docker-compose.ci.yml run --rm integration-test-common
-	docker compose -f docker-compose.ci.yml run --rm integration-test-apiv4
+ci-fix: format
 
 .PHONY: ci-e2e
 ci-e2e: test-e2e-seed test-e2e
@@ -174,7 +318,7 @@ test-e2e-stack-down:
 test-e2e-stack-restore: test-e2e-stack-down up
 
 .PHONY: ci
-ci: ci-lint ci-test ci-integration-test
+ci: ci-lint ci-test
 
 .PHONY: ci-all
 ci-all: ci ci-e2e

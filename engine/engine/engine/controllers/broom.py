@@ -9,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from time import sleep, time
 
+from tabulate import tabulate
+
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
 from engine.models.hyp import hyp
 from engine.services.db import (
@@ -27,7 +29,6 @@ from engine.services.db import (
 )
 from engine.services.lib.functions import get_tid
 from engine.services.log import logs
-from tabulate import tabulate
 
 # =============================================================================
 # Broom Concurrency Configuration

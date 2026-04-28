@@ -1,0 +1,32 @@
+{
+  "include": [
+    "component/_common/src",
+    "component/apiv4/src",
+    "component/changefeed/src",
+    "component/change-handler/src",
+    "component/socketio/src",
+    "component/openapi/src",
+    "component/core_worker/src",
+    "engine",
+    "webapp",
+    "notifier/src",
+    "scheduler/src",
+    "docker/hypervisor",
+    "docker/vpn",
+    "docker/storage",
+    "pkg/gen/proto/python/src"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/node_modules",
+    "**/_pb2.py",
+    "**/_pb2_grpc.py"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "error",
+  "useLibraryCodeForTypes": true
+}

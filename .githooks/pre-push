@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Pre-push hook: runs unit tests before pushing
-# Install: git config core.hooksPath .githooks
+# Install: git config core.hooksPath .githooks  (or `make setup-hooks`)
 
 set -e
 
-COMPOSE="docker compose -f docker-compose.ci.yml"
+echo ">> Running Python unit tests (uv)..."
+make test-python
 
-echo ">> Running unit tests before push..."
-$COMPOSE --profile unit-test up --abort-on-container-exit
+echo ">> Running Go unit tests..."
+make test-go
 
 echo "All unit tests passed."

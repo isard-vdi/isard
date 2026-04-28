@@ -1,0 +1,14 @@
+[project]
+name = "isardvdi-db"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "rethinkdb==2.4.10.post1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true

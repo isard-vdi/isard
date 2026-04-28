@@ -582,3 +582,26 @@ class TestLogoEndpointDirect:
         response = client.get("/api/v4/logo", follow_redirects=False)
         # Direct open_router endpoint, returns 404 (no logo configured)
         assert response.status_code in (200, 404)
+
+
+def test_update_branding_does_not_block_on_grpc(test_client):
+    """Regression: the PUT /branding endpoint must not wait 30s on an unreachable
+    haproxy-sync gRPC service. The autouse bastion-grpc mock in conftest should
+    make this call return immediately.
+    """
+    import time
+
+    jwt = MockJWT(role_id="admin")
+    start = time.monotonic()
+    response = test_client(
+        url="/admin/category/test-cat/branding",
+        method="PUT",
+        jwt=jwt,
+        body={"domain": {"enabled": False, "name": "test.example.com"}},
+        db_tables_data=_db(),
+    )
+    elapsed = time.monotonic() - start
+    assert response.status_code == 200
+    # Production gRPC timeout is 30s; generous 2s ceiling gives plenty of margin
+    # on slow CI runners while still catching regressions.
+    assert elapsed < 2.0, f"branding PUT took {elapsed:.2f}s — grpc mock not applied?"

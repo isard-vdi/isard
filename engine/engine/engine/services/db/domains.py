@@ -8,6 +8,9 @@ from pathlib import PurePath
 from typing import TypedDict
 
 from cachetools import TTLCache
+from rethinkdb import r
+from rethinkdb.errors import ReqlNonExistenceError
+
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import (
     close_rethink_connection,
@@ -17,8 +20,6 @@ from engine.services.db import (
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.log import logs
-from rethinkdb import r
-from rethinkdb.errors import ReqlNonExistenceError
 
 STATUS_STABLE_DOMAIN_RUNNING = ["Started", "ShuttingDown", "Paused"]
 ALL_STATUS_RUNNING = ["Stopping", "Started", "Stopping", "Shutting-down"]

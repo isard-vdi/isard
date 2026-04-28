@@ -1,27 +1,19 @@
-FROM alpine:3.22.0 as production
-MAINTAINER isard <info@isard.com>
+FROM python:3.13-alpine AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-RUN apk -U upgrade --no-cache
-RUN apk add --no-cache python3 py3-pip curl py3-gevent py3-greenlet tzdata
+RUN apk add --no-cache build-base libffi-dev musl-dev openssl-dev
 
-RUN pip3 install --break-system-package --upgrade pip
-RUN apk add --no-cache --virtual .build_deps \
-    build-base \
-    python3-dev \
-    libffi-dev \
-    git
-COPY scheduler/docker/requirements.txt /requirements.txt
-# ``RETHINKDB_FORK_SHA`` is resolved by CI per pipeline (see
-# resolve-rethinkdb-fork-sha in .gitlab-ci.yml) and busts Docker's
-# layer cache when the modernize-python-client branch tip advances.
-ARG RETHINKDB_FORK_SHA=unknown
-RUN echo "rethinkdb fork SHA at build: ${RETHINKDB_FORK_SHA}" \
-    && pip3 install --break-system-package --no-cache-dir -r requirements.txt
-RUN apk del .build_deps
+WORKDIR /workspace
+COPY . .
+RUN uv sync --frozen --no-dev --package isardvdi-scheduler --no-editable
 
+FROM python:3.13-alpine AS runtime
+RUN apk add --no-cache curl libffi openssl tzdata
+
+COPY --from=builder /workspace/.venv /.venv
 COPY scheduler/src /src
-ENV PYTHONPATH /opt/isardvdi
-COPY component/_common/isardvdi_common /opt/isardvdi/isardvdi_common
+ENV PATH="/.venv/bin:$PATH"
 WORKDIR /src
 
 CMD ["python3", "start.py"]

@@ -2,29 +2,30 @@
 
 IsardVDI has four active test surfaces: APIv4 (FastAPI, pytest),
 change-handler (pytest), Go (`go test`), and Playwright E2E against
-the live stack. Everything is driven from the repo root via two
-parallel front-ends:
+the live stack. Everything is driven from the repo root through the
+`Makefile`, which uses `uv` for every Python entry point.
 
 | Front-end | When to use | What it runs |
 |---|---|---|
-| `make test-*` | Day-to-day iteration | Runs each suite directly on the host or via a targeted Docker one-shot |
-| `make ci-*` (via `docker-compose.ci.yml`) | Pre-commit / CI parity | Runs each suite inside the exact same image + env the GitLab pipeline uses |
+| `make test-*` | Day-to-day iteration | Runs each suite directly on the host via `uv run` or a targeted Docker one-shot |
+| `make ci-*` | Pre-commit / CI parity | Aggregates the same commands `.gitlab-ci.yml` runs (lint + unit tests) |
 
-**Golden rule**: before pushing, run the `ci-*` target that covers
-the code you touched. Passing locally means passing in CI.
+`docker-compose.ci.yml` was retired once the Python monorepo moved
+to a uv workspace: CI jobs now call `uv sync` + `uv run pytest`
+directly, and the local `make ci-*` targets do the same so the
+toolchain is a single source of truth.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Full suite (legacy — unit + e2e + go)
+# Full suite (unit + e2e + go)
 make test
 
-# The three-stage CI pipeline (what GitLab runs)
+# The uv-native CI pipeline (mirrors GitLab)
 make ci-lint              # format + lint every language
-make ci-test              # unit tests: apiv4, go, codegen freshness
-make ci-integration-test  # integration: change-handler, apiv4, go
+make ci-test              # unit tests: go + python (apiv4, _common, change-handler, changefeed)
 make ci-e2e               # Playwright e2e (includes seed)
 
 # Everything except e2e
@@ -36,14 +37,15 @@ make ci-all
 
 ## Test suites at a glance
 
-| Suite | Tests | How to run locally | CI equivalent |
+| Suite | Tests | How to run locally | CI job |
 |---|---:|---|---|
-| APIv4 unit (routes) | 301 fn | `make test-apiv4` | `docker compose -f docker-compose.ci.yml run --rm unit-test-apiv4` |
-| APIv4 integration | varies | — | `docker compose -f docker-compose.ci.yml run --rm integration-test-apiv4` |
-| change-handler | 66 fn | — | `docker compose -f docker-compose.ci.yml run --rm integration-test-change-handler` |
-| Go unit | ~60 `*_test.go` | `make test-go` (`go test -race -cover ./...`) | `docker compose -f docker-compose.ci.yml run --rm unit-test-go` |
-| Go integration | — | — | `docker compose -f docker-compose.ci.yml run --rm integration-test-go` |
-| Playwright e2e | 76 scenarios | `make test-e2e` (auto-seeds + runs Playwright container) | `make ci-e2e` |
+| APIv4 unit | 301 fn | `make test-apiv4` | `unit-test-apiv4` |
+| `_common` unit | — | `make test-common` | `unit-test-common` |
+| change-handler unit | 66 fn | `make test-change-handler` | `unit-test-change-handler` |
+| changefeed unit | — | `make test-changefeed` | `unit-test-changefeed` |
+| Go unit | ~60 `*_test.go` | `make test-go` (`go test -race -cover ./...`) | `unit-test-go` |
+| Playwright e2e | 76 scenarios | `make test-e2e` (auto-seeds + runs Playwright container) | `test-e2e` |
+| Integration (real stack) | — | `make test-e2e-stack` | `integration-real` |
 
 ### E2E scenario breakdown (76 total)
 
@@ -123,17 +125,23 @@ unaffected.
 
 ## Running tests
 
-### APIv4 unit tests
+### Python unit tests (uv)
+
+Every Python suite runs through `uv run --package <workspace-pkg> pytest`.
+The Makefile targets forward `PYTEST_COV_ARGS='__COV__'` to enable
+coverage reports under `component/*/src/htmlcov/`:
 
 ```bash
-# Direct: installs rethinkdb-mock + pytest deps into the running isard-apiv4 container
-make test-apiv4
+make test-python              # all four suites
+make test-python-cov          # same, with HTML coverage
 
-# CI-parity
-docker compose -f docker-compose.ci.yml run --rm unit-test-apiv4
+make test-apiv4               # API v4 only
+make test-common              # isardvdi_common only
+make test-change-handler      # change-handler only
+make test-changefeed          # changefeed only
 ```
 
-Tests live at `component/apiv4/src/api/routes/tests/`. They use:
+Tests live at `component/<pkg>/src/<module>/tests/`. They use:
 
 - `pytest` + `pytest-asyncio` + `httpx`
 - FastAPI `TestClient`
@@ -141,28 +149,29 @@ Tests live at `component/apiv4/src/api/routes/tests/`. They use:
 - Service-level `monkeypatch` for endpoint isolation
 - `app.dependency_overrides` for `Depends()` bypass
 
-Current count: **301 test functions** across **34 files** covering roughly 35–40% of the 632 endpoints.
+APIv4 current count: **301 test functions** across **34 files**
+covering roughly 35–40% of the 632 endpoints.
 
 ### change-handler tests
 
+Pure-unit scope (mock `socketio_server`, patch external libs). Tests
+live at `component/change-handler/src/isardvdi_change_handler/tests/` — one file
+per handler, 13 handlers, 66 tests total. They pin the SocketIO
+event name, namespace, and room for every insert / update / delete path.
+
+### Engine tests
+
 ```bash
-docker compose -f docker-compose.ci.yml run --rm integration-test-change-handler
+make test-engine
 ```
 
-Pure-unit scope (mock `socketio_server`, patch external libs). Tests
-live at `component/change-handler/src/tests/` — one file per handler,
-13 handlers, 66 tests total. They pin the SocketIO event name,
-namespace, and room for every insert / update / delete path.
+Runs inside the live `isard-engine` container because the engine
+imports `libvirt` + `pci` + `paramiko` at module load.
 
 ### Go tests
 
 ```bash
-# Direct
-make test-go
-
-# CI-parity
-docker compose -f docker-compose.ci.yml run --rm unit-test-go
-docker compose -f docker-compose.ci.yml run --rm integration-test-go
+make test-go                                   # unit tests with race + coverage
 ```
 
 ### Playwright E2E
@@ -199,6 +208,14 @@ docker run --rm --ipc=host --network=host \
   -v "$(pwd):/e2e" -w "/e2e" \
   mcr.microsoft.com/playwright:v1.57.0-jammy \
   yarn playwright test --reporter=list
+```
+
+### Isolated e2e stack (CI parity)
+
+```bash
+make down                  # stop dev stack
+make test-e2e-stack        # build + bring up docker-compose.e2e.yml + seed + Playwright
+make test-e2e-stack-restore  # tear everything down and bring dev stack back
 ```
 
 ### Environment variables
@@ -249,7 +266,7 @@ testing/e2e/
     ├── vue3-recycle-bin.spec.js
     └── vue3-media.spec.js
 
-component/change-handler/src/tests/
+component/change-handler/src/isardvdi_change_handler/tests/
 ├── test_base_handler.py        # lifecycle + datetime / json helpers
 ├── test_domains_handler.py     # kind routing + engine-status filter
 ├── test_resources_handler.py   # graphics / videos / etc. admins emit
@@ -284,48 +301,54 @@ test-e2e-seed`.
 
 ## Linting
 
-Run the linters `make ci-lint` runs:
+Each language has a granular `make lint-*` target that maps 1-to-1
+to its `.gitlab-ci.yml` job. `make lint` runs all of them:
 
 ```bash
-# Python — apiv4, _common, change-handler, etc.
-docker compose -f docker-compose.ci.yml run --rm check-python
+make lint                 # every linter
 
-# Vue 3 frontend (Reka + Tailwind)
-docker compose -f docker-compose.ci.yml run --rm check-frontend
-
-# Vue 2 (old-frontend)
-docker compose -f docker-compose.ci.yml run --rm check-old-frontend
-
-# Protobuf
-docker compose -f docker-compose.ci.yml run --rm check-protobuf
+make lint-python          # uv run isort --check . && uv run black --check .
+make lint-system-deps     # Dockerfile ↔ pyproject [tool.isardvdi.system-deps] coherence
+make lint-go              # golangci-lint fmt --diff
+make lint-frontend        # component/frontend (Reka + Tailwind + Bun)
+make lint-old-frontend    # old-frontend (Vue 2)
+make lint-protobuf        # buf lint + buf breaking
 ```
 
-Auto-fixers live under the `fix` profile:
+Auto-fixers follow the same naming:
 
 ```bash
-docker compose -f docker-compose.ci.yml --profile fix up
-# or direct:
-docker compose -f docker-compose.ci.yml run --rm fix-python
-docker compose -f docker-compose.ci.yml run --rm fix-old-frontend
+make format               # everything
+
+make format-python        # uv run isort . && uv run black .
+make format-frontend      # bun run format + lint:fix
+make format-old-frontend  # bun run lint --fix
 ```
 
-Tool versions are pinned in `.gitlab-ci.yml`. If you install linters
-on the host, match those versions or your checks may diverge from
-CI — the `isardvdi-commit` skill (`~/.claude/skills/isardvdi-commit`)
-reads them live for each commit run.
+Tool versions are pinned in `pyproject.toml` (Python dev group) and
+`.gitlab-ci.yml` (everything else). If you install linters on the
+host, match those versions or your checks may diverge from CI — the
+`isardvdi-commit` skill (`~/.claude/skills/isardvdi-commit`) reads
+them live for each commit run.
+
+## Git hooks
+
+```bash
+make setup-hooks          # git config core.hooksPath .githooks
+```
+
+- `.githooks/pre-commit` runs the `lint-*` targets relevant to the
+  files you staged (Python, frontend, proto, system-deps).
+- `.githooks/pre-push` runs `make test-python test-go` so you
+  don't push a broken unit test.
 
 ## CI alignment
 
-`docker-compose.ci.yml` mirrors `.gitlab-ci.yml` one-to-one:
-
-- Same images, envs, commands.
-- Tests share a `/ci-results` volume with XUnit + log output.
-- `profiles: [integration-test]` / `[fix]` group the one-shots so
-  they don't start in a plain `docker compose up`.
-
-Passing a service locally means the same GitLab job passes. **Do
-not** edit `docker-compose.ci.yml` just to make a test go green —
-the GitLab pipeline won't pick up the change.
+`.gitlab-ci.yml` and the `make ci-*` targets call the same uv / go /
+bun commands. Passing `make ci` locally means the corresponding
+GitLab jobs will pass. If you need a change reflected in CI, edit
+both places — there is no longer a separate `docker-compose.ci.yml`
+to keep in sync.
 
 ## See also
 

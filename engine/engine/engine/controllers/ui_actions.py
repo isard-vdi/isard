@@ -9,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
 from cachetools import TTLCache, cached
+from isardvdi_common.models.domain import Domain
+
 from engine.models.domain_xml import (
     BUS_TYPES,
     add_memory_backing,
@@ -45,7 +47,6 @@ from engine.services.lib.storage import (
     update_storage_deleted_domain,
 )
 from engine.services.log import *
-from isardvdi_common.models.domain import Domain
 
 DEFAULT_HOST_MODE = "host-passthrough"
 

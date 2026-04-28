@@ -1,7 +1,8 @@
 from cachetools import TTLCache, cached
+from rethinkdb import r
+
 from engine.services.db import rethink_conn
 from engine.services.log import *
-from rethinkdb import r
 
 _media_cache = TTLCache(maxsize=50, ttl=30)
 

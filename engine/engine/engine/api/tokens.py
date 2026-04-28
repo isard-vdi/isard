@@ -9,9 +9,10 @@ import traceback
 from functools import wraps
 
 import jwt
+from flask import request
+
 from engine.services.db.db import get_isardvdi_secret, update_table_field
 from engine.services.log import logs
-from flask import request
 
 from .exceptions import Error
 
