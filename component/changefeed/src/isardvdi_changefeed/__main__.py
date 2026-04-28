@@ -20,6 +20,7 @@
 import asyncio
 import json
 import logging as log
+import os
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,22 @@ from isardvdi_common.connections.redis_urls import changefeed_url
 from pydantic import BaseModel, ConfigDict
 
 from .table_changefeed import TableChangefeed
+
+
+def _configure_logging() -> None:
+    # Without an explicit handler Python's lastResort path drops INFO
+    # silently and writes WARNING+ to stderr without a format —
+    # ``TableChangefeed``'s reconnect/retry/serialization-failure
+    # diagnostics become unreadable in container logs. Mirror
+    # change-handler's stdout config so every state transition surfaces.
+    level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
+    level = getattr(log, level_name, log.INFO)
+    log.basicConfig(
+        level=level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[log.StreamHandler()],
+        force=True,
+    )
 
 
 # The set of tables and their RethinkDB ``pluck`` projections lives in a
@@ -63,6 +80,7 @@ async def main():
 
 
 if __name__ == "__main__":
+    _configure_logging()
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
