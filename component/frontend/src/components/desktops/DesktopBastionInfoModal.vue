@@ -6,10 +6,10 @@ import { useQuery, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
 
 import {
-  getUserConfigApiV4ItemUserGetConfigGetOptions,
-  getDesktopBastionApiV4ItemDesktopDesktopIdGetBastionGetOptions,
-  updateDesktopBastionAuthorizedKeysApiV4ItemDesktopDesktopIdUpdateBastionAuthorizedKeysPutMutation,
-  updateDesktopBastionDomainApiV4ItemDesktopDesktopIdUpdateBastionDomainPutMutation
+  getUserConfigOptions,
+  getDesktopBastionLegacyOptions,
+  updateDesktopBastionAuthorizedKeysMutation,
+  updateDesktopBastionDomainMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
@@ -43,7 +43,7 @@ const {
   isPending: userConfigIsPending,
   isError: userConfigIsError,
   error: userConfigError
-} = useQuery(getUserConfigApiV4ItemUserGetConfigGetOptions())
+} = useQuery(getUserConfigOptions())
 
 const {
   data: bastionTargetData,
@@ -52,26 +52,31 @@ const {
   error: bastionTargetDataError,
   refetch: refetchBastionTargetData
 } = useQuery(
-  getDesktopBastionApiV4ItemDesktopDesktopIdGetBastionGetOptions({
+  getDesktopBastionLegacyOptions({
     path: {
       desktop_id: props.desktopId
     }
   })
 )
 
-const { mutateAsync: saveBastionHttpDomainAsync, isPending: saveBastionHttpDomainIsPending } =
-  useMutation({
-    ...updateDesktopBastionDomainApiV4ItemDesktopDesktopIdUpdateBastionDomainPutMutation(),
-    onSuccess: () => {
-      refetchBastionTargetData()
-    }
-  })
+const {
+  mutate: saveBastionHttpDomain,
+  mutateAsync: saveBastionHttpDomainAsync,
+  isPending: saveBastionHttpDomainIsPending,
+  isError: saveBastionHttpDomainIsError,
+  error: saveBastionHttpDomainError
+} = useMutation({
+  ...updateDesktopBastionDomainMutation(),
+  onSuccess: () => {
+    refetchBastionTargetData()
+  }
+})
 
 const {
   mutateAsync: saveBastionSshAuthorizedKeysAsync,
   isPending: saveBastionSshAuthorizedKeysIsPending
 } = useMutation({
-  ...updateDesktopBastionAuthorizedKeysApiV4ItemDesktopDesktopIdUpdateBastionAuthorizedKeysPutMutation(),
+  ...updateDesktopBastionAuthorizedKeysMutation(),
   onSuccess: () => {
     refetchBastionTargetData()
   }

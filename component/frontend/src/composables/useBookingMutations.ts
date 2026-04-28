@@ -1,35 +1,35 @@
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
-  createBookingEventApiV4ItemBookingEventPostMutation,
-  updateBookingEventApiV4ItemBookingEventBookingIdEditPutMutation,
-  deleteBookingEventApiV4ItemBookingEventBookingIdDeleteMutation
+  createBookingEventMutation,
+  updateBookingEventMutation,
+  deleteBookingEventMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 export function useBookingMutations() {
   const queryClient = useQueryClient()
 
   const invalidateBookingQueries = () => {
-    queryClient.invalidateQueries({ queryKey: ['getUserBookingsApiV4ItemsBookingsGet'] })
+    queryClient.invalidateQueries({ queryKey: ['getUserBookings'] })
     queryClient.invalidateQueries({
-      queryKey: ['getBookingDesktopApiV4ItemBookingGetDesktopItemIdGet']
+      queryKey: ['getBookingDesktop']
     })
     queryClient.invalidateQueries({
-      queryKey: ['getBookingDesktopApiV4ItemBookingGetDeploymentItemIdGet']
+      queryKey: ['getBookingDeployment']
     })
   }
 
   const createEvent = useMutation({
-    ...createBookingEventApiV4ItemBookingEventPostMutation(),
+    ...createBookingEventMutation(),
     onSuccess: invalidateBookingQueries
   })
 
   const editEvent = useMutation({
-    ...updateBookingEventApiV4ItemBookingEventBookingIdEditPutMutation(),
+    ...updateBookingEventMutation(),
     onSuccess: invalidateBookingQueries
   })
 
   const deleteEvent = useMutation({
-    ...deleteBookingEventApiV4ItemBookingEventBookingIdDeleteMutation(),
+    ...deleteBookingEventMutation(),
     onSuccess: invalidateBookingQueries
   })
 

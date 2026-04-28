@@ -3,8 +3,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
-  deleteRecycleBinEntryApiV4ItemRecycleBinRecycleBinIdDeleteMutation,
-  getRecycleBinItemCountUserApiV4ItemsRecycleBinGetQueryKey
+  deleteRecycleBinEntryMutation,
+  getRecycleBinItemCountUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
@@ -30,10 +30,10 @@ const { t } = useI18n()
 const queryClient = useQueryClient()
 
 const { mutate: deleteEntry, isPending: deleteIsPending } = useMutation({
-  ...deleteRecycleBinEntryApiV4ItemRecycleBinRecycleBinIdDeleteMutation(),
+  ...deleteRecycleBinEntryMutation(),
   onSuccess: () => {
     queryClient.invalidateQueries({
-      queryKey: getRecycleBinItemCountUserApiV4ItemsRecycleBinGetQueryKey()
+      queryKey: getRecycleBinItemCountUserOptions()
     })
     handleClose()
     if (props.onSuccess) {

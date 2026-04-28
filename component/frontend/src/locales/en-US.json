@@ -323,34 +323,9 @@
         "title": "There were errors in the migration process:"
       },
       "success": {
-        "title": "Migration completed",
-        "description": {
-          "ok": "Your items have been successfully migrated to the new account. You can now go back to the main page.",
-          "error": "There were some errors during the process and some of your items haven't been migrated to the new account. Please contact an administrator. You can now go back to the main page."
-        },
-        "progress": {
-          "desktops-progress": "Migrating desktops...",
-          "desktops-ok": "Desktops migrated",
-          "desktops-error": "Desktops not migrated",
-          "templates-progress": "Migrating templates...",
-          "templates-ok": "Templates migrated",
-          "templates-error": "Templates not migrated",
-          "media-progress": "Migrating media...",
-          "media-ok": "Media migrated",
-          "media-error": "Media not migrated",
-          "deployments-progress": "Migrating deployments...",
-          "deployments-ok": "Deployments migrated",
-          "deployments-error": "Deployments not migrated",
-          "recycle-bin-progress": "Emptying recycle bin...",
-          "recycle-bin-ok": "Recycle bin emptied"
-        },
-        "buttons": {
-          "ok": "OK",
-          "logout": "Logout"
-        },
-        "errors": {
-          "generic": "There was an error while migrating your {type}, please contact an administrator."
-        }
+        "title": "Migration started",
+        "description": "The migration has been queued. Items will be processed in the background; you can return to your desktops while it completes.",
+        "button": "Go to desktops"
       }
     },
     "recycle-bin": {

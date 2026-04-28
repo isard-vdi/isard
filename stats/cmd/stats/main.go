@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
 	"gitlab.com/isard/isardvdi/stats/cfg"
 	"gitlab.com/isard/isardvdi/stats/collector"
@@ -18,7 +17,8 @@ import (
 	"github.com/oracle/oci-go-sdk/v65/common"
 	"github.com/oracle/oci-go-sdk/v65/usageapi"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
@@ -41,12 +41,12 @@ func main() {
 	http := &http.StatsServer{
 		Addr:       cfg.HTTP.Addr(),
 		Log:        log,
-		WG:         &wg,
 		Collectors: collectors,
 	}
 
-	go http.Serve(ctx, log)
-	wg.Add(1)
+	wg.Go(func() {
+		http.Serve(ctx, log)
+	})
 
 	log.Info().Strs("collectors", enabledCollectors).Msg("service started")
 
@@ -58,6 +58,7 @@ func main() {
 	log.Info().Msg("stopping service")
 
 	cancel()
+	wg.Wait()
 
 	if libvirtPool != nil {
 		libvirtPool.Close()
@@ -160,26 +161,17 @@ func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]c
 	}
 
 	if isardvdiAPI {
-		cli, err := sdk.NewClient(&sdk.Cfg{
-			Host:        cfg.Collectors.IsardVDIAPI.Addr,
-			IgnoreCerts: true,
-		})
+		httpClient := ogenclient.NewHTTPClient(ogenclient.WithIgnoreCerts())
+		cli, err := apiv4.NewClient(
+			cfg.Collectors.IsardVDIAPI.Addr,
+			ogenclient.APIv4Source{Secret: cfg.Collectors.IsardVDIAPI.Secret},
+			apiv4.WithClient(httpClient),
+		)
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create API client")
 		}
 
-		cli.SetBeforeRequestHook(func(c *sdk.Client) error {
-			tkn, err := jwt.SignAPIJWT(cfg.Collectors.IsardVDIAPI.Secret)
-			if err != nil {
-				return fmt.Errorf("sign JWT token for calling the API: %w", err)
-			}
-
-			c.SetToken(tkn)
-
-			return nil
-		})
-
-		a := collector.NewIsardVDIAPI(log, cli)
+		a := collector.NewIsardVDIAPI(ctx, log, cli)
 		collectors = append(collectors, a)
 	}
 

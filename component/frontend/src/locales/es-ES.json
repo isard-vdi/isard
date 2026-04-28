@@ -226,34 +226,9 @@
         "title": "Hubo errores en el proceso de migración:"
       },
       "success": {
-        "title": "Migración completada",
-        "description": {
-          "ok": "Tus elementos se han migrado correctamente a la nueva cuenta. Ahora puedes volver a la página principal.",
-          "error": "Hubo algunos errores durante el proceso y algunos de tus elementos no se han podido migrar a la nueva cuenta. Por favor, contacta con un administrador. Ahora puedes volver a la página principal."
-        },
-        "progress": {
-          "desktops-progress": "Migrando escritorios...",
-          "desktops-ok": "Escritorios migrados",
-          "desktops-error": "Escritorios no migrados",
-          "templates-progress": "Migrando plantillas...",
-          "templates-ok": "Plantillas migradas",
-          "templates-error": "Plantillas no migradas",
-          "media-progress": "Migrando medios...",
-          "media-ok": "Medios migrados",
-          "media-error": "Medios no migrados",
-          "deployments-progress": "Migrando despliegues...",
-          "deployments-ok": "Despliegues migrados",
-          "deployments-error": "Despliegues no migrados",
-          "recycle-bin-progress": "Vaciando papelera...",
-          "recycle-bin-ok": "Papelera vaciada"
-        },
-        "buttons": {
-          "ok": "OK",
-          "logout": "Cerrar sesión"
-        },
-        "errors": {
-          "generic": "Hubo un error mientras se migraban tus {type}, por favor, contacta con un administrador."
-        }
+        "title": "Migración iniciada",
+        "description": "La migración se ha puesto en cola. Los elementos se procesarán en segundo plano; puedes volver a tus escritorios mientras finaliza.",
+        "button": "Ir a Escritorios"
       }
     },
     "recycle-bin": {

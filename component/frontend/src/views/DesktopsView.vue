@@ -9,48 +9,44 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { useForm } from '@tanstack/vue-form'
 
 import {
-  getUserDesktopsApiV4ItemsDesktopsGetQueryKey,
-  getUserDesktopsApiV4ItemsDesktopsGetOptions,
-  getDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGetOptions,
-  getUserConfigApiV4ItemUserGetConfigGetOptions,
-  getDesktopNetworksApiV4ItemDesktopDesktopIdGetNetworksGetOptions,
-  updateStatusDesktopApiV4ItemDesktopDesktopIdUpdateStatusPutMutation,
-  deleteDesktopApiV4ItemDesktopDesktopIdDeleteMutation,
-  recreateDesktopApiV4ItemDesktopDesktopIdRecreatePutMutation,
-  getRecycleBinDefaultDeleteConfigApiV4ItemRecycleBinGetDefaultDeleteConfigGetOptions,
-  getRecycleBinCutoffTimeApiV4ItemRecycleBinGetUserCutoffTimeGetOptions,
-  updateDesktopBastionDomainApiV4ItemDesktopDesktopIdUpdateBastionDomainPutMutation,
-  updateDesktopBastionAuthorizedKeysApiV4ItemDesktopDesktopIdUpdateBastionAuthorizedKeysPutMutation,
-  stopDesktopsApiV4ItemsDesktopsStopPutMutation,
-  getMaxBookingDateApiV4ItemBookingMaxBookingDateDesktopIdGetOptions,
-  editDesktopApiV4ItemDesktopDesktopIdEditPutMutation,
-  createBookingEventApiV4ItemBookingEventPostMutation,
-  startDesktopApiV4ItemDesktopDesktopIdStartPutMutation,
-  stopDesktopApiV4ItemDesktopDesktopIdStopPutMutation,
-  checkQuotaNewDesktopApiV4QuotaDesktopNewGetOptions,
-  checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions,
-  checkStoragePoolCreationAvailabilityApiV4StoragePoolsCheckCreateAvailabilityGetOptions
+  getUserDesktopsOptions,
+  getUserConfigOptions,
+  getDesktopNetworksOptions,
+  updateStatusDesktopMutation,
+  deleteDesktopMutation,
+  recreateDesktopMutation,
+  getRecycleBinDefaultDeleteConfigOptions,
+  getRecycleBinCutoffTimeOptions,
+  updateDesktopBastionDomainMutation,
+  updateDesktopBastionAuthorizedKeysMutation,
+  stopDesktopsMutation,
+  getMaxBookingDateOptions,
+  editDesktopMutation,
+  createBookingEventMutation,
+  startDesktopMutation,
+  stopDesktopMutation,
+  checkQuotaNewDesktopOptions,
+  checkQuotaNewTemplateOptions,
+  checkStoragePoolCreationAvailabilityOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
-  startDesktopApiV4ItemDesktopDesktopIdStartPut,
-  stopDesktopApiV4ItemDesktopDesktopIdStopPut,
-  stopDesktopsApiV4ItemsDesktopsStopPut,
-  getDesktopNetworksApiV4ItemDesktopDesktopIdGetNetworksGet,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGet,
-  deleteDesktopApiV4ItemDesktopDesktopIdDelete,
-  getDesktopBastionApiV4ItemDesktopDesktopIdGetBastionGet,
-  updateDesktopBastionDomainApiV4ItemDesktopDesktopIdUpdateBastionDomainPut,
-  updateDesktopBastionAuthorizedKeysApiV4ItemDesktopDesktopIdUpdateBastionAuthorizedKeysPut,
-  getDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGet,
-  type GetDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGetData,
-  type DesktopBastionResponse,
+  startDesktop,
+  stopDesktop,
+  stopDesktops,
+  getDesktopNetworks,
+  getDesktopDetails as getDesktopInfo,
+  deleteDesktop,
+  updateDesktopBastionDomain,
+  updateDesktopBastionAuthorizedKeys,
+  getDesktopViewerByType as getDesktopViewer,
+  type GetDesktopViewerByTypeData as GetDesktopViewerData,
   type DesktopNetwork,
-  type GetDesktopNetworksApiV4ItemDesktopDesktopIdGetNetworksGetData,
+  type GetDesktopNetworksData,
   DesktopStatusEnum,
-  type UserDesktop,
-  getMaxBookingDateApiV4ItemBookingMaxBookingDateDesktopIdGet,
+  type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop,
+  getMaxBookingDate,
   type ErrorResponse,
-  getBookingReservablesAvailableApiV4ItemReservablesGetAvailableGet
+  getBookingReservablesAvailable as getBookingReservablesAvailable
 } from '@/gen/oas/apiv4/'
 
 import { cn } from '@/lib/utils'
@@ -138,7 +134,7 @@ const {
   isError: desktopsIsError,
   error: desktopsError,
   data: desktops
-} = useQuery(getUserDesktopsApiV4ItemsDesktopsGetOptions())
+} = useQuery(getUserDesktopsOptions())
 
 const routeDesktop = computed(() => {
   if (
@@ -157,21 +153,21 @@ const {
   isError: userConfigIsError,
   error: userConfigError,
   data: userConfig
-} = useQuery(getUserConfigApiV4ItemUserGetConfigGetOptions())
+} = useQuery(getUserConfigOptions())
 
 const {
   isPending: recycleBinDefaultDeleteIsPending,
   isError: recycleBinDefaultDeleteIsError,
   error: recycleBinDefaultDeleteError,
   data: recycleBinDefaultDelete
-} = useQuery(getRecycleBinDefaultDeleteConfigApiV4ItemRecycleBinGetDefaultDeleteConfigGetOptions())
+} = useQuery(getRecycleBinDefaultDeleteConfigOptions())
 
 const {
   isPending: recycleBinCutoffTimeIsPending,
   isError: recycleBinCutoffTimeIsError,
   error: recycleBinCutoffTimeError,
   data: recycleBinCutoffTime
-} = useQuery(getRecycleBinCutoffTimeApiV4ItemRecycleBinGetUserCutoffTimeGetOptions())
+} = useQuery(getRecycleBinCutoffTimeOptions())
 
 const quotaExceededModalData = ref<{
   title: string
@@ -179,7 +175,7 @@ const quotaExceededModalData = ref<{
   cancelLabel: string
 } | null>(null)
 
-const desktopsKey = getUserDesktopsApiV4ItemsDesktopsGetQueryKey()
+const desktopsKey = getUserDesktopsQueryKey()
 
 const {
   mutate: desktopStart,
@@ -200,7 +196,7 @@ const {
     // regenerating the SPICE password live.
     nextStatusGuard: (current) =>
       current === DesktopStatusEnum.STOPPED || current === DesktopStatusEnum.FAILED,
-    baseMutation: startDesktopApiV4ItemDesktopDesktopIdStartPutMutation(),
+    baseMutation: startDesktopMutation(),
     onError: (error) => {
       const err = error as ErrorResponse
       if (err.description_code === 'desktop_start_user_quota_exceeded') {
@@ -233,7 +229,7 @@ const {
       current === DesktopStatusEnum.SHUTTING_DOWN ||
       current === DesktopStatusEnum.PAUSED ||
       current === DesktopStatusEnum.SUSPENDED,
-    baseMutation: stopDesktopApiV4ItemDesktopDesktopIdStopPutMutation()
+    baseMutation: stopDesktopMutation()
   })
 )
 
@@ -250,7 +246,7 @@ const {
     listKey: 'desktops',
     extractItemId: (vars) => vars.path.desktop_id,
     nextStatus: DesktopStatusEnum.UPDATING,
-    baseMutation: updateStatusDesktopApiV4ItemDesktopDesktopIdUpdateStatusPutMutation()
+    baseMutation: updateStatusDesktopMutation()
   })
 )
 
@@ -265,7 +261,7 @@ const {
   isError: stopAllDesktopsIsError,
   error: stopAllDesktopsError
 } = useMutation({
-  ...stopDesktopsApiV4ItemsDesktopsStopPutMutation(),
+  ...stopDesktopsMutation(),
   onSuccess: () => {
     showStopAllDesktopsModal.value = false
     stopAllDesktopsForce.value = false
@@ -296,7 +292,7 @@ const {
   reset: resetDesktopDetails
 } = useMutation({
   mutationFn: async (desktopId: string) => {
-    const { data } = await getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGet({
+    const { data } = await getDesktopInfo({
       path: {
         desktop_id: desktopId
       },
@@ -320,7 +316,7 @@ const deleteModalDesktopData = ref<{
 const deleteModalRecicleBinChecked = ref(recycleBinDefaultDelete.value)
 
 const {
-  mutate: deleteDesktop,
+  mutate: deleteDesktopMutate,
   mutateAsync: deleteDesktopAsync,
   isPending: deleteDesktopIsPending,
   isError: deleteDesktopIsError,
@@ -331,7 +327,7 @@ const {
     queryKey: desktopsKey,
     listKey: 'desktops',
     extractItemId: (vars) => vars.path.desktop_id,
-    baseMutation: deleteDesktopApiV4ItemDesktopDesktopIdDeleteMutation(),
+    baseMutation: deleteDesktopMutation(),
     onSuccess: () => {
       closeDeleteModal()
     }
@@ -357,7 +353,7 @@ const {
   isError: recreateDesktopIsError,
   error: recreateDesktopError
 } = useMutation({
-  ...recreateDesktopApiV4ItemDesktopDesktopIdRecreatePutMutation(),
+  ...recreateDesktopMutation(),
   onSuccess: () => {
     closeRecreateDesktopModal()
   }
@@ -405,7 +401,7 @@ const viewerFetchInflight = new Map<string, Promise<void>>()
 
 const fetchAndOpenViewer = (
   desktopId: string,
-  viewer: GetDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGetData['path']['viewer_type']
+  viewer: GetDesktopViewerData['path']['viewer_type']
 ): Promise<void> => {
   // TODO: use a mutation
   const key = `${desktopId}:${viewer}`
@@ -413,7 +409,7 @@ const fetchAndOpenViewer = (
   if (existing) return existing
 
   const run = async () => {
-    const { error, data } = await getDesktopViewerApiV4ItemDesktopDesktopIdGetViewerViewerTypeGet({
+    const { error, data } = await getDesktopViewer({
       path: {
         desktop_id: desktopId,
         viewer_type: viewer
@@ -591,7 +587,7 @@ const {
   error: fetchMaxBookingDateError
 } = useMutation({
   mutationFn: async (desktopId: string) => {
-    const { data } = await getMaxBookingDateApiV4ItemBookingMaxBookingDateDesktopIdGet({
+    const { data } = await getMaxBookingDate({
       path: {
         desktop_id: desktopId
       },
@@ -639,7 +635,7 @@ const {
   error: getAvailableReservablesError
 } = useMutation({
   mutationFn: async () => {
-    const { data } = await getBookingReservablesAvailableApiV4ItemReservablesGetAvailableGet({
+    const { data } = await getBookingReservablesAvailable({
       throwOnError: true
     })
     return data
@@ -676,7 +672,7 @@ const {
   isPending: editDesktopIsPending,
   isError: editDesktopIsError,
   error: editDesktopError
-} = useMutation(editDesktopApiV4ItemDesktopDesktopIdEditPutMutation())
+} = useMutation(editDesktopMutation())
 
 const {
   mutate: createBookingEvent,
@@ -684,7 +680,7 @@ const {
   isPending: createBookingEventIsPending,
   isError: createBookingEventIsError,
   error: createBookingEventError
-} = useMutation(createBookingEventApiV4ItemBookingEventPostMutation())
+} = useMutation(createBookingEventMutation())
 
 const changeAndStartForm = useForm({
   defaultValues: {
@@ -817,7 +813,7 @@ const goToNewDesktop = async () => {
   desktopCreationCheckIsPending.value = true
   try {
     await queryClient.fetchQuery({
-      ...checkQuotaNewDesktopApiV4QuotaDesktopNewGetOptions(),
+      ...checkQuotaNewDesktopOptions(),
       staleTime: QUOTA_STALE_TIME
     })
   } catch {
@@ -831,7 +827,7 @@ const goToNewDesktop = async () => {
   }
   try {
     await queryClient.fetchQuery({
-      ...checkStoragePoolCreationAvailabilityApiV4StoragePoolsCheckCreateAvailabilityGetOptions(),
+      ...checkStoragePoolCreationAvailabilityOptions(),
       staleTime: QUOTA_STALE_TIME
     })
   } catch {
@@ -876,7 +872,7 @@ const goToNewTemplate = async (desktopId: string) => {
   templateCreationCheckIsPending.value = true
   try {
     await queryClient.fetchQuery({
-      ...checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions(),
+      ...checkQuotaNewTemplateOptions(),
       staleTime: QUOTA_STALE_TIME
     })
   } catch {
@@ -980,7 +976,7 @@ const cardGridMinWidth = computed(() => (cardSize.value === 'md' ? '250px' : '41
         hierarchy="destructive"
         :disabled="deleteDesktopIsPending"
         @click="
-          deleteDesktop({
+          deleteDesktopMutate({
             path: { desktop_id: deleteModalDesktopData.id },
             query: {
               permanent:

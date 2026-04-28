@@ -69,6 +69,7 @@ async def get_bastion_targets(
     response_model=BastionResponse,
     summary="Get bastion target for desktop",
     description="Returns the bastion target configuration for a desktop. Creates an empty target if none exists.",
+    operation_id="get_desktop_bastion",
     responses={
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},

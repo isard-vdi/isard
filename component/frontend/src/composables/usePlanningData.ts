@@ -2,17 +2,17 @@ import { computed, type Ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 
 import {
-  getReservablesApiV4ItemsReservablesGetOptions,
-  getReservableItemsApiV4ItemsReservablesReservableTypeGetOptions,
-  listEnabledSubitemsApiV4ItemReservableEnabledReservableTypeItemIdGetOptions,
-  getItemPlansApiV4ItemReservablesPlannerByItemItemIdGetOptions
+  getReservablesOptions,
+  getReservableItemsOptions,
+  listEnabledSubitemsOptions,
+  getItemPlansOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { ApiReservableItem, ApiSubitem, ApiPlan } from '@/lib/planning/adapter'
 import { toPlanCalendarEvents } from '@/lib/planning/adapter'
 import type { CalendarEvent } from '@/lib/booking/adapter'
 
 export function useReservableTypes() {
-  const query = useQuery(getReservablesApiV4ItemsReservablesGetOptions())
+  const query = useQuery(getReservablesOptions())
   const types = computed<string[]>(() => query.data.value?.reservables ?? [])
   return { types, isLoading: query.isLoading, isError: query.isError }
 }
@@ -20,7 +20,7 @@ export function useReservableTypes() {
 export function useReservableItems(reservableType: Ref<string>) {
   const query = useQuery(
     computed(() => ({
-      ...getReservableItemsApiV4ItemsReservablesReservableTypeGetOptions({
+      ...getReservableItemsOptions({
         path: { reservable_type: reservableType.value }
       }),
       enabled: !!reservableType.value
@@ -35,7 +35,7 @@ export function useReservableItems(reservableType: Ref<string>) {
 export function useReservableSubitems(reservableType: Ref<string>, itemId: Ref<string>) {
   const query = useQuery(
     computed(() => ({
-      ...listEnabledSubitemsApiV4ItemReservableEnabledReservableTypeItemIdGetOptions({
+      ...listEnabledSubitemsOptions({
         path: { reservable_type: reservableType.value, item_id: itemId.value }
       }),
       enabled: !!reservableType.value && !!itemId.value
@@ -50,7 +50,7 @@ export function useReservableSubitems(reservableType: Ref<string>, itemId: Ref<s
 export function useItemPlans(itemId: Ref<string>, range: Ref<{ start: string; end: string }>) {
   const query = useQuery(
     computed(() => ({
-      ...getItemPlansApiV4ItemReservablesPlannerByItemItemIdGetOptions({
+      ...getItemPlansOptions({
         path: { item_id: itemId.value }
       }),
       enabled: !!itemId.value

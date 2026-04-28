@@ -9,7 +9,6 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/cfg"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
 )
@@ -70,16 +69,15 @@ func (c *CheckServer) CheckIsardVDI(ctx context.Context, req *checkv1.CheckIsard
 		return nil, err
 	}
 
-	result, err := c.check.CheckIsardVDI(ctx, method, auth, req.Host, req.TemplateId, req.FailSelfSigned, req.FailMaintenanceMode)
+	result, err := c.check.CheckIsardVDI(ctx, method, auth, req.GetHost(), req.GetTemplateId(), req.GetFailSelfSigned(), req.GetFailMaintenanceMode())
 	if err != nil {
 		c.log.Error().Err(err).Msg("check failed")
 		return nil, err
 	}
 
 	return &checkv1.CheckIsardVDIResponse{
-		IsardvdiVersion:    result.IsardVDIVersion,
-		MaintenanceMode:    result.MaintenanceMode,
-		IsardvdiSdkVersion: sdk.Version,
+		IsardvdiVersion: result.IsardVDIVersion,
+		MaintenanceMode: result.MaintenanceMode,
 		DependenciesVersions: &checkv1.DependenciesVersions{
 			Remmina:      result.DependenciesVersions.Remmina,
 			RemoteViewer: result.DependenciesVersions.RemoteViewer,
@@ -95,16 +93,15 @@ func (c *CheckServer) CheckHypervisor(ctx context.Context, req *checkv1.CheckHyp
 		return nil, err
 	}
 
-	result, err := c.check.CheckHypervisor(ctx, method, auth, req.Host, req.HypervisorId, req.TemplateId, req.FailSelfSigned, req.FailMaintenanceMode)
+	result, err := c.check.CheckHypervisor(ctx, method, auth, req.GetHost(), req.GetHypervisorId(), req.GetTemplateId(), req.GetFailSelfSigned(), req.GetFailMaintenanceMode())
 	if err != nil {
 		c.log.Error().Err(err).Msg("check failed")
 		return nil, err
 	}
 
 	return &checkv1.CheckHypervisorResponse{
-		IsardvdiVersion:    result.IsardVDIVersion,
-		MaintenanceMode:    result.MaintenanceMode,
-		IsardvdiSdkVersion: sdk.Version,
+		IsardvdiVersion: result.IsardVDIVersion,
+		MaintenanceMode: result.MaintenanceMode,
 		DependenciesVersions: &checkv1.DependenciesVersions{
 			Remmina:      result.DependenciesVersions.Remmina,
 			RemoteViewer: result.DependenciesVersions.RemoteViewer,

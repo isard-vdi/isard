@@ -5,9 +5,9 @@ import { useI18n } from 'vue-i18n'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
 
 import { useQuery, useMutation } from '@tanstack/vue-query'
-import { getUserDesktopsApiV4ItemsDesktopsGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGet } from '@/gen/oas/apiv4'
-import { checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getUserDesktopsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDesktopDetails } from '@/gen/oas/apiv4'
+import { checkQuotaNewTemplateOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { QuotaExceededModal } from '@/components/modal'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 
@@ -63,7 +63,7 @@ const { t, d } = useI18n()
 // --------------------------------------------------
 
 const quotaQuery = useQuery({
-  ...checkQuotaNewTemplateApiV4QuotaTemplateNewGetOptions(),
+  ...checkQuotaNewTemplateOptions(),
   staleTime: QUOTA_STALE_TIME,
   retry: false
 })
@@ -78,7 +78,7 @@ const {
   error: desktopsError,
   data: desktops
 } = useQuery({
-  ...getUserDesktopsApiV4ItemsDesktopsGetOptions(),
+  ...getUserDesktopsOptions(),
   enabled: computed(() => {
     return !route.params.desktopId
   })
@@ -97,7 +97,7 @@ const {
   reset: resetDesktopDetails
 } = useMutation({
   mutationFn: async (desktopId: string) => {
-    const { data } = await getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGet({
+    const { data } = await getDesktopDetails({
       path: {
         desktop_id: desktopId
       },

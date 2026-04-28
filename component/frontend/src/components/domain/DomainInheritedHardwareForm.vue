@@ -3,8 +3,8 @@ import { computed, ref, watchEffect } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import DomainHardwareForm from '@/components/domain/DomainHardwareForm.vue'
 import {
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions
+  getTemplateInfoOptions,
+  getDesktopInfoOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 interface Props {
@@ -22,7 +22,7 @@ const {
   error: templateError,
   data: templateData
 } = useQuery({
-  ...getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions({
+  ...getTemplateInfoOptions({
     path: {
       template_id: props.templateId!
     }
@@ -36,7 +36,7 @@ const {
   error: desktopError,
   data: desktopData
 } = useQuery({
-  ...getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  ...getDesktopInfoOptions({
     path: {
       desktop_id: props.desktopId!
     }

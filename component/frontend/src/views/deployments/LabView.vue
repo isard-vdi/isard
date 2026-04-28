@@ -10,8 +10,8 @@ import Input from '@/components/ui/input/Input.vue'
 import Icon from '@/components/icon/Icon.vue'
 import Badge from '@/components/ui/badge/Badge.vue'
 
-import { getLabUserDesktopsApiV4ItemLabLabIdUserUserIdDesktopsGetQueryKey } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { getLabUserDesktopsApiV4ItemLabLabIdUserUserIdDesktopsGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDeploymentUserDesktopsQueryKey } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getDeploymentUserDesktopsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 // Retrieve the id from the route
 const route = useRoute()
@@ -22,9 +22,9 @@ const authStore = useAuthStore()
 const userId = authStore.user.user_id as string
 
 const labDesktopsOpts = computed(() =>
-  getLabUserDesktopsApiV4ItemLabLabIdUserUserIdDesktopsGetOptions({
+  getDeploymentUserDesktopsOptions({
     path: {
-      lab_id: labId,
+      deployment_id: labId,
       user_id: userId
     }
   })

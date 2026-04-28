@@ -3,6 +3,9 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+from typing import List
+
+from api.schemas.admin_notify import SocketioEmitRequest
 from api.services.error import Error
 from isardvdi_common.helpers.api_notify import notify_broadcast, notify_custom
 
@@ -11,14 +14,17 @@ class AdminSocketioService:
     """Service for admin socketio emit operations."""
 
     @staticmethod
-    def emit_events(events: list):
-        """Emit socketio events."""
+    def emit_events(events: List[SocketioEmitRequest]):
+        """Emit typed socketio events. Accepts ``SocketioEmitRequest``
+        models directly so optional-field defaults live in the schema
+        rather than being duplicated as ``.get(..., default)`` calls
+        here."""
         for event in events:
             notify_custom(
-                event.get("event", "message"),
-                event.get("data", {}),
-                event.get("namespace", "/"),
-                event.get("room", ""),
+                event.event or "message",
+                event.data if event.data is not None else {},
+                event.namespace or "/",
+                event.room or "",
             )
         return True
 

@@ -2,12 +2,12 @@ import { patchEntityList } from '@/lib/utils'
 import type { WsDeletePayload, WsMediaPayload } from '@/types/ws-events'
 import { QueryClient } from '@tanstack/vue-query'
 import {
-  getUserMediaApiV4ItemsMediaGetOptions,
-  getUserSharedMediaApiV4ItemsMediaGetSharedGetOptions
+  getUserMediaOptions,
+  getUserSharedMediaOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-const key = getUserMediaApiV4ItemsMediaGetOptions().queryKey
-const sharedKey = getUserSharedMediaApiV4ItemsMediaGetSharedGetOptions().queryKey
+const key = getUserMediaOptions().queryKey
+const sharedKey = getUserSharedMediaOptions().queryKey
 
 export const mediaEventHandlers = {
   media_add: (queryClient: QueryClient, payload: string) => {

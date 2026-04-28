@@ -14,9 +14,8 @@ import dotGrid from '@/assets/img/modal/dot-grid.svg?component'
 import directViewerImg from '@/assets/img/modal/direct-viewer.svg'
 
 import {
-  getShareLinkApiV4ItemDesktopDesktopIdGetShareLinkGetOptions,
-  getShareLinkApiV4ItemDesktopDesktopIdGetShareLinkGetQueryKey,
-  updateShareLinkApiV4ItemDesktopDesktopIdUpdateShareLinkPutMutation
+  getShareLinkOptions,
+  updateShareLinkMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const { t } = useI18n()
@@ -37,13 +36,13 @@ const emit = defineEmits<{
 const queryClient = useQueryClient()
 
 const shareLinkQueryKey = computed(() =>
-  getShareLinkApiV4ItemDesktopDesktopIdGetShareLinkGetQueryKey({
+  getShareLinkOptions({
     path: { desktop_id: props.desktopId ?? '' }
   })
 )
 
 const { data: shareLinkData } = useQuery({
-  ...getShareLinkApiV4ItemDesktopDesktopIdGetShareLinkGetOptions({
+  ...getShareLinkOptions({
     path: { desktop_id: props.desktopId ?? '' }
   }),
   queryKey: shareLinkQueryKey,
@@ -60,7 +59,7 @@ const url = computed(() => {
 })
 
 const mutation = useMutation({
-  ...updateShareLinkApiV4ItemDesktopDesktopIdUpdateShareLinkPutMutation(),
+  ...updateShareLinkMutation(),
   onSuccess() {
     queryClient.invalidateQueries({
       queryKey: shareLinkQueryKey.value

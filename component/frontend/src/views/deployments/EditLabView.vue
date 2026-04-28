@@ -9,15 +9,15 @@ import Icon from '@/components/icon/Icon.vue'
 import LabFormSettings from '@/components/lab/LabFormSettings.vue'
 import LabFormDesktops from '@/components/lab/LabFormDesktops.vue'
 import UnsavedChangesModal from '@/components/modal/UnsavedChangesModal.vue'
-import { Tab, TabsList, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsContent } from '@/components/ui/tabs'
 import TabsTrigger from '@/components/ui/tabs/TabsTrigger.vue'
 
 import {
-  editDeploymentApiV4ItemDeploymentDeploymentIdPutMutation,
-  getLabApiV4ItemDeploymentLabLabIdGetOptions,
-  getAllUsersApiV4ItemsUsersGetOptions,
-  getAllGroupsApiV4ItemsGroupsGetOptions,
-  getUserApiV4ItemUserGetOptions
+  editDeploymentMutation,
+  getDeploymentOptions,
+  getAllUsersOptions,
+  getAllGroupsOptions,
+  getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { MultiSelectTagItemType } from '@/components/multi-select'
 
@@ -107,26 +107,20 @@ const getSaveButtonTooltip = computed(() => {
   return ''
 })
 
-const { data: currentUser } = useQuery(getUserApiV4ItemUserGetOptions())
+const { data: currentUser } = useQuery(getUserOptions())
 
-const { isPending: getAllUsersIsPending, data: users } = useQuery(
-  getAllUsersApiV4ItemsUsersGetOptions()
-)
+const { isPending: getAllUsersIsPending, data: users } = useQuery(getAllUsersOptions())
 
-const { isPending: getAllGroupsIsPending, data: groups } = useQuery(
-  getAllGroupsApiV4ItemsGroupsGetOptions()
-)
+const { isPending: getAllGroupsIsPending, data: groups } = useQuery(getAllGroupsOptions())
 
 const {
   data: lab,
   isPending,
   isError,
   error
-} = useQuery(getLabApiV4ItemDeploymentLabLabIdGetOptions({ path: { lab_id: labId as string } }))
+} = useQuery(getDeploymentOptions({ path: { deployment_id: labId as string } }))
 
-const editDeploymentMutation = useMutation(
-  editDeploymentApiV4ItemDeploymentDeploymentIdPutMutation()
-)
+const editDeploymentMut = useMutation(editDeploymentMutation())
 
 const transformFormDataToApiFormat = (data: {
   name: string
@@ -194,7 +188,7 @@ const handleSave = async () => {
     submitError.value = null
 
     const apiData = transformFormDataToApiFormat(formData.value)
-    await editDeploymentMutation.mutateAsync({
+    await editDeploymentMut.mutateAsync({
       path: { deployment_id: labId as string },
       body: apiData
     })
@@ -361,7 +355,7 @@ window.addEventListener('beforeunload', (e) => {
 
 <template>
   <div class="flex flex-col w-full items-center gap-24 max-w-320">
-    <Tab v-model="activeTab" class="w-full" default-value="info">
+    <Tabs v-model="activeTab" class="w-full" default-value="info">
       <div class="w-full flex items-center justify-between gap-4">
         <div class="flex-1 flex">
           <TabsList
@@ -452,7 +446,7 @@ window.addEventListener('beforeunload', (e) => {
           />
         </TabsContent>
       </div>
-    </Tab>
+    </Tabs>
 
     <UnsavedChangesModal
       :open="showUnsavedChangesModal"

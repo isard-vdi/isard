@@ -4,12 +4,12 @@ import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import {
-  getUserApiV4ItemUserGetOptions,
-  getUserDetailsApiV4ItemUserGetDetailsGetOptions,
-  getUserConfigApiV4ItemUserGetConfigGetOptions,
-  getProviderExportEnabledApiV4AuthenticationExportProviderIdGetOptions,
-  getProviderImportEnabledApiV4AuthenticationImportProviderIdGetOptions,
-  getUserVpnApiV4ItemUserGetVpnGetOptions
+  getUserOptions,
+  getUserDetailsOptions,
+  getUserConfigOptions,
+  getProviderExportEnabledOptions,
+  getProviderImportEnabledOptions,
+  getUserVpnOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,7 @@ import ApiKeyModal from '@/components/profile/ApiKeyModal.vue'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
 import ImportUserModal from '@/components/profile/ImportUserModal.vue'
 import PasswordModal from '@/components/profile/PasswordModal.vue'
-import { userResetVpnApiV4ItemUserResetVpnPutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { userResetVpnMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { useMutation } from '@tanstack/vue-query'
 import profileImg from '@/assets/img/profile-img.svg'
 import QuotaModal from '@/components/profile/QuotaModal.vue'
@@ -31,22 +31,22 @@ import QuotaModal from '@/components/profile/QuotaModal.vue'
 const { t } = useI18n()
 
 const { data: userConfig } = useQuery({
-  ...getUserConfigApiV4ItemUserGetConfigGetOptions(),
+  ...getUserConfigOptions(),
   staleTime: Infinity
 })
 
 const { isPending: isUserLoading, data: user } = useQuery({
-  ...getUserApiV4ItemUserGetOptions(),
+  ...getUserOptions(),
   staleTime: Infinity
 })
 
 const { isPending: isUserDetailsLoading, data: userDetails } = useQuery({
-  ...getUserDetailsApiV4ItemUserGetDetailsGetOptions()
+  ...getUserDetailsOptions()
 })
 
 const { data: exportEnabled } = useQuery(
   computed(() => ({
-    ...getProviderExportEnabledApiV4AuthenticationExportProviderIdGetOptions({
+    ...getProviderExportEnabledOptions({
       path: { provider_id: userDetails.value?.provider || 'local' }
     }),
     enabled: !!userDetails.value?.provider
@@ -55,7 +55,7 @@ const { data: exportEnabled } = useQuery(
 
 const { data: importEnabled } = useQuery(
   computed(() => ({
-    ...getProviderImportEnabledApiV4AuthenticationImportProviderIdGetOptions({
+    ...getProviderImportEnabledOptions({
       path: { provider_id: userDetails.value?.provider || 'local' }
     }),
     enabled: !!userDetails.value?.provider
@@ -63,7 +63,7 @@ const { data: importEnabled } = useQuery(
 )
 
 const { refetch: refetchUserVpn, isFetching: userVpnIsFetching } = useQuery({
-  ...getUserVpnApiV4ItemUserGetVpnGetOptions(),
+  ...getUserVpnOptions(),
   enabled: false
 })
 
@@ -141,9 +141,7 @@ onMounted(() => {
   }
 })
 const legacyExportHref = '/export-user' // TODO: redo this page in this frontend and use router link
-const { mutate: resetVpn, isPending: isResettingVpn } = useMutation(
-  userResetVpnApiV4ItemUserResetVpnPutMutation()
-)
+const { mutate: resetVpn, isPending: isResettingVpn } = useMutation(userResetVpnMutation())
 
 const handleResetVpn = () => {
   resetVpn(

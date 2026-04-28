@@ -15,9 +15,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/vue-query'
 import {
-  getAllowedHardwareApiV4ItemUserGetAllowedHardwareGetOptions,
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions
+  getAllowedHardwareOptions,
+  getTemplateInfoOptions,
+  getDesktopInfoOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   Select,
@@ -85,7 +85,7 @@ const {
   error: templateError,
   data: templateData
 } = useQuery({
-  ...getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions({
+  ...getTemplateInfoOptions({
     path: {
       template_id: props.templateId!
     }
@@ -99,7 +99,7 @@ const {
   error: desktopError,
   data: desktopData
 } = useQuery({
-  ...getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  ...getDesktopInfoOptions({
     path: {
       desktop_id: props.desktopId!
     }
@@ -238,7 +238,7 @@ const {
   isPending: userAllowedHardwareLoading,
   error: userAllowedHardwareError,
   data: userAllowedHardware
-} = useQuery(getAllowedHardwareApiV4ItemUserGetAllowedHardwareGetOptions())
+} = useQuery(getAllowedHardwareOptions())
 
 const diskBusOptions = computed(() => userAllowedHardware.value?.disk_bus || [])
 const videosOptions = computed(() => userAllowedHardware.value?.videos || [])

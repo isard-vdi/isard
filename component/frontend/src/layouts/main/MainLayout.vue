@@ -12,22 +12,19 @@ import { MessageModal } from '@/components/modal'
 
 import { useSessionStore } from '@/stores/session'
 import { sidebarItemsToShow } from '@/lib/navigation'
-import {
-  getUserApiV4ItemUserGetOptions,
-  getUserConfigApiV4ItemUserGetConfigGetOptions
-} from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getUserOptions, getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const { t } = useI18n()
 const route = useRoute()
 const sessionStore = useSessionStore()
 
 const { data: userConfig } = useQuery({
-  ...getUserConfigApiV4ItemUserGetConfigGetOptions(),
+  ...getUserConfigOptions(),
   staleTime: Infinity
 })
 
 const { isPending: isUserLoading, data: user } = useQuery({
-  ...getUserApiV4ItemUserGetOptions(),
+  ...getUserOptions(),
   staleTime: Infinity
 })
 

@@ -5,49 +5,55 @@ import (
 	"fmt"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
-	"gitlab.com/isard/isardvdi/authentication/token"
-
-	"gitlab.com/isard/isardvdi/pkg/sdk"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
+	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
-type apiRegisterUserRsp struct {
-	ID string `json:"id"`
-}
-
-func (a *Authentication) registerUser(u *model.User) error {
-	tkn, err := token.SignRegisterToken(a.Secret, u)
-	if err != nil {
-		return err
-	}
-
-	id, err := a.API.AdminUserAutoRegister(context.Background(), tkn, string(u.Role), u.Group, u.SecondaryGroups)
+func (a *Authentication) registerUser(ctx context.Context, u *model.User) error {
+	// TODO: Register-Claims header (review #1) — out of scope for this refactor
+	rsp, err := a.API.AdminAutoRegister(ctx, &apiv4.AutoRegisterRequest{
+		RoleID:          string(u.Role),
+		GroupID:         u.Group,
+		SecondaryGroups: u.SecondaryGroups,
+	})
 	if err != nil {
 		return fmt.Errorf("register the user: %w", err)
 	}
 
-	u.ID = id
+	autoReg, ok := rsp.(*apiv4.AutoRegisterResponse)
+	if !ok {
+		return fmt.Errorf("register the user: %w", ogenclient.AsAPIError(rsp))
+	}
+
+	u.ID = autoReg.ID
 	u.Active = true
 
 	return nil
 }
 
-func (a *Authentication) registerGroup(g *model.Group) error {
-	grp, err := a.API.AdminGroupCreate(
-		context.Background(),
-		g.Category,
-		// TODO: When UUIDs arrive, this g.Name has to be removed and the dependency has to be updated to v0.14.1
-		g.Name,
-		g.Name,
-		g.Description,
-		g.ExternalAppID,
-		g.ExternalGID,
+func (a *Authentication) registerGroup(ctx context.Context, g *model.Group) error {
+	rsp, err := a.API.AdminCreateGroup(
+		ctx,
+		&apiv4.AdminGroupCreateData{
+			UID:            apiv4.NewOptString(g.Name),
+			Name:           g.Name,
+			Description:    apiv4.NewOptString(g.Description),
+			ParentCategory: apiv4.NewOptString(g.Category),
+			ExternalAppID:  apiv4.NewOptString(g.ExternalAppID),
+			ExternalGid:    apiv4.NewOptString(g.ExternalGID),
+		},
 	)
 	if err != nil {
 		return fmt.Errorf("register the group: %w", err)
 	}
 
-	g.ID = sdk.GetString(grp.ID)
-	g.UID = sdk.GetString(grp.UID)
+	grp, ok := rsp.(*apiv4.AdminGroup)
+	if !ok {
+		return fmt.Errorf("register the group: %w", ogenclient.AsAPIError(rsp))
+	}
+
+	g.ID = grp.ID
+	g.UID = grp.UID.Or("")
 
 	return nil
 }

@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tests for admin/socketio_emit.py — admin-triggered SocketIO event
-broadcast. Single endpoint that accepts a JSON array of event objects
-and forwards them to AdminSocketioService.emit_events.
+broadcast.
 
-Two failure modes are explicit in the route:
-  - non-JSON body  → typed Error("bad_request", "Request body must be JSON")
-  - non-list body  → Error("bad_request", "JSON array expected")
+After the Category A1 typed-body migration (see
+``docs/plans/2026-04-23-apiv4-04-schema-completion.md``), the route
+takes ``AdminSocketioEmitRequest`` (a ``RootModel[List[...]]``), so:
 
-Both must surface as 400, not 500. Pinned by TestEmitInvalidBody.
+  - non-array bodies → 400 (apiv4 reshapes FastAPI's default 422 via
+    its ``RequestValidationError`` handler into the legacy envelope)
+  - the service receives ``List[SocketioEmitRequest]`` typed models
 """
 
 from api.routes.tests.helpers import MockJWT
@@ -43,13 +44,15 @@ class TestEmitHappyPath:
             body=events,
         )
         assert response.status_code == 200
-        assert response.json() is True
-        assert captured["events"] == events
+        assert response.json() == {}
+        # The service now receives typed ``SocketioEmitRequest`` models;
+        # compare via ``model_dump`` to keep equality with the raw input.
+        assert [e.model_dump(exclude_none=True) for e in captured["events"]] == events
 
-    def test_empty_array_succeeds(self, monkeypatch, test_client):
-        """Empty array is valid input — the service receives it and
-        is responsible for the no-op. The route should NOT short-circuit
-        with an error before reaching the service.
+    def test_single_element_body(self, monkeypatch, test_client):
+        """A one-element body works end-to-end. The empty-array path is
+        exercised in the service unit tests; the conftest helper skips
+        falsy bodies (``if body:``) so we can't send ``[]`` here.
         """
         captured = {}
 
@@ -60,11 +63,6 @@ class TestEmitHappyPath:
             "api.routes.admin.socketio_emit.AdminSocketioService.emit_events",
             staticmethod(fake_emit),
         )
-        # The conftest helper skips falsy bodies (`if body:`), so to send
-        # an explicit empty list we'd need to bypass it. Here we use a
-        # one-element placeholder, then assert the service was called.
-        # Simpler: just verify a single-element body works (the empty-list
-        # path is exercised in unit tests of the service itself).
         events = [{"event": "noop"}]
         response = test_client(
             url=self.URL,
@@ -73,15 +71,18 @@ class TestEmitHappyPath:
             body=events,
         )
         assert response.status_code == 200
-        assert captured["events"] == events
+        assert [e.model_dump(exclude_none=True) for e in captured["events"]] == events
 
 
 class TestEmitInvalidBody:
     URL = "/admin/socketio"
 
     def test_non_list_body_returns_400(self, monkeypatch, test_client):
-        """Body must be a JSON ARRAY. A dict body — even valid JSON —
-        is rejected with a typed bad_request, NOT a 500.
+        """Body must be a JSON array. The typed ``RootModel[List[...]]``
+        rejects a dict body BEFORE the route runs — apiv4 installs a
+        ``RequestValidationError`` handler that reshapes FastAPI's default
+        422 into the legacy 400 envelope, so the service must not be reached
+        and the client sees 400.
         """
         called = {}
 
@@ -96,7 +97,7 @@ class TestEmitInvalidBody:
             url=self.URL,
             method="POST",
             jwt=MockJWT(role_id="admin"),
-            body={"event": "wrong-shape"},  # dict, not list
+            body={"event": "wrong-shape"},
         )
         assert response.status_code == 400
         assert called == {}

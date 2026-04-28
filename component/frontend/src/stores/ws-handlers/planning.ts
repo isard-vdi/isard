@@ -3,7 +3,7 @@ import { QueryClient } from '@tanstack/vue-query'
 // Invalidate-only pattern: payload is ignored — we refetch to match Vue 2 behavior.
 const invalidatePlanningQueries = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({
-    queryKey: ['getItemPlansApiV4ItemReservablesPlannerByItemItemIdGet']
+    queryKey: ['getItemPlans']
   })
 }
 

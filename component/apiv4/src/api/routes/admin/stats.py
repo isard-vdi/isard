@@ -32,6 +32,15 @@
 import traceback
 
 from api import admin_router
+from api.schemas.admin_stats import (
+    StatsCategoriesDeploymentsResponse,
+    StatsCategoriesResponse,
+    StatsDomainsStatusResponse,
+    StatsKindDesktop,
+    StatsKindHypervisor,
+    StatsKindTemplate,
+    StatsKindUser,
+)
 from api.schemas.common import ErrorResponse
 from api.services.admin_stats import AdminStatsService
 from api.services.error import Error
@@ -93,6 +102,7 @@ async def stats_desktops_status(request: Request):
 @admin_router.get(
     "/stats/domains/status",
     tags=[tag],
+    response_model=StatsDomainsStatusResponse,
     summary="Get domains status statistics",
     description="Returns domain statistics grouped by kind and status.",
     responses={500: {"model": ErrorResponse}},
@@ -100,7 +110,10 @@ async def stats_desktops_status(request: Request):
 async def stats_domains_status(request: Request):
     try:
         result = AdminStatsService.get_domains_status()
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=StatsDomainsStatusResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -143,6 +156,7 @@ async def stats_category_status(request: Request):
 @admin_router.get(
     "/stats/categories",
     tags=[tag],
+    response_model=StatsCategoriesResponse,
     summary="Get grouped category statistics",
     description="Returns comprehensive statistics grouped by categories.",
     responses={500: {"model": ErrorResponse}},
@@ -150,7 +164,10 @@ async def stats_category_status(request: Request):
 async def stats_categories(request: Request):
     try:
         result = {"category": AdminStatsService.get_group_by_categories()}
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=StatsCategoriesResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -187,6 +204,7 @@ async def stats_categories_limits(request: Request):
 @admin_router.get(
     "/stats/categories/deployments",
     tags=[tag],
+    response_model=StatsCategoriesDeploymentsResponse,
     summary="Get category deployments statistics",
     description="Returns deployment counts grouped by category.",
     responses={500: {"model": ErrorResponse}},
@@ -194,7 +212,12 @@ async def stats_categories_limits(request: Request):
 async def stats_categories_deployments(request: Request):
     try:
         result = {"categories": AdminStatsService.get_categories_deployments()}
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=StatsCategoriesDeploymentsResponse(**result).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -251,31 +274,110 @@ async def stats_categories_kind(request: Request, kind: str):
 
 
 # -----------------------------------------------------------------------------
-# /stats/{kind} — catch-all; MUST come after every literal /stats/<name> above
+# Per-kind stats routes (replacing the former /stats/{kind} catch-all)
 # -----------------------------------------------------------------------------
 
 
 @admin_router.get(
-    "/stats/{kind}",
+    "/stats/users",
     tags=[tag],
-    summary="Get statistics by kind",
-    description="Returns statistics for the specified kind (users, desktops, templates, hypervisors).",
-    responses={
-        400: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
-    },
+    response_model=list[StatsKindUser],
+    summary="Get user statistics",
+    description="Returns a list of all users with their role, category and group.",
+    responses={500: {"model": ErrorResponse}},
 )
-async def stats_kind(request: Request, kind: str):
+async def stats_users(request: Request):
     try:
-        result = AdminStatsService.get_kind(kind)
-        return JSONResponse(content=result, status_code=200)
+        result = AdminStatsService.get_kind("users")
+        return JSONResponse(
+            content=[StatsKindUser(**u).model_dump(mode="json") for u in result],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
         raise await Error.create(
             request,
             "internal_server",
-            "Failed to get statistics by kind",
+            "Failed to get user statistics",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/stats/desktops",
+    tags=[tag],
+    response_model=list[StatsKindDesktop],
+    summary="Get desktop statistics",
+    description="Returns a list of all desktops with their owning user.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def stats_desktops(request: Request):
+    try:
+        result = AdminStatsService.get_kind("desktops")
+        return JSONResponse(
+            content=[StatsKindDesktop(**d).model_dump(mode="json") for d in result],
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get desktop statistics",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/stats/templates",
+    tags=[tag],
+    response_model=list[StatsKindTemplate],
+    summary="Get template statistics",
+    description="Returns a list of all template IDs.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def stats_templates(request: Request):
+    try:
+        result = AdminStatsService.get_kind("templates")
+        return JSONResponse(
+            content=[StatsKindTemplate(**t).model_dump(mode="json") for t in result],
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get template statistics",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/stats/hypervisors",
+    tags=[tag],
+    response_model=list[StatsKindHypervisor],
+    summary="Get hypervisor statistics",
+    description="Returns a list of all hypervisors with their status and only_forced flag.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def stats_hypervisors(request: Request):
+    try:
+        result = AdminStatsService.get_kind("hypervisors")
+        return JSONResponse(
+            content=[StatsKindHypervisor(**h).model_dump(mode="json") for h in result],
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get hypervisor statistics",
             traceback.format_exc(),
         )
 

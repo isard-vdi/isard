@@ -18,11 +18,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
+import traceback
 
 from api.dependencies.jwt_token import TokenFastAPI
 from api.services.config import ConfigService
 from api.services.error import Error
-from isardvdi_common.connections.api_authentication import generate_migrate_user_token
+from isardvdi_authentication_client.api.default import migrate_user
+from isardvdi_authentication_client.models import MigrateUserRequest
+from isardvdi_authentication_client_auth import build_client, raise_for_status
 from isardvdi_common.lib.users.users.user import UsersProcessed as CommonUser
 from isardvdi_common.lib.users.users.user_migrations import UserMigrationsProcessed
 from isardvdi_common.models.config import Config
@@ -54,7 +57,22 @@ class MigrationService:
                 description_code="migration_no_items_available",
             )
 
-        token = generate_migrate_user_token(user_id)["token"]
+        try:
+            with build_client("isard-apiv4") as client:
+                resp = migrate_user.sync_detailed(
+                    client=client, body=MigrateUserRequest(user_id=user_id)
+                )
+                raise_for_status(resp)
+                token = resp.parsed.token
+        except Error:
+            raise
+        except Exception:
+            raise Error(
+                "internal_server",
+                "Unable to connect with isard-authentication to get migration token",
+                traceback.format_exc(),
+                description_code="generic-error",
+            )
         UserMigrationsProcessed.register_migration(token, user_id)
         return token
 
@@ -107,6 +125,8 @@ class MigrationService:
                         "description_code": "multiple_migrations_found_target_user",
                     }
                 ]
+            else:
+                raise
             raise Error(
                 "precondition_required",
                 description=errors[0]["description"],

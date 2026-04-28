@@ -193,6 +193,7 @@ async def get_reservable_item(
     response_model=AvailableReservablesResponse,
     summary="Get booking reservables available",
     description="Returns available reservables for booking.",
+    operation_id="get_reservables_available",
 )
 async def get_booking_reservables_available(request: Request):
     try:

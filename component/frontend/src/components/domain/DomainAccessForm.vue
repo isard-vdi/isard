@@ -16,8 +16,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/vue-query'
 import {
-  getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions
+  getTemplateInfoOptions,
+  getDesktopInfoOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { Switch } from '@/components/ui/switch'
 import { Icon } from '@/components/icon'
@@ -116,7 +116,7 @@ const {
   error: templateError,
   data: templateData
 } = useQuery({
-  ...getTemplateInfoApiV4ItemTemplateTemplateIdGetInfoGetOptions({
+  ...getTemplateInfoOptions({
     path: {
       template_id: props.templateId!
     }
@@ -130,7 +130,7 @@ const {
   error: desktopError,
   data: desktopData
 } = useQuery({
-  ...getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  ...getDesktopInfoOptions({
     path: {
       desktop_id: props.desktopId!
     }

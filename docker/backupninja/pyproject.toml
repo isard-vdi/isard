@@ -3,6 +3,7 @@ name = "isardvdi-backupninja"
 version = "0.0.0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+  "isardvdi-apiv4-client",
   "isardvdi-common",
   "pyjwt==2.10.1",
   "requests==2.32.4",

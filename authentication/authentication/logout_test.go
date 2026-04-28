@@ -10,10 +10,10 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -161,7 +161,7 @@ func TestLogout(t *testing.T) {
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
-			apiMock := sdk.NewMockSdk(t)
+			apiMock := apiv4.NewMockInvoker(t)
 			dbMock := r.NewMock()
 			dbMock.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 			dbMock.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import type { UserDesktop } from '@/gen/oas/apiv4/'
+import type { ApiSchemasDomainsDesktopsUserDesktop as UserDesktop } from '@/gen/oas/apiv4/'
 
 import { DesktopCardHeaderActionsDropdownContent } from '..'
 import { Button } from '@/components/ui/button'

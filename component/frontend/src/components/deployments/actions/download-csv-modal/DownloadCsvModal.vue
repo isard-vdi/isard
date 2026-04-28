@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
-import { getDeploymentCsvApiV4ItemDeploymentDeploymentIdDownloadCsvGet } from '@/gen/oas/apiv4'
+import { getDeploymentCsv } from '@/gen/oas/apiv4'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/modal'
 import { CheckboxGroup } from '@/components/checkbox-group'
@@ -31,7 +31,7 @@ const { mutate: fetchDownloadCsv, isPending: downloadCsvIsPending } = useMutatio
     path: { deployment_id: string }
     query: { regenerate: boolean }
   }) => {
-    const { data } = await getDeploymentCsvApiV4ItemDeploymentDeploymentIdDownloadCsvGet(params)
+    const { data } = await getDeploymentCsv(params)
     if (!data) throw new Error('No data received')
     return data
   },

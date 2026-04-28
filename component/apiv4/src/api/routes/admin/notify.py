@@ -3,12 +3,14 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
 import traceback
-from typing import List
 
 from api import admin_router
-from api.schemas.admin_notify import NotifyDesktopRequest, NotifyUserDesktopRequest
+from api.schemas.admin_notify import (
+    AdminNotifyDesktopsQueueRequest,
+    NotifyDesktopRequest,
+    NotifyUserDesktopRequest,
+)
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin_notify import AdminNotifyService
 from api.services.error import Error
@@ -84,13 +86,13 @@ async def admin_notify_desktop(request: Request, data: NotifyDesktopRequest):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_notify_desktop_queue(request: Request, hyp_id: str):
+async def admin_notify_desktop_queue(
+    request: Request,
+    hyp_id: str,
+    data: AdminNotifyDesktopsQueueRequest,
+):
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        AdminNotifyService.notify_desktop_queue(data, hyp_id)
+        AdminNotifyService.notify_desktop_queue(data.root, hyp_id)
         return JSONResponse(content={}, status_code=200)
     except Error:
         raise

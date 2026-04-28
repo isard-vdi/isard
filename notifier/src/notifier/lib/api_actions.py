@@ -20,22 +20,24 @@
 
 import traceback
 
-from isardvdi_common.connections.api_rest import ApiRest
+from isardvdi_apiv4_client.api.role_admin import (
+    admin_get_user_by_email_category,
+    admin_preview_notification_template,
+    admin_smtp_enabled_get,
+)
+from isardvdi_apiv4_client.api.role_manager import admin_get_user
+from isardvdi_apiv4_client.models import TemplatePreviewRequest
+from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 from isardvdi_common.helpers.api_exceptions_flask import Error
-
-api_client = ApiRest("isard-apiv4")
 
 
 def get_user(user_id):
     try:
-        # apiv4 has /item/user (self-only) and /admin/user/<id>. The
-        # notifier runs with a service JWT carrying the admin role, so
-        # /admin/user/<id> is the right endpoint for fetching any user.
-        user = api_client.get(
-            "/admin/user/" + user_id,
-        )
-        return user
-    except:
+        with build_client("isard-notifier") as client:
+            resp = admin_get_user.sync_detailed(client=client, user_id=user_id)
+            raise_for_status(resp)
+            return resp.parsed
+    except (ApiV4Error, Exception):
         raise Error(
             "internal_server",
             "Exception when retrieving user data from user" + user_id,
@@ -45,11 +47,13 @@ def get_user(user_id):
 
 def get_user_by_email_and_category(email, category):
     try:
-        user_id = api_client.get(
-            "/admin/user/email-category/" + email + "/" + category,
-        )["id"]
-        return user_id
-    except:
+        with build_client("isard-notifier") as client:
+            resp = admin_get_user_by_email_category.sync_detailed(
+                client=client, email=email, category=category
+            )
+            raise_for_status(resp)
+            return resp.parsed["id"]
+    except (ApiV4Error, Exception):
         raise Error(
             "internal_server",
             "Exception when retrieving user data from user",
@@ -59,13 +63,17 @@ def get_user_by_email_and_category(email, category):
 
 def get_notification_message(data):
     try:
-        # v3 used PUT /admin/notifications/template to render a template;
-        # v4 split CRUD (POST/DELETE /admin/notifications/template) from
-        # the render operation and moved the latter to
-        # PUT /admin/notifications/template/preview.
-        message = api_client.put("/admin/notifications/template/preview", data)
-        return message
-    except:
+        body = TemplatePreviewRequest(event=data["event"])
+        for k, v in data.items():
+            if k != "event":
+                body[k] = v
+        with build_client("isard-notifier") as client:
+            resp = admin_preview_notification_template.sync_detailed(
+                client=client, body=body
+            )
+            raise_for_status(resp)
+            return resp.parsed
+    except (ApiV4Error, Exception):
         raise Error(
             "internal_server",
             "Exception when retrieving notification template",
@@ -74,4 +82,7 @@ def get_notification_message(data):
 
 
 def is_smtp_enabled():
-    return api_client.get("/smtp/enabled")
+    with build_client("isard-notifier") as client:
+        resp = admin_smtp_enabled_get.sync_detailed(client=client)
+        raise_for_status(resp)
+        return resp.parsed

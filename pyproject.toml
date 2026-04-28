@@ -7,6 +7,10 @@ requires-python = ">=3.13,<3.14"
 [tool.uv.workspace]
 members = [
   "component/_common",
+  "component/_common/isardvdi_apiv4_client",
+  "component/_common/isardvdi_authentication_client",
+  "component/_common/isardvdi_notifier_client",
+  "component/_common/isardvdi_scheduler_client",
   "component/apiv4",
   "component/changefeed",
   "component/change-handler",
@@ -32,6 +36,10 @@ members = [
 isardvdi-common = { workspace = true }
 isardvdi-protobuf = { workspace = true }
 isardvdi-changefeed-asyncapi = { workspace = true }
+isardvdi-apiv4-client = { workspace = true }
+isardvdi-authentication-client = { workspace = true }
+isardvdi-notifier-client = { workspace = true }
+isardvdi-scheduler-client = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -49,6 +57,9 @@ constraint-dependencies = [
   "pytest-cov==6.2.1",
   "pytest-xdist==3.6.1",
   "httpx==0.28.1",
+]
+override-dependencies = [
+  "attrs>=23",
 ]
 
 [tool.black]

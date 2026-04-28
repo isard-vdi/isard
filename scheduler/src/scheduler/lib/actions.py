@@ -18,7 +18,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
 import string
 import time
 
@@ -42,10 +41,44 @@ from datetime import datetime, timedelta
 
 BATCH_SIZE = 50000
 
+from isardvdi_apiv4_client.api.role_admin import (
+    admin_delete_old_tasks_auto,
+    admin_logs_desktops_delete,
+    admin_logs_users_delete,
+    admin_notify_desktop,
+    admin_notify_user_desktop,
+    admin_usage_consolidate,
+    convert_storage,
+    delete_cutoff_time_surpassed,
+    delete_old_entries,
+    move_storage_by_path,
+    recycle_bin_add_unused_items,
+    retry_all_failed_tasks,
+    rsync_storage_to_path,
+)
+from isardvdi_apiv4_client.api.role_advanced import (
+    increase_storage_size,
+    stop_all_desktops_in_deployment,
+)
+from isardvdi_apiv4_client.api.role_user import (
+    delete_desktop,
+    delete_expired_notifications,
+    stop_desktop,
+)
+from isardvdi_apiv4_client.models import (
+    NotifyDesktopRequest,
+    NotifyDesktopRequestParams,
+    NotifyUserDesktopRequest,
+    NotifyUserDesktopRequestParams,
+    StorageConvertRequest,
+    StorageMoveByPathRequest,
+    StorageRsyncToPathRequest,
+)
+from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
+
 from .api_client import ApiClient
 from .exceptions import Error
 
-api_client = ApiClient("api")
 engine_client = ApiClient("engine")
 scheduler_client = ApiClient("scheduler")
 
@@ -88,32 +121,38 @@ class Actions:
         return []
 
     def consolidate_consumptions():
-        api_client.put(
-            "/admin/usage/consolidate",
-            {},
-        )
+        with build_client("isard-scheduler") as client:
+            resp = admin_usage_consolidate.sync_detailed(client=client)
+            raise_for_status(resp)
 
     def desktop_notify(**kwargs):
         # Send to frontend
-        api_client.post(
-            "/admin/notify/user/desktop",
-            {
-                "user_id": kwargs["user_id"],
-                "type": kwargs["msg"]["type"],
-                "msg_code": kwargs["msg"]["msg_code"],
-                "params": kwargs["msg"]["params"],
-            },
-        )
+        with build_client("isard-scheduler") as client:
+            resp = admin_notify_user_desktop.sync_detailed(
+                client=client,
+                body=NotifyUserDesktopRequest(
+                    user_id=kwargs["user_id"],
+                    type_=kwargs["msg"]["type"],
+                    msg_code=kwargs["msg"]["msg_code"],
+                    params=NotifyUserDesktopRequestParams.from_dict(
+                        kwargs["msg"]["params"]
+                    ),
+                ),
+            )
+            raise_for_status(resp)
 
-        api_client.post(
-            "/admin/notify/desktop",
-            {
-                "desktop_id": kwargs["desktop_id"],
-                "type": kwargs["msg"]["type"],
-                "msg_code": kwargs["msg"]["msg_code"],
-                "params": kwargs["msg"]["params"],
-            },
-        )
+            resp = admin_notify_desktop.sync_detailed(
+                client=client,
+                body=NotifyDesktopRequest(
+                    desktop_id=kwargs["desktop_id"],
+                    type_=kwargs["msg"]["type"],
+                    msg_code=kwargs["msg"]["msg_code"],
+                    params=NotifyDesktopRequestParams.from_dict(
+                        kwargs["msg"]["params"]
+                    ),
+                ),
+            )
+            raise_for_status(resp)
 
         # Send to QMP
         engine_client.post(
@@ -132,10 +171,11 @@ class Actions:
 
     def desktop_stop(**kwargs):
         try:
-            # v4 moved /item/desktop/{id}/stop from GET to PUT during the
-            # verb normalisation. GET still reaches the FastAPI router
-            # but returns 405 Method Not Allowed.
-            api_client.put("/item/desktop/" + kwargs["desktop_id"] + "/stop")
+            with build_client("isard-scheduler") as client:
+                resp = stop_desktop.sync_detailed(
+                    client=client, desktop_id=kwargs["desktop_id"]
+                )
+                raise_for_status(resp)
         except:
             log.error(
                 "Exception when stopping desktop "
@@ -376,8 +416,14 @@ class Actions:
 
         for domain_id in domains_ids:
             try:
-                answer = api_client.put("/item/desktop/" + domain_id + "/stop")
-                log.debug("-> Stopping domain " + domain_id + ": " + str(answer))
+                with build_client("isard-scheduler") as client:
+                    resp = stop_desktop.sync_detailed(
+                        client=client, desktop_id=domain_id
+                    )
+                    raise_for_status(resp)
+                    log.debug(
+                        "-> Stopping domain " + domain_id + ": " + str(resp.parsed)
+                    )
             except:
                 log.error(
                     "Exception when stopping domain "
@@ -471,15 +517,17 @@ class Actions:
                 ).run(db.conn)
             if not kwargs["booking_id"]:
                 try:
-                    answer = api_client.put(
-                        "/item/deployment/" + kwargs["item_id"] + "/stop"
-                    )
-                    log.debug(
-                        "-> Stopping deployment "
-                        + kwargs["item_id"]
-                        + " desktops: "
-                        + str(answer)
-                    )
+                    with build_client("isard-scheduler") as client:
+                        resp = stop_all_desktops_in_deployment.sync_detailed(
+                            client=client, deployment_id=kwargs["item_id"]
+                        )
+                        raise_for_status(resp)
+                        log.debug(
+                            "-> Stopping deployment "
+                            + kwargs["item_id"]
+                            + " desktops: "
+                            + str(resp.parsed)
+                        )
                 except:
                     log.error(
                         "Exception when stopping deployment "
@@ -495,12 +543,17 @@ class Actions:
                 ).run(db.conn)
             if not kwargs["booking_id"]:
                 try:
-                    answer = api_client.put(
-                        "/item/desktop/" + kwargs["item_id"] + "/stop"
-                    )
-                    log.debug(
-                        "-> Stopping desktop " + kwargs["item_id"] + ": " + str(answer)
-                    )
+                    with build_client("isard-scheduler") as client:
+                        resp = stop_desktop.sync_detailed(
+                            client=client, desktop_id=kwargs["item_id"]
+                        )
+                        raise_for_status(resp)
+                        log.debug(
+                            "-> Stopping desktop "
+                            + kwargs["item_id"]
+                            + ": "
+                            + str(resp.parsed)
+                        )
                 except:
                     log.error(
                         "Exception when stopping desktop "
@@ -510,11 +563,15 @@ class Actions:
                     )
 
     def recycle_bin_cutoff_time_system_delete():
-        api_client.delete("/items/recycle-bin/cutoff-time-surpassed")
+        with build_client("isard-scheduler") as client:
+            resp = delete_cutoff_time_surpassed.sync_detailed(client=client)
+            raise_for_status(resp)
 
     def send_unused_items_to_recycle_bin(**kwargs):
         try:
-            api_client.post("/recycle-bin/unused-items")
+            with build_client("isard-scheduler") as client:
+                resp = recycle_bin_add_unused_items.sync_detailed(client=client)
+                raise_for_status(resp)
         except:
             log.error(
                 "Exception when sending to recycle bin unused items: "
@@ -523,18 +580,14 @@ class Actions:
 
     def delete_expired_notifications_data(**kwargs):
         try:
-            api_client.delete("/items/notifications/expired")
+            with build_client("isard-scheduler") as client:
+                resp = delete_expired_notifications.sync_detailed(client=client)
+                raise_for_status(resp)
         except:
             log.error(
                 "Exception when deleting expired notifications: "
                 + traceback.format_exc()
             )
-
-    def recycle_bin_delete_admin(**kwargs):
-        max_delete_period = int(kwargs.get("max_delete_period"))
-        api_client.put(
-            "/items/recycle-bin/delete", {"max_delete_period": max_delete_period}
-        )
 
     # def recycle_bin_old_entries_action_archive(**kwargs):
     #     return []
@@ -546,61 +599,88 @@ class Actions:
         return []
 
     def recycle_bin_old_entries_action_delete(**kwargs):
-        api_client.put("/item/recycle-bin/old-entries/delete")
+        with build_client("isard-scheduler") as client:
+            resp = delete_old_entries.sync_detailed(client=client)
+            raise_for_status(resp)
 
     def wait_desktops_to_do_storage_action_kwargs(**kwargs):
         return []
 
     def wait_desktops_to_do_storage_action(**kwargs):
-        response = {}
+        response = None
         try:
-            if kwargs["action"] == "move":
-                if kwargs.get("rsync"):
-                    response = api_client.put(
-                        f"/item/storage/{kwargs['storage_id']}/rsync/to-path",
-                        {
-                            "destination_path": kwargs["destination_path"],
-                            "priority": kwargs["priority"],
-                        },
+            with build_client("isard-scheduler") as client:
+                if kwargs["action"] == "move":
+                    if kwargs.get("rsync"):
+                        resp = rsync_storage_to_path.sync_detailed(
+                            client=client,
+                            storage_id=kwargs["storage_id"],
+                            body=StorageRsyncToPathRequest(
+                                destination_path=kwargs["destination_path"],
+                                priority=kwargs["priority"],
+                            ),
+                        )
+                    else:
+                        resp = move_storage_by_path.sync_detailed(
+                            client=client,
+                            storage_id=kwargs["storage_id"],
+                            body=StorageMoveByPathRequest(
+                                dest_path=kwargs["destination_path"],
+                                priority=kwargs["priority"],
+                            ),
+                        )
+                elif kwargs["action"] == "virt_win_reg":
+                    # ---------------------------------------------------------
+                    # Deliberate escape hatch.
+                    #
+                    # The apiv4 endpoint PUT /item/storage/{id}/virt-win-reg/
+                    # priority/{priority} declares StorageVirtWinRegRequest
+                    # (with a required `registry_patch` field) as its body.
+                    # The scheduler path has never carried a patch payload —
+                    # it only schedules the priority change — so the typed
+                    # method virt_win_reg_storage.sync_detailed() cannot be
+                    # called without fabricating a payload the server will
+                    # later have to reject or misinterpret.
+                    #
+                    # Do not migrate to the typed client without first
+                    # splitting the endpoint (or making the body optional
+                    # with a documented semantics for the no-body case).
+                    # ---------------------------------------------------------
+                    resp = client.get_httpx_client().request(
+                        "put",
+                        f"/api/v4/item/storage/{kwargs['storage_id']}/virt-win-reg/priority/{kwargs['priority']}",
+                    )
+                elif kwargs["action"] == "convert":
+                    resp = convert_storage.sync_detailed(
+                        client=client,
+                        storage_id=kwargs["storage_id"],
+                        body=StorageConvertRequest(
+                            new_storage_type=kwargs["new_storage_type"],
+                            new_storage_status=kwargs.get(
+                                "new_storage_status", "downloadable"
+                            ),
+                            compress=bool(kwargs.get("compress")),
+                            priority=kwargs["priority"],
+                        ),
+                    )
+                elif kwargs["action"] == "increase":
+                    resp = increase_storage_size.sync_detailed(
+                        client=client,
+                        storage_id=kwargs["storage_id"],
+                        priority=kwargs["priority"],
+                        increment=kwargs["increment"],
                     )
                 else:
-                    response = api_client.put(
-                        f"/item/storage/{kwargs['storage_id']}/move/by-path",
-                        {
-                            "dest_path": kwargs["destination_path"],
-                            "priority": kwargs["priority"],
-                        },
-                    )
-            elif kwargs["action"] == "virt_win_reg":
-                response = api_client.put(
-                    f"/item/storage/{kwargs['storage_id']}/virt-win-reg/priority/{kwargs['priority']}"
-                )
-            elif kwargs["action"] == "convert":
-                response = api_client.post(
-                    f"/item/storage/{kwargs['storage_id']}/convert",
-                    {
-                        "new_storage_type": kwargs["new_storage_type"],
-                        "new_storage_status": kwargs.get(
-                            "new_storage_status", "downloadable"
-                        ),
-                        "compress": bool(kwargs.get("compress")),
-                        "priority": kwargs["priority"],
-                    },
-                )
-            elif kwargs["action"] == "increase":
-                response = api_client.put(
-                    f"/item/storage/{kwargs['storage_id']}/priority/{kwargs['priority']}/increase/{kwargs['increment']}"
-                )
+                    return
+                raise_for_status(resp)
+                response = resp.parsed if hasattr(resp, "parsed") else True
             if response:
                 scheduler_client.delete(f"/{kwargs['storage_id']}.stg_action")
-        except Error as e:
-            description_code = json.loads(e.args[1].split(": ", 1)[1].strip()).get(
-                "description_code"
-            )
-            if description_code == "desktops_not_stopped":
+        except ApiV4Error as e:
+            if e.description_code == "desktops_not_stopped":
                 pass
             elif (
-                description_code in ["storage_not_ready", "storage_not_found"]
+                e.description_code in ["storage_not_ready", "storage_not_found"]
                 or e.status_code == 400
             ):  ## storage is deleted or kwargs are not valid
                 scheduler_client.delete(f"/{kwargs['storage_id']}.stg_action")
@@ -609,25 +689,37 @@ class Actions:
         return []
 
     def logs_desktops_old_entries_action_delete(**kwargs):
-        api_client.put("/logs_desktops/old_entries/delete")
+        with build_client("isard-scheduler") as client:
+            resp = admin_logs_desktops_delete.sync_detailed(client=client)
+            raise_for_status(resp)
 
     def logs_users_old_entries_action_delete_kwargs(**kwargs):
         return []
 
     def logs_users_old_entries_action_delete(**kwargs):
-        api_client.put("/logs_users/old_entries/delete")
+        with build_client("isard-scheduler") as client:
+            resp = admin_logs_users_delete.sync_detailed(client=client)
+            raise_for_status(resp)
 
     def nonpersistent_delete_timeout(**kwargs):
-        api_client.delete(f'/item/desktop/{kwargs["desktop_id"]}?permanent=true')
+        with build_client("isard-scheduler") as client:
+            resp = delete_desktop.sync_detailed(
+                client=client, desktop_id=kwargs["desktop_id"], permanent=True
+            )
+            raise_for_status(resp)
 
     def queues_old_tasks_action_delete_kwargs(**kwargs):
         return []
 
     def queues_old_tasks_action_delete(**kwargs):
-        api_client.delete("/admin/queues/old_tasks/auto")
+        with build_client("isard-scheduler") as client:
+            resp = admin_delete_old_tasks_auto.sync_detailed(client=client)
+            raise_for_status(resp)
 
     def retry_failed_tasks_kwargs(**kwargs):
         return []
 
     def retry_failed_tasks(**kwargs):
-        api_client.put("/admin/tasks/retry")
+        with build_client("isard-scheduler") as client:
+            resp = retry_all_failed_tasks.sync_detailed(client=client)
+            raise_for_status(resp)

@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
-  getLabApiV4ItemDeploymentLabLabIdGetOptions,
-  stopAllDesktopsInDeploymentApiV4ItemDeploymentDeploymentIdStopPutMutation,
-  deleteUserLabDesktopsApiV4ItemDesktopLabIdUserIdDeleteMutation,
-  stopUserLabDesktopsApiV4ItemDeploymentLabIdUserUserIdStopPutMutation,
-  toggleDeploymentVisibilityApiV4ItemDeploymentDeploymentIdToggleVisibilityPutMutation,
-  recreateDeploymentApiV4ItemDeploymentDeploymentIdRecreatePutMutation,
-  toggleUserLabDesktopsVisibilityApiV4ItemLabLabIdUserUserIdToggleVisibilityPutMutation,
-  getDeploymentCsvApiV4ItemDeploymentDeploymentIdDownloadCsvGetOptions
+  getDeploymentOptions,
+  stopAllDesktopsInDeploymentMutation,
+  deleteUserDeploymentDesktopsMutation,
+  stopUserDesktopsInDeploymentMutation,
+  toggleDeploymentVisibilityMutation,
+  recreateDeploymentMutation,
+  toggleDesktopDeploymentVisibilityMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-import { getDeploymentCsvApiV4ItemDeploymentDeploymentIdDownloadCsvGet } from '@/gen/oas/apiv4/services.gen'
+import { getDeploymentCsv } from '@/gen/oas/apiv4/sdk.gen'
 
 import Input from '@/components/ui/input/Input.vue'
 import Button from '@/components/ui/button/Button.vue'
@@ -41,8 +40,8 @@ const {
   error: deploymentError,
   data: deploymentData
 } = useQuery(
-  getLabApiV4ItemDeploymentLabLabIdGetOptions({
-    path: { lab_id: labId }
+  getDeploymentOptions({
+    path: { deployment_id: labId }
   })
 )
 
@@ -55,11 +54,11 @@ const showStopAllModal = ref(false)
 const stopAllError = ref('')
 
 const { mutate: stopAllDesktops, isPending: isStopping } = useMutation(
-  stopAllDesktopsInDeploymentApiV4ItemDeploymentDeploymentIdStopPutMutation()
+  stopAllDesktopsInDeploymentMutation()
 )
 
 const { mutate: toggleVisibilityMutation, isPending: isTogglingVisibility } = useMutation(
-  toggleDeploymentVisibilityApiV4ItemDeploymentDeploymentIdToggleVisibilityPutMutation()
+  toggleDeploymentVisibilityMutation()
 )
 
 const queryClient = useQueryClient()
@@ -75,7 +74,7 @@ function confirmStopAll() {
     {
       onSuccess: () => {
         showStopAllModal.value = false
-        queryClient.invalidateQueries(['getLabApiV4ItemDeploymentLabLabIdGet'])
+        queryClient.invalidateQueries(['getDeployment'])
       },
       onError: () => {
         stopAllError.value = t('views.deployment.stop-all.error')
@@ -115,13 +114,13 @@ function confirmToggleLabVisibility({ stopAll = false } = {}) {
             { path: { deployment_id: labId } },
             {
               onSuccess: () => {
-                queryClient.invalidateQueries(['getLabApiV4ItemDeploymentLabLabIdGet'])
+                queryClient.invalidateQueries(['getDeployment'])
                 showToggleLabVisibilityModal.value = false
               }
             }
           )
         } else {
-          queryClient.invalidateQueries(['getLabApiV4ItemDeploymentLabLabIdGet'])
+          queryClient.invalidateQueries(['getDeployment'])
           showToggleLabVisibilityModal.value = false
         }
       }
@@ -134,7 +133,7 @@ const stopUserError = ref('')
 const currentUser = ref('')
 
 const { mutate: stopUserDesktops, isPending: isStoppingUser } = useMutation(
-  stopUserLabDesktopsApiV4ItemDeploymentLabIdUserUserIdStopPutMutation()
+  stopUserDesktopsInDeploymentMutation()
 )
 
 function showStopUserConfirmation(userId: string) {
@@ -147,14 +146,14 @@ function confirmStopUser() {
   stopUserDesktops(
     {
       path: {
-        lab_id: labId,
+        deployment_id: labId,
         user_id: currentUser.value
       }
     },
     {
       onSuccess: () => {
         showStopUserModal.value = false
-        queryClient.invalidateQueries(['getLabApiV4ItemDeploymentLabLabIdGet'])
+        queryClient.invalidateQueries(['getDeployment'])
       },
       onError: () => {
         stopUserError.value = t('views.deployment.stop-user.error')
@@ -184,7 +183,7 @@ function enterUserVideowall({ path }: { path: { deployment_id: string; user_id: 
 }
 
 function downloadDirectViewer({ path }: { path: { deployment_id: string | number } }) {
-  getDeploymentCsvApiV4ItemDeploymentDeploymentIdDownloadCsvGet({
+  getDeploymentCsv({
     path: { deployment_id: path.deployment_id }
   }).then((response) => {
     if (!response.data) {
@@ -355,10 +354,14 @@ const showDeleteUserModal = ref(false)
 const userToDelete = ref('')
 const deleteUserError = ref('')
 const { mutate: deleteUserDesktops, isPending: isDeletingUser } = useMutation(
-  deleteUserLabDesktopsApiV4ItemDesktopLabIdUserIdDeleteMutation()
+  deleteUserDeploymentDesktopsMutation()
 )
 
-function showDeleteUserConfirmation({ path }: { path: { lab_id: string; user_id: string } }) {
+function showDeleteUserConfirmation({
+  path
+}: {
+  path: { deployment_id: string; user_id: string }
+}) {
   userToDelete.value = path.user_id
   showDeleteUserModal.value = true
   deleteUserError.value = ''
@@ -368,14 +371,14 @@ function confirmDeleteUser() {
   deleteUserDesktops(
     {
       path: {
-        lab_id: labId,
+        deployment_id: labId,
         user_id: userToDelete.value
       }
     },
     {
       onSuccess: () => {
         showDeleteUserModal.value = false
-        queryClient.invalidateQueries(['getLabApiV4ItemDeploymentLabLabIdGet'])
+        queryClient.invalidateQueries(['getDeployment'])
       },
       onError: () => {
         deleteUserError.value = t('views.deployment.delete-user.error')
@@ -399,7 +402,7 @@ function getDeleteUserModalDescription() {
 const showRecreateModal = ref(false)
 const recreateError = ref('')
 const { mutate: recreateDeployment, isPending: isRecreating } = useMutation(
-  recreateDeploymentApiV4ItemDeploymentDeploymentIdRecreatePutMutation()
+  recreateDeploymentMutation()
 )
 
 function showRecreateConfirmation() {
@@ -413,7 +416,7 @@ function confirmRecreate() {
     {
       onSuccess: () => {
         showRecreateModal.value = false
-        queryClient.invalidateQueries(['getLabApiV4ItemDeploymentLabLabIdGet'])
+        queryClient.invalidateQueries(['getDeployment'])
       },
       onError: () => {
         recreateError.value = t('views.deployment.recreate.error')
@@ -435,7 +438,7 @@ function getRecreateModalDescription() {
 }
 
 const { mutate: toggleUserDesktopsVisibility, isPending: isTogglingUserVisibility } = useMutation(
-  toggleUserLabDesktopsVisibilityApiV4ItemLabLabIdUserUserIdToggleVisibilityPutMutation()
+  toggleDesktopDeploymentVisibilityMutation()
 )
 
 const showToggleVisibilityModal = ref(false)
@@ -453,13 +456,13 @@ function confirmToggleUserVisibility() {
   toggleUserDesktopsVisibility(
     {
       path: {
-        lab_id: labId,
+        deployment_id: labId,
         user_id: userToToggle.value
       }
     },
     {
       onSuccess: () => {
-        queryClient.invalidateQueries(['getLabApiV4ItemDeploymentLabLabIdGet'])
+        queryClient.invalidateQueries(['getDeployment'])
         showToggleVisibilityModal.value = false
         userToToggle.value = null
       }
@@ -655,7 +658,9 @@ function confirmToggleUserVisibility() {
                 icon-size="md"
                 :title="t('views.deployment.delete-user.title')"
                 @click="
-                  showDeleteUserConfirmation({ path: { lab_id: labId, user_id: row.user_id } })
+                  showDeleteUserConfirmation({
+                    path: { deployment_id: labId, user_id: row.user_id }
+                  })
                 "
               />
             </div>

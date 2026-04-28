@@ -5,9 +5,9 @@ import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation } from '@tanstack/vue-query'
 
 import {
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGetOptions,
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions,
-  createTemplateApiV4ItemTemplatePostMutation
+  getDesktopDetailsOptions,
+  getDesktopInfoOptions,
+  createTemplateMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
@@ -55,14 +55,14 @@ const emit = defineEmits<{
 const desktopId = ref<string>(props.desktopId)
 
 const { data: desktopInfo, isPending: desktopInfoIsPending } = useQuery(
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetInfoGetOptions({
+  getDesktopInfoOptions({
     path: {
       desktop_id: desktopId.value
     }
   })
 )
 const { data: desktopDetails, isPending: desktopDetailsIsPending } = useQuery(
-  getDesktopInfoApiV4ItemDesktopDesktopIdGetDetailsGetOptions({
+  getDesktopDetailsOptions({
     path: {
       desktop_id: desktopId.value
     }
@@ -82,7 +82,7 @@ const {
   error: createTemplateError,
   data: createTemplateData
 } = useMutation({
-  ...createTemplateApiV4ItemTemplatePostMutation(),
+  ...createTemplateMutation(),
   onSuccess: (data) => {
     emit('templateCreated', data.id)
   },

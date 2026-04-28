@@ -5,23 +5,16 @@ import { MaintenanceLayout } from '@/layouts/maintenance'
 import { Locale, setLocale } from '@/lib/i18n'
 import { getToken as getAuthToken, useCookies as useAuthCookies, getBearer } from '@/lib/auth'
 import {
-  apiV4LoginConfigApiV4ItemLoginConfigGetOptions,
-  getMaintenanceApiV4MaintenanceGetOptions,
-  getMaintenanceApiV4MaintenanceGetQueryKey,
-  maintenanceStatusApiV4MaintenanceStatusGetOptions,
-  maintenanceStatusApiV4MaintenanceStatusGetQueryKey,
-  getMaintenanceTextFrontendApiV4MaintenanceTextFrontendGetOptions,
-  getMaintenanceTextFrontendApiV4MaintenanceTextFrontendGetQueryKey
+  apiV4LoginConfigOptions,
+  getMaintenanceOptions,
+  maintenanceStatusOptions,
+  getMaintenanceTextFrontendOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 const cookies = useAuthCookies()
 
-const maintenanceTextOpts = computed(() =>
-  getMaintenanceTextFrontendApiV4MaintenanceTextFrontendGetOptions()
-)
-const maintenanceTextQueryKey = computed(() =>
-  getMaintenanceTextFrontendApiV4MaintenanceTextFrontendGetQueryKey()
-)
+const maintenanceTextOpts = computed(() => getMaintenanceTextFrontendOptions())
+const maintenanceTextQueryKey = computed(() => getMaintenanceTextFrontendOptions())
 
 const {
   isPending: maintenanceTextIsPending,
@@ -34,10 +27,8 @@ const {
   refetchOnWindowFocus: true
 })
 
-const maintenanceStatusOpts = computed(() => maintenanceStatusApiV4MaintenanceStatusGetOptions())
-const maintenanceStatusQueryKey = computed(() =>
-  maintenanceStatusApiV4MaintenanceStatusGetQueryKey()
-)
+const maintenanceStatusOpts = computed(() => maintenanceStatusOptions())
+const maintenanceStatusQueryKey = computed(() => maintenanceStatusOptions())
 
 const {
   isPending: maintenanceStatusIsPending,
@@ -52,9 +43,9 @@ const {
   retry: false // Don't retry if there's an error, as it probably is a 503
 })
 
-const maintenanceOpts = computed(() => getMaintenanceApiV4MaintenanceGetOptions())
+const maintenanceOpts = computed(() => getMaintenanceOptions())
 const maintenanceQueryKey = computed(() =>
-  getMaintenanceApiV4MaintenanceGetQueryKey({
+  getMaintenanceOptions({
     headers: {
       Authorization: `Bearer ${getBearer(cookies)}`
     }
@@ -79,7 +70,7 @@ const {
   isError: configIsError,
   error: configError,
   data: config
-} = useQuery(apiV4LoginConfigApiV4ItemLoginConfigGetOptions())
+} = useQuery(apiV4LoginConfigOptions())
 
 const isPending = computed(
   () =>

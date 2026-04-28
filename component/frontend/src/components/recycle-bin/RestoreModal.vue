@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation } from '@tanstack/vue-query'
-import { restoreRecycleBinApiV4ItemRecycleBinRecycleBinIdRestorePutMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { restoreRecycleBinMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/icon'
@@ -28,7 +28,7 @@ const { t } = useI18n()
 const restoreError = ref('')
 
 const { mutate: restoreEntry, isPending: restoreIsPending } = useMutation({
-  ...restoreRecycleBinApiV4ItemRecycleBinRecycleBinIdRestorePutMutation(),
+  ...restoreRecycleBinMutation(),
   onSuccess: () => {
     restoreError.value = ''
     handleClose()

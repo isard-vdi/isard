@@ -1,9 +1,9 @@
 import { patchEntityList } from '@/lib/utils'
 import type { WsDeletePayload, WsDeploymentPayload } from '@/types/ws-events'
 import { QueryClient } from '@tanstack/vue-query'
-import { getAllDeploymentsApiV4ItemsDeploymentsGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getAllDeploymentsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-const key = getAllDeploymentsApiV4ItemsDeploymentsGetOptions().queryKey
+const key = getAllDeploymentsOptions().queryKey
 
 export const deploymentEventHandlers = {
   deployment_add: (queryClient: QueryClient, payload: string) => {

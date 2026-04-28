@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 
-import { getUserConfigApiV4ItemUserGetConfigGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getUserConfigOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   EDIT_FORM_ROUTES,
   VUE3_TO_VUE2,
@@ -16,7 +16,7 @@ const route = useRoute()
 const { t } = useI18n()
 
 const { data: userConfig } = useQuery({
-  ...getUserConfigApiV4ItemUserGetConfigGetOptions(),
+  ...getUserConfigOptions(),
   staleTime: Infinity
 })
 

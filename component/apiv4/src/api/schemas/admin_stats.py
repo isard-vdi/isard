@@ -18,5 +18,86 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-# Stats endpoints use no request schemas (all GET endpoints with path params).
-# This module is kept as a placeholder for consistency.
+from typing import Optional
+
+from pydantic import BaseModel
+
+# -- /stats/{kind} per-kind response models --
+
+
+class StatsKindUser(BaseModel):
+    id: str
+    role: str
+    category: str
+    group: str
+
+
+class StatsKindDesktop(BaseModel):
+    id: str
+    user: str
+
+
+class StatsKindTemplate(BaseModel):
+    id: str
+
+
+class StatsKindHypervisor(BaseModel):
+    id: str
+    status: str
+    only_forced: bool
+
+
+class StatsKindCategory(BaseModel):
+    id: str
+    name: str
+
+
+class StatsKindGroup(BaseModel):
+    id: str
+    name: str
+    parent_category: str
+
+
+# -- /stats/categories response models --
+
+
+class StatsCategoryUsersDetail(BaseModel):
+    total: int
+    status: dict[str, int]
+    roles: dict[str, int]
+
+
+class StatsCategoryDesktopsDetail(BaseModel):
+    total: int
+    status: dict[str, int]
+
+
+class StatsCategoryTemplatesDetail(BaseModel):
+    total: int
+    status: dict[str, int]
+
+
+class StatsCategoryDetail(BaseModel):
+    users: StatsCategoryUsersDetail
+    desktops: StatsCategoryDesktopsDetail
+    templates: StatsCategoryTemplatesDetail
+
+
+class StatsCategoriesResponse(BaseModel):
+    category: dict[str, StatsCategoryDetail]
+
+
+# -- /stats/categories/deployments --
+
+
+class StatsCategoriesDeploymentsResponse(BaseModel):
+    categories: dict[str, int]
+
+
+# -- /stats/domains/status --
+
+
+class StatsDomainsStatusResponse(BaseModel):
+    desktop: Optional[dict[str, int]] = None
+    template: Optional[dict[str, int]] = None
+    server: Optional[dict[str, int]] = None

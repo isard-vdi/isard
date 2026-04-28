@@ -2,8 +2,6 @@ module gitlab.com/isard/isardvdi
 
 go 1.25.8
 
-replace gitlab.com/isard/isardvdi/pkg/sdk => ./pkg/sdk
-
 // TODO: Remove this when merged: https://github.com/crewjam/saml/pull/549
 replace github.com/crewjam/saml => github.com/Daniel-Wachter/saml v0.0.0-20240124130410-b8ee52d250c2
 
@@ -37,7 +35,6 @@ require (
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
-	gitlab.com/isard/isardvdi/pkg/sdk v0.0.0-20250422072601-82fe03df5fe6
 	go.nhat.io/grpcmock v0.28.0
 	go.opentelemetry.io/otel v1.34.0
 	go.opentelemetry.io/otel/metric v1.34.0
@@ -125,7 +122,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.13.0 // indirect

@@ -28,12 +28,12 @@ vi.mock('@tanstack/vue-query', () => {
 })
 
 vi.mock('@/gen/oas/apiv4/@tanstack/vue-query.gen', () => ({
-  getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetOptions: () => ({
+  getDesktopViewerByTokenOptions: () => ({
     queryKey: { _id: 'viewer' }
   }),
-  getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetQueryKey: () => ({ _id: 'viewer' }),
-  getViewerDocsApiV4ItemDesktopGetViewersDocsGetOptions: () => ({ queryKey: { _id: 'docs' } }),
-  apiV4LoginConfigApiV4ItemLoginConfigGetOptions: () => ({ queryKey: { _id: 'login' } })
+  getDesktopViewerByTokenQueryKey: () => ({ _id: 'viewer' }),
+  getViewerDocsOptions: () => ({ queryKey: { _id: 'docs' } }),
+  apiV4LoginConfigOptions: () => ({ queryKey: { _id: 'login' } })
 }))
 
 vi.mock('@/gen/oas/apiv4', () => ({

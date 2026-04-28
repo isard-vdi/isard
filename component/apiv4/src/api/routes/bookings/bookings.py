@@ -110,6 +110,7 @@ async def get_user_bookings(
     response_model=ItemBookingsResponse,
     summary="Get desktop's bookings",
     description="Returns the bookings for a specific desktop.",
+    operation_id="get_booking_desktop",
     dependencies=[
         Depends(owns_domain_id("item_id")),
     ],
@@ -120,6 +121,7 @@ async def get_user_bookings(
     response_model=ItemBookingsResponse,
     summary="Get deployment's bookings",
     description="Returns the bookings for a specific deployment.",
+    operation_id="get_booking_deployment",
     dependencies=[
         Depends(owns_deployment_id("item_id")),
     ],
@@ -592,6 +594,7 @@ async def get_booking_plans(request: Request, booking_id: str):
     response_model=AvailableReservablesResponse,
     summary="Get available reservables",
     description="Returns available reservables for the current user.",
+    operation_id="get_booking_reservables_available",
     responses={
         428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},

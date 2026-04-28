@@ -78,12 +78,19 @@ class TestStatusEndpoints:
     def test_domains_status(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.stats.AdminStatsService.get_domains_status",
-            staticmethod(lambda: [{"kind": "desktop", "status": "Started"}]),
+            staticmethod(
+                lambda: {
+                    "desktop": {"Started": 1},
+                    "template": {},
+                    "server": {},
+                }
+            ),
         )
         response = test_client(
             url="/stats/domains/status", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
+        assert response.json()["desktop"] == {"Started": 1}
 
     def test_category_status(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -126,11 +133,19 @@ class TestStatsCategories:
         self._stub_kind_state_should_not_run(monkeypatch)
         monkeypatch.setattr(
             "api.routes.admin.stats.AdminStatsService.get_group_by_categories",
-            staticmethod(lambda: [{"id": "cat-a"}]),
+            staticmethod(
+                lambda: {
+                    "cat-a": {
+                        "users": {"total": 0, "status": {}, "roles": {}},
+                        "desktops": {"total": 0, "status": {}},
+                        "templates": {"total": 0, "status": {}},
+                    }
+                }
+            ),
         )
         response = test_client(url="/stats/categories", jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
-        assert response.json()["category"][0]["id"] == "cat-a"
+        assert "cat-a" in response.json()["category"]
 
     def test_categories_limits(self, monkeypatch, test_client):
         self._stub_kind_state_should_not_run(monkeypatch)
@@ -147,12 +162,13 @@ class TestStatsCategories:
         self._stub_kind_state_should_not_run(monkeypatch)
         monkeypatch.setattr(
             "api.routes.admin.stats.AdminStatsService.get_categories_deployments",
-            staticmethod(lambda: [{"id": "cat-a", "deployments": 3}]),
+            staticmethod(lambda: {"cat-a": 3}),
         )
         response = test_client(
             url="/stats/categories/deployments", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
+        assert response.json()["categories"] == {"cat-a": 3}
 
     def test_categories_kind_only(self, monkeypatch, test_client):
         captured = {}
@@ -189,7 +205,7 @@ class TestStatsCategories:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  GET /stats/{kind} — top-level catch-all
+#  GET /stats/{kind} — explicit per-kind routes
 # ══════════════════════════════════════════════════════════════════════════
 
 
@@ -198,7 +214,10 @@ class TestStatsKind:
         captured = {}
         monkeypatch.setattr(
             "api.routes.admin.stats.AdminStatsService.get_kind",
-            staticmethod(lambda kind: captured.update(kind=kind) or {"data": []}),
+            staticmethod(
+                lambda kind: captured.update(kind=kind)
+                or [{"id": "h1", "status": "Started", "only_forced": False}]
+            ),
         )
         response = test_client(url="/stats/hypervisors", jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
@@ -212,7 +231,7 @@ class TestStatsKind:
             "api.routes.admin.stats.AdminStatsService.get_kind",
             staticmethod(reject),
         )
-        response = test_client(url="/stats/no_such_kind", jwt=MockJWT(role_id="admin"))
+        response = test_client(url="/stats/hypervisors", jwt=MockJWT(role_id="admin"))
         assert response.status_code == 400
 
     def test_user_forbidden(self, monkeypatch, test_client):

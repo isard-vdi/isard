@@ -1,13 +1,13 @@
 import { QueryClient } from '@tanstack/vue-query'
 import {
-  getRecycleBinItemCountUserApiV4ItemsRecycleBinGetOptions,
-  getUserApiV4ItemUserGetOptions
+  getRecycleBinItemCountUserOptions,
+  getUserOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { RecycleBinStatusEnum } from '@/gen/oas/apiv4'
 import { patchEntityList } from '@/lib/utils'
 
-const listKey = getRecycleBinItemCountUserApiV4ItemsRecycleBinGetOptions().queryKey
-const userKey = getUserApiV4ItemUserGetOptions().queryKey
+const listKey = getRecycleBinItemCountUserOptions().queryKey
+const userKey = getUserOptions().queryKey
 
 const removableStatuses = new Set<RecycleBinStatusEnum>([
   RecycleBinStatusEnum.RESTORED,

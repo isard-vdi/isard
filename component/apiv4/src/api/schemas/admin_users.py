@@ -106,9 +106,12 @@ class AdminPasswordResetData(BaseModel):
 class AdminGroupCreateData(BaseModel):
     """Request body for creating a group."""
 
+    uid: Optional[str] = None
     name: str
     description: str = ""
     parent_category: Optional[str] = None
+    external_app_id: Optional[str] = None
+    external_gid: Optional[str] = None
 
 
 class AdminGroupUpdateData(BaseModel):
@@ -254,3 +257,71 @@ class AdminUserSchemaResponse(BaseModel):
     role: list
     category: Optional[list] = None
     group: Optional[list] = None
+
+
+# -- Response models --
+
+
+class AdminUserVpn(BaseModel):
+    wireguard: Optional[dict] = None
+
+
+class AdminUserStorage(BaseModel):
+    provider_quota: Optional[dict] = None
+
+
+class AdminUser(BaseModel):
+    id: str
+    name: str
+    provider: str
+    category: str
+    uid: str
+    username: str
+    role: str
+    group: str
+    active: bool = True
+    secondary_groups: list[str] = []
+    email: Optional[str] = None
+    accessed: Optional[float] = None
+    email_verified: bool | int = False
+    disclaimer_acknowledged: Optional[bool] = None
+    vpn: Optional[AdminUserVpn] = None
+    user_storage: Optional[AdminUserStorage] = None
+
+
+class RequiredCheckResponse(BaseModel):
+    required: bool
+
+
+class AutoRegisterRequest(BaseModel):
+    role_id: str
+    group_id: str
+    secondary_groups: Optional[List[str]] = None
+
+
+class AutoRegisterResponse(BaseModel):
+    id: str
+
+
+class AdminUserDeleteResponse(BaseModel):
+    exceptions: Optional[list[str]] = None
+
+
+class AdminGroup(BaseModel):
+    id: str
+    uid: Optional[str] = None
+    name: str
+    parent_category: str
+    auto: bool = False
+    description: str = ""
+    external_app_id: str = ""
+    external_gid: str = ""
+    limits: bool | dict = False
+
+
+class AdminTemplateItem(BaseModel):
+    id: str
+    name: str
+    icon: Optional[str] = None
+    user: Optional[str] = None
+    category: Optional[str] = None

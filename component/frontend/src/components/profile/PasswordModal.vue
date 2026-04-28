@@ -12,8 +12,8 @@ import Spinner from '@/components/ui/spinner/Spinner.vue'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 
 import {
-  getUserPasswordPolicyApiV4ItemUserGetPasswordPolicyGetOptions,
-  setUserPasswordApiV4ItemUserSetPasswordPutMutation
+  getUserPasswordPolicyOptions,
+  setUserPasswordMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
 
@@ -34,7 +34,7 @@ function toId(name: string) {
 }
 
 const mutation = useMutation({
-  ...setUserPasswordApiV4ItemUserSetPasswordPutMutation(),
+  ...setUserPasswordMutation(),
   onSuccess() {
     open.value = false
     waiting.value = false
@@ -55,7 +55,7 @@ const mutation = useMutation({
 })
 
 const { data: policy, isPending: loading } = useQuery({
-  ...getUserPasswordPolicyApiV4ItemUserGetPasswordPolicyGetOptions(),
+  ...getUserPasswordPolicyOptions(),
   enabled: open
 })
 

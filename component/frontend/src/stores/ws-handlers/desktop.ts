@@ -2,9 +2,9 @@ import { patchEntityList } from '@/lib/utils'
 import type { WsDeletePayload, WsDesktopPayload, WsDesktopsQueuePayload } from '@/types/ws-events'
 import type { UserDesktop } from '@/gen/oas/apiv4'
 import { QueryClient } from '@tanstack/vue-query'
-import { getUserDesktopsApiV4ItemsDesktopsGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getUserDesktopsOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-const key = getUserDesktopsApiV4ItemsDesktopsGetOptions().queryKey
+const key = getUserDesktopsOptions().queryKey
 
 type DesktopWithQueue = UserDesktop & { queue?: number }
 

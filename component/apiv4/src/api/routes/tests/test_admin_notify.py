@@ -219,11 +219,11 @@ class TestNotifyDesktopQueue:
             url=self.URL,
             method="PUT",
             jwt=MockJWT(role_id="admin"),
-            body={"queue": [{"desktop_id": "d-1"}, {"desktop_id": "d-2"}]},
+            body=[{"desktop_id": "d-1"}, {"desktop_id": "d-2"}],
         )
         assert response.status_code == 200
         assert captured["hyp_id"] == "hyper-1"
-        assert captured["data"]["queue"][0]["desktop_id"] == "d-1"
+        assert captured["data"][0].desktop_id == "d-1"
 
     def test_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -266,6 +266,6 @@ class TestNotifyDesktopQueue:
             url=self.URL,
             method="PUT",
             jwt=MockJWT(role_id="admin"),
-            body={"queue": []},
+            body=[{"desktop_id": "d-1"}],
         )
         assert response.status_code == 500

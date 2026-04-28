@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 
-import { createMediaApiV4ItemMediaPostMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { createMediaMutation } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
 
 import dotGrid from '@/assets/img/modal/dot-grid.svg?component'
@@ -68,9 +68,9 @@ const formSchema = z.object({
 const creationError = ref<string | null>(null)
 
 const { mutate: createMedia, isPending: createMediaIsPending } = useMutation({
-  ...createMediaApiV4ItemMediaPostMutation(),
+  ...createMediaMutation(),
   onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['getUserMediaApiV4ItemsMediaGet'] })
+    queryClient.invalidateQueries({ queryKey: ['getUserMedia'] })
     form.reset()
     creationError.value = null
     emit('close')

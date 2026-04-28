@@ -1,9 +1,9 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import {
-  getUserBookingsApiV4ItemsBookingsGetOptions,
-  getBookingDesktopApiV4ItemBookingGetDesktopItemIdGetOptions,
-  getBookingDesktopApiV4ItemBookingGetDeploymentItemIdGetOptions
+  getUserBookingsOptions,
+  getBookingDesktopOptions,
+  getBookingDeploymentOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { toCalendarEvents } from '@/lib/booking/adapter'
 import type { BookingItemType, BookingReturnType } from '@/lib/booking/constants'
@@ -16,7 +16,7 @@ export interface DateRange {
 export function useBookingsSummary(range: MaybeRefOrGetter<DateRange>) {
   const query = useQuery(
     computed(() =>
-      getUserBookingsApiV4ItemsBookingsGetOptions({
+      getUserBookingsOptions({
         query: {
           startDate: toValue(range).start,
           endDate: toValue(range).end
@@ -44,8 +44,8 @@ export function useItemBookings(
         query: { startDate: r.start, endDate: r.end, returnType: ret }
       }
       return toValue(itemType) === 'desktop'
-        ? getBookingDesktopApiV4ItemBookingGetDesktopItemIdGetOptions(opts)
-        : getBookingDesktopApiV4ItemBookingGetDeploymentItemIdGetOptions(opts)
+        ? getBookingDesktopOptions(opts)
+        : getBookingDeploymentOptions(opts)
     })
   )
   const events = computed(() => toCalendarEvents(query.data.value ?? []))

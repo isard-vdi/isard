@@ -4,6 +4,7 @@ version = "0.0.0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "cachetools==5.5.0",
+  "isardvdi-apiv4-client",
   "isardvdi-common",
   "python-socketio==5.13.0",
   "requests==2.32.4",
