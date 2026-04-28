@@ -667,7 +667,11 @@ generate_code(){
 		;;
 	esac
 
-	docker run --rm -u "$(id -u)" -e HOME=/tmp -e GOPATH=/tmp/go -e GOCACHE=/tmp/go-cache -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$DOCKER_IMAGE"
+	# Redirect stdin from /dev/null so the codegen container does not
+	# steal stdin from the outer `echo "$CONFIG_FILES" | while read`
+	# loop — without it, only the first cfg gets processed when more
+	# than one isardvdi*.cfg exists in cwd.
+	docker run --rm -u "$(id -u)" -e HOME=/tmp -e GOPATH=/tmp/go -e GOCACHE=/tmp/go-cache -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$DOCKER_IMAGE" </dev/null
 	echo "Generated the code successfully"
 }
 
@@ -688,7 +692,7 @@ if [ -z "$CONFIG_FILES" ]; then
 	exit 1
 fi
 
-echo "$CONFIG_FILES" | while read config_file
+for config_file in $CONFIG_FILES
 do
 	(create_docker_compose_file "$config_file")
 
