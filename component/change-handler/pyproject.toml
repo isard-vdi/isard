@@ -3,6 +3,7 @@ name = "isardvdi-change-handler"
 version = "0.0.0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+  "isardvdi-changefeed-asyncapi",
   "isardvdi-common",
   "python-socketio==5.13.0",
   "redis==5.2.1",
@@ -11,7 +12,6 @@ dependencies = [
 
 [dependency-groups]
 test = [
-  "isardvdi-changefeed-asyncapi",
   "pytest",
   "pytest-asyncio",
   "pytest-cov",

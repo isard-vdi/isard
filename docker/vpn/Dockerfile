@@ -2,11 +2,8 @@ ARG GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22
 
 FROM ${GOLANG_BUILD_IMAGE} AS rdpgw-build
 WORKDIR /build
-RUN mkdir -p /build/pkg/sdk
 COPY go.mod /build
 COPY go.sum /build
-COPY pkg/sdk/go.mod /build/pkg/sdk
-COPY pkg/sdk/go.sum /build/pkg/sdk
 RUN go mod download
 WORKDIR /
 COPY pkg /build/pkg
@@ -16,7 +13,9 @@ RUN CGO_ENABLED=0 go build -o bin/rdpgw cmd/rdpgw/main.go
 
 FROM python:3.13-alpine AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /usr/local/bin/
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+# UV_PROJECT_ENVIRONMENT pins the venv at the runtime path so the
+# venv's hard-coded shebangs keep resolving after the cross-stage COPY.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/.venv
 
 RUN apk add --no-cache \
     autoconf automake build-base git iptables-dev libffi-dev libmnl-dev \
@@ -47,7 +46,7 @@ RUN ln -s libip4tc.so.2 /usr/lib/libip4tc.so && \
     ln -s libip6tc.so.2 /usr/lib/libip6tc.so && \
     ln -s libxtables.so.12 /usr/lib/libxtables.so
 
-COPY --from=builder /workspace/.venv /.venv
+COPY --from=builder /.venv /.venv
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /

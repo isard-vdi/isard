@@ -6,8 +6,22 @@ import json
 import os
 import sys
 import time
-from distutils.util import strtobool
 from uuid import uuid4
+
+
+def strtobool(val):
+    """Replacement for ``distutils.util.strtobool``, removed in Python 3.12.
+
+    Returns 1 for truthy strings ('y', 'yes', 'true', 't', '1', 'on'),
+    0 for falsy ('n', 'no', 'false', 'f', '0', 'off'). Raises ValueError
+    on anything else, matching the legacy contract.
+    """
+    val = (val or "").strip().lower()
+    if val in {"y", "yes", "t", "true", "on", "1"}:
+        return 1
+    if val in {"n", "no", "f", "false", "off", "0"}:
+        return 0
+    raise ValueError(f"invalid truth value: {val!r}")
 
 import humanfriendly as hf
 import rethinkdb as r

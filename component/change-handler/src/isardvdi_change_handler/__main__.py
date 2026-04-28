@@ -24,6 +24,7 @@ import traceback
 from os import environ
 
 import redis.asyncio as aioredis
+from changefeed_subscribers import TABLE_TO_SUBSCRIBER
 from isardvdi_common.connections.redis_urls import changefeed_url, socketio_url
 from socketio import AsyncRedisManager
 
@@ -129,8 +130,27 @@ async def listen_to_redis():
                     logger.error(f"Failed to parse Redis message: {e}")
                     continue
 
-                table = data.pop("table")
-                change = data.get("change")
+                table = data.get("table")
+                # Parse the envelope into typed Pydantic models so handlers
+                # can use attribute access (change.new_val.user etc.) — that
+                # is the contract every BaseHandler subclass already relies
+                # on. Falling back to the raw dict surface would re-break
+                # every existing handler.
+                subscriber = TABLE_TO_SUBSCRIBER.get(table)
+                if subscriber is None:
+                    logger.warning(
+                        f"No subscriber registered for table: {table}; skipping"
+                    )
+                    continue
+                try:
+                    envelope = subscriber.parse_dict(data)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to deserialize {table} envelope: {e}; data={data!r}"
+                    )
+                    continue
+
+                change = envelope.change
 
                 logger.info(f"[{table}] Received change: {change}")
 
