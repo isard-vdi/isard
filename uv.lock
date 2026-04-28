@@ -750,6 +750,7 @@ name = "isardvdi-change-handler"
 version = "0.0.0"
 source = { editable = "component/change-handler" }
 dependencies = [
+    { name = "isardvdi-changefeed-asyncapi" },
     { name = "isardvdi-common" },
     { name = "python-socketio" },
     { name = "redis" },
@@ -758,7 +759,6 @@ dependencies = [
 
 [package.dev-dependencies]
 test = [
-    { name = "isardvdi-changefeed-asyncapi" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -767,6 +767,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "isardvdi-changefeed-asyncapi", editable = "pkg/gen/asyncapi/changefeed" },
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "python-socketio", specifier = "==5.13.0" },
     { name = "redis", specifier = "==5.2.1" },
@@ -775,7 +776,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 test = [
-    { name = "isardvdi-changefeed-asyncapi", editable = "pkg/gen/asyncapi/changefeed" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -1321,6 +1321,7 @@ version = "0.0.0"
 source = { editable = "docker/vpn" }
 dependencies = [
     { name = "isardvdi-apiv4-client" },
+    { name = "isardvdi-changefeed-asyncapi" },
     { name = "isardvdi-common" },
     { name = "pyjwt" },
     { name = "python-iptables" },
@@ -1331,6 +1332,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "isardvdi-apiv4-client", editable = "component/_common/isardvdi_apiv4_client" },
+    { name = "isardvdi-changefeed-asyncapi", editable = "pkg/gen/asyncapi/changefeed" },
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "pyjwt", specifier = "==2.10.1" },
     { name = "python-iptables", specifier = "==1.0.1" },
