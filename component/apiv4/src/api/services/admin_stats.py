@@ -209,28 +209,28 @@ class AdminStatsService:
         for category in categories:
             result[category] = {
                 "users": {
-                    "total": "",
-                    "status": {"enabled": "", "disabled": ""},
+                    "total": 0,
+                    "status": {"enabled": 0, "disabled": 0},
                     "roles": {
-                        "admin": "",
-                        "manager": "",
-                        "advanced": "",
-                        "user": "",
+                        "admin": 0,
+                        "manager": 0,
+                        "advanced": 0,
+                        "user": 0,
                     },
                 },
                 "desktops": {
-                    "total": "",
+                    "total": 0,
                     "status": {
-                        "Started": "",
-                        "Stopped": "",
-                        "Failed": "",
-                        "Unknown": "",
-                        "Other": "",
+                        "Started": 0,
+                        "Stopped": 0,
+                        "Failed": 0,
+                        "Unknown": 0,
+                        "Other": 0,
                     },
                 },
                 "templates": {
-                    "total": "",
-                    "status": {"enabled": "", "disabled": ""},
+                    "total": 0,
+                    "status": {"enabled": 0, "disabled": 0},
                 },
             }
 

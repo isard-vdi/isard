@@ -21,6 +21,6 @@ COPY component/core_worker/src /app
 COPY component/core_worker/docker/uuidgen.py /app/uuidgen.py
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["/bin/sh", "-c", "REDIS_WORKERS=${REDIS_WORKERS:-3}; for i in $(seq 1 $REDIS_WORKERS); do rq worker --url \"redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0\" --connection-class='isardvdi_common.connections.redis_retry.RedisRetry' --worker-class='isardvdi_common.helpers.worker.Worker' core.feedback core -n core:isard-core_worker:$(python3 /app/uuidgen.py) -P /app/isardvdi_core_worker --with-scheduler & done; wait"]
+CMD ["/bin/sh", "-c", "REDIS_WORKERS=${REDIS_WORKERS:-3}; for i in $(seq 1 $REDIS_WORKERS); do rq worker --url \"redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}/0\" --connection-class='isardvdi_common.connections.redis_retry.RedisRetry' core.feedback core -n core:isard-core_worker:$(python3 /app/uuidgen.py) -P /app/isardvdi_core_worker --with-scheduler & done; wait"]
 
 USER nobody
