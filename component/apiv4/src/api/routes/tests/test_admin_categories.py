@@ -525,6 +525,57 @@ class TestLoginConfigByCategory:
         assert data["notification_form"][0]["enabled"] is False
 
     @pytest.mark.clear_cache
+    def test_merges_global_and_category_into_two_item_lists(self, test_client):
+        """The actual feature: when *both* a global notification and a
+        category notification are set, the response carries a 2-item
+        list per slot — global first, then category — so the login page
+        renders them stacked. Pin order so a future refactor doesn't
+        flip them silently."""
+        cat = _make_test_category(
+            login_notification={
+                "notification_cover": {
+                    "enabled": True,
+                    "title": "Category-cover",
+                },
+                "notification_form": {
+                    "enabled": True,
+                    "title": "Category-form",
+                },
+            }
+        )
+        response = test_client(
+            url="/item/login-config/test-cat",
+            db_tables_data={
+                "config": [
+                    make_config(
+                        login={
+                            "notification_cover": {
+                                "enabled": True,
+                                "title": "Global-cover",
+                            },
+                            "notification_form": {
+                                "enabled": True,
+                                "title": "Global-form",
+                            },
+                        }
+                    )
+                ],
+                "categories": [make_category(), cat],
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data["notification_cover"], list)
+        assert len(data["notification_cover"]) == 2
+        # Order: global first, category second — pin so a swap is caught.
+        assert data["notification_cover"][0]["title"] == "Global-cover"
+        assert data["notification_cover"][1]["title"] == "Category-cover"
+        assert isinstance(data["notification_form"], list)
+        assert len(data["notification_form"]) == 2
+        assert data["notification_form"][0]["title"] == "Global-form"
+        assert data["notification_form"][1]["title"] == "Category-form"
+
+    @pytest.mark.clear_cache
     def test_html_unescapes_notification_fields(self, test_client):
         """Title/description and button text/url come out of the DB
         HTML-escaped (``&amp;`` etc.). The endpoint must unescape every
