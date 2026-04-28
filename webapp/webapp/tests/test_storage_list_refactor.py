@@ -75,7 +75,10 @@ def test_detail_buttons_only_renders_when_storage_is_ready(storage_js: str) -> N
     The single-button replacement must keep that guard so a half-broken
     chain doesn't expose actions that the apiv4 layer would reject."""
     detail_fn = _slice(storage_js, "function detailButtons(")
-    assert 'storage.status != "ready"' in detail_fn or 'storage.status == "ready"' in detail_fn
+    assert (
+        'storage.status != "ready"' in detail_fn
+        or 'storage.status == "ready"' in detail_fn
+    )
 
 
 def test_storage_actions_handler_opens_search_modal(storage_js: str) -> None:
