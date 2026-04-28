@@ -2,11 +2,8 @@ ARG GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22
 
 FROM ${GOLANG_BUILD_IMAGE} AS rdpgw-build
 WORKDIR /build
-RUN mkdir -p /build/pkg/sdk
 COPY go.mod /build
 COPY go.sum /build
-COPY pkg/sdk/go.mod /build/pkg/sdk
-COPY pkg/sdk/go.sum /build/pkg/sdk
 RUN go mod download
 WORKDIR /
 COPY pkg /build/pkg
