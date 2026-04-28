@@ -3,7 +3,7 @@
 """Pydantic schema tests for ``api/schemas/admin_backups.py``."""
 
 import pytest
-from api.schemas.admin_backups import BackupReportRequest
+from api.schemas.admin_backups import BackupIntegritySetRequest, BackupReportRequest
 from pydantic import ValidationError
 
 
@@ -55,3 +55,40 @@ class TestBackupReportRequest:
     def test_round_trip(self):
         r = BackupReportRequest(**self._required, details={"x": 1})
         assert BackupReportRequest(**r.model_dump()) == r
+
+
+class TestBackupIntegritySetRequest:
+    """The PUT /admin/backups/integrity body. The service-layer
+    ``set_integrity_enabled`` rejects non-bool to avoid
+    ``bool("false") == True`` foot-guns; the schema is the first line
+    of defence — pin both ends."""
+
+    def test_accepts_true(self):
+        assert (
+            BackupIntegritySetRequest(integrity_enabled=True).integrity_enabled is True
+        )
+
+    def test_accepts_false(self):
+        assert (
+            BackupIntegritySetRequest(integrity_enabled=False).integrity_enabled
+            is False
+        )
+
+    def test_missing_field_rejected(self):
+        with pytest.raises(ValidationError):
+            BackupIntegritySetRequest()
+
+    def test_round_trip(self):
+        r = BackupIntegritySetRequest(integrity_enabled=True)
+        assert BackupIntegritySetRequest(**r.model_dump()) == r
+
+    def test_string_true_coerced(self):
+        """Pydantic v2 default mode coerces ``'true'`` → ``True``. The
+        service layer rejects this anyway, but pin so a future strict-mode
+        flip is noticed (and doesn't quietly start sending 422s)."""
+        r = BackupIntegritySetRequest(integrity_enabled="true")
+        assert r.integrity_enabled is True
+
+    def test_arbitrary_string_rejected(self):
+        with pytest.raises(ValidationError):
+            BackupIntegritySetRequest(integrity_enabled="enabled")
