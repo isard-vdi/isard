@@ -45,6 +45,40 @@ from .handlers.vgpus import VgpusHandler
 
 redis_manager = AsyncRedisManager(socketio_url(), write_only=True)
 
+
+async def dispatch_message(data: dict, handler_map: dict, logger: log.Logger) -> None:
+    """Resolve the subscriber for ``data["table"]``, deserialise the
+    typed envelope, and forward ``envelope.change`` to the matching
+    handler. Logs and swallows every error so a single bad payload
+    cannot kill the listen loop. Extracted from ``listen_to_redis``
+    so the dispatch contract can be unit-tested without Redis.
+    """
+    table = data.get("table")
+    subscriber = TABLE_TO_SUBSCRIBER.get(table)
+    if subscriber is None:
+        logger.warning(f"No subscriber registered for table: {table}; skipping")
+        return
+    try:
+        envelope = subscriber.parse_dict(data)
+    except Exception as e:
+        logger.error(f"Failed to deserialize {table} envelope: {e}; data={data!r}")
+        return
+
+    change = envelope.change
+    logger.info(f"[{table}] Received change: {change}")
+
+    handler = handler_map.get(table)
+    if not handler:
+        logger.warning(f"No handler registered for table: {table}")
+        return
+
+    try:
+        await handler.handle(change)
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        logger.error(f"Handler for {table} failed: {e}")
+
+
 # Handler map: Redis-pubsub channel -> handler that emits SocketIO events.
 #
 # Many entries below (graphics, videos, interfaces, qos_net, qos_disk,
@@ -130,40 +164,7 @@ async def listen_to_redis():
                     logger.error(f"Failed to parse Redis message: {e}")
                     continue
 
-                table = data.get("table")
-                # Parse the envelope into typed Pydantic models so handlers
-                # can use attribute access (change.new_val.user etc.) — that
-                # is the contract every BaseHandler subclass already relies
-                # on. Falling back to the raw dict surface would re-break
-                # every existing handler.
-                subscriber = TABLE_TO_SUBSCRIBER.get(table)
-                if subscriber is None:
-                    logger.warning(
-                        f"No subscriber registered for table: {table}; skipping"
-                    )
-                    continue
-                try:
-                    envelope = subscriber.parse_dict(data)
-                except Exception as e:
-                    logger.error(
-                        f"Failed to deserialize {table} envelope: {e}; data={data!r}"
-                    )
-                    continue
-
-                change = envelope.change
-
-                logger.info(f"[{table}] Received change: {change}")
-
-                handler = handler_map.get(table)
-                if not handler:
-                    logger.warning(f"No handler registered for table: {table}")
-                    continue
-
-                try:
-                    await handler.handle(change)
-                except Exception as e:
-                    logger.error(traceback.format_exc())
-                    logger.error(f"Handler for {table} failed: {e}")
+                await dispatch_message(data, handler_map, logger)
         except Exception as e:
             logger.warning(f"Redis connection error: {e}")
         finally:
