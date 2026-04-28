@@ -21,6 +21,7 @@ def strtobool(val):
         return 0
     raise ValueError(f"invalid truth value: {val!r}")
 
+
 from gpu_discovery import (
     discover_gpus,
     discover_hugepages,
@@ -36,6 +37,7 @@ from isardvdi_apiv4_client.api.role_admin import (
 from isardvdi_apiv4_client.models import (
     AdminHypervisorCreateData,
     AdminHypervisorEnableData,
+    AdminHypervisorEnableDataNumaTopology,
 )
 from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
 
@@ -218,11 +220,19 @@ def _refresh_numa_topology_with_libvirt():
         return
     hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
     try:
+        # The generated client's ``AdminHypervisorEnableData.to_dict``
+        # calls ``self.numa_topology.to_dict()``, so passing a raw dict
+        # raises ``AttributeError: 'dict' object has no attribute
+        # 'to_dict'``. Wrap via the typed helper that the codegen
+        # produced from the same OpenAPI schema.
+        numa_topology = AdminHypervisorEnableDataNumaTopology.from_dict(topo)
         with build_client("isard-hypervisor", role="hypervisor") as client:
             resp = admin_hypervisor_enable.sync_detailed(
                 client=client,
                 hyper_id=hyper_id,
-                body=AdminHypervisorEnableData(enabled=True, numa_topology=topo),
+                body=AdminHypervisorEnableData(
+                    enabled=True, numa_topology=numa_topology
+                ),
             )
             raise_for_status(resp)
         print(
