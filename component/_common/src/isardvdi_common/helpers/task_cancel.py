@@ -204,11 +204,22 @@ class TaskCancelWatcher:
         except Exception:
             # Connection errors here just mean we stop watching — the
             # task continues running. Persistent flags (row status,
-            # task.status) remain the safety net.
-            log.exception(
-                "TaskCancelWatcher: subscriber loop crashed for %s",
-                self._task_id,
-            )
+            # task.status) remain the safety net. A close-induced socket
+            # error during normal shutdown is expected — `__exit__`
+            # closes the pubsub to break our blocking ``get_message``,
+            # which surfaces as ``OSError(Bad file descriptor)`` or
+            # ``ValueError(I/O operation on closed file)``. Don't spam
+            # the logs with a traceback in that case.
+            if self._stop.is_set():
+                log.debug(
+                    "TaskCancelWatcher: subscriber loop exited on shutdown for %s",
+                    self._task_id,
+                )
+            else:
+                log.exception(
+                    "TaskCancelWatcher: subscriber loop crashed for %s",
+                    self._task_id,
+                )
         finally:
             try:
                 if self._pubsub is not None:

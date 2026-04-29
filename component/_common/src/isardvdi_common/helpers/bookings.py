@@ -60,6 +60,12 @@ class Bookings(RethinkSharedConnection):
         if item_type == "desktop":
             with cls._rdb_context():
                 data = r.table("domains").get(item_id).run(cls._rdb_connection)
+            if not data:
+                raise Error(
+                    "not_found",
+                    f"Desktop {item_id} not found",
+                    description_code="not_found",
+                )
             units = 1
             item_name = data["name"]
 

@@ -150,7 +150,9 @@ class CategoriesProcessed(RethinkSharedConnection):
                     .run(cls._rdb_connection)
                 )
             for group in groups:
-                GroupsProcessed.UpdateGroupQuota(group, quota, propagate, role, "admin")
+                GroupsProcessed.update_group_quota(
+                    group, quota, propagate, role, "admin"
+                )
 
     @classmethod
     def update_category_limits(cls, category_id, limits, propagate):

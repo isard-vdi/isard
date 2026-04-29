@@ -175,7 +175,7 @@ class GroupsProcessed(RethinkSharedConnection):
         user_role="manager",
     ):
         """_From api/libv2/api_users.py ApiUsers.UpdateGroupQuota()_"""
-        category = cls.CategoryGet(group["parent_category"], True)
+        category = Caches.get_document("categories", group["parent_category"])
         # Managers can't update a group quota with a higher value than its category quota
         if user_role == "manager":
             if category["quota"] != False:
@@ -223,7 +223,7 @@ class GroupsProcessed(RethinkSharedConnection):
     @classmethod
     def update_group_limits(cls, group, limits):
         """_From api/libv2/api_users.py ApiUsers.UpdateGroupLimits()_"""
-        category = cls.CategoryGet(group["parent_category"], True)
+        category = Caches.get_document("categories", group["parent_category"])
         # Can't update a group limits with a higher value than its category limits
         if category["limits"] != False:
             for k, v in category["limits"].items():
