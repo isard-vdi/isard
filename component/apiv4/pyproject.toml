@@ -26,6 +26,7 @@ dependencies = [
   "specktre==0.3.0",
   "user-agents==2.2.0",
   "uvicorn==0.34.2",
+  "watchfiles==1.0.4",
   "websockets==15.0.1",
 ]
 
