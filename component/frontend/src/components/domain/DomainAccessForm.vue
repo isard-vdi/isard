@@ -272,6 +272,19 @@ watch(
   }
 )
 
+// Symmetric of the strip-on-removal flow: when the user picks an RDP-class
+// viewer (browser_rdp / file_rdpgw / file_rdpvpn) without the wireguard
+// interface present, request that the parent hardware form add wireguard
+// for them. Mirrors the Vue 2 auto-add and removes the manual "click here
+// to add wireguard" step.
+watch(hasRdpViewer, (next, prev) => {
+  if (!next || prev) return
+  const has = (props.hardwareInterfaces ?? []).includes('wireguard')
+  if (!has) {
+    props.onRequestAddInterface?.('wireguard')
+  }
+})
+
 function handleAddWireguardInterface() {
   props.onRequestAddInterface?.('wireguard')
 }
