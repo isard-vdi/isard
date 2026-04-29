@@ -126,6 +126,7 @@ test-e2e: test-e2e-seed
 	docker run -it \
 	--rm --ipc=host \
 	--network=host \
+	--add-host=host.docker.internal:host-gateway \
 	-e DOCKER=1 \
 	-e CI \
 	-e E2E_WORKERS \
