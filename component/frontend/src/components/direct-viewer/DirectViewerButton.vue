@@ -128,7 +128,12 @@ function openViewer() {
             <Icon name="help-circle" stroke-color="info-500" size="md" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top">{{ t(helpKey) }}</TooltipContent>
+        <!--
+          ``TooltipContent`` only renders ``title`` / ``subtitle`` props,
+          not slot content — passing the help text as default slot would
+          render an empty tooltip.
+        -->
+        <TooltipContent side="top" :title="t(helpKey)" />
       </Tooltip>
     </TooltipProvider>
 
