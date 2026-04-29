@@ -1,7 +1,8 @@
 from io import StringIO
 
-from engine.models.domain_xml import DomainXML, add_memory_backing, recreate_xml_if_gpu
 from lxml import etree
+
+from engine.models.domain_xml import DomainXML, add_memory_backing, recreate_xml_if_gpu
 
 
 def test_add_metadata_isard():

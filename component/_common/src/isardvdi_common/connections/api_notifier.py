@@ -85,14 +85,13 @@ def notify_backup_failure(backup_data: dict) -> None:
 
     # Lazy imports keep services that don't ship the notifier client able to
     # import this module without ``ModuleNotFoundError``.
+    from isardvdi_common.connections.rethink_connection_factory import (
+        RethinkSharedConnection,
+    )
     from isardvdi_notifier_client.api.mail import post_notifier_mail
     from isardvdi_notifier_client.models import NotifyMailRequest
     from isardvdi_notifier_client_auth import build_client, raise_for_status
     from rethinkdb import r
-
-    from isardvdi_common.connections.rethink_connection_factory import (
-        RethinkSharedConnection,
-    )
 
     scope = backup_data.get("scope", "full")
     summary = backup_data.get("summary", "")

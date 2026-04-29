@@ -50,23 +50,22 @@ from isardvdi_apiv4_client.api.role_admin import (
     admin_usage_consolidate,
     convert_storage,
     delete_cutoff_time_surpassed,
+)
+from isardvdi_apiv4_client.api.role_admin import (
+    delete_expired_user_notifications_data as delete_expired_notifications,
+)
+from isardvdi_apiv4_client.api.role_admin import (
     delete_old_entries,
     move_storage_by_path,
     recycle_bin_add_unused_items,
     retry_all_failed_tasks,
     rsync_storage_to_path,
 )
-from isardvdi_apiv4_client.api.role_admin import (
-    delete_expired_user_notifications_data as delete_expired_notifications,
-)
 from isardvdi_apiv4_client.api.role_advanced import (
     increase_storage_size,
     stop_all_desktops_in_deployment,
 )
-from isardvdi_apiv4_client.api.role_user import (
-    delete_desktop,
-    stop_desktop,
-)
+from isardvdi_apiv4_client.api.role_user import delete_desktop, stop_desktop
 from isardvdi_apiv4_client.models import (
     NotifyDesktopRequest,
     NotifyDesktopRequestParams,
