@@ -1527,16 +1527,11 @@ class DesktopsProcessed(RethinkSharedConnection):
                 viewers_hardware["videos"] = data["hardware"]["videos"]
 
             if data.get("hardware", {}).get("interfaces") is None:
-                data["hardware"] = {
-                    "interfaces": [
-                        interface["id"]
-                        for interface in domain["create_dict"]["hardware"]["interfaces"]
-                    ]
-                }
-                viewers_hardware["interfaces"] = [
+                data["hardware"]["interfaces"] = [
                     interface["id"]
                     for interface in domain["create_dict"]["hardware"]["interfaces"]
                 ]
+                viewers_hardware["interfaces"] = data["hardware"]["interfaces"]
             else:
                 viewers_hardware["interfaces"] = data["hardware"]["interfaces"]
 
