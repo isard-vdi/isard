@@ -179,7 +179,7 @@ $(document).ready(function () {
       childTable = $("#cl" + id).DataTable({
         dom: "t",
         ajax: {
-          url: "/admin/reservables/gpus/" + id,
+          url: "/api/v4/items/reservables/gpus/" + id,
           contentType: "application/json",
           type: "GET",
         },
@@ -237,7 +237,7 @@ $(document).ready(function () {
 
     $.ajax({
       type: "POST",
-      url: "/admin/domains",
+      url: "/api/v4/admin/domains",
       contentType: "application/json",
       data: JSON.stringify({
         kind: "desktop",

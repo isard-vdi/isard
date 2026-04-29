@@ -9,7 +9,7 @@ $(document).ready(function () {
   $desktops_priority_detail = $(".desktops_priority_detail");
   desktops_priority = $("#desktops_priority").DataTable({
     ajax: {
-      url: "/admin/table/desktops_priority",
+      url: "/api/v4/admin/table/desktops_priority",
       contentType: "application/json",
       type: "POST",
       data: function (d) {
@@ -124,7 +124,7 @@ $(document).ready(function () {
         }).get().on("pnotify.confirm", function () {
           $.ajax({
             type: "DELETE",
-            url: "/admin/table/desktops_priority/"+data["id"],
+            url: "/api/v4/admin/table/desktops_priority/"+data["id"],
             contentType: "application/json",
             success: function (data) {
               desktops_priority.ajax.reload();
@@ -223,7 +223,7 @@ $(document).ready(function () {
     if (form.parsley().isValid()) {
       $.ajax({
         type: "POST",
-        url: "/admin/table/add/desktops_priority",
+        url: "/api/v4/admin/table/add/desktops_priority",
         data: JSON.stringify(data),
         contentType: "application/json",
         success: function (data) {
@@ -269,7 +269,7 @@ $(document).ready(function () {
     if (form.parsley().isValid()) {
       $.ajax({
         type: "PUT",
-        url: "/admin/table/update/desktops_priority",
+        url: "/api/v4/admin/table/update/desktops_priority",
         data: JSON.stringify(data),
         contentType: "application/json",
         success: function (data) {

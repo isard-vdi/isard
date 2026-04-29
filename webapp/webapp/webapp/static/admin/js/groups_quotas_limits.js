@@ -18,7 +18,7 @@ $(document).ready(function() {
             }
         },
         "ajax": {
-            "url": "/admin/users/quotas_limits/groups",
+            "url": "/api/v4/admin/users/quotas_limits/groups",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}

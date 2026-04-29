@@ -1230,7 +1230,7 @@ $(document).on('click', '.btn-add-storage', function () {
     dropdownParent: $(modal),
     ajax: {
       type: "POST",
-      url: '/admin/allowed/term/users',
+      url: '/api/v4/admin/allowed/term/users',
       dataType: 'json',
       contentType: "application/json",
       delay: 250,

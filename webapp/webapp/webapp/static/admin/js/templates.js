@@ -314,7 +314,7 @@ $(document).ready(function() {
         scrollY: false,
         scrollX: false,
         ajax: {
-            url: "/admin/domains",
+            url: "/api/v4/admin/domains",
             type: "POST",
             contentType: 'application/json',
             dataSrc : "",
@@ -653,7 +653,7 @@ function actionsDomainDetail(){
             dropdownParent: $('#modalChangeOwnerDomain'),
             ajax: {
                 type: "POST",
-                url: '/admin/users/search',
+                url: '/api/v4/admin/users/search',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -1313,7 +1313,7 @@ function renderDisplay(data){
                 dropdownparent: $("#modalDuplicateTemplateForm"),
                 ajax: {
                     type: "POST",
-                    url: '/admin/allowed/term/users',
+                    url: '/api/v4/admin/allowed/term/users',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,

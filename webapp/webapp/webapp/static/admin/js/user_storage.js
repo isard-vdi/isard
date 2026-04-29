@@ -483,7 +483,7 @@ $(document).ready(function () {
 
     user_storage_users = $('#table-user_storage_users').DataTable({
         "ajax": {
-            "url": "/admin/user_storage/users",
+            "url": "/api/v4/admin/user_storage/users",
             "contentType": "application/json",
             "type": 'GET',
         },

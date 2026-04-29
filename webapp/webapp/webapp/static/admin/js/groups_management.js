@@ -18,7 +18,7 @@ $(document).ready(function() {
             }
         },
         "ajax": {
-            "url": "/admin/users/management/groups",
+            "url": "/api/v4/admin/users/management/groups",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}

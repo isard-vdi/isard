@@ -8,7 +8,7 @@
 $(document).ready(function(){
     var table=$('#externalapps').DataTable({
         "ajax": {
-            "url": "/admin/secrets",
+            "url": "/api/v4/admin/secrets",
             "dataSrc": "",
             "type" : "GET",
         },

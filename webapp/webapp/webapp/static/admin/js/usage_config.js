@@ -1099,7 +1099,7 @@ $('tbody').on('click', 'button', function () {
 // CONSOLIDATE
 
 function consolidate(item_type, days) {
-  url = days ? `/admin/usage/consolidate/${item_type}/${days}` : `/admin/usage/consolidate/${item_type}`
+  url = days ? `/api/v4/admin/usage/consolidate/${item_type}/${days}` : `/api/v4/admin/usage/consolidate/${item_type}`
   $.ajax({
     type: "PUT",
     url: url,
