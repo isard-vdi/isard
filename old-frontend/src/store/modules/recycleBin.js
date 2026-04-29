@@ -129,8 +129,12 @@ export default {
       })
     },
     fetchRecycleBins (context) {
-      axios.get(`${apiV3Segment}/item/recycle-bin/count`).then(response => {
-        context.commit('setRecycleBins', RecycleBinUtils.parseRecycleBinList(response.data))
+      // GET /items/recycle-bin returns { entries: [...] }; the singular
+      // /item/recycle-bin/count returns just an integer used by the
+      // status-bar badge.
+      axios.get(`${apiV3Segment}/items/recycle-bin`).then(response => {
+        const entries = (response.data && response.data.entries) || []
+        context.commit('setRecycleBins', RecycleBinUtils.parseRecycleBinList(entries))
       })
     },
     fetchRecycleBin (context, data) {

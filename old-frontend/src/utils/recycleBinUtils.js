@@ -2,9 +2,10 @@ import { DateUtils } from './dateUtils'
 import i18n from '@/i18n'
 export class RecycleBinUtils {
   static parseRecycleBinList (items) {
+    if (!Array.isArray(items)) return []
     return items.map((item) => {
       return RecycleBinUtils.parseRecycleBinListItem(item)
-    }) || []
+    })
   }
 
   static parseRecycleBinListItem (item) {
