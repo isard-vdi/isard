@@ -13,8 +13,8 @@ import type { CategoryResponseList } from '@/gen/oas/apiv4'
 import {
   apiV4CategoriesOptions,
   apiV4CategoriesQueryKey,
-  apiV4CategoryCustomUrlOptions,
-  apiV4CategoryCustomUrlQueryKey,
+  apiV4CategoryOptions,
+  apiV4CategoryQueryKey,
   apiV4LoginConfigOptions,
   getLoginConfigByCategoryOptions,
   getLoginConfigByCategoryQueryKey
@@ -116,14 +116,14 @@ const {
 })
 
 const categoryOpts = computed(() =>
-  apiV4CategoryCustomUrlOptions({
+  apiV4CategoryOptions({
     path: {
       custom_url: routeCategory.value || ''
     }
   })
 )
 const categoryQueryKey = computed(() =>
-  apiV4CategoryCustomUrlQueryKey({
+  apiV4CategoryQueryKey({
     path: {
       custom_url: routeCategory.value || ''
     }
