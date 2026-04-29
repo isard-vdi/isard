@@ -64,7 +64,7 @@ services:
 
   isard-grafana-alloy:
     container_name: isard-grafana-alloy
-    image: grafana/alloy:v1.11.3
+    image: grafana/alloy:v1.16.0
     privileged: true
     user: root
     pid: host
@@ -112,3 +112,4 @@ services:
       - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
       - PYROSCOPE_EBPF=${PYROSCOPE_EBPF:-false}
       - PYROSCOPE_ADDRESS=${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}
+      - FARO_ENABLED=${FARO_ENABLED:-false}

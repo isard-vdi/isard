@@ -600,6 +600,12 @@ create_docker_compose_file(){
 		sed -i '/\bTEMPO.*/d' docker-compose*.yml
 	fi
 
+	if [ "$FARO_ENABLED" != "true" ]
+	then
+		echo "Clean Faro vars"
+		sed -i '/\bFARO_.*/d' docker-compose*.yml
+	fi
+
 	if [ "$PYROSCOPE_EBPF" != "true" ]
 	then
 		echo "Clean Pyroscope"

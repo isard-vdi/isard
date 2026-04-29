@@ -14,6 +14,7 @@ export class ConfigUtils {
       can_use_bastion_individual_domains: canUseBastionIndividualDomains,
       migrations_block: migrationsBlock,
       frontend_mode: frontendMode = 'deprecated',
+      faro = { enabled: false, url: null },
       session: {
         id = '',
         max_renew_time: maxRenewTime = 0,
@@ -34,6 +35,7 @@ export class ConfigUtils {
       canUseBastionIndividualDomains,
       migrationsBlock,
       frontendMode,
+      faro,
       session: {
         id,
         maxRenewTime,

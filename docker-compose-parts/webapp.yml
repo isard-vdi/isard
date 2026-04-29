@@ -21,3 +21,5 @@ services:
       LOG_LEVEL:
       GRAFANA_WEBAPP_URL:
       OPERATIONS_API_ENABLED:
+      FARO_ENABLED:
+      FARO_URL:

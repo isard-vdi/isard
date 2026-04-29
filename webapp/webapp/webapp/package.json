@@ -7,6 +7,7 @@
     "datatables.net-buttons-bs": "^2.4.3",
     "daterangepicker": "^3.1.0",
     "echarts": "^5.6.0",
+    "@grafana/faro-web-sdk": "2.4.0",
     "font-awesome": "^4.7.0",
     "icheck": "^1.0.2",
     "ion-rangeslider": "^2.3.1",

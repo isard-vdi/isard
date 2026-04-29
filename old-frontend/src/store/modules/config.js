@@ -4,6 +4,16 @@ import { ConfigUtils } from '../../utils/configUtils'
 import { jwtDecode } from 'jwt-decode'
 import store from '@/store'
 
+let faroInitPromise = null
+function ensureFaroInitialized (faroConfig) {
+  if (!faroConfig?.enabled || !faroConfig.url) return
+  if (faroInitPromise) return faroInitPromise
+  faroInitPromise = import('@/lib/faro').then(({ initFaro }) => {
+    initFaro(faroConfig.url)
+  })
+  return faroInitPromise
+}
+
 export default {
   state: {
     providers: [],
@@ -52,6 +62,8 @@ export default {
 
       const rsp = await axios.get(`${apiV3Segment}/item/user/get-config`)
       context.commit('setConfig', ConfigUtils.parseConfig(rsp.data))
+
+      ensureFaroInitialized(rsp.data.faro)
 
       // Skip session management for isardvdi-service sessions
       if (context.getters.getConfig.session?.id === 'isardvdi-service') {

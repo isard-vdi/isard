@@ -1,0 +1,1242 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "schemaVersion": 39,
+  "title": "Frontend Faro",
+  "uid": "isardvdi-faro",
+  "tags": ["isardvdi", "frontend", "faro"],
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "app",
+        "label": "App",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+        "query": "label_values({source=\"faro\"}, app)",
+        "regex": "/^isardvdi-/",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+        "query": "label_values({app=~\"$app\"}, app_environment)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "role",
+        "label": "Role",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+        "query": "label_values({app=~\"$app\"}, user_attr_role)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "app_version",
+        "label": "App version",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+        "query": "label_values({app=~\"$app\"}, app_version)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "client",
+        "label": "API client",
+        "type": "custom",
+        "query": "api,apiv3,apiv4,auth,webapp",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "error_type",
+        "label": "API error type",
+        "type": "custom",
+        "query": "http,network",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "status",
+        "label": "API status",
+        "type": "custom",
+        "query": "400,401,403,404,408,409,422,429,500,502,503,504,0",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Overview",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total errors",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum(count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" [$__range])) or vector(0)",
+        "instant": true,
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "x": 0, "y": 1, "w": 6, "h": 4 }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Affected users",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "count(sum by (user_id) (count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" | user_id != \"\" [$__range]))) or vector(0)",
+        "instant": true,
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "x": 6, "y": 1, "w": 6, "h": 4 }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Sessions with errors",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "count(sum by (session_id) (count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" | session_id != \"\" [$__range]))) or vector(0)",
+        "instant": true,
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "x": 12, "y": 1, "w": 6, "h": 4 }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Total visits",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum(count_over_time({app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" ttfb=\" | logfmt | kind=\"measurement\" [$__range])) or vector(0)",
+        "instant": true,
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "x": 18, "y": 1, "w": 6, "h": 4 }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Errors over time (by type)",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (type) (count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" [$__interval]))",
+        "legendFormat": "{{type}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "fillOpacity": 60,
+            "stacking": { "mode": "normal", "group": "A" },
+            "spanNulls": false,
+            "showPoints": "auto"
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "gridPos": { "x": 0, "y": 5, "w": 16, "h": 8 }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Visits over time",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (app) (count_over_time({app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" ttfb=\" | logfmt | kind=\"measurement\" [$__interval]))",
+        "legendFormat": "{{app}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 10,
+            "spanNulls": true,
+            "showPoints": "auto"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "gridPos": { "x": 16, "y": 5, "w": 8, "h": 8 }
+    },
+
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Web Vitals",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "TTFB",
+      "description": "Time To First Byte — time from when the browser sends the request until it receives the first byte from the server. Measures network + server latency. Good: <600 ms.",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "avg(avg_over_time({app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" ttfb=\" | logfmt | kind=\"measurement\" | unwrap ttfb [$__range]))",
+        "legendFormat": "TTFB",
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 600 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "x": 0, "y": 14, "w": 6, "h": 4 }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "FCP",
+      "description": "First Contentful Paint — time until the first visual element (text, image, SVG) appears on screen. Indicates when the user sees the page begin to load. Good: <1.8 s.",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "avg(avg_over_time({app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" fcp=\" | logfmt | kind=\"measurement\" | unwrap fcp [$__range]))",
+        "legendFormat": "FCP",
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1800 },
+              { "color": "red", "value": 3000 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "x": 6, "y": 14, "w": 6, "h": 4 }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "LCP",
+      "description": "Largest Contentful Paint — time until the largest viewport element (usually the main image or heading) appears. Indicates when the page is visually usable. Good: <2.5 s.",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "avg(avg_over_time({app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" lcp=\" | logfmt | kind=\"measurement\" | unwrap lcp [$__range]))",
+        "legendFormat": "LCP",
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 2500 },
+              { "color": "red", "value": 4000 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "x": 12, "y": 14, "w": 6, "h": 4 }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "CLS",
+      "description": "Cumulative Layout Shift — dimensionless measure of unexpected layout shifts during page load (weighted sum of changes). Good: <0.1.",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "avg(avg_over_time({app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" cls=\" | logfmt | kind=\"measurement\" | unwrap cls [$__range]))",
+        "legendFormat": "CLS",
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 0.1 },
+              { "color": "red", "value": 0.3 }
+            ]
+          },
+          "unit": "none"
+        }
+      },
+      "gridPos": { "x": 18, "y": 14, "w": 6, "h": 4 }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Web Vitals trends (p75)",
+      "description": "p75 of TTFB, FCP and LCP from the Faro web-vitals events.",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" ttfb=\" | logfmt | kind=\"measurement\" | unwrap ttfb [5m]) by (app)",
+          "legendFormat": "TTFB",
+          "refId": "A"
+        },
+        {
+          "expr": "quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" fcp=\" | logfmt | kind=\"measurement\" | unwrap fcp [5m]) by (app)",
+          "legendFormat": "FCP",
+          "refId": "B"
+        },
+        {
+          "expr": "quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" lcp=\" | logfmt | kind=\"measurement\" | unwrap lcp [5m]) by (app)",
+          "legendFormat": "LCP",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 0,
+            "spanNulls": true,
+            "showPoints": "auto"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "gridPos": { "x": 0, "y": 18, "w": 16, "h": 8 }
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "CLS (p75)",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} |= \" cls=\" | logfmt | kind=\"measurement\" | unwrap cls [5m]) by (app)",
+        "legendFormat": "CLS",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 0,
+            "spanNulls": true,
+            "showPoints": "auto",
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 0.1 },
+              { "color": "red", "value": 0.25 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "gridPos": { "x": 16, "y": 18, "w": 8, "h": 8 }
+    },
+
+    {
+      "id": 60,
+      "type": "row",
+      "title": "Page performance",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 26, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 62,
+      "type": "stat",
+      "title": "Page load (p75)",
+      "description": "Total page load time = domComplete - fetchStart. End-to-end time from request start to fully rendered DOM.",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "avg(quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.navigation\" | event_data_pageLoadTime != \"unknown\" | unwrap event_data_pageLoadTime [$__range]))",
+        "legendFormat": "p75",
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 3000 },
+              { "color": "red", "value": 6000 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "x": 0, "y": 27, "w": 8, "h": 4 }
+    },
+    {
+      "id": 63,
+      "type": "stat",
+      "title": "DOM processing (p75)",
+      "description": "Time the browser spent parsing and executing scripts to make the DOM interactive (domComplete - domInteractive).",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "avg(quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.navigation\" | event_data_domProcessingTime != \"unknown\" | unwrap event_data_domProcessingTime [$__range]))",
+        "legendFormat": "p75",
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1000 },
+              { "color": "red", "value": 3000 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "x": 8, "y": 27, "w": 8, "h": 4 }
+    },
+    {
+      "id": 64,
+      "type": "stat",
+      "title": "onLoad handler (p75)",
+      "description": "Duration of the window 'load' event handler (loadEventEnd - loadEventStart). High values point to expensive load-time JS.",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "avg(quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.navigation\" | event_data_onLoadTime != \"unknown\" | unwrap event_data_onLoadTime [$__range]))",
+        "legendFormat": "p75",
+        "refId": "A"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 200 },
+              { "color": "red", "value": 1000 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "x": 16, "y": 27, "w": 8, "h": 4 }
+    },
+    {
+      "id": 65,
+      "type": "timeseries",
+      "title": "Page load breakdown (p75)",
+      "description": "Per-phase breakdown of navigation timing at p75. Stacked bars show where time is spent.",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "avg(quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.navigation\" | event_data_ttfb != \"unknown\" | unwrap event_data_ttfb [5m]))",
+          "legendFormat": "TTFB",
+          "refId": "A"
+        },
+        {
+          "expr": "avg(quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.navigation\" | event_data_documentParsingTime != \"unknown\" | unwrap event_data_documentParsingTime [5m]))",
+          "legendFormat": "Document parsing",
+          "refId": "B"
+        },
+        {
+          "expr": "avg(quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.navigation\" | event_data_domProcessingTime != \"unknown\" | unwrap event_data_domProcessingTime [5m]))",
+          "legendFormat": "DOM processing",
+          "refId": "C"
+        },
+        {
+          "expr": "avg(quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.navigation\" | event_data_onLoadTime != \"unknown\" | unwrap event_data_onLoadTime [5m]))",
+          "legendFormat": "onLoad",
+          "refId": "D"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "fillOpacity": 70,
+            "stacking": { "mode": "normal", "group": "A" },
+            "spanNulls": true,
+            "showPoints": "auto"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "gridPos": { "x": 0, "y": 31, "w": 24, "h": 8 }
+    },
+    {
+      "id": 66,
+      "type": "table",
+      "title": "Slowest pages (top 20, p75 page load)",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "topk(20, quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.navigation\" | event_data_pageLoadTime != \"unknown\" | unwrap event_data_pageLoadTime [$__range]) by (view_name, app))",
+        "instant": true,
+        "refId": "A"
+      }],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "view_name": 0, "app": 1, "Value #A": 2 },
+            "renameByName": { "view_name": "Route", "app": "App", "Value #A": "p75 (ms)", "Value": "p75 (ms)" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "p75 (ms)", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Route" },
+            "properties": [
+              { "id": "custom.width", "value": 320 },
+              { "id": "mappings", "value": [{ "type": "regex", "options": { "pattern": "^$", "result": { "text": "(unknown)", "index": 0 } } }] }
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "App" }, "properties": [{ "id": "custom.width", "value": 180 }] },
+          { "matcher": { "id": "byName", "options": "p75 (ms)" }, "properties": [
+            { "id": "unit", "value": "ms" },
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } }
+          ]}
+        ]
+      },
+      "gridPos": { "x": 0, "y": 39, "w": 12, "h": 10 }
+    },
+    {
+      "id": 67,
+      "type": "table",
+      "title": "Slowest resources (top 20, p75 fetch time)",
+      "description": "Default tracking: XHR + fetch only. Full URL retained — high cardinality is bounded by topk(20).",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "topk(20, quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.resource\" | event_data_fetchTime != \"unknown\" | unwrap event_data_fetchTime [$__range]) by (event_data_name, event_data_initiatorType))",
+        "instant": true,
+        "refId": "A"
+      }],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "event_data_name": 0, "event_data_initiatorType": 1, "Value #A": 2 },
+            "renameByName": { "event_data_name": "URL", "event_data_initiatorType": "Initiator", "Value #A": "p75 (ms)", "Value": "p75 (ms)" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "p75 (ms)", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto", "wrapText": true } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "URL" }, "properties": [{ "id": "custom.width", "value": 420 }] },
+          { "matcher": { "id": "byName", "options": "Initiator" }, "properties": [{ "id": "custom.width", "value": 100 }] },
+          { "matcher": { "id": "byName", "options": "p75 (ms)" }, "properties": [
+            { "id": "unit", "value": "ms" },
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } }
+          ]}
+        ]
+      },
+      "gridPos": { "x": 12, "y": 39, "w": 12, "h": 10 }
+    },
+    {
+      "id": 68,
+      "type": "piechart",
+      "title": "Resource cache status",
+      "description": "Distribution of resource fetches by cacheHitStatus: fullLoad (network), cache (memory/disk), conditionalFetch (304).",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (event_data_cacheHitStatus) (count_over_time({app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.resource\" [$__range]))",
+        "instant": true,
+        "format": "table",
+        "legendFormat": "{{event_data_cacheHitStatus}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "pieType": "donut",
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "tooltip": { "mode": "single" }
+      },
+      "transformations": [
+        {
+          "id": "rowsToFields",
+          "options": {
+            "mappings": [
+              { "fieldName": "event_data_cacheHitStatus", "handlerKey": "field.name" }
+            ]
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": { "regex": "^(\\S+)\\s+\\d+$", "renamePattern": "$1" }
+        }
+      ],
+      "gridPos": { "x": 0, "y": 49, "w": 12, "h": 8 }
+    },
+    {
+      "id": 69,
+      "type": "timeseries",
+      "title": "Resource fetch time (p75) by initiator",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "quantile_over_time(0.75, {app=~\"$app\", source=\"faro\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | event_name=\"faro.performance.resource\" | event_data_fetchTime != \"unknown\" | unwrap event_data_fetchTime [5m]) by (event_data_initiatorType)",
+        "legendFormat": "{{event_data_initiatorType}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 10,
+            "spanNulls": true,
+            "showPoints": "auto"
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "gridPos": { "x": 12, "y": 49, "w": 12, "h": 8 }
+    },
+
+    {
+      "id": 30,
+      "type": "row",
+      "title": "API errors",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 57, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Errors per minute",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (event_data_error_type) (\n  rate({app=~\"$app\", source=\"faro\"} | logfmt | event_name = \"request_failed\" | app_environment =~ \"$environment\" | user_attr_role =~ \"$role\" | app_version =~ \"$app_version\" | event_data_client =~ \"$client\" | event_data_error_type =~ \"$error_type\" | event_data_status =~ \"$status\" [1m])\n)",
+        "legendFormat": "{{event_data_error_type}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "fillOpacity": 60,
+            "stacking": { "mode": "normal", "group": "A" },
+            "spanNulls": false,
+            "showPoints": "auto"
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "gridPos": { "x": 0, "y": 58, "w": 12, "h": 8 }
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Errors per client",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (event_data_client) (\n  rate({app=~\"$app\", source=\"faro\"} | logfmt | event_name = \"request_failed\" | app_environment =~ \"$environment\" | user_attr_role =~ \"$role\" | app_version =~ \"$app_version\" | event_data_client =~ \"$client\" | event_data_error_type =~ \"$error_type\" | event_data_status =~ \"$status\" [1m])\n)",
+        "legendFormat": "{{event_data_client}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "fillOpacity": 60,
+            "stacking": { "mode": "normal", "group": "A" },
+            "spanNulls": false,
+            "showPoints": "auto"
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "gridPos": { "x": 12, "y": 58, "w": 12, "h": 8 }
+    },
+    {
+      "id": 33,
+      "type": "piechart",
+      "title": "Status code distribution",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (event_data_status) (\n  count_over_time({app=~\"$app\", source=\"faro\"} | logfmt | event_name = \"request_failed\" | event_data_error_type = \"http\" | app_environment =~ \"$environment\" | user_attr_role =~ \"$role\" | app_version =~ \"$app_version\" | event_data_client =~ \"$client\" | event_data_error_type =~ \"$error_type\" | event_data_status =~ \"$status\" [$__range])\n)",
+        "instant": true,
+        "format": "table",
+        "legendFormat": "{{event_data_status}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "pieType": "pie",
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "tooltip": { "mode": "single" }
+      },
+      "transformations": [
+        {
+          "id": "rowsToFields",
+          "options": {
+            "mappings": [
+              { "fieldName": "event_data_status", "handlerKey": "field.name" }
+            ]
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": { "regex": "^(\\S+)\\s+\\d+$", "renamePattern": "$1" }
+        }
+      ],
+      "gridPos": { "x": 0, "y": 66, "w": 8, "h": 8 }
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "Duration P50 / P95",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.5, {app=~\"$app\", source=\"faro\"} | logfmt | event_name = \"request_failed\" | app_environment =~ \"$environment\" | user_attr_role =~ \"$role\" | app_version =~ \"$app_version\" | event_data_client =~ \"$client\" | event_data_error_type =~ \"$error_type\" | event_data_status =~ \"$status\" | unwrap event_data_duration_ms [1m]) by ()",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "expr": "quantile_over_time(0.95, {app=~\"$app\", source=\"faro\"} | logfmt | event_name = \"request_failed\" | app_environment =~ \"$environment\" | user_attr_role =~ \"$role\" | app_version =~ \"$app_version\" | event_data_client =~ \"$client\" | event_data_error_type =~ \"$error_type\" | event_data_status =~ \"$status\" | unwrap event_data_duration_ms [1m]) by ()",
+          "legendFormat": "P95",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 10,
+            "spanNulls": false,
+            "showPoints": "auto"
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "gridPos": { "x": 8, "y": 66, "w": 16, "h": 8 }
+    },
+    {
+      "id": 35,
+      "type": "table",
+      "title": "Top endpoints failing",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "topk(20,\n  sum by (event_data_route_template, event_data_status) (\n    count_over_time({app=~\"$app\", source=\"faro\"} | logfmt | event_name = \"request_failed\" | app_environment =~ \"$environment\" | user_attr_role =~ \"$role\" | app_version =~ \"$app_version\" | event_data_client =~ \"$client\" | event_data_error_type =~ \"$error_type\" | event_data_status =~ \"$status\" [$__range])\n  )\n)",
+        "instant": true,
+        "refId": "A"
+      }],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "event_data_route_template": 0, "event_data_status": 1, "Value #A": 2 },
+            "renameByName": { "event_data_route_template": "Route", "event_data_status": "Status", "Value #A": "Errors", "Value": "Errors" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "Errors", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Route" }, "properties": [{ "id": "custom.width", "value": 320 }] },
+          { "matcher": { "id": "byName", "options": "Status" }, "properties": [{ "id": "custom.width", "value": 80 }] },
+          { "matcher": { "id": "byName", "options": "Errors" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } }
+          ]}
+        ]
+      },
+      "gridPos": { "x": 0, "y": 74, "w": 24, "h": 8 }
+    },
+
+    {
+      "id": 50,
+      "type": "row",
+      "title": "Exceptions",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 82, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 53,
+      "type": "table",
+      "title": "Top stack traces",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "topk(20, sum by (type, value) (count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" [$__range])))",
+        "instant": true,
+        "refId": "A"
+      }],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "type": 0, "value": 1, "Value #A": 2 },
+            "renameByName": { "type": "Type", "value": "Message", "Value #A": "Errors", "Value": "Errors" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "Errors", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto", "wrapText": true } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Type" }, "properties": [{ "id": "custom.width", "value": 200 }] },
+          { "matcher": { "id": "byName", "options": "Errors" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "gradient" } },
+            { "id": "custom.width", "value": 100 }
+          ]}
+        ]
+      },
+      "gridPos": { "x": 0, "y": 83, "w": 24, "h": 10 }
+    },
+    {
+      "id": 52,
+      "type": "table",
+      "title": "Errors by route",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (view_name) (count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" [$__range]))",
+        "instant": true,
+        "refId": "A"
+      }],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "view_name": "Route", "Value #A": "Errors", "Value": "Errors" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "Errors", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Route" },
+            "properties": [
+              { "id": "custom.width", "value": 260 },
+              { "id": "mappings", "value": [{ "type": "regex", "options": { "pattern": "^$", "result": { "text": "(unknown)", "index": 0 } } }] }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Errors" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } },
+              { "id": "custom.width", "value": 200 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "x": 0, "y": 93, "w": 12, "h": 9 }
+    },
+    {
+      "id": 54,
+      "type": "table",
+      "title": "Top affected users",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "topk(50, sum by (user_id, user_attr_role) (count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" [$__range])))",
+        "instant": true,
+        "refId": "A"
+      }],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "user_id": 0, "user_attr_role": 1, "Value #A": 2 },
+            "renameByName": { "user_id": "User", "user_attr_role": "Role", "Value #A": "Errors", "Value": "Errors" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "Errors", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "User" },
+            "properties": [
+              { "id": "mappings", "value": [{ "type": "regex", "options": { "pattern": "^$", "result": { "text": "(anonymous)", "index": 0 } } }] },
+              { "id": "custom.width", "value": 220 }
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "Errors" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } }
+          ]}
+        ]
+      },
+      "gridPos": { "x": 12, "y": 93, "w": 12, "h": 9 }
+    },
+    {
+      "id": 55,
+      "type": "table",
+      "title": "Errors by browser",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (browser_name, browser_version, browser_os) (count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" [$__range]))",
+        "instant": true,
+        "refId": "A"
+      }],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "browser_name": 0, "browser_version": 1, "browser_os": 2, "Value #A": 3 },
+            "renameByName": { "browser_name": "Browser", "browser_version": "Version", "browser_os": "OS", "Value #A": "Errors", "Value": "Errors" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "Errors", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Version" }, "properties": [{ "id": "custom.width", "value": 100 }] },
+          { "matcher": { "id": "byName", "options": "Errors" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } }
+          ]}
+        ]
+      },
+      "gridPos": { "x": 0, "y": 102, "w": 12, "h": 9 }
+    },
+    {
+      "id": 56,
+      "type": "table",
+      "title": "Errors by app version",
+      "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+      "targets": [{
+        "expr": "sum by (app_version, app_environment) (count_over_time({app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" [$__range]))",
+        "instant": true,
+        "refId": "A"
+      }],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "app_version": 0, "app_environment": 1, "Value #A": 2 },
+            "renameByName": { "app_version": "Version", "app_environment": "Environment", "Value #A": "Errors", "Value": "Errors" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "Errors", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Errors" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } }
+          ]}
+        ]
+      },
+      "gridPos": { "x": 12, "y": 102, "w": 12, "h": 9 }
+    },
+
+    {
+      "id": 80,
+      "type": "row",
+      "title": "Logs",
+      "collapsed": true,
+      "gridPos": { "x": 0, "y": 111, "w": 24, "h": 1 },
+      "panels": [
+        {
+          "id": 81,
+          "type": "logs",
+          "title": "Console warn/error logs",
+          "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+          "targets": [{
+            "expr": "{app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"log\" | level=~\"error|warn\"",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "dedupStrategy": "none",
+            "sortOrder": "Descending"
+          },
+          "gridPos": { "x": 0, "y": 112, "w": 24, "h": 10 }
+        },
+        {
+          "id": 82,
+          "type": "logs",
+          "title": "Recent exceptions",
+          "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+          "targets": [{
+            "expr": "{app=~\"$app\", app_environment=~\"$environment\", user_attr_role=~\"$role\", app_version=~\"$app_version\"} | logfmt | kind=\"exception\" | line_format \"[{{.type}}] {{.value}}  @ {{.view_name}}  user={{.user_id}}  session={{.session_id}}  browser={{.browser_name}}/{{.browser_os}}\"",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "dedupStrategy": "none",
+            "sortOrder": "Descending"
+          },
+          "gridPos": { "x": 0, "y": 122, "w": 24, "h": 12 }
+        },
+        {
+          "id": 83,
+          "type": "logs",
+          "title": "API failed requests (detailed)",
+          "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
+          "targets": [{
+            "expr": "{app=~\"$app\", source=\"faro\"} | logfmt | event_name = \"request_failed\" | app_environment =~ \"$environment\" | user_attr_role =~ \"$role\" | app_version =~ \"$app_version\" | event_data_client =~ \"$client\" | event_data_error_type =~ \"$error_type\" | event_data_status =~ \"$status\"",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "dedupStrategy": "none",
+            "sortOrder": "Descending"
+          },
+          "gridPos": { "x": 0, "y": 134, "w": 24, "h": 10 }
+        }
+      ]
+    }
+  ]
+}

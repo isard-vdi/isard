@@ -24,6 +24,21 @@ from isardvdi_common.schemas.shared.allowed import Allowed
 from isardvdi_common.schemas.user import UserStorageModel
 from pydantic import BaseModel, Field
 
+FrontendMode = Literal["deprecated", "actual", "all"]
+
+
+class FaroConfig(BaseModel):
+    """Faro client configuration delivered to the browser at startup."""
+
+    enabled: bool = Field(..., description="Whether the Faro SDK should initialize")
+    url: Optional[str] = Field(
+        None,
+        description=(
+            "Receiver endpoint. Relative paths target the local HAProxy route; "
+            "absolute URLs point to an external Faro receiver."
+        ),
+    )
+
 
 class UserVpnWireguardKeys(BaseModel):
     """VPN Wireguard keys model"""
@@ -113,7 +128,16 @@ class UserConfigResponse(BaseModel):
     can_use_bastion_individual_domains: bool
     migrations_block: bool
     session: dict
-    frontend_mode: Literal["deprecated", "actual", "all"] = "deprecated"
+    frontend_mode: FrontendMode = Field(
+        "deprecated",
+        description=(
+            "Which frontend to serve: 'deprecated' (Vue 2 only), "
+            "'actual' (Vue 3 only), or 'all' (both, with toggler)."
+        ),
+    )
+    faro: FaroConfig = Field(
+        description="Faro telemetry configuration for the browser SDK.",
+    )
 
 
 class HardwareItem(BaseModel):

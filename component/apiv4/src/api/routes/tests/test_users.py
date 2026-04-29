@@ -19,6 +19,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import os
+
 import pytest
 from api.routes.tests.factories import make_category, make_group, make_user
 from api.routes.tests.helpers import MockJWT
@@ -339,6 +341,8 @@ def _stub_user_config() -> dict:
         "can_use_bastion_individual_domains": False,
         "migrations_block": False,
         "session": {},
+        "frontend_mode": "deprecated",
+        "faro": {"enabled": False, "url": None},
     }
 
 
@@ -361,7 +365,95 @@ def test_get_user_config(monkeypatch, test_client):
     assert response.status_code == 200
     body = response.json()
     assert body["documentation_url"] == "https://docs.example"
+    assert body["frontend_mode"] == "deprecated"
+    assert body["faro"] == {"enabled": False, "url": None}
     assert captured["user_id"] == jwt.payload["user_id"]
+
+
+@pytest.mark.parametrize(
+    "env_value,expected",
+    [
+        ("deprecated", "deprecated"),
+        ("actual", "actual"),
+        ("all", "all"),
+        ("garbage", "deprecated"),
+        ("", "deprecated"),
+    ],
+)
+def test_user_config_frontend_mode_values(
+    monkeypatch, test_client, env_value, expected
+):
+    """FRONTEND_MODE env var must propagate (or fall back) to the response."""
+    jwt = MockJWT()
+
+    if env_value == "":
+        monkeypatch.delenv("FRONTEND_MODE", raising=False)
+    else:
+        monkeypatch.setenv("FRONTEND_MODE", env_value)
+
+    stub = _stub_user_config()
+
+    def fake_get_user_config(payload):
+        raw = os.environ.get("FRONTEND_MODE", "deprecated")
+        mode = raw if raw in ("deprecated", "actual", "all") else "deprecated"
+        return {**stub, "frontend_mode": mode}
+
+    monkeypatch.setattr(
+        "api.services.users.UsersService.get_user_config",
+        staticmethod(fake_get_user_config),
+    )
+
+    response = test_client(url="/item/user/get-config", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json()["frontend_mode"] == expected
+
+
+@pytest.mark.parametrize(
+    "faro_enabled,faro_url,expected",
+    [
+        ("true", None, {"enabled": True, "url": "/faro/collect"}),
+        (
+            "true",
+            "https://faro.example/collect",
+            {"enabled": True, "url": "https://faro.example/collect"},
+        ),
+        ("false", None, {"enabled": False, "url": None}),
+        (None, None, {"enabled": False, "url": None}),
+    ],
+)
+def test_user_config_faro_values(
+    monkeypatch, test_client, faro_enabled, faro_url, expected
+):
+    """FARO_ENABLED / FARO_URL env vars drive the faro block in the response."""
+    jwt = MockJWT()
+
+    if faro_enabled is None:
+        monkeypatch.delenv("FARO_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("FARO_ENABLED", faro_enabled)
+    if faro_url is None:
+        monkeypatch.delenv("FARO_URL", raising=False)
+    else:
+        monkeypatch.setenv("FARO_URL", faro_url)
+
+    stub = _stub_user_config()
+
+    def fake_get_user_config(payload):
+        on = os.environ.get("FARO_ENABLED", "false").lower() == "true"
+        faro = {
+            "enabled": on,
+            "url": (os.environ.get("FARO_URL") or "/faro/collect") if on else None,
+        }
+        return {**stub, "faro": faro}
+
+    monkeypatch.setattr(
+        "api.services.users.UsersService.get_user_config",
+        staticmethod(fake_get_user_config),
+    )
+
+    response = test_client(url="/item/user/get-config", jwt=jwt)
+    assert response.status_code == 200
+    assert response.json()["faro"] == expected
 
 
 def test_get_user_password_policy(monkeypatch, test_client):

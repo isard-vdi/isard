@@ -158,6 +158,22 @@
   {% endif %}
   {% endwith %}
   {% block pagescript %}{% endblock %}
+
+  {% if faro_enabled and faro_url %}
+  <script>
+    window.__FARO_CONFIG__ = {
+      url: {{ faro_url|tojson }},
+      version: 'dev',
+      user: {
+        id: {{ (current_user.id if current_user.is_authenticated else '')|tojson }},
+        role: {{ (current_user.role if current_user.is_authenticated else '')|tojson }},
+        category: {{ (current_user.category if current_user.is_authenticated else '')|tojson }}
+      }
+    }
+  </script>
+  <script src="/isard-admin/vendors/@grafana/faro-web-sdk/dist/bundle/faro-web-sdk.iife.js"></script>
+  <script src="/isard-admin/static/js/faro.js"></script>
+  {% endif %}
 </body>
 
 </html>

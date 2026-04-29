@@ -7,9 +7,11 @@ import {
   getBearer,
   setToken,
   parseToken,
+  isLoginClaims,
   type TypeClaims
 } from '@/lib/auth'
 import { renew } from '@/gen/oas/authentication'
+import { setFaroUser } from '@/lib/faro-hook'
 
 export const useAuthStore = defineStore('auth', () => {
   const claims = ref<TypeClaims | null>(null)
@@ -23,6 +25,25 @@ export const useAuthStore = defineStore('auth', () => {
   const tokenType = computed(() => claims.value?.type)
   const sessionId = computed(() => claims.value?.session_id || null)
   const user = computed(() => claims.value?.data || null)
+
+  // Keep Faro telemetry in sync with the auth state automatically — avoids
+  // having to remember to call setFaroUser on every code path that mutates
+  // claims (login, renew, category-select, logout, external cookie clear…).
+  watch(
+    claims,
+    (newClaims) => {
+      if (newClaims && isLoginClaims(newClaims)) {
+        setFaroUser({
+          id: newClaims.data.user_id,
+          role: newClaims.data.role_id,
+          sessionId: newClaims.session_id
+        })
+      } else {
+        setFaroUser(null)
+      }
+    },
+    { immediate: true }
+  )
 
   // Cookie watcher - only handles auth state, not session management
   const cookieWatcher = watch(
