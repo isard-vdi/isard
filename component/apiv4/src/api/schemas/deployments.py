@@ -243,6 +243,27 @@ class DeploymentEditRequest(BaseModel):
         description="**UNIMPLEMENTED**: List of resources to attach to the deployment",
     )
 
+    # ── Legacy compat fields (apiv3 flat shape) ───────────────────────
+    # Old-frontend (vue 2) submits a flat per-deployment edit payload
+    # where the recipe-level fields (`desktop_name`, `hardware`,
+    # `guest_properties`) sit at the top level instead of inside a
+    # `desktops_to_edit` entry. The service expands these across every
+    # existing tag_desktop_id so vue 2 keeps working unchanged.
+    desktop_name: Optional[str] = Field(
+        default=None,
+        description="Legacy: name to apply to every desktop in the deployment.",
+        min_length=1,
+        max_length=50,
+    )
+    hardware: Optional[dict] = Field(
+        default=None,
+        description="Legacy: hardware override applied to every desktop.",
+    )
+    guest_properties: Optional[dict] = Field(
+        default=None,
+        description="Legacy: guest_properties override applied to every desktop.",
+    )
+
     @model_validator(mode="after")
     def validate_edit_request(self) -> "DeploymentEditRequest":
         """If there is a desktop in both edit and delete lists, remove it from the edit list"""
