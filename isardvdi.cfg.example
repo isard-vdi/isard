@@ -75,9 +75,16 @@ FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/vie
 ## Controls which of the two frontends (old vue2 / new vue3) the user can reach
 ## and whether a toggler is shown to switch between them.
 ## Values: (first value is the default one)
-##  - deprecated: only the vue2 frontend, no toggler
+##  - deprecated: only the vue2 frontend, no toggler.
+##                Vue 3 routes (/frontend/*) silently redirect to their Vue 2
+##                equivalents — apiv4 returns frontend_mode=deprecated to the
+##                Vue 3 SPA which then calls window.location.assign(<vue2-path>).
+##                This is the safe production-migration default.
 ##  - actual:     only the vue3 frontend, no toggler
-##  - all:        both frontends reachable, toggler shown on view pages
+##  - all:        both frontends reachable, toggler shown on view pages.
+##                Required for Vue 3 e2e tests + recommended for devel work
+##                on the apiv4-integration branch (.gitlab-ci.yml's test-e2e
+##                and integration-real jobs both set FRONTEND_MODE=all).
 #FRONTEND_MODE=deprecated
 
 # ------ Frontend Direct Viewer cookie ---------------------------------------

@@ -548,6 +548,11 @@ test-e2e:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
     - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
     - echo "ENABLE_STATS=false" >> isardvdi.e2e.cfg
+    # FRONTEND_MODE=all keeps the Vue 3 SPA reachable for the e2e suite — the
+    # cfg.example default is "deprecated" (Vue 3 redirects to Vue 2) for safe
+    # production migrations, but every Vue 3 e2e spec navigates to /frontend/*
+    # and would silently land on Vue 2 without this override.
+    - echo "FRONTEND_MODE=all" >> isardvdi.e2e.cfg
     # Redirect nvidia-smi / libnvidia-ml / sriov-manage mounts to an
     # always-present file — rootless dind cannot mkdir /usr/bin/nvidia-smi
     # or /usr/lib/nvidia/sriov-manage to satisfy the default bind. GPU
@@ -625,6 +630,11 @@ integration-real:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
     - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
     - echo "ENABLE_STATS=false" >> isardvdi.e2e.cfg
+    # FRONTEND_MODE=all keeps the Vue 3 SPA reachable for the e2e suite — the
+    # cfg.example default is "deprecated" (Vue 3 redirects to Vue 2) for safe
+    # production migrations, but every Vue 3 e2e spec navigates to /frontend/*
+    # and would silently land on Vue 2 without this override.
+    - echo "FRONTEND_MODE=all" >> isardvdi.e2e.cfg
     # Redirect nvidia-smi / libnvidia-ml / sriov-manage mounts to an
     # always-present file — rootless dind cannot mkdir /usr/bin/nvidia-smi
     # or /usr/lib/nvidia/sriov-manage to satisfy the default bind. GPU

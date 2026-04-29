@@ -41,6 +41,16 @@ test.describe('Admin AJAX — updates (downloads) page', () => {
 
     // We expect the registration check + at least one of the five
     // DataTable endpoints to fire on initial render.
+    //
+    // Both endpoints depend on the deployment being registered with
+    // the upstream catalog. On a fresh-from-scratch stack that hasn't
+    // been registered yet, apiv4 deliberately returns 428 Precondition
+    // Required ("IsardVDI hasn't been registered yet."). That is a
+    // documented, expected response — not a bug — so allow 428 in
+    // addition to 2xx/3xx. The point of this test is to verify the
+    // URL prefix is /api/v4, not that the data is non-empty (the
+    // separate `stale` assertion below is the one that actually
+    // catches the legacy-prefix regression).
     const expectedReads = [
       '/api/v4/admin/downloads',           // registration probe
       '/api/v4/admin/downloads/domains',   // Slax / desktops downloads
@@ -49,6 +59,10 @@ test.describe('Admin AJAX — updates (downloads) page', () => {
       const matched = xhr.filter((x) => x.url.includes(path))
       expect(matched.length, `expected at least one ${path} call`).toBeGreaterThan(0)
       for (const m of matched) {
+        // 428 = "not registered yet" — the registration probe always
+        // returns this on a fresh stack and is then cleared by clicking
+        // the register button (covered in the next test).
+        if (m.status === 428) continue
         expect(m.status, `${m.method} ${m.url}`).toBeLessThan(400)
       }
     }
