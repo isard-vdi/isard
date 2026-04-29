@@ -484,7 +484,16 @@ class HypervisorsProcessed(RethinkSharedConnection):
             "gpu_only": gpu_only,
         }
 
-        hypervisor = HypervisorModel(**hypervisor).model_dump(mode="json")
+        # exclude_unset prevents the model's defaults (vpn=None,
+        # cap_status={...}, info={}, mountpoints=[], prev_status=[],
+        # stats=None, viewer_status=None) from leaking into the upsert.
+        # With conflict="update", any explicitly-dumped key overwrites
+        # the existing value — so vpn=None would wipe the live
+        # wireguard peer config that isard-vpn populated, sending the
+        # hypervisor into a 428 retry loop on every restart.
+        hypervisor = HypervisorModel(**hypervisor).model_dump(
+            mode="json", exclude_unset=True
+        )
         hypervisor["enabled_virt_pools"] = (
             enabled_virt_pools or virt_pools or storage_pools
         )
