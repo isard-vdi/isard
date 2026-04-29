@@ -52,24 +52,35 @@ class ConfigService:
 
         login_config = config.get("login")
 
-        for key in ["notification_cover", "notification_form"]:
-            if key in login_config and type(login_config[key]) is dict:
-                for field in ["description", "title", "text", "url"]:
-                    if (
-                        "button" in login_config[key]
-                        and field in login_config[key]["button"]
-                        and login_config[key]["button"][field] is not None
-                    ):
-                        login_config[key]["button"][field] = html.unescape(
-                            login_config[key]["button"][field]
-                        )
-                    if (
-                        field in login_config[key]
-                        and login_config[key][field] is not None
-                    ):
-                        login_config[key][field] = html.unescape(
-                            login_config[key][field]
-                        )
+        # Wrap pre-feature single-dict notifications into 1-item lists so the
+        # frontend can iterate them uniformly. The per-category route already
+        # returns lists (see admin_categories.get_login_config_for_category);
+        # this is the global-only path. Without the wrap, Vue 3's
+        # `v-for=(notification, index) in config?.notification_cover` runs over
+        # the dict's values, none of which are notification objects, so no
+        # notification ever renders on the public login page.
+        for key in ("notification_cover", "notification_form"):
+            notification = login_config.get(key)
+            if isinstance(notification, dict):
+                login_config[key] = [notification]
+            elif notification is None:
+                continue
+
+        for key in ("notification_cover", "notification_form"):
+            notification_list = login_config.get(key)
+            if not notification_list:
+                continue
+            for notification in notification_list:
+                if not isinstance(notification, dict):
+                    continue
+                for field in ("title", "description"):
+                    if notification.get(field) is not None:
+                        notification[field] = html.unescape(notification[field])
+                button = notification.get("button")
+                if isinstance(button, dict):
+                    for field in ("text", "url"):
+                        if button.get(field) is not None:
+                            button[field] = html.unescape(button[field])
 
         return login_config
 

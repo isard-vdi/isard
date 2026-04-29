@@ -215,11 +215,19 @@ def test_get_login_config(test_client, login_db_factory):
 
     assert response.status_code == 200
     data = response.json()
-    # Verify notification fields
-    assert data["notification_cover"]["enabled"] is True
-    assert data["notification_cover"]["title"] == "TITLE"
-    assert data["notification_cover"]["description"] == "Cover notification description"
-    assert data["notification_form"]["enabled"] is False
+    # Notifications come back as 1-item lists so the public login page can
+    # render the global notification next to the per-category one when a
+    # category id is supplied. Pre-feature single-dict notifications stored
+    # on the config row are wrapped server-side. See
+    # services/config.py::get_login_config and the schema docstring.
+    assert isinstance(data["notification_cover"], list)
+    assert data["notification_cover"][0]["enabled"] is True
+    assert data["notification_cover"][0]["title"] == "TITLE"
+    assert (
+        data["notification_cover"][0]["description"] == "Cover notification description"
+    )
+    assert isinstance(data["notification_form"], list)
+    assert data["notification_form"][0]["enabled"] is False
     # Verify providers
     assert data["providers"] is not None
 
