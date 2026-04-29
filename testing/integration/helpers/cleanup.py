@@ -88,19 +88,24 @@ def cleanup_by_prefix(client: IsardClient, prefix: str) -> dict:
             _safe_delete(client, "DELETE", f"/api/v4/item/media/{media['id']}")
             counts["media"] += 1
 
-    # Admin-sortable domain list (by name, kind=desktop). Catches
-    # downloaded desktops still owned by the admin that haven't been
-    # deleted via the user-facing endpoint, plus anything else named
-    # with our prefix.
-    admin_desktops = _safe_list(client, "/api/v4/admin/domains/name/desktop")
-    for domain in admin_desktops:
-        if _has_prefix(domain, prefix):
-            _safe_delete(
-                client,
-                "POST",
-                f"/api/v4/admin/downloads/delete/domains/{domain['id']}",
-            )
-            counts["downloads"] += 1
+    # Admin domain listing (kind=desktop). Catches downloaded desktops
+    # still owned by the admin that haven't been deleted via the
+    # user-facing endpoint, plus anything else named with our prefix.
+    # The ``/admin/domains/name/desktop`` endpoint only returns
+    # ``{name}`` (no id) — use the broader ``POST /admin/domains
+    # kind=desktop`` listing which carries full rows.
+    admin_resp = client.raw("POST", "/api/v4/admin/domains", json={"kind": "desktop"})
+    if admin_resp.status_code == 200:
+        for domain in admin_resp.json() or []:
+            if not isinstance(domain, dict):
+                continue
+            if _has_prefix(domain, prefix) and domain.get("id"):
+                _safe_delete(
+                    client,
+                    "POST",
+                    f"/api/v4/admin/downloads/delete/domains/{domain['id']}",
+                )
+                counts["downloads"] += 1
 
     # Bulk-delete the user via the (only) DELETE /admin/user endpoint
     # which takes {"user": [ids], "delete_user": bool}. Skip the
