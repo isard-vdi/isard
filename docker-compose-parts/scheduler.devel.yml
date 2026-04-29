@@ -3,6 +3,8 @@ services:
     container_name: isard-scheduler
     ports:
       - "5001:5000"
+    environment:
+      PYTHONPATH: /opt/isardvdi
     volumes:
     - ${BUILD_ROOT_PATH}/scheduler/src:/src
     - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common

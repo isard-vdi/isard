@@ -1,5 +1,7 @@
 services:
   isard-backupninja:
+    environment:
+      PYTHONPATH: /opt/isardvdi
     volumes:
     - type: bind
       source: ${BUILD_ROOT_PATH}/docker/backupninja/run.sh

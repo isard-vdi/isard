@@ -3,8 +3,10 @@ services:
     container_name: isard-notifier
     ports:
       - "5002:5000"
+    environment:
+      PYTHONPATH: /opt/isardvdi
     volumes:
-      - ${BUILD_ROOT_PATH}/notifier/src:/opt/isardvdi/src
+      - ${BUILD_ROOT_PATH}/notifier/src:/isard:rw
       - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth

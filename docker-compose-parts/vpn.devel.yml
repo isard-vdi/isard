@@ -1,5 +1,7 @@
 services:
   isard-vpn:
+    environment:
+      PYTHONPATH: /opt/isardvdi
     volumes:
     - ${BUILD_ROOT_PATH}/docker/vpn/src:/src
     - ${BUILD_ROOT_PATH}/docker/vpn/ovs:/ovs

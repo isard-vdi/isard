@@ -9,6 +9,8 @@ services:
     # recurse through sub-mounts, so each one must be listed explicitly or
     # changes to _common get silently dropped.
     command: ["uvicorn", "isardvdi_socketio:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "/opt/isardvdi/isardvdi_socketio", "--reload-dir", "/opt/isardvdi/isardvdi_common", "--proxy-headers", "--forwarded-allow-ips=*"]
+    environment:
+      PYTHONPATH: /opt/isardvdi
     volumes:
       - ${BUILD_ROOT_PATH}/component/socketio/src:/opt/isardvdi/isardvdi_socketio
       - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
