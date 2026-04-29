@@ -548,11 +548,18 @@ test-e2e:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
     - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
     - echo "ENABLE_STATS=false" >> isardvdi.e2e.cfg
-    # Redirect nvidia-smi / libnvidia-ml mounts to an always-present file —
-    # rootless dind cannot mkdir /usr/bin/nvidia-smi to satisfy the default
-    # bind. GPU discovery exits cleanly when exec fails.
+    # Redirect nvidia-smi / libnvidia-ml / sriov-manage mounts to an
+    # always-present file — rootless dind cannot mkdir /usr/bin/nvidia-smi
+    # or /usr/lib/nvidia/sriov-manage to satisfy the default bind. GPU
+    # discovery exits cleanly when exec fails.
     - echo "NVIDIA_SMI_PATH=/etc/hostname" >> isardvdi.e2e.cfg
     - echo "NVIDIA_ML_LIB_PATH=/etc/hostname" >> isardvdi.e2e.cfg
+    - echo "NVIDIA_SRIOV_MANAGE_PATH=/etc/hostname" >> isardvdi.e2e.cfg
+    # /dev/hugepages is mounted by the hypervisor for GPU memoryBacking;
+    # rootless dind cannot mkdir under /dev. Point it at a placeholder dir
+    # that exists for the lifetime of the job.
+    - mkdir -p /tmp/isard-e2e-hugepages
+    - echo "HUGEPAGES_PATH=/tmp/isard-e2e-hugepages" >> isardvdi.e2e.cfg
     - CODEGEN=false ./build.sh
     # Rewrite /opt bind mounts to /tmp — rootless dind cannot mkdir /opt
     - "sed -i 's|source: /opt/isard/|source: /tmp/isard-e2e/opt/isard/|g; s|source: /opt/isard-local/|source: /tmp/isard-e2e/opt/isard-local/|g' docker-compose.e2e.yml"
@@ -618,11 +625,16 @@ integration-real:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
     - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
     - echo "ENABLE_STATS=false" >> isardvdi.e2e.cfg
-    # Redirect nvidia-smi / libnvidia-ml mounts to an always-present file —
-    # rootless dind cannot mkdir /usr/bin/nvidia-smi to satisfy the default
-    # bind. GPU discovery exits cleanly when exec fails.
+    # Redirect nvidia-smi / libnvidia-ml / sriov-manage mounts to an
+    # always-present file — rootless dind cannot mkdir /usr/bin/nvidia-smi
+    # or /usr/lib/nvidia/sriov-manage to satisfy the default bind. GPU
+    # discovery exits cleanly when exec fails.
     - echo "NVIDIA_SMI_PATH=/etc/hostname" >> isardvdi.e2e.cfg
     - echo "NVIDIA_ML_LIB_PATH=/etc/hostname" >> isardvdi.e2e.cfg
+    - echo "NVIDIA_SRIOV_MANAGE_PATH=/etc/hostname" >> isardvdi.e2e.cfg
+    # /dev/hugepages mount: see test-e2e job comment.
+    - mkdir -p /tmp/isard-real-hugepages
+    - echo "HUGEPAGES_PATH=/tmp/isard-real-hugepages" >> isardvdi.e2e.cfg
     - CODEGEN=false ./build.sh
     - "sed -i 's|source: /opt/isard/|source: /tmp/isard-real/opt/isard/|g; s|source: /opt/isard-local/|source: /tmp/isard-real/opt/isard-local/|g' docker-compose.e2e.yml"
     - docker compose -f docker-compose.e2e.yml pull
