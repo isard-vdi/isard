@@ -286,7 +286,7 @@ function actionsDomainDetail() {
       dropdownParent: $('#modalChangeOwnerDomain'),
       ajax: {
         type: "POST",
-        url: '/admin/users/search',
+        url: '/api/v4/admin/users/search',
         dataType: 'json',
         contentType: "application/json",
         delay: 250,
@@ -328,7 +328,7 @@ function actionsDomainDetail() {
       dropdownParent: $('#modalChangeCoOwnersDeployment'),
       ajax: {
         type: "POST",
-        url: '/admin/users/search',
+        url: '/api/v4/admin/users/search',
         dataType: 'json',
         contentType: "application/json",
         delay: 250,

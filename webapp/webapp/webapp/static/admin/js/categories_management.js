@@ -83,7 +83,7 @@ $(document).ready(function () {
             }
         },
         "ajax": {
-            "url": "/admin/users/management/categories",
+            "url": "/api/v4/admin/users/management/categories",
             "dataSrc": "",
             "type": "GET",
             "data": function (d) { return JSON.stringify({}) }

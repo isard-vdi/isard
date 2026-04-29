@@ -9,7 +9,7 @@ $(document).ready(function () {
     $template_role = $(".template-detail-roles");
     var table = $('#roles').DataTable({
         "ajax": {
-            "url": "/admin/roles",
+            "url": "/api/v4/admin/roles",
             "dataSrc": "",
             "type": "GET",
         },

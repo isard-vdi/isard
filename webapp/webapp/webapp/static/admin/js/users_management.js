@@ -796,7 +796,7 @@ function socketio_on(){
             }
         },
         "ajax": {
-            "url": "/admin/users/management/users",
+            "url": "/api/v4/admin/users/management/users",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}

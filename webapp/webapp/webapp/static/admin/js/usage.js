@@ -228,7 +228,7 @@ $('#btn-view-graph').on('click', function (e) {
   $.each(data.items, function (pos, it) {
     $.ajax({
       type: "PUT",
-      url: '/admin/usage',
+      url: '/api/v4/admin/usage',
       dataType: 'json',
       contentType: "application/json",
       data: JSON.stringify({
@@ -331,7 +331,7 @@ function createUsageTable(data) {
     // Retrieve the info of the selected parameters in order to show its name on the header
     $.ajax({
       type: "PUT",
-      url: '/admin/usage/list_parameters',
+      url: '/api/v4/admin/usage/list_parameters',
       dataType: 'json',
       contentType: "application/json",
       data: JSON.stringify({
@@ -399,7 +399,7 @@ function createUsageTable(data) {
           cache: false,
           columns: cols,
           ajax: {
-            url: "/admin/usage/start_end",
+            url: "/api/v4/admin/usage/start_end",
             contentType: "application/json",
             type: "PUT",
             data: function (d) {
@@ -755,7 +755,7 @@ function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
   ]
   $.ajax({
     type: "PUT",
-    url: '/admin/usage/list_parameters',
+    url: '/api/v4/admin/usage/list_parameters',
     dataType: 'json',
     contentType: "application/json",
     data: JSON.stringify({

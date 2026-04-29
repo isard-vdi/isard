@@ -24,7 +24,7 @@ $(document).ready(function() {
             }
         },
         "ajax": {
-            "url": "/admin/users/quotas_limits/users",
+            "url": "/api/v4/admin/users/quotas_limits/users",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}

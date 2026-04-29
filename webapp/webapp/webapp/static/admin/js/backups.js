@@ -242,7 +242,7 @@ $(document).ready(function () {
     // Integrity check toggle
     function loadIntegrityToggle() {
         $.ajax({
-            url: '/api/v3/admin/backups/integrity',
+            url: '/api/v4/admin/backups/integrity',
             type: 'GET',
             success: function (data) {
                 $('#integrity-enabled').prop('checked', !!(data && data.integrity_enabled));
@@ -254,7 +254,7 @@ $(document).ready(function () {
     $('#integrity-save').on('click', function () {
         var enabled = $('#integrity-enabled').is(':checked');
         $.ajax({
-            url: '/api/v3/admin/backups/integrity',
+            url: '/api/v4/admin/backups/integrity',
             type: 'PUT',
             data: JSON.stringify({ integrity_enabled: enabled }),
             contentType: 'application/json',

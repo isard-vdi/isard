@@ -88,7 +88,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/allowed/term/'+id.replace('a-',''),
+                        url: '/api/v4/admin/allowed/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
@@ -116,7 +116,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/allowed/term/'+id.replace('a-',''),
+                        url: '/api/v4/admin/allowed/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
@@ -151,7 +151,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/allowed/term/'+id.replace('a-',''),
+                        url: '/api/v4/admin/allowed/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
@@ -242,7 +242,7 @@
                     data['table']=table
                     $.ajax({
                         type: "POST",
-                        url: '/admin/allowed/update/' + table,
+                        url: '/api/v4/admin/allowed/update/' + table,
                         dataType: 'json',
                         contentType: "application/json",
                         data: JSON.stringify(data),

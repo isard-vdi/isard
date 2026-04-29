@@ -8,7 +8,7 @@ table={}
 $(document).ready(function() {
     $.ajax({
         type: "GET",
-        url: '/admin/downloads',
+        url: '/api/v4/admin/downloads',
         dataType: 'json',
         success: function (resp) {
           $('.registered').show();
@@ -56,7 +56,7 @@ function load_data(){
 
     table['domains']=$('#domains_tbl').DataTable({
         "ajax": {
-            "url": "/admin/downloads/domains",
+            "url": "/api/v4/admin/downloads/domains",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
@@ -178,7 +178,7 @@ function load_data(){
 
     table['media']=$('#media_tbl').DataTable({
             "ajax": {
-                "url": "/admin/downloads/media",
+                "url": "/api/v4/admin/downloads/media",
                 "dataSrc": "",
                 "type" : "GET",
                 "data": function(d){return JSON.stringify({})}
@@ -306,7 +306,7 @@ function load_data(){
 
     table['virt_install']=$('#virt_install_tbl').DataTable({
             "ajax": {
-                "url": "/admin/downloads/virt_install",
+                "url": "/api/v4/admin/downloads/virt_install",
                 "dataSrc": "",
                 "type" : "GET",
                 "data": function(d){return JSON.stringify({})}
@@ -382,7 +382,7 @@ function load_data(){
 
     table['videos']=$('#videos_tbl').DataTable({
             "ajax": {
-                "url": "/admin/downloads/videos",
+                "url": "/api/v4/admin/downloads/videos",
                 "dataSrc": "",
                 "type" : "GET",
                 "data": function(d){return JSON.stringify({})}
@@ -485,7 +485,7 @@ function load_data(){
 
     table['viewers']=$('#viewers_tbl').DataTable({
             "ajax": {
-                "url": "/admin/downloads/viewers",
+                "url": "/api/v4/admin/downloads/viewers",
                 "dataSrc": "",
                 "type" : "GET",
                 "data": function(d){return JSON.stringify({})}
