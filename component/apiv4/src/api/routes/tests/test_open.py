@@ -74,7 +74,10 @@ def test_token_router_no_jwt(test_client):
 
 @pytest.mark.skipif(_is_production, reason="debug endpoint disabled in production")
 def test_token_router_old_jwt(test_client):
-    jwt = MockJWT(expiration=-10)
+    # Token must expire OUTSIDE the 60-second clock-skew leeway window
+    # added in commit b9e644a5f. ``expiration=-10`` falls inside leeway
+    # and is treated as still valid; -120s is unambiguously expired.
+    jwt = MockJWT(expiration=-120)
     response = test_client(
         url="/api/v4/test/payload",
         jwt=jwt,
