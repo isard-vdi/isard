@@ -518,7 +518,20 @@ class AdminUsersService:
         if payload["role_id"] == "manager":
             data["parent_category"] = payload["category_id"]
 
+        if not data.get("parent_category"):
+            raise Error(
+                "bad_request",
+                "parent_category is required to create a group",
+                description_code="parent_category_required",
+            )
+
         category = Caches.get_document("categories", data["parent_category"])
+        if category is None:
+            raise Error(
+                "not_found",
+                f"Category {data['parent_category']} not found",
+                description_code="category_not_found",
+            )
         data["description"] = f"[{category['name']}] {data.get('description', '')}"
 
         AdminUsersService.owns_category_id(payload, data["parent_category"])
