@@ -1110,10 +1110,15 @@ class DesktopsProcessed(RethinkSharedConnection):
                     template.storages[0].directory_path_as_usage("desktop"),
                     priority="low",
                 )
-            except Exception:
+            except Error:
+                # Already a typed Error — let it propagate so the
+                # original description / status code reach the client
+                # instead of being masked as a generic 500.
+                raise
+            except Exception as exc:
                 raise Error(
                     "internal_server",
-                    "Unable to move template disk to desktops path",
+                    f"Unable to move template disk to desktops path: {exc}",
                     traceback.format_exc(),
                     description_code="unable_to_move_template_disk",
                 )
