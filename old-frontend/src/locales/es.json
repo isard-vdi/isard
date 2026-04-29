@@ -1081,7 +1081,8 @@
             "delete": "AVISO! Estas plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
             "footer": "No puedes eliminar esta plantilla. Contacta con tu administrador.",
             "cross_category": "Esta plantilla tiene derivados en otras categorías que no gestionas. No puedes eliminar este elemento.",
-            "cross_category_footer": "No puedes eliminar esta plantilla porque tiene derivados en categorías que no gestionas. Contacta con tu administrador."
+            "cross_category_footer": "No puedes eliminar esta plantilla porque tiene derivados en categorías que no gestionas. Contacta con tu administrador.",
+            "deployments": "Para eliminar esta plantilla, todos los despliegues dependientes también serán eliminados. Recuerda que las plantillas también pueden hacerse invisibles a los usuarios en lugar de ser eliminadas."
           },
           "button": {
             "delete": "Eliminar plantilla"

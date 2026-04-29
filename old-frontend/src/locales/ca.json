@@ -786,7 +786,8 @@
             "delete": "AVÍS! Aquestes plantilles i escriptoris depenen d'aquesta plantilla i també seran esborrats.",
             "footer": "No pots esborrar aquesta plantilla. Contacta amb el teu administrador.",
             "cross_category": "Aquesta plantilla té derivats en altres categories que no gestioneu. No podeu eliminar aquest element.",
-            "cross_category_footer": "No podeu eliminar aquesta plantilla perquè té derivats en categories que no gestioneu. Contacteu amb l'administrador."
+            "cross_category_footer": "No podeu eliminar aquesta plantilla perquè té derivats en categories que no gestioneu. Contacteu amb l'administrador.",
+            "deployments": "Per eliminar aquesta plantilla, tots els desplegaments dependents també seran eliminats. Recordeu que les plantilles també poden fer-se invisibles als usuaris en lloc de ser eliminades."
           },
           "button": {
             "delete": "Esborrar plantilla"
