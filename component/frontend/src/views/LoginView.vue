@@ -498,6 +498,11 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
 
     localStorage.setItem('auth_time_drift', drift.toString())
 
+    // Set the auth cookie before any awaits so downstream consumers (e.g.
+    // the e2e fixture polling for the JWT cookie) see it immediately,
+    // even if the webapp bridge below stalls under heavy parallel load.
+    setAuthToken(cookies, bearer)
+
     // Login to Webapp
     if (['admin', 'manager'].includes(jwt.data.role_id)) {
       try {
@@ -513,9 +518,10 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
         console.error(error)
       }
     }
+  } else {
+    setAuthToken(cookies, bearer)
   }
 
-  setAuthToken(cookies, bearer)
   const location = response.headers.get('location')
   if (location) {
     // Use Vue router for paths handled by the Vue3 app
