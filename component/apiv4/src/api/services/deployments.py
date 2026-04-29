@@ -221,6 +221,12 @@ class DeploymentService:
                 f"Deployment with ID {deployment_id} does not exist.",
             )
 
+        # Preflight every recipe before the irreversible delete so a
+        # malformed create_dict (missing template, missing hardware
+        # fields, booking conflict) raises *here* and the live desktops
+        # stay intact.
+        CommonDeployments.validate_recreate(payload, deployment_id)
+
         deployment = RethinkDeployment(deployment_id)
         desktops_to_delete = CommonDeploymentDesktops.get_with_tag_dict(deployment.tag)
 

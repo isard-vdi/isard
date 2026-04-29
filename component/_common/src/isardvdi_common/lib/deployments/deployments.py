@@ -804,7 +804,16 @@ class DeploymentsProcessed(RethinkSharedConnection):
         DesktopsProcessed.new_from_templateTh(desktops, deployment)
 
     @classmethod
-    def recreate(cls, payload, deployment_id):
+    def _prepare_recreate(cls, payload, deployment_id):
+        """Validate and build the recreate plan without side effects.
+
+        Returns a tuple ``(deployment, plan)`` where ``plan`` is a list of
+        ``(deployment_tag, [desktop_dict], users)`` ready to be passed to
+        ``create_deployment_desktops``. Raises ``Error`` on the first
+        problem found so the caller can fail fast *before* deleting the
+        live desktops — otherwise a recreate that 500s would leave the
+        deployment empty.
+        """
         if not Caches.get_document("deployments", deployment_id):
             raise Error(
                 "not_found",
@@ -822,7 +831,30 @@ class DeploymentsProcessed(RethinkSharedConnection):
         if deployment_booking.get("next_booking_end"):
             cls.check_deployment_bookings(payload, deployment)
 
-        for create_dict in deployment["create_dict"]:
+        plan = []
+        for create_dict in deployment.get("create_dict") or []:
+            recipe_name = create_dict.get("name") or "<unnamed>"
+
+            template_id = create_dict.get("template")
+            if not template_id or not Caches.get_document("domains", template_id):
+                raise Error(
+                    "not_found",
+                    f"Template {template_id} for recipe {recipe_name} not found",
+                    description_code="not_found",
+                )
+
+            hardware = create_dict.get("hardware") or {}
+            if "memory" not in hardware:
+                raise Error(
+                    "bad_request",
+                    f"Recipe {recipe_name} is missing hardware.memory; the deployment cannot be recreated",
+                )
+            if "interfaces" not in hardware:
+                raise Error(
+                    "bad_request",
+                    f"Recipe {recipe_name} is missing hardware.interfaces; the deployment cannot be recreated",
+                )
+
             users = DeploymentUsers.get_selected_users(
                 payload,
                 deployment["allowed"],
@@ -832,22 +864,20 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 include_existing_desktops=False,
             )
 
-            """Create desktops for each user found"""
             desktop = {
                 "name": create_dict["name"],
-                "description": create_dict["description"],
-                "template_id": create_dict["template"],
+                "description": create_dict.get("description"),
+                "template_id": template_id,
                 "hardware": {
-                    **create_dict["hardware"],
-                    "memory": create_dict["hardware"]["memory"] / 1048576,
+                    **hardware,
+                    "memory": hardware["memory"] / 1048576,
                     "interfaces": [
                         i["id"] if isinstance(i, dict) else i
-                        for i in create_dict["hardware"]["interfaces"]
+                        for i in hardware["interfaces"]
                     ],
                 },
                 "tag_desktop_id": create_dict["tag_desktop_id"],
             }
-            # Get from the deployment, otherwise it will be fetched from its template
             if create_dict.get("guest_properties"):
                 desktop["guest_properties"] = create_dict["guest_properties"]
             if create_dict.get("reservables"):
@@ -859,6 +889,25 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 "tag": deployment_id,
                 "tag_visible": deployment["tag_visible"],
             }
+            plan.append((deployment_tag, desktop, users))
+
+        return deployment, plan
+
+    @classmethod
+    def validate_recreate(cls, payload, deployment_id):
+        """Run preflight without performing any side effects.
+
+        Callers that delete the existing desktops before recreating must
+        invoke this first, so a malformed create_dict (missing template,
+        missing memory, etc.) doesn't leave the deployment empty after
+        the irreversible delete.
+        """
+        cls._prepare_recreate(payload, deployment_id)
+
+    @classmethod
+    def recreate(cls, payload, deployment_id):
+        _, plan = cls._prepare_recreate(payload, deployment_id)
+        for deployment_tag, desktop, users in plan:
             cls.create_deployment_desktops(deployment_tag, [desktop], users)
 
     @classmethod
