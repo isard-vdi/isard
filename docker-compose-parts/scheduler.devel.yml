@@ -5,10 +5,10 @@ services:
       - "5001:5000"
     volumes:
     - ${BUILD_ROOT_PATH}/scheduler/src:/src
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_common:/opt/isardvdi/isardvdi_common
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/isardvdi_notifier_client:/opt/isardvdi/isardvdi_notifier_client
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
-    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
+    - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client_auth:/opt/isardvdi/isardvdi_apiv4_client_auth
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client:/opt/isardvdi/isardvdi_notifier_client
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client_auth:/opt/isardvdi/isardvdi_notifier_client_auth
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client:/opt/isardvdi/isardvdi_scheduler_client
+    - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth

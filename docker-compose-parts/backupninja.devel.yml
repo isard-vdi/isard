@@ -23,5 +23,5 @@ services:
       source: ${BUILD_ROOT_PATH}/docker/backupninja/backup.d
       target: /usr/local/share/backup.d
     - type: bind
-      source: ${BUILD_ROOT_PATH}/component/_common/isardvdi_common
+      source: ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common
       target: /opt/isardvdi/isardvdi_common
