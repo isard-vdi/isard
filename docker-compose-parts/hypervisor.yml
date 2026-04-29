@@ -26,7 +26,12 @@ services:
       - /opt/isard-local/sockets/:/var/run/libvirt/
       - /opt/isard-local/environment:/usr/local/etc/environment
       - /dev/vfio:/dev/vfio
-      - /dev/hugepages:/dev/hugepages
+      # ``HUGEPAGES_PATH`` defaults to the kernel hugepages mount. CI / e2e
+      # override to a writable placeholder directory because rootless dind
+      # cannot mkdir /dev/hugepages on demand. The hypervisor only consults
+      # this path when allocating memoryBacking for GPU desktops, which is
+      # never exercised in test mode.
+      - ${HUGEPAGES_PATH:-/dev/hugepages}:/dev/hugepages
       - /lib/modules:/lib/modules:ro
       # NVIDIA GPU support: binaries and management library for GPU discovery
       - ${NVIDIA_SMI_PATH:-/usr/bin/nvidia-smi}:/usr/bin/nvidia-smi:ro
