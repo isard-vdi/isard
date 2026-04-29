@@ -55,8 +55,18 @@ export function patchEntityList<T extends { id: string }>(
   if (!list) return []
 
   switch (operation) {
-    case 'add':
-      return [...(list || []), payload as T]
+    case 'add': {
+      // Idempotent: if an entity with the same id is already present
+      // (e.g. the cache was already populated when the *_add event
+      // arrives, or a visibility toggle re-emits add for a desktop
+      // that survived in cache), replace it in place instead of
+      // appending a duplicate row.
+      const existingIndex = list.findIndex((item) => item.id === payload.id)
+      if (existingIndex === -1) return [...list, payload as T]
+      const next = list.slice()
+      next[existingIndex] = { ...list[existingIndex], ...payload } as T
+      return next
+    }
     case 'update':
       return list.map((item) => (item.id === payload.id ? { ...item, ...payload } : item))
     case 'delete':
