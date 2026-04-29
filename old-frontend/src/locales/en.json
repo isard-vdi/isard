@@ -1071,7 +1071,9 @@
                         "deployments": "To delete this template, all dependent deployments will be removed too. Remember that templates can also be invisible to users instead of being deleted.",
                         "pending": "WARNING! Some domains depend on this template, which you do NOT own.",
                         "delete": "WARNING! These templates and desktops depend on this template and they will also be deleted.",
-                        "footer": "You can not delete this template. Please contact the administrator"
+                        "footer": "You can not delete this template. Please contact the administrator",
+                        "cross_category": "This template has derivatives in other categories that you do not manage. You cannot delete this item.",
+                        "cross_category_footer": "You cannot delete this template because it has derivatives in categories you do not own. Please contact your administrator."
                     },
                     "button": {
                         "delete": "Delete template"
@@ -1079,7 +1081,10 @@
                     "table-header": {
                         "kind": "Kind",
                         "name": "Name",
-                        "user": "User"
+                        "user": "User",
+                        "role": "Role",
+                        "category": "Category",
+                        "group": "Group"
                     }
                 },
                 "convert": {

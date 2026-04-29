@@ -677,14 +677,16 @@
             "delete": "ADI! Txantiloi eta idazmahai horiek txantiloi horren araberakoak dira, eta ezabatu egingo dira.",
             "footer": "Ezin duzu txantiloi hau ezabatu. Jarri administratzailearekin harremanetan",
             "cross_category": "This template has derivatives in other categories that you do not manage. You cannot delete this item.",
-            "cross_category_footer": "You cannot delete this template because it has derivatives in categories you do not own. Please contact your administrator."
+            "cross_category_footer": "You cannot delete this template because it has derivatives in categories you do not own. Please contact your administrator.",
+            "deployments": "To delete this template, all dependent deployments will be removed too. Remember that templates can also be invisible to users instead of being deleted."
           },
           "table-header": {
             "name": "Izena",
             "user": "Erabiltzaile",
             "role": "Rola",
             "category": "Category",
-            "group": "Group"
+            "group": "Group",
+            "kind": "Kind"
           },
           "button": {
             "delete": "Ezabatu txantiloia"
