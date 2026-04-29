@@ -98,28 +98,32 @@ class BrowserRDPValues(BaseModel):
 class BrowserRDPViewer(BaseModel):
     kind: ViewerKind
     protocol: ViewerProtocol
-    viewer: str
-    urlp: str
-    cookie: str
-    values: BrowserRDPValues
+    # Connection details are absent while the desktop is in the
+    # ``waiting_ip`` state — the guest hasn't reported its IP yet so the
+    # service emits a stub ``{kind, protocol}`` payload and the client
+    # is expected to poll until the IP arrives.
+    viewer: Optional[str] = None
+    urlp: Optional[str] = None
+    cookie: Optional[str] = None
+    values: Optional[BrowserRDPValues] = None
 
 
 class FileRDPGWViewer(BaseModel):
     kind: ViewerKind
     protocol: ViewerProtocol
-    name: str
-    ext: str
-    mime: str
-    content: str
+    name: Optional[str] = None
+    ext: Optional[str] = None
+    mime: Optional[str] = None
+    content: Optional[str] = None
 
 
 class FileRDPVPNViewer(BaseModel):
     kind: ViewerKind
     protocol: ViewerProtocol
-    name: str
-    ext: str
-    mime: str
-    content: str
+    name: Optional[str] = None
+    ext: Optional[str] = None
+    mime: Optional[str] = None
+    content: Optional[str] = None
 
 
 class ViewersModel(BaseModel):

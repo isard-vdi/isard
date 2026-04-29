@@ -402,6 +402,56 @@ def test_get_desktop_viewer(monkeypatch, test_client):
     }
 
 
+def test_get_desktop_direct_viewer_accepts_waiting_ip_stub(monkeypatch, test_client):
+    """When an RDP-only desktop is in ``waiting_ip`` state the
+    service emits a stub ``{kind, protocol}`` viewer payload because
+    the guest hasn't reported its IP yet. ``DesktopViewerResponse``
+    must accept that stub: a schema requiring
+    ``viewer/urlp/cookie/values`` on every browser-rdp entry would
+    fail Pydantic validation and the route handler would return a
+    generic 404.
+    """
+    stub_desktop = {
+        "id": "desktop-waiting-1",
+        "jwt": "fake-jwt",
+        "name": "Waiting Desktop",
+        "description": "",
+        "status": "WaitingIP",
+        "scheduled": {"shutdown": False},
+        "viewers": {
+            "browser-rdp": {"kind": "browser", "protocol": "rdp"},
+            "file-rdpgw": {"kind": "file", "protocol": "rdpgw"},
+        },
+    }
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.get_desktop_direct_viewer_from_token",
+        staticmethod(lambda token, request: stub_desktop),
+    )
+
+    response = test_client(url="/item/desktop/token/some-token/get-viewer")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "WaitingIP"
+    assert body["viewers"]["browser-rdp"] == {
+        "kind": "browser",
+        "protocol": "rdp",
+        "viewer": None,
+        "urlp": None,
+        "cookie": None,
+        "values": None,
+    }
+    assert body["viewers"]["file-rdpgw"] == {
+        "kind": "file",
+        "protocol": "rdpgw",
+        "name": None,
+        "ext": None,
+        "mime": None,
+        "content": None,
+    }
+
+
 # ─── §99 audit fixes (parity regressions found in v3 ↔ v4 audit) ────────
 
 

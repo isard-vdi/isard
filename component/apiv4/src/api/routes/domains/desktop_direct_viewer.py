@@ -155,7 +155,9 @@ async def get_desktop_viewer(
     try:
         desktop = DesktopService.get_desktop_direct_viewer_from_token(token, request)
         return JSONResponse(
-            content=DesktopViewerResponse(**desktop).model_dump(mode="json"),
+            content=DesktopViewerResponse(**desktop).model_dump(
+                mode="json", by_alias=True
+            ),
             status_code=200,
         )
     except Error:
