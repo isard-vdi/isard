@@ -304,7 +304,7 @@ const _ = locale
 
         <div class="text-center mt-8">
           <a
-            href="https://isardvdi.com/"
+            href="https://www.isardvdi.com/"
             target="_blank"
             rel="noopener noreferrer"
             class="text-gray-warm-600 hover:text-gray-warm-700"

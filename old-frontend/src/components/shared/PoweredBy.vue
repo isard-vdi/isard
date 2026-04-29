@@ -1,6 +1,6 @@
 <template>
   <a
-    href="https://isardvdi.com/"
+    href="https://www.isardvdi.com/"
     target="_blank"
   >
     <i18n
