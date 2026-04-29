@@ -1,5 +1,7 @@
 services:
   isard-storage:
+    environment:
+      PYTHONPATH: /opt/isardvdi
     volumes:
       - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client:/opt/isardvdi/isardvdi_apiv4_client

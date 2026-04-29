@@ -25,5 +25,10 @@ RUN uv sync --frozen --no-dev --package isardvdi-db --no-editable
 ENV PATH="/workspace/.venv/bin:$PATH"
 COPY docker/db/run.sh /run.sh
 
+# Restore the base image's WORKDIR so rethinkdb's default data path
+# (./rethinkdb_data) lands on the /data bind mount instead of the
+# ephemeral container layer at /workspace.
+WORKDIR /data
+
 ENTRYPOINT [ "/bin/sh" ]
 CMD [ "/run.sh" ]

@@ -12,3 +12,4 @@ services:
       - ${BUILD_ROOT_PATH}/component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client_auth:/opt/isardvdi/isardvdi_scheduler_client_auth
     environment:
       JETBRAINS_REMOTE_RUN:
+      PYTHONPATH: /opt/isardvdi
