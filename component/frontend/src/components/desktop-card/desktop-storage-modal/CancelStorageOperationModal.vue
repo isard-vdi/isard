@@ -3,9 +3,9 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import {
-  abortStorageOperationsApiV4ItemStorageStorageIdAbortOperationsPutMutation,
-  getStorageApiV4ItemStorageStorageIdGetQueryKey,
-  getStorageTaskApiV4ItemStorageStorageIdTaskGetQueryKey
+  abortStorageOperationsMutation,
+  getStorageQueryKey,
+  getStorageTaskQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import type { ErrorResponse } from '@/gen/oas/apiv4'
 
@@ -40,15 +40,15 @@ const formatErrorDetail = (error: unknown): string => {
 }
 
 const { mutate: abortOperations, isPending } = useMutation({
-  ...abortStorageOperationsApiV4ItemStorageStorageIdAbortOperationsPutMutation(),
+  ...abortStorageOperationsMutation(),
   onSuccess: () => {
     queryClient.invalidateQueries({
-      queryKey: getStorageApiV4ItemStorageStorageIdGetQueryKey({
+      queryKey: getStorageQueryKey({
         path: { storage_id: props.storageId }
       })
     })
     queryClient.invalidateQueries({
-      queryKey: getStorageTaskApiV4ItemStorageStorageIdTaskGetQueryKey({
+      queryKey: getStorageTaskQueryKey({
         path: { storage_id: props.storageId }
       })
     })

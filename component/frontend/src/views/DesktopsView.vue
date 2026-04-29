@@ -10,6 +10,7 @@ import { useForm } from '@tanstack/vue-form'
 
 import {
   getUserDesktopsOptions,
+  getUserDesktopsQueryKey,
   getUserConfigOptions,
   getDesktopNetworksOptions,
   updateStatusDesktopMutation,

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
-import { getStorageApiV4ItemStorageStorageIdGetOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { getStorageOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum, type UserDesktop } from '@/gen/oas/apiv4'
 
 import { useAuthStore } from '@/stores/auth'
@@ -48,7 +48,7 @@ interface StorageDetail {
 }
 
 const { data: rawStorage, isPending: storageIsPending } = useQuery(
-  getStorageApiV4ItemStorageStorageIdGetOptions({
+  getStorageOptions({
     path: { storage_id: props.storageId }
   })
 )
