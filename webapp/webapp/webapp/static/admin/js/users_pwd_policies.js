@@ -234,7 +234,7 @@ $(document).ready(function () {
                 };
                 $.ajax({
                     type: 'POST',
-                    url: `/api/v4/admin/authentication/policy/`,
+                    url: `/api/v4/admin/authentication/policy`,
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {

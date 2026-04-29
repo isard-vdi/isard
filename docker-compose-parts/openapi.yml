@@ -10,7 +10,7 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.152
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]
     healthcheck:
       test:
         - CMD

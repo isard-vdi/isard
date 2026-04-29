@@ -20,4 +20,4 @@ COPY --from=builder /app/.venv /app/.venv
 COPY component/socketio/src /app
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 5000
-CMD ["uvicorn", "isardvdi_socketio:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["uvicorn", "isardvdi_socketio:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]

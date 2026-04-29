@@ -19,4 +19,4 @@ COPY component/frontend/src/assets/img/cover-img.svg /app/cover-img.svg
 COPY component/frontend/public/favicon.ico /app/favicon.ico
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 5000
-CMD ["uvicorn", "isardvdi_openapi.main:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["uvicorn", "isardvdi_openapi.main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]

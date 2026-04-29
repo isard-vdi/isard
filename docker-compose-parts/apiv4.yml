@@ -14,7 +14,7 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.151
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]
     healthcheck:
       test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5000)); s.close()"]
       start_period: 30s

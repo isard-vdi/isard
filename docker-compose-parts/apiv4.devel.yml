@@ -15,7 +15,7 @@ services:
     # shadowed by the install-time snapshot in /.venv.
     environment:
       PYTHONPATH: /opt/isardvdi
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "api", "--reload-dir", "/opt/isardvdi/isardvdi_common"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "api", "--reload-dir", "/opt/isardvdi/isardvdi_common", "--proxy-headers", "--forwarded-allow-ips=*"]
     volumes:
       - ${BUILD_ROOT_PATH}/component/apiv4/src:/app
       - ${BUILD_ROOT_PATH}/component/_common/src/isardvdi_common:/opt/isardvdi/isardvdi_common
