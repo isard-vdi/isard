@@ -46,7 +46,12 @@ from engine.services.db.domains import (
     get_domains_with_status_in_list,
     update_domain_status,
 )
-from engine.services.db.hypervisors import add_vgpu_uuids, get_hypervisor, get_vgpu_full
+from engine.services.db.hypervisors import (
+    add_vgpu_uuids,
+    get_gpu_card_models,
+    get_hypervisor,
+    get_vgpu_full,
+)
 from engine.services.lib.functions import (
     SSHTimeoutError,
     calcule_cpu_hyp_stats,
@@ -2135,6 +2140,15 @@ class hyp(object):
         Args:
             nvidia_gpus: list of GPU dicts from hypervisor discovery
         """
+        # Card-bound model per PCI slot.  Once the API binds a model to a
+        # gpus[card_id] row it is immutable, so we use it as the canonical
+        # name for self.info["nvidia"][pci] — that's what the balancer
+        # compares against the desktop's reservable model string.  Without
+        # this override, fresh-discovery model strings can momentarily
+        # disagree with the catalog (e.g. across driver upgrades or code
+        # normalization changes) and break GPU desktop start.
+        sticky_models = get_gpu_card_models(self.id_hyp_rethink)
+
         d_info_nvidia = {}
         for gpu in nvidia_gpus:
             pci_bus_id = gpu["pci_bus_id"]
@@ -2199,8 +2213,14 @@ class hyp(object):
                     gpu["name"].replace("NVIDIA ", "").replace(" ", "").replace("-", "")
                 )
 
-            # Use pre-computed model from discovery if available
-            model_gpu = gpu.get("model") or _fallback_model
+            # Prefer the card-bound model (DB sticky); fall back to the
+            # fresh discovery value, then to the profile-name fallback.
+            model_gpu = (
+                sticky_models.get(pci_name)
+                or gpu.get("_resolved_model")
+                or gpu.get("model")
+                or _fallback_model
+            )
 
             # Add MIG profiles into d_types (available on MIG-capable GPUs)
             for mig_prof in gpu.get("mig_profiles", []):

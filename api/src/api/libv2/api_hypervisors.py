@@ -577,11 +577,18 @@ class ApiHypervisors:
         """Resolve stable model names for discovered GPUs.
 
         For each GPU, checks if an auto-created card already exists in the
-        database (by deterministic PCI-based card_id).  If so, uses the
+        database (by deterministic PCI-based card_id).  If so, reuses the
         existing card's model name to prevent flipping between vGPU-derived
-        and nvidia-smi-derived names across restarts.
+        and nvidia-smi-derived names across restarts.  Once a card has a
+        model bound, that name is treated as immutable: subsequent fresh
+        derivations are ignored downstream so gpu_profiles and
+        reservables_vgpus never end up with duplicate entries for the same
+        physical card.
 
-        Modifies each GPU dict in-place, setting ``_resolved_model``.
+        Modifies each GPU dict in-place, setting ``_resolved_model``.  When
+        a card exists but has no model yet (legacy entries), the freshly
+        derived model is persisted back to gpus[card_id] so all later
+        registration steps see a consistent value.
         """
         for gpu in nvidia_gpus:
             pci_bus_id = gpu["pci_bus_id"]
@@ -597,10 +604,18 @@ class ApiHypervisors:
             if existing_card and existing_card.get("model"):
                 gpu["_resolved_model"] = existing_card["model"]
             else:
-                # First-time: use discovery-computed model or derive fresh
-                gpu["_resolved_model"] = gpu.get("model") or self._normalize_gpu_model(
+                resolved = gpu.get("model") or self._normalize_gpu_model(
                     gpu["name"], gpu.get("vgpu_profiles")
                 )
+                gpu["_resolved_model"] = resolved
+                if existing_card:
+                    with app.app_context():
+                        r.table("gpus").get(card_id).update({"model": resolved}).run(
+                            db.conn
+                        )
+                    log.info(
+                        f"GPU card '{card_id}' bound model='{resolved}' " f"(was empty)"
+                    )
 
     def _diff_pci_devices(self, old_map, new_map):
         """Log PCI device changes between two hypervisor registrations.
@@ -656,10 +671,16 @@ class ApiHypervisors:
         for gpu in nvidia_gpus:
             vgpu_profiles = gpu.get("vgpu_profiles", [])
 
-            # Use PCI-anchored model if available, otherwise derive fresh
-            model = gpu.get("_resolved_model") or gpu.get("model")
+            # Card-anchored model (set by _resolve_gpu_models). Never re-derive
+            # here: a fresh derivation that disagrees with the existing card's
+            # model would create a duplicate gpu_profiles entry for the same
+            # physical card.
+            model = gpu.get("_resolved_model")
             if not model:
-                model = self._normalize_gpu_model(gpu["name"], vgpu_profiles)
+                raise RuntimeError(
+                    f"ensure_gpu_profiles: missing _resolved_model on GPU "
+                    f"{gpu.get('pci_bus_id')!r}; _resolve_gpu_models must run first"
+                )
 
             if model not in models:
                 models[model] = {"gpu": gpu, "profiles": []}
@@ -773,10 +794,14 @@ class ApiHypervisors:
             return
 
         for gpu in nvidia_gpus:
-            # Use PCI-anchored model if available, otherwise derive fresh
-            model = gpu.get("_resolved_model") or gpu.get("model")
+            # Card-anchored model (set by _resolve_gpu_models). Same contract
+            # as ensure_gpu_profiles: never re-derive here.
+            model = gpu.get("_resolved_model")
             if not model:
-                model = self._normalize_gpu_model(gpu["name"], gpu.get("vgpu_profiles"))
+                raise RuntimeError(
+                    f"ensure_gpu_cards: missing _resolved_model on GPU "
+                    f"{gpu.get('pci_bus_id')!r}; _resolve_gpu_models must run first"
+                )
 
             # Normalize PCI bus ID to libvirt pci_name format
             pci_bus_id = gpu["pci_bus_id"]
@@ -810,14 +835,13 @@ class ApiHypervisors:
                 existing_card = r.table("gpus").get(card_id).run(db.conn)
 
             if existing_card:
-                # Update physical_device and sync model/gpu_uuid if changed
+                # Update physical_device only.  The model is bound by
+                # _resolve_gpu_models on first sight and treated as immutable
+                # thereafter — we never overwrite it here, so a future change
+                # in normalize_gpu_model output (driver upgrade, code change)
+                # cannot drift the catalog away from desktops that already
+                # reference the card's reservables.
                 update_fields = {"physical_device": vgpu_id}
-                if existing_card.get("model") != model:
-                    update_fields["model"] = model
-                    log.info(
-                        f"GPU card '{card_id}' model updated: "
-                        f"{existing_card.get('model')} -> {model}"
-                    )
                 gpu_uuid = gpu.get("gpu_uuid")
                 if gpu_uuid and existing_card.get("gpu_uuid") != gpu_uuid:
                     update_fields["gpu_uuid"] = gpu_uuid
