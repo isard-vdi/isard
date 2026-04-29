@@ -42,9 +42,18 @@ class OldEntriesActionEnum(str, Enum):
 
 
 class RecycleBinCutoffTimeResponse(BaseModel):
-    """Recycle bin cutoff time response model"""
+    """Recycle bin cutoff time response model.
+
+    Emits the value under both spellings: the apiv3 contract used
+    ``recycle_bin_cuttoff_time`` (double-t typo) and the Vue 2
+    frontend still reads it that way. Vue 3 and other Pythonic
+    consumers expect the corrected ``recycle_bin_cutoff_time``.
+    Returning both keeps both fronts working without a breaking
+    change.
+    """
 
     recycle_bin_cutoff_time: int
+    recycle_bin_cuttoff_time: int
 
 
 class RecycleBinResponse(BaseModel):

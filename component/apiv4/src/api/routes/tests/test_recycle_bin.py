@@ -51,6 +51,11 @@ def test_empty_recycle_bin(monkeypatch, test_client):
 
 
 def test_get_recycle_bin_cutoff_time(monkeypatch, test_client):
+    """Vue 2 reads ``recycle_bin_cuttoff_time`` (double-t typo from
+    the apiv3 contract) and renders ``NaN`` when the key is missing.
+    The endpoint must keep emitting both spellings so Vue 2 (typo)
+    and Vue 3 (corrected) both work.
+    """
     jwt = MockJWT()
     monkeypatch.setattr(
         "api.services.recycle_bin.RecycleBinService.get_user_cutoff_time",
@@ -58,7 +63,9 @@ def test_get_recycle_bin_cutoff_time(monkeypatch, test_client):
     )
     response = test_client(url="/item/recycle-bin/get-user-cutoff-time", jwt=jwt)
     assert response.status_code == 200
-    assert response.json()["recycle_bin_cutoff_time"] == 30
+    body = response.json()
+    assert body["recycle_bin_cutoff_time"] == 30
+    assert body["recycle_bin_cuttoff_time"] == 30
 
 
 # ─── Admin recycle bin entry listing (manager_router) ────────────────────

@@ -93,11 +93,13 @@ async def get_recycle_bin_default_delete_config(request: Request):
 )
 async def get_recycle_bin_cutoff_time(request: Request):
     try:
+        cutoff = RecycleBinService.get_user_cutoff_time(
+            category_id=request.token_payload["category_id"]
+        )
         return JSONResponse(
             content=RecycleBinCutoffTimeResponse(
-                recycle_bin_cutoff_time=RecycleBinService.get_user_cutoff_time(
-                    category_id=request.token_payload["category_id"]
-                )
+                recycle_bin_cutoff_time=cutoff,
+                recycle_bin_cuttoff_time=cutoff,
             ).model_dump(mode="json"),
             status_code=200,
         )
