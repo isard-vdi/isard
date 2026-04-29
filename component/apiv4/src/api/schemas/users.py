@@ -91,7 +91,10 @@ class UserDetailsResponse(BaseModel):
     secondary_groups_data: list[SecondaryGroupsData] = Field(
         description="List of secondary groups IDs and names the user belongs to."
     )
-    user_storage: Optional[UserStorageModel] = None
+    user_storage: Optional[UserStorageModel] = Field(
+        default=None,
+        description="User storage configuration model",
+    )
 
 
 class UserConfigResponse(BaseModel):

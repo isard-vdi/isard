@@ -410,12 +410,16 @@ async def get_user(request: Request):
 )
 async def get_user_details(request: Request):
     try:
+        # exclude_none drops user_storage when it is None — the
+        # generated apiv4 client cannot handle JSON null on $ref fields
+        # (UserStorageModel.from_dict(None) crashes with TypeError),
+        # but it does handle the field being absent (treated as UNSET).
         return JSONResponse(
             content=UserDetailsResponse(
                 **UsersService.get_user_details(
                     request.token_payload["user_id"],
                 )
-            ).model_dump(mode="json"),
+            ).model_dump(mode="json", exclude_none=True),
             status_code=200,
         )
     except Error:
