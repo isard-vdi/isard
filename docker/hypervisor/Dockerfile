@@ -20,7 +20,14 @@ WORKDIR /workspace
 COPY . .
 RUN uv sync --frozen --no-dev --package isardvdi-hypervisor --no-editable
 
-FROM python:3.13-alpine AS runtime
+# Pin runtime to alpine 3.22 — alpine 3.23 ships qemu 10.1.3 which is
+# linked against libspice-server.so.1.15.0 (exports
+# spice_qxl_gl_scanout2). The custom spice-dev override below ships
+# 1.14.3 (no spice_qxl_gl_scanout2) → qemu fails to load the spice
+# module → "domain configuration does not support video model 'qxl'".
+# 3.22's qemu (9.2.x) is built against the older spice that the
+# custom override matches.
+FROM python:3.13-alpine3.22 AS runtime
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
