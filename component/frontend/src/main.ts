@@ -102,7 +102,6 @@ apiv4Client.interceptors.response.use(async (response) => {
 // interceptors so the observer sees the final (post-auth) Request and
 // the original Response. Safe no-op when FARO_ENABLED=false.
 instrumentClient(authClient, 'auth')
-instrumentClient(apiClient, 'api')
 instrumentClient(apiv4Client, 'apiv4')
 
 // Configure API OAS client headers on token changes
