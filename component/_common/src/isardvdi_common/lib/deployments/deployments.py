@@ -1318,7 +1318,16 @@ class DeploymentsProcessed(RethinkSharedConnection):
             new_data.get("hardware")
             or new_data.get("reservables")
             or new_data.get("guest_properties")
+            or new_data.get("name") is not None
+            or new_data.get("description") is not None
         ):
+            # The deployment's create_dict is also the source of truth the
+            # edit form re-loads from via /info → it must reflect the
+            # latest desktop name and description, not just hardware.
+            if new_data.get("name") is not None:
+                merged_create_dict["name"] = new_data["name"]
+            if new_data.get("description") is not None:
+                merged_create_dict["description"] = new_data["description"]
             if new_data.get("hardware"):
                 # If hardware is provided, we need to update the template with the new data
                 merged_create_dict["hardware"].update(new_data["hardware"])

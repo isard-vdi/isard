@@ -295,7 +295,11 @@ export default {
     fetchDeploymentInfo (context, deploymentId) {
       axios.get(`${apiV3Segment}/item/deployment/${deploymentId}/info`).then(response => {
         context.commit('setDomain', DomainsUtils.parseDomain(response.data))
-        context.commit('setDeployment', { name: response.data.name })
+        // /info returns the recipe under `name` and the deployment name
+        // under `tag_name`. The form's "Deployment name" input must bind
+        // to the deployment row, not the recipe.
+        const deploymentName = response.data.tag_name || response.data.name
+        context.commit('setDeployment', { name: deploymentName })
         context.dispatch('setAllowedGroupsUsers', { groups: response.data.allowed.groups, users: response.data.allowed.users })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

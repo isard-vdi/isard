@@ -130,6 +130,33 @@ class DeploymentService:
                 item_id=deployment_id,
             )
 
+        # Translate the apiv3 flat-shape fields (sent by old-frontend)
+        # into a desktops_to_edit list so the rest of the service runs
+        # the same code path for both client versions.
+        legacy_desktop_name = deployment_data.pop("desktop_name", None)
+        legacy_hardware = deployment_data.pop("hardware", None)
+        legacy_guest_properties = deployment_data.pop("guest_properties", None)
+        if (
+            legacy_desktop_name is not None
+            or legacy_hardware is not None
+            or legacy_guest_properties is not None
+        ):
+            if not deployment_data.get("desktops_to_edit"):
+                deployment = Caches.get_document("deployments", deployment_id)
+                if deployment:
+                    fanout_template = {}
+                    if legacy_desktop_name is not None:
+                        fanout_template["name"] = legacy_desktop_name
+                    if legacy_hardware is not None:
+                        fanout_template["hardware"] = legacy_hardware
+                    if legacy_guest_properties is not None:
+                        fanout_template["guest_properties"] = legacy_guest_properties
+                    deployment_data["desktops_to_edit"] = [
+                        {**fanout_template, "tag_desktop_id": cd["tag_desktop_id"]}
+                        for cd in deployment.get("create_dict", [])
+                        if cd.get("tag_desktop_id")
+                    ]
+
         # Creation and edition could lead to permission errors
         # so we handle them first to avoid removing desktops and then failing
         if deployment_data.get("desktops_to_create"):
