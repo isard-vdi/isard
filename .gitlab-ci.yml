@@ -222,6 +222,16 @@ gen-protobuf:
       - pkg/gen
       - component/frontend/src/gen
       - "**/testing_*_mock.go"
+      # openapi-python-client output. Each client's src/<pkg>/__init__.py is
+      # tracked but the rest of the tree (client.py, errors.py, types.py,
+      # api/, models/) is gitignored — codegen regenerates it. Without
+      # propagating these paths the downstream unit-test-apiv4 /
+      # unit-test-webapp jobs see only __init__.py whose first line is
+      # `from .client import …`, which raises ModuleNotFoundError at import.
+      - component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client
+      - component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client
+      - component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client
+      - component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client
 
 docker-compose-build:
   stage: generate
