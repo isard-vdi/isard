@@ -23,6 +23,7 @@ def strtobool(val):
         return 0
     raise ValueError(f"invalid truth value: {val!r}")
 
+
 import humanfriendly as hf
 import rethinkdb as r
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
