@@ -314,8 +314,12 @@ class AdminGroup(BaseModel):
     parent_category: str
     auto: bool = False
     description: str = ""
-    external_app_id: str = ""
-    external_gid: str = ""
+    # ``AdminGroupCreateData`` exposes these as Optional[str] so the
+    # webapp can omit them. The response model has to accept the same
+    # shape — declaring them as ``str`` rejected ``None`` and surfaced
+    # as a 500 "Failed to create group" on every plain-form submit.
+    external_app_id: Optional[str] = None
+    external_gid: Optional[str] = None
     limits: bool | dict = False
 
 

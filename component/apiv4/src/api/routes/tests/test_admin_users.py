@@ -223,6 +223,49 @@ def test_admin_create_group(monkeypatch, test_client):
     assert captured == {"name": "New Group", "parent_category": "default"}
 
 
+def test_admin_create_group_accepts_null_external_ids(monkeypatch, test_client):
+    """The webapp admin form omits ``external_app_id`` and
+    ``external_gid`` so the request schema's ``Optional[str] = None``
+    defaults emit ``None``. The response model ``AdminGroup`` must
+    accept the same ``None`` shape — declaring those fields as
+    ``str`` would reject ``None`` and surface as a generic 500
+    'Failed to create group'.
+    """
+    jwt = MockJWT()
+
+    def fake_create(payload, data):
+        return {
+            "id": "group-new",
+            "name": data["name"],
+            "parent_category": data["parent_category"],
+            "uid": None,
+            "external_app_id": None,
+            "external_gid": None,
+            "description": "[default] A test group",
+        }
+
+    monkeypatch.setattr(
+        "api.services.admin_users.AdminUsersService.create_group",
+        staticmethod(fake_create),
+    )
+
+    response = test_client(
+        url="/admin/group",
+        method="POST",
+        body={
+            "name": "New Group",
+            "description": "A test group",
+            "parent_category": "default",
+        },
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["external_app_id"] is None
+    assert body["external_gid"] is None
+
+
 def test_admin_delete_group(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
