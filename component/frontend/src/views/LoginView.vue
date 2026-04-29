@@ -15,7 +15,9 @@ import {
   apiV4CategoriesQueryKey,
   apiV4CategoryCustomUrlOptions,
   apiV4CategoryCustomUrlQueryKey,
-  apiV4LoginConfigOptions
+  apiV4LoginConfigOptions,
+  getLoginConfigByCategoryOptions,
+  getLoginConfigByCategoryQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import {
   parseToken as parseAuthToken,
