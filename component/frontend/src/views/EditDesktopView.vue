@@ -74,7 +74,16 @@ const hardwareFormRef = ref<{
   getFormData: () => Record<string, unknown>
   isValid: boolean
   limitedFields: Record<string, unknown> | null
+  addInterface: (ifaceId: string) => void
+  removeInterface: (ifaceId: string) => void
+  interfaces: { value: string[] }
 } | null>(null)
+
+const hardwareInterfaces = computed<string[]>(() => hardwareFormRef.value?.interfaces?.value ?? [])
+
+function handleAddInterfaceFromAccessForm(ifaceId: string) {
+  hardwareFormRef.value?.addInterface(ifaceId)
+}
 const hardwareFormIsValid = computed(() => hardwareFormRef.value?.isValid ?? true)
 const accessFormIsValid = computed(() => accessFormRef.value?.isValid ?? true)
 
@@ -205,6 +214,8 @@ const handleSubmit = () => {
           ref="accessFormRef"
           :desktop-id="desktopId"
           :show-bastion-config="false"
+          :hardware-interfaces="hardwareInterfaces"
+          :on-request-add-interface="handleAddInterfaceFromAccessForm"
         />
       </section>
 
