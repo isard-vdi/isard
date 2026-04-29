@@ -99,7 +99,9 @@ class AdminStatsService:
                 .pluck("enabled")
                 .run(RethinkSharedConnection._rdb_connection)
             )
-        templates_enabled = len([t for t in templates if t["enabled"]])
+        # Older template docs predate the ``enabled`` field; treat missing
+        # as disabled rather than crashing the whole stats endpoint.
+        templates_enabled = len([t for t in templates if t.get("enabled")])
         return {
             "total": len(templates),
             "enabled": templates_enabled,
@@ -124,11 +126,12 @@ class AdminStatsService:
                 .count()
                 .run(RethinkSharedConnection._rdb_connection)
             )
-        d = {}
+        d = {"desktop": {}, "template": {}, "server": {}}
         for k, v in domains.items():
-            if k[0] not in d:
-                d[k[0]] = {}
-            d[k[0]][k[1]] = v
+            kind = k[0]
+            if kind not in d:
+                d[kind] = {}
+            d[kind][k[1]] = v
         return d
 
     @staticmethod

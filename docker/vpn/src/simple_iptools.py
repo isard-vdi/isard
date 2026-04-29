@@ -367,12 +367,17 @@ class UserIpTools(object):
 
     def remove_matching_rules(self, peer):
         try:
-            if peer["vpn"]["wireguard"]["extra_client_nets"]:
-                ips = peer["vpn"]["wireguard"]["extra_client_nets"].split(",") + [
-                    peer["vpn"]["wireguard"]["Address"]
-                ]
+            wg = ((peer or {}).get("vpn") or {}).get("wireguard") or {}
+            address = wg.get("Address")
+            if not address:
+                # Peer never completed wireguard setup (no Address yet);
+                # there's no rule pinned to its IP to remove.
+                return
+            extra = wg.get("extra_client_nets")
+            if extra:
+                ips = extra.split(",") + [address]
             else:
-                ips = [peer["vpn"]["wireguard"]["Address"]]
+                ips = [address]
             rules = iptc.easy.dump_table("filter")["FORWARD"]
             for rule in rules:
                 for ip in ips:
