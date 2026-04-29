@@ -173,7 +173,16 @@ export default {
       state.showStarted = !state.showStarted
     },
     add_desktop: (state, desktop) => {
-      state.desktops = [...state.desktops, desktop]
+      // Idempotent: a desktop_add event can arrive while the same
+      // desktop is still in the cache (e.g. visibility toggles or a
+      // race against the initial fetch). Replace in place if it's
+      // already there to avoid showing duplicate rows.
+      const existingIndex = state.desktops.findIndex(d => d.id === desktop.id)
+      if (existingIndex === -1) {
+        state.desktops = [...state.desktops, desktop]
+      } else {
+        state.desktops = state.desktops.map(d => d.id === desktop.id ? { ...d, ...desktop } : d)
+      }
     },
     update_desktop: (state, desktop) => {
       const item = state.desktops.find(d => d.id === desktop.id)

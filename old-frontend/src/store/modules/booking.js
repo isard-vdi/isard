@@ -132,7 +132,13 @@ export default {
       state.booking.cantStartNowModal = cantStartNowModal
     },
     add_booking: (state, booking) => {
-      state.booking.events = [...state.booking.events, booking]
+      // Idempotent — see add_desktop in modules/desktops.js.
+      const existingIndex = state.booking.events.findIndex(b => b.id === booking.id)
+      if (existingIndex === -1) {
+        state.booking.events = [...state.booking.events, booking]
+      } else {
+        state.booking.events = state.booking.events.map(b => b.id === booking.id ? { ...b, ...booking } : b)
+      }
     },
     update_booking: (state, booking) => {
       const item = state.booking.events.find(b => b.id === booking.id)

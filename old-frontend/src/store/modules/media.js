@@ -58,7 +58,13 @@ export default {
       state.sharedMedia_loaded = true
     },
     add_media: (state, media) => {
-      state.media = [...state.media, media]
+      // Idempotent — see add_desktop in modules/desktops.js.
+      const existingIndex = state.media.findIndex(d => d.id === media.id)
+      if (existingIndex === -1) {
+        state.media = [...state.media, media]
+      } else {
+        state.media = state.media.map(d => d.id === media.id ? { ...d, ...media } : d)
+      }
     },
     update_media: (state, media) => {
       const item = state.media.find(d => d.id === media.id)

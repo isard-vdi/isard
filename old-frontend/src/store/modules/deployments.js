@@ -33,7 +33,14 @@ export default {
       state.deployments_loaded = true
     },
     add_deployments: (state, deployment) => {
-      state.deployments = [...state.deployments, deployment]
+      // Idempotent — see add_desktop in modules/desktops.js for the
+      // same race-against-cache pattern.
+      const existingIndex = state.deployments.findIndex(d => d.id === deployment.id)
+      if (existingIndex === -1) {
+        state.deployments = [...state.deployments, deployment]
+      } else {
+        state.deployments = state.deployments.map(d => d.id === deployment.id ? { ...d, ...deployment } : d)
+      }
     },
     update_deployments: (state, deployment) => {
       const item = state.deployments.find(d => d.id === deployment.id)
