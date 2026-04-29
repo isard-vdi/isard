@@ -6,6 +6,7 @@ dependencies = [
   "isardvdi-common",
   "python-socketio==5.13.0",
   "uvicorn==0.34.2",
+  "watchfiles==1.0.4",
 ]
 
 [build-system]
