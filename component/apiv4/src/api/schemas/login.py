@@ -120,9 +120,7 @@ class LoginConfigResponse(BaseModel):
     for backwards compatibility and wrapped server-side.
     """
 
-    notification_cover: list[LoginNotification | None] | LoginNotification | None = (
-        None
-    )
+    notification_cover: list[LoginNotification | None] | LoginNotification | None = None
     notification_form: list[LoginNotification | None] | LoginNotification | None = None
     info: LoginConfigInfo | None = None
     locale: Locale | None = None

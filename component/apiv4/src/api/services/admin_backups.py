@@ -225,9 +225,7 @@ class AdminBackupsService:
         """Return the saved weekly-borg-integrity toggle (default off)."""
         with RethinkSharedConnection._rdb_context():
             cfg = (
-                r.table("config")
-                .get(1)
-                .run(RethinkSharedConnection._rdb_connection)
+                r.table("config").get(1).run(RethinkSharedConnection._rdb_connection)
                 or {}
             )
         value = (cfg.get("backups") or {}).get("integrity_enabled")
