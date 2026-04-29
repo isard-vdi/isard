@@ -41,6 +41,47 @@ def _safe_fromstring(xml_str):
     return ET.fromstring(stripped)
 
 
+# Canonical libvirt direct-children-of-<domain> order. Used to compute the
+# correct insertion index when a section is empty in the base XML and the user
+# adds it via the editor. See `_libvirt_toplevel_insert_index`.
+# Reference: https://libvirt.org/formatdomain.html
+LIBVIRT_DOMAIN_ORDER = [
+    "name",
+    "uuid",
+    "genid",
+    "title",
+    "description",
+    "metadata",
+    "maxMemory",
+    "memory",
+    "currentMemory",
+    "memoryBacking",
+    "memtune",
+    "vcpu",
+    "vcpus",
+    "iothreads",
+    "iothreadids",
+    "cputune",
+    "numatune",
+    "resource",
+    "sysinfo",
+    "bootloader",
+    "os",
+    "features",
+    "cpu",
+    "clock",
+    "on_poweroff",
+    "on_reboot",
+    "on_crash",
+    "pm",
+    "perf",
+    "idmap",
+    "devices",
+    "seclabel",
+    "keywrap",
+]
+
+
 # Section definitions: key -> (label, group, xpaths, protectable)
 # "group" is used by the frontend to build the grouped nav menu.
 # xpaths is a list of XPath expressions to extract from the XML.
@@ -54,6 +95,13 @@ SECTION_DEFS = [
         "xpaths": ["./name", "./uuid"],
         "protectable": False,
     },
+    {
+        "key": "description",
+        "label": "Title / Description",
+        "group": "System",
+        "xpaths": ["./title", "./description"],
+        "protectable": True,
+    },
     # --- Compute ---
     {
         "key": "memory",
@@ -63,10 +111,45 @@ SECTION_DEFS = [
         "protectable": True,
     },
     {
+        "key": "max_memory",
+        "label": "Max Memory (hot-plug)",
+        "group": "Compute",
+        "xpaths": ["./maxMemory"],
+        "protectable": True,
+    },
+    {
+        "key": "memory_backing",
+        "label": "Memory Backing",
+        "group": "Compute",
+        "xpaths": ["./memoryBacking"],
+        "protectable": True,
+    },
+    {
         "key": "vcpus",
         "label": "vCPUs",
         "group": "Compute",
         "xpaths": ["./vcpu"],
+        "protectable": True,
+    },
+    {
+        "key": "iothreads",
+        "label": "IO Threads",
+        "group": "Compute",
+        "xpaths": ["./iothreads", "./iothreadids"],
+        "protectable": True,
+    },
+    {
+        "key": "cputune",
+        "label": "CPU Tuning",
+        "group": "Compute",
+        "xpaths": ["./cputune"],
+        "protectable": True,
+    },
+    {
+        "key": "numatune",
+        "label": "NUMA Tuning",
+        "group": "Compute",
+        "xpaths": ["./numatune"],
         "protectable": True,
     },
     {
@@ -85,6 +168,20 @@ SECTION_DEFS = [
         "protectable": True,
     },
     {
+        "key": "sysinfo",
+        "label": "SMBIOS / sysinfo",
+        "group": "Boot & System",
+        "xpaths": ["./sysinfo"],
+        "protectable": True,
+    },
+    {
+        "key": "resource",
+        "label": "Resource Partition",
+        "group": "Boot & System",
+        "xpaths": ["./resource"],
+        "protectable": True,
+    },
+    {
         "key": "features",
         "label": "Features",
         "group": "Boot & System",
@@ -96,6 +193,13 @@ SECTION_DEFS = [
         "label": "Clock & Timers",
         "group": "Boot & System",
         "xpaths": ["./clock"],
+        "protectable": True,
+    },
+    {
+        "key": "lifecycle",
+        "label": "Lifecycle (poweroff/reboot/crash)",
+        "group": "Boot & System",
+        "xpaths": ["./on_poweroff", "./on_reboot", "./on_crash"],
         "protectable": True,
     },
     {
@@ -302,6 +406,14 @@ SECTION_DEFS = [
         "protectable": True,
         "multi": True,
     },
+    {
+        "key": "seclabel",
+        "label": "Security Label",
+        "group": "Security",
+        "xpaths": ["./seclabel"],
+        "protectable": True,
+        "multi": True,
+    },
     # --- Passthrough ---
     {
         "key": "hostdev",
@@ -435,9 +547,90 @@ def _parse_snippet(snippet_xml, section_key):
         )
 
 
+def _section_allowed_tags(sdef):
+    """Return the set of tag names a snippet for this section may contain.
+
+    Derived from the section's xpaths: the last path segment (with predicates
+    stripped) is the expected tag. Trailing `/..` is followed up one level so
+    qemu_guest_agent (xpath ends in `target[...]/..`) yields `channel`. Catch-all
+    sections accept any tag and return None.
+    """
+    if sdef.get("catchall"):
+        return None
+    tags = set()
+    for xp in sdef["xpaths"]:
+        segs = xp.split("/")
+        while segs and segs[-1] == "..":
+            segs.pop()
+            if segs:
+                segs.pop()
+        if not segs:
+            continue
+        last = re.sub(r"\[[^\]]*\]", "", segs[-1]).strip()
+        if last and last != ".":
+            tags.add(last)
+    return tags or None
+
+
 def _build_parent_map(root):
     """Build a child->parent lookup dict in a single tree traversal."""
     return {id(child): parent for parent in root.iter() for child in parent}
+
+
+def _libvirt_toplevel_insert_index(parent, new_tag):
+    """Return the index at which to insert <new_tag> as a direct child of <domain>
+    so that the canonical libvirt element order is preserved.
+
+    Walks the existing children left-to-right and returns the index of the first
+    child whose canonical position is greater than `new_tag`'s. Falls back to
+    appending at the end if `new_tag` is unknown or all existing children come
+    before it. Required because appending top-level elements at the end of
+    <domain> places them after </devices>, which libvirt rejects for elements
+    like <memoryBacking>, <on_poweroff>, etc.
+    """
+    if new_tag not in LIBVIRT_DOMAIN_ORDER:
+        return len(list(parent))
+    target_idx = LIBVIRT_DOMAIN_ORDER.index(new_tag)
+    for i, child in enumerate(parent):
+        if child.tag in LIBVIRT_DOMAIN_ORDER:
+            if LIBVIRT_DOMAIN_ORDER.index(child.tag) > target_idx:
+                return i
+    return len(list(parent))
+
+
+def _normalize_toplevel_order(root):
+    """Stable-sort the direct children of <domain> into canonical libvirt order.
+
+    Older versions of the editor's merge logic appended top-level elements past
+    </devices>, leaving an invalid document that libvirt rejects on start. The
+    XML is already persisted in that broken shape on existing installations, so
+    preventing future corruption is not enough — every save must also re-sort
+    into canonical order so a no-op save heals the document. Tags not present
+    in LIBVIRT_DOMAIN_ORDER keep their relative order and land after the last
+    known tag.
+    """
+    children = list(root)
+    if not children:
+        return
+
+    n = len(LIBVIRT_DOMAIN_ORDER)
+
+    def sort_key(idx_child):
+        idx, child = idx_child
+        if child.tag in LIBVIRT_DOMAIN_ORDER:
+            return (LIBVIRT_DOMAIN_ORDER.index(child.tag), 0, idx)
+        return (n, 1, idx)
+
+    sorted_pairs = sorted(enumerate(children), key=sort_key)
+    sorted_children = [c for _, c in sorted_pairs]
+
+    if sorted_children == children:
+        return
+
+    for c in children:
+        root.remove(c)
+    for c in sorted_children:
+        root.append(c)
 
 
 def split_xml_sections(xml_str, protected_sections):
@@ -562,6 +755,19 @@ def merge_xml_sections(base_xml_str, edited_sections):
 
         new_elems = _parse_snippet(snippet_xml, key)
 
+        allowed_tags = _section_allowed_tags(sdef)
+        if allowed_tags is not None:
+            mismatched = sorted({e.tag for e in new_elems if e.tag not in allowed_tags})
+            if mismatched:
+                expected = sorted(allowed_tags)
+                raise Error(
+                    "bad_request",
+                    f"Section '{sdef.get('label', key)}' only accepts "
+                    f"{expected} elements; got {mismatched}. "
+                    f"The pasted XML belongs in a different section.",
+                    traceback.format_exc(),
+                )
+
         # Remove old elements, tracking insertion position
         parent_map = _build_parent_map(root)
         first_parent = None
@@ -582,7 +788,12 @@ def merge_xml_sections(base_xml_str, edited_sections):
             first_parent = root.find(parent_path) if parent_path else root
             if first_parent is None:
                 first_parent = root
-            first_idx = len(list(first_parent))
+            if first_parent is root:
+                first_idx = _libvirt_toplevel_insert_index(
+                    first_parent, new_elems[0].tag
+                )
+            else:
+                first_idx = len(list(first_parent))
 
         if first_parent is not None:
             for i, new_elem in enumerate(new_elems):
@@ -593,6 +804,8 @@ def merge_xml_sections(base_xml_str, edited_sections):
         claimed = _collect_claimed_elements(root)
         for sdef, snippet_xml in catchall_edits:
             _merge_catchall_section(root, sdef, snippet_xml, claimed)
+
+    _normalize_toplevel_order(root)
 
     # Validate the final XML
     merged_xml = ET.tostring(root, encoding="unicode")
@@ -609,7 +822,14 @@ def merge_xml_sections(base_xml_str, edited_sections):
 
 
 def _merge_catchall_section(root, sdef, snippet_xml, claimed):
-    """Merge a catch-all section back into the XML tree."""
+    """Merge a catch-all section back into the XML tree.
+
+    Preserves the original position of unclaimed elements: new elements are
+    inserted at the index where the first old unclaimed element lived, instead
+    of appending to the end of the parent. Without this, libvirt top-level
+    elements like <memoryBacking>, <on_poweroff>, <seclabel> would be moved
+    from their canonical position to after </devices>, which libvirt rejects.
+    """
     parent, old_unclaimed = _get_unclaimed_children(root, claimed, sdef["catchall"])
 
     if parent is None and snippet_xml.strip():
@@ -619,14 +839,23 @@ def _merge_catchall_section(root, sdef, snippet_xml, claimed):
     if parent is None:
         return
 
+    insert_idx = None
+    if old_unclaimed:
+        insert_idx = list(parent).index(old_unclaimed[0])
+
     for elem in old_unclaimed:
         parent.remove(elem)
 
     if not snippet_xml.strip():
         return
 
-    for new_elem in _parse_snippet(snippet_xml, sdef["key"]):
-        parent.append(new_elem)
+    new_elems = _parse_snippet(snippet_xml, sdef["key"])
+    if insert_idx is not None:
+        for i, new_elem in enumerate(new_elems):
+            parent.insert(insert_idx + i, new_elem)
+    else:
+        for new_elem in new_elems:
+            parent.append(new_elem)
 
 
 def save_domain_xml_and_protected(domain_id, xml, protected_sections):
