@@ -169,5 +169,9 @@
     "maintenance_text": {
         "body": "The service is going to be available again in a few minutes. Sorry for the inconvenience",
         "title": "Currently, Isard service is under maintenance"
+    },
+    "resources": {
+        "code": "ITCKO4GSKMJGAMPUWKSV",
+        "url": "https://repository.isardvdi.com"
     }
 }
