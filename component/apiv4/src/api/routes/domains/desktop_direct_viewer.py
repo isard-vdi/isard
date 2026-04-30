@@ -57,8 +57,25 @@ from fastapi.responses import JSONResponse
 
 tag = "desktop_direct_viewer"
 
+# Named caches so the share-link writer (update_share_link below) can
+# invalidate the read cache, and the reset-desktop writer can drop the
+# rate-limit cache. The viewer-docs cache holds a global config blob.
+share_link_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
+viewer_docs_cache: TTLCache = TTLCache(maxsize=1, ttl=360)
+reset_desktop_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
 
-@cached(cache=TTLCache(maxsize=20, ttl=10))
+
+def clear_share_link_cache() -> None:
+    """Invalidate the share-link read cache after toggling sharing."""
+    share_link_cache.clear()
+
+
+def clear_viewer_docs_cache() -> None:
+    """Invalidate the viewer-docs cache after admin updates the URL."""
+    viewer_docs_cache.clear()
+
+
+@cached(cache=share_link_cache)
 @token_router.get(
     "/item/desktop/{desktop_id}/get-share-link",
     response_model=DesktopShareLinkResponse,
@@ -157,7 +174,7 @@ async def get_desktop_viewer(
         return await _timed_not_found(start_time)
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=360))
+@cached(cache=viewer_docs_cache)
 @open_router.get(
     "/item/desktop/get-viewers-docs",
     tags=[tag],
@@ -231,7 +248,7 @@ async def log_viewer_click(
         return await _timed_not_found(start_time)
 
 
-@cached(cache=TTLCache(maxsize=20, ttl=10))
+@cached(cache=reset_desktop_cache)
 @direct_viewer_router.put(
     "/item/desktop/token/{token}/reset-desktop",
     tags=[tag],

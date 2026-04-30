@@ -36,8 +36,29 @@ from datetime import datetime, timedelta
 from cachetools import TTLCache, cached
 from rethinkdb.errors import ReqlNonExistenceError
 
+# Named caches so writers can invalidate them after mutations.
+group_name_cache: TTLCache = TTLCache(maxsize=1000, ttl=240)
+category_name_cache: TTLCache = TTLCache(maxsize=1000, ttl=240)
+owners_info_cache: TTLCache = TTLCache(maxsize=1, ttl=240)
+params_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
+params_item_type_custom_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
 
-@cached(cache=TTLCache(maxsize=1000, ttl=240))
+
+def clear_usage_caches() -> None:
+    """Clear all usage helper caches at once.
+
+    Usage parameters are admin-edited via the usage admin endpoints;
+    a single sweep helper keeps writers from having to know each
+    cache name.
+    """
+    group_name_cache.clear()
+    category_name_cache.clear()
+    owners_info_cache.clear()
+    params_cache.clear()
+    params_item_type_custom_cache.clear()
+
+
+@cached(cache=group_name_cache)
 def get_group_name(group_id):
     try:
         with RethinkSharedConnection._rdb_context():
@@ -52,7 +73,7 @@ def get_group_name(group_id):
     return group["name"]
 
 
-@cached(cache=TTLCache(maxsize=1000, ttl=240))
+@cached(cache=category_name_cache)
 def get_category_name(category_id):
     try:
         with RethinkSharedConnection._rdb_context():
@@ -81,7 +102,7 @@ def get_owner_info(user_id):
         }
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=240))
+@cached(cache=owners_info_cache)
 def get_owners_info():
     with RethinkSharedConnection._rdb_context():
         users = list(
@@ -123,7 +144,7 @@ def get_abs_consumptions(item_type, date):
         )
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=60))
+@cached(cache=params_cache)
 def get_params():
     with RethinkSharedConnection._rdb_context():
         return (
@@ -145,7 +166,7 @@ def get_default_consumption(parameters_ids=None):
     return {dc["id"]: dc["default"] for dc in default_consumption}
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=60))
+@cached(cache=params_item_type_custom_cache)
 def get_params_item_type_custom(item_type, custom):
     with RethinkSharedConnection._rdb_context():
         return list(

@@ -39,11 +39,27 @@ URL_DOWNLOAD_INSECURE_SSL = (
     os.environ.get("URL_DOWNLOAD_INSECURE_SSL", "true").lower() == "true"
 )
 
+# Named caches so writers can invalidate them after mutations
+# (the registration flow updates the code in the DB and must wipe
+# the cached cfg/web kinds).
+_get_cfg_cache: TTLCache = TTLCache(maxsize=1, ttl=360)
+_download_web_kind_cache: TTLCache = TTLCache(maxsize=10, ttl=360)
+_download_web_private_kind_cache: TTLCache = TTLCache(maxsize=10, ttl=360)
+_get_web_kinds_cache: TTLCache = TTLCache(maxsize=1, ttl=360)
+
+
+def clear_admin_downloads_caches() -> None:
+    """Clear all admin downloads caches (used after registration)."""
+    _get_cfg_cache.clear()
+    _download_web_kind_cache.clear()
+    _download_web_private_kind_cache.clear()
+    _get_web_kinds_cache.clear()
+
 
 class AdminDownloadsService:
 
     @staticmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=360))
+    @cached(cache=_get_cfg_cache)
     def _get_cfg():
         """Get download configuration from database."""
         with RethinkSharedConnection._rdb_context():
@@ -110,14 +126,14 @@ class AdminDownloadsService:
                     r.table("config").get(1).update(
                         {"resources": {"code": req.json()}}
                     ).run(RethinkSharedConnection._rdb_connection)
-                AdminDownloadsService._get_cfg.cache_clear()
+                _get_cfg_cache.clear()
                 return True
         except Exception:
             pass
         return False
 
     @staticmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=360))
+    @cached(cache=_download_web_kind_cache)
     def _download_web_kind(kind):
         """Download a specific kind from the updates server."""
         url, code, _ = AdminDownloadsService._get_cfg()
@@ -144,7 +160,7 @@ class AdminDownloadsService:
         return False
 
     @staticmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=360))
+    @cached(cache=_download_web_private_kind_cache)
     def _download_web_private_kind(kind="private_domains"):
         """Download private kind from the updates server."""
         url, code, private_code = AdminDownloadsService._get_cfg()
@@ -163,7 +179,7 @@ class AdminDownloadsService:
         return False
 
     @staticmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=360))
+    @cached(cache=_get_web_kinds_cache)
     def _get_web_kinds():
         """Get all web kinds from the updates server."""
         web = {}

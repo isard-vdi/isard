@@ -37,8 +37,18 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 # with open("/version", "r") as file:
 #     version = file.read()
 
+# Named caches: api_version is a constant during a process lifetime, and
+# category custom_url is admin-edited via writers that should invalidate.
+api_version_cache: TTLCache = TTLCache(maxsize=1, ttl=360)
+category_custom_url_cache: TTLCache = TTLCache(maxsize=1, ttl=20)
 
-@cached(cache=TTLCache(maxsize=1, ttl=360))
+
+def clear_category_custom_url_cache() -> None:
+    """Invalidate the custom_url cache after a category-branding write."""
+    category_custom_url_cache.clear()
+
+
+@cached(cache=api_version_cache)
 @open_router.get(
     "/",
     response_model=ApiVersion,
@@ -61,7 +71,7 @@ async def api_version():
         )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=20))
+@cached(cache=category_custom_url_cache)
 @open_router.get(
     "/item/category/{category_id}/custom_url",
     tags=["categories"],
