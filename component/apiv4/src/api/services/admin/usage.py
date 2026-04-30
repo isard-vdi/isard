@@ -18,24 +18,20 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import asyncio
-import traceback
 from datetime import datetime, timedelta
 
 import pytz
-from cachetools import TTLCache, cached
-from cachetools.keys import hashkey
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.usage.common import UsageProcessed
+from isardvdi_common.lib.usage.consumption import (
+    ConsumptionUsageProcessed,
+    subtract_dicts,
+)
 from isardvdi_common.lib.usage.credits import CreditsUsageProcessed
 from isardvdi_common.lib.usage.groupings import GroupingsUsageProcessed
 from isardvdi_common.lib.usage.limits import LimitsUsageProcessed, validate_usage_limits
 from isardvdi_common.lib.usage.parameters import ParametersUsageProcessed
 from isardvdi_common.lib.usage.reset_dates import ResetDatesUsageProcessed
-from rethinkdb import r
 
 
 def _parse_iso_date(value, field_name="date"):
@@ -75,29 +71,14 @@ class AdminUsageService:
             )
         start_date = _parse_iso_date(start_date, "start_date")
         end_date = _parse_iso_date(end_date, "end_date")
-        with RethinkSharedConnection._rdb_context():
-            if items_ids is None:
-                items = list(
-                    r.table("usage_consumption")
-                    .pluck("item_id", "item_name")
-                    .distinct()
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-            else:
-                items = list(
-                    r.table("usage_consumption")
-                    .get_all(r.args(items_ids), index="item_id")
-                    .pluck("item_id", "item_name")
-                    .distinct()
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
+        items = ConsumptionUsageProcessed.list_distinct_items(items_ids)
 
         data = []
         reset_dates = AdminUsageService.get_reset_dates(start_date, end_date)
         for day_offset in range(0, (end_date - start_date).days + 1):
             current_day = start_date + timedelta(days=day_offset)
             for item in items:
-                item_data = AdminUsageService._get_item_date_consumption(
+                item_data = ConsumptionUsageProcessed.get_item_date_consumption(
                     current_day,
                     item["item_id"],
                     item_type,
@@ -109,7 +90,7 @@ class AdminUsageService:
                     for date in reset_dates:
                         if current_day >= date:
                             abs_reset_data = (
-                                AdminUsageService._get_item_date_consumption(
+                                ConsumptionUsageProcessed.get_item_date_consumption(
                                     date,
                                     item["item_id"],
                                     item_type,
@@ -117,9 +98,7 @@ class AdminUsageService:
                                     grouping_params=grouping,
                                 )["abs"]
                             )
-                            abs_val = AdminUsageService._substract_dicts(
-                                item_data["abs"], abs_reset_data
-                            )
+                            abs_val = subtract_dicts(item_data["abs"], abs_reset_data)
                             break
                 data.append(
                     {
@@ -150,28 +129,12 @@ class AdminUsageService:
             )
         start_date = _parse_iso_date(start_date, "start_date")
         end_date = _parse_iso_date(end_date, "end_date")
-        with RethinkSharedConnection._rdb_context():
-            if items_ids is None:
-                query = r.table("usage_consumption").get_all(
-                    item_consumer, index="item_consumer"
-                )
-                if category_id:
-                    query = query.pluck(
-                        "item_id", "item_name", "item_consumer_category_id"
-                    ).filter({"item_consumer_category_id": category_id})
-                else:
-                    query = query.pluck("item_id", "item_name")
-                items = list(
-                    query.distinct().run(RethinkSharedConnection._rdb_connection)
-                )
-            else:
-                items = list(
-                    r.table("usage_consumption")
-                    .get_all(r.args(items_ids), index="item_id")
-                    .pluck("item_id", "item_name")
-                    .distinct()
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
+        if items_ids is None:
+            items = ConsumptionUsageProcessed.list_distinct_items_by_consumer(
+                item_consumer, category_id
+            )
+        else:
+            items = ConsumptionUsageProcessed.list_distinct_items(items_ids)
 
         data = []
         reset_dates = AdminUsageService.get_reset_dates(start_date, end_date)
@@ -190,7 +153,7 @@ class AdminUsageService:
             set([d["item_id"] for d in items if items_ids_list.count(d["item_id"]) > 1])
         )
         for item in items:
-            start_data = AdminUsageService._get_item_date_consumption(
+            start_data = ConsumptionUsageProcessed.get_item_date_consumption(
                 start_date,
                 item["item_id"],
                 item_type,
@@ -198,17 +161,17 @@ class AdminUsageService:
                 grouping_params=grouping_params,
             )
             if reset_start_date:
-                reset_start_data = AdminUsageService._get_item_date_consumption(
+                reset_start_data = ConsumptionUsageProcessed.get_item_date_consumption(
                     reset_start_date,
                     item["item_id"],
                     item_type,
                     item["item_name"],
                     grouping_params=grouping_params,
                 )
-                start_data["abs"] = AdminUsageService._substract_dicts(
+                start_data["abs"] = subtract_dicts(
                     start_data["abs"], reset_start_data["abs"]
                 )
-            end_data = AdminUsageService._get_item_date_consumption(
+            end_data = ConsumptionUsageProcessed.get_item_date_consumption(
                 end_date,
                 item["item_id"],
                 item_type,
@@ -216,25 +179,19 @@ class AdminUsageService:
                 grouping_params=grouping_params,
             )
             if reset_end_date:
-                reset_end_data = AdminUsageService._get_item_date_consumption(
+                reset_end_data = ConsumptionUsageProcessed.get_item_date_consumption(
                     reset_end_date,
                     item["item_id"],
                     item_type,
                     item["item_name"],
                     grouping_params=grouping_params,
                 )
-                end_data["abs"] = AdminUsageService._substract_dicts(
-                    end_data["abs"], reset_end_data["abs"]
-                )
+                end_data["abs"] = subtract_dicts(end_data["abs"], reset_end_data["abs"])
             item_description = ""
             if item_consumer == "category":
-                with RethinkSharedConnection._rdb_context():
-                    item_description = (
-                        r.table("categories")
-                        .get(item["item_id"])
-                        .default({"description": ""})["description"]
-                        .run(RethinkSharedConnection._rdb_connection)
-                    )
+                item_description = ConsumptionUsageProcessed.get_category_description(
+                    item["item_id"]
+                )
             data.append(
                 {
                     "item_id": item["item_id"],
@@ -249,98 +206,6 @@ class AdminUsageService:
         return data
 
     @staticmethod
-    def _get_item_date_consumption(
-        date, item_id, item_type, item_name, grouping_params=None
-    ):
-        if isinstance(date, str):
-            date = _parse_iso_date(date, "date")
-        if grouping_params:
-            pluck = (
-                {"abs": grouping_params, "inc": grouping_params},
-                "date",
-                "item_name",
-                "item_id",
-                "item_type",
-                "item_consumer",
-            )
-        else:
-            pluck = (
-                "date",
-                "inc",
-                "abs",
-                "item_name",
-                "item_id",
-                "item_type",
-                "item_consumer",
-            )
-
-        default_consumption = (
-            AdminUsageService._get_default_consumption(grouping_params)
-            if grouping_params
-            else AdminUsageService._get_default_consumption()
-        )
-        with RethinkSharedConnection._rdb_context():
-            data = (
-                r.table("usage_consumption")
-                .get_all(item_id, index="item_id")
-                .pluck(pluck)
-                .filter((r.row["date"] <= date) & (r.row["item_type"] == item_type))
-                .order_by("date")
-                .nth(-1)
-                .default(
-                    {
-                        "name": item_name,
-                        "date": date,
-                        "inc": default_consumption,
-                        "abs": default_consumption,
-                        "item_id": item_id,
-                        "item_type": item_type,
-                    }
-                )
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        with RethinkSharedConnection._rdb_context():
-            data["inc"] = (
-                r.table("usage_consumption")
-                .get_all(item_id, index="item_id")
-                .pluck(pluck)
-                .filter((r.row["date"] == date) & (r.row["item_type"] == item_type))
-                .nth(0)
-                .default({"inc": default_consumption})["inc"]
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        return data
-
-    @staticmethod
-    def _get_default_consumption(grouping_params=None):
-        """Return a default consumption dict with zeros for all params."""
-        if grouping_params:
-            return {p: 0 for p in grouping_params}
-        # Get all parameters from usage_parameter table
-        with RethinkSharedConnection._rdb_context():
-            params = list(
-                r.table("usage_parameter")
-                .pluck("id")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        return {p["id"]: 0 for p in params}
-
-    @staticmethod
-    def _substract_dicts(dict1, dict2):
-        """Subtract values in dict2 from dict1."""
-        result = {}
-        for key in dict1:
-            if isinstance(dict1[key], dict):
-                result[key] = AdminUsageService._substract_dicts(
-                    dict1[key], dict2.get(key, {})
-                )
-            elif isinstance(dict1[key], (int, float)):
-                result[key] = dict1[key] - dict2.get(key, 0)
-            else:
-                result[key] = dict1[key]
-        return result
-
-    @staticmethod
     def get_usage_consumers(item_type):
         return UsageProcessed.list_consumers(item_type)
 
@@ -352,47 +217,14 @@ class AdminUsageService:
     def get_usage_distinct_items(
         item_consumer, start_date, end_date, item_category=None
     ):
-        start_date = _parse_iso_date(start_date, "start_date")
-        end_date = _parse_iso_date(end_date, "end_date")
-        with RethinkSharedConnection._rdb_context():
-            query = (
-                r.table("usage_consumption")
-                .get_all(item_consumer, index="item_consumer")
-                .merge(
-                    lambda doc: {
-                        "category_name": r.branch(
-                            doc["item_consumer_category_id"].ne(None)
-                            and (
-                                doc["item_consumer"]
-                                in ["desktop", "template", "user", "group"]
-                            ),
-                            r.table("categories")
-                            .get(doc["item_consumer_category_id"])
-                            .default({"name": None})["name"],
-                            None,
-                        ),
-                        "username": r.branch(
-                            doc["item_consumer"] in ["desktop", "template"]
-                            and doc["item_id"] != "_total_",
-                            r.table("domains")
-                            .get(doc["item_id"])
-                            .default({"username": None})["username"],
-                            None,
-                        ),
-                    }
-                )
-            )
-            if item_category:
-                query = query.pluck(
-                    "item_id",
-                    "item_name",
-                    "item_consumer_category_id",
-                    "category_name",
-                    "username",
-                ).filter({"item_consumer_category_id": item_category})
-            else:
-                query = query.pluck("item_id", "item_name", "category_name", "username")
-            return list(query.distinct().run(RethinkSharedConnection._rdb_connection))
+        # start/end dates are accepted for the route signature but the
+        # underlying query is a distinct on the ``item_consumer`` index;
+        # validation still runs to reject malformed strings.
+        _parse_iso_date(start_date, "start_date")
+        _parse_iso_date(end_date, "end_date")
+        return ConsumptionUsageProcessed.list_distinct_consumer_items(
+            item_consumer, item_category
+        )
 
     @staticmethod
     def consolidate_consumptions(item_type=None, total_days=2):
