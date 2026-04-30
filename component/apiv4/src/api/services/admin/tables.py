@@ -18,8 +18,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import traceback
-
 from html_sanitizer import Sanitizer
 from isardvdi_common.helpers.error_factory import Error
 
@@ -136,25 +134,7 @@ class AdminTablesService:
                 raise Error("bad_request", "Missing 'name' field in request body")
             Helpers.check_duplicate(table, data["name"])
 
-        ApiAdmin._validate_table(table)
-
-        with ApiAdmin._rdb_context():
-            from rethinkdb import r
-
-            existing = r.table(table).get(data["id"]).run(ApiAdmin._rdb_connection)
-            if existing is not None:
-                raise Error(
-                    "conflict",
-                    "Id " + data["id"] + " already exists in table " + table,
-                )
-            result = r.table(table).insert(data).run(ApiAdmin._rdb_connection)
-            if not result.get("inserted"):
-                raise Error(
-                    "internal_server",
-                    "Internal server error",
-                    traceback.format_exc(),
-                )
-
+        ApiAdmin.insert_table_item(table, data)
         return {}
 
     @staticmethod
@@ -171,13 +151,7 @@ class AdminTablesService:
                 raise Error("bad_request", "Missing 'name' field in request body")
             Helpers.check_duplicate(table, data["name"], item_id=data["id"])
 
-        ApiAdmin._validate_table(table)
-
-        with ApiAdmin._rdb_context():
-            from rethinkdb import r
-
-            r.table(table).get(data["id"]).update(data).run(ApiAdmin._rdb_connection)
-
+        ApiAdmin.update_table_item(table, data)
         return {}
 
     @staticmethod
@@ -191,25 +165,5 @@ class AdminTablesService:
                 table, {"id": item_id}
             )
 
-        ApiAdmin._validate_table(table)
-
-        with ApiAdmin._rdb_context():
-            from rethinkdb import r
-
-            item = r.table(table).get(item_id).run(ApiAdmin._rdb_connection)
-            if not item:
-                raise Error(
-                    "not_found",
-                    "Item " + str(item_id) + " not found",
-                    description_code="not_found",
-                )
-            result = r.table(table).get(item_id).delete().run(ApiAdmin._rdb_connection)
-            if not result.get("deleted"):
-                raise Error(
-                    "internal_server",
-                    "Internal server error",
-                    traceback.format_exc(),
-                    description_code="generic_error",
-                )
-
+        ApiAdmin.delete_table_item(table, item_id)
         return {}
