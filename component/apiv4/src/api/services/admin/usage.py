@@ -29,10 +29,12 @@ from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.usage.common import UsageProcessed
 from isardvdi_common.lib.usage.credits import CreditsUsageProcessed
 from isardvdi_common.lib.usage.groupings import GroupingsUsageProcessed
 from isardvdi_common.lib.usage.limits import LimitsUsageProcessed, validate_usage_limits
 from isardvdi_common.lib.usage.parameters import ParametersUsageProcessed
+from isardvdi_common.lib.usage.reset_dates import ResetDatesUsageProcessed
 from rethinkdb import r
 
 
@@ -340,23 +342,11 @@ class AdminUsageService:
 
     @staticmethod
     def get_usage_consumers(item_type):
-        with RethinkSharedConnection._rdb_context():
-            return list(
-                r.table("usage_consumption")
-                .get_all(item_type, index="item_type")
-                .pluck("item_consumer")
-                .distinct()["item_consumer"]
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        return UsageProcessed.list_consumers(item_type)
 
     @staticmethod
     def count_usage_consumers():
-        with RethinkSharedConnection._rdb_context():
-            return (
-                r.table("usage_consumption")
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        return UsageProcessed.count_consumption_rows()
 
     @staticmethod
     def get_usage_distinct_items(
@@ -416,13 +406,7 @@ class AdminUsageService:
         from api.services.usage.user import ConsolidateUserConsumption
 
         if total_days == "all":
-            with RethinkSharedConnection._rdb_context():
-                beginning_time = (
-                    r.table("logs_" + item_type)
-                    .order_by(index="started_time")
-                    .nth(0)["started_time"]
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
+            beginning_time = UsageProcessed.get_logs_started_time(item_type)
             total_days = int(
                 (datetime.now(pytz.utc) - beginning_time).total_seconds() / 60 / 60 / 24
             )
@@ -578,38 +562,11 @@ class AdminUsageService:
 
     @staticmethod
     def get_reset_dates(start_date=None, end_date=None):
-        with RethinkSharedConnection._rdb_context():
-            if start_date and end_date:
-                within = list(
-                    r.table("usage_reset_dates")
-                    .filter((r.row["date"] <= end_date))
-                    .order_by(r.desc("date"))["date"]
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-            else:
-                within = list(
-                    r.table("usage_reset_dates")
-                    .order_by(r.desc("date"))["date"]
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-        if len(within):
-            result = within
-            result.reverse()
-            return result
-        return []
+        return ResetDatesUsageProcessed.list_reset_dates(start_date, end_date)
 
     @staticmethod
     def add_reset_dates(date_list):
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_reset_dates").delete().run(
-                RethinkSharedConnection._rdb_connection
-            )
-        for date in set(date_list):
-            date = date.replace(tzinfo=pytz.timezone("UTC"))
-            with RethinkSharedConnection._rdb_context():
-                r.table("usage_reset_dates").insert({"date": date}).run(
-                    RethinkSharedConnection._rdb_connection
-                )
+        ResetDatesUsageProcessed.replace_reset_dates(date_list)
 
     # =========================================================================
     # MISC
@@ -617,84 +574,12 @@ class AdminUsageService:
 
     @staticmethod
     def unify_item_name(item_id):
-        with RethinkSharedConnection._rdb_context():
-            rows = list(
-                r.table("usage_consumption")
-                .get_all(item_id, index="item_id")
-                .order_by("date")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if not rows:
-            raise Error(
-                "not_found",
-                f"No consumption data for item {item_id}",
-                description_code="consumption_not_found",
-            )
-        current_name = rows[-1]["item_name"]
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_consumption").get_all(item_id, index="item_id").filter(
-                lambda uc: uc["item_name"] != current_name
-            ).update({"item_name": current_name}).run(
-                RethinkSharedConnection._rdb_connection
-            )
-        return current_name
+        return UsageProcessed.unify_item_name(item_id)
 
     @staticmethod
     def delete_all_consumption_data():
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_consumption").delete().run(
-                RethinkSharedConnection._rdb_connection
-            )
+        UsageProcessed.delete_all_consumption()
 
     @staticmethod
     def check_item_ownership(payload, filters):
-        """Validate that a manager has access to the items in the filter."""
-        if not filters.get("item_ids"):
-            return
-        item_type = filters.get("item_type")
-        if item_type == "category":
-            for item_id in filters["item_ids"]:
-                if (
-                    payload["role_id"] == "manager"
-                    and payload["category_id"] != item_id
-                ):
-                    raise Error(
-                        "forbidden",
-                        "You are not allowed to access this category",
-                    )
-        elif item_type == "group":
-            for item_id in filters["item_ids"]:
-                with RethinkSharedConnection._rdb_context():
-                    group = (
-                        r.table("groups")
-                        .get(item_id)
-                        .pluck("parent_category")
-                        .run(RethinkSharedConnection._rdb_connection)
-                    )
-                if (
-                    group
-                    and payload["role_id"] == "manager"
-                    and payload["category_id"] != group.get("parent_category")
-                ):
-                    raise Error(
-                        "forbidden",
-                        "You are not allowed to access this group",
-                    )
-        elif item_type == "user":
-            for item_id in filters["item_ids"]:
-                with RethinkSharedConnection._rdb_context():
-                    user = (
-                        r.table("users")
-                        .get(item_id)
-                        .pluck("category")
-                        .run(RethinkSharedConnection._rdb_connection)
-                    )
-                if (
-                    user
-                    and payload["role_id"] == "manager"
-                    and payload["category_id"] != user.get("category")
-                ):
-                    raise Error(
-                        "forbidden",
-                        "You are not allowed to access this user",
-                    )
+        UsageProcessed.check_item_ownership(payload, filters)
