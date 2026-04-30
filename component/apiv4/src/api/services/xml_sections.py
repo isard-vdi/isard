@@ -5,17 +5,9 @@ import re
 import traceback
 import uuid
 from xml.etree import ElementTree as ET
-from xml.parsers.expat import ParserCreate
 
-from isardvdi_common.connections.rethink_shared_connection import (
-    RethinkSharedConnection,
-)
 from isardvdi_common.helpers.error_factory import Error
-from rethinkdb import RethinkDB, r
-
-# Import the already-initialized db connection pool from api_admin
-# (RDB can't be initialized after first request)
-
+from isardvdi_common.lib.domains.xml_sections import XmlSectionsProcessed
 
 # Maximum size for a single XML snippet (256 KB)
 MAX_SNIPPET_SIZE = 256 * 1024
@@ -485,31 +477,14 @@ def save_domain_xml_and_protected(
     domain_id: str, xml: str, protected_sections: list[str]
 ) -> None:
     """Save the merged XML and xml_protected_sections to the domain."""
-    with RethinkSharedConnection._rdb_context():
-        r.table("domains").get(domain_id).update(
-            {
-                "xml": xml,
-                "create_dict": {
-                    "xml_protected_sections": r.literal(protected_sections)
-                },
-            }
-        ).run(RethinkSharedConnection._rdb_connection)
+    XmlSectionsProcessed.update_domain_xml_and_protected(
+        domain_id, xml, protected_sections
+    )
 
 
 def get_domain_capabilities() -> dict:
     """Get cached domain capabilities from first online hypervisor."""
-    with RethinkSharedConnection._rdb_context():
-        hyps = list(
-            r.table("hypervisors")
-            .has_fields({"info": {"domain_capabilities": True}})
-            .filter(lambda hyp: hyp["info"]["domain_capabilities"].keys().count() > 0)
-            .pluck({"info": {"domain_capabilities": True}})
-            .limit(1)
-            .run(RethinkSharedConnection._rdb_connection)
-        )
-    if hyps:
-        return hyps[0].get("info", {}).get("domain_capabilities", {})
-    return {}
+    return XmlSectionsProcessed.get_domain_capabilities()
 
 
 def get_virt_install_xml_sections(virt_id: str) -> dict:
@@ -518,13 +493,7 @@ def get_virt_install_xml_sections(virt_id: str) -> dict:
     Mirrors v3 ``api_v3_admin_virt_install_xml_sections`` GET branch
     (``AdminDomainsView.py`` — commit 0d15e5511).
     """
-    with RethinkSharedConnection._rdb_context():
-        vi = (
-            r.table("virt_install")
-            .get(virt_id)
-            .default(None)
-            .run(RethinkSharedConnection._rdb_connection)
-        )
+    vi = XmlSectionsProcessed.get_virt_install(virt_id)
     if not vi:
         raise Error(
             "not_found",
@@ -541,13 +510,7 @@ def save_virt_install_xml_sections(virt_id: str, edited_sections: dict) -> dict:
     Mirrors v3 ``api_v3_admin_virt_install_xml_sections`` POST branch
     (``AdminDomainsView.py`` — commit 0d15e5511).
     """
-    with RethinkSharedConnection._rdb_context():
-        vi = (
-            r.table("virt_install")
-            .get(virt_id)
-            .default(None)
-            .run(RethinkSharedConnection._rdb_connection)
-        )
+    vi = XmlSectionsProcessed.get_virt_install(virt_id)
     if not vi:
         raise Error(
             "not_found",
@@ -555,10 +518,7 @@ def save_virt_install_xml_sections(virt_id: str, edited_sections: dict) -> dict:
             traceback.format_exc(),
         )
     merged_xml = merge_xml_sections(vi.get("xml"), edited_sections)
-    with RethinkSharedConnection._rdb_context():
-        r.table("virt_install").get(virt_id).update({"xml": merged_xml}).run(
-            RethinkSharedConnection._rdb_connection
-        )
+    XmlSectionsProcessed.update_virt_install_xml(virt_id, merged_xml)
     return {"xml": merged_xml, "valid": True}
 
 
@@ -666,13 +626,7 @@ def save_as_virt_install(domain_id: str, edited_sections: dict, name: str) -> di
         )
     name = name.strip()
 
-    with RethinkSharedConnection._rdb_context():
-        domain = (
-            r.table("domains")
-            .get(domain_id)
-            .default(None)
-            .run(RethinkSharedConnection._rdb_connection)
-        )
+    domain = XmlSectionsProcessed.get_domain(domain_id)
     if not domain:
         raise Error(
             "not_found",
@@ -691,12 +645,7 @@ def save_as_virt_install(domain_id: str, edited_sections: dict, name: str) -> di
             traceback.format_exc(),
         )
 
-    with RethinkSharedConnection._rdb_context():
-        existing = (
-            r.table("virt_install")
-            .get(virt_id)
-            .run(RethinkSharedConnection._rdb_connection)
-        )
+    existing = XmlSectionsProcessed.get_virt_install(virt_id)
     if existing:
         raise Error(
             "conflict",
@@ -712,8 +661,5 @@ def save_as_virt_install(domain_id: str, edited_sections: dict, name: str) -> di
         "icon": meta["icon"],
         "xml": generalized_xml,
     }
-    with RethinkSharedConnection._rdb_context():
-        r.table("virt_install").insert(record).run(
-            RethinkSharedConnection._rdb_connection
-        )
+    XmlSectionsProcessed.insert_virt_install(record)
     return record
