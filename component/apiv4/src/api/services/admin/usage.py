@@ -29,6 +29,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.usage.credits import CreditsUsageProcessed
 from isardvdi_common.lib.usage.groupings import GroupingsUsageProcessed
 from isardvdi_common.lib.usage.limits import LimitsUsageProcessed, validate_usage_limits
 from isardvdi_common.lib.usage.parameters import ParametersUsageProcessed
@@ -526,158 +527,19 @@ class AdminUsageService:
 
     @staticmethod
     def get_all_usage_credits():
-        with RethinkSharedConnection._rdb_context():
-            return list(
-                r.table("usage_credit")
-                .merge(
-                    lambda row: {
-                        "category_name": r.table("categories")
-                        .get(row["item_id"])
-                        .default({"name": ""})["name"],
-                        "item_description": r.table("categories")
-                        .get(row["item_id"])
-                        .default({"description": ""})["description"],
-                    }
-                )
-                .merge(
-                    lambda row: {
-                        "grouping_name": r.table("usage_grouping")
-                        .get(row["grouping_id"])
-                        .default({"name": row["grouping_id"]})["name"]
-                    }
-                )
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        return CreditsUsageProcessed.list_all()
 
     @staticmethod
     def get_usage_credits_by_id(credits_id):
-        with RethinkSharedConnection._rdb_context():
-            result = (
-                r.table("usage_credit")
-                .get(credits_id)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if not result:
-            raise Error("not_found", "Category credit ID not found in database")
-        return result
+        return CreditsUsageProcessed.get_by_id(credits_id)
 
     @staticmethod
     def get_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
         start_date = _parse_iso_date(start_date, "start_date")
         end_date = _parse_iso_date(end_date, "end_date")
-        with RethinkSharedConnection._rdb_context():
-            credit = list(
-                r.table("usage_credit")
-                .get_all(
-                    [item_id, item_type, grouping_id],
-                    index="item_id-item_type-grouping",
-                )
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if not len(credit):
-            return [
-                {
-                    "limits": None,
-                    "start_date": start_date.strftime("%Y-%m-%d %H:%M%z"),
-                    "end_date": end_date.strftime("%Y-%m-%d %H:%M%z"),
-                }
-            ]
-        outer = [
-            c
-            for c in credit
-            if c["start_date"] <= start_date
-            and (not c["end_date"] or c["end_date"] >= end_date)
-        ]
-        if len(outer):
-            if len(outer) > 1:
-                raise Error(
-                    "internal_server",
-                    "More than one outer credit interval found",
-                )
-            outer[0]["start_date"] = start_date.strftime("%Y-%m-%d %H:%M%z")
-            outer[0]["end_date"] = end_date.strftime("%Y-%m-%d %H:%M%z")
-            return outer
-        before = [
-            c
-            for c in credit
-            if c["start_date"] <= start_date
-            and (
-                c["end_date"]
-                and (c["end_date"] >= start_date and c["end_date"] <= end_date)
-            )
-        ]
-        if len(before) > 1:
-            raise Error(
-                "internal_server",
-                "More than one before credit interval found",
-            )
-        inner = [
-            c
-            for c in credit
-            if c["start_date"] >= start_date
-            and (c["end_date"] and c["end_date"] <= end_date)
-        ]
-        after = [
-            c
-            for c in credit
-            if c["start_date"] <= end_date
-            and (not c["end_date"] or c["end_date"] >= end_date)
-        ]
-        if len(after) > 1:
-            raise Error(
-                "internal_server",
-                "More than one after credit interval found",
-            )
-
-        if not len(before + inner + after):
-            return [
-                {
-                    "limits": None,
-                    "start_date": start_date.strftime("%Y-%m-%d %H:%M%z"),
-                    "end_date": end_date.strftime("%Y-%m-%d %H:%M%z"),
-                }
-            ]
-        if len(before):
-            before[0]["start_date"] = start_date
-        else:
-            before = [
-                {
-                    "limits": None,
-                    "start_date": start_date,
-                    "end_date": (
-                        inner[0]["start_date"]
-                        if len(inner)
-                        else after[0]["start_date"] if len(after) else end_date
-                    ),
-                }
-            ]
-        if len(after):
-            after[0]["end_date"] = end_date
-        else:
-            after = [
-                {
-                    "limits": None,
-                    "start_date": (
-                        inner[-1]["end_date"]
-                        if len(inner)
-                        else (before[0]["end_date"] if len(before) else start_date)
-                    ),
-                    "end_date": end_date,
-                }
-            ]
-        all_intervals = before + inner + after
-        for interval in all_intervals:
-            interval["start_date"] = (
-                interval["start_date"].strftime("%Y-%m-%d %H:%M%z")
-                if not isinstance(interval["start_date"], str)
-                else interval["start_date"]
-            )
-            interval["end_date"] = (
-                interval["end_date"].strftime("%Y-%m-%d %H:%M%z")
-                if not isinstance(interval["end_date"], str)
-                else interval["end_date"]
-            )
-        return all_intervals
+        return CreditsUsageProcessed.find_in_period(
+            item_id, item_type, grouping_id, start_date, end_date
+        )
 
     @staticmethod
     def add_usage_credit(data):
@@ -686,170 +548,16 @@ class AdminUsageService:
             end_date = None
         else:
             end_date = _parse_iso_date(end_date, "end_date")
-
         start_date = _parse_iso_date(data["start_date"], "start_date")
-
-        # Validate limit exists
-        with RethinkSharedConnection._rdb_context():
-            limit = (
-                r.table("usage_limit")
-                .get(data["limit_id"])
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if not limit:
-            raise Error("not_found", "Usage limit not found")
-
-        result = None
-        for item_id in data["item_ids"]:
-            AdminUsageService._cut_existing_usage_credits(
-                item_id,
-                data["item_type"],
-                data["grouping_id"],
-                start_date,
-                end_date,
-            )
-            with RethinkSharedConnection._rdb_context():
-                limits = (
-                    r.table("usage_limit")
-                    .get(data["limit_id"])
-                    .pluck("id", "name", "desc", "limits")
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-            with RethinkSharedConnection._rdb_context():
-                r.table("usage_credit").insert(
-                    {
-                        "item_id": item_id,
-                        "item_consumer": data["item_consumer"],
-                        "item_type": data["item_type"],
-                        "grouping_id": data["grouping_id"],
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "limits": limits.get("limits"),
-                        "limits_id": limits.get("id"),
-                        "limits_desc": limits.get("desc"),
-                        "limits_name": limits.get("name"),
-                    }
-                ).run(RethinkSharedConnection._rdb_connection)
-            result = True
-        return result
+        return CreditsUsageProcessed.create(data, start_date, end_date)
 
     @staticmethod
     def update_usage_credit(credit_id, data):
-        # Validate credit exists
-        with RethinkSharedConnection._rdb_context():
-            existing = (
-                r.table("usage_credit")
-                .get(credit_id)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if not existing:
-            raise Error("not_found", "Usage credit not found")
-
-        if data.get("end_date"):
-            data["end_date"] = data["end_date"] if data["end_date"] != "null" else None
-
-        if (
-            data.get("item_id")
-            or data.get("item_type")
-            or data.get("grouping_id")
-            or data.get("start_date")
-            or data.get("end_date")
-        ):
-            credit = existing
-            grouping_id = data.get("grouping_id", credit["grouping_id"])
-            item_type = data.get("item_type", credit["item_type"])
-            item_id = data.get("item_id", credit["item_id"])
-
-            start_date_str = data.get("start_date")
-            end_date_str = data.get("end_date")
-
-            if start_date_str or end_date_str:
-                try:
-                    if start_date_str:
-                        data["start_date"] = datetime.strptime(
-                            start_date_str, "%Y-%m-%d"
-                        ).astimezone(pytz.UTC)
-                    if end_date_str:
-                        data["end_date"] = datetime.strptime(
-                            end_date_str, "%Y-%m-%d"
-                        ).astimezone(pytz.UTC)
-                except Exception:
-                    raise Error(
-                        "bad_request",
-                        "Incorrect date format. Expected format: %Y-%m-%d",
-                    )
-
-            AdminUsageService._cut_existing_usage_credits(
-                item_id,
-                item_type,
-                grouping_id,
-                data.get("start_date", credit["start_date"]),
-                data.get("end_date", credit.get("end_date")),
-                credit_id,
-            )
-
-        if data.get("limits"):
-            validate_usage_limits(data["limits"])
-
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_credit").get(credit_id).update(data).run(
-                RethinkSharedConnection._rdb_connection
-            )
-        return True
+        return CreditsUsageProcessed.update(credit_id, data)
 
     @staticmethod
     def delete_usage_credit(credit_id):
-        with RethinkSharedConnection._rdb_context():
-            result = (
-                r.table("usage_credit")
-                .get(credit_id)
-                .delete()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if result.get("deleted", 0) == 0:
-            raise Error(
-                "not_found",
-                "Credit with ID " + credit_id + " not found in database",
-            )
-        return True
-
-    @staticmethod
-    def _cut_existing_usage_credits(
-        item_id,
-        item_type,
-        grouping_id,
-        start_date,
-        end_date,
-        credit_id=None,
-    ):
-        if not end_date:
-            end_date = datetime.now(pytz.utc)
-
-        overlap = AdminUsageService.check_overlapping_credits(
-            item_id, item_type, grouping_id, start_date, end_date, credit_id
-        )
-        if not overlap:
-            return
-
-        if overlap["action"] == "cut":
-            with RethinkSharedConnection._rdb_context():
-                if overlap.get("start_date"):
-                    r.table("usage_credit").get(overlap["credit_id"]).update(
-                        {"start_date": overlap.get("start_date")}
-                    ).run(RethinkSharedConnection._rdb_connection)
-                elif overlap.get("end_date"):
-                    r.table("usage_credit").get(overlap["credit_id"]).update(
-                        {"end_date": overlap.get("end_date")}
-                    ).run(RethinkSharedConnection._rdb_connection)
-                else:
-                    r.table("usage_credit").get(overlap["credit_id"]).delete().run(
-                        RethinkSharedConnection._rdb_connection
-                    )
-        elif overlap["action"] == "deleted":
-            with RethinkSharedConnection._rdb_context():
-                r.table("usage_credit").get(overlap["credit_id"]).delete().run(
-                    RethinkSharedConnection._rdb_connection
-                )
+        return CreditsUsageProcessed.delete(credit_id)
 
     @staticmethod
     def check_overlapping_credits(
@@ -860,98 +568,9 @@ class AdminUsageService:
         end_date,
         credit_id=None,
     ):
-        if not end_date:
-            end_date = datetime.now(pytz.utc)
-
-        with RethinkSharedConnection._rdb_context():
-            credit = list(
-                r.table("usage_credit")
-                .get_all(
-                    [item_id, item_type, grouping_id],
-                    index="item_id-item_type-grouping",
-                )
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-
-        if not len(credit):
-            return None
-
-        outer = [
-            c
-            for c in credit
-            if c["start_date"] <= start_date
-            and (not c["end_date"] or c["end_date"] >= end_date)
-            and credit_id != c["id"]
-        ]
-        if len(outer):
-            if len(outer) > 1:
-                raise Error(
-                    "internal_server",
-                    "More than one outer credit interval found",
-                )
-            return {
-                "credit_id": outer[0]["id"],
-                "action": "cut",
-                "end_date": (end_date + timedelta(days=-1)),
-            }
-
-        before = [
-            c
-            for c in credit
-            if c["start_date"] <= start_date
-            and (
-                c["end_date"]
-                and (c["end_date"] >= start_date and c["end_date"] <= end_date)
-            )
-            and credit_id != c["id"]
-        ]
-        if len(before):
-            if len(before) > 1:
-                raise Error(
-                    "internal_server",
-                    "More than one before credit interval found",
-                )
-            return {
-                "credit_id": before[0]["id"],
-                "action": "cut",
-                "end_date": (start_date + timedelta(days=-1)),
-            }
-
-        inner = [
-            c
-            for c in credit
-            if c["start_date"] >= start_date
-            and (c["end_date"] and c["end_date"] <= end_date)
-            and credit_id != c["id"]
-        ]
-        if len(inner):
-            if len(inner) > 1:
-                raise Error(
-                    "internal_server",
-                    "More than one inner credit interval found",
-                )
-            return {"credit_id": inner[0]["id"], "action": "deleted"}
-
-        after = [
-            c
-            for c in credit
-            if c["start_date"] <= end_date
-            and (not c["end_date"] or c["end_date"] >= end_date)
-            and credit_id != c["id"]
-        ]
-        if len(after):
-            if len(after) > 1:
-                raise Error(
-                    "internal_server",
-                    "More than one after credit interval found",
-                )
-            return {
-                "credit_id": after[0]["id"],
-                "action": "cut",
-                "start_date": (end_date + timedelta(days=1)),
-            }
-
-        return None
+        return CreditsUsageProcessed.check_overlapping(
+            item_id, item_type, grouping_id, start_date, end_date, credit_id
+        )
 
     # =========================================================================
     # RESET DATES
