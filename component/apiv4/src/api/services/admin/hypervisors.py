@@ -127,45 +127,12 @@ class AdminHypervisorsService:
     @staticmethod
     def update_hyper_boot_progress(hyper_id: str, boot_progress: dict) -> None:
         """Refresh hypervisor boot_progress payload (called from monitoring agents)."""
-        from isardvdi_common.connections.rethink_shared_connection import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
-        with RethinkSharedConnection._rdb_context():
-            r.table("hypervisors").get(hyper_id).update(
-                {"boot_progress": boot_progress}
-            ).run(RethinkSharedConnection._rdb_connection)
+        HypervisorsProcessed.update_hyper_boot_progress(hyper_id, boot_progress)
 
     @staticmethod
     def register_vlans(vlans: list[str]) -> None:
         """Insert or update bridge interfaces for VLANs discovered on a hypervisor."""
-        from isardvdi_common.connections.rethink_shared_connection import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
-        with RethinkSharedConnection._rdb_context():
-            for vlan in vlans:
-                new_vlan = {
-                    "id": "v" + vlan,
-                    "name": "Vlan " + vlan,
-                    "description": "Infrastructure vlan",
-                    "ifname": "br-" + vlan,
-                    "kind": "bridge",
-                    "model": "virtio",
-                    "net": "br-" + vlan,
-                    "qos_id": False,
-                    "allowed": {
-                        "roles": ["admin"],
-                        "categories": False,
-                        "groups": False,
-                        "users": False,
-                    },
-                }
-                r.db("isard").table("interfaces").insert(
-                    new_vlan, conflict="update"
-                ).run(RethinkSharedConnection._rdb_connection)
+        HypervisorsProcessed.register_vlans(vlans)
 
     @staticmethod
     def enable_hyper(hyper_id: str, enable: bool = True) -> dict:
