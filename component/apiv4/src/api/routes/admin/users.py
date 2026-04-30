@@ -20,7 +20,7 @@
 
 import json
 import traceback
-from typing import Optional
+from typing import Literal, Optional
 
 from api import admin_router, manager_router
 from api.schemas.admin_users import (
@@ -224,7 +224,9 @@ async def admin_list_users(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_list_users_nav(request: Request, nav: str):
+async def admin_list_users_nav(
+    request: Request, nav: Literal["management", "quotas_limits"]
+):
     try:
         return JSONResponse(
             content=AdminUsersService.list_users_nav(request.token_payload, nav),
@@ -898,7 +900,9 @@ async def admin_list_groups(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_list_groups_nav(request: Request, nav: str):
+async def admin_list_groups_nav(
+    request: Request, nav: Literal["management", "quotas_limits"]
+):
     try:
         return JSONResponse(
             content=AdminUsersService.list_groups_nav(request.token_payload, nav),
@@ -1152,7 +1156,9 @@ async def admin_list_categories_frontend(request: Request, frontend: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_list_categories_nav(request: Request, nav: str):
+async def admin_list_categories_nav(
+    request: Request, nav: Literal["management", "quotas_limits"]
+):
     try:
         return JSONResponse(
             content=AdminUsersService.list_categories_nav(request.token_payload, nav),
