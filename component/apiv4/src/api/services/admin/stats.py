@@ -53,68 +53,11 @@ class AdminStatsService:
 
     @staticmethod
     def get_kind(kind):
-        if kind == "desktops":
-            query = (
-                r.table("domains").get_all("desktop", index="kind").pluck("id", "user")
-            )
-        elif kind == "templates":
-            query = r.table("domains").get_all("template", index="kind").pluck("id")
-        elif kind == "users":
-            query = r.table(kind).pluck("id", "role", "category", "group")
-        elif kind == "hypervisors":
-            query = r.table(kind).pluck("id", "status", "only_forced")
-        elif kind == "categories":
-            query = r.table(kind).pluck("id", "name")
-        elif kind == "groups":
-            query = r.table(kind).pluck("id", "name", "parent_category")
-        else:
-            raise Error("bad_request", f"Unknown kind: {kind}")
-
-        with RethinkSharedConnection._rdb_context():
-            return list(query.run(RethinkSharedConnection._rdb_connection))
+        return StatsProcessed.get_kind(kind)
 
     @staticmethod
     def get_category_status():
-        with RethinkSharedConnection._rdb_context():
-            desktops = (
-                r.table("domains")
-                .get_all("desktop", index="kind")
-                .pluck("category", "status", "kind")
-                .group("category", "status")
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        with RethinkSharedConnection._rdb_context():
-            templates = (
-                r.table("domains")
-                .get_all("template", index="kind")
-                .pluck("category", "status", "kind")
-                .group("category", "status")
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        result = {}
-        for key, value in desktops.items():
-            if key[1] in STABLE_STATUS:
-                continue
-            if key[0] not in result.keys():
-                result[key[0]] = {"desktops_wrong_status": {key[1]: value}}
-            else:
-                result[key[0]] = {
-                    **result[key[0]],
-                    **{"desktops_wrong_status": {key[1]: value}},
-                }
-        for key, value in templates.items():
-            if key[1] == "Stopped":
-                continue
-            if key[0] not in result.keys():
-                result[key[0]] = {"templates_wrong_status": {key[1]: value}}
-            else:
-                result[key[0]] = {
-                    **result[key[0]],
-                    **{"templates_wrong_status": {key[1]: value}},
-                }
-        return result
+        return StatsProcessed.get_category_status()
 
     @staticmethod
     def get_group_by_categories():
@@ -456,48 +399,8 @@ class AdminStatsService:
 
     @staticmethod
     def get_categories_deployments():
-        with RethinkSharedConnection._rdb_context():
-            return (
-                r.table("deployments")
-                .merge(
-                    lambda dom: {
-                        "category": r.table("users")
-                        .get(dom["user"])["category"]
-                        .default("None"),
-                    }
-                )
-                .group(r.row["category"])
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        return StatsProcessed.get_categories_deployments()
 
     @staticmethod
     def get_domains_by_category_count():
-        with RethinkSharedConnection._rdb_context():
-            return list(
-                r.table("domains")
-                .get_all("desktop", index="kind")
-                .pluck("category", "status")
-                .group("category", "status")
-                .count()
-                .ungroup()
-                .map(
-                    lambda doc: {
-                        "category": doc["group"][0],
-                        "status": doc["group"][1],
-                        "count": doc["reduction"],
-                    }
-                )
-                .group("category")
-                .ungroup()
-                .map(
-                    lambda doc: {
-                        "category": doc["group"],
-                        "category_name": r.table("categories").get(doc["group"])[
-                            "name"
-                        ],
-                        "desktops": doc["reduction"].without("category"),
-                    }
-                )
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        return StatsProcessed.get_domains_by_category_count()

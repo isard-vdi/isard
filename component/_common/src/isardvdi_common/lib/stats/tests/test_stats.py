@@ -144,3 +144,76 @@ class TestCacheInvalidators:
         assert stub_rdb["mod"]._users_stats_cache.currsize == 1
         stub_rdb["Processed"].clear_get_users_stats_cache()
         assert stub_rdb["mod"]._users_stats_cache.currsize == 0
+
+
+class TestGetKind:
+    def test_desktops_pluck_id_user(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.get_all.return_value.pluck.return_value.run.return_value = [
+            {"id": "d1", "user": "u1"}
+        ]
+        result = stub_rdb["Processed"].get_kind("desktops")
+        assert result == [{"id": "d1", "user": "u1"}]
+        chain.get_all.assert_any_call("desktop", index="kind")
+
+    def test_users_pluck_id_role_category_group(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.run.return_value = [
+            {"id": "u1", "role": "admin", "category": "c1", "group": "g1"}
+        ]
+        result = stub_rdb["Processed"].get_kind("users")
+        assert result[0]["role"] == "admin"
+        stub_rdb["mock_table"].assert_any_call("users")
+
+    def test_hypervisors_pluck_id_status_only_forced(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.run.return_value = [
+            {"id": "h1", "status": "Online", "only_forced": False}
+        ]
+        result = stub_rdb["Processed"].get_kind("hypervisors")
+        assert result[0]["id"] == "h1"
+        stub_rdb["mock_table"].assert_any_call("hypervisors")
+
+    def test_unknown_kind_raises_bad_request(self, stub_rdb):
+        from isardvdi_common.helpers.error_base import ErrorBase
+
+        with pytest.raises(ErrorBase) as exc:
+            stub_rdb["Processed"].get_kind("widgets")
+        assert "widgets" in str(exc.value)
+
+
+class TestGetCategoryStatus:
+    def test_filters_stable_desktops_and_stopped_templates(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        # desktops: cat-a Started (filtered), cat-a Unknown (kept).
+        # templates: cat-a Stopped (filtered), cat-b Failed (kept).
+        chain.get_all.return_value.pluck.return_value.group.return_value.count.return_value.run.side_effect = [
+            {("cat-a", "Started"): 5, ("cat-a", "Unknown"): 2},
+            {("cat-a", "Stopped"): 7, ("cat-b", "Failed"): 1},
+        ]
+        result = stub_rdb["Processed"].get_category_status()
+        assert result["cat-a"] == {"desktops_wrong_status": {"Unknown": 2}}
+        assert result["cat-b"] == {"templates_wrong_status": {"Failed": 1}}
+
+
+class TestGetCategoriesDeployments:
+    def test_groups_deployments_by_category(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.merge.return_value.group.return_value.count.return_value.run.return_value = {
+            "cat-a": 3,
+            "cat-b": 1,
+        }
+        result = stub_rdb["Processed"].get_categories_deployments()
+        assert result == {"cat-a": 3, "cat-b": 1}
+        stub_rdb["mock_table"].assert_any_call("deployments")
+
+
+class TestGetDomainsByCategoryCount:
+    def test_returns_per_category_status_breakdown(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.get_all.return_value.pluck.return_value.group.return_value.count.return_value.ungroup.return_value.map.return_value.group.return_value.ungroup.return_value.map.return_value.run.return_value = [
+            {"category": "cat-a", "category_name": "Cat A", "desktops": {"Started": 4}},
+        ]
+        result = stub_rdb["Processed"].get_domains_by_category_count()
+        assert result[0]["category"] == "cat-a"
+        assert result[0]["desktops"] == {"Started": 4}
