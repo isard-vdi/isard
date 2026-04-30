@@ -98,6 +98,18 @@ class ApiAdmin(RethinkSharedConnection):
             )
 
     @classmethod
+    def get_table_item(cls, table: str, item_id: str) -> dict | None:
+        """Fetch a full row from ``table`` by id.
+
+        Returns the row dict, or ``None`` if missing. Used by callers
+        that need the whole row (e.g. for resource-unassignment fallback
+        merging) rather than just specific fields.
+        """
+        cls._validate_table(table)
+        with cls._rdb_context():
+            return r.table(table).get(item_id).run(cls._rdb_connection)
+
+    @classmethod
     def insert_table_item(cls, table: str, data: dict) -> None:
         """Insert a row into ``table``.
 
