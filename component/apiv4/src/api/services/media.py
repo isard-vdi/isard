@@ -36,7 +36,6 @@ from isardvdi_common.models.media import MediaModel
 from isardvdi_common.models.task import Task
 from isardvdi_common.models.user import User as RethinkUser
 from isardvdi_common.schemas.media import MediaStatusEnum
-from rethinkdb import r
 
 # When True, the storage download_url task passes ``-k`` to curl.
 # The legacy engine path hardcoded this to True; we default to the
@@ -93,7 +92,7 @@ class MediaService:
                 "url-web",
                 "accessed",
             ],
-            query_filter=r.row["status"].ne("deleted"),
+            query_filter=lambda media: media["status"] != "deleted",
             order="name",
             only_in_allowed=True,
         )
