@@ -6,6 +6,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from api.schemas.user_networks import CreateUserNetworkRequest, UpdateUserNetworkRequest
 from api.services.error import Error
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -22,7 +23,7 @@ def _uuid_to_metadata_id(uuid_str: str) -> int:
 class UserNetworkService:
 
     @staticmethod
-    def get_user_networks(payload: dict) -> list:
+    def get_user_networks(payload: dict) -> list[dict]:
         """Get user networks accessible to the current user."""
         user_id = payload["user_id"]
         category_id = payload["category_id"]
@@ -110,7 +111,7 @@ class UserNetworkService:
         )
 
     @staticmethod
-    def create_user_network(data, payload: dict) -> dict:
+    def create_user_network(data: CreateUserNetworkRequest, payload: dict) -> dict:
         """Create a new user network."""
         with RethinkSharedConnection._rdb_context():
             while True:
@@ -162,7 +163,9 @@ class UserNetworkService:
         return network
 
     @staticmethod
-    def update_user_network(network_id: str, data, payload: dict) -> dict:
+    def update_user_network(
+        network_id: str, data: UpdateUserNetworkRequest, payload: dict
+    ) -> dict:
         """Update a user network."""
         network = UserNetworkService.get_user_network(network_id, payload)
 
@@ -193,7 +196,7 @@ class UserNetworkService:
         return {**network, **update_data}
 
     @staticmethod
-    def delete_user_network(network_id: str, payload: dict):
+    def delete_user_network(network_id: str, payload: dict) -> None:
         """Delete a user network."""
         network = UserNetworkService.get_user_network(network_id, payload)
 

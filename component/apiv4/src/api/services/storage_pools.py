@@ -27,14 +27,14 @@ from isardvdi_common.models.storage_pool import StoragePool
 class StoragePoolService:
 
     @staticmethod
-    def add_storage_pool(data: dict):
+    def add_storage_pool(data: dict) -> None:
         """
         Create a new storage pool.
         """
         StoragePoolsProcessed.add_storage_pool(data)
 
     @staticmethod
-    def get_storage_pools() -> list:
+    def get_storage_pools() -> list[dict]:
         """
         Get all storage pools with enriched data.
         """
@@ -62,14 +62,14 @@ class StoragePoolService:
         return result
 
     @staticmethod
-    def update_storage_pool(storage_pool_id: str, data: dict):
+    def update_storage_pool(storage_pool_id: str, data: dict) -> None:
         """
         Update a storage pool.
         """
         StoragePoolsProcessed.update_storage_pool(storage_pool_id, data)
 
     @staticmethod
-    def delete_storage_pool(storage_pool_id: str):
+    def delete_storage_pool(storage_pool_id: str) -> None:
         """
         Delete a storage pool.
         """
@@ -95,7 +95,7 @@ class StoragePoolService:
 
     @staticmethod
     def check_category_availability(
-        categories: list, storage_pool_id: str = None
+        categories: list[str], storage_pool_id: str = None
     ) -> bool:
         """
         Check if categories are available for assignment to a storage pool.

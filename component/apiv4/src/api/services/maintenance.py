@@ -17,13 +17,14 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from api.schemas.maintenance import MaintenanceTextUpdate
 from isardvdi_common.helpers.maintenance import Maintenance
 
 
 class MaintenanceService:
 
     @staticmethod
-    def is_enabled():
+    def is_enabled() -> bool:
         return Maintenance.enabled
 
     @staticmethod
@@ -36,7 +37,7 @@ class MaintenanceService:
         return Maintenance.category_enabled(category_id)
 
     @staticmethod
-    def set_enabled(enabled: bool):
+    def set_enabled(enabled: bool) -> None:
         """
         Set the maintenance status of the API.
         :param enabled: True to enable maintenance, False to disable it.
@@ -44,7 +45,7 @@ class MaintenanceService:
         Maintenance.enabled = enabled
 
     @staticmethod
-    def update_text(text: dict):
+    def update_text(text: MaintenanceTextUpdate) -> None:
         """
         Update the maintenance text.
         :param text: The new text to display during maintenance.
