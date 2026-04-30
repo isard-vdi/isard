@@ -512,3 +512,36 @@ class StorageProcessed(RethinkSharedConnection):
                 .default(0)
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def mark_delete(cls, storage_id: str) -> None:
+        """Flip a storage row to ``status = "Deleting"``.
+
+        Raises ``not_found`` if the row doesn't exist (rdb's
+        ``get(id).update(...)`` returns ``skipped > 0`` for missing
+        rows), or ``internal_server`` if the update completes but
+        ``replaced == 0`` — both shouldn't happen in practice but the
+        original apiv4 service path checked them so we preserve the
+        contract here.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .get(storage_id)
+                .update({"status": "Deleting"})
+                .run(cls._rdb_connection)
+            )
+        if result.get("skipped"):
+            raise Error(
+                "not_found",
+                f"Storage {storage_id} not found",
+                description_code="storage_not_found",
+            )
+        if not result.get("replaced"):
+            raise Error(
+                "internal_server",
+                "Failed to mark storage for deletion",
+                description_code="generic_error",
+            )
