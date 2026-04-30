@@ -31,8 +31,16 @@ from fastapi.responses import JSONResponse
 
 tag = "groups"
 
+# Named cache so writers can invalidate (and tests can clear between cases).
+group_users_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
 
-@cached(cache=TTLCache(maxsize=20, ttl=10))
+
+def clear_group_users_cache() -> None:
+    """Invalidate the per-group user-list cache after group membership changes."""
+    group_users_cache.clear()
+
+
+@cached(cache=group_users_cache)
 @advanced_router.get(
     "/item/group/{group_id}/get-users",
     response_model=GroupUsersResponse,

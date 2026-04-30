@@ -63,6 +63,15 @@ from fastapi.responses import JSONResponse, Response
 
 tag = "admin_users"
 
+# Named cache so writers (admin user updates further down this module
+# and in admin_users service) can invalidate the cached profile blob.
+admin_user_full_data_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
+
+
+def clear_admin_user_full_data_cache() -> None:
+    """Invalidate the per-user admin profile cache after a user mutation."""
+    admin_user_full_data_cache.clear()
+
 
 # ══════════════════════════════════════════════════════════════════════════
 #  User CRUD & Management
@@ -120,7 +129,7 @@ async def admin_user_exists(request: Request, user_id: str):
         )
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=60))
+@cached(cache=admin_user_full_data_cache)
 @manager_router.get(
     "/admin/user/{user_id}",
     tags=[tag],

@@ -9,6 +9,20 @@ import traceback
 from api.services.error import Error
 from cachetools import TTLCache, cached
 
+# Named caches: 10 s TTL is mainly thundering-herd protection on the
+# orchestrator gRPC, so writers don't normally need to invalidate, but
+# keeping them named lets tests clear between cases.
+list_hypervisors_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
+start_hypervisor_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
+stop_hypervisor_cache: TTLCache = TTLCache(maxsize=20, ttl=10)
+
+
+def clear_admin_operations_caches() -> None:
+    """Clear all admin operations caches at once."""
+    list_hypervisors_cache.clear()
+    start_hypervisor_cache.clear()
+    stop_hypervisor_cache.clear()
+
 
 class AdminOperationsService:
     """Service for admin operations (hypervisor orchestration via gRPC)."""
@@ -22,7 +36,7 @@ class AdminOperationsService:
         return enabled.lower() == "true"
 
     @staticmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=10))
+    @cached(cache=list_hypervisors_cache)
     def list_hypervisors() -> list:
         """List hypervisors via operations gRPC."""
         import grpc
@@ -96,7 +110,7 @@ class AdminOperationsService:
             raise Error("internal_server", "Internal server error")
 
     @staticmethod
-    @cached(cache=TTLCache(maxsize=20, ttl=10))
+    @cached(cache=start_hypervisor_cache)
     def start_hypervisor(hypervisor_id: str):
         """Start a hypervisor via operations gRPC."""
         import grpc
@@ -118,7 +132,7 @@ class AdminOperationsService:
             raise Error("internal_server", "Internal server error")
 
     @staticmethod
-    @cached(cache=TTLCache(maxsize=20, ttl=10))
+    @cached(cache=stop_hypervisor_cache)
     def stop_hypervisor(hypervisor_id: str):
         """Stop a hypervisor via operations gRPC."""
         import grpc

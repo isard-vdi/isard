@@ -31,13 +31,24 @@ from fastapi.responses import JSONResponse
 
 tag = "admin-smtp"
 
+# Named caches so the PUT and POST writers below can drop them and tests
+# can clear between cases. 5 s TTL is mainly thundering-herd protection.
+smtp_config_cache: TTLCache = TTLCache(maxsize=1, ttl=5)
+smtp_enabled_cache: TTLCache = TTLCache(maxsize=1, ttl=5)
+
+
+def clear_smtp_caches() -> None:
+    """Invalidate both SMTP read caches after admin_smtp_put."""
+    smtp_config_cache.clear()
+    smtp_enabled_cache.clear()
+
 
 # ══════════════════════════════════════════════════════════════════════════
 #  SMTP Configuration
 # ══════════════════════════════════════════════════════════════════════════
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=5))
+@cached(cache=smtp_config_cache)
 @admin_router.get(
     "/smtp",
     tags=[tag],
@@ -85,7 +96,7 @@ async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
         )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=5))
+@cached(cache=smtp_enabled_cache)
 @admin_router.get(
     "/smtp/enabled",
     tags=[tag],
