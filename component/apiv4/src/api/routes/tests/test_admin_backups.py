@@ -140,13 +140,35 @@ class TestBackupConfig:
             "api.routes.admin.backups.AdminBackupsService.get_backup",
             staticmethod(fake_get_backup),
         )
+        # Real ``AdminBackupsService.get_backup_config`` returns the
+        # ``{schedule, enabled, main_schedule_hour}`` shape now pinned by
+        # ``BackupConfigResponse``; the previous stub returned a fictional
+        # ``{path, retention_days}`` blob the schema would reject.
         monkeypatch.setattr(
             "api.routes.admin.backups.AdminBackupsService.get_backup_config",
-            staticmethod(lambda: {"path": "/var/backups", "retention_days": 30}),
+            staticmethod(
+                lambda: {
+                    "schedule": {
+                        "db": 19,
+                        "redis": None,
+                        "stats": None,
+                        "config": None,
+                        "disks": None,
+                    },
+                    "enabled": {
+                        "db": True,
+                        "redis": False,
+                        "stats": False,
+                        "config": False,
+                        "disks": False,
+                    },
+                    "main_schedule_hour": 19,
+                }
+            ),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
-        assert response.json()["retention_days"] == 30
+        assert response.json()["main_schedule_hour"] == 19
         assert "yes" not in called_get_backup, (
             "/admin/backups/config matched the {backup_id} catch-all — "
             "declaration order regression in admin/backups.py"
@@ -238,7 +260,14 @@ class TestBackupReport:
 
         def fake_insert(data):
             captured["data"] = data
-            return {"id": "report-1"}
+            # Real ``AdminBackupsService.insert_backup`` returns the
+            # ``{id, status, message}`` shape; ``BackupReportInsertResponse``
+            # enforces that.
+            return {
+                "id": "report-1",
+                "status": "success",
+                "message": "Backup record created successfully",
+            }
 
         monkeypatch.setattr(
             "api.routes.admin.backups.AdminBackupsService.insert_backup",

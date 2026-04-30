@@ -83,7 +83,9 @@ class TestOldTasksRead:
 
         def fake(older_than):
             captured["older_than"] = older_than
-            return [{"id": "t-1"}]
+            # Real service returns task keys (list[str]); the
+            # response_model now enforces that shape.
+            return ["rq:job:t-1"]
 
         monkeypatch.setattr(
             "api.routes.admin.queues.AdminQueuesService.get_old_tasks",
@@ -204,9 +206,14 @@ class TestSetQueueRegistries:
 
     def test_admin_sets_registries(self, monkeypatch, test_client):
         captured = {}
+
+        def fake(regs):
+            captured["regs"] = regs
+            return {"queue_registries": regs}
+
         monkeypatch.setattr(
             "api.routes.admin.queues.AdminQueuesService.set_queue_registries",
-            staticmethod(lambda regs: captured.update(regs=regs) or {}),
+            staticmethod(fake),
         )
         response = test_client(
             url=self.URL,
@@ -221,9 +228,14 @@ class TestSetQueueRegistries:
         """Schema default is [] but the handler reads `data.queue_registries
         or []` so explicit null (None) also coerces to []."""
         captured = {}
+
+        def fake(regs):
+            captured["regs"] = regs
+            return {"queue_registries": regs}
+
         monkeypatch.setattr(
             "api.routes.admin.queues.AdminQueuesService.set_queue_registries",
-            staticmethod(lambda regs: captured.update(regs=regs) or {}),
+            staticmethod(fake),
         )
         response = test_client(
             url=self.URL,
@@ -262,9 +274,14 @@ class TestSetEnabled:
 
     def test_disable(self, monkeypatch, test_client):
         captured = {}
+
+        def fake(enabled):
+            captured["enabled"] = enabled
+            return {"enabled": enabled}
+
         monkeypatch.setattr(
             "api.routes.admin.queues.AdminQueuesService.set_auto_delete_enabled",
-            staticmethod(lambda enabled: captured.update(enabled=enabled) or {}),
+            staticmethod(fake),
         )
         response = test_client(
             url=self.URL,

@@ -70,3 +70,21 @@ class AutoDeleteConfigResponse(BaseModel):
     older_than: Optional[int] = None
     queue_registries: Optional[List[str]] = []
     enabled: bool = False
+
+
+class AutoDeleteMaxTimeResponse(BaseModel):
+    """Response shape for ``PUT /admin/queues/old_tasks/config/max_time/{max_time}``."""
+
+    older_than: int
+
+
+class AutoDeleteQueueRegistriesResponse(BaseModel):
+    """Response shape for ``PUT /admin/queues/old_tasks/config/queue_registries``."""
+
+    queue_registries: List[str]
+
+
+class AutoDeleteEnabledResponse(BaseModel):
+    """Response shape for ``PUT /admin/queues/old_tasks/config/enabled``."""
+
+    enabled: bool

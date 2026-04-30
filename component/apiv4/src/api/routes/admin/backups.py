@@ -19,9 +19,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import Union
 
 from api import admin_router
-from api.schemas.admin.backups import BackupIntegritySetRequest, BackupReportRequest
+from api.schemas.admin.backups import (
+    BackupConfigResponse,
+    BackupIntegrityResponse,
+    BackupIntegritySetRequest,
+    BackupItem,
+    BackupReportInsertResponse,
+    BackupReportRequest,
+)
 from api.schemas.common import ErrorResponse
 from api.services.admin.backups import AdminBackupsService
 from api.services.error import Error
@@ -39,6 +47,7 @@ tag = "admin_backups"
 @admin_router.get(
     "/admin/backups",
     tags=[tag],
+    response_model=Union[BackupItem, list[BackupItem]],
     summary="List backups",
     description=(
         "Get a list of backups. Optionally get a specific backup by ID via "
@@ -50,13 +59,14 @@ tag = "admin_backups"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_backups_list(request: Request):
+async def admin_backups_list(request: Request) -> Union[BackupItem, list[BackupItem]]:
     try:
         options = dict(request.query_params)
         if options.get("id"):
             result = AdminBackupsService.get_backup(
                 options["id"], pluck=options.get("pluck")
             )
+            return BackupItem(**(result or {}))
         else:
             limit = options.get("limit")
             try:
@@ -64,7 +74,7 @@ async def admin_backups_list(request: Request):
             except (TypeError, ValueError):
                 raise Error("bad_request", "limit must be an integer")
             result = AdminBackupsService.list_backups(limit=limit)
-        return result
+            return [BackupItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -84,6 +94,7 @@ async def admin_backups_list(request: Request):
 @admin_router.get(
     "/admin/backups/integrity",
     tags=[tag],
+    response_model=BackupIntegrityResponse,
     summary="Get weekly borg integrity check toggle",
     description=(
         "Return the saved weekly-borg-integrity toggle. Off by default; "
@@ -91,10 +102,11 @@ async def admin_backups_list(request: Request):
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_backup_integrity_get(request: Request):
+async def admin_backup_integrity_get(request: Request) -> BackupIntegrityResponse:
     try:
-        result = {"integrity_enabled": AdminBackupsService.get_integrity_enabled()}
-        return result
+        return BackupIntegrityResponse(
+            integrity_enabled=AdminBackupsService.get_integrity_enabled()
+        )
     except Error:
         raise
     except Exception:
@@ -109,6 +121,7 @@ async def admin_backup_integrity_get(request: Request):
 @admin_router.put(
     "/admin/backups/integrity",
     tags=[tag],
+    response_model=BackupIntegrityResponse,
     summary="Enable or disable weekly borg integrity check",
     description=(
         "Persist the weekly-borg-integrity toggle. Takes effect on the next "
@@ -122,10 +135,10 @@ async def admin_backup_integrity_get(request: Request):
 async def admin_backup_integrity_set(
     request: Request,
     data: BackupIntegritySetRequest,
-):
+) -> BackupIntegrityResponse:
     try:
         result = AdminBackupsService.set_integrity_enabled(data.integrity_enabled)
-        return result
+        return BackupIntegrityResponse(**result)
     except Error:
         raise
     except Exception:
@@ -142,14 +155,15 @@ async def admin_backup_integrity_set(
 @admin_router.get(
     "/admin/backups/config",
     tags=[tag],
+    response_model=BackupConfigResponse,
     summary="Get backup configuration",
     description="Get backup configuration from environment variables.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_backup_config(request: Request):
+async def admin_backup_config(request: Request) -> BackupConfigResponse:
     try:
         result = AdminBackupsService.get_backup_config()
-        return result
+        return BackupConfigResponse(**result)
     except Error:
         raise
     except Exception:
@@ -164,6 +178,7 @@ async def admin_backup_config(request: Request):
 @admin_router.get(
     "/admin/backups/{backup_id}",
     tags=[tag],
+    response_model=BackupItem,
     summary="Get a specific backup",
     description="Get a specific backup by its ID.",
     responses={
@@ -174,10 +189,10 @@ async def admin_backup_config(request: Request):
 async def admin_backup_get(
     request: Request,
     backup_id: str = Path(..., description="Backup ID"),
-):
+) -> BackupItem:
     try:
         result = AdminBackupsService.get_backup(backup_id)
-        return result
+        return BackupItem(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -197,6 +212,7 @@ async def admin_backup_get(
 @admin_router.post(
     "/backups",
     tags=[tag],
+    response_model=BackupReportInsertResponse,
     summary="Submit backup report",
     description=(
         "Ingestion endpoint for backupninja. Rejects non-service callers so "
@@ -211,7 +227,7 @@ async def admin_backup_get(
 async def admin_backup_report(
     request: Request,
     data: BackupReportRequest,
-):
+) -> BackupReportInsertResponse:
     try:
         # Service-token gate: admin_router already filters role=admin, but
         # backup ingestion must be additionally restricted to internal
@@ -219,7 +235,7 @@ async def admin_backup_report(
         if request.token_payload.get("session_id") != "isardvdi-service":
             raise Error("forbidden", "Service token required.")
         result = AdminBackupsService.insert_backup(data.model_dump(exclude_none=True))
-        return result
+        return BackupReportInsertResponse(**result)
     except Error:
         raise
     except Exception:
