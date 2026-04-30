@@ -31,11 +31,9 @@ if TYPE_CHECKING:
 from api.services.admin.tables import AdminTablesService
 from api.services.cards import CardService
 from cachetools import TTLCache, cached
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
 from isardvdi_common.helpers.error_factory import Error
-from rethinkdb import r
+from isardvdi_common.lib.downloads.downloads import DownloadsProcessed
+from isardvdi_common.models.config import Config
 
 # Mirror ``api.services.media`` so registry-domain downloads honour the
 # same ``URL_DOWNLOAD_INSECURE_SSL`` toggle the legacy engine path used.
@@ -66,14 +64,7 @@ class AdminDownloadsService:
     @cached(cache=_get_cfg_cache)
     def _get_cfg() -> tuple[str, str | bool, str | bool]:
         """Get download configuration from database."""
-        with RethinkSharedConnection._rdb_context():
-            cfg = (
-                r.table("config")
-                .get(1)
-                .pluck("resources")
-                .run(RethinkSharedConnection._rdb_connection)
-                .get("resources")
-            )
+        cfg = Config.get_resources_config()
         return (
             cfg["url"],
             cfg["code"],
@@ -126,10 +117,7 @@ class AdminDownloadsService:
         try:
             req = requests.post(url + "/register", allow_redirects=False, timeout=10)
             if req.status_code == 200:
-                with RethinkSharedConnection._rdb_context():
-                    r.table("config").get(1).update(
-                        {"resources": {"code": req.json()}}
-                    ).run(RethinkSharedConnection._rdb_connection)
+                Config.set_resources_code(req.json())
                 _get_cfg_cache.clear()
                 return True
         except Exception:
@@ -191,10 +179,7 @@ class AdminDownloadsService:
         for k in kinds:
             web[k] = AdminDownloadsService._download_web_kind(kind=k)
             if web[k] == 500:
-                with RethinkSharedConnection._rdb_context():
-                    r.table("config").get(1).update({"resources": {"code": False}}).run(
-                        RethinkSharedConnection._rdb_connection
-                    )
+                Config.set_resources_code(False)
         _, _, private_code = AdminDownloadsService._get_cfg()
         if private_code:
             private_web = AdminDownloadsService._download_web_private_kind(
@@ -222,24 +207,10 @@ class AdminDownloadsService:
         result = []
 
         if kind in ["domains", "media"]:
-            with RethinkSharedConnection._rdb_context():
-                dbb = list(
-                    r.table(kind)
-                    .get_all(user_id, index="user")
-                    .has_fields("url-isard")
-                    .filter(~r.row["url-isard"].eq(False))
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
+            dbb = DownloadsProcessed.list_user_kind_downloads(kind, user_id)
             dbb_dict = {d["url-isard"]: d for d in dbb}
             if kind == "media":
-                with RethinkSharedConnection._rdb_context():
-                    mbb = list(
-                        r.table(kind)
-                        .get_all(user_id, index="user")
-                        .has_fields("url-web")
-                        .filter(~r.row["url-web"].eq(False))
-                        .run(RethinkSharedConnection._rdb_connection)
-                    )
+                mbb = DownloadsProcessed.list_user_media_url_web_downloads(user_id)
                 dbb_dict = {
                     **dbb_dict,
                     **{d["url-web"]: d for d in mbb if d["url-web"]},
@@ -266,8 +237,7 @@ class AdminDownloadsService:
                         }
                     )
         else:
-            with RethinkSharedConnection._rdb_context():
-                dbb = list(r.table(kind).run(RethinkSharedConnection._rdb_connection))
+            dbb = DownloadsProcessed.list_table_rows(kind)
             for w in web_items:
                 if w["id"] in [d["id"] for d in dbb]:
                     result.append({**w, "new": False, "status": "Downloaded"})
@@ -396,13 +366,7 @@ class AdminDownloadsService:
         """Check for missing resources required by a domain."""
         missing_resources = {"videos": []}
         dom_videos = domain["create_dict"]["hardware"]["videos"]
-        with RethinkSharedConnection._rdb_context():
-            sys_videos = list(
-                r.table("videos")
-                .pluck("id")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        sys_video_ids = [sv["id"] for sv in sys_videos]
+        sys_video_ids = DownloadsProcessed.list_video_ids()
         for v in dom_videos:
             if v not in sys_video_ids:
                 resource = AdminDownloadsService._get_new_kind_id("videos", username, v)
@@ -419,33 +383,20 @@ class AdminDownloadsService:
             return False
         w = web_items[0].copy()
         if kind in ("domains", "media"):
-            with RethinkSharedConnection._rdb_context():
-                dbb = list(
-                    r.table(kind)
-                    .get_all(w["id"], index="url-isard")
-                    .filter({"user": username})
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
+            dbb = DownloadsProcessed.find_user_kind_by_url(kind, username, w["id"])
             if not dbb:
-                with RethinkSharedConnection._rdb_context():
-                    dbb = list(
-                        r.table(kind)
-                        .get_all(w["id"], index="url-web")
-                        .filter({"user": username})
-                        .run(RethinkSharedConnection._rdb_connection)
-                    )
+                dbb = DownloadsProcessed.find_user_kind_by_url_web(
+                    kind, username, w["id"]
+                )
             if not dbb:
                 w["id"] = str(uuid4())
                 return w
             elif dbb[0].get("status") == "DownloadFailed":
                 return dbb[0]
         else:
-            with RethinkSharedConnection._rdb_context():
-                dbb = (
-                    r.table(kind)
-                    .get(w["id"])
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
+            from isardvdi_common.lib.api_admin import ApiAdmin
+
+            dbb = ApiAdmin.get_table_item(kind, w["id"])
             if dbb is None:
                 return w
         return False
@@ -675,13 +626,9 @@ class AdminDownloadsService:
     @staticmethod
     def _get_domain_if_already_downloaded(data: dict, user_id: str) -> dict:
         """Check if a domain was already downloaded."""
-        with RethinkSharedConnection._rdb_context():
-            dbb = list(
-                r.table("domains")
-                .get_all(data.get("url-isard"), index="url-isard")
-                .filter({"user": user_id})
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        dbb = DownloadsProcessed.find_user_kind_by_url(
+            "domains", user_id, data.get("url-isard")
+        )
         d = dbb[0] if dbb else data
         for key in (
             "hardware",
@@ -696,21 +643,13 @@ class AdminDownloadsService:
     @staticmethod
     def _get_media_if_already_downloaded(data: dict, user_id: str) -> dict:
         """Check if media was already downloaded."""
-        with RethinkSharedConnection._rdb_context():
-            dbb = list(
-                r.table("media")
-                .get_all(data.get("url-isard"), index="url-isard")
-                .filter({"user": user_id})
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        dbb = DownloadsProcessed.find_user_kind_by_url(
+            "media", user_id, data.get("url-isard")
+        )
         if not dbb:
-            with RethinkSharedConnection._rdb_context():
-                dbb = list(
-                    r.table("media")
-                    .get_all(data.get("url-web"), index="url-web")
-                    .filter({"user": user_id})
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
+            dbb = DownloadsProcessed.find_user_kind_by_url_web(
+                "media", user_id, data.get("url-web")
+            )
         if not dbb:
             return data
         return dbb[0]
@@ -718,13 +657,7 @@ class AdminDownloadsService:
     @staticmethod
     def _get_user_data(user_id: str) -> dict:
         """Get user metadata for download records."""
-        with RethinkSharedConnection._rdb_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("id", "category", "group", "provider", "username", "uid")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        user = DownloadsProcessed.get_user_metadata(user_id)
         return {
             "user": user["id"],
             "username": user["username"],
