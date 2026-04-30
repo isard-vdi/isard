@@ -3,11 +3,6 @@
 
 import logging
 
-from isardvdi_common.connections.rethink_shared_connection import (
-    RethinkSharedConnection,
-)
-from rethinkdb import r
-
 log = logging.getLogger("apiv4")
 
 #
@@ -34,6 +29,7 @@ from datetime import datetime, timedelta
 from time import time
 
 import pytz
+from isardvdi_common.lib.usage.user import UserUsageProcessed
 
 from .common import get_abs_consumptions, get_params_item_type_custom, securize_eval
 from .consolidate import ConsolidateConsumption
@@ -80,34 +76,9 @@ class UserUsage:
             self.has_data = False
 
     def _get_data(self) -> list[dict]:
-        t = time()
-        with RethinkSharedConnection._rdb_context():
-            data = list(
-                r.table("logs_users")
-                .filter(
-                    lambda log: (
-                        (log["stopped_time"] > self.consolidation_day)
-                        | log.has_fields("stopped_time").not_()
-                    )
-                    & (log["started_time"] < self.consolidation_day_after)
-                )
-                .merge(
-                    r.branch(
-                        r.row["started_time"] < self.consolidation_day,
-                        {"started_time": self.consolidation_day},
-                        {},
-                    )
-                )
-                .merge(
-                    r.branch(
-                        r.row["stopped_time"] > self.consolidation_day_after,
-                        {"stopped_time": self.consolidation_day_after},
-                        {},
-                    )
-                )
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        return data
+        return UserUsageProcessed.fetch_logs(
+            self.consolidation_day, self.consolidation_day_after
+        )
 
     def _process_consumption(self, consumption: dict) -> dict:
         return self._calculate_consumption(

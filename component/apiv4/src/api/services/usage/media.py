@@ -3,11 +3,6 @@
 
 import logging
 
-from isardvdi_common.connections.rethink_shared_connection import (
-    RethinkSharedConnection,
-)
-from rethinkdb import r
-
 log = logging.getLogger("apiv4")
 
 #
@@ -34,6 +29,7 @@ from datetime import datetime, timedelta
 from time import time
 
 import pytz
+from isardvdi_common.lib.usage.media import MediaUsageProcessed
 
 from .common import (
     get_abs_consumptions,
@@ -84,14 +80,7 @@ class MediaUsage:
             self.has_data = False
 
     def _get_data(self) -> list[dict]:
-        t = time()
-        with RethinkSharedConnection._rdb_context():
-            media = list(
-                r.table("media")
-                .get_all("Downloaded", index="status")
-                .pluck(["id", "user", {"progress": {"total_bytes": True}}])
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        media = MediaUsageProcessed.fetch_media()
         data = [
             {
                 **m,

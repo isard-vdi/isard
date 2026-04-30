@@ -18,13 +18,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
 import time
 
 from api.services.error import Error
-from isardvdi_common.connections.rethink_shared_connection import (
-    RethinkSharedConnection,
-)
 from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.lib.storage.storage import StorageProcessed
@@ -32,7 +28,6 @@ from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.task import Task
 from isardvdi_common.models.user import User as RethinkUser
-from rethinkdb import r
 
 
 def desktops_stop(
@@ -58,15 +53,14 @@ def desktops_stop(
         if update_accessed:
             update_data["accessed"] = int(time.time())
 
-        for i in range(0, len(desktops_ids), batch_size):
-            batch_ids = desktops_ids[i : i + batch_size]
-            keys = [["desktop", d_id] for d_id in batch_ids]
-            for current_status, new_status in status_updates:
-                update_data["status"] = new_status
-                with RethinkSharedConnection._rdb_context():
-                    r.table("domains").get_all(*keys, index="kind_ids").filter(
-                        {"status": current_status}
-                    ).update(update_data).run(RethinkSharedConnection._rdb_connection)
+        for current_status, new_status in status_updates:
+            update_data["status"] = new_status
+            StorageProcessed.batch_stop_desktops_by_kind_ids(
+                desktop_ids=desktops_ids,
+                update_data=update_data,
+                current_status=current_status,
+                batch_size=batch_size,
+            )
             time.sleep(wait_seconds)
         notify_admins(
             "desktop_action",
@@ -82,73 +76,6 @@ def desktops_stop(
                 "status": "failed",
             },
         )
-
-
-def get_disks_ids_by_status(status: str | None = None) -> list[str]:
-    """Get storage IDs filtered by status."""
-    with RethinkSharedConnection._rdb_context():
-        query = r.table("storage")
-        if status:
-            if status == "other":
-                query = query.filter(
-                    lambda disk: r.expr(["ready", "deleted"])
-                    .contains(disk["status"])
-                    .not_()
-                )
-            else:
-                query = query.get_all(status, index="status")
-        return list(
-            query.pluck("id")["id"].run(RethinkSharedConnection._rdb_connection)
-        )
-
-
-def get_user_ready_disks(user_id: str) -> list[dict]:
-    """Get ready disks for a user."""
-    with RethinkSharedConnection._rdb_context():
-        query = (
-            r.table("storage")
-            .get_all([user_id, "ready"], index="user_status")
-            .pluck(
-                [
-                    "id",
-                    "user_id",
-                    "user_name",
-                    {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
-                    "status_logs",
-                ],
-            )
-            .merge(
-                lambda disk: {
-                    "user_name": r.table("users")
-                    .get(disk["user_id"])
-                    .default({"name": "[DELETED] " + disk["user_id"]})["name"],
-                    "category": r.table("users")
-                    .get(disk["user_id"])
-                    .default({"category": "[DELETED]"})["category"],
-                    "domains": r.table("domains")
-                    .get_all(disk["id"], index="storage_ids")
-                    .filter({"user": user_id})
-                    .pluck("id", "name", "status")
-                    .coerce_to("array"),
-                }
-            )
-        )
-        return list(query.run(RethinkSharedConnection._rdb_connection))
-
-
-def parse_disks(disks: list[dict]) -> list[dict]:
-    """Parse disk data, extracting qemu-img-info and status_logs."""
-    parsed_disks = []
-    for disk in disks:
-        if disk.get("qemu-img-info"):
-            disk["actual_size"] = disk["qemu-img-info"]["actual-size"]
-            disk["virtual_size"] = disk["qemu-img-info"]["virtual-size"]
-            disk.pop("qemu-img-info")
-        if disk.get("status_logs"):
-            disk["last"] = disk["status_logs"][-1]["time"]
-            disk.pop("status_logs")
-        parsed_disks.append(disk)
-    return parsed_disks
 
 
 MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
@@ -288,7 +215,7 @@ class StorageService:
     @staticmethod
     def batch_check_backing_chain_by_status(payload: dict, status: str) -> None:
         """Check backing chain for all storages with a given status."""
-        storages_ids = get_disks_ids_by_status(status=status)
+        storages_ids = StorageProcessed.get_disks_ids_by_status(status=status)
         for storage_id in storages_ids:
             try:
                 storage = get_storage(payload, storage_id)
@@ -318,19 +245,14 @@ class StorageService:
         """
         # Access-control side-effect (raises 404 if missing / not owned).
         get_storage(payload, storage_id)
-        with RethinkSharedConnection._rdb_context():
-            row = (
-                r.table("storage")
-                .get(storage_id)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        row = StorageProcessed.get_storage_row(storage_id)
         return row or {}
 
     @staticmethod
     def get_user_ready_storages(user_id: str) -> list[dict]:
         """Get user's ready disks."""
-        disks = get_user_ready_disks(user_id)
-        return parse_disks(disks)
+        disks = StorageProcessed.get_user_ready_disks(user_id)
+        return StorageProcessed.parse_disks(disks)
 
     @staticmethod
     def get_storage_storages_with_uuid(payload: dict, storage_id: str) -> list:

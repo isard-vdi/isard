@@ -649,3 +649,38 @@ class TemplatesProcessed(RethinkSharedConnection):
             )
 
         return details
+
+    @classmethod
+    def list_derivative_categories(cls, template_id: str) -> list[dict]:
+        """Return ``[{"category": <id>}, ...]`` for every domain that
+        descends from ``template_id`` (via the ``parents`` index).
+
+        Used by managers' delete-template guard: if any derivative
+        sits in a category outside the manager's own, the operation
+        is forbidden.
+        """
+        with cls._rdb_context():
+            return list(
+                r.table("domains")
+                .get_all(template_id, index="parents")
+                .pluck("category")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def has_cross_category_derivatives(cls, template_id: str, category_id: str) -> bool:
+        """Return ``True`` if ``template_id`` has any derivative in a
+        category other than ``category_id``.
+
+        Used to flag the template tree for managers (so the UI can
+        warn that some derivatives are out of scope).
+        """
+        with cls._rdb_context():
+            cross = list(
+                r.table("domains")
+                .get_all(template_id, index="parents")
+                .filter(lambda d: d["category"] != category_id)
+                .limit(1)
+                .run(cls._rdb_connection)
+            )
+        return len(cross) > 0

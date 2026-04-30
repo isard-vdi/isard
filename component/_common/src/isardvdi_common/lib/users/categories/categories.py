@@ -238,6 +238,30 @@ class CategoriesProcessed(RethinkSharedConnection):
             )
 
     @classmethod
+    def get_custom_login_url(cls, category_id: str) -> str | None:
+        """Return ``custom_url_name`` for ``category_id``, or ``None``.
+
+        Read-only, defensive: callers (the login redirect path) need
+        a defensible fallback when the rdb is briefly unreachable;
+        the route maps ``None`` -> ``/login``. We swallow the
+        exception inside the lib method so the apiv4 service stays
+        a thin pass-through.
+        """
+        try:
+            with cls._rdb_context():
+                category = (
+                    r.table(cls._rdb_table)
+                    .get(category_id)
+                    .pluck("frontend", "custom_url_name")
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            return None
+        if not category:
+            return None
+        return category.get("custom_url_name")
+
+    @classmethod
     def find_by_branding_domain(cls, domain: str) -> dict | None:
         """Find a category whose ``branding.domain`` matches ``domain``.
 

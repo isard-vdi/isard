@@ -272,3 +272,44 @@ class Config(RethinkCustomBase):
                 {"auth": {provider: r.row["auth"][provider].merge(data)}}
             ).run(cls._rdb_connection)
         cls.clear_get_config_cache()
+
+    @classmethod
+    def get_resources_config(cls) -> dict:
+        """Read the ``resources`` config block.
+
+        Backs the admin-downloads "is the stack registered with the
+        updates server?" check. The block carries ``url`` (registry
+        URL), ``code`` (auth token, ``False`` until registered) and
+        optional ``private_code`` (paid-tier token).
+
+        Goes through ``pluck("resources")`` so callers don't pull the
+        full config row. Returns an empty dict when missing rather
+        than raising - the caller decides whether the empty state is
+        an error.
+        """
+        with cls._rdb_context():
+            row = (
+                r.table(cls._rdb_table)
+                .get(1)
+                .pluck("resources")
+                .run(cls._rdb_connection)
+            )
+        return (row or {}).get("resources", {})
+
+    @classmethod
+    def set_resources_code(cls, code) -> None:
+        """Persist ``config[1].resources.code = code``.
+
+        ``code`` is the registration token returned by the updates
+        server (``str``) or ``False`` to mark the stack as no longer
+        registered (used when the registry returns 500 on a download
+        request, signalling the token was revoked).
+
+        Clears the get_config cache after the write. Service-side
+        caches must be cleared by the caller.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update({"resources": {"code": code}}).run(
+                cls._rdb_connection
+            )
+        cls.clear_get_config_cache()
