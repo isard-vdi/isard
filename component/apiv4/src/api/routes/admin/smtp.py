@@ -21,7 +21,11 @@
 import traceback
 
 from api import admin_router
-from api.schemas.admin.smtp import SmtpConfigRequest, SmtpTestResponse
+from api.schemas.admin.smtp import (
+    SmtpConfigRequest,
+    SmtpConfigResponse,
+    SmtpTestResponse,
+)
 from api.schemas.common import ErrorResponse
 from api.services.admin.smtp import AdminSmtpService
 from api.services.error import Error
@@ -52,14 +56,15 @@ def clear_smtp_caches() -> None:
 @admin_router.get(
     "/smtp",
     tags=[tag],
+    response_model=SmtpConfigResponse,
     summary="Get SMTP configuration",
     description="Returns the current SMTP configuration.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_smtp_get(request: Request):
+async def admin_smtp_get(request: Request) -> SmtpConfigResponse:
     try:
         config = AdminSmtpService.get_smtp_config()
-        return config
+        return SmtpConfigResponse(**(config or {}))
     except Error:
         raise
     except Exception:
@@ -74,6 +79,7 @@ async def admin_smtp_get(request: Request):
 @admin_router.put(
     "/smtp",
     tags=[tag],
+    response_model=SmtpConfigResponse,
     summary="Update SMTP configuration",
     description="Updates and saves the SMTP configuration.",
     responses={
@@ -81,10 +87,12 @@ async def admin_smtp_get(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
+async def admin_smtp_put(
+    request: Request, data: SmtpConfigRequest
+) -> SmtpConfigResponse:
     try:
         config = AdminSmtpService.update_smtp_config(data.model_dump(exclude_none=True))
-        return config
+        return SmtpConfigResponse(**(config or {}))
     except Error:
         raise
     except Exception:
@@ -100,14 +108,14 @@ async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
 @admin_router.get(
     "/smtp/enabled",
     tags=[tag],
+    response_model=bool,
     summary="Get SMTP enabled status",
     description="Returns whether SMTP is enabled.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_smtp_enabled_get(request: Request):
+async def admin_smtp_enabled_get(request: Request) -> bool:
     try:
-        enabled = AdminSmtpService.get_smtp_enabled()
-        return enabled
+        return AdminSmtpService.get_smtp_enabled()
     except Error:
         raise
     except Exception:

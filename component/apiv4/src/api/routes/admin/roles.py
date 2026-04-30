@@ -6,6 +6,7 @@
 import traceback
 
 from api import admin_router
+from api.schemas.admin.roles import RoleResponse
 from api.schemas.common import ErrorResponse
 from api.services.admin.roles import AdminRolesService
 from api.services.error import Error
@@ -27,6 +28,7 @@ tag = "admin_roles"
 @admin_router.get(
     "/admin/role/{role_id}",
     tags=[tag],
+    response_model=RoleResponse,
     summary="Get a role",
     description="Returns a role by its ID.",
     responses={
@@ -34,10 +36,10 @@ tag = "admin_roles"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_role(request: Request, role_id: str):
+async def admin_get_role(request: Request, role_id: str) -> RoleResponse:
     try:
         role = AdminRolesService.get_role(role_id)
-        return role
+        return RoleResponse(**role)
     except Error:
         raise
     except Exception:

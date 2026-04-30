@@ -18,5 +18,32 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-# No custom schemas needed for admin scheduler endpoints at this time.
-# All responses use generic list JSON responses.
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
+
+class SchedulerSystemJob(BaseModel):
+    """One row of ``GET /admin/scheduler/jobs/system``.
+
+    Plucked from the ``scheduler_jobs`` table by
+    ``AdminSchedulerService.get_system_jobs``.
+    """
+
+    id: str
+    name: Optional[str] = None
+    kind: Optional[str] = None
+    next_run_time: Optional[float] = Field(
+        default=None,
+        description="UTC epoch seconds — the apiv3 contract returned a float here",
+    )
+
+
+class SchedulerBookingsJob(SchedulerSystemJob):
+    """One row of ``GET /admin/scheduler/jobs/bookings``.
+
+    Same shape as ``SchedulerSystemJob`` plus the ``kwargs`` blob the
+    bookings scheduler stores per job.
+    """
+
+    kwargs: Optional[dict] = None

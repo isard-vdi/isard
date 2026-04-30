@@ -30,8 +30,14 @@ def test_admin_operations_hypervisors_list(monkeypatch, test_client):
 
     response = test_client(url="/admin/operations/hypervisors", jwt=jwt)
 
+    # response_model=list[OperationsHypervisorResponse] fills the
+    # remaining fields with None defaults; assert per-key on what the
+    # service stub actually returned, not equality with the partial stub.
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "hyper-1"
+    assert body[0]["state"] == "running"
 
 
 def test_admin_operations_hypervisors_disabled_is_forbidden(monkeypatch, test_client):

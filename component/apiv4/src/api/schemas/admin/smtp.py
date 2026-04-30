@@ -33,6 +33,21 @@ class SmtpConfigRequest(BaseModel):
     enabled: Optional[bool] = None
 
 
+class SmtpConfigResponse(BaseModel):
+    """Response shape for ``GET /smtp`` and ``PUT /smtp``.
+
+    Mirrors ``SmtpConfigRequest`` minus ``password`` — the password
+    is never echoed back to admins on read. ``response_model=`` will
+    drop the password key from the service blob automatically; the
+    route test pins this with ``"password" not in response.json()``.
+    """
+
+    host: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    enabled: Optional[bool] = None
+
+
 class SmtpTestResponse(BaseModel):
     """Response for SMTP test"""
 
