@@ -3,16 +3,10 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
-import traceback
 from typing import List, Optional
 
 from api.schemas.vpn import VpnDisconnectListItem
-from api.services.error import Error
-from cachetools import TTLCache, cached
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
-from rethinkdb import r
+from isardvdi_common.lib.vpn.vpn import VpnProcessed
 
 
 class AdminVpnService:
@@ -37,41 +31,27 @@ class AdminVpnService:
         }
 
         if kind == "users":
-            with RethinkSharedConnection._rdb_context():
-                if len(
-                    list(
-                        r.table("remotevpn")
-                        .get_all(client_ip, index="wg_client_ip")
-                        .run(RethinkSharedConnection._rdb_connection)
-                    )
-                ):
-                    r.table("remotevpn").get_all(
-                        client_ip, index="wg_client_ip"
-                    ).update({"vpn": {"wireguard": connection_data}}).run(
-                        RethinkSharedConnection._rdb_connection
-                    )
-                    return True
-
-            # Try users table
-            with RethinkSharedConnection._rdb_context():
-                result = list(
-                    r.table("users")
-                    .get_all(client_ip, index="wg_client_ip")
-                    .run(RethinkSharedConnection._rdb_connection)
+            # remotevpn rows take precedence; if a peer has been issued
+            # via remotevpn we update that row and stop. Otherwise fall
+            # back to the users table.
+            if VpnProcessed.exists_by_client_ip("remotevpn", client_ip):
+                VpnProcessed.update_connection_by_client_ip(
+                    "remotevpn", client_ip, connection_data
                 )
-            if not result:
+                return True
+
+            if not VpnProcessed.exists_by_client_ip("users", client_ip):
                 return False
-            with RethinkSharedConnection._rdb_context():
-                r.table("users").get_all(client_ip, index="wg_client_ip").update(
-                    {"vpn": {"wireguard": connection_data}}
-                ).run(RethinkSharedConnection._rdb_connection)
+            VpnProcessed.update_connection_by_client_ip(
+                "users", client_ip, connection_data
+            )
             return True
-        else:  # hypers
-            with RethinkSharedConnection._rdb_context():
-                r.table("hypervisors").get_all(client_ip, index="wg_client_ip").update(
-                    {"vpn": {"wireguard": connection_data}}
-                ).run(RethinkSharedConnection._rdb_connection)
-            return True
+
+        # hypers
+        VpnProcessed.update_connection_by_client_ip(
+            "hypervisors", client_ip, connection_data
+        )
+        return True
 
     @staticmethod
     def reset_connection_status(kind: str) -> bool:
@@ -88,24 +68,11 @@ class AdminVpnService:
         }
 
         if kind in ["users", "all"]:
-            with RethinkSharedConnection._rdb_context():
-                r.table("users").has_fields({"vpn": {"wireguard": "Address"}}).update(
-                    {"vpn": {"wireguard": connection_data}}
-                ).run(RethinkSharedConnection._rdb_connection)
+            VpnProcessed.reset_connections_for_table("users", connection_data)
         if kind in ["remotevpn", "all"]:
-            with RethinkSharedConnection._rdb_context():
-                r.table("remotevpn").has_fields(
-                    {"vpn": {"wireguard": "Address"}}
-                ).update({"vpn": {"wireguard": connection_data}}).run(
-                    RethinkSharedConnection._rdb_connection
-                )
+            VpnProcessed.reset_connections_for_table("remotevpn", connection_data)
         if kind in ["hypers", "all"]:
-            with RethinkSharedConnection._rdb_context():
-                r.table("hypervisors").has_fields(
-                    {"vpn": {"wireguard": "Address"}}
-                ).update({"vpn": {"wireguard": connection_data}}).run(
-                    RethinkSharedConnection._rdb_connection
-                )
+            VpnProcessed.reset_connections_for_table("hypervisors", connection_data)
         return True
 
     @staticmethod
@@ -123,25 +90,16 @@ class AdminVpnService:
         }
         users_vpn_ips = [p.client_ip for p in peers if p.kind == "users"]
         if len(users_vpn_ips):
-            with RethinkSharedConnection._rdb_context():
-                r.table("users").get_all(
-                    r.args(users_vpn_ips), index="wg_client_ip"
-                ).update({"vpn": {"wireguard": connection_data}}).run(
-                    RethinkSharedConnection._rdb_connection
-                )
-            with RethinkSharedConnection._rdb_context():
-                r.table("remotevpn").get_all(
-                    r.args(users_vpn_ips), index="wg_client_ip"
-                ).update({"vpn": {"wireguard": connection_data}}).run(
-                    RethinkSharedConnection._rdb_connection
-                )
+            VpnProcessed.reset_connections_for_client_ips(
+                "users", users_vpn_ips, connection_data
+            )
+            VpnProcessed.reset_connections_for_client_ips(
+                "remotevpn", users_vpn_ips, connection_data
+            )
 
         hypers_vpn_ips = [p.client_ip for p in peers if p.kind == "hypers"]
         if len(hypers_vpn_ips):
-            with RethinkSharedConnection._rdb_context():
-                r.table("hypervisors").get_all(
-                    r.args(hypers_vpn_ips), index="wg_client_ip"
-                ).update({"vpn": {"wireguard": connection_data}}).run(
-                    RethinkSharedConnection._rdb_connection
-                )
+            VpnProcessed.reset_connections_for_client_ips(
+                "hypervisors", hypers_vpn_ips, connection_data
+            )
         return True
