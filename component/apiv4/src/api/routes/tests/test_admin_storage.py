@@ -30,21 +30,28 @@ class TestGetStorageStatus:
 
     def test_admin_gets_counts(self, monkeypatch, test_client):
         captured = {}
+
+        def fake(payload):
+            captured["role_id"] = payload["role_id"]
+            # Real ``MediaProcessed.admin_get_storage_status`` returns
+            # a list of ``{status, count}`` rows; the response_model
+            # now enforces that. Old stub returned ``{ready: 5}``.
+            return [{"status": "ready", "count": 5}]
+
         monkeypatch.setattr(
             "api.routes.admin.storage.AdminStorageService.get_storage_status",
-            staticmethod(
-                lambda payload: captured.update(role_id=payload["role_id"])
-                or {"ready": 5}
-            ),
+            staticmethod(fake),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
-        assert response.json()["ready"] == 5
+        body = response.json()
+        ready = next(row for row in body if row["status"] == "ready")
+        assert ready["count"] == 5
 
     def test_manager_allowed(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.storage.AdminStorageService.get_storage_status",
-            staticmethod(lambda payload: {}),
+            staticmethod(lambda payload: []),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="manager"))
         assert response.status_code == 200
@@ -52,7 +59,7 @@ class TestGetStorageStatus:
     def test_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.storage.AdminStorageService.get_storage_status",
-            staticmethod(lambda payload: {}),
+            staticmethod(lambda payload: []),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="user"))
         assert response.status_code == 403

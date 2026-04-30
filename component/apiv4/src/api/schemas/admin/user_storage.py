@@ -55,3 +55,41 @@ class UserStorageAddRequest(BaseModel):
     access: str
     quota: Any
     verify_cert: bool
+
+
+class UserStorageIdResponse(BaseModel):
+    """Response for the auto-register / add provider endpoints — both
+    services return the new provider's id only."""
+
+    id: str
+
+
+class UserStorageLoginAuthResponse(BaseModel):
+    """Response for ``GET /admin/user_storage/{provider_id}/login_auth``."""
+
+    login_url: Optional[str] = None
+
+
+class UserStorageProvider(BaseModel):
+    """One row of ``GET /admin/user_storage`` and the per-id read.
+
+    Permissive (``ConfigDict(extra="allow")``) — the provider doc
+    carries auth_basic / oauth2 fields that differ per protocol.
+    """
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+    provider: Optional[str] = None
+    name: Optional[str] = None
+
+
+class UserStorageUser(BaseModel):
+    """One row of ``GET /admin/user_storage/users``."""
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    provider_id: Optional[str] = None

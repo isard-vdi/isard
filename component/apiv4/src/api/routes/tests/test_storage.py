@@ -224,7 +224,13 @@ def test_admin_storage_list(monkeypatch, test_client):
     response = test_client(url="/admin/storage", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    # ``response_model=list[AdminStorageItem]`` adds the declared
+    # optional fields with None defaults (type/user_id/category); assert
+    # per-key on the stubbed values rather than equality.
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "stor-1"
+    assert body[0]["status"] == "ready"
 
 
 def test_admin_storage_list_filtered(monkeypatch, test_client):
