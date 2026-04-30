@@ -639,6 +639,16 @@ class Helpers(RethinkSharedConnection):
             r.table("recycle_bin").get(rb_id).update({"status": status}).run(
                 cls._rdb_connection
             )
+        # The list endpoint (``get_item_count``) caches its results for
+        # 60 s scoped to ``status="recycled"``. Without this invalidation
+        # a status flip to ``restored`` / ``deleting`` / ``deleted``
+        # leaves the now-irrelevant row in the cache, so the next
+        # ``GET /items/recycle-bin`` re-renders the entry the user just
+        # restored or deleted.
+        cls.clear_get_item_count_cache()
+        cls.clear_get_count_cache()
+        cls.clear_get_user_amount_cache()
+        cls.clear_get_user_recycle_bin_ids_cache()
 
     @classmethod
     def update_task_status(cls, task):
