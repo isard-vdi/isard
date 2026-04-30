@@ -72,7 +72,7 @@ class PlanningService:
             )
 
     @staticmethod
-    def delete_planning(plan_id: str):
+    def delete_planning(plan_id: str) -> None:
         """
         Delete a specific planning
 

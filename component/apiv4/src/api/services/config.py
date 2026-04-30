@@ -26,7 +26,7 @@ from isardvdi_common.models.config import Config
 class ConfigService:
 
     @staticmethod
-    def get_config():
+    def get_config() -> dict:
         """
         Get the configuration from the database.
         """
@@ -39,7 +39,7 @@ class ConfigService:
         return config
 
     @staticmethod
-    def get_login_config():
+    def get_login_config() -> dict:
         """
         Get the login configuration from the database.
         """
@@ -85,7 +85,7 @@ class ConfigService:
         return login_config
 
     @staticmethod
-    def get_user_migration_config():
+    def get_user_migration_config() -> dict:
         """
         Get the user migration configuration from the database.
         """
@@ -93,7 +93,7 @@ class ConfigService:
         return config
 
     @staticmethod
-    def get_provider_config(provider: str):
+    def get_provider_config(provider: str) -> dict:
         """
         Get the provider configuration from the database.
         """

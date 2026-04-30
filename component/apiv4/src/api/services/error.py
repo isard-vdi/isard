@@ -17,12 +17,13 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from fastapi import Request
 from isardvdi_common.helpers.error_base import ErrorBase
 
 
 class Error(ErrorBase):
     @classmethod
-    async def create(cls, request, *args, **kwargs):
+    async def create(cls, request: Request, *args, **kwargs) -> "Error":
         return cls(
             *args, custom_request=request, request_body=await request.body(), **kwargs
         )

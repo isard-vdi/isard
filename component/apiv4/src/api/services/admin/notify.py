@@ -24,7 +24,7 @@ class AdminNotifyService:
         type: str,
         msg_code: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         """Send a notification to a user about a desktop."""
         notify_user(user_id, type, msg_code, params or {})
 
@@ -34,12 +34,12 @@ class AdminNotifyService:
         type: str,
         msg_code: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         """Send a notification to a desktop."""
         notify_desktop(desktop_id, type, msg_code, params or {})
 
     @staticmethod
-    def notify_desktop_queue(items: List[DesktopQueueItem], hyp_id: str):
+    def notify_desktop_queue(items: List[DesktopQueueItem], hyp_id: str) -> None:
         """Parse desktop queues and notify users. Accepts typed
         ``DesktopQueueItem`` models directly (not dicts) so the contract
         checked in :mod:`api.schemas.admin_notify` is preserved all the

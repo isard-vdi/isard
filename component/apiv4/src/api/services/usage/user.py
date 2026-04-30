@@ -45,7 +45,7 @@ CONSUMERS = {
 }
 
 
-def get_relative_date(days):
+def get_relative_date(days: int) -> datetime:
     # We use the same function as in consolidate.py as dates in logs_desktops table are also in UTC
     return datetime.now().astimezone().replace(
         minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc
@@ -53,12 +53,12 @@ def get_relative_date(days):
 
 
 class ConsolidateUserConsumption(ConsolidateConsumption):
-    def __init__(self, days_before=1):
+    def __init__(self, days_before: int = 1) -> None:
         super().__init__("user", UserUsage, days_before)
 
 
 class UserUsage:
-    def __init__(self, days_before=1):
+    def __init__(self, days_before: int = 1) -> None:
         # logs_users dates are in UTC so we use the same as in base class (UTC)
         self.consolidation_day_after = get_relative_date(-(days_before - 1))
         self.consolidation_day = get_relative_date(-days_before)
@@ -79,7 +79,7 @@ class UserUsage:
         else:
             self.has_data = False
 
-    def _get_data(self):
+    def _get_data(self) -> list[dict]:
         t = time()
         with RethinkSharedConnection._rdb_context():
             data = list(
@@ -109,13 +109,15 @@ class UserUsage:
             )
         return data
 
-    def _process_consumption(self, consumption):
+    def _process_consumption(self, consumption: dict) -> dict:
         return self._calculate_consumption(
             consumption["started_time"],
             consumption["stopped_time"],
         )
 
-    def _calculate_consumption(self, start, stop, interval="hour"):
+    def _calculate_consumption(
+        self, start: datetime, stop: datetime, interval: str = "hour"
+    ) -> dict:
         # This calculates increment in one start/stop
         interval = 1 / 60 if interval == "hour" else 1
         interval = 1 / 60 / 24 if interval == "day" else interval

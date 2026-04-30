@@ -4,7 +4,7 @@
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
-from typing import List
+from typing import List, Optional
 
 from api.schemas.vpn import VpnDisconnectListItem
 from api.services.error import Error
@@ -19,7 +19,13 @@ class AdminVpnService:
     """Service for admin VPN connection management."""
 
     @staticmethod
-    def active_client(kind, client_ip, remote_ip=None, remote_port=None, status=False):
+    def active_client(
+        kind: str,
+        client_ip: str,
+        remote_ip: Optional[str] = None,
+        remote_port: Optional[int] = None,
+        status: bool = False,
+    ) -> bool:
         """Update or query VPN client connection status.
 
         Route layer constrains ``kind`` via ``Literal["users", "hypers"]``.
@@ -68,7 +74,7 @@ class AdminVpnService:
             return True
 
     @staticmethod
-    def reset_connection_status(kind):
+    def reset_connection_status(kind: str) -> bool:
         """Reset VPN connection status for a kind.
 
         Route layer constrains ``kind`` to ``Literal["all"]`` today.
@@ -103,7 +109,7 @@ class AdminVpnService:
         return True
 
     @staticmethod
-    def reset_connections_list_status(peers: List[VpnDisconnectListItem]):
+    def reset_connections_list_status(peers: List[VpnDisconnectListItem]) -> bool:
         """Reset VPN connection status for a typed list of peers.
 
         Accepts ``VpnDisconnectListItem`` models directly so the

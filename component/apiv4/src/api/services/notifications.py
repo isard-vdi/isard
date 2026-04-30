@@ -26,21 +26,25 @@ from isardvdi_common.lib.notifications.notifications_data import (
 class NotificationService:
 
     @staticmethod
-    def get_user_trigger_notifications_displays(token_payload, trigger: str):
+    def get_user_trigger_notifications_displays(
+        token_payload: dict, trigger: str
+    ) -> list[str]:
         return NotificationsProcessed.get_user_trigger_notifications_displays(
             token_payload, trigger
         )
 
     @staticmethod
-    def get_user_trigger_notifications(token_payload, trigger: str, display: str):
+    def get_user_trigger_notifications(
+        token_payload: dict, trigger: str, display: str
+    ) -> dict:
         return NotificationsProcessed.get_user_trigger_notifications(
             token_payload, trigger, display
         )
 
     @staticmethod
     def get_user_trigger_notifications_flat(
-        token_payload, trigger: str, display: str
-    ) -> list:
+        token_payload: dict, trigger: str, display: str
+    ) -> list[dict]:
         """Flatten the nested trigger/display response into an ordered list.
 
         Resolves the user's language template against each item so the
@@ -76,5 +80,5 @@ class NotificationService:
         return flat
 
     @staticmethod
-    def delete_expired_notifications_data():
+    def delete_expired_notifications_data() -> None:
         return NotificationsDataProcessed.delete_expired_notifications_data()

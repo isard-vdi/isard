@@ -28,7 +28,7 @@ from isardvdi_common.lib.domains.domains import DomainsProcessed as CommonDomain
 class DomainService:
 
     @staticmethod
-    def get_domain_info(domain_id: str, payload: dict):
+    def get_domain_info(domain_id: str, payload: dict) -> dict:
         """
         Get domain information by ID.
         """
