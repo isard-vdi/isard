@@ -305,9 +305,26 @@ class StorageService:
 
     @staticmethod
     def get_storage_detail(payload: dict, storage_id: str) -> dict:
-        """Get storage details."""
-        storage = get_storage(payload, storage_id)
-        return dict(storage)
+        """Get storage details.
+
+        ``get_storage`` returns a ``Storage`` model wrapper (not a dict).
+        Calling ``dict(storage)`` on it crashes because the
+        ``RethinkCustomBase.__getattr__`` proxies any unknown attribute
+        access to a rethinkdb pluck and returns ``None`` for unknown
+        fields — so ``storage.keys`` silently becomes ``None`` and the
+        builtin ``dict()`` constructor calls ``None()`` and dies with
+        ``'NoneType' object is not callable``. Bypass the wrapper and
+        fetch the raw row directly.
+        """
+        # Access-control side-effect (raises 404 if missing / not owned).
+        get_storage(payload, storage_id)
+        with RethinkSharedConnection._rdb_context():
+            row = (
+                r.table("storage")
+                .get(storage_id)
+                .run(RethinkSharedConnection._rdb_connection)
+            )
+        return row or {}
 
     @staticmethod
     def get_user_ready_storages(user_id: str) -> list[dict]:
