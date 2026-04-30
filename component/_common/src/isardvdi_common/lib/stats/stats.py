@@ -23,6 +23,10 @@ _desktops_stats_cache: TTLCache = TTLCache(maxsize=1, ttl=5)
 _templates_stats_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
 _domains_status_cache: TTLCache = TTLCache(maxsize=1, ttl=5)
 
+# Steady-state desktop statuses surfaced by category aggregates; anything
+# else is "Other" and must be surfaced for admin triage.
+STABLE_STATUS = ["Started", "Stopped", "Failed"]
+
 
 class StatsProcessed(RethinkSharedConnection):
     """System-wide statistics aggregations."""
@@ -186,7 +190,6 @@ class StatsProcessed(RethinkSharedConnection):
         steady states; everything else is something the admin should
         triage.
         """
-        stable_status = ["Started", "Stopped", "Failed"]
         with cls._rdb_context():
             desktops = (
                 r.table("domains")
@@ -207,7 +210,7 @@ class StatsProcessed(RethinkSharedConnection):
             )
         result: dict = {}
         for key, value in desktops.items():
-            if key[1] in stable_status:
+            if key[1] in STABLE_STATUS:
                 continue
             if key[0] not in result:
                 result[key[0]] = {"desktops_wrong_status": {key[1]: value}}
@@ -281,3 +284,362 @@ class StatsProcessed(RethinkSharedConnection):
                 )
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def get_group_by_categories(cls) -> dict:
+        """Return per-category users + desktops + templates summary.
+
+        Iterates every category and runs three sub-aggregations:
+
+        * users (total, enabled/disabled split, per-role counts);
+        * desktops (total + ``Started``/``Stopped``/``Failed``/``Other``);
+        * templates (total + enabled/disabled).
+
+        Wraps each per-category block in a single ``_rdb_context`` so the
+        connection is reused across the inner loop's queries.
+        """
+        with cls._rdb_context():
+            categories = list(
+                r.table("categories").pluck("id")["id"].run(cls._rdb_connection)
+            )
+
+        result: dict = {}
+        for category in categories:
+            result[category] = {
+                "users": {
+                    "total": 0,
+                    "status": {"enabled": 0, "disabled": 0},
+                    "roles": {
+                        "admin": 0,
+                        "manager": 0,
+                        "advanced": 0,
+                        "user": 0,
+                    },
+                },
+                "desktops": {
+                    "total": 0,
+                    "status": {
+                        "Started": 0,
+                        "Stopped": 0,
+                        "Failed": 0,
+                        "Unknown": 0,
+                        "Other": 0,
+                    },
+                },
+                "templates": {
+                    "total": 0,
+                    "status": {"enabled": 0, "disabled": 0},
+                },
+            }
+
+        with cls._rdb_context():
+            for category in categories:
+                result[category]["users"]["total"] = (
+                    r.table("users")
+                    .get_all(category, index="category")
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+                result[category]["users"]["status"]["enabled"] = (
+                    r.table("users")
+                    .get_all(category, index="category")
+                    .filter({"active": True})
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+                result[category]["users"]["status"]["disabled"] = (
+                    result[category]["users"]["total"]
+                    - result[category]["users"]["status"]["enabled"]
+                )
+                result[category]["users"]["roles"] = (
+                    r.table("users")
+                    .get_all(category, index="category")
+                    .group("role")
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+
+        with cls._rdb_context():
+            for category in categories:
+                result[category]["desktops"]["total"] = (
+                    r.table("domains")
+                    .get_all(["desktop", category], index="kind_category")
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+                for status in STABLE_STATUS:
+                    result[category]["desktops"]["status"][status] = (
+                        r.table("domains")
+                        .get_all(
+                            ["desktop", status, category],
+                            index="kind_status_category",
+                        )
+                        .count()
+                        .run(cls._rdb_connection)
+                    )
+                result[category]["desktops"]["status"]["Other"] = (
+                    r.table("domains")
+                    .get_all(["desktop", category], index="kind_category")
+                    .filter(
+                        lambda desktop: r.not_(
+                            r.expr(STABLE_STATUS).contains(desktop["status"])
+                        )
+                    )
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+
+        with cls._rdb_context():
+            for category in categories:
+                result[category]["templates"]["total"] = (
+                    r.table("domains")
+                    .get_all(["template", category], index="kind_category")
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+                result[category]["templates"]["status"]["enabled"] = (
+                    r.table("domains")
+                    .get_all(
+                        ["template", True, category],
+                        index="template_enabled_category",
+                    )
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+                result[category]["templates"]["status"]["disabled"] = (
+                    r.table("domains")
+                    .get_all(
+                        ["template", False, category],
+                        index="template_enabled_category",
+                    )
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+
+        return result
+
+    @classmethod
+    def get_categories_kind_state(cls, kind: str, state: str | bool = False) -> dict:
+        """Return per-category counts for a single kind/state cell.
+
+        ``kind`` is ``desktop`` or ``template``. When ``state`` is falsy
+        (``False`` / ``"false"``), returns the full breakdown the
+        ``/stats/categories/{kind}`` endpoint expects; otherwise returns
+        just the requested status cell. Mirrors the original apiv4
+        dispatcher exactly (including the early ``return`` inside the
+        loop body, which means callers only get the first category — the
+        legacy contract).
+        """
+        query: dict = {}
+        with cls._rdb_context():
+            categories = list(
+                r.table("categories").pluck("id")["id"].run(cls._rdb_connection)
+            )
+
+        if kind == "desktop":
+            for category in categories:
+                if state and state != "false":
+                    query[category] = {"desktops": {"status": {state: ""}}}
+                    with cls._rdb_context():
+                        if state == "Other":
+                            query[category]["desktops"]["status"]["Other"] = (
+                                r.table("domains")
+                                .get_all(
+                                    ["desktop", category],
+                                    index="kind_category",
+                                )
+                                .filter(
+                                    lambda desktop: r.not_(
+                                        r.expr(STABLE_STATUS).contains(
+                                            desktop["status"]
+                                        )
+                                    )
+                                )
+                                .count()
+                                .run(cls._rdb_connection)
+                            )
+                        else:
+                            query[category]["desktops"]["status"][state] = (
+                                r.table("domains")
+                                .get_all(
+                                    ["desktop", state, category],
+                                    index="kind_status_category",
+                                )
+                                .count()
+                                .run(cls._rdb_connection)
+                            )
+                    return query
+                else:
+                    query[category] = {
+                        "desktops": {
+                            "total": "",
+                            "status": {
+                                "Started": "",
+                                "Stopped": "",
+                                "Failed": "",
+                                "Unknown": "",
+                                "Other": "",
+                            },
+                        }
+                    }
+                    with cls._rdb_context():
+                        query[category]["desktops"]["total"] = (
+                            r.table("domains")
+                            .get_all(
+                                ["desktop", category],
+                                index="kind_category",
+                            )
+                            .count()
+                            .run(cls._rdb_connection)
+                        )
+                        for ds in STABLE_STATUS:
+                            query[category]["desktops"]["status"][ds] = (
+                                r.table("domains")
+                                .get_all(
+                                    ["desktop", ds, category],
+                                    index="kind_status_category",
+                                )
+                                .count()
+                                .run(cls._rdb_connection)
+                            )
+                        query[category]["desktops"]["status"]["Other"] = (
+                            r.table("domains")
+                            .get_all(
+                                ["desktop", category],
+                                index="kind_category",
+                            )
+                            .filter(
+                                lambda desktop: r.not_(
+                                    r.expr(STABLE_STATUS).contains(desktop["status"])
+                                )
+                            )
+                            .count()
+                            .run(cls._rdb_connection)
+                        )
+                    return query
+
+        elif kind == "template":
+            for category in categories:
+                if state == "enabled":
+                    query[category] = {"templates": {"status": {"enabled": ""}}}
+                    with cls._rdb_context():
+                        query[category]["templates"]["status"]["enabled"] = (
+                            r.table("domains")
+                            .get_all(
+                                ["template", True, category],
+                                index="template_enabled_category",
+                            )
+                            .count()
+                            .run(cls._rdb_connection)
+                        )
+                    return query
+                elif state == "disabled":
+                    query[category] = {"templates": {"status": {"disabled": ""}}}
+                    with cls._rdb_context():
+                        query[category]["templates"]["status"]["disabled"] = (
+                            r.table("domains")
+                            .get_all(
+                                ["template", False, category],
+                                index="template_enabled_category",
+                            )
+                            .count()
+                            .run(cls._rdb_connection)
+                        )
+                    return query
+                else:
+                    query[category] = {
+                        "templates": {
+                            "total": "",
+                            "status": {"enabled": "", "disabled": ""},
+                        }
+                    }
+                    with cls._rdb_context():
+                        query[category]["templates"]["total"] = (
+                            r.table("domains")
+                            .get_all(
+                                ["template", category],
+                                index="kind_category",
+                            )
+                            .count()
+                            .run(cls._rdb_connection)
+                        )
+                        query[category]["templates"]["status"]["enabled"] = (
+                            r.table("domains")
+                            .get_all(
+                                ["template", True, category],
+                                index="template_enabled_category",
+                            )
+                            .count()
+                            .run(cls._rdb_connection)
+                        )
+                        query[category]["templates"]["status"]["disabled"] = (
+                            r.table("domains")
+                            .get_all(
+                                ["template", False, category],
+                                index="template_enabled_category",
+                            )
+                            .count()
+                            .run(cls._rdb_connection)
+                        )
+                    return query
+        return query
+
+    @classmethod
+    def get_categories_limits_hardware(cls) -> dict:
+        """Return per-category hardware limits + Started-desktop usage.
+
+        For each category, sums vCPUs and memory across started desktops
+        and reports the configured ``limits.vcpus`` / ``limits.memory``
+        (falling back to ``0`` when the category has ``limits = False``).
+        """
+        with cls._rdb_context():
+            categories = list(
+                r.table("categories").pluck("id", "limits").run(cls._rdb_connection)
+            )
+
+        query: dict = {}
+        for category in categories:
+            query[category["id"]] = {
+                "Started desktops": "",
+                "vCPUs": {"Limit": "", "Running": ""},
+                "Memory": {"Limit": "", "Running": ""},
+            }
+            with cls._rdb_context():
+                query[category["id"]]["Started desktops"] = (
+                    r.table("domains")
+                    .get_all(
+                        ["desktop", "Started", category["id"]],
+                        index="kind_status_category",
+                    )
+                    .count()
+                    .run(cls._rdb_connection)
+                )
+
+            if category["limits"] is False:
+                query[category["id"]]["vCPUs"]["Limit"] = 0
+                query[category["id"]]["Memory"]["Limit"] = 0
+            else:
+                query[category["id"]]["vCPUs"]["Limit"] = category["limits"]["vcpus"]
+                query[category["id"]]["Memory"]["Limit"] = category["limits"]["memory"]
+
+            with cls._rdb_context():
+                query[category["id"]]["vCPUs"]["Running"] = (
+                    r.table("domains")
+                    .get_all(
+                        ["desktop", "Started", category["id"]],
+                        index="kind_status_category",
+                    )["create_dict"]["hardware"]["vcpus"]
+                    .sum()
+                    .run(cls._rdb_connection)
+                )
+            with cls._rdb_context():
+                query[category["id"]]["Memory"]["Running"] = (
+                    r.table("domains")
+                    .get_all(
+                        ["desktop", "Started", category["id"]],
+                        index="kind_status_category",
+                    )["create_dict"]["hardware"]["memory"]
+                    .sum()
+                    .run(cls._rdb_connection)
+                )
+        return query

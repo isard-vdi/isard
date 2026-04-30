@@ -217,3 +217,77 @@ class TestGetDomainsByCategoryCount:
         result = stub_rdb["Processed"].get_domains_by_category_count()
         assert result[0]["category"] == "cat-a"
         assert result[0]["desktops"] == {"Started": 4}
+
+
+class TestGetGroupByCategories:
+    def test_assembles_per_category_summary(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        # categories list (.pluck("id")["id"].run())
+        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
+        # Every per-category count returns 1; roles return a stub dict.
+        chain.get_all.return_value.count.return_value.run.return_value = 1
+        chain.get_all.return_value.filter.return_value.count.return_value.run.return_value = (
+            1
+        )
+        chain.get_all.return_value.group.return_value.count.return_value.run.return_value = {
+            "admin": 1
+        }
+        result = stub_rdb["Processed"].get_group_by_categories()
+        assert "cat-a" in result
+        assert result["cat-a"]["users"]["total"] == 1
+        assert result["cat-a"]["users"]["status"] == {"enabled": 1, "disabled": 0}
+        assert result["cat-a"]["desktops"]["total"] == 1
+        assert result["cat-a"]["templates"]["total"] == 1
+
+
+class TestGetCategoriesKindState:
+    def test_desktop_no_state_returns_full_breakdown(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
+        chain.get_all.return_value.count.return_value.run.return_value = 5
+        chain.get_all.return_value.filter.return_value.count.return_value.run.return_value = (
+            2
+        )
+        result = stub_rdb["Processed"].get_categories_kind_state("desktop")
+        assert result["cat-a"]["desktops"]["total"] == 5
+        assert "Other" in result["cat-a"]["desktops"]["status"]
+
+    def test_template_enabled_returns_just_enabled(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
+        chain.get_all.return_value.count.return_value.run.return_value = 9
+        result = stub_rdb["Processed"].get_categories_kind_state("template", "enabled")
+        assert result["cat-a"]["templates"]["status"]["enabled"] == 9
+
+    def test_unknown_kind_returns_empty(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
+        result = stub_rdb["Processed"].get_categories_kind_state("widget")
+        assert result == {}
+
+
+class TestGetCategoriesLimitsHardware:
+    def test_with_explicit_limits(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.run.return_value = [
+            {"id": "cat-a", "limits": {"vcpus": 32, "memory": 64000}}
+        ]
+        chain.get_all.return_value.count.return_value.run.return_value = 4
+        chain.get_all.return_value.__getitem__.return_value.__getitem__.return_value.__getitem__.return_value.sum.return_value.run.return_value = (
+            8
+        )
+        result = stub_rdb["Processed"].get_categories_limits_hardware()
+        assert result["cat-a"]["Started desktops"] == 4
+        assert result["cat-a"]["vCPUs"]["Limit"] == 32
+        assert result["cat-a"]["Memory"]["Limit"] == 64000
+
+    def test_with_limits_false_falls_back_to_zero(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.run.return_value = [{"id": "cat-a", "limits": False}]
+        chain.get_all.return_value.count.return_value.run.return_value = 0
+        chain.get_all.return_value.__getitem__.return_value.__getitem__.return_value.__getitem__.return_value.sum.return_value.run.return_value = (
+            0
+        )
+        result = stub_rdb["Processed"].get_categories_limits_hardware()
+        assert result["cat-a"]["vCPUs"]["Limit"] == 0
+        assert result["cat-a"]["Memory"]["Limit"] == 0
