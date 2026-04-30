@@ -36,8 +36,8 @@ class BookingsService:
     def get_user_bookings(
         start_date: AwareDatetime,
         end_date: AwareDatetime,
-        payload,
-    ):
+        payload: dict,
+    ) -> list[dict]:
         # TODO: update code in isardvdi_common to recieve datetime objects directly, instead of recieving strings and parsing them
         start_date = start_date.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M%z")
         end_date = end_date.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M%z")
@@ -50,13 +50,13 @@ class BookingsService:
 
     @staticmethod
     def get_item_bookings(
-        payload,
+        payload: dict,
         start_date: AwareDatetime,
         end_date: AwareDatetime,
         item_type: Literal["desktop", "deployment"],
-        item_id,
+        item_id: str,
         return_type: Literal["all", "event", "availability"] = "all",
-    ):
+    ) -> list[dict] | dict:
         # TODO: update code in isardvdi_common to recieve datetime objects directly, instead of recieving strings and parsing them
         start_date = start_date.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M%z")
         end_date = end_date.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M%z")
@@ -71,7 +71,7 @@ class BookingsService:
         )
 
     @staticmethod
-    def create_booking_event(payload, new_event):
+    def create_booking_event(payload: dict, new_event) -> dict:
         # TODO: Evaluate if perhaps the desktop could also be started
         return CommonBookings.add(
             payload=payload,
@@ -84,7 +84,9 @@ class BookingsService:
         )
 
     @staticmethod
-    def update_booking_event(payload, booking_id, title, start, end):
+    def update_booking_event(
+        payload: dict, booking_id: str, title: str, start, end
+    ) -> dict:
         """Edit an existing booking event.
 
         Mirrors v3 ``BookingView.py:148-160``: forwards the new
@@ -101,7 +103,7 @@ class BookingsService:
         )
 
     @staticmethod
-    def delete_booking_event(booking_id):
+    def delete_booking_event(booking_id: str) -> None:
         """Delete an existing booking event.
 
         Mirrors v3 ``BookingView.py:135-147``: delegates to
@@ -112,7 +114,7 @@ class BookingsService:
         return CommonBookings.delete(booking_id=booking_id)
 
     @staticmethod
-    def get_user_priority_for_desktop(payload, desktop_id):
+    def get_user_priority_for_desktop(payload: dict, desktop_id: str) -> dict:
         """Compute the booking priority of ``payload`` for a desktop.
 
         Mirrors v3 ``BookingView.py:42-55``: combines the result of
@@ -129,46 +131,46 @@ class BookingsService:
         return {**priority, "name": desktop.get("name", "")}
 
     @staticmethod
-    def get_max_booking_date(payload, desktop_id):
+    def get_max_booking_date(payload: dict, desktop_id: str) -> dict:
         return CommonDesktop.check_max_booking_date(
             payload=payload,
             desktop_id=desktop_id,
         )
 
     @staticmethod
-    def get_all_bookings():
+    def get_all_bookings() -> list[dict]:
         return CommonBookings.get_all()
 
     @staticmethod
-    def get_users_priorities(rule_id):
+    def get_users_priorities(rule_id: str) -> list[dict]:
         return CommonBookings.get_users_priorities(rule_id)
 
     @staticmethod
-    def delete_users_priority(priority_id):
+    def delete_users_priority(priority_id: str) -> None:
         CommonBookings.delete_users_priority(priority_id)
 
     @staticmethod
-    def list_priority_rules():
+    def list_priority_rules() -> list[dict]:
         return CommonBookings.list_priority_rules()
 
     @staticmethod
-    def get_item_availability(payload, item_type, item_id):
+    def get_item_availability(payload: dict, item_type: str, item_id: str) -> dict:
         return ReservablesPlannerProccess.get_item_availability(
             payload, item_type, item_id, None, None
         )
 
     @staticmethod
-    def get_gpu_bookings_forecast():
+    def get_gpu_bookings_forecast() -> dict:
         return CommonBookings.get_booking_profile_count_within_one_hour()
 
     @staticmethod
-    def empty_planning(plan_id):
+    def empty_planning(plan_id: str) -> None:
         CommonBookings.empty_planning(plan_id)
 
     @staticmethod
-    def get_booking_plans(booking_id):
+    def get_booking_plans(booking_id: str) -> list[dict]:
         return CommonBookings.get_booking_plans(booking_id)
 
     @staticmethod
-    def get_available_reservables(payload):
+    def get_available_reservables(payload: dict) -> list[dict]:
         return ReservablesPlannerProccess.get_available_reservables(payload)
