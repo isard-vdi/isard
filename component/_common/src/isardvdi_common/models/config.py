@@ -159,6 +159,35 @@ class Config(RethinkCustomBase):
             return {}
 
     @classmethod
+    def get_backups_integrity_enabled(cls) -> bool | None:
+        """Read ``config[1].backups.integrity_enabled``.
+
+        Returns ``None`` when the field is unset — caller decides what
+        the default is (the apiv4 admin service uses
+        ``INTEGRITY_ENABLED_DEFAULT = False`` as a deployment-wide
+        opt-in). Going through ``get(1).default({})`` so a fresh deploy
+        with no config row doesn't 500.
+        """
+        with cls._rdb_context():
+            cfg = r.table(cls._rdb_table).get(1).run(cls._rdb_connection) or {}
+        value = (cfg.get("backups") or {}).get("integrity_enabled")
+        if value is None:
+            return None
+        return bool(value)
+
+    @classmethod
+    def set_backups_integrity_enabled(cls, value: bool) -> None:
+        """Persist ``config[1].backups.integrity_enabled = value``.
+
+        Clears the get_config cache after the write.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update(
+                {"backups": {"integrity_enabled": value}}
+            ).run(cls._rdb_connection)
+        cls.clear_get_config_cache()
+
+    @classmethod
     def enable_login_notification(cls, notification_type: str, enable: bool) -> None:
         """Toggle ``login.notification_<type>.enabled`` on/off.
 

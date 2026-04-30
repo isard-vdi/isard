@@ -6,9 +6,8 @@ aren't already exercised by ``routes/tests/test_admin_backups.py``:
 get/set pair. Route tests stub the service; these tests stub the DB.
 """
 
-import contextlib
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from api.services.admin.backups import (
@@ -60,61 +59,63 @@ class TestRetention:
 
 
 def _patch_rdb(monkeypatch, *, count, old_ids, delete_result=None):
-    """Stub the RethinkDB chain ``_cleanup_old_backups`` walks.
+    """Stub ``BackupsProcessed`` — the data-access boundary
+    ``_cleanup_old_backups`` now delegates to. Returns
+    ``(delete_many_mock, _)`` so existing call-count / call-args
+    assertions keep working with minimal churn.
 
-    Returns the ``delete`` mock so the test can assert call counts /
-    that ``get_all`` was passed the right ids.
+    ``delete_many_mock`` is invoked with the id list (a single tuple
+    arg). Tests that assert ``called_once_with(*ids)`` need to compare
+    against the raw list — see TestCleanupOldBackups.
     """
+    deleted_count = (delete_result or {"deleted": len(old_ids)}).get(
+        "deleted", len(old_ids)
+    )
+    delete_many_mock = MagicMock(return_value=deleted_count)
+
     monkeypatch.setattr(
-        "api.services.admin.backups.RethinkSharedConnection._rdb_context",
-        contextlib.nullcontext,
+        "api.services.admin.backups.BackupsProcessed.count",
+        classmethod(lambda cls: count),
     )
     monkeypatch.setattr(
-        "api.services.admin.backups.RethinkSharedConnection._rdb_connection",
-        MagicMock(),
+        "api.services.admin.backups.BackupsProcessed.list_old_ids",
+        classmethod(lambda cls, keep: list(old_ids)),
     )
-    delete_mock = MagicMock(return_value=delete_result or {"deleted": len(old_ids)})
-    table = MagicMock()
-    table.count.return_value.run.return_value = count
-    table.order_by.return_value.skip.return_value.pluck.return_value.run.return_value = [
-        {"id": i} for i in old_ids
-    ]
-    table.get_all.return_value.delete.return_value.run = delete_mock
-    monkeypatch.setattr("api.services.admin.backups.r.table", lambda _: table)
-    return delete_mock, table
+    monkeypatch.setattr(
+        "api.services.admin.backups.BackupsProcessed.delete_many",
+        classmethod(lambda cls, ids: delete_many_mock(ids)),
+    )
+    return delete_many_mock, None
 
 
 class TestCleanupOldBackups:
     def test_below_retention_no_delete(self, monkeypatch):
         """Nothing to do — total <= keep returns 0 without calling delete."""
         monkeypatch.setenv("BACKUP_RETENTION", "30")
-        delete, table = _patch_rdb(monkeypatch, count=10, old_ids=[])
+        delete, _ = _patch_rdb(monkeypatch, count=10, old_ids=[])
         assert AdminBackupsService._cleanup_old_backups() == 0
         delete.assert_not_called()
 
     def test_equal_to_retention_no_delete(self, monkeypatch):
         monkeypatch.setenv("BACKUP_RETENTION", "5")
-        delete, table = _patch_rdb(monkeypatch, count=5, old_ids=[])
+        delete, _ = _patch_rdb(monkeypatch, count=5, old_ids=[])
         assert AdminBackupsService._cleanup_old_backups() == 0
         delete.assert_not_called()
 
     def test_above_retention_deletes_skipped_rows(self, monkeypatch):
-        """``order_by(desc).skip(keep).pluck("id")`` enumerates the rows
-        beyond the keep window — only those ids must be deleted."""
+        """``BackupsProcessed.list_old_ids`` enumerates the rows beyond the
+        keep window — those ids must be passed verbatim to ``delete_many``.
+        """
         monkeypatch.setenv("BACKUP_RETENTION", "3")
-        delete, table = _patch_rdb(
+        delete, _ = _patch_rdb(
             monkeypatch, count=8, old_ids=["b6", "b7", "b8", "b9", "b10"]
         )
         AdminBackupsService._cleanup_old_backups()
-        delete.assert_called_once()
-        # ``get_all`` must receive the same id list (not a slice or
-        # re-ordering) — pin so a future refactor that drops .skip()
-        # in favor of slicing produces a clear failure.
-        table.get_all.assert_called_once_with("b6", "b7", "b8", "b9", "b10")
+        delete.assert_called_once_with(["b6", "b7", "b8", "b9", "b10"])
 
     def test_returns_count_from_delete(self, monkeypatch):
         monkeypatch.setenv("BACKUP_RETENTION", "2")
-        delete, table = _patch_rdb(
+        delete, _ = _patch_rdb(
             monkeypatch,
             count=5,
             old_ids=["a", "b", "c"],
@@ -129,19 +130,32 @@ class TestCleanupOldBackups:
 
 
 def _patch_config_read(monkeypatch, doc):
+    """Stub the ``Config`` boundary the service now goes through.
+
+    Returns ``(table_proxy, update_mock)`` for backwards-compatible
+    assertions; ``update_mock`` is what ``set_backups_integrity_enabled``
+    invokes under the hood.
+    """
+    # ``get_backups_integrity_enabled`` mimics the service's None-fallback
+    # behaviour: returns the stored integer/bool when present, ``None``
+    # otherwise. ``Config`` does the bool() coercion server-side, but to
+    # preserve test fidelity we return the raw value and let the service
+    # handle the coercion through bool(value) after the None check.
+    backups = (doc or {}).get("backups") if isinstance(doc, dict) else None
+    raw = (backups or {}).get("integrity_enabled") if backups else None
+    coerced = None if raw is None else bool(raw)
     monkeypatch.setattr(
-        "api.services.admin.backups.RethinkSharedConnection._rdb_context",
-        contextlib.nullcontext,
+        "api.services.admin.backups.Config.get_backups_integrity_enabled",
+        classmethod(lambda cls: coerced),
     )
+
+    update_mock = MagicMock()
     monkeypatch.setattr(
-        "api.services.admin.backups.RethinkSharedConnection._rdb_connection",
-        MagicMock(),
+        "api.services.admin.backups.Config.set_backups_integrity_enabled",
+        classmethod(lambda cls, value: update_mock(value)),
     )
-    table = MagicMock()
-    table.get.return_value.run.return_value = doc
-    update_mock = MagicMock(return_value={"replaced": 1})
-    table.get.return_value.update.return_value.run = update_mock
-    monkeypatch.setattr("api.services.admin.backups.r.table", lambda _: table)
+
+    table = MagicMock()  # legacy proxy; not used by the new tests
     return table, update_mock
 
 

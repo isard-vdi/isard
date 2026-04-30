@@ -23,11 +23,9 @@ import re
 from datetime import datetime
 from typing import Optional
 
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
 from isardvdi_common.helpers.error_factory import Error
-from rethinkdb import r
+from isardvdi_common.lib.backups.backups import BackupsProcessed
+from isardvdi_common.models.config import Config
 
 # Integrity check toggle. Stored at config[1].backups.integrity_enabled.
 # Off by default: borg check is an expensive full-repo verification, and we
@@ -67,21 +65,6 @@ def _normalize_times(item: dict) -> dict:
     return item
 
 
-def _client_timestamp_to_rdb(value: int | float | str | datetime) -> "r.RqlQuery":
-    """Accept Unix int/float/ISO string and return a ReQL time."""
-    if isinstance(value, (int, float)):
-        seconds = value / 1000 if value > 1e10 else value
-        return r.epoch_time(seconds)
-    if isinstance(value, str):
-        try:
-            return r.iso8601(value)
-        except Exception:
-            return r.now()
-    if hasattr(value, "isoformat"):
-        return r.iso8601(value.isoformat())
-    return r.now()
-
-
 def _normalize_check(check: dict | str) -> dict:
     if isinstance(check, dict) and "name" in check and "status" in check:
         return check
@@ -98,14 +81,7 @@ class AdminBackupsService:
         if limit is None:
             limit = _retention()
 
-        with RethinkSharedConnection._rdb_context():
-            result = list(
-                r.table("backups")
-                .order_by(r.desc("timestamp"))
-                .limit(limit)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-
+        result = BackupsProcessed.list_recent(limit)
         for item in result:
             _normalize_times(item)
         return result
@@ -113,11 +89,7 @@ class AdminBackupsService:
     @staticmethod
     def get_backup(backup_id: str, pluck: Optional[str] = None) -> dict:
         """Get a specific backup by ID."""
-        with RethinkSharedConnection._rdb_context():
-            query = r.table("backups").get(backup_id)
-            if pluck:
-                query = query.pluck(*pluck)
-            result = query.run(RethinkSharedConnection._rdb_connection)
+        result = BackupsProcessed.get(backup_id, pluck=list(pluck) if pluck else None)
 
         if not result:
             raise Error("not_found", "Backup not found")
@@ -153,19 +125,11 @@ class AdminBackupsService:
             ):
                 details["time_breakdown"] = {}
 
-        # Preserve the client-supplied timestamp as the authoritative backup
-        # time. Unix ints become RethinkDB datetimes so indexes and ordering
-        # work. ``received_at`` records the server receive time separately.
-        data["timestamp"] = _client_timestamp_to_rdb(data["timestamp"])
-        data["received_at"] = r.now()
-        data.setdefault("created_at", data["received_at"])
-
-        with RethinkSharedConnection._rdb_context():
-            result = (
-                r.table("backups")
-                .insert(data)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        # ``BackupsProcessed.insert`` coerces ``timestamp`` to a ReQL
+        # datetime and stamps ``received_at`` / ``created_at`` server-side
+        # so indexes and ordering work regardless of the client's clock
+        # format.
+        result = BackupsProcessed.insert(data)
 
         if result.get("inserted") != 1:
             raise Error("internal_server", "Failed to create backup record")
@@ -197,54 +161,26 @@ class AdminBackupsService:
         """Keep only the N most recent backup records (N = BACKUP_RETENTION)."""
         keep = _retention()
 
-        with RethinkSharedConnection._rdb_context():
-            total_count = (
-                r.table("backups").count().run(RethinkSharedConnection._rdb_connection)
-            )
-            if total_count <= keep:
-                return 0
+        if BackupsProcessed.count() <= keep:
+            return 0
 
-            old_ids = [
-                row["id"]
-                for row in r.table("backups")
-                .order_by(r.desc("timestamp"))
-                .skip(keep)
-                .pluck("id")
-                .run(RethinkSharedConnection._rdb_connection)
-            ]
-            if not old_ids:
-                return 0
-
-            result = (
-                r.table("backups")
-                .get_all(*old_ids)
-                .delete()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-            return result.get("deleted", 0)
+        old_ids = BackupsProcessed.list_old_ids(keep)
+        return BackupsProcessed.delete_many(old_ids)
 
     @staticmethod
     def get_integrity_enabled() -> bool:
         """Return the saved weekly-borg-integrity toggle (default off)."""
-        with RethinkSharedConnection._rdb_context():
-            cfg = (
-                r.table("config").get(1).run(RethinkSharedConnection._rdb_connection)
-                or {}
-            )
-        value = (cfg.get("backups") or {}).get("integrity_enabled")
+        value = Config.get_backups_integrity_enabled()
         if value is None:
             return INTEGRITY_ENABLED_DEFAULT
-        return bool(value)
+        return value
 
     @staticmethod
     def set_integrity_enabled(value: bool) -> dict:
         """Persist the weekly-borg-integrity toggle. Schemaless config write."""
         if not isinstance(value, bool):
             raise Error("bad_request", "integrity_enabled must be a boolean")
-        with RethinkSharedConnection._rdb_context():
-            r.table("config").get(1).update(
-                {"backups": {"integrity_enabled": value}}
-            ).run(RethinkSharedConnection._rdb_connection)
+        Config.set_backups_integrity_enabled(value)
         return {"integrity_enabled": value}
 
     @staticmethod
