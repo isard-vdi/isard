@@ -24,7 +24,6 @@ from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.domains.domains import DomainsProcessed
-from rethinkdb import r
 
 # Tables allowed for term search
 ALLOWED_TERM_TABLES = [
@@ -228,10 +227,7 @@ class AdminAllowedsService:
         elif table == "bastion_domains":
             AdminAllowedsService._update_bastion_domains_allowed(data, payload)
         else:
-            with ApiAdmin._rdb_context():
-                r.table(table).get(data["id"]).update({"allowed": data["allowed"]}).run(
-                    ApiAdmin._rdb_connection
-                )
+            Alloweds.update_item_allowed_dict(table, data["id"], data["allowed"])
 
             if table in UNASSIGN_ON_ALLOWED_UPDATE_TABLES:
                 AdminAllowedsService._handle_resource_unassignment(table, data, payload)
@@ -267,9 +263,10 @@ class AdminAllowedsService:
         """Handle unassigning resources from desktops/deployments after allowed update."""
         item = data
         if not data["allowed"].get("roles") or not data["allowed"].get("categories"):
-            with ApiAdmin._rdb_context():
-                item = r.table(table).get(data["id"]).run(ApiAdmin._rdb_connection)
-                item["allowed"].update(data["allowed"])
+            full_row = ApiAdmin.get_table_item(table, data["id"])
+            if full_row:
+                full_row["allowed"].update(data["allowed"])
+                item = full_row
         DomainsProcessed.unassign_resource_from_desktops_and_deployments(table, item)
 
     @staticmethod
@@ -279,31 +276,10 @@ class AdminAllowedsService:
         Resolves the allowed field and enriches it with names.
         """
         if table == "bastion":
-            with ApiAdmin._rdb_context():
-                config = (
-                    r.table("config")
-                    .get(1)
-                    .pluck({"bastion": "allowed"})
-                    .run(ApiAdmin._rdb_connection)
-                )
-            return Alloweds.get_allowed(config["bastion"]["allowed"])
+            return Alloweds.get_allowed(Alloweds.get_bastion_allowed_dict())
         elif table == "bastion_domains":
-            with ApiAdmin._rdb_context():
-                config = (
-                    r.table("config")
-                    .get(1)
-                    .pluck({"bastion": {"individual_domains": "allowed"}})
-                    .run(ApiAdmin._rdb_connection)
-                )
-            return Alloweds.get_allowed(
-                config["bastion"]["individual_domains"]["allowed"]
-            )
+            return Alloweds.get_allowed(Alloweds.get_bastion_domains_allowed_dict())
         else:
-            with ApiAdmin._rdb_context():
-                item = (
-                    r.table(table)
-                    .get(data["id"])
-                    .pluck("allowed")
-                    .run(ApiAdmin._rdb_connection)
-                )
-            return Alloweds.get_allowed(item["allowed"])
+            return Alloweds.get_allowed(
+                Alloweds.get_item_allowed_dict(table, data["id"])
+            )

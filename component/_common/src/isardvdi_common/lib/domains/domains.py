@@ -17,6 +17,24 @@ class DomainsProcessed(RethinkSharedConnection):
     _rdb_table = "domains"
 
     @classmethod
+    def get_user_id_by_desktop_id(cls, desktop_ids: list[str]) -> dict[str, str]:
+        """Map ``{desktop_id: user_id}`` for a batch of desktops.
+
+        Used by admin notify-queue endpoints to fan out per-user
+        notifications without N+1 queries. Desktops not present in the
+        DB are simply absent from the result map (the caller can decide
+        to skip or log).
+        """
+        with cls._rdb_context():
+            domains = list(
+                r.table("domains")
+                .get_all(r.args(desktop_ids), index="id")
+                .pluck("id", "user")
+                .run(cls._rdb_connection)
+            )
+        return {d["id"]: d["user"] for d in domains}
+
+    @classmethod
     def get_media_domains(cls, media_ids):
         """From api/libv2/api_storage.py get_media_domains()"""
         with cls._rdb_context():

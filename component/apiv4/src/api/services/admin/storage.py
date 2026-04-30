@@ -18,8 +18,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import traceback
-
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
@@ -75,31 +73,7 @@ class AdminStorageService:
     @staticmethod
     def delete_storage(storage_id: str) -> dict:
         """Mark a storage for deletion."""
-        from isardvdi_common.connections.rethink_connection_factory import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
-        with RethinkSharedConnection._rdb_context():
-            result = (
-                r.table("storage")
-                .get(storage_id)
-                .update({"status": "Deleting"})
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-            if result.get("skipped"):
-                raise Error(
-                    "not_found",
-                    f"Storage {storage_id} not found",
-                    description_code="storage_not_found",
-                )
-            if not result.get("replaced"):
-                raise Error(
-                    "internal_server",
-                    "Failed to mark storage for deletion",
-                    traceback.format_exc(),
-                    description_code="generic_error",
-                )
+        StorageProcessed.mark_delete(storage_id)
         return {}
 
     @staticmethod

@@ -658,3 +658,63 @@ class Alloweds(RethinkCustomBase):
     @classmethod
     def clear_get_allowed_groups_cache(cls):
         _get_allowed_groups_cache.clear()
+
+    @classmethod
+    def update_item_allowed_dict(cls, table: str, item_id: str, allowed: dict) -> None:
+        """Replace the ``allowed`` field of a row in ``table`` with the
+        given dict.
+
+        Companion to ``update_table_item_allowed`` (which takes a typed
+        ``AllowedUpdate`` model + does partial-key merging) — this one
+        takes a raw dict the caller has already shaped, used by the
+        admin endpoints that pass ``data["allowed"]`` straight through.
+        """
+        with cls._rdb_context():
+            r.table(table).get(item_id).update({"allowed": allowed}).run(
+                cls._rdb_connection
+            )
+
+    @classmethod
+    def get_item_allowed_dict(cls, table: str, item_id: str) -> dict:
+        """Read the ``allowed`` field of a row in ``table``.
+
+        Returns the raw dict (uses ``pluck("allowed")`` so we don't
+        round-trip the whole row). Caller is responsible for passing
+        through to ``Alloweds.get_allowed(...)`` for name enrichment.
+        """
+        with cls._rdb_context():
+            item = r.table(table).get(item_id).pluck("allowed").run(cls._rdb_connection)
+        return item.get("allowed", {}) if item else {}
+
+    @classmethod
+    def get_bastion_allowed_dict(cls) -> dict:
+        """Read ``config[id=1].bastion.allowed``.
+
+        Used by the admin /allowed endpoints to render the bastion-wide
+        allowed list. Returns ``{}`` when the field is missing (fresh
+        deployments before the bastion was first configured).
+        """
+        with cls._rdb_context():
+            config = (
+                r.table("config")
+                .get(1)
+                .pluck({"bastion": "allowed"})
+                .default({"bastion": {"allowed": {}}})
+                .run(cls._rdb_connection)
+            )
+        return config.get("bastion", {}).get("allowed", {})
+
+    @classmethod
+    def get_bastion_domains_allowed_dict(cls) -> dict:
+        """Read ``config[id=1].bastion.individual_domains.allowed``."""
+        with cls._rdb_context():
+            config = (
+                r.table("config")
+                .get(1)
+                .pluck({"bastion": {"individual_domains": "allowed"}})
+                .default({"bastion": {"individual_domains": {"allowed": {}}}})
+                .run(cls._rdb_connection)
+            )
+        return (
+            config.get("bastion", {}).get("individual_domains", {}).get("allowed", {})
+        )

@@ -180,3 +180,32 @@ class CategoriesProcessed(RethinkSharedConnection):
                 .pluck("id", "name", "username")
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def find_by_branding_domain(cls, domain: str) -> dict | None:
+        """Find a category whose ``branding.domain`` matches ``domain``.
+
+        Returns the first category whose ``branding.domain.name == domain``
+        AND ``branding.domain.enabled == True``, or ``None`` if no such
+        category exists. Used by the public-facing logo endpoint to
+        choose between deployment-default and per-category branding.
+
+        Returns plain dicts (id-only is enough for the caller to then
+        instantiate ``Category(id)`` and read the full branding payload
+        through the Category descriptor).
+        """
+        try:
+            with cls._rdb_context():
+                hits = list(
+                    r.table("categories")
+                    .filter(
+                        lambda cat: cat.has_fields({"branding": {"domain": True}})
+                        & (cat["branding"]["domain"]["name"] == domain)
+                        & (cat["branding"]["domain"]["enabled"] == True)
+                    )
+                    .limit(1)
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            return None
+        return hits[0] if hits else None

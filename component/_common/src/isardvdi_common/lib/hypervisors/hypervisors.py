@@ -568,6 +568,51 @@ class HypervisorsProcessed(RethinkSharedConnection):
             ).run(cls._rdb_connection)
 
     @classmethod
+    def update_hyper_boot_progress(cls, hyper_id: str, boot_progress: dict) -> None:
+        """Refresh ``hypervisors[hyper_id].boot_progress``.
+
+        Called from the hypervisor monitoring agents while a hypervisor
+        is booting through orchestration. The stored object is opaque
+        to apiv4 — it's a status payload the orchestrator reads.
+        """
+        with cls._rdb_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"boot_progress": boot_progress}
+            ).run(cls._rdb_connection)
+
+    @classmethod
+    def register_vlans(cls, vlans: list[str]) -> None:
+        """Insert/update ``interfaces`` bridge rows for VLANs discovered
+        on a hypervisor.
+
+        Idempotent (uses ``conflict="update"``). One ``interfaces`` row
+        per VLAN, named ``v<vlan>``, all admin-only by default. Called
+        from the hypervisor's bootstrap when it reports its bridge list
+        to apiv4.
+        """
+        with cls._rdb_context():
+            for vlan in vlans:
+                new_vlan = {
+                    "id": "v" + vlan,
+                    "name": "Vlan " + vlan,
+                    "description": "Infrastructure vlan",
+                    "ifname": "br-" + vlan,
+                    "kind": "bridge",
+                    "model": "virtio",
+                    "net": "br-" + vlan,
+                    "qos_id": False,
+                    "allowed": {
+                        "roles": ["admin"],
+                        "categories": False,
+                        "groups": False,
+                        "users": False,
+                    },
+                }
+                r.table("interfaces").insert(new_vlan, conflict="update").run(
+                    cls._rdb_connection
+                )
+
+    @classmethod
     def remove_hyper(cls, hyper_id, restart=True):
         try:
             with cls._rdb_context():

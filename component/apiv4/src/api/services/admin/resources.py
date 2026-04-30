@@ -18,13 +18,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_vpn import IsardVpn
-from rethinkdb import r
+from isardvdi_common.lib.api_admin import ApiAdmin
 
 
 class AdminResourcesService:
@@ -46,10 +43,7 @@ class AdminResourcesService:
                 "bad_request",
                 "QoS burst limit validation failed: " + "; ".join(errors),
             )
-        with RethinkSharedConnection._rdb_context():
-            r.table("qos_disk").insert(data).run(
-                RethinkSharedConnection._rdb_connection
-            )
+        ApiAdmin.insert_table_item("qos_disk", data)
         return {}
 
     @staticmethod
@@ -64,10 +58,7 @@ class AdminResourcesService:
                     "bad_request",
                     "QoS burst limit validation failed: " + "; ".join(errors),
                 )
-        with RethinkSharedConnection._rdb_context():
-            r.table("qos_disk").get(qos_disk_id).update(data).run(
-                RethinkSharedConnection._rdb_connection
-            )
+        ApiAdmin.update_table_item("qos_disk", data)
         return {}
 
     @staticmethod
