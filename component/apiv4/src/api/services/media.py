@@ -25,6 +25,7 @@ from urllib.parse import quote, urlparse
 from uuid import uuid4
 
 import requests
+from api.schemas.media import CreateMediaRequest
 from api.services.error import Error
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.helpers import Helpers
@@ -210,7 +211,7 @@ class MediaService:
         )
 
     @staticmethod
-    def create_media(media_data, payload: dict) -> str:
+    def create_media(media_data: CreateMediaRequest, payload: dict) -> str:
         """Create a new media item."""
         # Validate URL format
         url_str = str(media_data.url)

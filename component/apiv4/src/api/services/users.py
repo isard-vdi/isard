@@ -156,11 +156,11 @@ class UsersService:
         )
 
     @staticmethod
-    def get_user_vpn(user_id):
+    def get_user_vpn(user_id: str) -> dict:
         return IsardVpn.vpn_data("users", "config", False, user_id)
 
     @staticmethod
-    def reset_user_vpn(user_id):
+    def reset_user_vpn(user_id: str) -> None:
         return CommonUser.reset_vpn(user_id)
 
     @staticmethod
@@ -293,7 +293,7 @@ class UsersService:
         return CommonDesktops.get_desktop(desktop_id)
 
     @staticmethod
-    def get_user_vpn_data(kind: str, os, user_id: str) -> dict:
+    def get_user_vpn_data(kind: str, os: str | bool, user_id: str) -> dict:
         """
         Get VPN configuration data for a user.
         """

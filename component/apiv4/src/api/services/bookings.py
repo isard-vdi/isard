@@ -22,6 +22,7 @@
 from datetime import datetime, timezone
 from typing import Literal
 
+from api.schemas.bookings import CreateBookingEventRequest
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed as CommonBookings
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
 from isardvdi_common.lib.domains.desktops.desktops import (
@@ -71,7 +72,9 @@ class BookingsService:
         )
 
     @staticmethod
-    def create_booking_event(payload: dict, new_event) -> dict:
+    def create_booking_event(
+        payload: dict, new_event: CreateBookingEventRequest
+    ) -> dict:
         # TODO: Evaluate if perhaps the desktop could also be started
         return CommonBookings.add(
             payload=payload,
@@ -85,7 +88,7 @@ class BookingsService:
 
     @staticmethod
     def update_booking_event(
-        payload: dict, booking_id: str, title: str, start, end
+        payload: dict, booking_id: str, title: str, start: str, end: str
     ) -> dict:
         """Edit an existing booking event.
 

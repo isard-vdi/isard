@@ -296,7 +296,7 @@ class AdminCategoryService:
         return login_config
 
 
-def _strip_authentication_secrets(auth):
+def _strip_authentication_secrets(auth: dict) -> dict:
     """Strip sensitive keys from authentication config, replacing with _set booleans."""
     for provider_data in auth.values():
         if not isinstance(provider_data, dict):
@@ -310,7 +310,7 @@ def _strip_authentication_secrets(auth):
     return auth
 
 
-def _preserve_authentication_secrets(new_auth, existing_auth):
+def _preserve_authentication_secrets(new_auth: dict, existing_auth: dict) -> dict:
     """Preserve existing sensitive fields when the caller omitted or left them empty.
 
     For every provider in ``new_auth`` (e.g. ``ldap``, ``google``), walks each

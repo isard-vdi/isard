@@ -36,13 +36,13 @@ from rethinkdb import r
 
 
 def desktops_stop(
-    desktops_ids,
-    force=False,
-    include_shutting_down=True,
-    batch_size=20,
-    wait_seconds=1,
-    update_accessed=True,
-):
+    desktops_ids: list[str],
+    force: bool = False,
+    include_shutting_down: bool = True,
+    batch_size: int = 20,
+    wait_seconds: int = 1,
+    update_accessed: bool = True,
+) -> None:
     """Stop desktops by updating their status in RethinkDB."""
     action = "stop"
     try:
@@ -84,7 +84,7 @@ def desktops_stop(
         )
 
 
-def get_disks_ids_by_status(status=None):
+def get_disks_ids_by_status(status: str | None = None) -> list[str]:
     """Get storage IDs filtered by status."""
     with RethinkSharedConnection._rdb_context():
         query = r.table("storage")
@@ -102,7 +102,7 @@ def get_disks_ids_by_status(status=None):
         )
 
 
-def get_user_ready_disks(user_id):
+def get_user_ready_disks(user_id: str) -> list[dict]:
     """Get ready disks for a user."""
     with RethinkSharedConnection._rdb_context():
         query = (
@@ -136,7 +136,7 @@ def get_user_ready_disks(user_id):
         return list(query.run(RethinkSharedConnection._rdb_connection))
 
 
-def parse_disks(disks):
+def parse_disks(disks: list[dict]) -> list[dict]:
     """Parse disk data, extracting qemu-img-info and status_logs."""
     parsed_disks = []
     for disk in disks:
@@ -218,7 +218,7 @@ def check_task_priority(payload: dict, priority: str) -> str:
     return priority
 
 
-def check_task_retry(payload: dict, retry) -> int:
+def check_task_retry(payload: dict, retry: int | str | None) -> int:
     """Validate and return task retry count."""
     if payload["role_id"] != "admin" or retry is None:
         retry = 0
