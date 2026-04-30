@@ -43,6 +43,7 @@ from api.schemas.admin_notifications import (
 from api.schemas.common import DeleteResponse, EmptyResponse, ErrorResponse
 from api.services.admin_notifications import AdminNotificationService
 from api.services.error import Error
+from api.services.notifications import NotificationService
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
@@ -601,14 +602,40 @@ async def admin_get_user_notification_displays(
         )
 
 
-# NOTE: the four user-facing token_router endpoints that used to live
-# below — /notifications/status-bar, /notification/user/displays/{trigger},
-# /notification/user/{trigger}/{display}, and DELETE /notifications/expired —
-# were dead code: routes/notifications.py declares the same paths and is
-# imported BEFORE this module in api/__init__.py, so FastAPI's first-match
-# rule meant these handlers never received a request. Worse, the
-# ``get_status_bar_notification`` here passed ``request.token_payload["provider"]``
-# (a string) to a service that expects the full payload dict, and
-# ``get_user_notification_displays_by_trigger`` was at the wrong URL prefix
-# (vue 3 hits /items/notifications/user/...). Deleted in commit cleanup;
+# NOTE: three of the four user-facing token_router endpoints that used
+# to live below — /notifications/status-bar,
+# /notification/user/displays/{trigger}, and
+# /notification/user/{trigger}/{display} — were dead code: their
+# user-facing duplicates in routes/notifications.py shadow them via
+# FastAPI's first-match rule. They were deleted in commit cleanup;
 # coverage of the live endpoints lives in test_notifications.py.
+
+
+# =============================================================================
+# Expired-notifications cleanup (admin-only)
+# =============================================================================
+
+
+@admin_router.delete(
+    "/items/notifications/expired",
+    tags=[tag],
+    response_model=DeleteResponse,
+    summary="Delete expired user notifications data",
+    description="Deletes expired user notifications data.",
+)
+async def delete_expired_user_notifications_data(request: Request):
+    try:
+        NotificationService.delete_expired_notifications_data()
+        return DeleteResponse(
+            message="Expired notifications data deleted",
+            message_code="item.deleted",
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to delete expired user notifications data",
+            traceback.format_exc(),
+        )

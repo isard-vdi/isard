@@ -21,8 +21,8 @@
 import traceback
 from typing import Union
 
-from api import admin_router, token_router
-from api.schemas.common import DeleteResponse, ErrorResponse
+from api import token_router
+from api.schemas.common import ErrorResponse
 from api.schemas.notifications import (
     NotificationsUserDisplaysTriggerResponse,
     NotificationsUserTriggerDisplayFlatResponse,
@@ -158,30 +158,5 @@ async def get_user_notification_trigger_display_nested(
             request,
             "internal_server",
             "Failed to retrieve user trigger notifications (nested)",
-            traceback.format_exc(),
-        )
-
-
-@admin_router.delete(
-    "/items/notifications/expired",
-    tags=[tag],
-    response_model=DeleteResponse,
-    summary="Delete expired user notifications data",
-    description="Deletes expired user notifications data.",
-)
-async def delete_expired_user_notifications_data(request: Request):
-    try:
-        NotificationService.delete_expired_notifications_data()
-        return DeleteResponse(
-            message="Expired notifications data deleted",
-            message_code="item.deleted",
-        )
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            f"Failed to delete expired user notifications data",
             traceback.format_exc(),
         )
