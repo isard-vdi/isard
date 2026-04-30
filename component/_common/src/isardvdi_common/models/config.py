@@ -59,6 +59,20 @@ class Config(RethinkCustomBase):
         return config["user_migration"]
 
     @classmethod
+    def set_user_migration_config(cls, data: dict) -> dict:
+        """Replace the ``user_migration`` block in the config row.
+
+        Clears the ``get_config`` cache after the update so the next read
+        sees fresh data, and returns the post-update value.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update({"user_migration": data}).run(
+                cls._rdb_connection
+            )
+        cls.clear_get_config_cache()
+        return cls.get_user_migration_config()
+
+    @classmethod
     def get_provider_config(cls, provider: str):
         config = cls.get_config()
         if not config["auth"].get(provider):

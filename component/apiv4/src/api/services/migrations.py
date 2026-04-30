@@ -245,13 +245,7 @@ class MigrationService:
 
     @staticmethod
     def update_admin_migration_config(data: dict) -> dict:
-        from rethinkdb import r
-
-        with Config._rdb_context():
-            r.table("config").get(1).update({"user_migration": data}).run(
-                Config._rdb_connection
-            )
-        return Config.get_user_migration_config()
+        return Config.set_user_migration_config(data)
 
     @staticmethod
     def get_all_migrations() -> list[dict]:
