@@ -263,6 +263,7 @@ async def create_storage(
     "/item/storage/{storage_id}",
     tags=[tag],
     response_model=DeleteResponse,
+    status_code=202,
     summary="Delete a storage",
     description="Deletes a storage item and returns the task ID.",
     responses={
@@ -274,13 +275,10 @@ async def create_storage(
 async def delete_storage(request: Request, storage_id: str):
     try:
         task_id = StorageService.delete_storage(request.token_payload, storage_id)
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Task to delete storage queued",
-                message_code="item.queued",
-                tasks_ids=[task_id] if isinstance(task_id, str) else None,
-            ).model_dump(mode="json"),
-            status_code=202,
+        return DeleteResponse(
+            message="Task to delete storage queued",
+            message_code="item.queued",
+            tasks_ids=[task_id] if isinstance(task_id, str) else None,
         )
     except Error:
         raise

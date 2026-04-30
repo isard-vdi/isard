@@ -143,10 +143,7 @@ async def create_planning(
         plan_id = PlanningService.create_planning(
             request.token_payload, planning_data.model_dump()
         )
-        return JSONResponse(
-            content=SimpleResponse(id=plan_id).model_dump(mode="json"),
-            status_code=201,
-        )
+        return SimpleResponse(id=plan_id)
     except Error:
         raise
     except Exception as e:

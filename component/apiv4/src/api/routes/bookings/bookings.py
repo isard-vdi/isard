@@ -290,6 +290,7 @@ async def update_booking_event(
     "/item/booking/event",
     tags=[tag],
     response_model=BookingEventResponse,
+    status_code=201,
     summary="Create booking event",
     description="Creates a new booking event.",
     responses={
@@ -298,11 +299,8 @@ async def update_booking_event(
 )
 async def create_booking_event(request: Request, new_event: CreateBookingEventRequest):
     try:
-        return JSONResponse(
-            content=BookingEventResponse(
-                **BookingsService.create_booking_event(request.token_payload, new_event)
-            ).model_dump(mode="json"),
-            status_code=201,
+        return BookingEventResponse(
+            **BookingsService.create_booking_event(request.token_payload, new_event)
         )
     except Error:
         raise

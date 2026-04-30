@@ -37,7 +37,7 @@ from api.services.desktops import DesktopService
 from api.services.domains import DomainService
 from api.services.error import Error
 from fastapi import Body, Depends, Path, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from ...schemas.allowed import AllowedBase, AllowedResponse, AllowedUpdate
 from ...schemas.common import DeleteResponse, ErrorResponse, SimpleResponse
@@ -142,7 +142,9 @@ async def get_template_details(
         500: {"model": ErrorResponse},
     },
 )
-async def get_user_allowed_templates_flat(request: Request, kind: str):
+async def get_user_allowed_templates_flat(
+    request: Request, kind: Literal["all", "shared"]
+):
     try:
         templates = TemplateService.get_user_allowed_templates_flat(
             request.token_payload, kind
@@ -692,22 +694,19 @@ async def duplicate_template(
         500: {"model": ErrorResponse},
     },
 )
-async def delete_template(request: Request, template_id: str):
+async def delete_template(request: Request, response: Response, template_id: str):
     try:
         tasks = TemplateService.delete_template(request.token_payload, template_id)
         if tasks is None:
             return DeleteResponse(
                 message="Item sent to recycle bin", message_code="item.recycled"
             )
-        else:
-            return JSONResponse(
-                content=DeleteResponse(
-                    message="Task queued to delete template",
-                    message_code="item.queued",
-                    tasks_ids=[task["id"] for task in tasks],
-                ).model_dump(mode="json"),
-                status_code=202,
-            )
+        response.status_code = 202
+        return DeleteResponse(
+            message="Task queued to delete template",
+            message_code="item.queued",
+            tasks_ids=[task["id"] for task in tasks],
+        )
 
     except Error:
         raise

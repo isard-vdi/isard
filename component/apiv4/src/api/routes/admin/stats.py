@@ -30,6 +30,7 @@
 #     segments after /stats/, but we keep the defensive order for clarity)
 
 import traceback
+from typing import Literal
 
 from api import admin_router
 from api.schemas.admin_stats import (
@@ -225,7 +226,9 @@ async def stats_categories_deployments(request: Request):
     description="Returns category statistics for a specific kind and state.",
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_categories_kind_state(request: Request, kind: str, state: str):
+async def stats_categories_kind_state(
+    request: Request, kind: Literal["desktop", "template"], state: str
+):
     try:
         result = {"category": AdminStatsService.get_categories_kind_state(kind, state)}
         return result
@@ -247,7 +250,7 @@ async def stats_categories_kind_state(request: Request, kind: str, state: str):
     description="Returns category statistics for a specific kind (desktop, template).",
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_categories_kind(request: Request, kind: str):
+async def stats_categories_kind(request: Request, kind: Literal["desktop", "template"]):
     try:
         result = {"category": AdminStatsService.get_categories_kind_state(kind)}
         return result
