@@ -39,6 +39,7 @@ tag = "admin_alloweds"
 @token_router.post(
     "/admin/allowed/term/{table}",
     tags=[tag],
+    response_model=dict,
     summary="Search table items by term",
     description="Search for items in a table matching a term. "
     "Returns roles, categories, groups, and users matching a 2+ character term. "
@@ -60,12 +61,12 @@ async def alloweds_table_term(
         "media",
         "deployments",
     ] = Path(..., description="Table to search in"),
-):
+) -> dict:
     try:
         result = AdminAllowedsService.get_table_term(
             table, data.model_dump(exclude_none=True), request.token_payload
         )
-        return result
+        return result or {}
     except Error:
         raise
     except Exception as e:
@@ -122,6 +123,7 @@ async def admin_allowed_update(
 @token_router.post(
     "/allowed/table/{table}",
     tags=[tag],
+    response_model=dict,
     summary="Get allowed access list for a table item",
     description="Get the allowed access configuration for an item, "
     "enriched with names for roles, categories, groups, and users.",
@@ -134,10 +136,10 @@ async def allowed_table(
     request: Request,
     data: AllowedGetRequest,
     table: str = Path(..., description="Table containing the item"),
-):
+) -> dict:
     try:
         result = AdminAllowedsService.get_allowed_table(table, data.model_dump())
-        return result
+        return result or {}
     except Error:
         raise
     except Exception as e:
