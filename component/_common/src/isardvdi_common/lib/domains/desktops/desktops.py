@@ -1863,7 +1863,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 user_timeout_rule,
             )
             cutoff_time = timedelta(days=user_timeout_rule["cutoff_time"] * 30)
-            cutoff_timestamp = (datetime.now() - cutoff_time).timestamp()
+            cutoff_timestamp = (datetime.now(timezone.utc) - cutoff_time).timestamp()
             query = r.row["accessed"] < cutoff_timestamp
             if not from_deployments:
                 query = query & (r.row["tag"] == False)

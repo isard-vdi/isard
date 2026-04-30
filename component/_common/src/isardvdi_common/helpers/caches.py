@@ -17,12 +17,19 @@ class Caches(RethinkSharedConnection):
     cache = TTLCache(maxsize=5000, ttl=10)
 
     @classmethod
-    def get_document(cls, table, item_id, keys=[], invalidate=False):
+    def get_document(cls, table, item_id, keys=None, invalidate=False):
+        if keys is None:
+            keys = []
         try:
             if invalidate:
                 cls.invalidate_cache(table, item_id)
         except Exception as e:
-            pass
+            log.warning(
+                "Caches.get_document(%s, %s): cache invalidation failed: %s",
+                table,
+                item_id,
+                e,
+            )
         try:
             time_start = time()
             data = cls.get_cached(table, item_id)

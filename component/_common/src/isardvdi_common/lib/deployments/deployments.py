@@ -26,7 +26,7 @@ import os
 import time
 import traceback
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -1143,7 +1143,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
             if user_timeout_rule is False or user_timeout_rule["cutoff_time"] is None:
                 continue
             cutoff_time = timedelta(days=user_timeout_rule["cutoff_time"] * 30)
-            cutoff_timestamp = (datetime.now() - cutoff_time).timestamp()
+            cutoff_timestamp = (datetime.now(timezone.utc) - cutoff_time).timestamp()
             with cls._rdb_context():
                 user_deployments = list(
                     r.table("deployments")

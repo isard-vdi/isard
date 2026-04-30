@@ -3,7 +3,7 @@ import logging as log
 import os
 import time
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -518,7 +518,7 @@ class Helpers(RethinkSharedConnection):
         if not recycle_bin_categories_cuttoff_time:
             # Single query using status_accessed compound index
             cutoff_ts = (
-                datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+                datetime.now(timezone.utc) - timedelta(hours=recycle_bin_cuttoff_time)
             ).timestamp()
             with cls._rdb_context():
                 recycle_bin_entries = list(
@@ -537,7 +537,7 @@ class Helpers(RethinkSharedConnection):
                 queries = []
                 for category in recycle_bin_categories_cuttoff_time:
                     cutoff_ts = (
-                        datetime.now()
+                        datetime.now(timezone.utc)
                         - timedelta(hours=category["recycle_bin_cutoff_time"])
                     ).timestamp()
                     queries.append(
@@ -579,7 +579,8 @@ class Helpers(RethinkSharedConnection):
                     .filter(
                         r.row["accessed"]
                         < (
-                            datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+                            datetime.now(timezone.utc)
+                            - timedelta(hours=recycle_bin_cuttoff_time)
                         ).timestamp()
                     )
                     .pluck("id")["id"]
@@ -838,7 +839,12 @@ class Helpers(RethinkSharedConnection):
             return False
         else:
             max_time_hours = int(max_time_config)
-            return last < (datetime.now() - timedelta(hours=max_time_hours)).timestamp()
+            return (
+                last
+                < (
+                    datetime.now(timezone.utc) - timedelta(hours=max_time_hours)
+                ).timestamp()
+            )
 
     @classmethod
     @cached(cache=TTLCache(maxsize=1, ttl=60))

@@ -35,11 +35,16 @@ def notify_custom(event: str, data: dict | list, namespace: str, room: str):
     )
 
 
-def notify_user(user_id, type, msg_code, params={}):
+def notify_user(
+    user_id: str,
+    type: str,
+    msg_code: str,
+    params: dict | None = None,
+) -> None:
     data = {
         "type": type,
         "msg_code": msg_code,
-        "params": params,
+        "params": params or {},
     }
     socketio.emit(
         "msg",
@@ -71,13 +76,20 @@ def send_socket_user(event, data, user_id, room=None):
         )
 
 
-def notify_admin(user_id, title, description, notify_id="", type="info", params={}):
+def notify_admin(
+    user_id: str,
+    title: str,
+    description: str,
+    notify_id: str = "",
+    type: str = "info",
+    params: dict | None = None,
+) -> None:
     data = {
         "id": notify_id,
         "type": type,
         "title": title,
         "description": description,
-        "params": params,
+        "params": params or {},
     }
     socketio.emit(
         "msg",
@@ -87,11 +99,16 @@ def notify_admin(user_id, title, description, notify_id="", type="info", params=
     )
 
 
-def notify_desktop(desktop_id, type, msg_code, params={}):
+def notify_desktop(
+    desktop_id: str,
+    type: str,
+    msg_code: str,
+    params: dict | None = None,
+) -> None:
     data = {
         "type": type,
         "msg_code": msg_code,
-        "params": params,
+        "params": params or {},
     }
     socketio.emit(
         "msg",
@@ -115,17 +132,22 @@ def notify_broadcast(event: str, data: dict | list, namespace: str):
     )
 
 
-def notify_admins(event, data={}, category=None):
+def notify_admins(
+    event: str,
+    data: dict | None = None,
+    category: str | None = None,
+) -> None:
+    payload = data or {}
     socketio.emit(
         event,
-        json.dumps(data),
+        json.dumps(payload),
         namespace="/administrators",
         room="admins",
     )
     if category:
         socketio.emit(
             event,
-            json.dumps(data),
+            json.dumps(payload),
             namespace="/administrators",
             room=category,
         )

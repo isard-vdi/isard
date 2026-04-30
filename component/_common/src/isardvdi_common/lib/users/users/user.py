@@ -1733,9 +1733,9 @@ class UsersProcessed(RethinkSharedConnection):
             True
             if not user.get("password_last_updated")
             else (
-                datetime.fromtimestamp(user["password_last_updated"])
+                datetime.fromtimestamp(user["password_last_updated"], tz=timezone.utc)
                 + timedelta(days=policy["expiration"])
-                < datetime.now()
+                < datetime.now(timezone.utc)
             )
         )
 
