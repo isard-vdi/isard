@@ -196,3 +196,50 @@ class Config(RethinkCustomBase):
             except r.ReqlNonExistenceError:
                 config["template_name"] = "[DELETED]"
         return config["auth"].get(provider)
+
+    @classmethod
+    def get_admin_provider_config(cls, provider: str) -> dict:
+        """Fetch the provider sub-dict directly from ``config.auth.<provider>``.
+
+        Unlike :meth:`get_provider_config` (which goes through the cached
+        full-config read and resolves ``config.migration.notification_bar``),
+        this method reads the raw provider block and resolves the
+        provider's own ``migration.notification_bar.template_name`` from
+        the ``notification_tmpls`` table — used by the admin authentication
+        endpoint that surfaces the provider-config UI.
+
+        Raises ``not_found`` when the provider block is missing.
+        """
+        try:
+            with cls._rdb_context():
+                config = (
+                    r.table(cls._rdb_table)
+                    .get(1)["auth"][provider]
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            raise Error("not_found", "Provider config not found")
+        try:
+            with cls._rdb_context():
+                config["migration"]["notification_bar"]["template_name"] = (
+                    r.table("notification_tmpls")
+                    .get(config["migration"]["notification_bar"]["template"])["name"]
+                    .run(cls._rdb_connection)
+                )
+        except r.ReqlNonExistenceError:
+            config["template_name"] = "[DELETED]"
+        return config
+
+    @classmethod
+    def update_provider_config(cls, provider: str, data: dict) -> None:
+        """Merge ``data`` into ``config.auth.<provider>``.
+
+        Uses ``r.row["auth"][provider].merge(data)`` so existing fields
+        outside ``data`` are preserved. Clears the get_config cache after
+        the write; service-side caches must be cleared by the caller.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update(
+                {"auth": {provider: r.row["auth"][provider].merge(data)}}
+            ).run(cls._rdb_connection)
+        cls.clear_get_config_cache()

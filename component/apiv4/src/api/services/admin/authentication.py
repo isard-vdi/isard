@@ -24,12 +24,10 @@ from typing import Optional
 from api.services.error import Error
 from cachetools import TTLCache, cached
 from html_sanitizer import Sanitizer
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
 from isardvdi_common.helpers.caches import Caches
+from isardvdi_common.lib.users.users.authentication import UsersAuthenticationProcessed
 from isardvdi_common.lib.users.users.user_policies import UserPolicies
-from rethinkdb import r
+from isardvdi_common.models.config import Config
 
 
 def sanitize_href(href: str | None) -> str | None:
@@ -64,100 +62,51 @@ sanitizer = Sanitizer(
     }
 )
 
-provider_config_cache = TTLCache(maxsize=10, ttl=30)
+provider_config_cache: TTLCache = TTLCache(maxsize=10, ttl=30)
 
 
-class AdminAuthenticationService(RethinkSharedConnection):
-
-    _rdb_table = "authentication"
+class AdminAuthenticationService:
 
     # ── Policies ──────────────────────────────────────────────────────────
 
-    @classmethod
-    def add_policy(cls, data: dict) -> None:
+    @staticmethod
+    def add_policy(data: dict) -> None:
         if data.get("category") != "all" and data.get("disclaimer"):
             raise Error(
                 "bad_request",
                 "Disclaimer option only available for all categories",
             )
-        if not cls._check_duplicate_policy(
+        if UsersAuthenticationProcessed.has_duplicate_policy(
             data["category"], data["role"], data["type"]
         ):
             raise Error(
                 "conflict",
                 data["type"] + " policy for this category and role already exists",
             )
-        with cls._rdb_context():
-            r.table(cls._rdb_table).insert(data).run(cls._rdb_connection)
+        UsersAuthenticationProcessed.insert_policy(data)
 
-    @classmethod
-    def get_policies(cls) -> list:
-        with cls._rdb_context():
-            return list(
-                r.table(cls._rdb_table)
-                .merge(
-                    lambda policy: {
-                        "category_name": (
-                            r.branch(
-                                policy["category"] == "all",
-                                "all",
-                                r.table("categories")
-                                .get(policy["category"])
-                                .default({"name": "[DELETED]"})["name"],
-                            )
-                        )
-                    }
-                )
-                .run(cls._rdb_connection)
-            )
+    @staticmethod
+    def get_policies() -> list:
+        return UsersAuthenticationProcessed.list_policies_with_category_name()
 
-    @classmethod
-    def get_policy(cls, policy_id: str) -> dict:
-        with cls._rdb_context():
-            policy = r.table(cls._rdb_table).get(policy_id).run(cls._rdb_connection)
-        if policy is None:
-            # Without this every caller (delete_policy /
-            # force_policy_at_login / edit_policy) crashes with
-            # ``TypeError: 'NoneType' is not subscriptable`` and
-            # surfaces as a generic 500 instead of a typed 404.
-            raise Error(
-                "not_found",
-                f"Authentication policy {policy_id} not found",
-                description_code="auth_policy_not_found",
-            )
-        return policy
+    @staticmethod
+    def get_policy(policy_id: str) -> dict:
+        return UsersAuthenticationProcessed.get_policy(policy_id)
 
-    @classmethod
-    def edit_policy(cls, policy_id: str, data: dict) -> None:
-        with cls._rdb_context():
-            r.table(cls._rdb_table).get(policy_id).update(data).run(cls._rdb_connection)
+    @staticmethod
+    def edit_policy(policy_id: str, data: dict) -> None:
+        UsersAuthenticationProcessed.update_policy(policy_id, data)
 
-    @classmethod
-    def delete_policy(cls, policy_id: str) -> None:
-        policy = cls.get_policy(policy_id)
+    @staticmethod
+    def delete_policy(policy_id: str) -> None:
+        policy = UsersAuthenticationProcessed.get_policy(policy_id)
         if (
             policy["role"] == "all"
             and policy["category"] == "all"
             and policy["type"] == "local"
         ):
             raise Error("forbidden", "Can not delete default permissions")
-        with cls._rdb_context():
-            r.table(cls._rdb_table).get(policy_id).delete().run(cls._rdb_connection)
-
-    @classmethod
-    def _check_duplicate_policy(cls, category: str, role: str, type: str) -> bool:
-        with cls._rdb_context():
-            return (
-                len(
-                    list(
-                        r.table(cls._rdb_table)
-                        .get_all([category, role], index="category-role")
-                        .filter({"type": type})
-                        .run(cls._rdb_connection)
-                    )
-                )
-                <= 0
-            )
+        UsersAuthenticationProcessed.delete_policy(policy_id)
 
     # ── Providers ─────────────────────────────────────────────────────────
 
@@ -180,39 +129,24 @@ class AdminAuthenticationService(RethinkSharedConnection):
 
     # ── Force validate at login ───────────────────────────────────────────
 
-    @classmethod
-    def force_policy_at_login(cls, policy_id: str, policy_field: str) -> None:
-        policy = cls.get_policy(policy_id)
-        query = r.table("users").get_all(policy["type"], index="provider")
-        if policy["category"] != "all":
-            query = query.filter({"category": policy["category"]})
-        if policy["role"] != "all":
-            query = query.filter({"role": policy["role"]})
-        with cls._rdb_context():
-            query.update({policy_field: None}).run(cls._rdb_connection)
+    @staticmethod
+    def force_policy_at_login(policy_id: str, policy_field: str) -> None:
+        policy = UsersAuthenticationProcessed.get_policy(policy_id)
+        UsersAuthenticationProcessed.force_policy_at_login(policy, policy_field)
 
     # ── Disclaimer ────────────────────────────────────────────────────────
 
-    @classmethod
-    def get_disclaimer_template(cls, user_id: str) -> Optional[dict]:
-        with cls._rdb_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("role", "lang", "provider")
-                .run(cls._rdb_connection)
-            )
+    @staticmethod
+    def get_disclaimer_template(user_id: str) -> Optional[dict]:
+        user = UsersAuthenticationProcessed.get_user_disclaimer_fields(user_id)
         policy = UserPolicies.get_user_policy(
             "disclaimer", "all", user["role"], user["provider"], user_id
         )
         template_id = policy.get("template") if policy else None
         if template_id:
-            with cls._rdb_context():
-                disclaimer = (
-                    r.table("notification_tmpls")
-                    .get(template_id)
-                    .run(cls._rdb_connection)
-                )
+            disclaimer = UsersAuthenticationProcessed.get_notification_template(
+                template_id
+            )
             if disclaimer["lang"].get(user.get("lang")):
                 texts = disclaimer["lang"][user["lang"]]
                 return {
@@ -233,25 +167,10 @@ class AdminAuthenticationService(RethinkSharedConnection):
 
     # ── Provider config ───────────────────────────────────────────────────
 
-    @classmethod
+    @staticmethod
     @cached(provider_config_cache)
-    def get_provider_config(cls, provider: str) -> dict:
-        try:
-            with cls._rdb_context():
-                config = (
-                    r.table("config").get(1)["auth"][provider].run(cls._rdb_connection)
-                )
-        except Exception:
-            raise Error("not_found", "Provider config not found")
-        try:
-            with cls._rdb_context():
-                config["migration"]["notification_bar"]["template_name"] = (
-                    r.table("notification_tmpls")
-                    .get(config["migration"]["notification_bar"]["template"])["name"]
-                    .run(cls._rdb_connection)
-                )
-        except r.ReqlNonExistenceError:
-            config["template_name"] = "[DELETED]"
+    def get_provider_config(provider: str) -> dict:
+        config = Config.get_admin_provider_config(provider)
         # Strip secrets from response
         _PROVIDER_SENSITIVE_KEYS = ("password", "client_secret")
         for key, value in config.items():
@@ -260,8 +179,8 @@ class AdminAuthenticationService(RethinkSharedConnection):
                     value.pop(secret_key, None)
         return config
 
-    @classmethod
-    def update_provider_config(cls, provider: str, data: dict) -> None:
+    @staticmethod
+    def update_provider_config(provider: str, data: dict) -> None:
         # Validate URL schemes for redirect URLs
         from isardvdi_common.helpers.url_validation import validate_url_scheme
 
@@ -288,56 +207,30 @@ class AdminAuthenticationService(RethinkSharedConnection):
             if isinstance(data.get(provider), dict):
                 if key in data[provider] and not data[provider][key]:
                     del data[provider][key]
-        with cls._rdb_context():
-            r.table("config").get(1).update(
-                {"auth": {provider: r.row["auth"][provider].merge(data)}}
-            ).run(cls._rdb_connection)
+        Config.update_provider_config(provider, data)
         provider_config_cache.clear()
         Caches.clear_config_cache()
 
     # ── Migration exceptions ──────────────────────────────────────────────
 
-    @classmethod
-    def get_migrations_exceptions(cls) -> list:
-        with cls._rdb_context():
-            return list(
-                r.table("users_migrations_exceptions")
-                .merge(
-                    lambda exception: {
-                        "item_name": r.table(exception["item_type"]).get(
-                            exception["item_id"]
-                        )["name"]
-                    }
-                )
-                .run(cls._rdb_connection)
-            )
+    @staticmethod
+    def get_migrations_exceptions() -> list:
+        return UsersAuthenticationProcessed.list_migration_exceptions_with_item_name()
 
-    @classmethod
-    def add_migration_exception(cls, data: dict) -> None:
-        with cls._rdb_context():
-            existing_ids = set(
-                r.table("users_migrations_exceptions")
-                .get_all(*data["item_ids"], index="item_id")["item_id"]
-                .run(cls._rdb_connection)
+    @staticmethod
+    def add_migration_exception(data: dict) -> None:
+        existing_ids = (
+            UsersAuthenticationProcessed.get_existing_migration_exception_ids(
+                data["item_ids"]
             )
-        new_items = [
-            {
-                "item_type": data["item_type"],
-                "item_id": item_id,
-                "created_at": r.now(),
-            }
-            for item_id in data["item_ids"]
-            if item_id not in existing_ids
+        )
+        new_item_ids = [
+            item_id for item_id in data["item_ids"] if item_id not in existing_ids
         ]
-        if new_items:
-            with cls._rdb_context():
-                r.table("users_migrations_exceptions").insert(new_items).run(
-                    cls._rdb_connection
-                )
+        UsersAuthenticationProcessed.insert_migration_exceptions(
+            data["item_type"], new_item_ids
+        )
 
-    @classmethod
-    def delete_migration_exception(cls, exception_id: str) -> None:
-        with cls._rdb_context():
-            r.table("users_migrations_exceptions").get(exception_id).delete().run(
-                cls._rdb_connection
-            )
+    @staticmethod
+    def delete_migration_exception(exception_id: str) -> None:
+        UsersAuthenticationProcessed.delete_migration_exception(exception_id)
