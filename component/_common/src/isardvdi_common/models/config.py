@@ -124,6 +124,41 @@ class Config(RethinkCustomBase):
         return True
 
     @classmethod
+    def update_old_tasks(cls, updates: dict) -> None:
+        """Partial-update the ``old_tasks`` config block.
+
+        ``updates`` is a flat dict of keys to set inside ``old_tasks``
+        (e.g. ``{"older_than": 86400, "enabled": True}``). Other keys
+        in the existing ``old_tasks`` block are preserved.
+
+        Clears the get_config cache after the write.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update({"old_tasks": updates}).run(
+                cls._rdb_connection
+            )
+        cls.clear_get_config_cache()
+
+    @classmethod
+    def get_old_tasks_config(cls) -> dict:
+        """Read the ``old_tasks`` config block.
+
+        Returns an empty dict when the field is missing — callers fall
+        back to defaults rather than seeing the rdb error.
+        """
+        try:
+            with cls._rdb_context():
+                return (
+                    r.table(cls._rdb_table)
+                    .get(1)
+                    .get_field("old_tasks")
+                    .default({})
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            return {}
+
+    @classmethod
     def enable_login_notification(cls, notification_type: str, enable: bool) -> None:
         """Toggle ``login.notification_<type>.enabled`` on/off.
 
