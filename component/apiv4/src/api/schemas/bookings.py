@@ -26,6 +26,16 @@ from isardvdi_common.schemas.domains import DomainKindEnum
 from pydantic import AwareDatetime, BaseModel, Field, RootModel
 
 
+class BookingPriorityUser(BaseModel):
+    """One row of ``POST /items/bookings/priorities``."""
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+    username: Optional[str] = None
+    name: Optional[str] = None
+
+
 class CreateBookingEventRequest(BaseModel):
     """Request model for creating a booking event"""
 

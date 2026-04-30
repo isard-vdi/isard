@@ -101,6 +101,7 @@ async def vpn_connection_roam(
 @admin_router.delete(
     "/admin/vpn_connection/{kind}/{client_ip}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Disconnect a VPN client",
     description="Disconnects a specific VPN client.",
     responses={
@@ -110,10 +111,10 @@ async def vpn_connection_roam(
 )
 async def vpn_connection_disconnect(
     request: Request, kind: Literal["users", "hypers"], client_ip: str
-):
+) -> EmptyResponse:
     try:
-        result = AdminVpnService.active_client(kind, client_ip)
-        return result
+        AdminVpnService.active_client(kind, client_ip)
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
