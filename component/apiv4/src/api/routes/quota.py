@@ -1,4 +1,5 @@
 import traceback
+from typing import Literal
 
 from api import advanced_router, manager_router, token_router
 from api.dependencies.quotas import (
@@ -33,7 +34,9 @@ tag = "quota"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_quota_by_kind(request: Request, kind: str):
+async def admin_get_quota_by_kind(
+    request: Request, kind: Literal["user", "category", "group"]
+):
     try:
         result = QuotaService.get_max_quota(request.token_payload, kind)
         return JSONResponse(content=result, status_code=200)
@@ -63,7 +66,11 @@ async def admin_get_quota_by_kind(request: Request, kind: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_quota_by_kind_item(request: Request, kind: str, item_id: str):
+async def admin_get_quota_by_kind_item(
+    request: Request,
+    kind: Literal["user", "category", "group"],
+    item_id: str,
+):
     try:
         result = QuotaService.get_max_quota(request.token_payload, kind, item_id)
         return JSONResponse(content=result, status_code=200)

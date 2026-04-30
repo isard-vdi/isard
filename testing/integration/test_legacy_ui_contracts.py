@@ -476,6 +476,51 @@ def test_analytics_desktops_less_used_serialises_datetime(
         ), f"last_accessed must be ISO string or None, got {la!r}"
 
 
+# ---------------------------------------------------------------------------
+# Path-param Literal validation — pin the FastAPI 422-on-invalid contract.
+#
+# Routes whose path params take a known finite enum (e.g. nav,
+# quota kind, hypervisor status) must be typed as ``Literal[...]`` so
+# FastAPI rejects bogus values *before* the handler runs. Replaces a
+# manual ``if x not in (...): raise Error`` block in the service layer
+# with framework-level validation. Invalid values produce a clean 400
+# validation_error with structured detail, never a 500.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.real
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v4/admin/users/bogus/users",
+        "/api/v4/admin/users/bogus/groups",
+        "/api/v4/admin/users/bogus/categories",
+        "/api/v4/admin/quota/bogus",
+        "/api/v4/admin/hypervisors/bogus",
+    ],
+)
+def test_literal_path_param_rejects_invalid(admin_client: IsardClient, path: str):
+    """Invalid values for ``Literal``-typed path params (nav, quota
+    kind, hypervisor status) must 4xx with a structured validation
+    error, NOT 500. Pins that the route layer now does the
+    enumeration check (was a manual service-side block before)."""
+    resp = admin_client.raw("GET", path)
+    assert resp.status_code in (400, 422), (
+        f"{path}: expected 400 or 422 (literal validation), "
+        f"got {resp.status_code}; body={resp.text[:200]}"
+    )
+    body = resp.json()
+    assert isinstance(body, dict)
+    # Either FastAPI's default {"detail": [...]} or the apiv4 custom
+    # {"error": "validation_error", "details": [...]} envelope.
+    blob = body.get("description", "") + str(
+        body.get("details", body.get("detail", ""))
+    )
+    assert (
+        "literal" in blob.lower() or "input" in blob.lower()
+    ), f"{path}: expected literal-validation message, got {body!r}"
+
+
 @pytest.mark.real
 def test_analytics_suggested_removals_serialises_datetime(
     admin_client: IsardClient,

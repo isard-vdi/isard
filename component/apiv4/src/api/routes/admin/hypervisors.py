@@ -20,7 +20,7 @@
 
 import asyncio
 import traceback
-from typing import Optional
+from typing import Literal, Optional
 
 from api import admin_router
 from api.schemas.admin_hypervisors import (
@@ -94,7 +94,9 @@ async def admin_hypervisors_list(
 )
 async def admin_hypervisors_list_by_status(
     request: Request,
-    status: str = Path(..., description="Hypervisor status filter"),
+    status: Literal["Online", "Offline", "Error"] = Path(
+        ..., description="Hypervisor status filter"
+    ),
 ):
     try:
         result = AdminHypervisorsService.get_hypervisors(status)

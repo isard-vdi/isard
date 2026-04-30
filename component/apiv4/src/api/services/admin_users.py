@@ -501,17 +501,14 @@ class AdminUsersService:
 
     @staticmethod
     def list_groups_nav(payload, nav):
-        """List groups for a specific navigation context."""
-        # CommonUsers.admin_list_groups starts with ``query = []`` and only
-        # populates it for the recognised nav values; an unknown nav crashes
-        # downstream with ``'list' object has no attribute 'run'``. Reject
-        # invalid input here so the caller gets a clean 400.
-        if nav not in ("management", "quotas_limits"):
-            raise Error(
-                "bad_request",
-                f"Invalid nav '{nav}' (expected 'management' or 'quotas_limits')",
-                description_code="invalid_nav",
-            )
+        """List groups for a specific navigation context.
+
+        Route layer constrains ``nav`` via ``Literal[...]`` so an
+        invalid value 422s before reaching here. ``CommonUsers.admin_list_groups``
+        only handles ``management`` / ``quotas_limits`` and would crash
+        downstream with ``'list' object has no attribute 'run'`` on
+        anything else, so the route-level validation is load-bearing.
+        """
         category_id = (
             payload["category_id"] if payload["role_id"] == "manager" else None
         )
@@ -633,16 +630,13 @@ class AdminUsersService:
 
     @staticmethod
     def list_categories_nav(payload, nav):
-        """List categories for a specific navigation context."""
-        # Same shape bug as list_groups_nav: an unknown nav slips through
-        # to admin_list_categories and crashes with 'list'.run(). Validate
-        # up front.
-        if nav not in ("management", "quotas_limits"):
-            raise Error(
-                "bad_request",
-                f"Invalid nav '{nav}' (expected 'management' or 'quotas_limits')",
-                description_code="invalid_nav",
-            )
+        """List categories for a specific navigation context.
+
+        Route layer constrains ``nav`` via ``Literal[...]`` (FastAPI 422 on
+        invalid values). Mirror of ``list_groups_nav`` — the underlying
+        ``CommonUsers.admin_list_categories`` only handles the two known
+        values and crashes on anything else.
+        """
         category_id = (
             payload["category_id"] if payload["role_id"] == "manager" else None
         )
