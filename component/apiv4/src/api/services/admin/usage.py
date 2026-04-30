@@ -29,6 +29,9 @@ from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.usage.groupings import GroupingsUsageProcessed
+from isardvdi_common.lib.usage.limits import LimitsUsageProcessed, validate_usage_limits
+from isardvdi_common.lib.usage.parameters import ParametersUsageProcessed
 from rethinkdb import r
 
 
@@ -455,63 +458,19 @@ class AdminUsageService:
 
     @staticmethod
     def get_usage_parameters(ids=None):
-        with RethinkSharedConnection._rdb_context():
-            if ids:
-                return list(
-                    r.table("usage_parameter")
-                    .get_all(r.args(ids))
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-            else:
-                return list(
-                    r.table("usage_parameter").run(
-                        RethinkSharedConnection._rdb_connection
-                    )
-                )
+        return ParametersUsageProcessed.list_parameters(ids)
 
     @staticmethod
     def add_usage_parameters(data):
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_parameter").insert(
-                {
-                    "custom": data["custom"],
-                    "default": 0,
-                    "desc": data["desc"],
-                    "formula": data["formula"],
-                    "id": data["id"],
-                    "item_type": data["item_type"],
-                    "name": data["name"],
-                    "units": data["units"],
-                }
-            ).run(RethinkSharedConnection._rdb_connection)
-        return True
+        return ParametersUsageProcessed.create_parameter(data)
 
     @staticmethod
     def update_usage_parameters(data):
-        if data["custom"]:
-            with RethinkSharedConnection._rdb_context():
-                r.table("usage_parameter").get(data["id"]).update(data).run(
-                    RethinkSharedConnection._rdb_connection
-                )
-        else:
-            raise Error("forbidden", "Only custom parameters can be edited")
-        return True
+        return ParametersUsageProcessed.update_parameter(data)
 
     @staticmethod
     def delete_usage_parameters(parameter_id):
-        with RethinkSharedConnection._rdb_context():
-            result = (
-                r.table("usage_parameter")
-                .get(parameter_id)
-                .delete()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if result.get("deleted", 0) == 0:
-            raise Error(
-                "not_found",
-                "Parameter with ID " + parameter_id + " not found in database",
-            )
-        return True
+        return ParametersUsageProcessed.delete_parameter(parameter_id)
 
     # =========================================================================
     # LIMITS
@@ -519,68 +478,19 @@ class AdminUsageService:
 
     @staticmethod
     def get_usage_limits():
-        with RethinkSharedConnection._rdb_context():
-            return list(
-                r.table("usage_limit").run(RethinkSharedConnection._rdb_connection)
-            )
+        return LimitsUsageProcessed.list_limits()
 
     @staticmethod
     def add_usage_limits(name, desc, limits):
-        AdminUsageService._check_usage_limits(limits)
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_limit").insert(
-                {"name": name, "desc": desc, "limits": limits}
-            ).run(RethinkSharedConnection._rdb_connection)
-        return True
+        return LimitsUsageProcessed.create_limit(name, desc, limits)
 
     @staticmethod
     def update_usage_limits(limit_id, name, desc, limits):
-        AdminUsageService._check_usage_limits(limits)
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_limit").get(limit_id).update(
-                {"name": name, "desc": desc, "limits": limits}
-            ).run(RethinkSharedConnection._rdb_connection)
-        return True
+        return LimitsUsageProcessed.update_limit(limit_id, name, desc, limits)
 
     @staticmethod
     def delete_usage_limits(limit_id):
-        with RethinkSharedConnection._rdb_context():
-            result = (
-                r.table("usage_limit")
-                .get(limit_id)
-                .delete()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if result.get("deleted", 0) == 0:
-            raise Error(
-                "not_found",
-                "Limit with ID " + limit_id + " not found in database",
-            )
-        return True
-
-    @staticmethod
-    def _check_usage_limits(limits):
-        if not all(
-            [
-                limits["hard"] >= limits["exp_min"],
-                limits["hard"] >= limits["exp_max"],
-                limits["hard"] >= limits["soft"],
-            ]
-        ):
-            raise Error(
-                "bad_request",
-                "The hard limit must be higher than or equal to all other limit values.",
-            )
-        if not (limits["exp_max"] > limits["exp_min"]):
-            raise Error(
-                "bad_request",
-                "Expected maximum must be greater than the expected minimum",
-            )
-        if not (limits["soft"] > limits["exp_min"]):
-            raise Error(
-                "bad_request",
-                "Expected minimum can not be greater than the soft limit",
-            )
+        return LimitsUsageProcessed.delete_limit(limit_id)
 
     # =========================================================================
     # GROUPINGS
@@ -588,151 +498,27 @@ class AdminUsageService:
 
     @staticmethod
     def get_usage_groupings():
-        groupings = AdminUsageService._get_system_usage_groupings()
-        with RethinkSharedConnection._rdb_context():
-            groupings = groupings + list(
-                r.table("usage_grouping").run(RethinkSharedConnection._rdb_connection)
-            )
-        return groupings
-
-    @staticmethod
-    def _get_system_usage_groupings():
-        params = AdminUsageService._get_params()
-        groupings = []
-        for item_type in params.keys():
-            system_parameters = [
-                sp["id"] for sp in params[item_type] if not sp["custom"]
-            ]
-            custom_parameters = [cp["id"] for cp in params[item_type] if cp["custom"]]
-            groupings = groupings + [
-                {
-                    "id": "_all",
-                    "item_type": item_type,
-                    "item_sub_type": "all",
-                    "name": f"All {item_type} parameters",
-                    "desc": f"All {item_type} system and custom parameters",
-                    "parameters": system_parameters + custom_parameters,
-                },
-                {
-                    "id": "_system",
-                    "name": f"All {item_type} system parameters",
-                    "item_type": item_type,
-                    "item_sub_type": "system",
-                    "desc": f"All {item_type} system parameters",
-                    "parameters": system_parameters,
-                },
-                {
-                    "id": "_custom",
-                    "name": f"All {item_type} custom parameters",
-                    "item_type": item_type,
-                    "item_sub_type": "custom",
-                    "desc": f"All {item_type} custom parameters",
-                    "parameters": custom_parameters,
-                },
-            ]
-        return groupings
-
-    @staticmethod
-    def _get_params():
-        with RethinkSharedConnection._rdb_context():
-            params_list = list(
-                r.table("usage_parameter").run(RethinkSharedConnection._rdb_connection)
-            )
-        params = {}
-        for p in params_list:
-            if p["item_type"] not in params:
-                params[p["item_type"]] = []
-            params[p["item_type"]].append(p)
-        return params
+        return GroupingsUsageProcessed.list_groupings()
 
     @staticmethod
     def get_usage_groupings_dropdown():
-        params = AdminUsageService._get_params()
-        groupings = {"system": {}, "custom": {}}
-        for item_type in params:
-            system_parameters = [
-                sp["id"] for sp in params[item_type] if not sp["custom"]
-            ]
-            custom_parameters = [cp["id"] for cp in params[item_type] if cp["custom"]]
-            groupings["system"][item_type] = [
-                {
-                    "id": "_all",
-                    "name": f"All {item_type} parameters",
-                    "item_type": item_type,
-                    "desc": f"All {item_type} system and custom parameters",
-                    "parameters": system_parameters + custom_parameters,
-                },
-                {
-                    "id": "_system",
-                    "name": f"All {item_type} system parameters",
-                    "item_type": item_type,
-                    "desc": f"All {item_type} system parameters",
-                    "parameters": system_parameters,
-                },
-                {
-                    "id": "_custom",
-                    "name": f"All {item_type} custom parameters",
-                    "item_type": item_type,
-                    "desc": f"All {item_type} custom parameters",
-                    "parameters": custom_parameters,
-                },
-            ]
-            with RethinkSharedConnection._rdb_context():
-                groupings["custom"][item_type] = list(
-                    r.table("usage_grouping")
-                    .filter({"item_type": item_type})
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-        return groupings
+        return GroupingsUsageProcessed.get_groupings_dropdown()
 
     @staticmethod
     def get_usage_grouping(grouping_id):
-        with RethinkSharedConnection._rdb_context():
-            grouping = (
-                r.table("usage_grouping")
-                .get(grouping_id)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if not grouping:
-            groupings = AdminUsageService._get_system_usage_groupings()
-            matches = [g for g in groupings if g.get("id") == grouping_id]
-            if matches:
-                grouping = matches[0]
-            else:
-                raise Error("not_found", "Grouping not found")
-        return grouping
+        return GroupingsUsageProcessed.get_grouping(grouping_id)
 
     @staticmethod
     def add_usage_grouping(data):
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_grouping").insert(data).run(
-                RethinkSharedConnection._rdb_connection
-            )
-        return True
+        return GroupingsUsageProcessed.create_grouping(data)
 
     @staticmethod
     def update_usage_grouping(data):
-        with RethinkSharedConnection._rdb_context():
-            r.table("usage_grouping").get(data["id"]).update(data).run(
-                RethinkSharedConnection._rdb_connection
-            )
-        return True
+        return GroupingsUsageProcessed.update_grouping(data)
 
     @staticmethod
     def delete_usage_grouping(grouping_id):
-        with RethinkSharedConnection._rdb_context():
-            result = (
-                r.table("usage_grouping")
-                .get(grouping_id)
-                .delete()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if result.get("deleted", 0) == 0:
-            raise Error(
-                "not_found",
-                "Parameter grouping with ID " + grouping_id + " not found in database",
-            )
-        return True
+        return GroupingsUsageProcessed.delete_grouping(grouping_id)
 
     # =========================================================================
     # CREDITS
@@ -1003,7 +789,7 @@ class AdminUsageService:
             )
 
         if data.get("limits"):
-            AdminUsageService._check_usage_limits(data["limits"])
+            validate_usage_limits(data["limits"])
 
         with RethinkSharedConnection._rdb_context():
             r.table("usage_credit").get(credit_id).update(data).run(
