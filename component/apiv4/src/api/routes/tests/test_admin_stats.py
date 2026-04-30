@@ -82,7 +82,6 @@ class TestStatusEndpoints:
                 lambda: {
                     "desktop": {"Started": 1},
                     "template": {},
-                    "server": {},
                 }
             ),
         )
@@ -91,6 +90,7 @@ class TestStatusEndpoints:
         )
         assert response.status_code == 200
         assert response.json()["desktop"] == {"Started": 1}
+        assert response.json()["template"] == {}
 
     def test_category_status(self, monkeypatch, test_client):
         monkeypatch.setattr(

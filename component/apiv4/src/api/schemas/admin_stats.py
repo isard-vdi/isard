@@ -18,9 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Optional
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # -- /stats/{kind} per-kind response models --
 
@@ -98,6 +96,5 @@ class StatsCategoriesDeploymentsResponse(BaseModel):
 
 
 class StatsDomainsStatusResponse(BaseModel):
-    desktop: Optional[dict[str, int]] = None
-    template: Optional[dict[str, int]] = None
-    server: Optional[dict[str, int]] = None
+    desktop: dict[str, int] = Field(default_factory=dict)
+    template: dict[str, int] = Field(default_factory=dict)
