@@ -191,6 +191,54 @@ class DomainsProcessed(RethinkSharedConnection):
             )
 
     @classmethod
+    def list_webapp_desktops_for_user(cls, user_id: str) -> list[dict]:
+        """Return the legacy webapp's desktop list for ``user_id``.
+
+        Strips fields the webapp never renders (``xml``,
+        ``history_domain``, ``allowed``) and orders by ``name`` so the
+        UI doesn't have to. Caller filters out hidden tags.
+        """
+        with cls._rdb_context():
+            return list(
+                r.table("domains")
+                .get_all(["desktop", user_id], index="kind_user")
+                .order_by("name")
+                .without("xml", "history_domain", "allowed")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def list_webapp_templates_for_user(cls, user_id: str) -> list[dict]:
+        """Return the legacy webapp's template list for ``user_id``.
+
+        Strips fields the webapp never renders (``viewer``, ``xml``,
+        ``history_domain``).
+        """
+        with cls._rdb_context():
+            return list(
+                r.table("domains")
+                .get_all(["template", user_id], index="kind_user")
+                .without("viewer", "xml", "history_domain")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def get_status_and_scheduled(cls, domain_id: str) -> dict | None:
+        """Return ``{status, scheduled}`` for ``domain_id`` (or ``None``).
+
+        Read by the desktop-timeout extension path; only those two
+        fields are needed to validate the precondition before
+        re-arming the scheduler.
+        """
+        with cls._rdb_context():
+            return (
+                r.table("domains")
+                .get(domain_id)
+                .pluck("status", "scheduled")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     def list_templates_for_admin(
         cls, fields: list[str], category_id: str | None = None
     ) -> list[dict]:

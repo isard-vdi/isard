@@ -35,17 +35,10 @@ from isardvdi_common.lib.usage.desktop import DesktopUsageProcessed
 from .common import get_abs_consumptions, get_params_item_type_custom, securize_eval
 from .consolidate import ConsolidateConsumption
 
-## Data comes from logs_desktops table
-## Dates in logs_desktops are in UTC, so we need to filter also in utc
-## This launched during 2023-06-20 will get data from 2023-06-19 00:00:00 to 2023-06-20 00:00:00 (not included)
-# date = r.iso8601("2023-06-19T23:00:00+00:00").run(dbconn)
-# r.table("tests").insert([{"date": date}]).run(dbconn)
-# today = get_relative_date(0)
-# yesterday = get_relative_date(-1)
-# data_today = len(
-#     list(r.table("tests").between(yesterday, today, index="date").run(dbconn))
-# )
-
+# Data comes from logs_desktops; dates are stored in UTC so the
+# consolidator's between/filter clauses also use UTC. A run on
+# 2023-06-20 covers 2023-06-19 00:00:00 to 2023-06-20 00:00:00
+# exclusive of the right edge.
 CONSUMERS = {
     "user": "owner_user_id",
     "group": "owner_group_id",
