@@ -399,3 +399,106 @@ def test_items_bastions(admin_client: IsardClient):
         403,
         404,
     ), f"items/bastions: unexpected {resp.status_code}; body={resp.text[:200]}"
+
+
+# ---------------------------------------------------------------------------
+# Analytics endpoints emitting datetime fields — pin auto-serialisation path.
+#
+# These routes consume the FastAPI ``return result`` pattern (no
+# ``JSONResponse(content=...)``) so ``jsonable_encoder`` handles the
+# rethinkdb ``datetime`` → ISO-8601 conversion. Re-introducing
+# ``JSONResponse(content=...)`` here would silently 500 on the first
+# non-empty result, so the contract is: the endpoint MUST return 200
+# AND any ``last_accessed`` field MUST be a string (or ``None``), never
+# a stray dict / object that would indicate datetime leaked through.
+# ---------------------------------------------------------------------------
+
+
+def _is_iso_datetime_or_none(value) -> bool:
+    if value is None:
+        return True
+    if not isinstance(value, str):
+        return False
+    # ISO-8601 produced by `datetime.isoformat()` always begins with a
+    # 4-digit year. We don't fully parse it here — the goal is to catch
+    # accidental dict / object leakage, not validate the calendar.
+    return len(value) >= 10 and value[4] == "-" and value[7] == "-"
+
+
+@pytest.mark.real
+def test_analytics_desktops_recently_used_serialises_datetime(
+    admin_client: IsardClient,
+):
+    """``POST /analytics/desktops/recently_used`` returns rows whose
+    ``last_accessed`` is materialised by ``r.epoch_time(...)``. Pins
+    that the route uses FastAPI auto-serialisation so the wire shape
+    is a JSON string, not a Python datetime that would 500."""
+    resp = admin_client.raw(
+        "POST",
+        "/api/v4/analytics/desktops/recently_used",
+        json={"days_before": 30, "limit": 5},
+    )
+    assert resp.status_code == 200, (
+        f"recently_used: expected 200, got {resp.status_code}; "
+        f"body={resp.text[:200]}"
+    )
+    rows = resp.json()
+    assert isinstance(rows, list)
+    for row in rows:
+        la = row.get("last_accessed")
+        assert _is_iso_datetime_or_none(la), (
+            f"last_accessed must be ISO string or None, got {la!r} "
+            f"({type(la).__name__})"
+        )
+
+
+@pytest.mark.real
+def test_analytics_desktops_less_used_serialises_datetime(
+    admin_client: IsardClient,
+):
+    """``POST /analytics/desktops/less_used`` — same shape pin as
+    recently_used. Also runs r.epoch_time over ``logs_desktops`` /
+    ``domains.accessed``; same datetime field name."""
+    resp = admin_client.raw(
+        "POST",
+        "/api/v4/analytics/desktops/less_used",
+        json={"days_before": 1, "limit": 5},
+    )
+    assert resp.status_code == 200, (
+        f"less_used: expected 200, got {resp.status_code}; " f"body={resp.text[:200]}"
+    )
+    rows = resp.json()
+    assert isinstance(rows, list)
+    for row in rows:
+        la = row.get("last_accessed")
+        assert _is_iso_datetime_or_none(
+            la
+        ), f"last_accessed must be ISO string or None, got {la!r}"
+
+
+@pytest.mark.real
+def test_analytics_suggested_removals_serialises_datetime(
+    admin_client: IsardClient,
+):
+    """``POST /analytics/suggested_removals`` returns
+    ``{empty_deployments, unused_desktops: {size, desktops: [...]}}``.
+    Each desktop in ``unused_desktops.desktops`` carries a
+    ``last_accessed`` field via the same ``r.epoch_time(...)`` path."""
+    resp = admin_client.raw(
+        "POST",
+        "/api/v4/analytics/suggested_removals",
+        json={"months_without_use": 0},
+    )
+    assert resp.status_code == 200, (
+        f"suggested_removals: expected 200, got {resp.status_code}; "
+        f"body={resp.text[:200]}"
+    )
+    body = resp.json()
+    assert isinstance(body, dict)
+    unused = body.get("unused_desktops") or {}
+    desktops = unused.get("desktops") or []
+    for row in desktops:
+        la = row.get("last_accessed")
+        assert _is_iso_datetime_or_none(
+            la
+        ), f"last_accessed must be ISO string or None, got {la!r}"

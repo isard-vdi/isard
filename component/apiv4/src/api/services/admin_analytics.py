@@ -483,15 +483,7 @@ class AdminAnalyticsService:
             query = query.limit(limit)
 
         with RethinkSharedConnection._rdb_context():
-            rows = list(query.run(RethinkSharedConnection._rdb_connection))
-        # Same datetime-serialisation fix as get_desktops_recently_used —
-        # ``last_accessed`` is materialised by ``r.epoch_time`` and lands here
-        # as a Python ``datetime``.
-        for row in rows:
-            la = row.get("last_accessed")
-            if la is not None and hasattr(la, "isoformat"):
-                row["last_accessed"] = la.isoformat()
-        return rows
+            return list(query.run(RethinkSharedConnection._rdb_connection))
 
     @staticmethod
     def get_desktops_recently_used(
@@ -564,17 +556,7 @@ class AdminAnalyticsService:
             query = query.limit(limit)
 
         with RethinkSharedConnection._rdb_context():
-            rows = list(query.run(RethinkSharedConnection._rdb_connection))
-        # ``last_accessed`` is materialised by ``r.epoch_time(...)`` which
-        # rethinkdb returns as a Python ``datetime``. ``json.dumps`` (used by
-        # FastAPI's ``JSONResponse``) doesn't handle datetimes, so the route
-        # would 500 on any non-empty result. Normalise to ISO-8601 here so
-        # the wire shape is a string the frontend can parse.
-        for row in rows:
-            la = row.get("last_accessed")
-            if la is not None and hasattr(la, "isoformat"):
-                row["last_accessed"] = la.isoformat()
-        return rows
+            return list(query.run(RethinkSharedConnection._rdb_connection))
 
     @staticmethod
     def get_desktops_most_used(

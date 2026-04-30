@@ -122,7 +122,7 @@ async def analytics_suggested_removals(
         result = AdminAnalyticsService.suggested_removals(
             categories, months_without_use=data.months_without_use
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -282,7 +282,7 @@ async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsR
             data.not_in_directory_path,
             data.status or False,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -311,7 +311,7 @@ async def analytics_desktops_recently_used(
             data.not_in_directory_path,
             data.status or False,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
