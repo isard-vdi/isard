@@ -599,3 +599,14 @@ class DeploymentEditUsersRequest(BaseModel):
     allowed: dict = Field(
         description="Allowed users and groups dict with keys: groups (list|false), users (list|false)"
     )
+
+
+class ToggleVisibilityRequest(BaseModel):
+    """Optional body for /item/deployment/{id}/toggle-visibility.
+
+    Vue 2 sends ``{"stop_started_domains": bool}`` so the user can
+    pick whether hiding a deployment also stops its Started desktops;
+    Vue 3 may PUT with no body. Default to True (apiv3 contract).
+    """
+
+    stop_started_domains: bool = True

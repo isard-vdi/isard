@@ -290,6 +290,21 @@ class AdminDomainsService:
             ).run(ApiAdmin._rdb_connection)
         clear_domains_field_cache()
 
+    @staticmethod
+    def apply_xml_section_edits(domain_id, sections, protected):
+        """Merge edited xml sections into the domain xml and persist.
+
+        Composed helper so the route doesn't have to chain
+        get_domain_xml_and_protected + merge_xml_sections + save itself.
+        Returns the rebuilt full xml.
+        """
+        from api.services.xml_sections import merge_xml_sections
+
+        domain = AdminDomainsService.get_domain_xml_and_protected(domain_id)
+        new_xml = merge_xml_sections(domain["xml"], sections)
+        AdminDomainsService.save_domain_xml_sections(domain_id, new_xml, protected)
+        return new_xml
+
     # ── Template Tree ────────────────────────────────────────────────────
 
     @staticmethod

@@ -55,6 +55,7 @@ from api.schemas.deployments import (
     DeploymentResponse,
     OwnedDeploymentsResponse,
     SharedDeploymentsResponse,
+    ToggleVisibilityRequest,
     UserDeploymentResponse,
 )
 from api.schemas.domains.desktops import DesktopDetailsResponse
@@ -342,19 +343,11 @@ async def stop_user_desktops_in_deployment(
 async def toggle_deployment_visibility(
     deployment_id: str,
     request: Request,
+    body: ToggleVisibilityRequest | None = None,
     owns_deployment_id=Depends(owns_deployment_id()),
 ):
     try:
-        # Vue 2 sends {"stop_started_domains": bool} so the user can choose
-        # whether hiding a deployment also stops its Started desktops.
-        # Request body is optional (Vue 3 may PUT with no body); default to
-        # True to match the apiv3 contract.
-        body = {}
-        try:
-            body = await request.json()
-        except Exception:
-            pass
-        stop_started_domains = bool(body.get("stop_started_domains", True))
+        stop_started_domains = body.stop_started_domains if body is not None else True
         DeploymentService.toggle_visibility(deployment_id, stop_started_domains)
         return SimpleResponse(id=deployment_id)
     except Error:

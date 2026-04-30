@@ -26,7 +26,7 @@ from api import admin_router
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin_downloads import AdminDownloadsService
 from api.services.error import Error
-from fastapi import Path, Request
+from fastapi import Body, Path, Request
 from fastapi.responses import JSONResponse
 
 tag = "admin_downloads"
@@ -199,9 +199,9 @@ async def admin_downloads_action_id(
     action: str = Path(..., description="Action: download, abort, delete"),
     kind: str = Path(..., description="Download kind"),
     id: str = Path(..., description="Item ID"),
+    body: Optional[dict] = Body(default=None),
 ):
     try:
-        body = await request.json() if await request.body() else None
         # Same threadpool offload as the no-id variant; the registry
         # download path also calls Storage / Scheduler synchronously.
         await asyncio.to_thread(
