@@ -7,7 +7,11 @@ import traceback
 
 from api import token_router
 from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
-from api.schemas.user_networks import CreateUserNetworkRequest, UpdateUserNetworkRequest
+from api.schemas.user_networks import (
+    CreateUserNetworkRequest,
+    UpdateUserNetworkRequest,
+    UserNetworkResponse,
+)
 from api.services.error import Error
 from api.services.user_networks import UserNetworkService
 from fastapi import Request
@@ -24,14 +28,15 @@ tag = "user_networks"
 @token_router.get(
     "/item/user/networks",
     tags=[tag],
+    response_model=list[UserNetworkResponse],
     summary="List user networks",
     description="Returns all networks accessible to the current user.",
     responses={500: {"model": ErrorResponse}},
 )
-async def list_user_networks(request: Request):
+async def list_user_networks(request: Request) -> list[UserNetworkResponse]:
     try:
         networks = UserNetworkService.get_user_networks(request.token_payload)
-        return networks
+        return [UserNetworkResponse(**n) for n in (networks or [])]
     except Error:
         raise
     except Exception:
@@ -46,6 +51,7 @@ async def list_user_networks(request: Request):
 @token_router.get(
     "/item/user/networks/{network_id}",
     tags=[tag],
+    response_model=UserNetworkResponse,
     summary="Get a user network",
     description="Returns a specific user network by ID.",
     responses={
@@ -54,10 +60,10 @@ async def list_user_networks(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def get_user_network(request: Request, network_id: str):
+async def get_user_network(request: Request, network_id: str) -> UserNetworkResponse:
     try:
         network = UserNetworkService.get_user_network(network_id, request.token_payload)
-        return network
+        return UserNetworkResponse(**(network or {}))
     except Error:
         raise
     except Exception:
@@ -72,6 +78,7 @@ async def get_user_network(request: Request, network_id: str):
 @token_router.post(
     "/item/user/networks",
     tags=[tag],
+    response_model=UserNetworkResponse,
     summary="Create a user network",
     description="Creates a new user network with the given parameters.",
     responses={
@@ -79,10 +86,12 @@ async def get_user_network(request: Request, network_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def create_user_network(request: Request, data: CreateUserNetworkRequest):
+async def create_user_network(
+    request: Request, data: CreateUserNetworkRequest
+) -> UserNetworkResponse:
     try:
         network = UserNetworkService.create_user_network(data, request.token_payload)
-        return network
+        return UserNetworkResponse(**(network or {}))
     except Error:
         raise
     except Exception:
@@ -97,6 +106,7 @@ async def create_user_network(request: Request, data: CreateUserNetworkRequest):
 @token_router.put(
     "/item/user/networks/{network_id}",
     tags=[tag],
+    response_model=UserNetworkResponse,
     summary="Update a user network",
     description="Updates an existing user network. Only the owner, manager, or admin can update.",
     responses={
@@ -107,12 +117,12 @@ async def create_user_network(request: Request, data: CreateUserNetworkRequest):
 )
 async def update_user_network(
     request: Request, network_id: str, data: UpdateUserNetworkRequest
-):
+) -> UserNetworkResponse:
     try:
         network = UserNetworkService.update_user_network(
             network_id, data, request.token_payload
         )
-        return network
+        return UserNetworkResponse(**(network or {}))
     except Error:
         raise
     except Exception:
