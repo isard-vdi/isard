@@ -22,7 +22,11 @@ import traceback
 from typing import Optional
 
 from api import admin_router
-from api.schemas.admin.resources import QosDiskCreateRequest, QosDiskUpdateRequest
+from api.schemas.admin.resources import (
+    QosDiskCreateRequest,
+    QosDiskUpdateRequest,
+    RemoteVpnResponse,
+)
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.resources import AdminResourcesService
 from api.services.error import Error
@@ -40,6 +44,7 @@ tag = "admin_resources"
 @admin_router.get(
     "/remote_vpn/{vpn_id}/{kind}/{os}",
     tags=[tag],
+    response_model=RemoteVpnResponse,
     summary="Get remote VPN data with OS",
     description="Get remote VPN configuration or installation data for a specific OS.",
     responses={
@@ -52,10 +57,12 @@ async def admin_remote_vpn_with_os(
     vpn_id: str = Path(..., description="VPN ID"),
     kind: str = Path(..., description="VPN data kind: config or install"),
     os: str = Path(..., description="Operating system"),
-):
+) -> RemoteVpnResponse:
     try:
         result = AdminResourcesService.get_remote_vpn(vpn_id, kind, os)
-        return result
+        if isinstance(result, dict):
+            return RemoteVpnResponse(**result)
+        return RemoteVpnResponse()
     except Error:
         raise
     except Exception:
@@ -70,6 +77,7 @@ async def admin_remote_vpn_with_os(
 @admin_router.get(
     "/remote_vpn/{vpn_id}/{kind}",
     tags=[tag],
+    response_model=RemoteVpnResponse,
     summary="Get remote VPN data",
     description="Get remote VPN configuration data.",
     responses={
@@ -81,10 +89,12 @@ async def admin_remote_vpn(
     request: Request,
     vpn_id: str = Path(..., description="VPN ID"),
     kind: str = Path(..., description="VPN data kind: config or install"),
-):
+) -> RemoteVpnResponse:
     try:
         result = AdminResourcesService.get_remote_vpn(vpn_id, kind)
-        return result
+        if isinstance(result, dict):
+            return RemoteVpnResponse(**result)
+        return RemoteVpnResponse()
     except Error:
         raise
     except Exception:

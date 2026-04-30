@@ -19,9 +19,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import Union
 
 from api import admin_router, manager_router
-from api.schemas.admin.tables import TableListRequest
+from api.schemas.admin.tables import TableItem, TableListRequest
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.tables import AdminTablesService
 from api.services.error import Error
@@ -34,6 +35,7 @@ tag = "admin_tables"
 @manager_router.get(
     "/admin/table/{table}",
     tags=[tag],
+    response_model=Union[TableItem, list[TableItem]],
     summary="Get items from a table",
     description="Get a single item by ID or list all items from a table. "
     "Admins see all items; managers are scoped to their category.",
@@ -46,11 +48,13 @@ tag = "admin_tables"
 async def admin_table_get(
     request: Request,
     table: str = Path(..., description="Database table name"),
-):
+) -> Union[TableItem, list[TableItem]]:
     try:
         options = dict(request.query_params)
         result = AdminTablesService.get_table(table, request.token_payload, options)
-        return result
+        if isinstance(result, list):
+            return [TableItem(**row) for row in result]
+        return TableItem(**(result or {}))
     except Error:
         raise
     except Exception as e:
@@ -65,6 +69,7 @@ async def admin_table_get(
 @manager_router.post(
     "/admin/table/{table}",
     tags=[tag],
+    response_model=Union[TableItem, list[TableItem]],
     summary="List table items with filters",
     description="List items from a table with optional filters, pluck, order, and index. "
     "Admins see all items; managers are scoped to their category.",
@@ -78,11 +83,13 @@ async def admin_table_list(
     request: Request,
     data: TableListRequest,
     table: str = Path(..., description="Database table name"),
-):
+) -> Union[TableItem, list[TableItem]]:
     try:
         options = data.model_dump(exclude_none=True)
         result = AdminTablesService.get_table(table, request.token_payload, options)
-        return result
+        if isinstance(result, list):
+            return [TableItem(**row) for row in result]
+        return TableItem(**(result or {}))
     except Error:
         raise
     except Exception as e:
