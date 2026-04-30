@@ -14,22 +14,20 @@ from api.routes.tests.helpers import MockJWT
 
 def test_admin_downloads_overview(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = {
-        "domains": 2,
-        "media": 5,
-        "virt_install": 3,
-        "videos": 0,
-        "viewers": 1,
-    }
+    # Real ``AdminDownloadsService.get_downloads`` returns ``{}`` after
+    # the registration check passes; the previous stub returned a
+    # fictional counts dict that diverged from the real shape.
+    called = []
     monkeypatch.setattr(
         "api.services.admin.downloads.AdminDownloadsService.get_downloads",
-        staticmethod(lambda: stub),
+        staticmethod(lambda: called.append("yes") or {}),
     )
 
     response = test_client(url="/admin/downloads", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    assert called == ["yes"]
+    assert response.json() == {}
 
 
 def test_admin_downloads_by_kind(monkeypatch, test_client):
@@ -53,7 +51,13 @@ def test_admin_downloads_by_kind(monkeypatch, test_client):
     response = test_client(url="/admin/downloads/domains", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    # ``response_model=list[DownloadItem]`` adds None defaults for the
+    # declared optional fields the stub didn't supply (description); assert
+    # per-key on the stubbed values rather than equality with the partial
+    # stub.
+    body = response.json()
+    assert {row["id"] for row in body} == {"dom-1", "dom-2"}
+    assert {row["name"] for row in body} == {"Ubuntu 24.04", "Debian 12"}
     assert captured == {"kind": "domains", "user_id": jwt.payload["user_id"]}
 
 

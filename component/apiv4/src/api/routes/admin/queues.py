@@ -9,8 +9,13 @@ from api import admin_router
 from api.schemas.admin.queues import (
     AutoDeleteConfigResponse,
     AutoDeleteEnabledRequest,
+    AutoDeleteEnabledResponse,
+    AutoDeleteMaxTimeResponse,
+    AutoDeleteQueueRegistriesResponse,
     DeleteOldTasksRequest,
     DeleteOldTasksResult,
+    QueueConsumerResponse,
+    QueueJobsResponse,
     QueueRegistriesRequest,
 )
 from api.schemas.common import ErrorResponse
@@ -30,14 +35,15 @@ tag = "admin_queues"
 @admin_router.get(
     "/admin/queues",
     tags=[tag],
+    response_model=list[QueueJobsResponse],
     summary="List all queues with job counts",
     description="Returns all queues with their job counts by status.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_queues_jobs(request: Request):
+async def admin_queues_jobs(request: Request) -> list[QueueJobsResponse]:
     try:
         data = AdminQueuesService.get_queues()
-        return data
+        return [QueueJobsResponse(**row) for row in (data or [])]
     except Error:
         raise
     except Exception:
@@ -52,14 +58,15 @@ async def admin_queues_jobs(request: Request):
 @admin_router.get(
     "/admin/queues/consumers",
     tags=[tag],
+    response_model=list[QueueConsumerResponse],
     summary="List queue consumers/workers",
     description="Returns all queue workers with their subscriber information.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_queues_consumers(request: Request):
+async def admin_queues_consumers(request: Request) -> list[QueueConsumerResponse]:
     try:
         data = AdminQueuesService.get_consumers()
-        return data
+        return [QueueConsumerResponse(**row) for row in (data or [])]
     except Error:
         raise
     except Exception:
@@ -97,6 +104,7 @@ async def admin_get_old_tasks_config(request: Request):
 @admin_router.get(
     "/admin/queues/old_tasks/{older_than}",
     tags=[tag],
+    response_model=list[str],
     summary="Get old tasks",
     description="Returns old tasks that are older than the specified seconds.",
     responses={
@@ -104,10 +112,9 @@ async def admin_get_old_tasks_config(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_old_tasks(request: Request, older_than: int):
+async def admin_get_old_tasks(request: Request, older_than: int) -> list[str]:
     try:
-        data = AdminQueuesService.get_old_tasks(older_than)
-        return data
+        return AdminQueuesService.get_old_tasks(older_than)
     except Error:
         raise
     except Exception:
@@ -154,14 +161,17 @@ async def admin_delete_old_tasks(request: Request, data: DeleteOldTasksRequest):
 @admin_router.put(
     "/admin/queues/old_tasks/config/max_time/{max_time}",
     tags=[tag],
+    response_model=AutoDeleteMaxTimeResponse,
     summary="Set auto delete max time",
     description="Sets the maximum time (in seconds, min 86400) for auto-deleting old tasks.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_set_old_tasks_max_time(request: Request, max_time: int):
+async def admin_set_old_tasks_max_time(
+    request: Request, max_time: int
+) -> AutoDeleteMaxTimeResponse:
     try:
         result = AdminQueuesService.set_max_time(max_time)
-        return result
+        return AutoDeleteMaxTimeResponse(**result)
     except Error:
         raise
     except Exception:
@@ -176,6 +186,7 @@ async def admin_set_old_tasks_max_time(request: Request, max_time: int):
 @admin_router.put(
     "/admin/queues/old_tasks/config/queue_registries",
     tags=[tag],
+    response_model=AutoDeleteQueueRegistriesResponse,
     summary="Set auto delete queue registries",
     description="Sets which queue registries are included in auto-delete.",
     responses={
@@ -186,10 +197,10 @@ async def admin_set_old_tasks_max_time(request: Request, max_time: int):
 async def admin_set_old_tasks_queue_registries(
     request: Request,
     data: QueueRegistriesRequest,
-):
+) -> AutoDeleteQueueRegistriesResponse:
     try:
         result = AdminQueuesService.set_queue_registries(data.queue_registries or [])
-        return result
+        return AutoDeleteQueueRegistriesResponse(**result)
     except Error:
         raise
     except Exception:
@@ -204,6 +215,7 @@ async def admin_set_old_tasks_queue_registries(
 @admin_router.put(
     "/admin/queues/old_tasks/config/enabled",
     tags=[tag],
+    response_model=AutoDeleteEnabledResponse,
     summary="Enable or disable auto delete",
     description="Enables or disables the auto-delete of old tasks.",
     responses={
@@ -214,10 +226,10 @@ async def admin_set_old_tasks_queue_registries(
 async def admin_set_old_tasks_enabled(
     request: Request,
     data: AutoDeleteEnabledRequest,
-):
+) -> AutoDeleteEnabledResponse:
     try:
         result = AdminQueuesService.set_auto_delete_enabled(data.enabled)
-        return result
+        return AutoDeleteEnabledResponse(**result)
     except Error:
         raise
     except Exception:

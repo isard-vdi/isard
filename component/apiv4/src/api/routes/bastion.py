@@ -296,16 +296,17 @@ async def get_admin_bastion_config(request: Request):
 @admin_router.delete(
     "/bastion/disallowed",
     tags=[tag],
+    response_model=dict,
     summary="Remove disallowed bastion targets",
     description="Removes bastion targets that are no longer allowed based on current permissions.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def remove_disallowed_bastion_targets(request: Request):
+async def remove_disallowed_bastion_targets(request: Request) -> dict:
     try:
         result = BastionService.remove_disallowed_bastion_targets()
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:

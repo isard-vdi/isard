@@ -49,3 +49,12 @@ class QosDiskUpdateRequest(BaseModel):
     allowed: Optional[dict] = Field(
         default=None, description="Allowed access configuration"
     )
+
+
+class RemoteVpnResponse(BaseModel):
+    """Response shape for the ``/remote_vpn/{vpn_id}/{kind}[/{os}]``
+    endpoints. ``kind`` switches between config text and an installer
+    payload, so the model is permissive.
+    """
+
+    model_config = {"extra": "allow"}

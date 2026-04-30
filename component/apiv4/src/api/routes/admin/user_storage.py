@@ -25,6 +25,10 @@ from api.schemas.admin.user_storage import (
     UserStorageAddRequest,
     UserStorageAutoRegisterRequest,
     UserStorageConnTestRequest,
+    UserStorageIdResponse,
+    UserStorageLoginAuthResponse,
+    UserStorageProvider,
+    UserStorageUser,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.user_storage import AdminUserStorageService
@@ -43,18 +47,19 @@ tag = "admin-user-storage"
 @admin_router.post(
     "/admin/user_storage/auto_register",
     tags=[tag],
+    response_model=UserStorageIdResponse,
     summary="Auto-register user storage provider",
     description="Auto-registers a user storage provider with the given credentials.",
     responses={500: {"model": ErrorResponse}},
 )
 async def admin_user_storage_auto_register(
     request: Request, data: UserStorageAutoRegisterRequest
-):
+) -> UserStorageIdResponse:
     try:
         result = AdminUserStorageService.auto_register(
             data.domain, data.user, data.password, data.intra_docker, data.verify_cert
         )
-        return {"id": result}
+        return UserStorageIdResponse(id=result)
     except Error:
         raise
     except Exception:
@@ -109,14 +114,17 @@ async def admin_user_storage_test(request: Request, data: UserStorageConnTestReq
 @admin_router.get(
     "/admin/user_storage/{provider_id}/login_auth",
     tags=[tag],
+    response_model=UserStorageLoginAuthResponse,
     summary="Get user storage login auth URL",
     description="Returns the login authentication URL for a user storage provider.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_user_storage_login_auth(request: Request, provider_id: str):
+async def admin_user_storage_login_auth(
+    request: Request, provider_id: str
+) -> UserStorageLoginAuthResponse:
     try:
         login_url = AdminUserStorageService.get_login_auth(provider_id)
-        return {"login_url": login_url}
+        return UserStorageLoginAuthResponse(login_url=login_url)
     except Error:
         raise
     except Exception:
@@ -136,14 +144,15 @@ async def admin_user_storage_login_auth(request: Request, provider_id: str):
 @admin_router.get(
     "/admin/user_storage",
     tags=[tag],
+    response_model=list[UserStorageProvider],
     summary="List user storage providers",
     description="Returns all user storage providers.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_user_storage_list(request: Request):
+async def admin_user_storage_list(request: Request) -> list[UserStorageProvider]:
     try:
         providers = AdminUserStorageService.list_providers()
-        return providers
+        return [UserStorageProvider(**row) for row in (providers or [])]
     except Error:
         raise
     except Exception:
@@ -158,14 +167,15 @@ async def admin_user_storage_list(request: Request):
 @admin_router.get(
     "/admin/user_storage/users",
     tags=[tag],
+    response_model=list[UserStorageUser],
     summary="List user storage users",
     description="Returns all users with user storage configured.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_user_storage_users(request: Request):
+async def admin_user_storage_users(request: Request) -> list[UserStorageUser]:
     try:
         users = AdminUserStorageService.get_users()
-        return users
+        return [UserStorageUser(**row) for row in (users or [])]
     except Error:
         raise
     except Exception:
@@ -180,14 +190,17 @@ async def admin_user_storage_users(request: Request):
 @admin_router.get(
     "/admin/user_storage/{provider_id}",
     tags=[tag],
+    response_model=UserStorageProvider,
     summary="Get user storage provider",
     description="Returns a specific user storage provider by ID.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def admin_user_storage_get(request: Request, provider_id: str):
+async def admin_user_storage_get(
+    request: Request, provider_id: str
+) -> UserStorageProvider:
     try:
         provider = AdminUserStorageService.get_provider(provider_id)
-        return provider
+        return UserStorageProvider(**(provider or {}))
     except Error:
         raise
     except Exception:
@@ -281,6 +294,7 @@ async def admin_user_storage_reset_all(request: Request):
 @admin_router.post(
     "/admin/user_storage/new/{auth_protocol}",
     tags=[tag],
+    response_model=UserStorageIdResponse,
     summary="Add user storage provider",
     description="Adds a user storage provider using the specified auth protocol "
     "(auth_basic or auth_oauth2).",
@@ -292,7 +306,7 @@ async def admin_user_storage_reset_all(request: Request):
 )
 async def admin_user_storage_add(
     request: Request, auth_protocol: str, data: UserStorageAddRequest
-):
+) -> UserStorageIdResponse:
     try:
         if auth_protocol == "auth_basic":
             result = AdminUserStorageService.add_provider_basic_auth(
@@ -305,7 +319,7 @@ async def admin_user_storage_add(
                 data.quota,
                 data.verify_cert,
             )
-            return {"id": result}
+            return UserStorageIdResponse(id=result)
         raise Error(
             "bad_request",
             f"Auth protocol '{auth_protocol}' is not supported",

@@ -69,3 +69,16 @@ class AllowedGetRequest(BaseModel):
     """Request body for getting allowed access list for a table item."""
 
     id: str = Field(description="Item ID to get allowed access for")
+
+
+class TableItem(BaseModel):
+    """Generic admin-table item used by ``GET`` / ``POST`` /admin/table.
+
+    The shape is per-table (interfaces, graphics, qos, …) and the
+    plucked field set varies with the request, so the model is
+    permissive (``ConfigDict(extra="allow")``).
+    """
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None

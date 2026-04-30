@@ -18,10 +18,31 @@ from api.routes.tests.helpers import MockJWT
 
 def test_admin_queues_list(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = {
-        "core": {"queued": 3, "started": 1, "failed": 0},
-        "storage.default": {"queued": 0, "started": 0, "failed": 0},
-    }
+    # Real ``AdminQueuesService.get_queues`` returns ``list[{id, queued,
+    # started, finished, failed, deferred, scheduled, canceled}]``;
+    # the response_model now enforces that.
+    stub = [
+        {
+            "id": "core",
+            "queued": 3,
+            "started": 1,
+            "finished": 0,
+            "failed": 0,
+            "deferred": 0,
+            "scheduled": 0,
+            "canceled": 0,
+        },
+        {
+            "id": "storage.default",
+            "queued": 0,
+            "started": 0,
+            "finished": 0,
+            "failed": 0,
+            "deferred": 0,
+            "scheduled": 0,
+            "canceled": 0,
+        },
+    ]
     monkeypatch.setattr(
         "api.services.admin.queues.AdminQueuesService.get_queues",
         staticmethod(lambda: stub),
@@ -30,14 +51,35 @@ def test_admin_queues_list(monkeypatch, test_client):
     response = test_client(url="/admin/queues", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert {row["id"] for row in body} == {"core", "storage.default"}
 
 
 def test_admin_queues_consumers(monkeypatch, test_client):
     jwt = MockJWT()
+    # Real ``AdminQueuesService.get_consumers`` returns
+    # ``list[{id, queue, queue_id, priority_id, priority, subscribers,
+    # status}]`` (worker rows after _workers_with_subscribers); the
+    # response_model now enforces that.
     stub = [
-        {"id": "worker-1", "queues": ["core"], "state": "idle"},
-        {"id": "worker-2", "queues": ["storage.default"], "state": "busy"},
+        {
+            "id": "worker-1",
+            "queue": "core",
+            "queue_id": None,
+            "priority_id": None,
+            "priority": None,
+            "subscribers": [],
+            "status": "ok",
+        },
+        {
+            "id": "worker-2",
+            "queue": "storage",
+            "queue_id": "default",
+            "priority_id": "default",
+            "priority": 2,
+            "subscribers": ["sub-1"],
+            "status": "ok",
+        },
     ]
     monkeypatch.setattr(
         "api.services.admin.queues.AdminQueuesService.get_consumers",
@@ -47,7 +89,8 @@ def test_admin_queues_consumers(monkeypatch, test_client):
     response = test_client(url="/admin/queues/consumers", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert {row["id"] for row in body} == {"worker-1", "worker-2"}
 
 
 def test_admin_queues_get_old_tasks_config(monkeypatch, test_client):

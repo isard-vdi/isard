@@ -7,7 +7,7 @@ import traceback
 
 from api import admin_router
 from api.schemas.admin.notify import AdminSocketioEmitRequest
-from api.schemas.common import ErrorResponse
+from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.socketio import AdminSocketioService
 from api.services.error import Error
 from fastapi import Request
@@ -24,6 +24,7 @@ tag = "admin_socketio"
 @admin_router.post(
     "/admin/socketio",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Emit socketio events",
     description="Sends one or more socketio events. Expects a JSON array of event objects.",
     responses={
@@ -31,10 +32,12 @@ tag = "admin_socketio"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_emit_socketio(request: Request, data: AdminSocketioEmitRequest):
+async def admin_emit_socketio(
+    request: Request, data: AdminSocketioEmitRequest
+) -> EmptyResponse:
     try:
         AdminSocketioService.emit_events(data.root)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception:

@@ -37,6 +37,7 @@ from api.schemas.admin.stats import (
     StatsCategoriesDeploymentsResponse,
     StatsCategoriesResponse,
     StatsDomainsStatusResponse,
+    StatsGenericResponse,
     StatsKindDesktop,
     StatsKindHypervisor,
     StatsKindTemplate,
@@ -61,12 +62,13 @@ tag = "admin_stats"
     tags=[tag],
     summary="Get general statistics",
     description="Returns general statistics including users, desktops, and templates.",
+    response_model=StatsGenericResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_general(request: Request):
+async def stats_general(request: Request) -> StatsGenericResponse:
     try:
         result = AdminStatsService.get_general_stats()
-        return result
+        return StatsGenericResponse(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -83,12 +85,13 @@ async def stats_general(request: Request):
     tags=[tag],
     summary="Get desktop status statistics",
     description="Returns desktop statistics grouped by status.",
+    response_model=list[StatsGenericResponse],
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_desktops_status(request: Request):
+async def stats_desktops_status(request: Request) -> list[StatsGenericResponse]:
     try:
         result = AdminStatsService.get_desktops_stats()
-        return result
+        return [StatsGenericResponse(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -128,12 +131,13 @@ async def stats_domains_status(request: Request):
     tags=[tag],
     summary="Get category status statistics",
     description="Returns category-level status statistics showing wrong-status desktops and templates.",
+    response_model=StatsGenericResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_category_status(request: Request):
+async def stats_category_status(request: Request) -> StatsGenericResponse:
     try:
         result = {"categories": AdminStatsService.get_category_status()}
-        return result
+        return StatsGenericResponse(**result)
     except Error:
         raise
     except Exception:
@@ -179,12 +183,13 @@ async def stats_categories(request: Request):
     tags=[tag],
     summary="Get category limits and hardware statistics",
     description="Returns category-level hardware limits and running resource statistics.",
+    response_model=StatsGenericResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_categories_limits(request: Request):
+async def stats_categories_limits(request: Request) -> StatsGenericResponse:
     try:
         result = {"category": AdminStatsService.get_categories_limits_hardware()}
-        return result
+        return StatsGenericResponse(**result)
     except Error:
         raise
     except Exception:
@@ -222,16 +227,17 @@ async def stats_categories_deployments(request: Request):
 @admin_router.get(
     "/stats/categories/{kind}/{state}",
     tags=[tag],
+    response_model=StatsGenericResponse,
     summary="Get category statistics by kind and state",
     description="Returns category statistics for a specific kind and state.",
     responses={500: {"model": ErrorResponse}},
 )
 async def stats_categories_kind_state(
     request: Request, kind: Literal["desktop", "template"], state: str
-):
+) -> StatsGenericResponse:
     try:
         result = {"category": AdminStatsService.get_categories_kind_state(kind, state)}
-        return result
+        return StatsGenericResponse(**result)
     except Error:
         raise
     except Exception:
@@ -246,14 +252,17 @@ async def stats_categories_kind_state(
 @admin_router.get(
     "/stats/categories/{kind}",
     tags=[tag],
+    response_model=StatsGenericResponse,
     summary="Get category statistics by kind",
     description="Returns category statistics for a specific kind (desktop, template).",
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_categories_kind(request: Request, kind: Literal["desktop", "template"]):
+async def stats_categories_kind(
+    request: Request, kind: Literal["desktop", "template"]
+) -> StatsGenericResponse:
     try:
         result = {"category": AdminStatsService.get_categories_kind_state(kind)}
-        return result
+        return StatsGenericResponse(**result)
     except Error:
         raise
     except Exception:
@@ -371,12 +380,15 @@ async def stats_hypervisors(request: Request):
     tags=[tag],
     summary="Get started domains count by category",
     description="Returns the count of started desktop domains grouped by category.",
+    response_model=list[StatsGenericResponse],
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domains_started_count(request: Request):
+async def admin_domains_started_count(
+    request: Request,
+) -> list[StatsGenericResponse]:
     try:
         result = AdminStatsService.get_domains_by_category_count()
-        return result
+        return [StatsGenericResponse(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:

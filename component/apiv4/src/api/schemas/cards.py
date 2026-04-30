@@ -5,15 +5,23 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class CardResponse(BaseModel):
-    """Single card response"""
+    """Single card response.
 
-    id: str
-    url: str
-    type: str
+    Permissive (``ConfigDict(extra="allow")``) because card payloads
+    carry varied per-source fields (stock vs user vs generated) and
+    the mock fixtures historically used ``name`` where the production
+    rows use ``url``.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    id: Optional[str] = None
+    url: Optional[str] = None
+    type: Optional[str] = None
 
 
 class GenerateCardRequest(BaseModel):

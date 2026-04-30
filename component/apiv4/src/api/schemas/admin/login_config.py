@@ -20,7 +20,23 @@
 
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
+
+class AdminLoginConfigResponse(BaseModel):
+    """Raw response for the admin login-config read endpoints.
+
+    Returned by ``GET /admin/login-config`` (global) and
+    ``GET /admin/login-config/{category_id}`` (per-category — the
+    service falls back to the global config when the category has no
+    overrides). Permissive shape because the underlying
+    ``Configuration.login`` blob is admin-edited freeform; the public
+    ``LoginConfigResponse`` (in ``api.schemas.login``) typed each field
+    individually for the consumer side, but the admin edit modal needs
+    the unmerged raw payload.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
 
 class LoginNotificationUpdateRequest(BaseModel):

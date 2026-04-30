@@ -36,7 +36,9 @@ class AdminCategoryService:
     # ── Permission Checks ────────────────────────────────────────────────
 
     @staticmethod
-    def _check_owns_and_permission(payload, category_id, permission):
+    def _check_owns_and_permission(
+        payload: dict, category_id: str, permission: str
+    ) -> None:
         """Verify ownership and manager-level permission for a category."""
         Helpers.owns_category_id(payload, category_id)
         if payload["role_id"] == "admin":
@@ -52,7 +54,7 @@ class AdminCategoryService:
     # ── Branding ─────────────────────────────────────────────────────────
 
     @staticmethod
-    def get_branding(payload, category_id):
+    def get_branding(payload: dict, category_id: str) -> dict:
         """Get category branding (domain + logo with injected data URL)."""
         AdminCategoryService._check_owns_and_permission(
             payload, category_id, "branding"
@@ -60,7 +62,7 @@ class AdminCategoryService:
         return Category(category_id).branding or {}
 
     @staticmethod
-    def update_branding(payload, category_id, data):
+    def update_branding(payload: dict, category_id: str, data: dict) -> None:
         """Update category branding. Category class handles logo save and domain validation."""
         AdminCategoryService._check_owns_and_permission(
             payload, category_id, "branding"
@@ -83,7 +85,7 @@ class AdminCategoryService:
     # ── Authentication ───────────────────────────────────────────────────
 
     @staticmethod
-    def get_authentication(payload, category_id):
+    def get_authentication(payload: dict, category_id: str) -> dict:
         """Get category authentication with secrets stripped."""
         AdminCategoryService._check_owns_and_permission(
             payload, category_id, "authentication"
@@ -92,7 +94,7 @@ class AdminCategoryService:
         return _strip_authentication_secrets(auth)
 
     @staticmethod
-    def update_authentication(payload, category_id, data):
+    def update_authentication(payload: dict, category_id: str, data: dict) -> None:
         """Update category authentication.
 
         Checks the manager `authentication` permission, preserves any sensitive
@@ -118,7 +120,7 @@ class AdminCategoryService:
     # ── Login Notification ───────────────────────────────────────────────
 
     @staticmethod
-    def update_login_notification(payload, category_id, data):
+    def update_login_notification(payload: dict, category_id: str, data: dict) -> None:
         """Update per-category login notification configuration.
 
         The ORM setter replaces the whole `login_notification` attribute, so
@@ -150,7 +152,9 @@ class AdminCategoryService:
         clear_login_config_cache()
 
     @staticmethod
-    def enable_login_notification(payload, category_id, notification_type, enabled):
+    def enable_login_notification(
+        payload: dict, category_id: str, notification_type: str, enabled: bool
+    ) -> None:
         """Enable or disable a specific category login notification type."""
         AdminCategoryService._check_owns_and_permission(
             payload, category_id, "login_notification"
@@ -167,7 +171,7 @@ class AdminCategoryService:
     # ── Logo (public) ────────────────────────────────────────────────────
 
     @staticmethod
-    def get_logo_by_domain(domain):
+    def get_logo_by_domain(domain: str) -> str | None:
         """Get logo data URL for a domain. Falls back to default logo."""
         from isardvdi_common.connections.rethink_connection_factory import (
             RethinkSharedConnection,
@@ -201,7 +205,7 @@ class AdminCategoryService:
     # ── Per-category login config ────────────────────────────────────────
 
     @staticmethod
-    def get_login_config_for_category(category_id):
+    def get_login_config_for_category(category_id: str) -> dict:
         """Get login configuration for a category, merging global + category.
 
         Returns the same fields as ``GET /item/login-config``
@@ -262,7 +266,7 @@ class AdminCategoryService:
         return login_config
 
     @staticmethod
-    def admin_get_login_config(category_id=None):
+    def admin_get_login_config(category_id: str | None = None) -> dict:
         """Admin-only raw read of login config for editing.
 
         Returns the **unmerged** payload — global config when no category

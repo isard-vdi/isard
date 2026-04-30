@@ -63,15 +63,17 @@ async def check_storage_pool_creation_availability():
 @manager_router.get(
     "/storage-pool/default",
     tags=[tag],
+    response_model=StoragePoolResponse,
     summary="Get default storage pool",
     description="Returns the default storage pool.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def get_default_storage_pool(request: Request):
+async def get_default_storage_pool(request: Request) -> StoragePoolResponse:
     try:
-        return StoragePoolService.get_default_storage_pool()
+        result = StoragePoolService.get_default_storage_pool()
+        return StoragePoolResponse(**(result or {}))
     except Error:
         raise
     except Exception as e:
@@ -86,16 +88,19 @@ async def get_default_storage_pool(request: Request):
 @manager_router.put(
     "/storage-pool/by-path",
     tags=[tag],
+    response_model=StoragePoolResponse,
     summary="Get storage pool by path",
     description="Returns the storage pool that matches the given path.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_pool_by_path(request: Request, data: StoragePoolByPathRequest):
+async def get_storage_pool_by_path(
+    request: Request, data: StoragePoolByPathRequest
+) -> StoragePoolResponse:
     try:
         storage_pool = StoragePoolService.get_storage_pool_by_path(data.path)
-        return storage_pool
+        return StoragePoolResponse(**(storage_pool or {}))
     except Error:
         raise
     except Exception as e:
@@ -164,22 +169,25 @@ async def list_storage_pools(request: Request):
 @token_router.get(
     "/storage-pool/availability",
     tags=[tag],
+    response_model=CheckCategoryAvailabilityResponse,
     summary="Check storage pool availability",
     description="Check if storage pools are available for the user's category.",
     responses={204: {"description": "Available"}, 500: {"model": ErrorResponse}},
 )
-async def check_storage_pool_availability_compat(request: Request):
+async def check_storage_pool_availability_compat(
+    request: Request,
+) -> CheckCategoryAvailabilityResponse:
     try:
         from api.dependencies.storage_pools import (
             check_create_storage_pool_availability,
         )
 
         await check_create_storage_pool_availability(request.token_payload)
-        return {"available": True}
+        return CheckCategoryAvailabilityResponse(available=True)
     except Error:
         raise
     except Exception:
-        return {"available": False}
+        return CheckCategoryAvailabilityResponse(available=False)
 
 
 @admin_router.get(

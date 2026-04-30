@@ -344,11 +344,14 @@ async def admin_list_notification_actions(request: Request):
 @admin_router.get(
     "/admin/notification/{notification_id}",
     tags=[tag],
+    response_model=NotificationDetailResponse,
     summary="Get notification",
     description="Returns a notification by its ID.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def admin_get_notification(request: Request, notification_id: str):
+async def admin_get_notification(
+    request: Request, notification_id: str
+) -> NotificationDetailResponse:
     try:
         notification = AdminNotificationService.get_notification(notification_id)
         return NotificationDetailResponse(notification)

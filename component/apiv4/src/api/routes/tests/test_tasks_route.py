@@ -42,8 +42,13 @@ def test_get_user_tasks(monkeypatch, test_client):
     jwt = MockJWT(role_id="user")
     response = test_client(url="/tasks", jwt=jwt)
 
+    # ``response_model=list[TaskResponse]`` adds the declared optional
+    # fields with None defaults; per-key asserts replace equality with
+    # the partial stub (per ``feedback_fix_code_not_test.md``).
     assert response.status_code == 200
-    assert response.json() == expected_tasks
+    body = response.json()
+    assert {row["id"] for row in body} == {"task-1", "task-2"}
+    assert {row["status"] for row in body} == {"completed", "queued"}
 
 
 def test_get_user_tasks_forwards_caller_user_id(monkeypatch, test_client):
@@ -86,7 +91,10 @@ def test_get_task(monkeypatch, test_client):
     response = test_client(url="/task/task-1", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == expected_task
+    body = response.json()
+    assert body["id"] == "task-1"
+    assert body["status"] == "completed"
+    assert body["user_id"] == "local-default-admin-admin"
 
 
 def test_get_task_not_found_returns_404(monkeypatch, test_client):
@@ -163,15 +171,18 @@ def test_get_task_forwards_jwt_context(monkeypatch, test_client):
 
 
 def test_cancel_task_success(monkeypatch, test_client):
-    expected = {"id": "task-1", "status": "canceled"}
+    """Cancel returns 200 with EmptyResponse — the previous service
+    return value isn't surfaced to the wire (response_model=EmptyResponse)."""
+    calls = []
     monkeypatch.setattr(
         "api.services.tasks.TaskService.cancel_task",
-        staticmethod(lambda task_id, user_id, role_id: expected),
+        staticmethod(lambda task_id, user_id, role_id: calls.append(task_id) or None),
     )
     jwt = MockJWT(role_id="user")
     response = test_client(url="/task/task-1", method="DELETE", jwt=jwt)
     assert response.status_code == 200
-    assert response.json() == expected
+    assert response.json() == {}
+    assert calls == ["task-1"]
 
 
 def test_cancel_task_not_found_returns_404(monkeypatch, test_client):
@@ -239,7 +250,9 @@ def test_get_admin_tasks_admin_sees_all(monkeypatch, test_client):
     jwt = MockJWT(role_id="admin")
     response = test_client(url="/admin/tasks", jwt=jwt)
     assert response.status_code == 200
-    assert response.json() == expected
+    body = response.json()
+    assert {row["id"] for row in body} == {"t-1", "t-2"}
+    assert {row["user_id"] for row in body} == {"u-1", "u-2"}
 
 
 def test_get_admin_tasks_forwards_role_and_category(monkeypatch, test_client):
@@ -295,20 +308,19 @@ def test_get_admin_tasks_rejects_user_role(test_client):
 
 
 def test_retry_task(monkeypatch, test_client):
-    """Replaces v3 /task/{id}/retry shim."""
+    """Replaces v3 /task/{id}/retry shim. ``response_model=EmptyResponse``;
+    the route doesn't surface the service return value."""
     calls = []
     monkeypatch.setattr(
         "api.services.tasks.TaskService.retry_task",
-        staticmethod(
-            lambda task_id: calls.append(task_id) or {"id": task_id, "status": "queued"}
-        ),
+        staticmethod(lambda task_id: calls.append(task_id) or None),
     )
 
     jwt = MockJWT()
     response = test_client(url="/admin/task/task-1/retry", method="PUT", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == {"id": "task-1", "status": "queued"}
+    assert response.json() == {}
     assert calls == ["task-1"]
 
 

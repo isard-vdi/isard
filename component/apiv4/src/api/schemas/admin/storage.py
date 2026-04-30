@@ -29,3 +29,51 @@ class AdminStorageFilterRequest(BaseModel):
     categories: Optional[list[str]] = Field(
         default=None, description="Category IDs to filter by (admin only)"
     )
+
+
+class AdminStorageStatusCount(BaseModel):
+    """One row of ``GET /storage/status``: ``{status, count}``."""
+
+    status: str
+    count: int
+
+
+class AdminStorageItem(BaseModel):
+    """One row of ``GET /admin/storage`` and the by-status / by-role
+    variants. Permissive (``ConfigDict(extra="allow")``) because the
+    storage doc carries varied per-status fields the webapp admin
+    renders verbatim.
+    """
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+    status: Optional[str] = None
+    type: Optional[str] = None
+    user_id: Optional[str] = None
+    category: Optional[str] = None
+
+
+class AdminStorageDomain(BaseModel):
+    """One row of ``GET /admin/storage/domains/{id}`` and
+    ``GET /admin/media/domains/{id}``: the domain id + display name
+    the webapp admin lists. Permissive — joined fields differ.
+    """
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+
+
+class AdminStorageInfo(BaseModel):
+    """Response shape for ``GET /admin/storage/info/{id}`` and
+    ``GET /admin/storage/search-info/{id}``.
+
+    Backed by ``AdminStorageService.get_storage_info`` /
+    ``get_storage_search_info`` — qemu-img blob plus owner joins.
+    Permissive because those service methods merge sub-objects whose
+    keys differ per backend.
+    """
+
+    model_config = {"extra": "allow"}

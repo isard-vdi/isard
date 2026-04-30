@@ -20,7 +20,7 @@
 
 from typing import Any, Dict, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # ── Branding ─────────────────────────────────────────────────────────────
 
@@ -46,6 +46,35 @@ class BrandingUpdateData(BaseModel):
 
     domain: Optional[BrandingDomain] = None
     logo: Optional[BrandingLogo] = None
+
+
+class BrandingResponse(BaseModel):
+    """Response shape for ``GET /admin/category/{id}/branding``.
+
+    Mirrors the request shape — ``BrandingUpdateData`` — but is a
+    distinct class because the response side of branding is the
+    persisted value (i.e. ``Category.branding``), and the response
+    model is what FastAPI uses to filter the wire payload. Keeps both
+    sub-objects optional because freshly-created categories may have
+    no branding row at all.
+    """
+
+    domain: Optional[BrandingDomain] = None
+    logo: Optional[BrandingLogo] = None
+
+
+class CategoryAuthenticationResponse(BaseModel):
+    """Response shape for ``GET /admin/category/{id}/authentication``.
+
+    Permissive (``ConfigDict(extra="allow")``) because the underlying
+    ``Category.authentication`` blob is provider-specific freeform
+    (``local`` / ``ldap`` / ``saml`` / ``google``), and the service
+    pre-strips the secret keys (password, client_secret) before
+    returning. The response is consumed by the admin edit-modal which
+    inspects fields per-provider.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
 
 # ── Login Notification ───────────────────────────────────────────────────

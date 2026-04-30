@@ -3,7 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel
 
@@ -25,3 +25,14 @@ class OperationsHypervisorResponse(BaseModel):
     capabilities: Optional[List[str]] = None
     gpus: Optional[List[str]] = None
     destroy_allowed: Optional[bool] = None
+
+
+class HypervisorActionResponse(BaseModel):
+    """Result of ``PUT /admin/operations/hypervisor/{id}`` (start) and
+    ``DELETE /admin/operations/hypervisor/{id}`` (stop). The fields
+    come straight from the operations gRPC ``CreateHypervisorResponse``
+    / ``DestroyHypervisorResponse`` proto.
+    """
+
+    state: Optional[str] = None
+    msg: Optional[str] = None

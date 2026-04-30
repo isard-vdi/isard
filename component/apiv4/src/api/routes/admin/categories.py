@@ -23,7 +23,9 @@ from typing import Literal
 
 from api import manager_router
 from api.schemas.admin.categories import (
+    BrandingResponse,
     BrandingUpdateData,
+    CategoryAuthenticationResponse,
     CategoryLoginNotificationData,
     CategoryLoginNotificationEnableData,
 )
@@ -45,6 +47,7 @@ tag = "admin-categories"
 @manager_router.get(
     "/admin/category/{category_id}/branding",
     tags=[tag],
+    response_model=BrandingResponse,
     summary="Get category branding",
     description="Returns branding configuration (domain + logo) for a category.",
     responses={
@@ -53,10 +56,10 @@ tag = "admin-categories"
         500: {"model": ErrorResponse},
     },
 )
-async def get_category_branding(request: Request, category_id: str):
+async def get_category_branding(request: Request, category_id: str) -> BrandingResponse:
     try:
         branding = AdminCategoryService.get_branding(request.token_payload, category_id)
-        return branding
+        return BrandingResponse(**(branding or {}))
     except Error:
         raise
     except Exception:
@@ -108,6 +111,7 @@ async def update_category_branding(
 @manager_router.get(
     "/admin/category/{category_id}/authentication",
     tags=[tag],
+    response_model=CategoryAuthenticationResponse,
     summary="Get category authentication",
     description="Returns authentication provider configuration for a category "
     "with sensitive fields stripped.",
@@ -117,12 +121,14 @@ async def update_category_branding(
         500: {"model": ErrorResponse},
     },
 )
-async def get_category_authentication(request: Request, category_id: str):
+async def get_category_authentication(
+    request: Request, category_id: str
+) -> CategoryAuthenticationResponse:
     try:
         auth = AdminCategoryService.get_authentication(
             request.token_payload, category_id
         )
-        return auth
+        return CategoryAuthenticationResponse(**(auth or {}))
     except Error:
         raise
     except Exception:

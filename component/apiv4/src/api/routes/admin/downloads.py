@@ -23,6 +23,7 @@ import traceback
 from typing import Optional
 
 from api import admin_router
+from api.schemas.admin.downloads import DownloadItem, DownloadsOverviewResponse
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.downloads import AdminDownloadsService
 from api.services.error import Error
@@ -40,6 +41,7 @@ tag = "admin_downloads"
 @admin_router.get(
     "/admin/downloads",
     tags=[tag],
+    response_model=DownloadsOverviewResponse,
     summary="Get downloads overview",
     description="Get an overview of available downloads. Requires registration.",
     responses={
@@ -48,14 +50,14 @@ tag = "admin_downloads"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_downloads(request: Request):
+async def admin_downloads(request: Request) -> DownloadsOverviewResponse:
     try:
         # AdminDownloadsService.get_downloads() makes a synchronous HTTP
         # call to the upstream updates server (``requests`` with a 10s
         # timeout). Offload to the threadpool so a slow upstream
         # doesn't freeze the apiv4 event loop for every other client.
-        result = await asyncio.to_thread(AdminDownloadsService.get_downloads)
-        return result
+        await asyncio.to_thread(AdminDownloadsService.get_downloads)
+        return DownloadsOverviewResponse()
     except Error:
         raise
     except Exception:
@@ -75,6 +77,7 @@ async def admin_downloads(request: Request):
 @admin_router.get(
     "/admin/downloads/{kind}",
     tags=[tag],
+    response_model=list[DownloadItem],
     summary="Get downloads by kind",
     description="Get available downloads for a specific kind (domains, media, virt_install, videos, viewers).",
     responses={
@@ -88,7 +91,7 @@ async def admin_downloads_kind(
     kind: str = Path(
         ..., description="Download kind: domains, media, virt_install, videos, viewers"
     ),
-):
+) -> list[DownloadItem]:
     try:
         # See ``admin_downloads`` above: this also calls the updates
         # server synchronously and must not block the event loop.
@@ -97,7 +100,7 @@ async def admin_downloads_kind(
             kind,
             request.token_payload["user_id"],
         )
-        return result
+        return [DownloadItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:

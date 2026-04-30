@@ -22,7 +22,10 @@ import traceback
 from typing import Literal
 
 from api import admin_router
-from api.schemas.admin.viewers_config import ViewerConfigUpdateRequest
+from api.schemas.admin.viewers_config import (
+    ViewerConfigUpdateRequest,
+    ViewersConfigResponse,
+)
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.viewers_config import AdminViewersConfigService
 from api.services.error import Error
@@ -40,14 +43,15 @@ tag = "admin-viewers-config"
 @admin_router.get(
     "/admin/viewers-config",
     tags=[tag],
+    response_model=ViewersConfigResponse,
     summary="Get viewers configuration",
     description="Returns all viewers configurations.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_viewers_config(request: Request):
+async def admin_viewers_config(request: Request) -> ViewersConfigResponse:
     try:
         config = AdminViewersConfigService.get_viewers_config()
-        return config
+        return ViewersConfigResponse(**(config or {}))
     except Error:
         raise
     except Exception:

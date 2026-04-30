@@ -36,7 +36,6 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
 from fastapi import Depends, Path, Request
-from fastapi.responses import JSONResponse
 
 tag = "admin_domains"
 
@@ -49,6 +48,7 @@ tag = "admin_domains"
 @manager_router.post(
     "/admin/domains",
     tags=[tag],
+    response_model=list[dict],
     summary="List domains",
     description="List desktops or templates with optional category filter. "
     "Managers are scoped to their own category.",
@@ -57,7 +57,9 @@ tag = "admin_domains"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_list_domains(request: Request, data: AdminListDomainsData):
+async def admin_list_domains(
+    request: Request, data: AdminListDomainsData
+) -> list[dict]:
     try:
         if data.domain_ids:
             result = AdminDomainsService.get_domains_by_ids(
@@ -69,7 +71,7 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
             )
         else:
             result = AdminDomainsService.list_templates(request.token_payload)
-        return result
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -89,6 +91,7 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
 @manager_router.get(
     "/admin/domain/{domain_id}/details",
     tags=[tag],
+    response_model=dict,
     summary="Get domain details",
     description="Returns detailed data for a specific domain.",
     responses={
@@ -96,12 +99,12 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_details(request: Request, domain_id: str):
+async def admin_domain_details(request: Request, domain_id: str) -> dict:
     try:
         result = AdminDomainsService.get_domain_details(
             request.token_payload, domain_id
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -116,6 +119,7 @@ async def admin_domain_details(request: Request, domain_id: str):
 @manager_router.get(
     "/admin/domain/{domain_id}/viewer_data",
     tags=[tag],
+    response_model=dict,
     summary="Get domain viewer data",
     description="Returns viewer connection data for a domain.",
     responses={
@@ -123,12 +127,12 @@ async def admin_domain_details(request: Request, domain_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_viewer_data(request: Request, domain_id: str):
+async def admin_domain_viewer_data(request: Request, domain_id: str) -> dict:
     try:
         result = AdminDomainsService.get_domain_viewer_data(
             request.token_payload, domain_id
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -143,6 +147,7 @@ async def admin_domain_viewer_data(request: Request, domain_id: str):
 @manager_router.get(
     "/admin/deployment/{deployment_id}/viewer_data",
     tags=[tag],
+    response_model=dict,
     summary="Get deployment viewer data",
     description="Returns viewer connection data for a deployment.",
     responses={
@@ -150,12 +155,12 @@ async def admin_domain_viewer_data(request: Request, domain_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_deployment_viewer_data(request: Request, deployment_id: str):
+async def admin_deployment_viewer_data(request: Request, deployment_id: str) -> dict:
     try:
         result = AdminDomainsService.get_deployment_viewer_data(
             request.token_payload, deployment_id
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -175,6 +180,7 @@ async def admin_deployment_viewer_data(request: Request, deployment_id: str):
 @manager_router.get(
     "/admin/domains_status/{status}",
     tags=[tag],
+    response_model=list[dict],
     summary="Get domains by status",
     description="Returns domains matching a given status. "
     "Supports 'delete_pending' and other status values.",
@@ -183,12 +189,12 @@ async def admin_deployment_viewer_data(request: Request, deployment_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domains_status(request: Request, status: str):
+async def admin_domains_status(request: Request, status: str) -> list[dict]:
     try:
         result = AdminDomainsService.get_domains_by_status(
             request.token_payload, status
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -203,6 +209,7 @@ async def admin_domains_status(request: Request, status: str):
 @manager_router.put(
     "/admin/domains/status/{status}/find_storages",
     tags=[tag],
+    response_model=dict,
     summary="Enqueue find tasks for storages of domains in a given status",
     description=(
         "Scans every ``desktop`` domain with the given status, collects "
@@ -214,12 +221,12 @@ async def admin_domains_status(request: Request, status: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_find_storages_by_domain_status(request: Request, status: str):
+async def admin_find_storages_by_domain_status(request: Request, status: str) -> dict:
     try:
         result = AdminDomainsService.find_storages_by_domain_status(
             request.token_payload, status
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:
@@ -239,6 +246,7 @@ async def admin_find_storages_by_domain_status(request: Request, status: str):
 @manager_router.get(
     "/admin/domain/storage/{domain_id}",
     tags=[tag],
+    response_model=list[dict],
     summary="Get domain storage",
     description="Returns storage information for a domain.",
     responses={
@@ -246,12 +254,12 @@ async def admin_find_storages_by_domain_status(request: Request, status: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_storage(request: Request, domain_id: str):
+async def admin_domain_storage(request: Request, domain_id: str) -> list[dict]:
     try:
         result = AdminDomainsService.get_domain_storage(
             request.token_payload, domain_id
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -271,6 +279,7 @@ async def admin_domain_storage(request: Request, domain_id: str):
 @admin_router.get(
     "/admin/domain/{domain_id}/xml",
     tags=[tag],
+    response_model=dict,
     summary="Get domain XML",
     description="Returns the XML configuration for a domain.",
     responses={
@@ -278,10 +287,10 @@ async def admin_domain_storage(request: Request, domain_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_xml_get(request: Request, domain_id: str):
+async def admin_domain_xml_get(request: Request, domain_id: str) -> dict:
     try:
         result = AdminDomainsService.get_domain_xml(domain_id)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -296,6 +305,7 @@ async def admin_domain_xml_get(request: Request, domain_id: str):
 @admin_router.post(
     "/admin/domain/{domain_id}/xml",
     tags=[tag],
+    response_model=dict,
     summary="Update domain XML",
     description="Updates the XML configuration for a domain and returns the updated XML.",
     responses={
@@ -305,11 +315,11 @@ async def admin_domain_xml_get(request: Request, domain_id: str):
 )
 async def admin_domain_xml_update(
     request: Request, domain_id: str, data: AdminDomainXmlData
-):
+) -> dict:
     try:
         request_data = data.model_dump(exclude_none=True)
         result = AdminDomainsService.update_domain_xml(domain_id, request_data)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -329,6 +339,7 @@ async def admin_domain_xml_update(
 @manager_router.get(
     "/admin/desktops/tree_list/{template_id}",
     tags=[tag],
+    response_model=list[dict],
     summary="Get template tree list",
     description="Returns the template tree list for a given template.",
     responses={
@@ -336,12 +347,12 @@ async def admin_domain_xml_update(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_desktops_tree_list(request: Request, template_id: str):
+async def admin_desktops_tree_list(request: Request, template_id: str) -> list[dict]:
     try:
         result = AdminDomainsService.get_template_tree_list(
             request.token_payload, template_id
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -356,6 +367,7 @@ async def admin_desktops_tree_list(request: Request, template_id: str):
 @manager_router.get(
     "/admin/domain/template_tree/{desktop_id}",
     tags=[tag],
+    response_model=list[dict],
     summary="Get domain template tree",
     description="Returns the template ancestry tree for a domain.",
     responses={
@@ -363,12 +375,12 @@ async def admin_desktops_tree_list(request: Request, template_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_template_tree(request: Request, desktop_id: str):
+async def admin_domain_template_tree(request: Request, desktop_id: str) -> list[dict]:
     try:
         result = AdminDomainsService.get_domain_template_tree(
             request.token_payload, desktop_id
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -396,12 +408,14 @@ async def admin_domain_template_tree(request: Request, desktop_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_multiple_actions(request: Request, data: AdminMultipleActionsData):
+async def admin_multiple_actions(
+    request: Request, data: AdminMultipleActionsData
+) -> EmptyResponse:
     try:
         AdminDomainsService.multiple_actions(
             request.token_payload, data.action, data.ids
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -429,10 +443,10 @@ async def admin_multiple_actions(request: Request, data: AdminMultipleActionsDat
         500: {"model": ErrorResponse},
     },
 )
-async def admin_template_delete(request: Request, template_id: str):
+async def admin_template_delete(request: Request, template_id: str) -> EmptyResponse:
     try:
         AdminDomainsService.delete_template(request.token_payload, template_id)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -452,6 +466,7 @@ async def admin_template_delete(request: Request, template_id: str):
 @manager_router.get(
     "/admin/domains/{field}/{kind}",
     tags=[tag],
+    response_model=list,
     summary="Get domain field values",
     description="Returns distinct values for a specific field across domains of a given kind.",
     responses={
@@ -459,12 +474,12 @@ async def admin_template_delete(request: Request, template_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domains_field(request: Request, field: str, kind: str):
+async def admin_domains_field(request: Request, field: str, kind: str) -> list:
     try:
         result = AdminDomainsService.get_domains_field(
             request.token_payload, field, kind
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -484,6 +499,7 @@ async def admin_domains_field(request: Request, field: str, kind: str):
 @manager_router.get(
     "/domain/hardware/{domain_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get domain hardware",
     description="Returns hardware details for a domain.",
     responses={
@@ -491,12 +507,12 @@ async def admin_domains_field(request: Request, field: str, kind: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_hardware(request: Request, domain_id: str):
+async def admin_domain_hardware(request: Request, domain_id: str) -> dict:
     try:
         result = AdminDomainsService.get_domain_hardware(
             request.token_payload, domain_id
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -528,10 +544,10 @@ async def admin_domain_hardware(request: Request, domain_id: str):
 )
 async def admin_desktops_status(
     request: Request, current_status: str, target_status: str
-):
+) -> EmptyResponse:
     try:
         AdminDomainsService.change_desktops_status(current_status, target_status)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -558,12 +574,12 @@ async def admin_desktops_status(
 )
 async def admin_desktops_status_category(
     request: Request, category: str, current_status: str, target_status: str
-):
+) -> EmptyResponse:
     try:
         AdminDomainsService.change_desktops_status_category(
             category, current_status, target_status
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -583,6 +599,7 @@ async def admin_desktops_status_category(
 @admin_router.put(
     "/domain/{domain_id}/storage_path",
     tags=[tag],
+    response_model=dict,
     summary="Update domain storage path",
     description="Updates the storage path of a domain, replacing all occurrences "
     "of the old path with the new path.",
@@ -593,12 +610,12 @@ async def admin_desktops_status_category(
 )
 async def admin_domain_storage_path(
     request: Request, domain_id: str, data: AdminDomainStoragePathData
-):
+) -> dict:
     try:
         result = AdminDomainsService.update_domain_storage_path(
             domain_id, data.old_path, data.new_path
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -618,6 +635,7 @@ async def admin_domain_storage_path(
 @manager_router.get(
     "/admin/domain/search-info/{domain_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get domain search info",
     description="Returns domain info enriched with owner data for search results.",
     responses={
@@ -625,12 +643,12 @@ async def admin_domain_storage_path(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_search_info(request: Request, domain_id: str):
+async def admin_domain_search_info(request: Request, domain_id: str) -> dict:
     try:
         result = AdminDomainsService.get_domain_search_info(
             request.token_payload, domain_id
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -650,6 +668,7 @@ async def admin_domain_search_info(request: Request, domain_id: str):
 @admin_router.post(
     "/admin/logs_desktops",
     tags=[tag],
+    response_model=dict,
     summary="Query desktop logs (raw)",
     description="Query desktop logs with DataTables-style parameters. "
     "Returns raw log data.",
@@ -660,19 +679,10 @@ async def admin_domain_search_info(request: Request, domain_id: str):
 )
 async def admin_logs_desktops_raw(
     request: Request, form_data=Depends(parse_json_or_form)
-):
+) -> dict:
     try:
-        import json as _json
-        from datetime import datetime as _dt
-
         result = AdminDomainsService.query_logs_desktops(form_data, view="raw")
-        serialized = _json.loads(
-            _json.dumps(
-                result,
-                default=lambda o: o.isoformat() if isinstance(o, _dt) else str(o),
-            )
-        )
-        return serialized
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -687,6 +697,7 @@ async def admin_logs_desktops_raw(
 @admin_router.post(
     "/admin/logs_desktops/{view}",
     tags=[tag],
+    response_model=dict,
     summary="Query desktop logs (grouped)",
     description="Query desktop logs with DataTables-style parameters. "
     "Supports views: 'raw', 'desktop_grouping', 'category_grouping'.",
@@ -695,7 +706,7 @@ async def admin_logs_desktops_raw(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_view(request: Request, view: str = "raw"):
+async def admin_logs_desktops_view(request: Request, view: str = "raw") -> dict:
     try:
         try:
             form_data = await request.form()
@@ -705,7 +716,7 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw"):
                 "Request body must be multipart form data",
             )
         result = AdminDomainsService.query_logs_desktops(form_data, view=view)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -725,6 +736,7 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw"):
 @admin_router.post(
     "/admin/logs_users",
     tags=[tag],
+    response_model=dict,
     summary="Query user logs (raw)",
     description="Query user logs with DataTables-style parameters. "
     "Returns raw log data.",
@@ -733,19 +745,12 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw"):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or_form)):
+async def admin_logs_users_raw(
+    request: Request, form_data=Depends(parse_json_or_form)
+) -> dict:
     try:
-        import json as _json
-        from datetime import datetime as _dt
-
         result = AdminDomainsService.query_logs_users(form_data, view="raw")
-        serialized = _json.loads(
-            _json.dumps(
-                result,
-                default=lambda o: o.isoformat() if isinstance(o, _dt) else str(o),
-            )
-        )
-        return serialized
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -760,6 +765,7 @@ async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or
 @admin_router.post(
     "/admin/logs_users/{view}",
     tags=[tag],
+    response_model=dict,
     summary="Query user logs (grouped)",
     description="Query user logs with DataTables-style parameters. "
     "Supports views: 'raw', 'user_grouping', 'category_grouping'.",
@@ -768,7 +774,7 @@ async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_view(request: Request, view: str = "raw"):
+async def admin_logs_users_view(request: Request, view: str = "raw") -> dict:
     try:
         try:
             form_data = await request.form()
@@ -778,7 +784,7 @@ async def admin_logs_users_view(request: Request, view: str = "raw"):
                 "Request body must be multipart form data",
             )
         result = AdminDomainsService.query_logs_users(form_data, view=view)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -798,6 +804,7 @@ async def admin_logs_users_view(request: Request, view: str = "raw"):
 @manager_router.get(
     "/admin/logs_desktops/list",
     tags=[tag],
+    response_model=list[dict],
     summary="List desktop logs (JSON)",
     description="Simple JSON list of desktop logs with optional filters.",
     responses={500: {"model": ErrorResponse}},
@@ -810,11 +817,8 @@ async def admin_logs_desktops_list(
     offset: int = 0,
     desktop_id: str = None,
     user_id: str = None,
-):
+) -> list[dict]:
     try:
-        import json as _json
-        from datetime import datetime as _dt
-
         result = AdminDomainsService.list_desktop_logs(
             request.token_payload,
             start_date,
@@ -824,13 +828,7 @@ async def admin_logs_desktops_list(
             desktop_id,
             user_id,
         )
-        serialized = _json.loads(
-            _json.dumps(
-                result,
-                default=lambda o: o.isoformat() if isinstance(o, _dt) else str(o),
-            )
-        )
-        return serialized
+        return result or []
     except Error:
         raise
     except Exception:
@@ -845,6 +843,7 @@ async def admin_logs_desktops_list(
 @manager_router.get(
     "/admin/logs_users/list",
     tags=[tag],
+    response_model=list[dict],
     summary="List user logs (JSON)",
     description="Simple JSON list of user logs with optional filters.",
     responses={500: {"model": ErrorResponse}},
@@ -857,11 +856,8 @@ async def admin_logs_users_list(
     offset: int = 0,
     user_id: str = None,
     group_id: str = None,
-):
+) -> list[dict]:
     try:
-        import json as _json
-        from datetime import datetime as _dt
-
         result = AdminDomainsService.list_user_logs(
             request.token_payload,
             start_date,
@@ -871,13 +867,7 @@ async def admin_logs_users_list(
             user_id,
             group_id,
         )
-        serialized = _json.loads(
-            _json.dumps(
-                result,
-                default=lambda o: o.isoformat() if isinstance(o, _dt) else str(o),
-            )
-        )
-        return serialized
+        return result or []
     except Error:
         raise
     except Exception:
@@ -897,6 +887,7 @@ async def admin_logs_users_list(
 @admin_router.get(
     "/logs_desktops/config/old_entries",
     tags=[tag],
+    response_model=dict,
     summary="Get desktop logs old entries config",
     description="Returns the configuration for desktop logs old entries management.",
     responses={
@@ -904,10 +895,10 @@ async def admin_logs_users_list(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_config(request: Request):
+async def admin_logs_desktops_config(request: Request) -> dict:
     try:
         result = AdminDomainsService.get_logs_desktops_config()
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -922,6 +913,7 @@ async def admin_logs_desktops_config(request: Request):
 @admin_router.put(
     "/logs_desktops/config/old_entries/max_time/{max_time}",
     tags=[tag],
+    response_model=dict,
     summary="Set desktop logs max time",
     description="Sets the maximum time (in hours) for desktop logs old entries. "
     "Minimum value is 24 hours.",
@@ -930,10 +922,10 @@ async def admin_logs_desktops_config(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_max_time(request: Request, max_time: int):
+async def admin_logs_desktops_max_time(request: Request, max_time: int) -> dict:
     try:
         result = AdminDomainsService.set_logs_desktops_max_time(max_time)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -948,6 +940,7 @@ async def admin_logs_desktops_max_time(request: Request, max_time: int):
 @admin_router.put(
     "/logs_desktops/config/old_entries/action/{action}",
     tags=[tag],
+    response_model=dict,
     summary="Set desktop logs old entries action",
     description="Sets the action for desktop logs old entries. "
     'Valid values: "delete", "none".',
@@ -959,10 +952,10 @@ async def admin_logs_desktops_max_time(request: Request, max_time: int):
 )
 async def admin_logs_desktops_action(
     request: Request, action: Literal["delete", "none"]
-):
+) -> dict:
     try:
         result = AdminDomainsService.set_logs_desktops_action(action)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -977,6 +970,7 @@ async def admin_logs_desktops_action(
 @admin_router.put(
     "/logs_desktops/old_entries/delete",
     tags=[tag],
+    response_model=int,
     summary="Delete old desktop logs",
     description="Deletes desktop logs older than the configured max time. "
     "Runs asynchronously and returns the count of logs to delete.",
@@ -985,10 +979,10 @@ async def admin_logs_desktops_action(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_delete(request: Request):
+async def admin_logs_desktops_delete(request: Request) -> int:
     try:
         count = AdminDomainsService.delete_old_desktop_logs()
-        return count
+        return count or 0
     except Error:
         raise
     except Exception as e:
@@ -1003,6 +997,7 @@ async def admin_logs_desktops_delete(request: Request):
 @admin_router.delete(
     "/logs_desktops/old_entries/delete/all",
     tags=[tag],
+    response_model=int,
     summary="Delete all desktop logs",
     description="Deletes all desktop logs regardless of age. "
     "Runs asynchronously and returns the count of logs to delete.",
@@ -1011,10 +1006,10 @@ async def admin_logs_desktops_delete(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_delete_all(request: Request):
+async def admin_logs_desktops_delete_all(request: Request) -> int:
     try:
         count = AdminDomainsService.delete_all_desktop_logs()
-        return count
+        return count or 0
     except Error:
         raise
     except Exception as e:
@@ -1034,6 +1029,7 @@ async def admin_logs_desktops_delete_all(request: Request):
 @admin_router.get(
     "/logs_users/config/old_entries",
     tags=[tag],
+    response_model=dict,
     summary="Get user logs old entries config",
     description="Returns the configuration for user logs old entries management.",
     responses={
@@ -1041,10 +1037,10 @@ async def admin_logs_desktops_delete_all(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_config(request: Request):
+async def admin_logs_users_config(request: Request) -> dict:
     try:
         result = AdminDomainsService.get_logs_users_config()
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1059,6 +1055,7 @@ async def admin_logs_users_config(request: Request):
 @admin_router.put(
     "/logs_users/config/old_entries/max_time/{max_time}",
     tags=[tag],
+    response_model=dict,
     summary="Set user logs max time",
     description="Sets the maximum time (in hours) for user logs old entries. "
     "Minimum value is 24 hours.",
@@ -1067,10 +1064,10 @@ async def admin_logs_users_config(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_max_time(request: Request, max_time: int):
+async def admin_logs_users_max_time(request: Request, max_time: int) -> dict:
     try:
         result = AdminDomainsService.set_logs_users_max_time(max_time)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1085,6 +1082,7 @@ async def admin_logs_users_max_time(request: Request, max_time: int):
 @admin_router.put(
     "/logs_users/config/old_entries/action/{action}",
     tags=[tag],
+    response_model=dict,
     summary="Set user logs old entries action",
     description="Sets the action for user logs old entries. "
     'Valid values: "delete", "none".',
@@ -1094,10 +1092,12 @@ async def admin_logs_users_max_time(request: Request, max_time: int):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_action(request: Request, action: Literal["delete", "none"]):
+async def admin_logs_users_action(
+    request: Request, action: Literal["delete", "none"]
+) -> dict:
     try:
         result = AdminDomainsService.set_logs_users_action(action)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1112,6 +1112,7 @@ async def admin_logs_users_action(request: Request, action: Literal["delete", "n
 @admin_router.put(
     "/logs_users/old_entries/delete",
     tags=[tag],
+    response_model=int,
     summary="Delete old user logs",
     description="Deletes user logs older than the configured max time. "
     "Runs asynchronously and returns the count of logs to delete.",
@@ -1120,10 +1121,10 @@ async def admin_logs_users_action(request: Request, action: Literal["delete", "n
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_delete(request: Request):
+async def admin_logs_users_delete(request: Request) -> int:
     try:
         count = AdminDomainsService.delete_old_user_logs()
-        return count
+        return count or 0
     except Error:
         raise
     except Exception as e:
@@ -1138,6 +1139,7 @@ async def admin_logs_users_delete(request: Request):
 @admin_router.delete(
     "/logs_users/old_entries/delete/all",
     tags=[tag],
+    response_model=int,
     summary="Delete all user logs",
     description="Deletes all user logs regardless of age. "
     "Runs asynchronously and returns the count of logs to delete.",
@@ -1146,10 +1148,10 @@ async def admin_logs_users_delete(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_delete_all(request: Request):
+async def admin_logs_users_delete_all(request: Request) -> int:
     try:
         count = AdminDomainsService.delete_all_user_logs()
-        return count
+        return count or 0
     except Error:
         raise
     except Exception as e:
@@ -1169,16 +1171,17 @@ async def admin_logs_users_delete_all(request: Request):
 @admin_router.get(
     "/admin/domains/xml_capabilities",
     tags=[tag],
+    response_model=dict,
     summary="Get XML capabilities",
     description="Returns libvirt domain XML capabilities and section definitions.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domain_xml_capabilities(request: Request):
+async def admin_domain_xml_capabilities(request: Request) -> dict:
     try:
         from api.services.xml_sections import get_domain_capabilities
 
         caps = get_domain_capabilities()
-        return caps
+        return caps if isinstance(caps, dict) else {}
     except Error:
         raise
     except Exception:
@@ -1193,11 +1196,12 @@ async def admin_domain_xml_capabilities(request: Request):
 @admin_router.post(
     "/admin/domains/xml_sections/parse",
     tags=[tag],
+    response_model=dict,
     summary="Parse raw XML into sections",
     description="Split raw XML into editable sections without a saved domain.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domain_xml_sections_parse(request: Request):
+async def admin_domain_xml_sections_parse(request: Request) -> dict:
     try:
         from api.services.xml_sections import split_xml_sections
 
@@ -1237,11 +1241,12 @@ async def admin_domain_xml_sections_parse(request: Request):
 @admin_router.get(
     "/admin/domains/xml_sections/{domain_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get domain XML sections",
     description="Split a domain's XML into editable sections.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domain_xml_sections_get(request: Request, domain_id: str):
+async def admin_domain_xml_sections_get(request: Request, domain_id: str) -> dict:
     try:
         from api.services.xml_sections import split_xml_sections
 
@@ -1289,6 +1294,7 @@ async def admin_domain_xml_sections_save(
 @admin_router.post(
     "/admin/domains/xml_sections/{domain_id}/save_virt_install",
     tags=[tag],
+    response_model=dict,
     summary="Save domain XML sections as a new virt_install template",
     description=(
         "Merges the edited XML sections into the domain's full XML, "
@@ -1305,7 +1311,7 @@ async def admin_domain_xml_sections_save(
 )
 async def admin_domain_xml_sections_save_as_virt_install(
     request: Request, domain_id: str
-):
+) -> dict:
     try:
         from api.services.xml_sections import save_as_virt_install
 
@@ -1342,6 +1348,7 @@ async def admin_domain_xml_sections_save_as_virt_install(
 @admin_router.get(
     "/admin/virt_install/xml_sections/{virt_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get virt_install XML sections",
     description=(
         "Split a ``virt_install`` template's XML into editable sections "
@@ -1352,12 +1359,12 @@ async def admin_domain_xml_sections_save_as_virt_install(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_virt_install_xml_sections_get(request: Request, virt_id: str):
+async def admin_virt_install_xml_sections_get(request: Request, virt_id: str) -> dict:
     try:
         from api.services.xml_sections import get_virt_install_xml_sections
 
         result = get_virt_install_xml_sections(virt_id)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:
@@ -1372,6 +1379,7 @@ async def admin_virt_install_xml_sections_get(request: Request, virt_id: str):
 @admin_router.post(
     "/admin/virt_install/xml_sections/{virt_id}",
     tags=[tag],
+    response_model=dict,
     summary="Save virt_install XML sections",
     description=(
         "Merge edited sections back into a ``virt_install`` template's " "full XML."
@@ -1382,7 +1390,7 @@ async def admin_virt_install_xml_sections_get(request: Request, virt_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_virt_install_xml_sections_save(request: Request, virt_id: str):
+async def admin_virt_install_xml_sections_save(request: Request, virt_id: str) -> dict:
     try:
         from api.services.xml_sections import save_virt_install_xml_sections
 
@@ -1400,7 +1408,7 @@ async def admin_virt_install_xml_sections_save(request: Request, virt_id: str):
                 traceback.format_exc(),
             )
         result = save_virt_install_xml_sections(virt_id, data["sections"])
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:

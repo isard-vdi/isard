@@ -4,10 +4,10 @@
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
-from typing import Optional
+from typing import Literal, Optional
 
 from api import admin_router, token_router
-from api.schemas.cards import GenerateCardRequest
+from api.schemas.cards import CardResponse, GenerateCardRequest
 from api.schemas.common import ErrorResponse
 from api.services.cards import CardService
 from api.services.error import Error
@@ -25,6 +25,7 @@ tag = "cards"
 @token_router.get(
     "/images/desktops",
     tags=[tag],
+    response_model=list[CardResponse],
     summary="Get desktop images",
     description="Returns all available desktop images (stock + user).",
     operation_id="get_desktop_card_images",
@@ -35,11 +36,11 @@ async def get_desktop_images(
     desktop_id: Optional[str] = Query(
         None, description="Desktop ID to filter user cards"
     ),
-):
+) -> list[CardResponse]:
     try:
         stock = CardService.get_stock_cards()
         user = CardService.get_user_cards(request.token_payload["user_id"], desktop_id)
-        return stock + user
+        return [CardResponse(**c) for c in (stock + user)]
     except Error:
         raise
     except Exception:
@@ -54,6 +55,7 @@ async def get_desktop_images(
 @token_router.get(
     "/images/desktops/{kind}",
     tags=[tag],
+    response_model=list[CardResponse],
     summary="Get desktop images by type",
     description="Returns desktop images filtered by type (stock or user).",
     responses={
@@ -63,25 +65,19 @@ async def get_desktop_images(
 )
 async def get_desktop_images_by_type(
     request: Request,
-    kind: str,
+    kind: Literal["stock", "user"],
     desktop_id: Optional[str] = Query(
         None, description="Desktop ID to filter user cards"
     ),
-):
+) -> list[CardResponse]:
     try:
         if kind == "stock":
             images = CardService.get_stock_cards()
-        elif kind == "user":
+        else:  # kind == "user" — Literal route guard ensures
             images = CardService.get_user_cards(
                 request.token_payload["user_id"], desktop_id
             )
-        else:
-            raise await Error.create(
-                request,
-                "bad_request",
-                f"Invalid image type: {kind}. Must be 'stock' or 'user'.",
-            )
-        return images
+        return [CardResponse(**c) for c in (images or [])]
     except Error:
         raise
     except Exception:
@@ -96,14 +92,15 @@ async def get_desktop_images_by_type(
 @token_router.get(
     "/images/desktops/stock/default/{domain_id}",
     tags=[tag],
+    response_model=CardResponse,
     summary="Get default stock card for a domain",
     description="Returns the default stock card image for a specific domain.",
     responses={500: {"model": ErrorResponse}},
 )
-async def get_stock_default_card(request: Request, domain_id: str):
+async def get_stock_default_card(request: Request, domain_id: str) -> CardResponse:
     try:
         result = CardService.get_domain_stock_card(domain_id)
-        return result
+        return CardResponse(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -118,6 +115,7 @@ async def get_stock_default_card(request: Request, domain_id: str):
 @token_router.get(
     "/images/desktops/user/default/{domain_id}",
     tags=[tag],
+    response_model=CardResponse,
     summary="Get default user card for a domain",
     description="Returns the default user card image for a specific domain.",
     responses={
@@ -125,10 +123,10 @@ async def get_stock_default_card(request: Request, domain_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def get_user_default_card(request: Request, domain_id: str):
+async def get_user_default_card(request: Request, domain_id: str) -> CardResponse:
     try:
         result = CardService.get_domain_user_card(domain_id)
-        return result
+        return CardResponse(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -143,14 +141,17 @@ async def get_user_default_card(request: Request, domain_id: str):
 @admin_router.post(
     "/admin/images/desktops/generate",
     tags=[tag],
+    response_model=CardResponse,
     summary="Generate a default card",
     description="Generates a default card image for a domain. Admin only.",
     responses={500: {"model": ErrorResponse}},
 )
-async def generate_default_card(request: Request, data: GenerateCardRequest):
+async def generate_default_card(
+    request: Request, data: GenerateCardRequest
+) -> CardResponse:
     try:
         result = CardService.generate_default_card(data.desktop_id, data.desktop_name)
-        return result
+        return CardResponse(**(result or {}))
     except Error:
         raise
     except Exception:

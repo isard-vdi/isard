@@ -98,3 +98,13 @@ class StatsCategoriesDeploymentsResponse(BaseModel):
 class StatsDomainsStatusResponse(BaseModel):
     desktop: dict[str, int] = Field(default_factory=dict)
     template: dict[str, int] = Field(default_factory=dict)
+
+
+class StatsGenericResponse(BaseModel):
+    """Permissive response shape for the stats endpoints whose service
+    methods return varied / nested dicts (general stats, desktop status,
+    category status, category limits, kind/state breakdowns, started-
+    count). The webapp admin renders these per-key.
+    """
+
+    model_config = {"extra": "allow"}

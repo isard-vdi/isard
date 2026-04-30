@@ -180,8 +180,14 @@ def test_admin_hypervisor_virt_pools_get(monkeypatch, test_client):
 
     response = test_client(url="/admin/hypervisor/hyper-1/virt_pools", jwt=jwt)
 
+    # ``response_model=list[AdminHypervisorVirtPool]`` adds the
+    # declared optional ``name`` field with a None default; per-key
+    # asserts replace equality on the partial stub.
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "pool-1"
+    assert body[0]["enabled"] is True
 
 
 def test_admin_hypervisor_virt_pools_update(monkeypatch, test_client):
@@ -238,7 +244,10 @@ def test_admin_hypervisor_started_domains(monkeypatch, test_client):
     response = test_client(url="/admin/hypervisor/started_domains/hyper-1", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "desktop-1"
+    assert body[0].get("user_name") == "alice"
 
 
 # ─── Orchestrator hypervisor management (T1/orchestrator shims) ─────────

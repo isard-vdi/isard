@@ -6,6 +6,10 @@
 import traceback
 
 from api import admin_router
+from api.schemas.admin.operations import (
+    HypervisorActionResponse,
+    OperationsHypervisorResponse,
+)
 from api.schemas.common import ErrorResponse
 from api.services.admin.operations import AdminOperationsService
 from api.services.error import Error
@@ -23,6 +27,7 @@ tag = "admin_operations"
 @admin_router.get(
     "/admin/operations/hypervisors",
     tags=[tag],
+    response_model=list[OperationsHypervisorResponse],
     summary="List operations hypervisors",
     description="Lists all hypervisors managed by the operations service. Requires operations API to be enabled.",
     responses={
@@ -30,7 +35,9 @@ tag = "admin_operations"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_operations_hypervisors(request: Request):
+async def admin_operations_hypervisors(
+    request: Request,
+) -> list[OperationsHypervisorResponse]:
     try:
         if not AdminOperationsService.is_operations_api_enabled():
             raise await Error.create(
@@ -39,7 +46,7 @@ async def admin_operations_hypervisors(request: Request):
                 "Operations API is not enabled",
             )
         result = AdminOperationsService.list_hypervisors()
-        return result
+        return [OperationsHypervisorResponse(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -54,6 +61,7 @@ async def admin_operations_hypervisors(request: Request):
 @admin_router.put(
     "/admin/operations/hypervisor/{hypervisor_id}",
     tags=[tag],
+    response_model=HypervisorActionResponse,
     summary="Start a hypervisor",
     description="Starts a hypervisor via the operations service. Requires operations API to be enabled.",
     responses={
@@ -61,7 +69,9 @@ async def admin_operations_hypervisors(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_operations_hypervisor_start(request: Request, hypervisor_id: str):
+async def admin_operations_hypervisor_start(
+    request: Request, hypervisor_id: str
+) -> HypervisorActionResponse:
     try:
         if not AdminOperationsService.is_operations_api_enabled():
             raise await Error.create(
@@ -70,7 +80,7 @@ async def admin_operations_hypervisor_start(request: Request, hypervisor_id: str
                 "Operations API is not enabled",
             )
         result = AdminOperationsService.start_hypervisor(hypervisor_id)
-        return result
+        return HypervisorActionResponse(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -85,6 +95,7 @@ async def admin_operations_hypervisor_start(request: Request, hypervisor_id: str
 @admin_router.delete(
     "/admin/operations/hypervisor/{hypervisor_id}",
     tags=[tag],
+    response_model=HypervisorActionResponse,
     summary="Stop a hypervisor",
     description="Stops a hypervisor via the operations service. Requires operations API to be enabled.",
     responses={
@@ -92,7 +103,9 @@ async def admin_operations_hypervisor_start(request: Request, hypervisor_id: str
         500: {"model": ErrorResponse},
     },
 )
-async def admin_operations_hypervisor_stop(request: Request, hypervisor_id: str):
+async def admin_operations_hypervisor_stop(
+    request: Request, hypervisor_id: str
+) -> HypervisorActionResponse:
     try:
         if not AdminOperationsService.is_operations_api_enabled():
             raise await Error.create(
@@ -101,7 +114,7 @@ async def admin_operations_hypervisor_stop(request: Request, hypervisor_id: str)
                 "Operations API is not enabled",
             )
         result = AdminOperationsService.stop_hypervisor(hypervisor_id)
-        return result
+        return HypervisorActionResponse(**(result or {}))
     except Error:
         raise
     except Exception:

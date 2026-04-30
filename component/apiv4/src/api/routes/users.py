@@ -305,18 +305,22 @@ async def get_allowed_hardware_for_domain(request: Request, domain_id: str):
     "/items/users",
     summary="Get all users",
     tags=[tag],
+    response_model=list[dict],
     responses={
         200: {"description": "Users retrieved successfully"},
         500: {"description": "Failed to retrieve users"},
     },
     description="Returns all the users that the user in the payload can see.",
 )
-async def get_all_users(request: Request):
+async def get_all_users(request: Request) -> list[dict]:
     try:
-        return CommonUsers.get_with_category(
-            request.token_payload["category_id"]
-            if request.token_payload["role_id"] != "admin"
-            else None
+        return (
+            CommonUsers.get_with_category(
+                request.token_payload["category_id"]
+                if request.token_payload["role_id"] != "admin"
+                else None
+            )
+            or []
         )
     except Error:
         raise
@@ -550,6 +554,7 @@ async def get_user_api_key(request: Request):
 @advanced_router.delete(
     "/item/user/expire-api-key",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Expire user API key",
     description="Deletes the API key for the specified user, making it invalid.",
     responses={
@@ -558,11 +563,11 @@ async def get_user_api_key(request: Request):
         500: {"description": "Failed to expire API key"},
     },
 )
-async def expire_user_api_key(request: Request):
+async def expire_user_api_key(request: Request) -> EmptyResponse:
     try:
         UsersService.delete_user_api_key(user_id=request.token_payload["user_id"])
 
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -608,6 +613,7 @@ async def set_user_password(request: Request, data: UserSetPasswordPutData):
 @token_router.delete(
     "/item/user",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Delete current user",
     description="Deletes the current user (self-deletion).",
     responses={
@@ -616,12 +622,12 @@ async def set_user_password(request: Request, data: UserSetPasswordPutData):
         500: {"description": "Failed to delete user"},
     },
 )
-async def delete_user(request: Request):
+async def delete_user(request: Request) -> EmptyResponse:
     try:
         UsersService.delete_user(
             user_id=request.token_payload["user_id"],
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -636,6 +642,7 @@ async def delete_user(request: Request):
 @token_router.get(
     "/item/user/desktops",
     tags=[tag],
+    response_model=list[dict],
     summary="Get user desktops",
     description="Returns a list of desktops for the current user.",
     operation_id="get_user_desktops_legacy",
@@ -645,12 +652,12 @@ async def delete_user(request: Request):
         500: {"description": "Failed to retrieve desktops"},
     },
 )
-async def get_user_desktops(request: Request):
+async def get_user_desktops(request: Request) -> list[dict]:
     try:
         desktops = UsersService.get_user_desktops(
             user_id=request.token_payload["user_id"],
         )
-        return desktops
+        return desktops or []
     except Error:
         raise
     except Exception as e:
@@ -759,6 +766,7 @@ async def get_user_vpn(request: Request, kind: Literal["config"]):
 @token_router.get(
     "/item/user/webapp-desktops",
     tags=[tag],
+    response_model=list[dict],
     summary="Get webapp desktops",
     description="Returns webapp desktops for the current user.",
     responses={
@@ -766,12 +774,12 @@ async def get_user_vpn(request: Request, kind: Literal["config"]):
         500: {"description": "Failed to retrieve webapp desktops"},
     },
 )
-async def get_webapp_desktops(request: Request):
+async def get_webapp_desktops(request: Request) -> list[dict]:
     try:
         desktops = UsersService.get_webapp_desktops(
             user_id=request.token_payload["user_id"],
         )
-        return desktops
+        return desktops or []
     except Error:
         raise
     except Exception as e:
@@ -786,6 +794,7 @@ async def get_webapp_desktops(request: Request):
 @token_router.get(
     "/item/user/webapp-templates",
     tags=[tag],
+    response_model=list[dict],
     summary="Get webapp templates",
     description="Returns webapp templates for the current user.",
     responses={
@@ -793,12 +802,12 @@ async def get_webapp_desktops(request: Request):
         500: {"description": "Failed to retrieve webapp templates"},
     },
 )
-async def get_webapp_templates(request: Request):
+async def get_webapp_templates(request: Request) -> list[dict]:
     try:
         templates = UsersService.get_webapp_templates(
             user_id=request.token_payload["user_id"],
         )
-        return templates
+        return templates or []
     except Error:
         raise
     except Exception as e:
@@ -842,6 +851,7 @@ async def groups_users_count(request: Request, data: GroupsUsersCountPutData):
 @token_router.get(
     "/item/user/hardware/{kind}/allowed",
     tags=[tag],
+    response_model=dict,
     summary="Get allowed hardware by kind",
     description="Returns the allowed hardware configurations for a specific hardware kind.",
     responses={
@@ -866,13 +876,13 @@ async def get_hardware_kind_allowed(
         "floppies",
         "disk_bus",
     ],
-):
+) -> dict:
     try:
         result = UsersService.get_hardware_kind_allowed(
             user_id=request.token_payload["user_id"],
             kind=kind,
         )
-        return result
+        return result or {}
     except Error:
         raise
     except Exception as e:
@@ -915,6 +925,7 @@ async def get_user_applied_quota(request: Request):
 @token_router.get(
     "/item/user/bastion-allowed",
     tags=[tag],
+    response_model=dict,
     summary="Check bastion access",
     description="Returns whether the current user is allowed to use bastion.",
     responses={
@@ -922,12 +933,12 @@ async def get_user_applied_quota(request: Request):
         500: {"description": "Failed to check bastion access"},
     },
 )
-async def get_bastion_allowed(request: Request):
+async def get_bastion_allowed(request: Request) -> dict:
     try:
         result = UsersService.get_bastion_allowed(
             payload=request.token_payload,
         )
-        return result
+        return result or {}
     except Error:
         raise
     except Exception as e:

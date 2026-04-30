@@ -14,7 +14,7 @@ class AdminSocketioService:
     """Service for admin socketio emit operations."""
 
     @staticmethod
-    def emit_events(events: List[SocketioEmitRequest]):
+    def emit_events(events: List[SocketioEmitRequest]) -> None:
         """Emit typed socketio events. Accepts ``SocketioEmitRequest``
         models directly so optional-field defaults live in the schema
         rather than being duplicated as ``.get(..., default)`` calls
@@ -26,10 +26,9 @@ class AdminSocketioService:
                 event.namespace or "/",
                 event.room or "",
             )
-        return True
 
     @staticmethod
-    def broadcast(type_: str, message: str):
+    def broadcast(type_: str, message: str) -> None:
         """
         Broadcast an admin message to every connected client: fans out
         `msg` on ``/administrators`` and `msg_<type>` on ``/userspace``.

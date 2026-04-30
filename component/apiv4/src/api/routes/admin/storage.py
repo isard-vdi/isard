@@ -22,7 +22,13 @@ import traceback
 from typing import Optional
 
 from api import admin_router, manager_router
-from api.schemas.admin.storage import AdminStorageFilterRequest
+from api.schemas.admin.storage import (
+    AdminStorageDomain,
+    AdminStorageFilterRequest,
+    AdminStorageInfo,
+    AdminStorageItem,
+    AdminStorageStatusCount,
+)
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.storage import AdminStorageService
 from api.services.error import Error
@@ -40,15 +46,16 @@ tag = "admin_storage"
 @manager_router.get(
     "/storage/status",
     tags=[tag],
+    response_model=list[AdminStorageStatusCount],
     summary="Get storage status counts",
     description="Get counts of storages grouped by status. "
     "Managers are scoped to their category.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_storage_status(request: Request):
+async def admin_storage_status(request: Request) -> list[AdminStorageStatusCount]:
     try:
         result = AdminStorageService.get_storage_status(request.token_payload)
-        return result
+        return [AdminStorageStatusCount(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -68,14 +75,15 @@ async def admin_storage_status(request: Request):
 @manager_router.get(
     "/admin/storage",
     tags=[tag],
+    response_model=list[AdminStorageItem],
     summary="Get all storages",
     description="Get all storage items. Admins see all; managers are scoped to their category.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_storage_list(request: Request):
+async def admin_storage_list(request: Request) -> list[AdminStorageItem]:
     try:
         result = AdminStorageService.get_storages(request.token_payload)
-        return result
+        return [AdminStorageItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -90,6 +98,7 @@ async def admin_storage_list(request: Request):
 @manager_router.post(
     "/admin/storage",
     tags=[tag],
+    response_model=list[AdminStorageItem],
     summary="Get all storages with category filter",
     description="Get all storage items with optional category filter. "
     "Admins can filter by categories; managers are scoped to their category.",
@@ -98,13 +107,13 @@ async def admin_storage_list(request: Request):
 async def admin_storage_list_filtered(
     request: Request,
     data: AdminStorageFilterRequest,
-):
+) -> list[AdminStorageItem]:
     try:
         result = AdminStorageService.get_storages(
             request.token_payload,
             categories=data.categories,
         )
-        return result
+        return [AdminStorageItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -119,6 +128,7 @@ async def admin_storage_list_filtered(
 @manager_router.get(
     "/admin/storage/by-status/{status}",
     tags=[tag],
+    response_model=list[AdminStorageItem],
     summary="Get storages by status",
     description="Get storage items filtered by status. "
     "Admins see all; managers are scoped to their category.",
@@ -127,10 +137,10 @@ async def admin_storage_list_filtered(
 async def admin_storage_by_status(
     request: Request,
     status: str = Path(..., description="Storage status to filter by"),
-):
+) -> list[AdminStorageItem]:
     try:
         result = AdminStorageService.get_storages(request.token_payload, status=status)
-        return result
+        return [AdminStorageItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -145,6 +155,7 @@ async def admin_storage_by_status(
 @manager_router.post(
     "/admin/storage/by-status/{status}",
     tags=[tag],
+    response_model=list[AdminStorageItem],
     summary="Get storages by status with category filter",
     description="Get storage items filtered by status with optional category filter.",
     responses={500: {"model": ErrorResponse}},
@@ -153,14 +164,14 @@ async def admin_storage_by_status_filtered(
     request: Request,
     data: AdminStorageFilterRequest,
     status: str = Path(..., description="Storage status to filter by"),
-):
+) -> list[AdminStorageItem]:
     try:
         result = AdminStorageService.get_storages(
             request.token_payload,
             status=status,
             categories=data.categories,
         )
-        return result
+        return [AdminStorageItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -180,6 +191,7 @@ async def admin_storage_by_status_filtered(
 @manager_router.get(
     "/admin/storage/domains/{storage_id:path}",
     tags=[tag],
+    response_model=list[AdminStorageDomain],
     summary="Get domains attached to a storage",
     description="Get the list of domains that use a specific storage.",
     responses={
@@ -191,12 +203,12 @@ async def admin_storage_by_status_filtered(
 async def admin_storage_domains(
     request: Request,
     storage_id: str = Path(..., description="Storage ID"),
-):
+) -> list[AdminStorageDomain]:
     try:
         result = AdminStorageService.get_storage_domains(
             request.token_payload, storage_id
         )
-        return result
+        return [AdminStorageDomain(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -211,6 +223,7 @@ async def admin_storage_domains(
 @manager_router.get(
     "/admin/media/domains/{storage_id:path}",
     tags=[tag],
+    response_model=list[AdminStorageDomain],
     summary="Get domains using a media item",
     description="Get the list of domains that use a specific media item.",
     responses={
@@ -222,12 +235,12 @@ async def admin_storage_domains(
 async def admin_media_domains(
     request: Request,
     storage_id: str = Path(..., description="Media ID"),
-):
+) -> list[AdminStorageDomain]:
     try:
         result = AdminStorageService.get_media_domains(
             request.token_payload, storage_id
         )
-        return result
+        return [AdminStorageDomain(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -276,6 +289,7 @@ async def admin_storage_delete(
 @manager_router.get(
     "/admin/storage/info/{storage_id}",
     tags=[tag],
+    response_model=AdminStorageInfo,
     summary="Get storage information",
     description="Get detailed information about a specific storage.",
     responses={
@@ -287,10 +301,10 @@ async def admin_storage_delete(
 async def admin_storage_info(
     request: Request,
     storage_id: str = Path(..., description="Storage ID"),
-):
+) -> AdminStorageInfo:
     try:
         result = AdminStorageService.get_storage_info(request.token_payload, storage_id)
-        return result
+        return AdminStorageInfo(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -305,6 +319,7 @@ async def admin_storage_info(
 @manager_router.get(
     "/admin/storage/search-info/{storage_id}",
     tags=[tag],
+    response_model=AdminStorageInfo,
     summary="Get storage search information with owner data",
     description="Get storage information including owner details.",
     responses={
@@ -316,12 +331,12 @@ async def admin_storage_info(
 async def admin_storage_search_info(
     request: Request,
     storage_id: str = Path(..., description="Storage ID"),
-):
+) -> AdminStorageInfo:
     try:
         result = AdminStorageService.get_storage_search_info(
             request.token_payload, storage_id
         )
-        return result
+        return AdminStorageInfo(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -341,6 +356,7 @@ async def admin_storage_search_info(
 @admin_router.get(
     "/admin/storage/by-role/{role}",
     tags=[tag],
+    response_model=list[AdminStorageItem],
     summary="Get storages by user role",
     description="Get all storages filtered by the owning user's role. Admin only.",
     responses={
@@ -351,10 +367,10 @@ async def admin_storage_search_info(
 async def admin_storage_by_role(
     request: Request,
     role: str = Path(..., description="User role to filter by"),
-):
+) -> list[AdminStorageItem]:
     try:
         result = AdminStorageService.get_storages_by_role(role)
-        return result
+        return [AdminStorageItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:

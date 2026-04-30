@@ -21,6 +21,7 @@
 import traceback
 
 from api import admin_router
+from api.schemas.admin.scheduler import SchedulerBookingsJob, SchedulerSystemJob
 from api.schemas.common import ErrorResponse
 from api.services.admin.scheduler import AdminSchedulerService
 from api.services.error import Error
@@ -33,14 +34,15 @@ tag = "admin_scheduler"
 @admin_router.get(
     "/admin/scheduler/jobs/system",
     tags=[tag],
+    response_model=list[SchedulerSystemJob],
     summary="Get system scheduler jobs",
     description="Get the list of system scheduler jobs ordered by next run time.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_scheduler_jobs_system(request: Request):
+async def admin_scheduler_jobs_system(request: Request) -> list[SchedulerSystemJob]:
     try:
         result = AdminSchedulerService.get_system_jobs()
-        return result
+        return [SchedulerSystemJob(**row) for row in result]
     except Error:
         raise
     except Exception:
@@ -55,14 +57,17 @@ async def admin_scheduler_jobs_system(request: Request):
 @admin_router.get(
     "/admin/scheduler/jobs/bookings",
     tags=[tag],
+    response_model=list[SchedulerBookingsJob],
     summary="Get bookings scheduler jobs",
     description="Get the list of bookings scheduler jobs ordered by next run time.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_scheduler_jobs_bookings(request: Request):
+async def admin_scheduler_jobs_bookings(
+    request: Request,
+) -> list[SchedulerBookingsJob]:
     try:
         result = AdminSchedulerService.get_bookings_jobs()
-        return result
+        return [SchedulerBookingsJob(**row) for row in result]
     except Error:
         raise
     except Exception:

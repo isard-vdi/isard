@@ -23,10 +23,15 @@ from typing import Literal
 
 from api import admin_router, disclaimer_router, manager_router
 from api.schemas.admin.authentication import (
+    DisclaimerResponse,
+    MigrationException,
     MigrationExceptionCreateRequest,
     PolicyCreateRequest,
     PolicyEditRequest,
+    PolicyResponse,
+    ProviderConfigResponse,
     ProviderConfigUpdateRequest,
+    ProvidersResponse,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.authentication import AdminAuthenticationService
@@ -72,14 +77,15 @@ async def admin_authentication_policy_add(request: Request, data: PolicyCreateRe
 @admin_router.get(
     "/admin/authentication/policies",
     tags=[tag],
+    response_model=list[PolicyResponse],
     summary="List authentication policies",
     description="Returns all authentication policies.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_authentication_policies(request: Request):
+async def admin_authentication_policies(request: Request) -> list[PolicyResponse]:
     try:
         policies = AdminAuthenticationService.get_policies()
-        return policies
+        return [PolicyResponse(**row) for row in (policies or [])]
     except Error:
         raise
     except Exception:
@@ -94,14 +100,17 @@ async def admin_authentication_policies(request: Request):
 @admin_router.get(
     "/admin/authentication/policy/{policy_id}",
     tags=[tag],
+    response_model=PolicyResponse,
     summary="Get authentication policy",
     description="Returns an authentication policy by its ID.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def admin_authentication_policy(request: Request, policy_id: str):
+async def admin_authentication_policy(
+    request: Request, policy_id: str
+) -> PolicyResponse:
     try:
         policy = AdminAuthenticationService.get_policy(policy_id)
-        return policy
+        return PolicyResponse(**(policy or {}))
     except Error:
         raise
     except Exception:
@@ -177,14 +186,15 @@ async def admin_authentication_policy_delete(request: Request, policy_id: str):
 @manager_router.get(
     "/admin/authentication/providers",
     tags=[tag],
+    response_model=ProvidersResponse,
     summary="List authentication providers",
     description="Returns enabled status for all authentication providers.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_authentication_providers(request: Request):
+async def admin_authentication_providers(request: Request) -> ProvidersResponse:
     try:
         providers = AdminAuthenticationService.get_providers()
-        return providers
+        return ProvidersResponse(**(providers or {}))
     except Error:
         raise
     except Exception:
@@ -282,16 +292,17 @@ async def admin_force_password(request: Request, policy_id: str):
 @disclaimer_router.get(
     "/disclaimer",
     tags=[tag],
+    response_model=DisclaimerResponse,
     summary="Get disclaimer template",
     description="Returns the disclaimer template for the current user.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def get_disclaimer(request: Request):
+async def get_disclaimer(request: Request) -> DisclaimerResponse:
     try:
         text = AdminAuthenticationService.get_disclaimer_template(
             request.token_payload["user_id"]
         )
-        return text
+        return DisclaimerResponse(**(text or {}))
     except Error:
         raise
     except Exception:
@@ -322,16 +333,17 @@ async def get_disclaimer(request: Request):
 @admin_router.get(
     "/authentication/provider/{provider}",
     tags=[tag],
+    response_model=ProviderConfigResponse,
     summary="Get provider configuration",
     description="Returns the configuration for a specific authentication provider.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
 async def get_provider_config_route(
     request: Request, provider: Literal["local", "google", "saml", "ldap"]
-):
+) -> ProviderConfigResponse:
     try:
         config = AdminAuthenticationService.get_provider_config(provider)
-        return config
+        return ProviderConfigResponse(**(config or {}))
     except Error:
         raise
     except Exception:
@@ -383,24 +395,18 @@ async def edit_provider_config_route(
 @admin_router.get(
     "/authentication/migrations/exceptions",
     tags=[tag],
+    response_model=list[MigrationException],
     summary="List migration exceptions",
     description="Returns all migration exceptions.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_get_migration_exceptions(request: Request):
+async def admin_get_migration_exceptions(request: Request) -> list[MigrationException]:
     try:
         exceptions = AdminAuthenticationService.get_migrations_exceptions()
-        # Convert RethinkDB datetime objects to ISO strings for JSON serialization
-        import json
-        from datetime import datetime
-
-        def _serialize(obj):
-            if isinstance(obj, datetime):
-                return obj.isoformat()
-            raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-        serialized = json.loads(json.dumps(exceptions, default=_serialize))
-        return serialized
+        # FastAPI's jsonable_encoder handles RethinkDB datetimes via the
+        # Pydantic model's serialisation; the previous manual
+        # json.dumps(default=...) shim was a pre-response_model relic.
+        return [MigrationException(**row) for row in (exceptions or [])]
     except Error:
         raise
     except Exception:

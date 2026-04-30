@@ -32,9 +32,11 @@ from api.dependencies.alloweds import (
 )
 from api.schemas.bookings import (
     AdminBookingResponse,
+    AvailabilityResponse,
     BookingEventResponse,
     BookingPlanResponse,
     BookingPriorityDesktopResponse,
+    BookingPriorityUser,
     CreateBookingEventRequest,
     GetUsersPrioritiesRequest,
     GpuForecastProfile,
@@ -368,15 +370,19 @@ async def get_all_bookings(request: Request):
 @admin_router.post(
     "/items/bookings/priorities",
     tags=[tag],
+    response_model=list[BookingPriorityUser],
     summary="Get users by priority rule",
     description="Returns users matching a priority rule.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def get_users_priorities(request: Request, data: GetUsersPrioritiesRequest):
+async def get_users_priorities(
+    request: Request, data: GetUsersPrioritiesRequest
+) -> list[BookingPriorityUser]:
     try:
-        return BookingsService.get_users_priorities(data.rule_id)
+        result = BookingsService.get_users_priorities(data.rule_id)
+        return [BookingPriorityUser(**row) for row in (result or [])]
     except Error:
         raise
     except Exception as e:
@@ -448,6 +454,7 @@ async def list_priority_rules(request: Request):
 @token_router.get(
     "/item/booking/availability/{item_type}/{item_id}",
     tags=[tag],
+    response_model=AvailabilityResponse,
     summary="Get item availability",
     description="Returns item availability by crossing info with the resource planner.",
     responses={
@@ -458,11 +465,14 @@ async def get_item_availability(
     request: Request,
     item_type: str = Path(..., description="Type of item (desktop or deployment)"),
     item_id: str = Path(..., description="ID of the item"),
-):
+) -> AvailabilityResponse:
     try:
-        return BookingsService.get_item_availability(
+        result = BookingsService.get_item_availability(
             request.token_payload, item_type, item_id
         )
+        if isinstance(result, dict):
+            return AvailabilityResponse(**result)
+        return AvailabilityResponse()
     except Error:
         raise
     except Exception as e:

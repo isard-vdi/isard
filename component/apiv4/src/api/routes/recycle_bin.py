@@ -434,6 +434,7 @@ async def get_recycle_bin_status(request: Request):
 @manager_router.get(
     "/items/recycle-bin/admin-entries",
     tags=[tag],
+    response_model=list[dict],
     summary="Get recycle bin entries with item counts (admin view)",
     description=(
         "Returns the full list of recycle bin entries with per-item-type "
@@ -442,7 +443,9 @@ async def get_recycle_bin_status(request: Request):
         "Optionally filter by a specific entry status."
     ),
 )
-async def get_recycle_bin_admin_entries(request: Request, status: str | None = None):
+async def get_recycle_bin_admin_entries(
+    request: Request, status: str | None = None
+) -> list[dict]:
     try:
         category_id = (
             request.token_payload["category_id"]
@@ -693,10 +696,11 @@ async def get_all_unused_item_timeout_rules(request: Request):
 @admin_router.get(
     "/item/recycle-bin/unused-item-timeout-rule/{rule_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get unused item timeout rule",
     description="Returns a specific unused item timeout rule.",
 )
-async def get_unused_item_timeout_rule(request: Request, rule_id: str):
+async def get_unused_item_timeout_rule(request: Request, rule_id: str) -> dict:
     try:
         rule = RecycleBinService.get_unused_item_timeout_rule(rule_id)
         return rule

@@ -79,6 +79,7 @@ async def get_reservables(request: Request):
 @admin_router.get(
     "/items/reservables/profiles/{reservable_type}",
     tags=[tag],
+    response_model=list[dict],
     summary="List profiles for a reservable type",
     description=("Returns all profiles for a specific reservable type."),
     responses={
@@ -88,9 +89,9 @@ async def get_reservables(request: Request):
 async def list_profiles(
     request: Request,
     reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
-):
+) -> list[dict]:
     try:
-        return ReservableService.list_profiles(reservable_type)
+        return ReservableService.list_profiles(reservable_type) or []
     except Error:
         raise
     except Exception as e:
@@ -202,6 +203,7 @@ async def get_booking_reservables_available(request: Request):
 @admin_router.post(
     "/item/reservable/{reservable_type}",
     tags=[tag],
+    response_model=dict,
     summary="Add new reservable item",
     description="Creates a new reservable item of the specified type.",
     responses={
@@ -212,10 +214,10 @@ async def add_reservable_item(
     request: Request,
     reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
     data: AddReservableItemRequest = ...,
-):
+) -> dict:
     try:
         result = ReservableService.add_item(reservable_type, data.model_dump())
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -230,6 +232,7 @@ async def add_reservable_item(
 @admin_router.put(
     "/item/reservable/enable/{reservable_type}/{item_id}/{subitem_id}",
     tags=[tag],
+    response_model=dict,
     summary="Enable or disable a reservable subitem",
     description=(
         "Enables or disables a specific reservable subitem (e.g., GPU "
@@ -254,7 +257,7 @@ async def enable_reservable_subitem(
             "subitem is disabled. Ignored when ``enabled`` is true."
         ),
     ),
-):
+) -> dict:
     try:
         result = ReservableService.enable_subitem(
             reservable_type,
@@ -263,7 +266,7 @@ async def enable_reservable_subitem(
             data.enabled,
             notify_user=notify_user,
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -278,6 +281,7 @@ async def enable_reservable_subitem(
 @admin_router.get(
     "/item/reservable/enabled/{reservable_type}/{item_id}",
     tags=[tag],
+    response_model=list[dict],
     summary="List enabled subitems",
     description="Returns the list of enabled subitems for a specific reservable item.",
     responses={
@@ -288,9 +292,9 @@ async def list_enabled_subitems(
     request: Request,
     reservable_type: str = Path(..., description="The reservable type"),
     item_id: str = Path(..., description="The item ID"),
-):
+) -> list[dict]:
     try:
-        return ReservableService.list_subitems_enabled(reservable_type, item_id)
+        return ReservableService.list_subitems_enabled(reservable_type, item_id) or []
     except Error:
         raise
     except Exception as e:
@@ -406,6 +410,7 @@ async def delete_reservable_item(
 @admin_router.put(
     "/admin/reservables/{reservable_type}/{item_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Update reservable item",
     description="Update name and description of a reservable item (e.g., GPU).",
     responses={
@@ -419,7 +424,7 @@ async def update_reservable_item(
     reservable_type: str = Path(..., description="The reservable type (e.g., gpus)"),
     item_id: str = Path(..., description="The item ID"),
     data: dict = {},
-):
+) -> EmptyResponse:
     try:
         ReservableService.update_item(reservable_type, item_id, data)
         return EmptyResponse()
@@ -437,21 +442,17 @@ async def update_reservable_item(
 @admin_router.get(
     "/items/reservables-planner",
     tags=[tag],
+    response_model=list[dict],
     summary="List all plans",
     description="Returns all resource planner plans.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def list_all_plans(request: Request):
+async def list_all_plans(request: Request) -> list[dict]:
     try:
         plans = ReservableService.list_all_plans()
-        # RethinkDB returns datetime objects — serialize for JSON
-        for plan in plans:
-            for key in ("start", "end"):
-                if key in plan and hasattr(plan[key], "isoformat"):
-                    plan[key] = plan[key].isoformat()
-        return plans
+        return plans or []
     except Error:
         raise
     except Exception as e:
@@ -467,15 +468,17 @@ async def list_all_plans(request: Request):
 @admin_router.get(
     "/item/reservables-planner/check-integrity",
     tags=[tag],
+    response_model=dict,
     summary="Check planning integrity",
     description="Checks if any plan item IDs are overlapped.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def check_integrity(request: Request):
+async def check_integrity(request: Request) -> dict:
     try:
-        return ReservableService.check_integrity()
+        result = ReservableService.check_integrity()
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -490,6 +493,7 @@ async def check_integrity(request: Request):
 @admin_router.get(
     "/item/reservables-planner/actual-plan/{item_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get actual plan for item",
     description="Returns the current active plan for a specific item.",
     responses={
@@ -499,9 +503,10 @@ async def check_integrity(request: Request):
 async def get_actual_plan(
     request: Request,
     item_id: str = Path(..., description="The item ID"),
-):
+) -> dict:
     try:
-        return ReservableService.get_actual_plan(item_id)
+        result = ReservableService.get_actual_plan(item_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -516,6 +521,7 @@ async def get_actual_plan(
 @admin_router.get(
     "/item/reservables-planner/{plan_id}/bookings",
     tags=[tag],
+    response_model=list[dict],
     summary="Get plan bookings",
     description="Returns all bookings associated with a specific plan.",
     responses={
@@ -525,9 +531,9 @@ async def get_actual_plan(
 async def get_plan_bookings(
     request: Request,
     plan_id: str = Path(..., description="The plan ID"),
-):
+) -> list[dict]:
     try:
-        return ReservableService.get_plan_bookings(plan_id)
+        return ReservableService.get_plan_bookings(plan_id) or []
     except Error:
         raise
     except Exception as e:
@@ -542,6 +548,7 @@ async def get_plan_bookings(
 @admin_router.get(
     "/item/reservables-planner/by-item/{item_id}",
     tags=[tag],
+    response_model=list[dict],
     summary="Get plans for item",
     description="Returns all plans for a specific item.",
     responses={
@@ -551,9 +558,9 @@ async def get_plan_bookings(
 async def get_item_plans(
     request: Request,
     item_id: str = Path(..., description="The item ID"),
-):
+) -> list[dict]:
     try:
-        return ReservableService.get_item_plans(item_id)
+        return ReservableService.get_item_plans(item_id) or []
     except Error:
         raise
     except Exception as e:
@@ -568,13 +575,14 @@ async def get_item_plans(
 @admin_router.post(
     "/item/reservables-planner",
     tags=[tag],
+    response_model=dict,
     summary="Create plan",
     description="Creates a new resource planner plan.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def create_plan(request: Request, data: CreatePlanRequest):
+async def create_plan(request: Request, data: CreatePlanRequest) -> dict:
     try:
         plan_data = {
             "item_type": data.item_type,
@@ -584,7 +592,7 @@ async def create_plan(request: Request, data: CreatePlanRequest):
             "end": data.end,
         }
         result = ReservableService.add_plan(request.token_payload, plan_data)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -657,13 +665,16 @@ async def update_plan(
 @token_router.post(
     "/item/reservables-planner/booking-provisioning",
     tags=[tag],
+    response_model=dict,
     summary="Booking provisioning",
     description="Determines where a new booking can be placed based on available resources.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def booking_provisioning(request: Request, data: BookingProvisioningRequest):
+async def booking_provisioning(
+    request: Request, data: BookingProvisioningRequest
+) -> dict:
     try:
         result = ReservableService.booking_provisioning(
             request.token_payload,
@@ -672,7 +683,7 @@ async def booking_provisioning(request: Request, data: BookingProvisioningReques
             data.priority,
             data.block_interval,
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:

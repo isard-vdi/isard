@@ -22,6 +22,7 @@ import traceback
 
 from api import admin_router, manager_router
 from api.schemas.admin.login_config import (
+    AdminLoginConfigResponse,
     LoginNotificationEnableRequest,
     LoginNotificationUpdateRequest,
 )
@@ -43,6 +44,7 @@ tag = "admin-login-config"
 @manager_router.get(
     "/admin/login-config",
     tags=[tag],
+    response_model=AdminLoginConfigResponse,
     summary="Get global login config (raw)",
     description=(
         "Admin-only raw read of the global login configuration. Returns "
@@ -53,10 +55,10 @@ tag = "admin-login-config"
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_login_config_get(request: Request):
+async def admin_login_config_get(request: Request) -> AdminLoginConfigResponse:
     try:
         result = AdminCategoryService.admin_get_login_config()
-        return result
+        return AdminLoginConfigResponse(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -71,6 +73,7 @@ async def admin_login_config_get(request: Request):
 @manager_router.get(
     "/admin/login-config/{category_id}",
     tags=[tag],
+    response_model=AdminLoginConfigResponse,
     summary="Get per-category login config (raw)",
     description=(
         "Admin-only raw read of a single category's login notification "
@@ -87,10 +90,10 @@ async def admin_login_config_get(request: Request):
 async def admin_login_config_by_category(
     request: Request,
     category_id: str = Path(..., description="Category ID"),
-):
+) -> AdminLoginConfigResponse:
     try:
         result = AdminCategoryService.admin_get_login_config(category_id)
-        return result
+        return AdminLoginConfigResponse(**(result or {}))
     except Error:
         raise
     except Exception:
