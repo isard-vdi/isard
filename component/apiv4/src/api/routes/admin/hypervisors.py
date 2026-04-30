@@ -25,15 +25,29 @@ from typing import Literal, Optional
 from api import admin_router
 from api.schemas.admin.hypervisors import (
     AdminBootProgressRequest,
+    AdminBootProgressResponse,
     AdminHypervisor,
     AdminHypervisorCreateData,
+    AdminHypervisorCreateResponse,
     AdminHypervisorDisksFoundData,
+    AdminHypervisorDisksFoundResponse,
     AdminHypervisorEnableData,
+    AdminHypervisorEnableResponse,
+    AdminHypervisorGpu,
     AdminHypervisorMediaDeleteData,
+    AdminHypervisorMediaDeleteResponse,
     AdminHypervisorMediaFoundData,
+    AdminHypervisorMediaFoundResponse,
+    AdminHypervisorMountpoint,
+    AdminHypervisorStartedDomain,
+    AdminHypervisorStatusResponse,
+    AdminHypervisorVirtPool,
     AdminHypervisorVirtPoolUpdateData,
+    AdminHypervisorVpnResponse,
     AdminHypervisorWgAddrData,
+    AdminHypervisorWgAddrResponse,
     AdminRegisterVlansRequest,
+    AdminVlanRegistration,
     DeadRowSetResponse,
     OrchestratorHypervisor,
     OrchestratorManagedHypervisor,
@@ -82,6 +96,7 @@ async def admin_hypervisors_list(
 @admin_router.get(
     "/admin/hypervisors/{status}",
     tags=[tag],
+    response_model=list[AdminHypervisor],
     summary="List hypervisors by status",
     description="List hypervisors filtered by status (Online, Offline, Error).",
     responses={
@@ -94,10 +109,10 @@ async def admin_hypervisors_list_by_status(
     status: Literal["Online", "Offline", "Error"] = Path(
         ..., description="Hypervisor status filter"
     ),
-):
+) -> list[AdminHypervisor]:
     try:
         result = AdminHypervisorsService.get_hypervisors(status)
-        return result
+        return [AdminHypervisor(**h) for h in (result or [])]
     except Error:
         raise
     except Exception as e:
@@ -115,6 +130,7 @@ async def admin_hypervisors_list_by_status(
 @admin_router.get(
     "/admin/hypervisor/status/{hyper_id}",
     tags=[tag],
+    response_model=AdminHypervisorStatusResponse,
     summary="Get hypervisor status",
     description="Get the status and only_forced flag for a hypervisor.",
     responses={
@@ -125,10 +141,10 @@ async def admin_hypervisors_list_by_status(
 async def admin_hypervisor_status(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-):
+) -> AdminHypervisorStatusResponse:
     try:
         result = AdminHypervisorsService.get_hyper_status(hyper_id)
-        return result
+        return AdminHypervisorStatusResponse(**(result or {}))
     except Error:
         raise
     except Exception as e:
@@ -146,6 +162,7 @@ async def admin_hypervisor_status(
 @admin_router.post(
     "/admin/hypervisor",
     tags=[tag],
+    response_model=AdminHypervisorCreateResponse,
     summary="Create or register a hypervisor",
     description="Register a new hypervisor or update an existing one. "
     "Performs SSH key scanning and certificate exchange.",
@@ -158,10 +175,12 @@ async def admin_hypervisor_status(
 async def admin_hypervisor_create(
     request: Request,
     data: AdminHypervisorCreateData,
-):
+) -> AdminHypervisorCreateResponse:
     try:
         result = AdminHypervisorsService.create_or_update_hypervisor(data.model_dump())
-        return result
+        if isinstance(result, dict):
+            return AdminHypervisorCreateResponse(**result)
+        return AdminHypervisorCreateResponse()
     except Error:
         raise
     except Exception as e:
@@ -179,6 +198,7 @@ async def admin_hypervisor_create(
 @admin_router.put(
     "/admin/hypervisor/{hyper_id}",
     tags=[tag],
+    response_model=AdminHypervisorEnableResponse,
     summary="Enable or disable a hypervisor",
     description="Enable or disable an existing hypervisor.",
     responses={
@@ -191,14 +211,16 @@ async def admin_hypervisor_enable(
     request: Request,
     data: AdminHypervisorEnableData,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-):
+) -> AdminHypervisorEnableResponse:
     try:
         if data.numa_topology is not None:
             AdminHypervisorsService.update_hyper_numa_topology(
                 hyper_id, data.numa_topology
             )
         result = AdminHypervisorsService.enable_hyper(hyper_id, data.enabled)
-        return result
+        if isinstance(result, dict):
+            return AdminHypervisorEnableResponse(**result)
+        return AdminHypervisorEnableResponse()
     except Error:
         raise
     except Exception as e:
@@ -280,6 +302,7 @@ async def admin_hypervisor_stop_domains(
 @admin_router.get(
     "/admin/hypervisor_vpn/{hyper_id}",
     tags=[tag],
+    response_model=AdminHypervisorVpnResponse,
     summary="Get hypervisor VPN config",
     description="Get the VPN configuration for a hypervisor.",
     responses={
@@ -290,10 +313,12 @@ async def admin_hypervisor_stop_domains(
 async def admin_hypervisor_vpn(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-):
+) -> AdminHypervisorVpnResponse:
     try:
         result = AdminHypervisorsService.get_hypervisor_vpn(hyper_id)
-        return result
+        if isinstance(result, dict):
+            return AdminHypervisorVpnResponse(**result)
+        return AdminHypervisorVpnResponse()
     except Error:
         raise
     except Exception as e:
@@ -311,6 +336,7 @@ async def admin_hypervisor_vpn(
 @admin_router.post(
     "/admin/hypervisor/vm/wg_addr",
     tags=[tag],
+    response_model=AdminHypervisorWgAddrResponse,
     summary="Update wireguard guest address",
     description="Update the wireguard guest IP address for a domain identified by MAC.",
     responses={
@@ -322,10 +348,12 @@ async def admin_hypervisor_vpn(
 async def admin_hypervisor_wg_addr(
     request: Request,
     data: AdminHypervisorWgAddrData,
-):
+) -> AdminHypervisorWgAddrResponse:
     try:
         result = AdminHypervisorsService.update_wg_address(data.mac, data.ip)
-        return result
+        if isinstance(result, dict):
+            return AdminHypervisorWgAddrResponse(**result)
+        return AdminHypervisorWgAddrResponse()
     except Error:
         raise
     except Exception as e:
@@ -343,6 +371,7 @@ async def admin_hypervisor_wg_addr(
 @admin_router.post(
     "/admin/hypervisor/media_found",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Report media found on hypervisor",
     description="Register media files discovered on a hypervisor.",
     responses={
@@ -352,10 +381,10 @@ async def admin_hypervisor_wg_addr(
 async def admin_hypervisor_media_found(
     request: Request,
     data: AdminHypervisorMediaFoundData,
-):
+) -> EmptyResponse:
     try:
         AdminHypervisorsService.update_media_found(data.medias)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -370,6 +399,7 @@ async def admin_hypervisor_media_found(
 @admin_router.post(
     "/admin/hypervisor/disks_found",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Report disks found on hypervisor",
     description="Register disk files discovered on a hypervisor.",
     responses={
@@ -379,10 +409,10 @@ async def admin_hypervisor_media_found(
 async def admin_hypervisor_disks_found(
     request: Request,
     data: AdminHypervisorDisksFoundData,
-):
+) -> EmptyResponse:
     try:
         AdminHypervisorsService.update_disks_found(data.disks)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -397,6 +427,7 @@ async def admin_hypervisor_disks_found(
 @admin_router.post(
     "/admin/hypervisor/media_delete",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Delete media by paths",
     description="Delete media entries matching the specified paths.",
     responses={
@@ -406,10 +437,10 @@ async def admin_hypervisor_disks_found(
 async def admin_hypervisor_media_delete(
     request: Request,
     data: AdminHypervisorMediaDeleteData,
-):
+) -> EmptyResponse:
     try:
         AdminHypervisorsService.delete_media(data.medias_paths)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -427,6 +458,7 @@ async def admin_hypervisor_media_delete(
 @admin_router.put(
     "/admin/hypervisors/gpus",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Assign GPUs to hypervisors",
     description="Reassign physical GPU devices to GPU profiles across all online hypervisors.",
     responses={
@@ -435,10 +467,10 @@ async def admin_hypervisor_media_delete(
 )
 async def admin_hypervisors_assign_gpus(
     request: Request,
-):
+) -> EmptyResponse:
     try:
         AdminHypervisorsService.assign_gpus()
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -704,6 +736,7 @@ async def admin_orchestrator_manage_unset(
 @admin_router.get(
     "/admin/hypervisor/{hyper_id}/virt_pools",
     tags=[tag],
+    response_model=list[AdminHypervisorVirtPool],
     summary="Get hypervisor virt pools",
     description="Get the virt pool assignments for a hypervisor.",
     responses={
@@ -714,10 +747,10 @@ async def admin_orchestrator_manage_unset(
 async def admin_hypervisor_virt_pools_get(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-):
+) -> list[AdminHypervisorVirtPool]:
     try:
         result = AdminHypervisorsService.get_hyper_virt_pools(hyper_id)
-        return result
+        return [AdminHypervisorVirtPool(**row) for row in (result or [])]
     except Error:
         raise
     except Exception as e:
@@ -766,6 +799,7 @@ async def admin_hypervisor_virt_pools_update(
 @admin_router.get(
     "/admin/hypervisor/mountpoints/{hyper_id}",
     tags=[tag],
+    response_model=list[AdminHypervisorMountpoint],
     summary="Get hypervisor mountpoints",
     description="Get the filesystem mountpoints reported by a hypervisor.",
     responses={
@@ -776,10 +810,10 @@ async def admin_hypervisor_virt_pools_update(
 async def admin_hypervisor_mountpoints(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-):
+) -> list[AdminHypervisorMountpoint]:
     try:
         result = AdminHypervisorsService.get_hyper_mountpoints(hyper_id)
-        return result
+        return [AdminHypervisorMountpoint(**row) for row in (result or [])]
     except Error:
         raise
     except Exception as e:
@@ -797,6 +831,7 @@ async def admin_hypervisor_mountpoints(
 @admin_router.get(
     "/admin/hypervisor/started_domains/{hyper_id}",
     tags=[tag],
+    response_model=list[AdminHypervisorStartedDomain],
     summary="Get started domains on a hypervisor",
     description="Get all currently started desktop domains on a hypervisor.",
     responses={
@@ -807,10 +842,10 @@ async def admin_hypervisor_mountpoints(
 async def admin_hypervisor_started_domains(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-):
+) -> list[AdminHypervisorStartedDomain]:
     try:
         result = AdminHypervisorsService.get_hyper_started_domains(hyper_id)
-        return result
+        return [AdminHypervisorStartedDomain(**row) for row in (result or [])]
     except Error:
         raise
     except Exception as e:
@@ -825,14 +860,17 @@ async def admin_hypervisor_started_domains(
 @admin_router.post(
     "/admin/vlans",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Register VLANs from hypervisor",
     description="Creates network interface entries for discovered VLANs.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_register_vlans(request: Request, data: AdminRegisterVlansRequest):
+async def admin_register_vlans(
+    request: Request, data: AdminRegisterVlansRequest
+) -> EmptyResponse:
     try:
         await asyncio.to_thread(AdminHypervisorsService.register_vlans, data.vlans)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -847,6 +885,7 @@ async def admin_register_vlans(request: Request, data: AdminRegisterVlansRequest
 @admin_router.put(
     "/admin/hypervisor/{hyper_id}/boot_progress",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Update hypervisor boot progress",
     description="Updates the boot progress data for a hypervisor.",
     responses={500: {"model": ErrorResponse}},
@@ -855,14 +894,14 @@ async def admin_hypervisor_boot_progress(
     request: Request,
     hyper_id: str,
     data: AdminBootProgressRequest,
-):
+) -> EmptyResponse:
     try:
         await asyncio.to_thread(
             AdminHypervisorsService.update_hyper_boot_progress,
             hyper_id,
             data.boot_progress,
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception:

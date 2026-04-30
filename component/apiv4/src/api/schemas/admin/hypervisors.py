@@ -254,3 +254,106 @@ class AdminBootProgressRequest(BaseModel):
     """
 
     boot_progress: Dict[str, Any]
+
+
+class AdminHypervisorWgAddrResponse(BaseModel):
+    """Response for ``GET /admin/hypervisor/vm/wg_addr`` — the wireguard
+    table lookup result for the hypervisor host."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminHypervisorMediaFoundResponse(BaseModel):
+    """Response for ``POST /admin/hypervisor/media_found`` — the
+    matched media list returned to the hypervisor."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminHypervisorDisksFoundResponse(BaseModel):
+    """Response for ``POST /admin/hypervisor/disks_found`` — the
+    matched disks list returned to the hypervisor."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminHypervisorMediaDeleteResponse(BaseModel):
+    """Response for ``POST /admin/hypervisor/media_delete``."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminHypervisorVirtPool(BaseModel):
+    """One row of ``GET /admin/hypervisor/{hyper_id}/virt_pools``."""
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    enabled: Optional[bool] = None
+
+
+class AdminHypervisorMountpoint(BaseModel):
+    """One row of ``GET /admin/hypervisor/mountpoints/{hyper_id}``."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminHypervisorStartedDomain(BaseModel):
+    """One row of ``GET /admin/hypervisor/started_domains/{hyper_id}``."""
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    user: Optional[str] = None
+
+
+class AdminHypervisorGpu(BaseModel):
+    """One row of ``GET /admin/hypervisors/gpus``."""
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+
+
+class AdminVlanRegistration(BaseModel):
+    """Response for ``POST /admin/vlans`` — interface upsert result."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminBootProgressResponse(BaseModel):
+    """Response for ``PUT /admin/hypervisor/{hyper_id}/boot_progress``."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminHypervisorStatusResponse(BaseModel):
+    """Response for ``GET /admin/hypervisor/status/{hyper_id}`` —
+    the trimmed status row (id, status, only_forced).
+    """
+
+    model_config = {"extra": "allow"}
+
+    id: Optional[str] = None
+    status: Optional[str] = None
+    only_forced: Optional[bool] = None
+
+
+class AdminHypervisorCreateResponse(BaseModel):
+    """Response for ``POST /admin/hypervisor``."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminHypervisorEnableResponse(BaseModel):
+    """Response for ``PUT /admin/hypervisor/{hyper_id}``."""
+
+    model_config = {"extra": "allow"}
+
+
+class AdminHypervisorVpnResponse(BaseModel):
+    """Response for ``GET /admin/hypervisor_vpn/{hyper_id}``."""
+
+    model_config = {"extra": "allow"}
