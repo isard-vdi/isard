@@ -126,7 +126,7 @@ class AdminStatsService:
                 .count()
                 .run(RethinkSharedConnection._rdb_connection)
             )
-        d = {"desktop": {}, "template": {}, "server": {}}
+        d = {"desktop": {}, "template": {}}
         for k, v in domains.items():
             kind = k[0]
             if kind not in d:

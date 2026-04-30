@@ -321,12 +321,13 @@ def test_admin_scheduler_jobs_bookings(admin_client: IsardClient):
 @pytest.mark.real
 def test_stats_domains_status(admin_client: IsardClient):
     """``GET /stats/domains/status`` — stats-go also consumes this.
-    Pin: response always has ``desktop`` / ``template`` / ``server``
-    keys (each is a dict, possibly empty). A null on any of these
-    breaks stats-go's strict-typed decoder."""
+    Pin: response always carries ``desktop`` and ``template`` as
+    non-null dicts (stats-go's strict decoder rejects ``null`` on
+    these fields). ``domains.kind`` only takes those two values, so
+    the response has no other top-level keys."""
     body = admin_client.get("/api/v4/stats/domains/status")
     assert isinstance(body, dict)
-    for k in ("desktop", "template", "server"):
+    for k in ("desktop", "template"):
         assert k in body, f"missing kind {k!r}; got {sorted(body)}"
         assert isinstance(
             body[k], dict
