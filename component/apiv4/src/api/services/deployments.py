@@ -26,6 +26,7 @@ from api.dependencies.jwt_token import TokenPayload
 from api.services.desktops import DesktopService
 from api.services.error import Error
 from cachetools import TTLCache, cached
+from fastapi import Request
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
@@ -51,18 +52,18 @@ deployment_cache = TTLCache(maxsize=1, ttl=360)
 class DeploymentService:
     @staticmethod
     @cached(cache=deployment_cache)
-    def get_all_deployments():
+    def get_all_deployments() -> list[dict]:
         return RethinkDeployment.get_all()
 
     @staticmethod
-    def get_owned_deployments(user_payload):
+    def get_owned_deployments(user_payload: dict) -> list[dict]:
         deployments = CommonDeployments.get_owned_deployments(
             user_payload
         ) + CommonDeployments.get_co_owned_deployments(user_payload)
         return deployments
 
     @staticmethod
-    def get_deployment(deployment_id):
+    def get_deployment(deployment_id: str) -> dict:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -86,7 +87,7 @@ class DeploymentService:
         )
 
     @staticmethod
-    def create_deployment(data, payload) -> str:
+    def create_deployment(data: dict, payload: dict) -> str:
         deployment_id = CommonDeployments.create(
             payload=payload,
             name=data["name"],
@@ -103,7 +104,7 @@ class DeploymentService:
         return deployment_id
 
     @staticmethod
-    def toggle_visibility(deployment_id, stop_started_domains=True):
+    def toggle_visibility(deployment_id: str, stop_started_domains: bool = True) -> str:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -121,7 +122,7 @@ class DeploymentService:
     @staticmethod
     def update_deployment(
         payload: TokenPayload, deployment_id: str, deployment_data: dict
-    ):
+    ) -> None:
         if deployment_data.get("name"):
             Helpers.check_duplicate(
                 "deployments",
@@ -203,7 +204,7 @@ class DeploymentService:
         )
 
     @staticmethod
-    def recreate_desktops(payload, deployment_id):
+    def recreate_desktops(payload: dict, deployment_id: str) -> str:
         """
         Recreate all desktops for a deployment with updated parameters.
         This involves deleting existing desktops and creating new ones.
@@ -239,7 +240,7 @@ class DeploymentService:
         return deployment_id
 
     @staticmethod
-    def stop_all_desktops(deployment_id: str):
+    def stop_all_desktops(deployment_id: str) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:
             raise Error(
@@ -251,7 +252,7 @@ class DeploymentService:
         DesktopEvents.desktops_stop(desktops)
 
     @staticmethod
-    def stop_user_desktops(deployment_id: str, user_id: str):
+    def stop_user_desktops(deployment_id: str, user_id: str) -> None:
         desktops = CommonDeploymentDesktops.get_user_desktop_ids(deployment_id, user_id)
         if not desktops:
             raise Error(
@@ -263,12 +264,12 @@ class DeploymentService:
         DesktopEvents.desktops_stop(desktops)
 
     @staticmethod
-    def get_shared_deployments(user_payload):
+    def get_shared_deployments(user_payload: dict) -> list[dict]:
         deployments = CommonDeployments.get_shared_deployments(user_payload)
         return deployments
 
     @staticmethod
-    def get_deployment_user_desktops(deployment_id, user_id):
+    def get_deployment_user_desktops(deployment_id: str, user_id: str) -> dict:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -299,7 +300,9 @@ class DeploymentService:
         return user_deployment
 
     @staticmethod
-    def get_deployment_user_desktops_detail(deployment_id, user_id):
+    def get_deployment_user_desktops_detail(
+        deployment_id: str, user_id: str
+    ) -> list[dict]:
         user_desktops = CommonDeploymentDesktops.get_deployment_user_desktops(
             deployment_id, user_id
         )
@@ -309,7 +312,7 @@ class DeploymentService:
         ]
 
     @staticmethod
-    def get_deployment_videowall(deployment_id):
+    def get_deployment_videowall(deployment_id: str) -> dict:
         deployment = CommonDeployments.get_deployment(
             deployment_id=deployment_id,
             desktops=True,
@@ -336,24 +339,26 @@ class DeploymentService:
         return deployment
 
     @staticmethod
-    def check_quota(user_id, users=None):
+    def check_quota(user_id: str, users: list[dict] | None = None) -> None:
         from isardvdi_common.helpers.quotas import Quotas
 
         Quotas.deployment_create(user_id, 1, None, users or None)
 
     @staticmethod
-    def get_selected_users(payload, allowed):
+    def get_selected_users(payload: dict, allowed: dict) -> list[dict]:
         return CommonDeploymentUsers.get_selected_users(payload, allowed)
 
     @staticmethod
-    def bulk_delete_deployments(deployment_ids, user_id, permanent=False):
+    def bulk_delete_deployments(
+        deployment_ids: list[str], user_id: str, permanent: bool = False
+    ) -> None:
         for d_id in deployment_ids:
             DesktopEvents.deployment_delete(
                 deployment_id=d_id, agent_id=user_id, permanent=permanent
             )
 
     @staticmethod
-    def start_all_desktops(deployment_id):
+    def start_all_desktops(deployment_id: str) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:
             raise Error(
@@ -364,7 +369,7 @@ class DeploymentService:
         DesktopEvents.desktops_start(desktops)
 
     @staticmethod
-    def toggle_domain_visibility(domain_id):
+    def toggle_domain_visibility(domain_id: str) -> None:
         if not RethinkDomain.exists(domain_id):
             raise Error(
                 "not_found",
@@ -373,7 +378,7 @@ class DeploymentService:
         RethinkDomain(domain_id).toggle_user_visible()
 
     @staticmethod
-    def get_deployment_hardware(deployment_id):
+    def get_deployment_hardware(deployment_id: str) -> dict:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -382,7 +387,7 @@ class DeploymentService:
         return RethinkDeployment(deployment_id).get_deployment_details_hardware()
 
     @staticmethod
-    def get_deployment_info(deployment_id, payload):
+    def get_deployment_info(deployment_id: str, payload: dict) -> dict:
         from isardvdi_common.helpers.quotas import Quotas
 
         deployment = CommonDeployments.get_deployment_info(
@@ -392,7 +397,7 @@ class DeploymentService:
         return deployment
 
     @staticmethod
-    def get_co_owners(deployment_id):
+    def get_co_owners(deployment_id: str) -> dict:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -401,7 +406,7 @@ class DeploymentService:
         return RethinkDeployment(deployment_id).get_co_owners()
 
     @staticmethod
-    def update_co_owners(deployment_id, co_owners):
+    def update_co_owners(deployment_id: str, co_owners: list[str]) -> None:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -410,11 +415,11 @@ class DeploymentService:
         RethinkDeployment(deployment_id).update_co_owners(co_owners)
 
     @staticmethod
-    def change_owner(payload, deployment_id, user_id):
+    def change_owner(payload: dict, deployment_id: str, user_id: str) -> None:
         CommonDeployments.change_owner_deployment(payload, deployment_id, user_id)
 
     @staticmethod
-    def get_permissions(deployment_id):
+    def get_permissions(deployment_id: str) -> dict:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -423,7 +428,7 @@ class DeploymentService:
         return RethinkDeployment(deployment_id).get_deployment_permissions()
 
     @staticmethod
-    def edit_deployment_users(payload, deployment_id, allowed):
+    def edit_deployment_users(payload: dict, deployment_id: str, allowed: dict) -> None:
         """Edit the allowed users/groups of a deployment.
 
         Updates the deployment's allowed list, deletes desktops for removed
@@ -440,7 +445,7 @@ class DeploymentService:
         CommonDeploymentUsers.edit_deployment_users(payload, deployment_id, allowed)
 
     @staticmethod
-    def check_desktops_started(deployment_id):
+    def check_desktops_started(deployment_id: str) -> None:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
@@ -449,7 +454,9 @@ class DeploymentService:
         RethinkDeployment(deployment_id).check_desktops_started()
 
     @staticmethod
-    def delete_desktops(user_id, deployment_id, request):
+    def delete_desktops(
+        user_id: str, deployment_id: str, request: Request
+    ) -> list[str]:
         """
         Delete all desktops belonging to a specific user in a deployment.
 
@@ -491,7 +498,7 @@ class DeploymentService:
         return task_ids
 
     @staticmethod
-    def direct_viewer_csv(deployment_id, regenerate=False):
+    def direct_viewer_csv(deployment_id: str, regenerate: bool = False) -> str:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",
