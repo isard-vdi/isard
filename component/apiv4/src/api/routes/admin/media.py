@@ -22,6 +22,7 @@ import traceback
 
 from api import manager_router
 from api.dependencies.alloweds import owns_domain_id, owns_media_id
+from api.schemas.admin.media import AdminMediaItem, AdminMediaStatusCount
 from api.schemas.common import ErrorResponse, SimpleResponse
 from api.schemas.media import DesktopAttachedMediaItem, MediaCheckResponse
 from api.services.admin.media import AdminMediaService
@@ -41,15 +42,16 @@ tag = "admin_media"
 @manager_router.get(
     "/media/status",
     tags=[tag],
+    response_model=list[AdminMediaStatusCount],
     summary="Get media status counts",
     description="Get counts of media items grouped by status. "
     "Managers are scoped to their category.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_media_status(request: Request):
+async def admin_media_status(request: Request) -> list[AdminMediaStatusCount]:
     try:
         result = AdminMediaService.get_media_status(request.token_payload)
-        return result
+        return [AdminMediaStatusCount(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -69,14 +71,15 @@ async def admin_media_status(request: Request):
 @manager_router.get(
     "/admin/media",
     tags=[tag],
+    response_model=list[AdminMediaItem],
     summary="Get all media",
     description="Get all media items. Admins see all; managers are scoped to their category.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_media_list(request: Request):
+async def admin_media_list(request: Request) -> list[AdminMediaItem]:
     try:
         result = AdminMediaService.get_media(request.token_payload)
-        return result
+        return [AdminMediaItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:
@@ -91,6 +94,7 @@ async def admin_media_list(request: Request):
 @manager_router.get(
     "/admin/media/{status}",
     tags=[tag],
+    response_model=list[AdminMediaItem],
     summary="Get media by status",
     description="Get media items filtered by status. "
     "Admins see all; managers are scoped to their category.",
@@ -99,10 +103,10 @@ async def admin_media_list(request: Request):
 async def admin_media_by_status(
     request: Request,
     status: str = Path(..., description="Media status to filter by"),
-):
+) -> list[AdminMediaItem]:
     try:
         result = AdminMediaService.get_media(request.token_payload, status=status)
-        return result
+        return [AdminMediaItem(**row) for row in (result or [])]
     except Error:
         raise
     except Exception:

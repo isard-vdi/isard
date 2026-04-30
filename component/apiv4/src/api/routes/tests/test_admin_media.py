@@ -22,7 +22,14 @@ class TestGetMediaStatus:
 
         def fake(payload):
             captured["role_id"] = payload["role_id"]
-            return {"Downloaded": 5, "Failed": 1}
+            # ``MediaProcessed.admin_get_media_status_count`` returns
+            # a list of ``{status, count}`` rows — not a status→count
+            # dict. The previous stub diverged from the real shape;
+            # the response_model now enforces it.
+            return [
+                {"status": "Downloaded", "count": 5},
+                {"status": "Failed", "count": 1},
+            ]
 
         monkeypatch.setattr(
             "api.routes.admin.media.AdminMediaService.get_media_status",
@@ -30,7 +37,9 @@ class TestGetMediaStatus:
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
-        assert response.json()["Downloaded"] == 5
+        body = response.json()
+        downloaded = next(row for row in body if row["status"] == "Downloaded")
+        assert downloaded["count"] == 5
         assert captured["role_id"] == "admin"
 
     def test_manager_gets_status_counts(self, monkeypatch, test_client):
@@ -41,7 +50,7 @@ class TestGetMediaStatus:
         def fake(payload):
             captured["role_id"] = payload["role_id"]
             captured["category_id"] = payload["category_id"]
-            return {"Downloaded": 1}
+            return [{"status": "Downloaded", "count": 1}]
 
         monkeypatch.setattr(
             "api.routes.admin.media.AdminMediaService.get_media_status",
@@ -57,7 +66,7 @@ class TestGetMediaStatus:
     def test_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.media.AdminMediaService.get_media_status",
-            staticmethod(lambda payload: {}),
+            staticmethod(lambda payload: []),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="user"))
         assert response.status_code == 403
