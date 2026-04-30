@@ -175,6 +175,7 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
 @token_router.get(
     "/item/storage/{storage_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get storage details",
     description="Returns details of a storage item.",
     responses={
@@ -182,10 +183,10 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage(request: Request, storage_id: str):
+async def get_storage(request: Request, storage_id: str) -> dict:
     try:
         storage = StorageService.get_storage_detail(request.token_payload, storage_id)
-        return storage
+        return storage if isinstance(storage, dict) else {}
     except Error:
         raise
     except Exception:
@@ -200,16 +201,17 @@ async def get_storage(request: Request, storage_id: str):
 @token_router.get(
     "/items/storage/ready",
     tags=[tag],
+    response_model=list[dict],
     summary="Get user's ready disks",
     description="Returns a list of ready storage items for the authenticated user.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def get_user_ready_storages(request: Request):
+async def get_user_ready_storages(request: Request) -> list[dict]:
     try:
         disks = StorageService.get_user_ready_storages(request.token_payload["user_id"])
-        return disks
+        return disks or []
     except Error:
         raise
     except Exception:
@@ -297,6 +299,7 @@ async def delete_storage(request: Request, storage_id: str):
 @manager_router.get(
     "/item/storage/{storage_id}/parents",
     tags=[tag],
+    response_model=list[dict],
     summary="Get storage parent chain",
     description="Returns the parent chain of a storage item.",
     responses={
@@ -304,10 +307,10 @@ async def delete_storage(request: Request, storage_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_parents(request: Request, storage_id: str):
+async def get_storage_parents(request: Request, storage_id: str) -> list[dict]:
     try:
         parents = StorageService.get_parents(request.token_payload, storage_id)
-        return parents
+        return parents or []
     except Error:
         raise
     except Exception:
@@ -322,6 +325,7 @@ async def get_storage_parents(request: Request, storage_id: str):
 @manager_router.get(
     "/item/storage/{storage_id}/task",
     tags=[tag],
+    response_model=dict,
     summary="Get storage task",
     description="Returns the task associated with a storage item.",
     responses={
@@ -329,10 +333,10 @@ async def get_storage_parents(request: Request, storage_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_task(request: Request, storage_id: str):
+async def get_storage_task(request: Request, storage_id: str) -> dict:
     try:
         task = StorageService.get_task(request.token_payload, storage_id)
-        return task
+        return task if isinstance(task, dict) else {}
     except Error:
         raise
     except Exception:
@@ -347,6 +351,7 @@ async def get_storage_task(request: Request, storage_id: str):
 @admin_router.get(
     "/item/storage/{storage_id}/statuses",
     tags=[tag],
+    response_model=list[dict],
     summary="Get storage and domain statuses",
     description="Returns the status of a storage and its associated domains.",
     responses={
@@ -354,10 +359,10 @@ async def get_storage_task(request: Request, storage_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_statuses(request: Request, storage_id: str):
+async def get_storage_statuses(request: Request, storage_id: str) -> list[dict]:
     try:
         statuses = StorageService.get_statuses(request.token_payload, storage_id)
-        return statuses
+        return statuses or []
     except Error:
         raise
     except Exception:
@@ -484,6 +489,7 @@ async def disconnect_storage(request: Request, storage_id: str, priority: str):
 @manager_router.put(
     "/item/storage/{storage_id}/check-backing-chain",
     tags=[tag],
+    response_model=dict,
     summary="Check storage backing chain",
     description="Creates a task to check the backing chain of a storage.",
     responses={
@@ -491,10 +497,10 @@ async def disconnect_storage(request: Request, storage_id: str, priority: str):
         500: {"model": ErrorResponse},
     },
 )
-async def check_storage_backing_chain(request: Request, storage_id: str):
+async def check_storage_backing_chain(request: Request, storage_id: str) -> dict:
     try:
         result = StorageService.check_backing_chain(request.token_payload, storage_id)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:
@@ -868,6 +874,7 @@ async def delete_storage_path(
 @admin_router.get(
     "/item/storage/{storage_id}/find",
     tags=[tag],
+    response_model=dict,
     summary="Find a storage on disk",
     description="Finds a storage item on disk and returns its information.",
     responses={
@@ -875,10 +882,10 @@ async def delete_storage_path(
         500: {"model": ErrorResponse},
     },
 )
-async def find_storage(request: Request, storage_id: str):
+async def find_storage(request: Request, storage_id: str) -> dict:
     try:
         result = StorageService.find(request.token_payload, storage_id)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:
@@ -996,6 +1003,7 @@ async def increase_storage_size(
 @manager_router.get(
     "/item/storage/{storage_id}/storages_with_uuid",
     tags=[tag],
+    response_model=list[dict],
     summary="Get phantom storages registered against a single storage",
     description=(
         "Returns the ``storages_with_uuid`` field of a single storage. "
@@ -1006,11 +1014,14 @@ async def increase_storage_size(
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_storages_with_uuid(request: Request, storage_id: str):
+async def get_storage_storages_with_uuid(
+    request: Request, storage_id: str
+) -> list[dict]:
     try:
-        return StorageService.get_storage_storages_with_uuid(
+        result = StorageService.get_storage_storages_with_uuid(
             request.token_payload, storage_id
         )
+        return result or []
     except Error:
         raise
     except Exception:
@@ -1025,6 +1036,7 @@ async def get_storage_storages_with_uuid(request: Request, storage_id: str):
 @manager_router.get(
     "/items/storage/storages_with_uuid",
     tags=[tag],
+    response_model=list[dict],
     summary="List all storages_with_uuid entries",
     description=(
         "Returns the union of every ``storages_with_uuid`` row in the "
@@ -1033,9 +1045,10 @@ async def get_storage_storages_with_uuid(request: Request, storage_id: str):
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def list_all_storages_with_uuid(request: Request):
+async def list_all_storages_with_uuid(request: Request) -> list[dict]:
     try:
-        return StorageService.get_all_storages_with_uuid(request.token_payload)
+        result = StorageService.get_all_storages_with_uuid(request.token_payload)
+        return result or []
     except Error:
         raise
     except Exception:
@@ -1050,6 +1063,7 @@ async def list_all_storages_with_uuid(request: Request):
 @manager_router.get(
     "/items/storage/storages_with_uuid/status",
     tags=[tag],
+    response_model=list[dict],
     summary="Get per-status counts of storages_with_uuid",
     description=(
         "Returns the per-status counts of phantom ``storages_with_uuid`` "
@@ -1057,9 +1071,10 @@ async def list_all_storages_with_uuid(request: Request):
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def list_all_storages_with_uuid_status(request: Request):
+async def list_all_storages_with_uuid_status(request: Request) -> list[dict]:
     try:
-        return StorageService.get_all_storages_with_uuid_status(request.token_payload)
+        result = StorageService.get_all_storages_with_uuid_status(request.token_payload)
+        return result or []
     except Error:
         raise
     except Exception:
@@ -1074,17 +1089,21 @@ async def list_all_storages_with_uuid_status(request: Request):
 @manager_router.get(
     "/items/storage/storages_with_uuid/{status}",
     tags=[tag],
+    response_model=list[dict],
     summary="List storages_with_uuid filtered by status",
     description=(
         "Returns the ``storages_with_uuid`` rows matching the given " "``status``."
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def list_all_storages_with_uuid_filtered(request: Request, status: str):
+async def list_all_storages_with_uuid_filtered(
+    request: Request, status: str
+) -> list[dict]:
     try:
-        return StorageService.get_all_storages_with_uuid(
+        result = StorageService.get_all_storages_with_uuid(
             request.token_payload, status=status
         )
+        return result or []
     except Error:
         raise
     except Exception:

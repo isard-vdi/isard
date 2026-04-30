@@ -102,16 +102,17 @@ async def get_all_deployments(request: Request):
 @advanced_router.get(
     "/item/deployment/check-quota",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Check deployment creation quota",
     description="Checks if the user has enough quota to create a new deployment.",
     responses={
         500: {"model": ErrorResponse},
     },
 )
-async def check_deployment_quota_get(request: Request):
+async def check_deployment_quota_get(request: Request) -> EmptyResponse:
     try:
         DeploymentService.check_quota(request.token_payload["user_id"])
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -126,6 +127,7 @@ async def check_deployment_quota_get(request: Request):
 @advanced_router.post(
     "/item/deployment/check-quota",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Check deployment creation quota with allowed users",
     description="Checks if the user has enough quota to create a new deployment with the given allowed users.",
     responses={
@@ -135,7 +137,7 @@ async def check_deployment_quota_get(request: Request):
 async def check_deployment_quota_post(
     request: Request,
     data: CheckQuotaRequest,
-):
+) -> EmptyResponse:
     try:
         users = []
         if data.allowed:
@@ -143,7 +145,7 @@ async def check_deployment_quota_post(
                 request.token_payload, data.allowed.model_dump()
             )
         DeploymentService.check_quota(request.token_payload["user_id"], users)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -590,6 +592,7 @@ async def get_deployment_user_desktops_detail(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/videowall",
     tags=[tag],
+    response_model=dict,
     summary="Get deployment with videowall support",
     description="Returns a deployment with its desktops for videowall (lab) display.",
     responses={
@@ -601,9 +604,10 @@ async def get_deployment_user_desktops_detail(
 async def get_deployment_videowall(
     deployment_id: str,
     request: Request,
-):
+) -> dict:
     try:
-        return DeploymentService.get_deployment_videowall(deployment_id)
+        result = DeploymentService.get_deployment_videowall(deployment_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -618,6 +622,7 @@ async def get_deployment_videowall(
 @advanced_router.delete(
     "/items/deployments",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Bulk delete deployments",
     description="Deletes multiple deployments. Optionally permanently.",
     responses={
@@ -770,6 +775,7 @@ async def toggle_desktop_deployment_visibility(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/hardware",
     tags=[tag],
+    response_model=dict,
     summary="Get deployment hardware details",
     description="Returns the hardware configuration details of a deployment.",
     responses={
@@ -781,9 +787,10 @@ async def toggle_desktop_deployment_visibility(
 async def get_deployment_hardware(
     deployment_id: str,
     request: Request,
-):
+) -> dict:
     try:
-        return DeploymentService.get_deployment_hardware(deployment_id)
+        result = DeploymentService.get_deployment_hardware(deployment_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -798,6 +805,7 @@ async def get_deployment_hardware(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/info",
     tags=[tag],
+    response_model=dict,
     summary="Get deployment info with quota limits",
     description="Returns deployment info with hardware limited by user quota.",
     responses={
@@ -809,11 +817,12 @@ async def get_deployment_hardware(
 async def get_deployment_info(
     deployment_id: str,
     request: Request,
-):
+) -> dict:
     try:
-        return DeploymentService.get_deployment_info(
+        result = DeploymentService.get_deployment_info(
             deployment_id, request.token_payload
         )
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -957,6 +966,7 @@ async def change_deployment_owner(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/permissions",
     tags=[tag],
+    response_model=dict,
     summary="Get deployment permissions",
     description="Returns the permissions configured for a deployment.",
     responses={
@@ -968,9 +978,10 @@ async def change_deployment_owner(
 async def get_deployment_permissions(
     deployment_id: str,
     request: Request,
-):
+) -> dict:
     try:
-        return DeploymentService.get_permissions(deployment_id)
+        result = DeploymentService.get_permissions(deployment_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:

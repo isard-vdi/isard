@@ -176,9 +176,7 @@ def test_cancel_task_success(monkeypatch, test_client):
     calls = []
     monkeypatch.setattr(
         "api.services.tasks.TaskService.cancel_task",
-        staticmethod(
-            lambda task_id, user_id, role_id: calls.append(task_id) or None
-        ),
+        staticmethod(lambda task_id, user_id, role_id: calls.append(task_id) or None),
     )
     jwt = MockJWT(role_id="user")
     response = test_client(url="/task/task-1", method="DELETE", jwt=jwt)
