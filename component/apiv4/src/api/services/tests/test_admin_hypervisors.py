@@ -7,13 +7,13 @@ Tests pin the status-filter validation and a few delegate methods.
 from unittest.mock import patch
 
 import pytest
-from api.services.admin_hypervisors import AdminHypervisorsService
+from api.services.admin.hypervisors import AdminHypervisorsService
 from api.services.error import Error
 
 
 class TestGetHypervisors:
     @patch(
-        "api.services.admin_hypervisors.HypervisorsProcessed.get_hypervisors",
+        "api.services.admin.hypervisors.HypervisorsProcessed.get_hypervisors",
         return_value=[{"id": "h1", "status": "Online"}],
     )
     def test_returns_listing_when_no_filter(self, mock_get):
@@ -22,7 +22,7 @@ class TestGetHypervisors:
         assert result[0]["id"] == "h1"
 
     @patch(
-        "api.services.admin_hypervisors.HypervisorsProcessed.get_hypervisors",
+        "api.services.admin.hypervisors.HypervisorsProcessed.get_hypervisors",
         return_value=[],
     )
     @pytest.mark.parametrize("status", ["Online", "Offline", "Error"])
@@ -42,7 +42,7 @@ class TestGetHypervisors:
 
 class TestGetHyperStatus:
     @patch(
-        "api.services.admin_hypervisors.HypervisorsProcessed.get_hyper_status",
+        "api.services.admin.hypervisors.HypervisorsProcessed.get_hyper_status",
         return_value={"status": "Online", "only_forced": False},
     )
     def test_passes_id_through(self, mock_get):
@@ -53,7 +53,7 @@ class TestGetHyperStatus:
 
 class TestEnableHyper:
     @patch(
-        "api.services.admin_hypervisors.HypervisorsProcessed.enable_hyper",
+        "api.services.admin.hypervisors.HypervisorsProcessed.enable_hyper",
         return_value={"status": True, "data": {"id": "h1", "enabled": True}},
     )
     def test_enable_default_true(self, mock_enable):
@@ -64,7 +64,7 @@ class TestEnableHyper:
         assert result == {"id": "h1", "enabled": True}
 
     @patch(
-        "api.services.admin_hypervisors.HypervisorsProcessed.enable_hyper",
+        "api.services.admin.hypervisors.HypervisorsProcessed.enable_hyper",
         return_value={"status": True, "data": {"id": "h1", "enabled": False}},
     )
     def test_enable_explicit_false(self, mock_enable):
@@ -72,7 +72,7 @@ class TestEnableHyper:
         mock_enable.assert_called_once_with("h1", False)
 
     @patch(
-        "api.services.admin_hypervisors.HypervisorsProcessed.enable_hyper",
+        "api.services.admin.hypervisors.HypervisorsProcessed.enable_hyper",
         return_value={"status": False, "msg": "no such hyper"},
     )
     def test_failed_status_raises_typed_error(self, _mock_enable):
@@ -82,7 +82,7 @@ class TestEnableHyper:
 
 class TestRemoveHyper:
     @patch(
-        "api.services.admin_hypervisors.HypervisorsProcessed.remove_hyper",
+        "api.services.admin.hypervisors.HypervisorsProcessed.remove_hyper",
         return_value={"status": True, "data": {"id": "h1"}},
     )
     def test_passes_id_through(self, mock_remove):
@@ -90,7 +90,7 @@ class TestRemoveHyper:
         mock_remove.assert_called_once_with("h1")
 
     @patch(
-        "api.services.admin_hypervisors.HypervisorsProcessed.remove_hyper",
+        "api.services.admin.hypervisors.HypervisorsProcessed.remove_hyper",
         return_value={"status": False, "msg": "in use"},
     )
     def test_failed_status_raises_typed_error(self, _mock_remove):

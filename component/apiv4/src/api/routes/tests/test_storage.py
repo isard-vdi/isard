@@ -217,7 +217,7 @@ def test_admin_storage_list(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "stor-1", "status": "ready"}]
     monkeypatch.setattr(
-        "api.services.admin_storage.AdminStorageService.get_storages",
+        "api.services.admin.storage.AdminStorageService.get_storages",
         staticmethod(lambda payload, **kwargs: stub),
     )
 
@@ -239,7 +239,7 @@ def test_admin_storage_list_filtered(monkeypatch, test_client):
         return []
 
     monkeypatch.setattr(
-        "api.services.admin_storage.AdminStorageService.get_storages",
+        "api.services.admin.storage.AdminStorageService.get_storages",
         staticmethod(fake_get),
     )
 
@@ -265,7 +265,7 @@ def test_admin_storage_by_status(monkeypatch, test_client):
         return []
 
     monkeypatch.setattr(
-        "api.services.admin_storage.AdminStorageService.get_storages",
+        "api.services.admin.storage.AdminStorageService.get_storages",
         staticmethod(fake_get),
     )
 

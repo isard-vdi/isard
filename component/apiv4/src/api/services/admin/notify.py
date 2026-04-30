@@ -6,7 +6,7 @@
 import traceback
 from typing import Any, Dict, List, Optional
 
-from api.schemas.admin_notify import DesktopQueueItem
+from api.schemas.admin.notify import DesktopQueueItem
 from api.services.error import Error
 from isardvdi_common.helpers.api_notify import (
     notify_custom,

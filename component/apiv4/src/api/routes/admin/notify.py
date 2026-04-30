@@ -6,13 +6,13 @@
 import traceback
 
 from api import admin_router
-from api.schemas.admin_notify import (
+from api.schemas.admin.notify import (
     AdminNotifyDesktopsQueueRequest,
     NotifyDesktopRequest,
     NotifyUserDesktopRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_notify import AdminNotifyService
+from api.services.admin.notify import AdminNotifyService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

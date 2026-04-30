@@ -22,9 +22,9 @@ import traceback
 from typing import Optional
 
 from api import admin_router
-from api.schemas.admin_resources import QosDiskCreateRequest, QosDiskUpdateRequest
+from api.schemas.admin.resources import QosDiskCreateRequest, QosDiskUpdateRequest
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_resources import AdminResourcesService
+from api.services.admin.resources import AdminResourcesService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse

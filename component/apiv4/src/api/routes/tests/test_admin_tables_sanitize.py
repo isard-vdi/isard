@@ -9,7 +9,7 @@ Covers the interaction between the blanket HTML sanitizer and fields that
 hold machine-generated structured data (notably ``domains.xml``).
 """
 
-from api.services.admin_tables import _sanitize_table_data
+from api.services.admin.tables import _sanitize_table_data
 
 SAMPLE_LIBVIRT_XML = (
     '<domain type="kvm">'

@@ -88,7 +88,7 @@ async def get_media(request: Request, media_id=Depends(owns_media_id)):
 )
 async def list_media_installs(request: Request):
     try:
-        from api.services.admin_tables import AdminTablesService
+        from api.services.admin.tables import AdminTablesService
 
         result = AdminTablesService.get_table("virt_install", request.token_payload, {})
         # Pluck to the v3 wire shape and stable-sort by name so callers

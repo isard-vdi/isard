@@ -24,7 +24,7 @@ from api import manager_router
 from api.dependencies.alloweds import owns_domain_id, owns_media_id
 from api.schemas.common import ErrorResponse, SimpleResponse
 from api.schemas.media import DesktopAttachedMediaItem, MediaCheckResponse
-from api.services.admin_media import AdminMediaService
+from api.services.admin.media import AdminMediaService
 from api.services.error import Error
 from api.services.media import MediaService
 from fastapi import Depends, Path, Request

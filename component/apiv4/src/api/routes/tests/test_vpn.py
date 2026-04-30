@@ -6,7 +6,7 @@ from api.routes.tests.helpers import MockJWT
 def test_register_vpn_connection(monkeypatch, test_client):
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_vpn.AdminVpnService.active_client",
+        "api.services.admin.vpn.AdminVpnService.active_client",
         staticmethod(lambda kind, client_ip, remote_ip, remote_port, connected: True),
     )
     response = test_client(
@@ -21,7 +21,7 @@ def test_register_vpn_connection(monkeypatch, test_client):
 def test_disconnect_vpn_client(monkeypatch, test_client):
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_vpn.AdminVpnService.active_client",
+        "api.services.admin.vpn.AdminVpnService.active_client",
         staticmethod(lambda *args, **kwargs: True),
     )
     response = test_client(
@@ -35,11 +35,11 @@ def test_disconnect_vpn_client(monkeypatch, test_client):
 def test_reset_vpn_connections(monkeypatch, test_client):
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_vpn.AdminVpnService.reset_connection_status",
+        "api.services.admin.vpn.AdminVpnService.reset_connection_status",
         staticmethod(lambda kind: True),
     )
     monkeypatch.setattr(
-        "api.services.admin_vpn.AdminVpnService.active_client",
+        "api.services.admin.vpn.AdminVpnService.active_client",
         staticmethod(lambda *args, **kwargs: True),
     )
     response = test_client(
@@ -53,7 +53,7 @@ def test_reset_vpn_connections(monkeypatch, test_client):
 def test_vpn_roam_connection(monkeypatch, test_client):
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_vpn.AdminVpnService.active_client",
+        "api.services.admin.vpn.AdminVpnService.active_client",
         staticmethod(lambda kind, client_ip, remote_ip, remote_port, connected: True),
     )
     response = test_client(
@@ -80,7 +80,7 @@ def test_admin_vpn_connections_disconnect_happy_path(monkeypatch, client):
         return True
 
     monkeypatch.setattr(
-        "api.services.admin_vpn.AdminVpnService.reset_connections_list_status",
+        "api.services.admin.vpn.AdminVpnService.reset_connections_list_status",
         staticmethod(fake_reset),
     )
 
@@ -120,7 +120,7 @@ def test_admin_vpn_connections_disconnect_empty_list(monkeypatch, client):
         return True
 
     monkeypatch.setattr(
-        "api.services.admin_vpn.AdminVpnService.reset_connections_list_status",
+        "api.services.admin.vpn.AdminVpnService.reset_connections_list_status",
         staticmethod(fake_reset),
     )
 
@@ -138,7 +138,7 @@ def test_admin_vpn_connections_disconnect_empty_list(monkeypatch, client):
 def test_admin_vpn_connections_disconnect_rejects_bad_item(monkeypatch, client):
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_vpn.AdminVpnService.reset_connections_list_status",
+        "api.services.admin.vpn.AdminVpnService.reset_connections_list_status",
         staticmethod(lambda data: True),
     )
 

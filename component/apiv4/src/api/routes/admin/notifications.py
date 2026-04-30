@@ -21,7 +21,7 @@ import traceback
 from typing import Literal
 
 from api import admin_router
-from api.schemas.admin_notifications import (
+from api.schemas.admin.notifications import (
     AdminUserDisplaysResponse,
     NotificationActionsResponse,
     NotificationCreateRequest,
@@ -41,7 +41,7 @@ from api.schemas.admin_notifications import (
     TemplateUpdateRequest,
 )
 from api.schemas.common import DeleteResponse, EmptyResponse, ErrorResponse
-from api.services.admin_notifications import AdminNotificationService
+from api.services.admin.notifications import AdminNotificationService
 from api.services.error import Error
 from api.services.notifications import NotificationService
 from fastapi import Request

@@ -22,7 +22,7 @@ def test_admin_downloads_overview(monkeypatch, test_client):
         "viewers": 1,
     }
     monkeypatch.setattr(
-        "api.services.admin_downloads.AdminDownloadsService.get_downloads",
+        "api.services.admin.downloads.AdminDownloadsService.get_downloads",
         staticmethod(lambda: stub),
     )
 
@@ -46,7 +46,7 @@ def test_admin_downloads_by_kind(monkeypatch, test_client):
         return stub
 
     monkeypatch.setattr(
-        "api.services.admin_downloads.AdminDownloadsService.get_downloads_kind",
+        "api.services.admin.downloads.AdminDownloadsService.get_downloads_kind",
         staticmethod(fake_get_kind),
     )
 
@@ -61,7 +61,7 @@ def test_admin_downloads_register(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_downloads.AdminDownloadsService.register",
+        "api.services.admin.downloads.AdminDownloadsService.register",
         staticmethod(lambda: calls.append("register")),
     )
 
@@ -87,7 +87,7 @@ def test_admin_downloads_action_for_all(monkeypatch, test_client):
         captured["id"] = id
 
     monkeypatch.setattr(
-        "api.services.admin_downloads.AdminDownloadsService.download_action",
+        "api.services.admin.downloads.AdminDownloadsService.download_action",
         staticmethod(fake_action),
     )
 
@@ -118,7 +118,7 @@ def test_admin_downloads_action_for_item(monkeypatch, test_client):
         captured["id"] = id
 
     monkeypatch.setattr(
-        "api.services.admin_downloads.AdminDownloadsService.download_action",
+        "api.services.admin.downloads.AdminDownloadsService.download_action",
         staticmethod(fake_action),
     )
 

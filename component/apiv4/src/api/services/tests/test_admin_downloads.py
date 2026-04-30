@@ -18,7 +18,7 @@ Two behaviours are locked in here:
 
 from unittest.mock import patch
 
-from api.services.admin_downloads import AdminDownloadsService
+from api.services.admin.downloads import AdminDownloadsService
 
 TETROS_XML = """
 <domain type='kvm'>

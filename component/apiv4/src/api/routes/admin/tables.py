@@ -21,9 +21,9 @@
 import traceback
 
 from api import admin_router, manager_router
-from api.schemas.admin_tables import TableListRequest
+from api.schemas.admin.tables import TableListRequest
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_tables import AdminTablesService
+from api.services.admin.tables import AdminTablesService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse

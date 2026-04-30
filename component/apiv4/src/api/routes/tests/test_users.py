@@ -605,7 +605,7 @@ def test_admin_check_migration(monkeypatch, test_client):
         return []
 
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.check_valid_migration",
+        "api.services.admin.users.AdminUsersService.check_valid_migration",
         staticmethod(fake_check),
     )
 

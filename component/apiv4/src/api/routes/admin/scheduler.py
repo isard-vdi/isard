@@ -22,7 +22,7 @@ import traceback
 
 from api import admin_router
 from api.schemas.common import ErrorResponse
-from api.services.admin_scheduler import AdminSchedulerService
+from api.services.admin.scheduler import AdminSchedulerService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

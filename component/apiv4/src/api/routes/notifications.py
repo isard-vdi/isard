@@ -29,7 +29,7 @@ from api.schemas.notifications import (
     NotificationsUserTriggerDisplayResponse,
     StatusBarNotificationResponse,
 )
-from api.services.admin_notifications import AdminNotificationService
+from api.services.admin.notifications import AdminNotificationService
 from api.services.error import Error
 from api.services.notifications import NotificationService
 from fastapi import Request

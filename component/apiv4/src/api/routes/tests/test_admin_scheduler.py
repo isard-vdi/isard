@@ -41,7 +41,7 @@ def test_admin_scheduler_jobs_system_returns_list(monkeypatch, test_client):
         return MOCK_SYSTEM_JOBS
 
     monkeypatch.setattr(
-        "api.services.admin_scheduler.ApiAdmin.admin_table_list",
+        "api.services.admin.scheduler.ApiAdmin.admin_table_list",
         staticmethod(fake_admin_table_list),
     )
 
@@ -68,7 +68,7 @@ def test_admin_scheduler_jobs_bookings_returns_list(monkeypatch, test_client):
         return MOCK_BOOKINGS_JOBS
 
     monkeypatch.setattr(
-        "api.services.admin_scheduler.ApiAdmin.admin_table_list",
+        "api.services.admin.scheduler.ApiAdmin.admin_table_list",
         staticmethod(fake_admin_table_list),
     )
 
@@ -85,7 +85,7 @@ def test_admin_scheduler_jobs_bookings_returns_list(monkeypatch, test_client):
 def test_admin_scheduler_jobs_system_forbidden_for_non_admin(monkeypatch, test_client):
     """Non-admin roles must be rejected by admin router dependency."""
     monkeypatch.setattr(
-        "api.services.admin_scheduler.ApiAdmin.admin_table_list",
+        "api.services.admin.scheduler.ApiAdmin.admin_table_list",
         staticmethod(lambda *a, **kw: MOCK_SYSTEM_JOBS),
     )
 
@@ -102,7 +102,7 @@ def test_admin_scheduler_jobs_system_handles_service_error(monkeypatch, test_cli
         raise RuntimeError("db connection lost")
 
     monkeypatch.setattr(
-        "api.services.admin_scheduler.ApiAdmin.admin_table_list",
+        "api.services.admin.scheduler.ApiAdmin.admin_table_list",
         staticmethod(boom),
     )
 

@@ -22,9 +22,9 @@ import traceback
 from typing import Literal
 
 from api import admin_router
-from api.schemas.admin_viewers_config import ViewerConfigUpdateRequest
+from api.schemas.admin.viewers_config import ViewerConfigUpdateRequest
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_viewers_config import AdminViewersConfigService
+from api.services.admin.viewers_config import AdminViewersConfigService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

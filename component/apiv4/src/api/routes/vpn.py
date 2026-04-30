@@ -9,7 +9,7 @@ from typing import List, Literal, Optional
 from api import admin_router
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.schemas.vpn import AdminVpnConnectionsDisconnectRequest, VpnConnectionRequest
-from api.services.admin_vpn import AdminVpnService
+from api.services.admin.vpn import AdminVpnService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

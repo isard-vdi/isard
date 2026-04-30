@@ -21,13 +21,13 @@
 import traceback
 
 from api import admin_router
-from api.schemas.admin_user_storage import (
+from api.schemas.admin.user_storage import (
     UserStorageAddRequest,
     UserStorageAutoRegisterRequest,
     UserStorageConnTestRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_user_storage import AdminUserStorageService
+from api.services.admin.user_storage import AdminUserStorageService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

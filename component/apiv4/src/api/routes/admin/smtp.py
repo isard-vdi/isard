@@ -21,9 +21,9 @@
 import traceback
 
 from api import admin_router
-from api.schemas.admin_smtp import SmtpConfigRequest, SmtpTestResponse
+from api.schemas.admin.smtp import SmtpConfigRequest, SmtpTestResponse
 from api.schemas.common import ErrorResponse
-from api.services.admin_smtp import AdminSmtpService
+from api.services.admin.smtp import AdminSmtpService
 from api.services.error import Error
 from cachetools import TTLCache, cached
 from fastapi import Request

@@ -7,7 +7,7 @@ import traceback
 
 from api import admin_router
 from api.schemas.common import ErrorResponse
-from api.services.admin_operations import AdminOperationsService
+from api.services.admin.operations import AdminOperationsService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

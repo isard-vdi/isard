@@ -22,14 +22,14 @@ import traceback
 from typing import Literal
 
 from api import admin_router, disclaimer_router, manager_router
-from api.schemas.admin_authentication import (
+from api.schemas.admin.authentication import (
     MigrationExceptionCreateRequest,
     PolicyCreateRequest,
     PolicyEditRequest,
     ProviderConfigUpdateRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_authentication import AdminAuthenticationService
+from api.services.admin.authentication import AdminAuthenticationService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

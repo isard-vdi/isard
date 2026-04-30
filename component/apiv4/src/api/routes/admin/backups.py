@@ -21,9 +21,9 @@
 import traceback
 
 from api import admin_router
-from api.schemas.admin_backups import BackupIntegritySetRequest, BackupReportRequest
+from api.schemas.admin.backups import BackupIntegritySetRequest, BackupReportRequest
 from api.schemas.common import ErrorResponse
-from api.services.admin_backups import AdminBackupsService
+from api.services.admin.backups import AdminBackupsService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse

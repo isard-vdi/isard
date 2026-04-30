@@ -98,7 +98,7 @@ def test_get_status_bar(monkeypatch, test_client):
         return None
 
     monkeypatch.setattr(
-        "api.services.admin_notifications.AdminNotificationService."
+        "api.services.admin.notifications.AdminNotificationService."
         "get_status_bar_notification",
         staticmethod(fake_get_status_bar),
     )
@@ -132,7 +132,7 @@ def test_admin_get_notification_template(monkeypatch, test_client):
         "body": "Hello {{name}}",  # not in TemplateResponse — stripped
     }
     monkeypatch.setattr(
-        "api.services.admin_notifications.AdminNotificationService.get_template",
+        "api.services.admin.notifications.AdminNotificationService.get_template",
         staticmethod(lambda template_id: stub),
     )
 
@@ -154,7 +154,7 @@ def test_admin_list_notification_actions(monkeypatch, test_client):
         {"id": "log", "name": "Log event"},
     ]
     monkeypatch.setattr(
-        "api.services.admin_notifications.AdminNotificationService.get_notification_actions",
+        "api.services.admin.notifications.AdminNotificationService.get_notification_actions",
         staticmethod(lambda: stub),
     )
 
@@ -173,7 +173,7 @@ def test_admin_create_notification_template(monkeypatch, test_client):
         captured["title"] = data["title"]
 
     monkeypatch.setattr(
-        "api.services.admin_notifications.AdminNotificationService.create_template",
+        "api.services.admin.notifications.AdminNotificationService.create_template",
         staticmethod(fake_create),
     )
 
@@ -198,7 +198,7 @@ def test_admin_list_notification_templates(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "tmpl-1", "name": "welcome"}]
     monkeypatch.setattr(
-        "api.services.admin_notifications.AdminNotificationService.get_templates",
+        "api.services.admin.notifications.AdminNotificationService.get_templates",
         staticmethod(lambda kind=None: stub),
     )
 
@@ -212,7 +212,7 @@ def test_admin_delete_notification_template(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_notifications.AdminNotificationService.delete_template",
+        "api.services.admin.notifications.AdminNotificationService.delete_template",
         staticmethod(lambda template_id: calls.append(template_id)),
     )
 
@@ -324,7 +324,7 @@ def test_admin_notify_desktop_queue_happy_path(monkeypatch, test_client):
         captured["hyp_id"] = hyp_id
 
     monkeypatch.setattr(
-        "api.services.admin_notify.AdminNotifyService.notify_desktop_queue",
+        "api.services.admin.notify.AdminNotifyService.notify_desktop_queue",
         staticmethod(fake_notify),
     )
 
@@ -375,7 +375,7 @@ def test_admin_notify_desktop_queue_empty_list(monkeypatch, client):
         captured["hyp_id"] = hyp_id
 
     monkeypatch.setattr(
-        "api.services.admin_notify.AdminNotifyService.notify_desktop_queue",
+        "api.services.admin.notify.AdminNotifyService.notify_desktop_queue",
         staticmethod(fake_notify),
     )
 
@@ -396,7 +396,7 @@ def test_admin_notify_desktop_queue_rejects_missing_desktop_id(
 ):
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_notify.AdminNotifyService.notify_desktop_queue",
+        "api.services.admin.notify.AdminNotifyService.notify_desktop_queue",
         staticmethod(lambda data, hyp_id: None),
     )
 
@@ -420,7 +420,7 @@ def test_admin_notify_desktop_queue_rejects_unknown_field(monkeypatch, test_clie
     instead of silently drifting."""
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_notify.AdminNotifyService.notify_desktop_queue",
+        "api.services.admin.notify.AdminNotifyService.notify_desktop_queue",
         staticmethod(lambda data, hyp_id: None),
     )
 

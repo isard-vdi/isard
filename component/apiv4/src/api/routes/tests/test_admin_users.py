@@ -18,11 +18,11 @@ from api.routes.tests.helpers import MockJWT
 def test_admin_user_exists(monkeypatch, test_client):
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.owns_user_id",
+        "api.services.admin.users.AdminUsersService.owns_user_id",
         staticmethod(lambda payload, user_id: True),
     )
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.user_exists",
+        "api.services.admin.users.AdminUsersService.user_exists",
         staticmethod(lambda user_id: True),
     )
 
@@ -53,7 +53,7 @@ def test_admin_list_users(monkeypatch, test_client):
         return stub
 
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.list_users",
+        "api.services.admin.users.AdminUsersService.list_users",
         staticmethod(fake_list),
     )
 
@@ -84,7 +84,7 @@ def test_admin_create_user(monkeypatch, test_client):
         }
 
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.create_user",
+        "api.services.admin.users.AdminUsersService.create_user",
         staticmethod(fake_create),
     )
 
@@ -115,7 +115,7 @@ def test_admin_update_user(monkeypatch, test_client):
         captured["data"] = data
 
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.update_user",
+        "api.services.admin.users.AdminUsersService.update_user",
         staticmethod(fake_update),
     )
 
@@ -147,7 +147,7 @@ def test_admin_user_logout(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.force_logout_user",
+        "api.services.admin.users.AdminUsersService.force_logout_user",
         staticmethod(lambda payload, user_id: calls.append(user_id)),
     )
 
@@ -168,7 +168,7 @@ def test_admin_list_groups(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "group-1", "name": "Group 1"}]
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.list_groups",
+        "api.services.admin.users.AdminUsersService.list_groups",
         staticmethod(lambda payload: stub),
     )
 
@@ -183,7 +183,7 @@ def test_admin_get_group(monkeypatch, test_client):
     stub = {"id": "group-1", "name": "Group 1", "description": "Test"}
     # Note: ``get_group(group_id)`` takes a single argument (no payload).
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.get_group",
+        "api.services.admin.users.AdminUsersService.get_group",
         staticmethod(lambda group_id: stub),
     )
 
@@ -207,7 +207,7 @@ def test_admin_create_group(monkeypatch, test_client):
         }
 
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.create_group",
+        "api.services.admin.users.AdminUsersService.create_group",
         staticmethod(fake_create),
     )
 
@@ -248,7 +248,7 @@ def test_admin_create_group_accepts_null_external_ids(monkeypatch, test_client):
         }
 
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.create_group",
+        "api.services.admin.users.AdminUsersService.create_group",
         staticmethod(fake_create),
     )
 
@@ -273,7 +273,7 @@ def test_admin_delete_group(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.delete_group",
+        "api.services.admin.users.AdminUsersService.delete_group",
         staticmethod(lambda payload, group_id: calls.append(group_id) or {}),
     )
 
@@ -294,7 +294,7 @@ def test_admin_get_category(monkeypatch, test_client):
     jwt = MockJWT()
     stub = {"id": "cat-1", "name": "Category 1"}
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.get_category",
+        "api.services.admin.users.AdminUsersService.get_category",
         staticmethod(lambda payload, category_id: stub),
     )
 
@@ -314,7 +314,7 @@ def test_admin_create_category(monkeypatch, test_client):
         return {"id": "cat-new"}
 
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.create_category",
+        "api.services.admin.users.AdminUsersService.create_category",
         staticmethod(fake_create),
     )
 
@@ -333,7 +333,7 @@ def test_admin_delete_category(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_users.AdminUsersService.delete_category",
+        "api.services.admin.users.AdminUsersService.delete_category",
         staticmethod(lambda payload, category_id: calls.append(category_id) or {}),
     )
 
