@@ -3,11 +3,6 @@
 
 import logging
 
-from isardvdi_common.connections.rethink_shared_connection import (
-    RethinkSharedConnection,
-)
-from rethinkdb import r
-
 log = logging.getLogger("apiv4")
 
 #
@@ -35,6 +30,7 @@ from datetime import datetime, timedelta
 from time import time
 
 import pytz
+from isardvdi_common.lib.usage.desktop import DesktopUsageProcessed
 
 from .common import get_abs_consumptions, get_params_item_type_custom, securize_eval
 from .consolidate import ConsolidateConsumption
@@ -96,44 +92,9 @@ class DesktopsUsage:
             self.has_data = False
 
     def _get_data(self) -> list[dict]:
-        with RethinkSharedConnection._rdb_context():
-            data = list(
-                r.table("logs_desktops")
-                .without("events")
-                .filter(
-                    lambda log: (
-                        (log["stopped_time"] > self.consolidation_day)
-                        | log.has_fields("stopped_time").not_()
-                    )
-                    & (log["started_time"] < self.consolidation_day_after)
-                )
-                .merge(
-                    r.branch(
-                        r.row["started_time"] < self.consolidation_day,
-                        {"started_time": self.consolidation_day},
-                        {},
-                    )
-                )
-                .merge(
-                    r.branch(
-                        r.row["stopped_time"] > self.consolidation_day_after,
-                        {"stopped_time": self.consolidation_day_after},
-                        {},
-                    )
-                )
-                .merge(
-                    {
-                        "template_id": r.branch(
-                            r.row["desktop_template_hierarchy"].default([]).is_empty(),
-                            None,
-                            r.row["desktop_template_hierarchy"][-1],
-                        ),
-                        "deployment_id": r.row["tag"].default(None),
-                    }
-                )
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        return data
+        return DesktopUsageProcessed.fetch_logs(
+            self.consolidation_day, self.consolidation_day_after
+        )
 
     def _process_consumption(self, consumption: dict) -> dict:
         if "hardware_bookables_vgpus" in consumption:

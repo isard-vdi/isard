@@ -3,11 +3,6 @@
 
 import logging
 
-from isardvdi_common.connections.rethink_shared_connection import (
-    RethinkSharedConnection,
-)
-from rethinkdb import r
-
 log = logging.getLogger("apiv4")
 
 #
@@ -38,10 +33,8 @@ from time import time
 
 import gevent
 import pytz
-from cachetools import TTLCache, cached
-from cachetools.keys import hashkey
 from isardvdi_common.helpers.error_factory import Error
-from rethinkdb.errors import ReqlNonExistenceError
+from isardvdi_common.lib.usage.consolidate import ConsolidateProcessed
 
 # README
 
@@ -60,7 +53,6 @@ from rethinkdb.errors import ReqlNonExistenceError
 
 class ConsolidateConsumption:
     consolidating = []
-    domains_cache = TTLCache(maxsize=1, ttl=120)
 
     def __del__(self):
         if "name" in self.__dict__:
@@ -246,12 +238,7 @@ class ConsolidateConsumption:
             data = data + result
         self.times["get_" + self.name + "_batches"] = time()
         # data.append(self.compute_consumer_totals(consumer, data))
-        with RethinkSharedConnection._rdb_context():
-            result = (
-                r.table("usage_consumption")
-                .insert(data, conflict="update", durability="soft")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        ConsolidateProcessed.insert_consumption_batch(data)
         log.info(
             "--> Consolidated %s %s %s items in | GET_DATA %.2fs | GET_ITEMS_DATA %.2fs | PROCESS_DATA %.2fs | TOTAL %.2fs",
             consumer,
@@ -398,15 +385,8 @@ class ConsolidateConsumption:
         )
         return data
 
-    @cached(cache=domains_cache, key=lambda x: hashkey("domains"))
     def get_domains(self) -> dict:
-        with RethinkSharedConnection._rdb_context():
-            return (
-                r.table("domains")
-                .pluck("id", "name", "tag", "tag_name")
-                .group("id")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        return ConsolidateProcessed.get_domains_with_tags()
 
     def get_deployment(self, desktop_id: str) -> dict:
         return self.domains.get(
@@ -450,10 +430,6 @@ def get_relative_date(days: int) -> datetime:
     return datetime.now().astimezone().replace(
         minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc
     ) + timedelta(days=days)
-
-
-def hash_keys(keys: list[str]):
-    return hashkey(",".join(keys))
 
 
 def gen_pk(
