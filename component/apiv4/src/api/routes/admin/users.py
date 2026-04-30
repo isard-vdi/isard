@@ -274,14 +274,11 @@ async def admin_create_user(request: Request, data: AdminUserCreateData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_user(request: Request, user_id: str):
+async def admin_update_user(request: Request, user_id: str, data: AdminUserUpdateData):
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        data["ids"] = [user_id]
-        AdminUsersService.update_user(request.token_payload, user_id, data)
+        AdminUsersService.update_user(
+            request.token_payload, user_id, data.model_dump(exclude_none=True)
+        )
         return {}
     except Error:
         raise
@@ -304,13 +301,11 @@ async def admin_update_user(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_users_bulk(request: Request):
+async def admin_update_users_bulk(request: Request, data: AdminUserUpdateData):
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        AdminUsersService.update_multiple_users(request.token_payload, data)
+        AdminUsersService.update_multiple_users(
+            request.token_payload, data.model_dump(exclude_none=True)
+        )
         return {}
     except Error:
         raise

@@ -128,9 +128,12 @@ def test_admin_update_user(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert captured["user_id"] == "user-1"
-    # The route injects the user_id into ``ids`` before forwarding.
-    assert captured["data"]["ids"] == ["user-1"]
+    # The route forwards the validated body via AdminUserUpdateData
+    # (model_dump(exclude_none=True)). The previous "ids" injection
+    # was dead — update_user never read it.
     assert captured["data"]["name"] == "Updated Name"
+    assert captured["data"]["active"] is True
+    assert "ids" not in captured["data"]
 
 
 # NOTE: DELETE /admin/user takes a body (AdminUserDeleteData) but

@@ -23,16 +23,19 @@ import traceback
 from typing import Literal
 
 from api import admin_router, manager_router
+from api.dependencies.body_parsers import parse_json_or_form
 from api.schemas.admin_domains import (
     AdminDomainStoragePathData,
     AdminDomainXmlData,
+    AdminDomainXmlSectionsSaveData,
+    AdminDomainXmlSectionsSaveResponse,
     AdminListDomainsData,
     AdminMultipleActionsData,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin_domains import AdminDomainsService
 from api.services.error import Error
-from fastapi import Path, Request
+from fastapi import Depends, Path, Request
 from fastapi.responses import JSONResponse
 
 tag = "admin_domains"
@@ -655,25 +658,13 @@ async def admin_domain_search_info(request: Request, domain_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_raw(request: Request):
+async def admin_logs_desktops_raw(
+    request: Request, form_data=Depends(parse_json_or_form)
+):
     try:
         import json as _json
         from datetime import datetime as _dt
 
-        content_type = request.headers.get("content-type", "")
-        if "json" in content_type:
-            try:
-                form_data = await request.json()
-            except json.JSONDecodeError:
-                raise Error("bad_request", "Request body must be JSON")
-        else:
-            try:
-                form_data = await request.form()
-            except AssertionError:
-                raise Error(
-                    "bad_request",
-                    "Request body must be JSON or multipart form data",
-                )
         result = AdminDomainsService.query_logs_desktops(form_data, view="raw")
         serialized = _json.loads(
             _json.dumps(
@@ -742,25 +733,11 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw"):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_raw(request: Request):
+async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or_form)):
     try:
         import json as _json
         from datetime import datetime as _dt
 
-        content_type = request.headers.get("content-type", "")
-        if "json" in content_type:
-            try:
-                form_data = await request.json()
-            except json.JSONDecodeError:
-                raise Error("bad_request", "Request body must be JSON")
-        else:
-            try:
-                form_data = await request.form()
-            except AssertionError:
-                raise Error(
-                    "bad_request",
-                    "Request body must be JSON or multipart form data",
-                )
         result = AdminDomainsService.query_logs_users(form_data, view="raw")
         serialized = _json.loads(
             _json.dumps(
@@ -1285,24 +1262,19 @@ async def admin_domain_xml_sections_get(request: Request, domain_id: str):
 @admin_router.post(
     "/admin/domains/xml_sections/{domain_id}",
     tags=[tag],
+    response_model=AdminDomainXmlSectionsSaveResponse,
     summary="Save domain XML sections",
     description="Merge edited XML sections back into the domain's full XML.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domain_xml_sections_save(request: Request, domain_id: str):
+async def admin_domain_xml_sections_save(
+    request: Request, domain_id: str, data: AdminDomainXmlSectionsSaveData
+):
     try:
-        from api.services.xml_sections import merge_xml_sections
-
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        sections = data.get("sections", {})
-        protected = data.get("protected_sections", [])
-        domain = AdminDomainsService.get_domain_xml_and_protected(domain_id)
-        new_xml = merge_xml_sections(domain["xml"], sections)
-        AdminDomainsService.save_domain_xml_sections(domain_id, new_xml, protected)
-        return {"xml": new_xml}
+        new_xml = AdminDomainsService.apply_xml_section_edits(
+            domain_id, data.sections, data.protected_sections
+        )
+        return AdminDomainXmlSectionsSaveResponse(xml=new_xml)
     except Error:
         raise
     except Exception:
