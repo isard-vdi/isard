@@ -158,7 +158,14 @@ def test_get_user_allowed_templates_flat_all(monkeypatch, test_client):
     response = test_client(url="/items/templates/allowed/all", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    # response_model=list[UserAllowedTemplateFlatItem] fills missing
+    # optional fields (allowed/category_name/group_name/icon/image/user/
+    # user_name) with None; compare per-key on the stubbed fields only.
+    assert len(body) == len(stub)
+    for got, expected in zip(body, stub):
+        for key, value in expected.items():
+            assert got[key] == value
     assert captured == {
         "payload_user": jwt.payload["user_id"],
         "kind": "all",

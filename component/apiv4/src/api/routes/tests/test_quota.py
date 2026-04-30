@@ -109,7 +109,11 @@ def test_admin_quota_by_kind_user_defaults_to_caller(monkeypatch, test_client):
     response = test_client(url="/admin/quota/user", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    # response_model=AdminQuotaResponse fills the optional ``grouplimits``
+    # field with None; assert the stubbed fields explicitly.
+    assert body["quota"] == stub["quota"]
+    assert body["limits"] == stub["limits"]
     # item_id omitted → route falls back to the caller's own user_id
     assert calls == [jwt.payload["user_id"]]
 
@@ -132,7 +136,9 @@ def test_admin_quota_by_kind_item_category(monkeypatch, test_client):
     response = test_client(url="/admin/quota/category/cat-1", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert body["quota"] == stub["quota"]
+    assert body["limits"] == stub["limits"]
     assert calls == ["cat-1"]
 
 

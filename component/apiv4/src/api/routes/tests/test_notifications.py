@@ -119,12 +119,17 @@ def test_get_status_bar(monkeypatch, test_client):
 
 def test_admin_get_notification_template(monkeypatch, test_client):
     """GET /admin/notifications/template/{id} — replaces v3
-    /message-template/{id} shim."""
+    /message-template/{id} shim. Routes return Pydantic models directly
+    so FastAPI's response_model serialiser fills missing optional
+    fields (``default``/``description``/``kind``/``lang``/``system``)
+    with their None defaults and strips fields not in the schema
+    (e.g. ``body`` lives under ``lang.<lang>.body`` in the real shape,
+    not at the top level). Assert only the schema-modelled fields."""
     jwt = MockJWT()
     stub = {
         "id": "tmpl-1",
         "name": "Email template",
-        "body": "Hello {{name}}",
+        "body": "Hello {{name}}",  # not in TemplateResponse — stripped
     }
     monkeypatch.setattr(
         "api.services.admin_notifications.AdminNotificationService.get_template",
@@ -134,7 +139,9 @@ def test_admin_get_notification_template(monkeypatch, test_client):
     response = test_client(url="/admin/notifications/template/tmpl-1", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert body["id"] == "tmpl-1"
+    assert body["name"] == "Email template"
 
 
 def test_admin_list_notification_actions(monkeypatch, test_client):

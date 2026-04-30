@@ -5,18 +5,21 @@ from api.routes.tests.helpers import MockJWT
 
 def test_get_admin_migration_config(monkeypatch, test_client):
     jwt = MockJWT()
+    # Schema only declares ``check_quotas`` today (the legacy
+    # ``export_enabled`` / ``import_enabled`` keys live per-provider
+    # under ``auth.<provider>.migration``, not on the top-level
+    # ``MigrationConfigResponse``). Use the real field so the
+    # response_model serialiser preserves it.
     monkeypatch.setattr(
         "api.services.migrations.MigrationService.get_admin_migration_config",
-        staticmethod(lambda: {"export_enabled": True, "import_enabled": False}),
+        staticmethod(lambda: {"check_quotas": True}),
     )
     response = test_client(
         url="/admin/config/user-migration",
         jwt=jwt,
     )
     assert response.status_code == 200
-    body = response.json()
-    assert body["export_enabled"] is True
-    assert body["import_enabled"] is False
+    assert response.json()["check_quotas"] is True
 
 
 def test_get_admin_migration_config_admin_only(monkeypatch, test_client):
