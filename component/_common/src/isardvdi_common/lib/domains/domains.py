@@ -172,6 +172,40 @@ class DomainsProcessed(RethinkSharedConnection):
         }
 
     @classmethod
+    def list_by_kind_user(
+        cls, kind: str, user_id: str, fields: list[str]
+    ) -> list[dict]:
+        """List rows of ``kind`` owned by ``user_id`` with ``fields``
+        plucked.
+
+        ``kind`` is the secondary index key (``"template"``,
+        ``"desktop"``, etc.) and is paired with ``user_id`` via the
+        ``kind_user`` compound index.
+        """
+        with cls._rdb_context():
+            return list(
+                r.table("domains")
+                .get_all([kind, user_id], index="kind_user")
+                .pluck(*fields)
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def list_templates_for_admin(
+        cls, fields: list[str], category_id: str | None = None
+    ) -> list[dict]:
+        """List every template visible to admin/manager.
+
+        ``category_id`` scopes managers to their own category; admins
+        pass ``None`` to see every template across categories.
+        """
+        with cls._rdb_context():
+            query = r.table("domains").get_all("template", index="kind")
+            if category_id is not None:
+                query = query.filter({"category": category_id})
+            return list(query.pluck(*fields).run(cls._rdb_connection))
+
+    @classmethod
     def get_for_search(cls, domain_id: str) -> dict | None:
         """Read the full row used by the admin search panel.
 

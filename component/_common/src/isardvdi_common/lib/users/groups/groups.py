@@ -37,6 +37,24 @@ class GroupsProcessed(RethinkSharedConnection):
     _rdb_table = "groups"
 
     @classmethod
+    def get_parent_category_map(cls, group_ids: list[str]) -> dict[str, str]:
+        """Map ``{group_id: parent_category}`` for a batch of groups.
+
+        Used by the admin bulk-edit form to verify each (group_id,
+        category_id) pair before applying the change. Missing groups
+        are absent from the map; the caller raises a ``not_found``
+        for those.
+        """
+        with cls._rdb_context():
+            rows = list(
+                r.table(cls._rdb_table)
+                .get_all(r.args(group_ids))
+                .pluck("id", "parent_category")
+                .run(cls._rdb_connection)
+            )
+        return {g["id"]: g["parent_category"] for g in rows}
+
+    @classmethod
     def get_with_category(cls, category_id: str | None) -> list:
         """
         Get all groups with their categories.
