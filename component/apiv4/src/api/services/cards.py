@@ -19,6 +19,7 @@
 
 
 import traceback
+from typing import Optional
 
 from api.services.error import Error
 from isardvdi_common.helpers.cards import Cards as CommonCards
@@ -26,7 +27,7 @@ from isardvdi_common.helpers.cards import Cards as CommonCards
 
 class CardService:
     @staticmethod
-    def get_stock_cards():
+    def get_stock_cards() -> list[dict]:
         """Get all available stock cards"""
         try:
             return CommonCards.get_stock_cards()
@@ -38,7 +39,7 @@ class CardService:
             )
 
     @staticmethod
-    def get_user_cards(user_id: str, domain_id: str = None):
+    def get_user_cards(user_id: str, domain_id: Optional[str] = None) -> list[dict]:
         """Get user cards for a specific user and optionally a domain"""
         try:
             return CommonCards.get_user_cards(user_id, domain_id)
@@ -50,7 +51,7 @@ class CardService:
             )
 
     @staticmethod
-    def get_domain_stock_card(domain_id: str):
+    def get_domain_stock_card(domain_id: str) -> dict:
         """Get the default stock card for a domain"""
         try:
             return CommonCards.get_domain_stock_card(domain_id)
@@ -62,7 +63,7 @@ class CardService:
             )
 
     @staticmethod
-    def get_domain_user_card(domain_id: str):
+    def get_domain_user_card(domain_id: str) -> dict:
         """Get the default user card for a domain"""
         try:
             return CommonCards.get_domain_user_card(domain_id)
@@ -74,7 +75,7 @@ class CardService:
             )
 
     @staticmethod
-    def generate_default_card(domain_id: str, domain_name: str):
+    def generate_default_card(domain_id: str, domain_name: str) -> dict:
         """Generate a default card for a domain with custom name"""
         try:
             return CommonCards.generate_default_card(domain_id, domain_name)
@@ -86,7 +87,7 @@ class CardService:
             )
 
     @staticmethod
-    def upload_card(domain_id: str, image_data: dict):
+    def upload_card(domain_id: str, image_data: dict) -> dict:
         """Upload a custom card for a domain"""
         try:
             return CommonCards.upload(domain_id, image_data)
@@ -98,7 +99,7 @@ class CardService:
             )
 
     @staticmethod
-    def update_card(domain_id: str, card_id: str, card_type: str):
+    def update_card(domain_id: str, card_id: str, card_type: str) -> dict:
         """Update domain card"""
         try:
             return CommonCards.update(domain_id, card_id, card_type)

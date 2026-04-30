@@ -93,7 +93,7 @@ class BastionService:
         enabled: bool,
         bastion_domain: str,
         domain_verification_required: bool,
-    ):
+    ) -> None:
         """
         Update the bastion configuration.
         """

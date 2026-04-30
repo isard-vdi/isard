@@ -21,6 +21,7 @@
 import json
 import logging as log
 import traceback
+from typing import Any, Optional
 
 from api.services.error import Error
 from api.services.templates import clear_templates_cache
@@ -40,7 +41,7 @@ from rethinkdb import r
 domains_field_cache = TTLCache(maxsize=50, ttl=5)
 
 
-def clear_domains_field_cache():
+def clear_domains_field_cache() -> None:
     domains_field_cache.clear()
 
 
@@ -52,14 +53,14 @@ class AdminDomainsService:
     # ── Ownership Checks ─────────────────────────────────────────────────
 
     @staticmethod
-    def owns_domain_id(payload, domain_id):
+    def owns_domain_id(payload: dict, domain_id: str) -> None:
         """Check if the admin/manager owns the domain."""
         Helpers.owns_domain_id(payload, domain_id)
 
     # ── List Domains ─────────────────────────────────────────────────────
 
     @staticmethod
-    def list_desktops(payload, categories=None):
+    def list_desktops(payload: dict, categories: Optional[str] = None) -> list[dict]:
         """List desktops, optionally filtered by categories."""
         if payload["role_id"] == "manager":
             categories = [payload["category_id"]]
@@ -70,7 +71,7 @@ class AdminDomainsService:
         return ApiAdmin.ListDesktops(categories)
 
     @staticmethod
-    def get_domains_by_ids(payload, domain_ids):
+    def get_domains_by_ids(payload: dict, domain_ids: list[str]) -> list[dict]:
         """Get specific domains by ID list (fast path)."""
         from rethinkdb import r
 
@@ -109,7 +110,7 @@ class AdminDomainsService:
         return result
 
     @staticmethod
-    def list_templates(payload):
+    def list_templates(payload: dict) -> list[dict]:
         """List templates. Managers see only their category."""
         category = (
             payload["category_id"] if payload.get("role_id") == "manager" else None
@@ -119,7 +120,7 @@ class AdminDomainsService:
     # ── Domain Details ───────────────────────────────────────────────────
 
     @staticmethod
-    def get_domain_details(payload, domain_id):
+    def get_domain_details(payload: dict, domain_id: str) -> dict:
         """Get detailed data for a domain."""
         AdminDomainsService.owns_domain_id(payload, domain_id)
         result = ApiAdmin.DesktopDetailsData(domain_id)
@@ -128,7 +129,7 @@ class AdminDomainsService:
         return result
 
     @staticmethod
-    def get_domain_viewer_data(payload, domain_id):
+    def get_domain_viewer_data(payload: dict, domain_id: str) -> dict:
         """Get viewer data for a domain."""
         AdminDomainsService.owns_domain_id(payload, domain_id)
         result = ApiAdmin.DesktopViewerData(domain_id)
@@ -137,7 +138,7 @@ class AdminDomainsService:
         return result
 
     @staticmethod
-    def get_deployment_viewer_data(payload, deployment_id):
+    def get_deployment_viewer_data(payload: dict, deployment_id: str) -> dict:
         """Get viewer data for a deployment."""
         AdminDomainsService.owns_domain_id(payload, deployment_id)
         result = ApiAdmin.DeploymentViewerData(deployment_id)
@@ -148,7 +149,7 @@ class AdminDomainsService:
     # ── Domain Status ────────────────────────────────────────────────────
 
     @staticmethod
-    def find_storages_by_domain_status(payload, status):
+    def find_storages_by_domain_status(payload: dict, status: str) -> dict:
         """Scan every desktop domain with ``status`` and enqueue a
         ``find`` task for each distinct storage id.
 
@@ -196,7 +197,7 @@ class AdminDomainsService:
         return {"tasks_created": tasks_created}
 
     @staticmethod
-    def get_domains_by_status(payload, status):
+    def get_domains_by_status(payload: dict, status: str) -> list[dict]:
         """Get domains by status."""
         if status == "delete_pending":
             if payload.get("role_id", "") == "admin":
@@ -212,7 +213,7 @@ class AdminDomainsService:
     # ── Domain Storage ───────────────────────────────────────────────────
 
     @staticmethod
-    def get_domain_storage(payload, domain_id):
+    def get_domain_storage(payload: dict, domain_id: str) -> list[dict]:
         """Get storage information for a domain."""
         AdminDomainsService.owns_domain_id(payload, domain_id)
         return ApiAdmin.get_domain_storage(domain_id)
@@ -220,7 +221,7 @@ class AdminDomainsService:
     # ── Domain XML ───────────────────────────────────────────────────────
 
     @staticmethod
-    def get_domain_xml(domain_id):
+    def get_domain_xml(domain_id: str) -> Optional[str]:
         """Get XML for a domain."""
         with ApiAdmin._rdb_context():
             domain = (
@@ -234,7 +235,7 @@ class AdminDomainsService:
         return domain.get("xml")
 
     @staticmethod
-    def update_domain_xml(domain_id, data):
+    def update_domain_xml(domain_id: str, data: dict) -> Optional[str]:
         """Update XML for a domain."""
         with ApiAdmin._rdb_context():
             existing = (
@@ -259,7 +260,7 @@ class AdminDomainsService:
         return result.get("xml")
 
     @staticmethod
-    def get_domain_xml_and_protected(domain_id):
+    def get_domain_xml_and_protected(domain_id: str) -> dict:
         """Return the domain xml plus its xml_protected_sections list."""
         with ApiAdmin._rdb_context():
             domain = (
@@ -279,7 +280,9 @@ class AdminDomainsService:
         }
 
     @staticmethod
-    def save_domain_xml_sections(domain_id, xml, protected):
+    def save_domain_xml_sections(
+        domain_id: str, xml: str, protected: list[str]
+    ) -> None:
         """Persist a rebuilt xml and its protected-section list."""
         with ApiAdmin._rdb_context():
             r.table("domains").get(domain_id).update(
@@ -291,7 +294,9 @@ class AdminDomainsService:
         clear_domains_field_cache()
 
     @staticmethod
-    def apply_xml_section_edits(domain_id, sections, protected):
+    def apply_xml_section_edits(
+        domain_id: str, sections: dict, protected: list[str]
+    ) -> str:
         """Merge edited xml sections into the domain xml and persist.
 
         Composed helper so the route doesn't have to chain
@@ -308,12 +313,12 @@ class AdminDomainsService:
     # ── Template Tree ────────────────────────────────────────────────────
 
     @staticmethod
-    def get_template_tree_list(payload, template_id):
+    def get_template_tree_list(payload: dict, template_id: str) -> list[dict]:
         """Get template tree list."""
         return ApiAdmin.get_template_tree_list(template_id, payload["user_id"])
 
     @staticmethod
-    def get_domain_template_tree(payload, desktop_id):
+    def get_domain_template_tree(payload: dict, desktop_id: str) -> list[dict]:
         """Get template tree for a specific domain."""
         AdminDomainsService.owns_domain_id(payload, desktop_id)
         return DomainsProcessed.domain_template_tree(desktop_id)
@@ -321,7 +326,7 @@ class AdminDomainsService:
     # ── Multiple Actions ─────────────────────────────────────────────────
 
     @staticmethod
-    def multiple_actions(payload, action, ids):
+    def multiple_actions(payload: dict, action: str, ids: list[str]) -> None:
         """Perform actions on multiple domains."""
         for d_id in ids:
             AdminDomainsService.owns_domain_id(payload, d_id)
@@ -331,7 +336,7 @@ class AdminDomainsService:
     # ── Template Delete ──────────────────────────────────────────────────
 
     @staticmethod
-    def delete_template(payload, template_id):
+    def delete_template(payload: dict, template_id: str) -> None:
         """Delete a template."""
         DesktopEvents.templates_delete(template_id, payload["user_id"])
         clear_templates_cache()
@@ -349,14 +354,14 @@ class AdminDomainsService:
             kind,
         ),
     )
-    def get_domains_field(payload, field, kind):
+    def get_domains_field(payload: dict, field: str, kind: str) -> list:
         """Get a specific field for domains of a kind."""
         return ApiAdmin.get_domains_field(field, kind, payload)
 
     # ── Domain Hardware ──────────────────────────────────────────────────
 
     @staticmethod
-    def get_domain_hardware(payload, domain_id):
+    def get_domain_hardware(payload: dict, domain_id: str) -> dict:
         """Get hardware details for a domain."""
         AdminDomainsService.owns_domain_id(payload, domain_id)
         return DomainsProcessed.get_domain_details_hardware(domain_id)
@@ -364,7 +369,7 @@ class AdminDomainsService:
     # ── Bulk Status Changes ──────────────────────────────────────────────
 
     @staticmethod
-    def change_desktops_status(current_status, target_status):
+    def change_desktops_status(current_status: str, target_status: str) -> None:
         """Change status for all desktops matching current status."""
         if target_status not in [
             "Shutting-down",
@@ -377,7 +382,9 @@ class AdminDomainsService:
         clear_domains_field_cache()
 
     @staticmethod
-    def change_desktops_status_category(category, current_status, target_status):
+    def change_desktops_status_category(
+        category: str, current_status: str, target_status: str
+    ) -> None:
         """Change status for desktops in a category matching current status."""
         if current_status not in ["Stopped", "Failed", "Started"]:
             raise Error("bad_request", "Invalid current status")
@@ -391,7 +398,9 @@ class AdminDomainsService:
     # ── Domain Storage Path ──────────────────────────────────────────────
 
     @staticmethod
-    def update_domain_storage_path(domain_id, old_path, new_path):
+    def update_domain_storage_path(
+        domain_id: str, old_path: str, new_path: str
+    ) -> dict:
         """Update the storage path of a domain."""
         result = DomainsProcessed.update_domain_path(domain_id, old_path, new_path)
         clear_domains_field_cache()
@@ -400,7 +409,7 @@ class AdminDomainsService:
     # ── Domain Search Info ───────────────────────────────────────────────
 
     @staticmethod
-    def get_domain_search_info(payload, domain_id):
+    def get_domain_search_info(payload: dict, domain_id: str) -> dict:
         """Get domain info for search results."""
         AdminDomainsService.owns_domain_id(payload, domain_id)
         with ApiAdmin._rdb_context():
@@ -436,13 +445,13 @@ class AdminDomainsService:
     # ── Logs Desktops ────────────────────────────────────────────────────
 
     @staticmethod
-    def set_logs_desktops_max_time(max_time):
+    def set_logs_desktops_max_time(max_time: int) -> None:
         """Set max time for desktop logs old entries."""
         max_time = 24 if int(max_time) < 24 else int(max_time)
         return ApiAdmin.set_logs_desktops_old_entries_max_time(max_time)
 
     @staticmethod
-    def set_logs_desktops_action(action):
+    def set_logs_desktops_action(action: str) -> None:
         """Set action for desktop logs old entries.
 
         Route layer constrains ``action`` to ``Literal["delete", "none"]``.
@@ -450,12 +459,14 @@ class AdminDomainsService:
         return ApiAdmin.set_logs_desktops_old_entries_action(action)
 
     @staticmethod
-    def get_logs_desktops_config():
+    def get_logs_desktops_config() -> dict:
         """Get desktop logs old entries configuration."""
         return ApiAdmin.get_logs_desktops_old_entries_config()
 
     @staticmethod
-    def _delete_logs_async(table, event_name, max_time_arg=None):
+    def _delete_logs_async(
+        table: str, event_name: str, max_time_arg: Optional[int] = None
+    ) -> int:
         """Delete old logs asynchronously (shared logic)."""
         import gevent
 
@@ -464,7 +475,7 @@ class AdminDomainsService:
             args.append(max_time_arg)
         old_logs = ApiAdmin.get_older_than_old_entry_max_time(*args)
 
-        def delete_old_logs_process():
+        def delete_old_logs_process() -> None:
             try:
                 with ApiAdmin._rdb_context():
                     batch_size = 50000
@@ -505,14 +516,14 @@ class AdminDomainsService:
         return len(old_logs)
 
     @staticmethod
-    def delete_old_desktop_logs():
+    def delete_old_desktop_logs() -> int:
         """Delete old desktop logs asynchronously."""
         return AdminDomainsService._delete_logs_async(
             "logs_desktops", "logs_desktops_action"
         )
 
     @staticmethod
-    def delete_all_desktop_logs():
+    def delete_all_desktop_logs() -> int:
         """Delete all desktop logs asynchronously."""
         return AdminDomainsService._delete_logs_async(
             "logs_desktops", "logs_desktops_action", 0
@@ -521,13 +532,13 @@ class AdminDomainsService:
     # ── Logs Users ───────────────────────────────────────────────────────
 
     @staticmethod
-    def set_logs_users_max_time(max_time):
+    def set_logs_users_max_time(max_time: int) -> None:
         """Set max time for user logs old entries."""
         max_time = 24 if int(max_time) < 24 else int(max_time)
         return ApiAdmin.set_logs_users_old_entries_max_time(max_time)
 
     @staticmethod
-    def set_logs_users_action(action):
+    def set_logs_users_action(action: str) -> None:
         """Set action for user logs old entries.
 
         Route layer constrains ``action`` to ``Literal["delete", "none"]``.
@@ -535,17 +546,17 @@ class AdminDomainsService:
         return ApiAdmin.set_logs_users_old_entries_action(action)
 
     @staticmethod
-    def get_logs_users_config():
+    def get_logs_users_config() -> dict:
         """Get user logs old entries configuration."""
         return ApiAdmin.get_logs_users_old_entries_config()
 
     @staticmethod
-    def delete_old_user_logs():
+    def delete_old_user_logs() -> int:
         """Delete old user logs asynchronously."""
         return AdminDomainsService._delete_logs_async("logs_users", "logs_users_action")
 
     @staticmethod
-    def delete_all_user_logs():
+    def delete_all_user_logs() -> int:
         """Delete all user logs asynchronously."""
         return AdminDomainsService._delete_logs_async(
             "logs_users", "logs_users_action", 0
@@ -554,7 +565,7 @@ class AdminDomainsService:
     # ── Logs Queries ─────────────────────────────────────────────────────
 
     @staticmethod
-    def _parse_multi_form(form_data):
+    def _parse_multi_form(form_data: Any) -> dict:
         """Parse DataTables multi-form data into nested dict."""
         data = {}
         for url_k in form_data:
@@ -589,7 +600,7 @@ class AdminDomainsService:
         return data
 
     @staticmethod
-    def _build_logs_query(table, form_data):
+    def _build_logs_query(table: str, form_data: dict) -> tuple:
         """Build a RethinkDB query for logs tables with DataTables parameters."""
         ARRAY_LIMIT = 500000
 
@@ -680,7 +691,7 @@ class AdminDomainsService:
         return query, table_indexes
 
     @staticmethod
-    def _query_logs(table, form_data, view="raw"):
+    def _query_logs(table: str, form_data: Any, view: str = "raw") -> dict:
         """Execute a logs query with DataTables parameters."""
         if isinstance(form_data, dict):
             parsed = form_data
@@ -899,25 +910,25 @@ class AdminDomainsService:
         return {}
 
     @staticmethod
-    def query_logs_desktops(form_data, view="raw"):
+    def query_logs_desktops(form_data: Any, view: str = "raw") -> dict:
         """Query desktop logs with DataTables parameters."""
         return AdminDomainsService._query_logs("logs_desktops", form_data, view)
 
     @staticmethod
-    def query_logs_users(form_data, view="raw"):
+    def query_logs_users(form_data: Any, view: str = "raw") -> dict:
         """Query user logs with DataTables parameters."""
         return AdminDomainsService._query_logs("logs_users", form_data, view)
 
     @staticmethod
     def list_desktop_logs(
-        payload,
-        start_date=None,
-        end_date=None,
-        limit=100,
-        offset=0,
-        desktop_id=None,
-        user_id=None,
-    ):
+        payload: dict,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+        desktop_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> list[dict]:
         """Simple list of desktop logs with filters (no DataTables)."""
         from rethinkdb import r
 
@@ -940,14 +951,14 @@ class AdminDomainsService:
 
     @staticmethod
     def list_user_logs(
-        payload,
-        start_date=None,
-        end_date=None,
-        limit=100,
-        offset=0,
-        user_id=None,
-        group_id=None,
-    ):
+        payload: dict,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+        user_id: Optional[str] = None,
+        group_id: Optional[str] = None,
+    ) -> list[dict]:
         """Simple list of user logs with filters (no DataTables)."""
         from rethinkdb import r
 

@@ -27,7 +27,7 @@ from isardvdi_common.lib.notifications.notifications_templates import (
 class NotificationsTemplatesService:
 
     @staticmethod
-    def get_disclaimer(user_id: str):
+    def get_disclaimer(user_id: str) -> dict:
         """
         Get the disclaimer from the database.
         """

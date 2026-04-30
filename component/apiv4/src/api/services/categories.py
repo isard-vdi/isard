@@ -17,6 +17,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from typing import Optional
+
 from api.services.error import Error
 from isardvdi_common.lib.users.categories.categories import (
     CategoriesProcessed as CommonCategories,
@@ -26,14 +28,16 @@ from isardvdi_common.lib.users.categories.categories import (
 class CategoryService:
 
     @staticmethod
-    def get_categories_frontend(domain=None):
+    def get_categories_frontend(domain: Optional[str] = None) -> list[dict]:
         """
         Get all categories for frontend usage.
         """
         return CommonCategories.get_categories_frontend(domain=domain)
 
     @staticmethod
-    def get_category_by_custom_url(custom_url, domain=None):
+    def get_category_by_custom_url(
+        custom_url: str, domain: Optional[str] = None
+    ) -> dict:
         """
         Get a category by its custom URL.
         """
@@ -47,7 +51,7 @@ class CategoryService:
         return category
 
     @staticmethod
-    def get_category_custom_login_url(category_id: str):
+    def get_category_custom_login_url(category_id: str) -> str:
         """
         Get the custom login URL for a category by its ID.
         """
@@ -69,7 +73,7 @@ class CategoryService:
             return "/login"
 
     @staticmethod
-    def search_users_in_category(category_id: str, search: str):
+    def search_users_in_category(category_id: str, search: str) -> list[dict]:
         """
         Get all users in a specific category.
         """

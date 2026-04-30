@@ -32,7 +32,7 @@ from isardvdi_common.lib.users.users.user_policies import UserPolicies
 from rethinkdb import r
 
 
-def sanitize_href(href):
+def sanitize_href(href: str | None) -> str | None:
     if href:
         scheme = href.strip().lower().split(":")[0] if ":" in href else ""
         if scheme in ("javascript", "data", "vbscript"):

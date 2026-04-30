@@ -61,7 +61,7 @@ CONSUMERS = {
 }
 
 
-def get_relative_date(days):
+def get_relative_date(days: int) -> datetime:
     # We use the same function as in consolidate.py as dates in logs_desktops table are also in UTC
     return datetime.now().astimezone().replace(
         minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc
@@ -69,12 +69,12 @@ def get_relative_date(days):
 
 
 class ConsolidateDesktopConsumption(ConsolidateConsumption):
-    def __init__(self, days_before=1):
+    def __init__(self, days_before: int = 1) -> None:
         super().__init__("desktop", DesktopsUsage, days_before)
 
 
 class DesktopsUsage:
-    def __init__(self, days_before=1):
+    def __init__(self, days_before: int = 1) -> None:
         # logs_desktops dates are in UTC so we use the same as in base class (UTC)
         self.consolidation_day_after = get_relative_date(-(days_before - 1))
         self.consolidation_day = get_relative_date(-days_before)
@@ -95,7 +95,7 @@ class DesktopsUsage:
         else:
             self.has_data = False
 
-    def _get_data(self):
+    def _get_data(self) -> list[dict]:
         with RethinkSharedConnection._rdb_context():
             data = list(
                 r.table("logs_desktops")
@@ -135,7 +135,7 @@ class DesktopsUsage:
             )
         return data
 
-    def _process_consumption(self, consumption):
+    def _process_consumption(self, consumption: dict) -> dict:
         if "hardware_bookables_vgpus" in consumption:
             profile_suffix = consumption["hardware_bookables_vgpus"][0].split("-")[2]
             match = re.match(r"(\d+)", profile_suffix)
@@ -151,8 +151,14 @@ class DesktopsUsage:
         )
 
     def _calculate_consumption(
-        self, start, stop, vcpus, gpu_mem, memory, interval="hour"
-    ):
+        self,
+        start: datetime,
+        stop: datetime,
+        vcpus: int,
+        gpu_mem: int,
+        memory: float,
+        interval: str = "hour",
+    ) -> dict:
         # This calculates increment in one start/stop
         interval = 1 / 60 if interval == "hour" else 1
         interval = 1 / 60 / 24 if interval == "day" else interval

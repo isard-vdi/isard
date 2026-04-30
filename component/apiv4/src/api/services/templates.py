@@ -49,7 +49,7 @@ from rethinkdb import r
 templates_cache = TTLCache(maxsize=1, ttl=360)
 
 
-def clear_templates_cache():
+def clear_templates_cache() -> None:
     """Invalidate the admin template list cache.
 
     Called from write paths that mutate a template's user-visible fields
@@ -62,25 +62,25 @@ def clear_templates_cache():
 class TemplateService:
     @staticmethod
     @cached(cache=templates_cache)
-    def get_all_templates():
+    def get_all_templates() -> list[dict]:
         return CommonTemplates.get_template_with_user_info()
 
     @staticmethod
-    def get_user_templates(user_id):
+    def get_user_templates(user_id: str) -> list[dict]:
         return CommonTemplates.get_user_templates(user_id)
 
     @classmethod
     def get_user_templates_paginated(
         cls,
         user_id: str,
-        start_after=None,
-        page_size=10,
-        sort_field="accessed",
-        sort_order="desc",
-        search=None,
-        search_field="name",
-        filters=None,
-    ):
+        start_after: str | None = None,
+        page_size: int = 10,
+        sort_field: str = "accessed",
+        sort_order: str = "desc",
+        search: str | None = None,
+        search_field: str = "name",
+        filters: dict | None = None,
+    ) -> dict:
         """
         Get all templates for a specific user.
         Returns a paginated list of templates.
@@ -121,7 +121,7 @@ class TemplateService:
         }
 
     @staticmethod
-    def get_user_allowed_templates_flat(payload, kind):
+    def get_user_allowed_templates_flat(payload: dict, kind: str) -> list[dict]:
         """Return a flat list of templates the user can use.
 
         ``kind`` controls the filter:
@@ -169,7 +169,7 @@ class TemplateService:
         )
 
     @staticmethod
-    def get_user_shared_templates(payload):
+    def get_user_shared_templates(payload: dict) -> list[dict]:
         if not RethinkUser.exists(payload["user_id"]):
             raise Error(
                 "not_found",
@@ -205,13 +205,13 @@ class TemplateService:
         user_category: str,
         user_group: str,
         user_role: str,
-        start_after=None,
-        page_size=10,
-        sort_field="accessed",
-        sort_order="desc",
-        search=None,
-        search_field="name",
-    ):
+        start_after: str | None = None,
+        page_size: int = 10,
+        sort_field: str = "accessed",
+        sort_order: str = "desc",
+        search: str | None = None,
+        search_field: str = "name",
+    ) -> list[dict]:
         if not RethinkUser.exists(user_id):
             raise Error(
                 "not_found",
@@ -249,7 +249,7 @@ class TemplateService:
         return templates
 
     @staticmethod
-    def create_template(payload, data):
+    def create_template(payload: dict, data: dict) -> dict:
         Helpers.check_user_duplicated_domain_name(
             name=data["name"],
             user_id=payload["user_id"],
@@ -269,7 +269,7 @@ class TemplateService:
         return result
 
     @staticmethod
-    def toggle_enabled(template_id):
+    def toggle_enabled(template_id: str) -> None:
         template = RethinkDomain(template_id)
         template.enabled = not template.enabled
         clear_templates_cache()
@@ -312,7 +312,7 @@ class TemplateService:
         clear_templates_cache()
 
     @staticmethod
-    def duplicate_template(payload, template_id, data):
+    def duplicate_template(payload: dict, template_id: str, data: dict) -> dict:
         Helpers.check_user_duplicated_domain_name(
             name=data["name"],
             user_id=payload["user_id"],
@@ -331,7 +331,7 @@ class TemplateService:
         return result
 
     @staticmethod
-    def delete_template(payload, template_id):
+    def delete_template(payload: dict, template_id: str) -> dict:
         # Block managers from deleting templates with cross-category derivatives
         if payload["role_id"] == "manager":
             from rethinkdb import r
@@ -357,7 +357,9 @@ class TemplateService:
         return result
 
     @staticmethod
-    def convert_to_desktop(payload, template_id, name=None):
+    def convert_to_desktop(
+        payload: dict, template_id: str, name: str | None = None
+    ) -> dict:
         name = name or RethinkDomain(template_id).name
 
         Helpers.check_user_duplicated_domain_name(
@@ -376,7 +378,7 @@ class TemplateService:
         clear_templates_cache()
         return result
 
-    def get_template_allowed(template_id: str, category_id: str):
+    def get_template_allowed(template_id: str, category_id: str) -> dict:
         if not RethinkDomain.exists(template_id):
             raise Error(
                 "not_found",
@@ -389,7 +391,7 @@ class TemplateService:
         }
 
     @staticmethod
-    def update_template_allowed(template_id: str, allowed):
+    def update_template_allowed(template_id: str, allowed: dict) -> None:
         if not RethinkDomain.exists(template_id):
             raise Error(
                 "not_found",
@@ -403,7 +405,7 @@ class TemplateService:
         clear_templates_cache()
 
     @staticmethod
-    def get_template_tree(template_id: str, payload):
+    def get_template_tree(template_id: str, payload: dict) -> dict:
         tree = CommonApiAdmin.get_template_tree_list(template_id, payload["user_id"])[0]
 
         derivates = CommonTemplates.check_children(payload, tree)
@@ -441,7 +443,7 @@ class TemplateService:
         return derivates
 
     @staticmethod
-    def get_template_details(template_id: str):
+    def get_template_details(template_id: str) -> dict:
         if not RethinkDomain.exists(template_id):
             raise Error(
                 "not_found",

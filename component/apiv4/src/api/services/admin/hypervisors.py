@@ -20,6 +20,7 @@
 
 import logging as log
 import os
+from typing import Optional, Union
 
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
@@ -34,7 +35,7 @@ class AdminHypervisorsService:
     # ── List / Get ───────────────────────────────────────────────────────
 
     @staticmethod
-    def get_hypervisors(status=None):
+    def get_hypervisors(status: Optional[str] = None) -> list[dict]:
         """List hypervisors, optionally filtered by status."""
         if status and status not in ["Online", "Offline", "Error"]:
             raise Error(
@@ -44,14 +45,14 @@ class AdminHypervisorsService:
         return HypervisorsProcessed.get_hypervisors(status)
 
     @staticmethod
-    def get_hyper_status(hyper_id):
+    def get_hyper_status(hyper_id: str) -> dict:
         """Get hypervisor status and only_forced flag."""
         return HypervisorsProcessed.get_hyper_status(hyper_id)
 
     # ── Create / Update / Delete ─────────────────────────────────────────
 
     @staticmethod
-    def create_or_update_hypervisor(data):
+    def create_or_update_hypervisor(data: dict) -> dict:
         """Create or update a hypervisor (register from hyper node)."""
         hyper_id = data["hyper_id"]
         hostname = data["hostname"]
@@ -110,19 +111,21 @@ class AdminHypervisorsService:
         return result["data"]
 
     @staticmethod
-    def _normalize_gpu_model(gpu_name, vgpu_profiles=None):
+    def _normalize_gpu_model(
+        gpu_name: str, vgpu_profiles: Optional[list[dict]] = None
+    ) -> str:
         """Dash-free model name (same logic as hypervisor gpu_discovery)."""
         if vgpu_profiles:
             return vgpu_profiles[0]["name"].split("-")[0]
         return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
 
     @staticmethod
-    def update_hyper_numa_topology(hyper_id, numa_topology):
+    def update_hyper_numa_topology(hyper_id: str, numa_topology: dict) -> None:
         """Refresh hypervisor numa_topology (libvirt-validated, sent at enable time)."""
         HypervisorsProcessed.update_hyper_numa_topology(hyper_id, numa_topology)
 
     @staticmethod
-    def update_hyper_boot_progress(hyper_id, boot_progress):
+    def update_hyper_boot_progress(hyper_id: str, boot_progress: dict) -> None:
         """Refresh hypervisor boot_progress payload (called from monitoring agents)."""
         from isardvdi_common.connections.rethink_shared_connection import (
             RethinkSharedConnection,
@@ -135,7 +138,7 @@ class AdminHypervisorsService:
             ).run(RethinkSharedConnection._rdb_connection)
 
     @staticmethod
-    def register_vlans(vlans):
+    def register_vlans(vlans: list[str]) -> None:
         """Insert or update bridge interfaces for VLANs discovered on a hypervisor."""
         from isardvdi_common.connections.rethink_shared_connection import (
             RethinkSharedConnection,
@@ -165,7 +168,7 @@ class AdminHypervisorsService:
                 ).run(RethinkSharedConnection._rdb_connection)
 
     @staticmethod
-    def enable_hyper(hyper_id, enable=True):
+    def enable_hyper(hyper_id: str, enable: bool = True) -> dict:
         """Enable or disable a hypervisor."""
         if enable:
             log.warning("Enabling hypervisor: " + hyper_id)
@@ -180,7 +183,7 @@ class AdminHypervisorsService:
         return result["data"]
 
     @staticmethod
-    def remove_hyper(hyper_id):
+    def remove_hyper(hyper_id: str) -> dict:
         """Remove a hypervisor."""
         result = HypervisorsProcessed.remove_hyper(hyper_id)
         if not result["status"]:
@@ -191,21 +194,21 @@ class AdminHypervisorsService:
         return result["data"]
 
     @staticmethod
-    def stop_hyper_domains(hyper_id):
+    def stop_hyper_domains(hyper_id: str) -> None:
         """Stop all domains running on a hypervisor."""
         HypervisorsProcessed.stop_hyper_domains(hyper_id)
 
     # ── VPN ──────────────────────────────────────────────────────────────
 
     @staticmethod
-    def get_hypervisor_vpn(hyper_id):
+    def get_hypervisor_vpn(hyper_id: str) -> dict:
         """Get VPN config for a hypervisor."""
         return HypervisorsProcessed.get_hypervisor_vpn(hyper_id)
 
     # ── Wireguard Address ────────────────────────────────────────────────
 
     @staticmethod
-    def update_wg_address(mac, ip):
+    def update_wg_address(mac: str, ip: str) -> dict:
         """Update wireguard guest address for a domain by MAC."""
         domain_id = HypervisorsProcessed.update_wg_address(
             mac, {"viewer": {"guest_ip": ip}}
@@ -215,69 +218,71 @@ class AdminHypervisorsService:
     # ── Media / Disks Discovery ──────────────────────────────────────────
 
     @staticmethod
-    def update_media_found(medias):
+    def update_media_found(medias: list) -> None:
         """Register media found on hypervisor."""
         HypervisorsProcessed.update_media_found(medias)
 
     @staticmethod
-    def update_disks_found(disks):
+    def update_disks_found(disks: list) -> None:
         """Register disks found on hypervisor."""
         HypervisorsProcessed.update_disks_found(disks)
 
     @staticmethod
-    def delete_media(medias_paths):
+    def delete_media(medias_paths: list) -> None:
         """Delete media by paths."""
         HypervisorsProcessed.delete_media(medias_paths)
 
     # ── GPU Management ───────────────────────────────────────────────────
 
     @staticmethod
-    def assign_gpus():
+    def assign_gpus() -> None:
         """Assign physical GPUs to GPU profiles."""
         HypervisorsProcessed.assign_gpus()
 
     # ── Orchestrator ─────────────────────────────────────────────────────
 
     @staticmethod
-    def get_orchestrator_hypervisors(hyp_id=None):
+    def get_orchestrator_hypervisors(
+        hyp_id: Optional[str] = None,
+    ) -> Union[dict, list[dict]]:
         """Get hypervisors with orchestrator pluck fields."""
         return HypervisorsProcessed.get_orchestrator_hypervisors(hyp_id=hyp_id)
 
     @staticmethod
-    def get_orchestrator_managed_hypervisors():
+    def get_orchestrator_managed_hypervisors() -> list[dict]:
         """Get only orchestrator-managed hypervisors."""
         return HypervisorsProcessed.get_orchestrator_managed_hypervisors()
 
     @staticmethod
-    def set_hyper_deadrow_time(hyper_id, reset=False):
+    def set_hyper_deadrow_time(hyper_id: str, reset: bool = False) -> Union[dict, bool]:
         """Set or reset dead row timeout for a hypervisor."""
         return HypervisorsProcessed.set_hyper_deadrow_time(hyper_id, reset=reset)
 
     @staticmethod
-    def set_hyper_orchestrator_managed(hyper_id, reset=False):
+    def set_hyper_orchestrator_managed(hyper_id: str, reset: bool = False) -> None:
         """Mark or unmark a hypervisor for orchestrator management."""
         HypervisorsProcessed.set_hyper_orchestrator_managed(hyper_id, reset=reset)
 
     # ── Virt Pools ───────────────────────────────────────────────────────
 
     @staticmethod
-    def get_hyper_virt_pools(hyper_id):
+    def get_hyper_virt_pools(hyper_id: str) -> list[dict]:
         """Get virt pools for a hypervisor."""
         return HypervisorsProcessed.get_hyper_virt_pools(hyper_id)
 
     @staticmethod
-    def update_hyper_virt_pools(hyper_id, data):
+    def update_hyper_virt_pools(hyper_id: str, data: dict) -> None:
         """Update virt pool assignment for a hypervisor."""
         HypervisorsProcessed.update_hyper_virt_pools(hyper_id, data)
 
     # ── Mountpoints & Started Domains ────────────────────────────────────
 
     @staticmethod
-    def get_hyper_mountpoints(hyper_id):
+    def get_hyper_mountpoints(hyper_id: str) -> list[dict]:
         """Get mountpoints for a hypervisor."""
         return HypervisorsProcessed.get_hyper_mountpoints(hyper_id)["mountpoints"]
 
     @staticmethod
-    def get_hyper_started_domains(hyper_id):
+    def get_hyper_started_domains(hyper_id: str) -> list[dict]:
         """Get started domains on a hypervisor."""
         return HypervisorsProcessed.get_hyper_started_domains(hyper_id)

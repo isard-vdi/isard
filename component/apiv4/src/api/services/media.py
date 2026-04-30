@@ -25,6 +25,7 @@ from urllib.parse import quote, urlparse
 from uuid import uuid4
 
 import requests
+from api.schemas.media import CreateMediaRequest
 from api.services.error import Error
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.helpers import Helpers
@@ -50,7 +51,7 @@ URL_DOWNLOAD_INSECURE_SSL = (
 class MediaService:
 
     @staticmethod
-    def get_media(media_id):
+    def get_media(media_id: str) -> dict:
         if not RethinkMedia.exists(media_id):
             raise Error(
                 "not_found",
@@ -59,12 +60,12 @@ class MediaService:
         return CommonMedia.get_info(media_id)
 
     @staticmethod
-    def get_user_media(user_id):
+    def get_user_media(user_id: str) -> list[dict]:
         """Get all media owned by a user."""
         return CommonMedia.get_user_media(user_id)
 
     @staticmethod
-    def get_user_shared_media(payload):
+    def get_user_shared_media(payload: dict) -> list[dict]:
         """Get all media shared with a user."""
         if not RethinkUser.exists(payload["user_id"]):
             raise Error(
@@ -98,7 +99,7 @@ class MediaService:
         )
 
     @staticmethod
-    def get_media_allowed(media_id: str, category_id: str):
+    def get_media_allowed(media_id: str, category_id: str) -> dict:
         if not RethinkMedia.exists(media_id):
             raise Error(
                 "not_found",
@@ -110,11 +111,11 @@ class MediaService:
         }
 
     @staticmethod
-    def get_media_desktops(media_id):
+    def get_media_desktops(media_id: str) -> list[dict]:
         return CommonMedia.get_desktops_with_media(media_id)
 
     @staticmethod
-    def list_desktop_attached_media(desktop_id):
+    def list_desktop_attached_media(desktop_id: str) -> list[dict]:
         """Return media attached to a desktop's create_dict.hardware."""
         return CommonMedia.list_domain_attached_media(desktop_id)
 
@@ -157,7 +158,7 @@ class MediaService:
         Helpers.change_owner_media(user_id=new_user_id, media_id=media_id)
 
     @staticmethod
-    def delete_media(media_id, payload):
+    def delete_media(media_id: str, payload: dict) -> dict | None:
         """Delete a media item."""
         if not RethinkMedia.exists(media_id):
             raise Error(
@@ -175,14 +176,14 @@ class MediaService:
         user_category: str,
         user_group: str,
         user_role: str,
-        start_after=None,
-        page_size=10,
-        sort_field="accessed",
-        sort_order="desc",
-        search=None,
-        search_field=None,
-        filters=None,
-    ):
+        start_after: str | None = None,
+        page_size: int = 10,
+        sort_field: str = "accessed",
+        sort_order: str = "desc",
+        search: str | None = None,
+        search_field: str | None = None,
+        filters: dict | None = None,
+    ) -> list[dict]:
         if not RethinkUser.exists(user_id):
             raise Error(
                 "not_found",
@@ -210,7 +211,7 @@ class MediaService:
         )
 
     @staticmethod
-    def create_media(media_data, payload):
+    def create_media(media_data: CreateMediaRequest, payload: dict) -> str:
         """Create a new media item."""
         # Validate URL format
         url_str = str(media_data.url)
@@ -399,7 +400,7 @@ class MediaService:
 
         return media_model.id
 
-    def update_media_allowed(media_id: str, allowed):
+    def update_media_allowed(media_id: str, allowed: dict) -> None:
         if not RethinkMedia.exists(media_id):
             raise Error(
                 "not_found",
@@ -412,7 +413,7 @@ class MediaService:
         )
 
     @staticmethod
-    def abort_media_download(media_id: str):
+    def abort_media_download(media_id: str) -> None:
         """Abort a media download.
 
         Sets the media row to ``DownloadAborting`` (back-up signal for
@@ -460,7 +461,7 @@ class MediaService:
                 pass
 
     @staticmethod
-    def start_media_download(media_id: str):
+    def start_media_download(media_id: str) -> None:
         """(Re-)start a media download.
 
         Used to retry a previously failed download. Resets the row to

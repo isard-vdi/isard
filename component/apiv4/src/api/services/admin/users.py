@@ -23,6 +23,7 @@ import json
 import logging as log
 import time
 import traceback
+from typing import Optional, Union
 from uuid import uuid4
 
 from api.services.admin.tables import AdminTablesService
@@ -73,19 +74,19 @@ class AdminUsersService:
     # ── Ownership Checks ─────────────────────────────────────────────────
 
     @staticmethod
-    def owns_user_id(payload, user_id):
+    def owns_user_id(payload: dict, user_id: str) -> None:
         """Check if the admin/manager owns the user."""
         Helpers.owns_user_id(payload, user_id)
 
     @staticmethod
-    def owns_category_id(payload, category_id):
+    def owns_category_id(payload: dict, category_id: str) -> None:
         """Check if the admin/manager owns the category."""
         Helpers.owns_category_id(payload, category_id)
 
     # ── User CRUD ────────────────────────────────────────────────────────
 
     @staticmethod
-    def get_impersonate_jwt(user_id):
+    def get_impersonate_jwt(user_id: str) -> dict:
         """Generate an impersonation JWT for a user."""
         if not RethinkUser.exists(user_id):
             raise Error(
@@ -96,27 +97,29 @@ class AdminUsersService:
         return CommonUsers.gen_impersonate_jwt(user_id)
 
     @staticmethod
-    def user_exists(user_id):
+    def user_exists(user_id: str) -> bool:
         """Check if a user exists."""
         return RethinkUser.exists(user_id)
 
     @staticmethod
-    def get_user_full_data(user_id):
+    def get_user_full_data(user_id: str) -> dict:
         """Get full user data."""
         return CommonUsers.get_user_full_data(user_id)
 
     @staticmethod
-    def get_user_raw(user_id):
+    def get_user_raw(user_id: str) -> dict:
         """Get raw user data."""
         return CommonUsers.get_user(user_id)
 
     @staticmethod
-    def list_users(nav=None, category_id=None):
+    def list_users(
+        nav: Optional[str] = None, category_id: Optional[str] = None
+    ) -> list[dict]:
         """List users, optionally filtered by nav and category."""
         return CommonUsers.admin_list_users(nav, category_id)
 
     @staticmethod
-    def create_user(payload, data):
+    def create_user(payload: dict, data: dict) -> dict:
         """Create a new user."""
         # RethinkBase.init_document inserts the kwargs as-is; passing
         # id=None makes RethinkDB store a literal null instead of
@@ -202,7 +205,7 @@ class AdminUsersService:
         return data
 
     @staticmethod
-    def update_user(payload, user_id, data):
+    def update_user(payload: dict, user_id: str, data: dict) -> None:
         """Update a single user."""
         user = Caches.get_document("users", user_id)
         if "active" in data:
@@ -254,7 +257,7 @@ class AdminUsersService:
         clear_users_list_cache()
 
     @staticmethod
-    def update_multiple_users(payload, data):
+    def update_multiple_users(payload: dict, data: dict) -> None:
         """Update multiple users in bulk."""
         user_ids = data.get("ids", [])
 
@@ -278,7 +281,7 @@ class AdminUsersService:
         clear_users_list_cache()
 
     @staticmethod
-    def delete_users(payload, data):
+    def delete_users(payload: dict, data: dict) -> tuple[dict, int]:
         """Delete one or more users."""
         exceptions = []
 
@@ -309,7 +312,7 @@ class AdminUsersService:
         # Process bulk delete asynchronously
         import gevent
 
-        def process_bulk_delete():
+        def process_bulk_delete() -> None:
             try:
                 for user_id in data["user"]:
                     revoke_user_session(user_id)
@@ -332,7 +335,7 @@ class AdminUsersService:
         return {}, 200
 
     @staticmethod
-    def force_logout_user(payload, user_id):
+    def force_logout_user(payload: dict, user_id: str) -> None:
         """Force logout a user."""
         AdminUsersService.owns_user_id(payload, user_id)
         revoke_user_session(user_id)
@@ -340,7 +343,7 @@ class AdminUsersService:
     # ── CSV Operations ───────────────────────────────────────────────────
 
     @staticmethod
-    def validate_csv_users(payload, user_list):
+    def validate_csv_users(payload: dict, user_list: list[dict]) -> dict:
         """Validate users from CSV for creation."""
         processed_list = []
         errors = []
@@ -360,7 +363,7 @@ class AdminUsersService:
         return {"errors": errors, "users": processed_list}
 
     @staticmethod
-    def import_csv_users(payload, data):
+    def import_csv_users(payload: dict, data: dict) -> dict:
         """Import users from validated CSV data.
 
         Runs synchronously and returns {created, errors}. Previously this
@@ -377,7 +380,7 @@ class AdminUsersService:
         return result
 
     @staticmethod
-    def validate_csv_users_edit(payload, user_list):
+    def validate_csv_users_edit(payload: dict, user_list: list[dict]) -> list[dict]:
         """Validate CSV data for editing existing users."""
         for i, user in enumerate(user_list):
             cg_data = AdminUsersService._category_name_group_name_match(
@@ -424,7 +427,7 @@ class AdminUsersService:
         return user_list
 
     @staticmethod
-    def edit_csv_users(payload, data):
+    def edit_csv_users(payload: dict, data: dict) -> None:
         """Edit users from validated CSV data."""
         for user_data in data["users"]:
             AdminUsersService.owns_user_id(payload, user_data["id"])
@@ -439,7 +442,7 @@ class AdminUsersService:
     # ── Secondary Groups ────────────────────────────────────────────────
 
     @staticmethod
-    def update_secondary_groups(payload, action, data):
+    def update_secondary_groups(payload: dict, action: str, data: dict) -> None:
         """Add, overwrite, or delete secondary groups for users."""
         for user_id in data["ids"]:
             AdminUsersService.owns_user_id(payload, user_id)
@@ -451,13 +454,13 @@ class AdminUsersService:
     # ── Password & Security ─────────────────────────────────────────────
 
     @staticmethod
-    def get_password_policy(payload, user_id):
+    def get_password_policy(payload: dict, user_id: str) -> dict:
         """Get password policy for a user."""
         AdminUsersService.owns_user_id(payload, user_id)
         return CommonUserPolicies.get_user_policy(subtype="password", user_id=user_id)
 
     @staticmethod
-    def reset_password(data):
+    def reset_password(data: dict) -> None:
         """Admin reset of user password."""
         if not data.get("password") or not data.get("user_id"):
             raise Error(
@@ -467,22 +470,22 @@ class AdminUsersService:
         CommonUsers.change_password(data["password"], data["user_id"])
 
     @staticmethod
-    def check_password_expiration(user_id):
+    def check_password_expiration(user_id: str) -> bool:
         """Check if password reset is required."""
         return CommonUsers.check_password_expiration(user_id)
 
     @staticmethod
-    def check_email_verified(user_id):
+    def check_email_verified(user_id: str) -> bool:
         """Check if email is verified."""
         return not CommonUsers.check_verified_email(user_id)
 
     @staticmethod
-    def check_disclaimer_acknowledgement(user_id):
+    def check_disclaimer_acknowledgement(user_id: str) -> bool:
         """Check if disclaimer is acknowledged."""
         return CommonUsers.check_acknowledged_disclaimer(user_id)
 
     @staticmethod
-    def reset_vpn(payload, user_id):
+    def reset_vpn(payload: dict, user_id: str) -> None:
         """Reset VPN credentials for a user."""
         AdminUsersService.owns_user_id(payload, user_id)
         CommonUsers.reset_vpn(user_id)
@@ -490,7 +493,7 @@ class AdminUsersService:
     # ── Groups CRUD ──────────────────────────────────────────────────────
 
     @staticmethod
-    def list_groups(payload):
+    def list_groups(payload: dict) -> list[dict]:
         """List all groups (admin sees all, manager sees own category)."""
         groups = CommonGroups.admin_get_groups()
         if payload["role_id"] == "manager":
@@ -500,7 +503,7 @@ class AdminUsersService:
         return groups
 
     @staticmethod
-    def list_groups_nav(payload, nav):
+    def list_groups_nav(payload: dict, nav: str) -> list[dict]:
         """List groups for a specific navigation context.
 
         Route layer constrains ``nav`` via ``Literal[...]`` so an
@@ -515,12 +518,12 @@ class AdminUsersService:
         return CommonUsers.admin_list_groups(nav, category_id)
 
     @staticmethod
-    def get_group(group_id):
+    def get_group(group_id: str) -> dict:
         """Get full group data."""
         return CommonGroups.group_get_full_data(group_id)
 
     @staticmethod
-    def create_group(payload, data):
+    def create_group(payload: dict, data: dict) -> dict:
         """Create a new group."""
         if payload["role_id"] == "manager":
             data["parent_category"] = payload["category_id"]
@@ -563,7 +566,7 @@ class AdminUsersService:
         return data
 
     @staticmethod
-    def update_group(payload, group_id, data):
+    def update_group(payload: dict, group_id: str, data: dict) -> None:
         """Update a group."""
         group = Caches.get_document("groups", group_id)
         AdminUsersService.owns_category_id(payload, group["parent_category"])
@@ -580,7 +583,7 @@ class AdminUsersService:
         clear_groups_list_cache()
 
     @staticmethod
-    def delete_group(payload, group_id):
+    def delete_group(payload: dict, group_id: str) -> None:
         """Delete a group."""
         if payload["group_id"] == group_id:
             raise Error(
@@ -599,14 +602,14 @@ class AdminUsersService:
         clear_users_list_cache()
 
     @staticmethod
-    def get_group_users(payload, group_id):
+    def get_group_users(payload: dict, group_id: str) -> list[dict]:
         """Get users in a group."""
         group = Caches.get_document("groups", group_id)
         AdminUsersService.owns_category_id(payload, group["parent_category"])
         return CommonGroups.get_users_in_group(group_id)
 
     @staticmethod
-    def update_group_enrollment(payload, data):
+    def update_group_enrollment(payload: dict, data: dict) -> Union[bool, str]:
         """Update group enrollment settings."""
         group = Caches.get_document("groups", data["id"])
         if group is None:
@@ -621,7 +624,7 @@ class AdminUsersService:
     # ── Categories CRUD ──────────────────────────────────────────────────
 
     @staticmethod
-    def list_categories(payload, frontend=False):
+    def list_categories(payload: dict, frontend: bool = False) -> list[dict]:
         """List categories."""
         if not frontend:
             return CommonUsers.categories_get()
@@ -629,7 +632,7 @@ class AdminUsersService:
             return CommonCategories.get_categories_frontend()
 
     @staticmethod
-    def list_categories_nav(payload, nav):
+    def list_categories_nav(payload: dict, nav: str) -> list[dict]:
         """List categories for a specific navigation context.
 
         Route layer constrains ``nav`` via ``Literal[...]`` (FastAPI 422 on
@@ -643,7 +646,7 @@ class AdminUsersService:
         return CommonUsers.admin_list_categories(nav, category_id)
 
     @staticmethod
-    def get_category(payload, category_id):
+    def get_category(payload: dict, category_id: str) -> dict:
         """Get a category by ID with authentication secrets stripped."""
         AdminUsersService.owns_category_id(payload, category_id)
         with RethinkSharedConnection._rdb_context():
@@ -664,7 +667,7 @@ class AdminUsersService:
         return category
 
     @staticmethod
-    def create_category(payload, data):
+    def create_category(payload: dict, data: dict) -> dict:
         """Create a new category."""
         AdminUsersService._check_duplicate("categories", data["name"])
         if data.get("uid"):
@@ -719,7 +722,7 @@ class AdminUsersService:
         return category_data
 
     @staticmethod
-    def update_category(payload, category_id, data):
+    def update_category(payload: dict, category_id: str, data: dict) -> None:
         """Update a category."""
         AdminUsersService.owns_category_id(payload, category_id)
         AdminUsersService._check_duplicate(
@@ -743,7 +746,7 @@ class AdminUsersService:
         clear_users_list_cache()
 
     @staticmethod
-    def delete_category(payload, category_id):
+    def delete_category(payload: dict, category_id: str) -> Optional[dict]:
         """Delete a category."""
         result = CommonCategories.delete_category(category_id, payload["user_id"])
 
@@ -756,7 +759,7 @@ class AdminUsersService:
         return result
 
     @staticmethod
-    def get_category_users(payload, category_id):
+    def get_category_users(payload: dict, category_id: str) -> list[dict]:
         """Get users in a category."""
         AdminUsersService.owns_category_id(payload, category_id)
         with RethinkSharedConnection._rdb_context():
@@ -768,7 +771,7 @@ class AdminUsersService:
             )
 
     @staticmethod
-    def get_category_by_name(category_name):
+    def get_category_by_name(category_name: str) -> str:
         """Get category ID by name."""
         with RethinkSharedConnection._rdb_context():
             rows = list(
@@ -782,7 +785,7 @@ class AdminUsersService:
         return rows[0]["id"]
 
     @staticmethod
-    def get_group_by_name_category(category_name, group_name):
+    def get_group_by_name_category(category_name: str, group_name: str) -> str:
         """Get group ID by name and category."""
         group = CommonGroups.get_group_by_name_category(group_name, category_name)
         return group["id"]
@@ -790,7 +793,7 @@ class AdminUsersService:
     # ── Quotas & Limits ──────────────────────────────────────────────────
 
     @staticmethod
-    def update_group_quota(payload, group_id, data):
+    def update_group_quota(payload: dict, group_id: str, data: dict) -> None:
         """Update group quota."""
         propagate = data.get("propagate", False)
         role = data.get("role", "all_roles")
@@ -803,7 +806,7 @@ class AdminUsersService:
         )
 
     @staticmethod
-    def update_category_quota(payload, category_id, data):
+    def update_category_quota(payload: dict, category_id: str, data: dict) -> None:
         """Update category quota."""
         propagate = data.get("propagate", False)
         role = data.get("role", "all_roles")
@@ -815,14 +818,14 @@ class AdminUsersService:
         )
 
     @staticmethod
-    def update_group_limits(payload, group_id, data):
+    def update_group_limits(payload: dict, group_id: str, data: dict) -> None:
         """Update group limits."""
         group = Caches.get_document("groups", group_id)
         AdminUsersService.owns_category_id(payload, group["parent_category"])
         CommonGroups.update_group_limits(group, data["limits"])
 
     @staticmethod
-    def update_category_limits(payload, category_id, data):
+    def update_category_limits(payload: dict, category_id: str, data: dict) -> None:
         """Update category limits."""
         propagate = data.get("propagate", False)
         AdminUsersService.owns_category_id(payload, category_id)
@@ -831,14 +834,14 @@ class AdminUsersService:
     # ── Validation & Checks ──────────────────────────────────────────────
 
     @staticmethod
-    def user_delete_checks(payload, ids):
+    def user_delete_checks(payload: dict, ids: list[str]) -> dict:
         """Check deletion dependencies for users."""
         for user_id in ids:
             AdminUsersService.owns_user_id(payload, user_id)
         return AdminUsersService._delete_checks_inline(ids, "user")
 
     @staticmethod
-    def group_delete_checks(payload, ids):
+    def group_delete_checks(payload: dict, ids: list[str]) -> dict:
         """Check deletion dependencies for groups."""
         for group_id in ids:
             group = Caches.get_document("groups", group_id)
@@ -846,7 +849,7 @@ class AdminUsersService:
         return AdminUsersService._delete_checks_inline(ids, "group")
 
     @staticmethod
-    def category_delete_checks(payload, ids):
+    def category_delete_checks(payload: dict, ids: list[str]) -> dict:
         """Check deletion dependencies for categories."""
         for category_id in ids:
             AdminUsersService.owns_category_id(payload, category_id)
@@ -855,7 +858,7 @@ class AdminUsersService:
     # ── Supporting ───────────────────────────────────────────────────────
 
     @staticmethod
-    def get_user_templates(payload, user_id):
+    def get_user_templates(payload: dict, user_id: str) -> list[dict]:
         """Get templates allowed for a user."""
         AdminUsersService.owns_user_id(payload, user_id)
         with RethinkSharedConnection._rdb_context():
@@ -877,7 +880,7 @@ class AdminUsersService:
         ]
 
     @staticmethod
-    def get_admin_templates(payload):
+    def get_admin_templates(payload: dict) -> list[dict]:
         """Get all templates allowed for the admin/manager."""
         with RethinkSharedConnection._rdb_context():
             query = r.table("domains").get_all("template", index="kind")
@@ -890,7 +893,7 @@ class AdminUsersService:
             )
 
     @staticmethod
-    def get_user_desktops(payload, user_id):
+    def get_user_desktops(payload: dict, user_id: str) -> list[dict]:
         """Get desktops for a user."""
         AdminUsersService.owns_user_id(payload, user_id)
         with RethinkSharedConnection._rdb_context():
@@ -902,7 +905,7 @@ class AdminUsersService:
             )
 
     @staticmethod
-    def _delete_checks_inline(ids: list, kind: str) -> dict:
+    def _delete_checks_inline(ids: list[str], kind: str) -> dict:
         """Return ids of items that would be cascaded by a delete.
 
         Delegates to ``UsersProcessed.user_delete_checks`` which returns
@@ -925,22 +928,22 @@ class AdminUsersService:
         return CommonUsers.user_delete_checks(list(ids), kind)
 
     @staticmethod
-    def get_roles(payload):
+    def get_roles(payload: dict) -> list[dict]:
         """Get roles available to the caller."""
         return CommonUsers.get_roles(payload["role_id"])
 
     @staticmethod
-    def update_role(data):
+    def update_role(data: dict) -> None:
         """Update a role."""
         AdminTablesService.update_table_item("roles", data)
 
     @staticmethod
-    def get_secrets():
+    def get_secrets() -> list[dict]:
         """Get admin secrets."""
         return ApiAdmin.admin_table_list("secrets", {})
 
     @staticmethod
-    def create_secret(data):
+    def create_secret(data: dict) -> dict:
         """Create a new admin secret."""
         data["role_id"] = "manager"
         if not RethinkCategory.exists(data["category_id"]):
@@ -952,12 +955,14 @@ class AdminUsersService:
         return {"secret": data["secret"]}
 
     @staticmethod
-    def delete_secret(kid):
+    def delete_secret(kid: str) -> None:
         """Delete an admin secret."""
         AdminTablesService.delete_table_item("secrets", kid)
 
     @staticmethod
-    def get_user_vpn(payload, user_id, kind, os=False):
+    def get_user_vpn(
+        payload: dict, user_id: str, kind: str, os: Union[str, bool] = False
+    ) -> dict:
         """Get VPN data for a user."""
         AdminUsersService.owns_user_id(payload, user_id)
         if not os and kind != "config":
@@ -974,7 +979,7 @@ class AdminUsersService:
         return vpn_data
 
     @staticmethod
-    def get_user_schema(payload):
+    def get_user_schema(payload: dict) -> dict:
         """Get user schema for admin forms."""
         result = {}
         result["role"] = ApiAdmin.admin_table_list(
@@ -1047,7 +1052,7 @@ class AdminUsersService:
         return result
 
     @staticmethod
-    def search_users(payload, term):
+    def search_users(payload: dict, term: str) -> list[dict]:
         """Search users by term."""
         if payload["role_id"] == "admin":
             return Alloweds.get_table_term(
@@ -1069,7 +1074,7 @@ class AdminUsersService:
             )
 
     @staticmethod
-    def get_admin_quotas(payload):
+    def get_admin_quotas(payload: dict) -> dict:
         """Get quotas for admin view."""
         return QuotasProcess.get(
             user_id=payload.get("user_id"),
@@ -1078,17 +1083,17 @@ class AdminUsersService:
         )
 
     @staticmethod
-    def get_user_applied_quota(payload, user_id):
+    def get_user_applied_quota(payload: dict, user_id: str) -> dict:
         """Get applied quota for a specific user."""
         return Quotas.get_applied_quota(user_id)
 
     @staticmethod
-    def get_user_by_email_and_category(email, category):
+    def get_user_by_email_and_category(email: str, category: str) -> str:
         """Get user ID by email and category."""
         return CommonUsers.get_user_by_email_and_category(email, category)
 
     @staticmethod
-    def auto_register_user(payload, data):
+    def auto_register_user(payload: dict, data: dict) -> str:
         """Auto-register a user."""
         AdminUsersService._check_duplicate_user(
             payload["user_id"], payload["category_id"], payload["provider"]
@@ -1116,14 +1121,16 @@ class AdminUsersService:
     # ── Migration ────────────────────────────────────────────────────────
 
     @staticmethod
-    def check_valid_migration(payload, user_id, target_user_id):
+    def check_valid_migration(payload: dict, user_id: str, target_user_id: str) -> list:
         """Check if a migration between users is valid."""
         AdminUsersService.owns_user_id(payload, user_id)
         AdminUsersService.owns_user_id(payload, target_user_id)
         return CommonMigrations.check_valid_migration(user_id, target_user_id)
 
     @staticmethod
-    def migrate_user(payload, user_id, target_user_id):
+    def migrate_user(
+        payload: dict, user_id: str, target_user_id: str
+    ) -> tuple[dict, int]:
         """Migrate a user to another user."""
         if user_id == target_user_id:
             raise Error(
@@ -1139,7 +1146,7 @@ class AdminUsersService:
 
         import gevent
 
-        def migrate_and_invalidate():
+        def migrate_and_invalidate() -> None:
             try:
                 CommonMigrations.process_migrate_user(user_id, target_user_id)
             finally:
@@ -1157,7 +1164,9 @@ class AdminUsersService:
         return {}, 200
 
     @staticmethod
-    def migrate_user_resource(payload, user_id, target_user_id, resource_type):
+    def migrate_user_resource(
+        payload: dict, user_id: str, target_user_id: str, resource_type: str
+    ) -> None:
         """Migrate a specific resource type from one user to another."""
         AdminUsersService.owns_user_id(payload, user_id)
         resources = CommonMigrations.get_user_resources(user_id)
@@ -1176,7 +1185,7 @@ class AdminUsersService:
             )
 
     @staticmethod
-    def check_migrated_users(payload, user_ids):
+    def check_migrated_users(payload: dict, user_ids: list[str]) -> bool:
         """Check if any users in the list are migrated."""
         migrated = False
         for user_id in user_ids:
@@ -1189,7 +1198,7 @@ class AdminUsersService:
     # ── Check Group Category ─────────────────────────────────────────────
 
     @staticmethod
-    def check_group_category(data):
+    def check_group_category(data: dict) -> None:
         """Verify each (group_id, category_id) pair: group must exist and
         belong to that category. Raises typed Error("not_found") on first
         mismatch so the webapp's bulk-edit form can report a clear error.
@@ -1220,7 +1229,7 @@ class AdminUsersService:
     # ── Bastion Domain ───────────────────────────────────────────────────
 
     @staticmethod
-    def get_category_bastion_domain(payload, category_id):
+    def get_category_bastion_domain(payload: dict, category_id: str) -> str:
         """Get bastion domain for a category."""
         AdminUsersService.owns_category_id(payload, category_id)
         from isardvdi_common.helpers.bastion import Bastion
@@ -1228,7 +1237,9 @@ class AdminUsersService:
         return Bastion.get_category_bastion_domain(category_id)
 
     @staticmethod
-    def update_category_bastion_domain(payload, category_id, data):
+    def update_category_bastion_domain(
+        payload: dict, category_id: str, data: dict
+    ) -> None:
         """Update bastion domain for a category."""
         AdminUsersService.owns_category_id(payload, category_id)
 
@@ -1250,7 +1261,7 @@ class AdminUsersService:
     # ── Users Table Nav ──────────────────────────────────────────────────
 
     @staticmethod
-    def list_users_nav(payload, nav):
+    def list_users_nav(payload: dict, nav: str) -> list[dict]:
         """List users for a specific navigation context."""
         category_id = (
             payload["category_id"] if payload["role_id"] == "manager" else None
@@ -1260,7 +1271,7 @@ class AdminUsersService:
     # ── Private Helpers ──────────────────────────────────────────────────
 
     @staticmethod
-    def _category_name_group_name_match(category_name, group_name):
+    def _category_name_group_name_match(category_name: str, group_name: str) -> dict:
         """Match category and group names, handling special formats."""
         category = category_name
         group = group_name
@@ -1275,7 +1286,7 @@ class AdminUsersService:
         }
 
     @staticmethod
-    def _check_duplicate_user(uid, category_id, provider):
+    def _check_duplicate_user(uid: str, category_id: str, provider: str) -> None:
         """Check for duplicate user."""
         exists = CommonUsers.check_user_exists(
             uid=uid, category_id=category_id, provider=provider
@@ -1287,12 +1298,17 @@ class AdminUsersService:
             )
 
     @staticmethod
-    def _check_duplicate(table, name, category=None, item_id=None):
+    def _check_duplicate(
+        table: str,
+        name: str,
+        category: Optional[str] = None,
+        item_id: Optional[str] = None,
+    ) -> None:
         """Check for duplicate items in a table by name."""
         Helpers.check_duplicate(table, name, category=category, item_id=item_id)
 
     @staticmethod
-    def _check_duplicate_uid(uid, category_id=None):
+    def _check_duplicate_uid(uid: str, category_id: Optional[str] = None) -> None:
         """Reject a category uid that already exists in another category."""
         with RethinkSharedConnection._rdb_context():
             rows = list(
@@ -1309,7 +1325,9 @@ class AdminUsersService:
             )
 
     @staticmethod
-    def _check_duplicate_custom_url(custom_url_name, category_id=None):
+    def _check_duplicate_custom_url(
+        custom_url_name: str, category_id: Optional[str] = None
+    ) -> None:
         """Reject a category custom_url_name that another category already uses."""
         with RethinkSharedConnection._rdb_context():
             rows = list(
@@ -1326,7 +1344,9 @@ class AdminUsersService:
             )
 
     @staticmethod
-    def _check_duplicate_bastion_domain(bastion_domain, category_id=None):
+    def _check_duplicate_bastion_domain(
+        bastion_domain: str, category_id: Optional[str] = None
+    ) -> None:
         """Reject a bastion domain that another category or desktop already uses."""
         Bastion.check_duplicate_bastion_domains(
             [bastion_domain], category_id=category_id

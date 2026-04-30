@@ -51,7 +51,7 @@ CONSUMERS = {
 }
 
 
-def get_relative_date(days):
+def get_relative_date(days: int) -> datetime:
     # We use the same function as in consolidate.py as dates in logs_desktops table are also in UTC
     return datetime.now().astimezone().replace(
         minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc
@@ -59,13 +59,13 @@ def get_relative_date(days):
 
 
 class ConsolidateStorageConsumption(ConsolidateConsumption):
-    def __init__(self, days_before=1):
+    def __init__(self, days_before: int = 1) -> None:
         super().__init__("storage", StorageUsage, days_before)
 
 
 # Gets the data for the day from current tables
 class StorageUsage:
-    def __init__(self, days_before=1):
+    def __init__(self, days_before: int = 1) -> None:
         # logs_desktops dates are in UTC so we use the same as in base class (UTC)
         self.consolidation_day = get_relative_date(-days_before)
         self.consolidation_day_before = get_relative_date(-days_before - 1)
@@ -84,7 +84,7 @@ class StorageUsage:
         else:
             self.has_data = False
 
-    def _get_data(self):
+    def _get_data(self) -> list[dict]:
         t = time()
         with RethinkSharedConnection._rdb_context():
             storage = list(
@@ -109,12 +109,12 @@ class StorageUsage:
         ]
         return data
 
-    def _process_consumption(self, consumption):
+    def _process_consumption(self, consumption: dict) -> dict:
         return self._calculate_consumption(
             consumption["size"],
         )
 
-    def _calculate_consumption(self, size):
+    def _calculate_consumption(self, size: float) -> dict:
         size = round(size / 1073741824, 2)
         params = {
             "str_created": 1,

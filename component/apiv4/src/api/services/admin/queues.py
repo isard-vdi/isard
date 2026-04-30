@@ -6,6 +6,7 @@
 import os
 import time
 import traceback
+from typing import Optional
 
 from api.services.error import Error
 from cachetools import TTLCache, cached
@@ -32,13 +33,13 @@ subscribers_cache = TTLCache(maxsize=1, ttl=5)
 workers_cache = TTLCache(maxsize=1, ttl=5)
 
 
-def clear_queue_data_caches():
+def clear_queue_data_caches() -> None:
     """Invalidate queue-data caches after admin mutations that change job counts."""
     queues_cache.clear()
     queue_jobs_cache.clear()
 
 
-def _connect_redis():
+def _connect_redis() -> Redis:
     return Redis(
         host=os.environ.get("REDIS_HOST", "isard-redis"),
         port=int(os.environ.get("REDIS_PORT", 6379)),
@@ -52,7 +53,7 @@ class AdminQueuesService:
 
     @staticmethod
     @cached(queues_cache)
-    def get_queues():
+    def get_queues() -> list[dict]:
         """Get all queues with job counts."""
         with _connect_redis() as redis_conn:
             queues = Queue.all(connection=redis_conn)
@@ -65,7 +66,7 @@ class AdminQueuesService:
 
     @staticmethod
     @cached(queue_jobs_cache)
-    def _get_queue_jobs(queue_name):
+    def _get_queue_jobs(queue_name: str) -> dict:
         """Get job counts for a specific queue."""
         with _connect_redis() as redis_conn:
             queue = Queue(queue_name, connection=redis_conn)
@@ -81,13 +82,13 @@ class AdminQueuesService:
 
     @staticmethod
     @cached(consumers_cache)
-    def get_consumers():
+    def get_consumers() -> list[dict]:
         """Get workers with their subscribers."""
         return AdminQueuesService._workers_with_subscribers()
 
     @staticmethod
     @cached(subscribers_cache)
-    def _subscribers():
+    def _subscribers() -> list[dict]:
         with _connect_redis() as redis_conn:
             subscribers = redis_conn.pubsub_channels()
         s = []
@@ -104,7 +105,7 @@ class AdminQueuesService:
 
     @staticmethod
     @cached(workers_cache)
-    def _workers():
+    def _workers() -> list[dict]:
         with _connect_redis() as redis_conn:
             workers = redis_conn.keys("rq:workers:*")
         w = []
@@ -145,7 +146,7 @@ class AdminQueuesService:
         return w
 
     @staticmethod
-    def _workers_with_subscribers():
+    def _workers_with_subscribers() -> list[dict]:
         w = AdminQueuesService._workers()
         s = AdminQueuesService._subscribers()
         for worker in w:
@@ -164,7 +165,9 @@ class AdminQueuesService:
         return AdminQueuesService._get_old_jobs(older_than)
 
     @staticmethod
-    def _get_all_queue_job_ids(queue_name, registries=None):
+    def _get_all_queue_job_ids(
+        queue_name: str, registries: Optional[list[str]] = None
+    ) -> list[str]:
         if registries is None:
             registries = QUEUE_REGISTRIES
         with _connect_redis() as redis_conn:
@@ -185,7 +188,12 @@ class AdminQueuesService:
         return job_ids
 
     @staticmethod
-    def _get_old_jobs(older_than, batch_size=5000, rtype="key", registries=None):
+    def _get_old_jobs(
+        older_than: int,
+        batch_size: int = 5000,
+        rtype: str = "key",
+        registries: Optional[list[str]] = None,
+    ) -> list:
         if registries is None:
             registries = ["finished"]
         for reg in registries:
@@ -225,7 +233,7 @@ class AdminQueuesService:
         return old_keys
 
     @staticmethod
-    def _delete_jobs(jobs):
+    def _delete_jobs(jobs: list) -> tuple[list[str], list[str]]:
         ok = []
         errors = []
         for job in jobs:
@@ -262,7 +270,7 @@ class AdminQueuesService:
         return {"older_than": max_time}
 
     @staticmethod
-    def _set_auto_delete_enabled(enabled: bool):
+    def _set_auto_delete_enabled(enabled: bool) -> None:
         from isardvdi_common.connections.rethink_connection_factory import (
             RethinkSharedConnection,
         )

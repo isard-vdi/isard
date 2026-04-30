@@ -21,9 +21,13 @@
 import os
 import time
 import xml.etree.ElementTree as ET
+from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 import requests
+
+if TYPE_CHECKING:
+    from isardvdi_common.models.storage import Storage
 from api.services.admin.tables import AdminTablesService
 from api.services.cards import CardService
 from cachetools import TTLCache, cached
@@ -60,7 +64,7 @@ class AdminDownloadsService:
 
     @staticmethod
     @cached(cache=_get_cfg_cache)
-    def _get_cfg():
+    def _get_cfg() -> tuple[str, str | bool, str | bool]:
         """Get download configuration from database."""
         with RethinkSharedConnection._rdb_context():
             cfg = (
@@ -77,7 +81,7 @@ class AdminDownloadsService:
         )
 
     @staticmethod
-    def check_registered():
+    def check_registered() -> bool:
         """Check if IsardVDI is registered with the updates server."""
         from isardvdi_common.helpers.url_validation import validate_url_not_internal
 
@@ -114,7 +118,7 @@ class AdminDownloadsService:
         )
 
     @staticmethod
-    def register():
+    def register() -> bool:
         """Register with the updates server."""
         url, code, _ = AdminDownloadsService._get_cfg()
         if code:
@@ -134,7 +138,7 @@ class AdminDownloadsService:
 
     @staticmethod
     @cached(cache=_download_web_kind_cache)
-    def _download_web_kind(kind):
+    def _download_web_kind(kind: str) -> list | int | bool:
         """Download a specific kind from the updates server."""
         url, code, _ = AdminDownloadsService._get_cfg()
         try:
@@ -161,7 +165,7 @@ class AdminDownloadsService:
 
     @staticmethod
     @cached(cache=_download_web_private_kind_cache)
-    def _download_web_private_kind(kind="private_domains"):
+    def _download_web_private_kind(kind: str = "private_domains") -> list | bool:
         """Download private kind from the updates server."""
         url, code, private_code = AdminDownloadsService._get_cfg()
         try:
@@ -180,7 +184,7 @@ class AdminDownloadsService:
 
     @staticmethod
     @cached(cache=_get_web_kinds_cache)
-    def _get_web_kinds():
+    def _get_web_kinds() -> dict:
         """Get all web kinds from the updates server."""
         web = {}
         kinds = ["media", "domains", "virt_install", "videos", "viewers"]
@@ -201,7 +205,7 @@ class AdminDownloadsService:
         return web
 
     @staticmethod
-    def get_downloads():
+    def get_downloads() -> dict:
         """Get downloads overview (requires registration check)."""
         AdminDownloadsService.check_registered()
         return {}
@@ -274,7 +278,11 @@ class AdminDownloadsService:
 
     @staticmethod
     def download_action(
-        action: str, kind: str, user_id: str, id: str = None, data: dict = None
+        action: str,
+        kind: str,
+        user_id: str,
+        id: Optional[str] = None,
+        data: Optional[dict] = None,
     ) -> dict:
         """Execute a download action (download, abort, delete)."""
         AdminDownloadsService.check_registered()
@@ -403,7 +411,7 @@ class AdminDownloadsService:
         return missing_resources
 
     @staticmethod
-    def _get_new_kind_id(kind: str, username: str, id: str):
+    def _get_new_kind_id(kind: str, username: str, id: str) -> dict | bool:
         """Get a specific item from the updates server by ID."""
         web = AdminDownloadsService._get_web_kinds()
         web_items = [d.copy() for d in web[kind] if d["id"] == id]
@@ -494,7 +502,10 @@ class AdminDownloadsService:
 
     @staticmethod
     def _kick_off_download_chain(
-        kind: str, data: dict, pending_storage=None, insecure_ssl: bool = False
+        kind: str,
+        data: dict,
+        pending_storage: Optional["Storage"] = None,
+        insecure_ssl: bool = False,
     ) -> None:
         """Fire the storage RQ chain for a freshly inserted registry row.
 
@@ -619,7 +630,9 @@ class AdminDownloadsService:
         return new_data
 
     @staticmethod
-    def _allocate_storage_for_pending_domain(data: dict, user_id: str):
+    def _allocate_storage_for_pending_domain(
+        data: dict, user_id: str
+    ) -> Optional["Storage"]:
         """Allocate the ``Storage`` row that the registry download
         chain will write into and stamp ``storage_id`` + ``file`` on
         ``create_dict.hardware.disks[0]``.

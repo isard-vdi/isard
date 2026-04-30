@@ -20,12 +20,19 @@
 
 import random
 import time
+from typing import Any, Optional
 from uuid import uuid4
 
+from api.schemas.domains.desktops import (
+    BastionAuthorizedKeysUpdateRequest,
+    CreateDesktopFromMedia,
+    CreateDesktopRequest,
+)
 from api.services.cards import CardService
 from api.services.error import Error
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
+from fastapi import Request
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.desktop_nonpersistent_events import (
@@ -74,8 +81,12 @@ _GET_DESKTOP_VIEWER_CACHE: TTLCache = TTLCache(maxsize=64, ttl=2)
 
 
 def _get_desktop_viewer_cache_key(
-    user_id, desktop_id, viewer_type, is_admin=False, request=None
-):
+    user_id: str,
+    desktop_id: str,
+    viewer_type: str,
+    is_admin: bool = False,
+    request: Optional[Request] = None,
+) -> tuple:
     # Exclude `request` (unhashable) but keep user_id so each caller still
     # gets an audit-log entry written on first hit within the TTL window.
     return hashkey(user_id, desktop_id, viewer_type, is_admin)
@@ -83,7 +94,7 @@ def _get_desktop_viewer_cache_key(
 
 class DesktopService:
     @staticmethod
-    def get_user_allowed_reservables(payload):
+    def get_user_allowed_reservables(payload: dict) -> list[dict]:
         """Return reservable vGPUs visible to the calling user.
 
         Calls ``allowed.get_items_allowed(payload, "reservables_vgpus",
@@ -100,7 +111,7 @@ class DesktopService:
         )
 
     @staticmethod
-    def create_desktop(user_id, data):
+    def create_desktop(user_id: str, data: CreateDesktopRequest) -> str:
         if not RethinkUser.exists(user_id):
             raise Error(
                 "not_found",
@@ -200,7 +211,7 @@ class DesktopService:
         return desktop
 
     @staticmethod
-    def create_from_media(user_id, data):
+    def create_from_media(user_id: str, data: CreateDesktopFromMedia) -> str:
         """Create a desktop from media"""
 
         if not RethinkUser.exists(user_id):
@@ -390,7 +401,7 @@ class DesktopService:
         return desktop_id
 
     @staticmethod
-    def get_desktop(desktop_id):
+    def get_desktop(desktop_id: str) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -407,7 +418,7 @@ class DesktopService:
         return desktop
 
     @staticmethod
-    def get_desktop_networks(desktop_id):
+    def get_desktop_networks(desktop_id: str) -> list[dict]:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -418,7 +429,7 @@ class DesktopService:
         return networks
 
     @staticmethod
-    def get_desktop_details(desktop_id):
+    def get_desktop_details(desktop_id: str) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -482,7 +493,7 @@ class DesktopService:
         return parsed_details
 
     @staticmethod
-    def get_desktop_bastion(desktop_id):
+    def get_desktop_bastion(desktop_id: str) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -498,7 +509,9 @@ class DesktopService:
         return bastion
 
     @staticmethod
-    def update_desktop_bastion_authorized_keys(desktop_id, data):
+    def update_desktop_bastion_authorized_keys(
+        desktop_id: str, data: BastionAuthorizedKeysUpdateRequest
+    ) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -513,7 +526,7 @@ class DesktopService:
         )
 
     @staticmethod
-    def update_desktop_bastion_domain(desktop_id, domain_name):
+    def update_desktop_bastion_domain(desktop_id: str, domain_name: str | None) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -612,7 +625,7 @@ class DesktopService:
         return {"verified": True}
 
     @staticmethod
-    def get_desktop_share_link(desktop_id):
+    def get_desktop_share_link(desktop_id: str) -> str:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -623,7 +636,7 @@ class DesktopService:
         return link
 
     @staticmethod
-    def update_desktop_share_link(desktop_id, enabled=True):
+    def update_desktop_share_link(desktop_id: str, enabled: bool = True) -> str:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -636,19 +649,19 @@ class DesktopService:
         return link
 
     @staticmethod
-    def get_desktop_direct_viewer_from_token(token, request):
+    def get_desktop_direct_viewer_from_token(token: str, request: Request) -> dict:
         direct_viewer = DesktopDirectViewer.desktop_viewer_from_token(
             token, request=request
         )
         return direct_viewer
 
     @staticmethod
-    def get_direct_viewer_docs():
+    def get_direct_viewer_docs() -> str:
         docs_link = DesktopDirectViewer.desktop_viewer_docs()
         return docs_link
 
     @staticmethod
-    def reset_desktop_from_token(token, request):
+    def reset_desktop_from_token(token: str, request: Request) -> str:
         desktop_id = DesktopDirectViewer.reset_desktop(token, request)
         return desktop_id
 
@@ -701,7 +714,9 @@ class DesktopService:
         )
 
     @staticmethod
-    def stop_desktop(desktop_id, user_id, force: bool = None):
+    def stop_desktop(
+        desktop_id: str, user_id: str, force: Optional[bool] = None
+    ) -> str:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -782,14 +797,16 @@ class DesktopService:
         return CommonDesktops.bulk_create_desktops(payload, data)
 
     @staticmethod
-    def stop_user_desktops(user_id: str, force: bool = None):
+    def stop_user_desktops(user_id: str, force: Optional[bool] = None) -> None:
         stopped_desktops_ids = CommonDesktops.stop_user_desktops(user_id, force)
         for desktop_id in stopped_desktops_ids:
             SchedulerHelper.remove_desktop_timeouts(desktop_id)
             Logging.logs_domain_stop_api(desktop_id, user_id)
 
     @staticmethod
-    def start_desktop(desktop_id, user_id, request=None):
+    def start_desktop(
+        desktop_id: str, user_id: str, request: Optional[Request] = None
+    ) -> str:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -834,7 +851,7 @@ class DesktopService:
         return desktop_id
 
     @staticmethod
-    def extend_desktop_timeout(payload, desktop_id):
+    def extend_desktop_timeout(payload: dict, desktop_id: str) -> None:
         """Extend the remaining time before automatic desktop shutdown."""
         from rethinkdb import r
 
@@ -862,7 +879,7 @@ class DesktopService:
         SchedulerHelper.add_desktop_timeouts(payload, desktop_id, reset_existing=True)
 
     @staticmethod
-    def desktop_update_status(desktop_id):
+    def desktop_update_status(desktop_id: str) -> str:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -874,7 +891,7 @@ class DesktopService:
 
     @staticmethod
     def delete_desktop(
-        desktop_id: str, user_id: str = None, permanent: bool = False
+        desktop_id: str, user_id: Optional[str] = None, permanent: bool = False
     ) -> bool | list | None:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
@@ -898,7 +915,9 @@ class DesktopService:
             return True
 
     @staticmethod
-    def create_desktops(create_dict_list, users, tag):
+    def create_desktops(
+        create_dict_list: list[dict], users: list[str], tag: str | bool
+    ) -> None:
         """Create desktops from a list of create_dicts and a list of users. Engine will create the XMLs after being added in the database"""
         for create_dict in create_dict_list:
             hardware = create_dict["hardware"]
@@ -968,7 +987,9 @@ class DesktopService:
                 RethinkDomain(**desktop)
 
     @staticmethod
-    def toggle_user_deployment_desktops_visibility(user_id, deployment_id):
+    def toggle_user_deployment_desktops_visibility(
+        user_id: str, deployment_id: str
+    ) -> list[dict]:
         """
         Toggle visibility (tag_visible) of all desktops belonging to a user in a deployment.
         Returns the list of updated desktops.
@@ -990,7 +1011,7 @@ class DesktopService:
         return desktops
 
     @staticmethod
-    def get_user_desktops(user_id):
+    def get_user_desktops(user_id: str) -> list[dict]:
         return CommonDesktops.get_user_desktops(user_id)
 
     # TODO: For now pagination won't be used since the user load is not as high. Although this works, it is not needed yet.
@@ -999,14 +1020,14 @@ class DesktopService:
     def get_user_desktops_paginated(
         cls,
         user_id: str,
-        start_after=None,
-        page_size=10,
-        sort_field="accessed",
-        sort_order="desc",
-        search=None,
-        search_field="name",
-        filters=None,
-    ):
+        start_after: Optional[int] = None,
+        page_size: int = 10,
+        sort_field: str = "accessed",
+        sort_order: str = "desc",
+        search: Optional[str] = None,
+        search_field: Optional[str] = "name",
+        filters: Optional[dict] = None,
+    ) -> dict:
         """
         Get all desktops for a specific user.
         Returns a list of desktops.
@@ -1057,14 +1078,14 @@ class DesktopService:
     @classmethod
     def get_all_desktops(
         cls,
-        start_after=None,
-        page_size=10,
-        sort_field="accessed",
-        sort_order="desc",
-        search=None,
-        search_field="name",
+        start_after: Optional[int] = None,
+        page_size: int = 10,
+        sort_field: str = "accessed",
+        sort_order: str = "desc",
+        search: Optional[str] = None,
+        search_field: Optional[str] = "name",
         # filters=None,
-    ):
+    ) -> dict:
         """
         Get all desktops with pagination and optional filters.
         """
@@ -1148,7 +1169,7 @@ class DesktopService:
             "total": total,
         }
 
-    def edit_desktop(desktop_id, data, payload):
+    def edit_desktop(desktop_id: str, data: dict, payload: dict) -> None:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -1173,8 +1194,12 @@ class DesktopService:
     @staticmethod
     @cached(_GET_DESKTOP_VIEWER_CACHE, key=_get_desktop_viewer_cache_key)
     def get_desktop_viewer(
-        user_id, desktop_id, viewer_type, is_admin=False, request=None
-    ):
+        user_id: str,
+        desktop_id: str,
+        viewer_type: str,
+        is_admin: bool = False,
+        request: Optional[Request] = None,
+    ) -> dict:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -1189,9 +1214,9 @@ class DesktopService:
 
     @staticmethod
     def recreate_desktop(
-        payload,
+        payload: dict,
         desktop_id: str,
-    ):
+    ) -> Any:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
                 "not_found",
@@ -1215,7 +1240,7 @@ class DesktopService:
                 raise Error(*e.args)
 
 
-def gen_random_mac():
+def gen_random_mac() -> str:
     mac = [
         0x52,
         0x54,

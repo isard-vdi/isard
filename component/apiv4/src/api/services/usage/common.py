@@ -59,7 +59,7 @@ def clear_usage_caches() -> None:
 
 
 @cached(cache=group_name_cache)
-def get_group_name(group_id):
+def get_group_name(group_id: str) -> str:
     try:
         with RethinkSharedConnection._rdb_context():
             group = (
@@ -74,7 +74,7 @@ def get_group_name(group_id):
 
 
 @cached(cache=category_name_cache)
-def get_category_name(category_id):
+def get_category_name(category_id: str) -> str:
     try:
         with RethinkSharedConnection._rdb_context():
             category = (
@@ -88,7 +88,7 @@ def get_category_name(category_id):
     return category["name"]
 
 
-def get_owner_info(user_id):
+def get_owner_info(user_id: str) -> dict:
     if user_id in get_owners_info():
         return get_owners_info()[user_id]
     else:
@@ -103,7 +103,7 @@ def get_owner_info(user_id):
 
 
 @cached(cache=owners_info_cache)
-def get_owners_info():
+def get_owners_info() -> dict:
     with RethinkSharedConnection._rdb_context():
         users = list(
             r.table("users")
@@ -123,7 +123,7 @@ def get_owners_info():
     }
 
 
-def get_abs_consumptions(item_type, date):
+def get_abs_consumptions(item_type: str, date: datetime) -> dict:
     # TODO: Check that it gets the correct one from date
     with RethinkSharedConnection._rdb_context():
         return (
@@ -145,7 +145,7 @@ def get_abs_consumptions(item_type, date):
 
 
 @cached(cache=params_cache)
-def get_params():
+def get_params() -> dict:
     with RethinkSharedConnection._rdb_context():
         return (
             r.table("usage_parameter")
@@ -157,7 +157,7 @@ def get_params():
         )
 
 
-def get_default_consumption(parameters_ids=None):
+def get_default_consumption(parameters_ids: list[str] | None = None) -> dict:
     query = r.table("usage_parameter")
     if parameters_ids:
         query = query.get_all(r.args(parameters_ids))
@@ -167,7 +167,7 @@ def get_default_consumption(parameters_ids=None):
 
 
 @cached(cache=params_item_type_custom_cache)
-def get_params_item_type_custom(item_type, custom):
+def get_params_item_type_custom(item_type: str, custom: bool) -> list[dict]:
     with RethinkSharedConnection._rdb_context():
         return list(
             r.table("usage_parameter")
@@ -177,7 +177,7 @@ def get_params_item_type_custom(item_type, custom):
 
 
 # TODO: This should be checked when adding a new formula, not at each call
-def securize_eval(formula, safe_dict):
+def securize_eval(formula: str, safe_dict: dict):
     whitelist = (
         ast.Expression,
         ast.Call,

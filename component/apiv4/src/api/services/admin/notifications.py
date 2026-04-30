@@ -182,7 +182,7 @@ class AdminNotificationService:
     # --- Status bar (user-facing) ---
 
     @staticmethod
-    def get_status_bar_notification(payload: dict):
+    def get_status_bar_notification(payload: dict) -> dict | None:
         """Return the status-bar notification for the calling user.
 
         Mirrors v3 ``AdminNotificationsView.api_v3_get_status_bar_notifications``

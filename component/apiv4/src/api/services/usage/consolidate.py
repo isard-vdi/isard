@@ -66,7 +66,7 @@ class ConsolidateConsumption:
         if "name" in self.__dict__:
             log.info(f"====> FINISHED Consolidating {self.name} consumptions <====")
 
-    def __init__(self, name, Usage, days_before=1):
+    def __init__(self, name: str, Usage: type, days_before: int = 1) -> None:
         if name in self.consolidating:
             raise Error("bad_request", "Already consolidating %s" % name)
         self.consolidating.append(name)
@@ -130,7 +130,7 @@ class ConsolidateConsumption:
             if self.name in self.consolidating:
                 self.consolidating.remove(self.name)
 
-    def update_items_consumption(self, items, consumer):
+    def update_items_consumption(self, items: list, consumer: str) -> list[dict]:
         consumptions = []
         for item in items:
             # Here we have a dict with the item_id and the list of consumptions
@@ -139,7 +139,9 @@ class ConsolidateConsumption:
                 consumptions.append(item_consumption)
         return consumptions
 
-    def get_item_consumption_for_consumer(self, item, consumer):
+    def get_item_consumption_for_consumer(
+        self, item: list, consumer: str
+    ) -> dict | None:
         if not self.Usage.has_data:
             return None
         item_base_data = self._item_base_data(
@@ -180,7 +182,7 @@ class ConsolidateConsumption:
             },
         }
 
-    def group_day_data_by_item(self, consumer):
+    def group_day_data_by_item(self, consumer: str) -> list[list[dict]] | None:
         items = {}
         item_key = None
         if consumer == "user":
@@ -219,7 +221,7 @@ class ConsolidateConsumption:
             return [items[key] for key in items.keys()]
 
     # PARALLEL PROCESSING
-    def process_batches(self, data_batch, consumer):
+    def process_batches(self, data_batch: list, consumer: str) -> None:
         # data_batch = data_batch[:100]
         self.batch_size = 100
         batches = [
@@ -263,7 +265,7 @@ class ConsolidateConsumption:
             time() - self.times["start"],
         )
 
-    def compute_consumer_totals(self, consumer, data):
+    def compute_consumer_totals(self, consumer: str, data: list[dict]) -> dict:
         totals = {"inc": {}, "abs": {}}
         for item in data:
             totals["inc"] = add_dicts(totals["inc"], item["inc"])
@@ -284,7 +286,13 @@ class ConsolidateConsumption:
             **totals,
         }
 
-    def _item_base_data(self, consumer, item_day_data, consolidation_day, item_type):
+    def _item_base_data(
+        self,
+        consumer: str,
+        item_day_data: dict,
+        consolidation_day: datetime,
+        item_type: str,
+    ) -> dict | None:
         if consumer == "user":
             data = {
                 "date": consolidation_day,
@@ -391,7 +399,7 @@ class ConsolidateConsumption:
         return data
 
     @cached(cache=domains_cache, key=lambda x: hashkey("domains"))
-    def get_domains(self):
+    def get_domains(self) -> dict:
         with RethinkSharedConnection._rdb_context():
             return (
                 r.table("domains")
@@ -400,17 +408,17 @@ class ConsolidateConsumption:
                 .run(RethinkSharedConnection._rdb_connection)
             )
 
-    def get_deployment(self, desktop_id):
+    def get_deployment(self, desktop_id: str) -> dict:
         return self.domains.get(
             desktop_id, [{"tag": "[DELETED]", "tag_name": "[DELETED]"}]
         )[0]
 
-    def get_template_name(self, template_id):
+    def get_template_name(self, template_id: str) -> str:
         return self.domains.get(template_id, [{"name": "[DELETED]"}])[0]["name"]
 
 
 ## UTILS
-def add_dicts(dict1, dict2):
+def add_dicts(dict1: dict, dict2: dict) -> dict:
     result = {}
     for key in dict1.keys():
         if key in dict2.keys():
@@ -423,7 +431,7 @@ def add_dicts(dict1, dict2):
     return result
 
 
-def substract_dicts(dict1, dict2):
+def substract_dicts(dict1: dict, dict2: dict) -> dict:
     result = {}
     for key in dict1.keys():
         if key in dict2.keys():
@@ -436,7 +444,7 @@ def substract_dicts(dict1, dict2):
     return result
 
 
-def get_relative_date(days):
+def get_relative_date(days: int) -> datetime:
     # Data to be processed is relative only to events in server, not at client side (logs)
     # So we need only dates (not times) and insert with UTC timezone (+0) with correct date.
     return datetime.now().astimezone().replace(
@@ -444,11 +452,13 @@ def get_relative_date(days):
     ) + timedelta(days=days)
 
 
-def hash_keys(keys):
+def hash_keys(keys: list[str]):
     return hashkey(",".join(keys))
 
 
-def gen_pk(item_id, item_type, consumer, consolidation_day):
+def gen_pk(
+    item_id: str, item_type: str, consumer: str, consolidation_day: datetime
+) -> str | None:
     try:
         return hashlib.md5(
             bytes(

@@ -77,7 +77,7 @@ class MigrationService:
         return token
 
     @staticmethod
-    def import_user(user_id: str, token: str):
+    def import_user(user_id: str, token: str) -> None:
         errors = UserMigrationsProcessed.check_user_migration(token, user_id)
         if errors:
             raise Error(
