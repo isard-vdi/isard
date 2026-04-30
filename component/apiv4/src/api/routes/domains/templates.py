@@ -677,7 +677,7 @@ async def duplicate_template(
 @advanced_router.delete(
     "/item/template/{template_id}",
     tags=[tag],
-    response_model=SimpleResponse,
+    response_model=DeleteResponse,
     summary="Delete template",
     description="Delete a specific template.",
     dependencies=[

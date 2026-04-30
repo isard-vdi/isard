@@ -229,7 +229,9 @@ class TestTestSmtp:
             body={"host": "smtp.example.com", "port": 587},
         )
         assert response.status_code == 200
-        assert response.json() == {"result": True}
+        # response_model fills the optional ``error`` field with None when
+        # the service didn't include it, so we assert the success bit only.
+        assert response.json()["result"] is True
 
     def test_failed_smtp_includes_error_in_response(self, monkeypatch, test_client):
         """The endpoint returns 200 with `{result: false, error: ...}` when
