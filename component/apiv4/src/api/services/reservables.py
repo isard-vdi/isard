@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging as log
+from typing import Optional
 
 from api.services.error import Error
 from isardvdi_common.connections.api_notifier import send_deleted_gpu_notification
@@ -29,7 +30,7 @@ from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerP
 class ReservableService:
 
     @staticmethod
-    def get_reservables():
+    def get_reservables() -> list[str]:
         """
         Get a list of all reservable types
         """
@@ -44,7 +45,9 @@ class ReservableService:
             )
 
     @staticmethod
-    def _format_item(item, reservables, reservable_type):
+    def _format_item(
+        item: dict, reservables: Reservables, reservable_type: str
+    ) -> dict:
         return {
             "id": item["id"],
             "name": item["name"],
@@ -63,7 +66,9 @@ class ReservableService:
         }
 
     @staticmethod
-    def _get_item_plans(reservables, reservable_type, item):
+    def _get_item_plans(
+        reservables: Reservables, reservable_type: str, item: dict
+    ) -> dict:
         """
         Calculate the plans data for a reservable
 
@@ -100,7 +105,7 @@ class ReservableService:
         }
 
     @staticmethod
-    def get_reservable_detail(item_type: str):
+    def get_reservable_detail(item_type: str) -> list[dict]:
         """
         Get detailed information for a specific reservable type
 
@@ -128,7 +133,7 @@ class ReservableService:
         return formatted_items
 
     @staticmethod
-    def get_reservable_item(reservable_type: str, item_id: str):
+    def get_reservable_item(reservable_type: str, item_id: str) -> dict:
         """
         Get detailed information for a specific reservable item
 
@@ -190,21 +195,21 @@ class ReservableService:
             return False
 
     @staticmethod
-    def get_available_reservables(payload):
+    def get_available_reservables(payload: dict) -> dict:
         return ReservablesPlannerProccess.get_available_reservables(payload)
 
     @staticmethod
-    def list_profiles(reservable_type):
+    def list_profiles(reservable_type: str) -> list[dict]:
         reservables = Reservables()
         return reservables.list_profiles(reservable_type)
 
     @staticmethod
-    def add_item(reservable_type, data):
+    def add_item(reservable_type: str, data: dict) -> dict:
         reservables = Reservables()
         return reservables.add_item(reservable_type, data)
 
     @staticmethod
-    def _notify_affected_users(reservable_type, item_id):
+    def _notify_affected_users(reservable_type: str, item_id: str) -> None:
         """Fan out a ``deleted-gpu`` email to every user whose desktops,
         deployments or bookings reference the reservable ``item_id``.
 
@@ -251,8 +256,12 @@ class ReservableService:
 
     @staticmethod
     def enable_subitem(
-        reservable_type, item_id, subitem_id, enabled, notify_user=False
-    ):
+        reservable_type: str,
+        item_id: str,
+        subitem_id: str,
+        enabled: bool,
+        notify_user: bool = False,
+    ) -> str:
         reservables = Reservables()
         if not enabled:
             if notify_user:
@@ -266,19 +275,19 @@ class ReservableService:
         return result["id"]
 
     @staticmethod
-    def list_subitems_enabled(reservable_type, item_id):
+    def list_subitems_enabled(reservable_type: str, item_id: str) -> list[dict]:
         reservables = Reservables()
         return reservables.list_subitems_enabled(reservable_type, item_id)
 
     @staticmethod
-    def check_last_subitem(reservable_type, subitem_id, item_id):
+    def check_last_subitem(reservable_type: str, subitem_id: str, item_id: str) -> dict:
         ReservablesPlannerProccess.check_subitem_current_plan(subitem_id, item_id)
         return ReservablesPlannerProccess.check_subitem_desktops_and_plannings(
             reservable_type, item_id, subitem_id
         )
 
     @staticmethod
-    def check_last_item(reservable_type, item_id):
+    def check_last_item(reservable_type: str, item_id: str) -> dict:
         reservables = Reservables()
         data = {
             "last": [],
@@ -306,13 +315,15 @@ class ReservableService:
         return data
 
     @staticmethod
-    def delete_item(reservable_type, item_id, notify_user=False):
+    def delete_item(
+        reservable_type: str, item_id: str, notify_user: bool = False
+    ) -> None:
         if notify_user:
             ReservableService._notify_affected_users(reservable_type, item_id)
         ReservablesPlannerProccess.delete_item(reservable_type, item_id)
 
     @staticmethod
-    def update_item(reservable_type, item_id, data):
+    def update_item(reservable_type: str, item_id: str, data: dict) -> None:
         """Update a reservable item's name and description."""
         from rethinkdb import r
 
@@ -351,40 +362,46 @@ class ReservableService:
                 )
 
     @staticmethod
-    def list_all_plans():
+    def list_all_plans() -> list[dict]:
         return ReservablesPlannerProccess.list_all_item_plans()
 
     @staticmethod
-    def get_actual_plan(item_id):
+    def get_actual_plan(item_id: str) -> dict:
         plan = ReservablesPlannerProccess.list_item_plans(item_id)
         if not len(plan):
             return {}
         return plan[0]
 
     @staticmethod
-    def get_item_plans(item_id):
+    def get_item_plans(item_id: str) -> list[dict]:
         return ReservablesPlannerProccess.list_item_plans(item_id)
 
     @staticmethod
-    def add_plan(payload, data):
+    def add_plan(payload: dict, data: dict) -> dict:
         return ReservablesPlannerProccess.add_plan(payload, data)
 
     @staticmethod
-    def get_plan_bookings(plan_id):
+    def get_plan_bookings(plan_id: str) -> list[dict]:
         return ReservablesPlannerProccess.get_plan_bookings(plan_id)
 
     @staticmethod
-    def delete_plan(plan_id):
+    def delete_plan(plan_id: str) -> None:
         ReservablesPlannerProccess.delete_plan(plan_id)
 
     @staticmethod
-    def update_plan(payload, plan_id, start, end):
+    def update_plan(payload: dict, plan_id: str, start: str, end: str) -> None:
         ReservablesPlannerProccess.update_plan(payload, plan_id, start, end)
 
     @staticmethod
     def booking_provisioning(
-        payload, subitems, units, priority, block_interval, start=None, end=None
-    ):
+        payload: dict,
+        subitems: dict,
+        units: int,
+        priority: dict,
+        block_interval: int,
+        start: Optional[str] = None,
+        end: Optional[str] = None,
+    ) -> dict:
         from isardvdi_common.lib.bookings.reservables_planner_compute import (
             ReservablesPlannerCompute,
         )
@@ -401,5 +418,5 @@ class ReservableService:
         )
 
     @staticmethod
-    def check_integrity():
+    def check_integrity() -> dict:
         return ReservablesPlannerProccess.is_any_plan_item_id_overlapped()
