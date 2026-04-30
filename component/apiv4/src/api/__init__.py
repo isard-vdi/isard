@@ -241,6 +241,7 @@ from .routes import (
     deployments,
     groups,
     login,
+    login_config,
     maintenance,
     media,
     migrations,

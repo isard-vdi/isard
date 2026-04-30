@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from api.services.login_config_cache import clear_login_config_cache
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -64,8 +65,6 @@ class AdminLoginConfigService(RethinkSharedConnection):
                 cls._rdb_connection
             )
 
-        from api.routes.open import clear_login_config_cache
-
         clear_login_config_cache()
 
     @classmethod
@@ -74,7 +73,5 @@ class AdminLoginConfigService(RethinkSharedConnection):
             r.table(cls._rdb_table).get(1).update(
                 {"login": {f"notification_{notification_type}": {"enabled": enable}}}
             ).run(cls._rdb_connection)
-
-        from api.routes.open import clear_login_config_cache
 
         clear_login_config_cache()

@@ -22,14 +22,8 @@ import traceback
 
 from api import disclaimer_router, open_router
 from api.schemas.common import ErrorResponse, SimpleResponse
-from api.schemas.login import (
-    CategoryResponse,
-    CategoryResponseList,
-    DisclaimerResponse,
-    LoginConfigResponse,
-)
+from api.schemas.login import CategoryResponse, CategoryResponseList, DisclaimerResponse
 from api.services.categories import CategoryService
-from api.services.config import ConfigService
 from api.services.error import Error
 from api.services.notifications_templates import NotificationsTemplatesService
 from fastapi import Request
@@ -85,31 +79,6 @@ async def api_v4_category(custom_url: str, request: Request):
             request,
             "internal_server",
             f"Failed to retrieve category with custom URL '{custom_url}'",
-            traceback.format_exc(),
-        )
-
-
-@open_router.get(
-    "/item/login-config",
-    tags=["login"],
-    response_model=LoginConfigResponse,
-    summary="Get login configuration",
-    description="Returns login page configuration including notifications.",
-    responses={
-        500: {"model": ErrorResponse},
-    },
-)
-async def api_v4_login_config(request: Request):
-    try:
-        config = ConfigService.get_login_config()
-        return LoginConfigResponse(**config)
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to retrieve login configuration",
             traceback.format_exc(),
         )
 
