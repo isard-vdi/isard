@@ -34,9 +34,9 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
 from isardvdi_common.lib.domains.domains import DomainsProcessed
+from isardvdi_common.lib.logs.logs import LogsProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.models.storage import Storage
-from rethinkdb import r
 
 domains_field_cache = TTLCache(maxsize=50, ttl=5)
 
@@ -73,41 +73,7 @@ class AdminDomainsService:
     @staticmethod
     def get_domains_by_ids(payload: dict, domain_ids: list[str]) -> list[dict]:
         """Get specific domains by ID list (fast path)."""
-        from rethinkdb import r
-
-        with ApiAdmin._rdb_context():
-            result = list(
-                r.table("domains")
-                .get_all(r.args(domain_ids))
-                .pluck(
-                    "id",
-                    "name",
-                    "kind",
-                    "status",
-                    "user",
-                    "category",
-                    "group",
-                    "accessed",
-                    "create_dict",
-                    "tag",
-                    "persistent",
-                )
-                .merge(
-                    lambda d: {
-                        "user_name": r.table("users")
-                        .get(d["user"])
-                        .default({"name": "[deleted]"})["name"],
-                        "category_name": r.table("categories")
-                        .get(d["category"])
-                        .default({"name": "[deleted]"})["name"],
-                        "group_name": r.table("groups")
-                        .get(d["group"])
-                        .default({"name": "[deleted]"})["name"],
-                    }
-                )
-                .run(ApiAdmin._rdb_connection)
-            )
-        return result
+        return DomainsProcessed.get_by_ids(domain_ids)
 
     @staticmethod
     def list_templates(payload: dict) -> list[dict]:
@@ -158,20 +124,12 @@ class AdminDomainsService:
         their own category via the ``kind_status_category`` secondary
         index.
         """
-        if payload.get("role_id") == "manager":
-            index_key = "kind_status_category"
-            index_value = ["desktop", status, payload.get("category_id")]
-        else:
-            index_key = "kind_status"
-            index_value = ["desktop", status]
-
-        with ApiAdmin._rdb_context():
-            domains = list(
-                r.table("domains")
-                .get_all(index_value, index=index_key)
-                .pluck({"create_dict": {"hardware": {"disks": True}}})
-                .run(ApiAdmin._rdb_connection)
-            )
+        category_id = (
+            payload.get("category_id") if payload.get("role_id") == "manager" else None
+        )
+        domains = DomainsProcessed.find_disks_by_kind_status(
+            "desktop", status, category_id=category_id
+        )
 
         storage_ids = set()
         for domain in domains:
@@ -223,74 +181,35 @@ class AdminDomainsService:
     @staticmethod
     def get_domain_xml(domain_id: str) -> Optional[str]:
         """Get XML for a domain."""
-        with ApiAdmin._rdb_context():
-            domain = (
-                r.table("domains")
-                .get(domain_id)
-                .default(None)
-                .run(ApiAdmin._rdb_connection)
-            )
-        if domain is None:
-            raise Error("not_found", f"Domain {domain_id} not found")
-        return domain.get("xml")
+        return DomainsProcessed.get_xml(domain_id)
 
     @staticmethod
     def update_domain_xml(domain_id: str, data: dict) -> Optional[str]:
         """Update XML for a domain."""
-        with ApiAdmin._rdb_context():
-            existing = (
-                r.table("domains")
-                .get(domain_id)
-                .default(None)
-                .run(ApiAdmin._rdb_connection)
-            )
-        if existing is None:
-            raise Error("not_found", f"Domain {domain_id} not found")
-        data["status"] = "Updating"
-        data["id"] = domain_id
-        with ApiAdmin._rdb_context():
-            r.table("domains").get(domain_id).update(data).run(ApiAdmin._rdb_connection)
-            result = (
-                r.table("domains")
-                .get(domain_id)
-                .pluck("xml")
-                .run(ApiAdmin._rdb_connection)
-            )
+        result = DomainsProcessed.update_xml(domain_id, data)
         clear_domains_field_cache()
-        return result.get("xml")
+        return result
 
     @staticmethod
     def get_domain_xml_and_protected(domain_id: str) -> dict:
         """Return the domain xml plus its xml_protected_sections list."""
-        with ApiAdmin._rdb_context():
-            domain = (
-                r.table("domains")
-                .get(domain_id)
-                .pluck("xml", "create_dict")
-                .default(None)
-                .run(ApiAdmin._rdb_connection)
-            )
-        if domain is None:
-            raise Error("not_found", "Domain not found")
-        return {
-            "xml": domain.get("xml"),
-            "protected": domain.get("create_dict", {}).get(
-                "xml_protected_sections", []
-            ),
-        }
+        return DomainsProcessed.get_xml_and_protected(domain_id)
 
     @staticmethod
     def save_domain_xml_sections(
         domain_id: str, xml: str, protected: list[str]
     ) -> None:
-        """Persist a rebuilt xml and its protected-section list."""
-        with ApiAdmin._rdb_context():
-            r.table("domains").get(domain_id).update(
-                {
-                    "xml": xml,
-                    "create_dict": {"xml_protected_sections": protected},
-                }
-            ).run(ApiAdmin._rdb_connection)
+        """Persist a rebuilt xml and its protected-section list.
+
+        Delegates to ``XmlSectionsProcessed.update_domain_xml_and_protected``
+        which wraps ``protected`` in ``r.literal(...)`` so removed
+        sections actually disappear from the persisted array (the
+        previous inline version omitted ``r.literal`` and so could not
+        shrink the protected list).
+        """
+        from isardvdi_common.lib.domains.xml_sections import XmlSectionsProcessed
+
+        XmlSectionsProcessed.update_domain_xml_and_protected(domain_id, xml, protected)
         clear_domains_field_cache()
 
     @staticmethod
@@ -412,16 +331,7 @@ class AdminDomainsService:
     def get_domain_search_info(payload: dict, domain_id: str) -> dict:
         """Get domain info for search results."""
         AdminDomainsService.owns_domain_id(payload, domain_id)
-        with ApiAdmin._rdb_context():
-            # ``.default(None)`` BEFORE pluck — otherwise pluck on null
-            # crashes with ReqlNonExistenceError before the if-check
-            # below ever runs.
-            domain = (
-                r.table("domains")
-                .get(domain_id)
-                .default(None)
-                .run(ApiAdmin._rdb_connection)
-            )
+        domain = DomainsProcessed.get_for_search(domain_id)
         if not domain:
             raise Error("not_found", f"Domain {domain_id} not found")
         return {
@@ -477,13 +387,7 @@ class AdminDomainsService:
 
         def delete_old_logs_process() -> None:
             try:
-                with ApiAdmin._rdb_context():
-                    batch_size = 50000
-                    for i in range(0, len(old_logs), batch_size):
-                        batch_ids = old_logs[i : i + batch_size]
-                        r.table(table).get_all(r.args(batch_ids)).delete().run(
-                            ApiAdmin._rdb_connection
-                        )
+                LogsProcessed.delete_batch(table, old_logs)
                 notify_admins(
                     event_name,
                     {"action": "delete_all", "status": "completed"},
@@ -600,314 +504,17 @@ class AdminDomainsService:
         return data
 
     @staticmethod
-    def _build_logs_query(table: str, form_data: dict) -> tuple:
-        """Build a RethinkDB query for logs tables with DataTables parameters."""
-        ARRAY_LIMIT = 500000
-
-        # Get table indexes
-        with ApiAdmin._rdb_context():
-            table_indexes = r.table(table).index_list().run(ApiAdmin._rdb_connection)
-
-        query = r.table(table)
-        skip_indexs = False
-
-        # Add ordering
-        if form_data.get("order") and len(form_data["order"]):
-            order_field = form_data["columns"][int(form_data["order"][0]["column"])][
-                "data"
-            ]
-            if order_field in table_indexes:
-                if form_data["order"][0]["dir"] == "desc":
-                    query = query.order_by(index=r.desc(order_field))
-                else:
-                    query = query.order_by(index=r.asc(order_field))
-                if form_data.get("range") and order_field != form_data["range"].get(
-                    "field"
-                ):
-                    skip_indexs = True
-            else:
-                orders = form_data["order"]
-                if isinstance(orders, dict):
-                    orders = orders.values()
-                for order in orders:
-                    col_idx = int(order["column"])
-                    cols = form_data["columns"]
-                    if isinstance(cols, dict):
-                        cols = list(cols.values())
-                    col_data = cols[col_idx]["data"] if col_idx < len(cols) else None
-                    if col_data:
-                        if order["dir"] == "desc":
-                            query = query.order_by(r.desc(col_data))
-                        else:
-                            query = query.order_by(r.asc(col_data))
-
-        # Add range filters
-        if form_data.get("range"):
-            s = form_data["range"].get("start")
-            e = form_data["range"].get("end")
-            range_field = form_data["range"].get("field")
-            if s and e and range_field:
-                start_str = (s if "T" in s else s + "T00:00:00") + "Z"
-                end_str = (e if "T" in e else e + "T23:59:59") + "Z"
-                if skip_indexs:
-                    query = query.filter(
-                        lambda doc: doc[range_field].during(
-                            r.iso8601(start_str), r.iso8601(end_str)
-                        )
-                    )
-                else:
-                    query = query.between(
-                        r.iso8601(start_str),
-                        r.iso8601(end_str),
-                        index=range_field,
-                    )
-
-        # Add search filters
-        if form_data.get("columns"):
-            columns_iter = form_data["columns"]
-            if isinstance(columns_iter, dict):
-                columns_iter = columns_iter.values()
-            for column in columns_iter:
-                if (
-                    column.get("data", "") != ""
-                    and column.get("search", {}).get("value", "") != ""
-                ):
-                    col_data = column["data"]
-                    search_val = column["search"]["value"]
-                    query = query.filter(
-                        lambda doc, cd=col_data, sv=search_val: doc[cd].match(sv)
-                    )
-
-        # Add single-field filter (e.g. filter by desktop_id)
-        if form_data.get("filter_field") and form_data.get("filter_value"):
-            ff = form_data["filter_field"]
-            fv = form_data["filter_value"]
-            query = query.filter(lambda doc: doc[ff] == fv)
-
-        # Add pluck
-        if form_data.get("pluck"):
-            query = query.pluck(form_data["pluck"])
-
-        return query, table_indexes
-
-    @staticmethod
     def _query_logs(table: str, form_data: Any, view: str = "raw") -> dict:
-        """Execute a logs query with DataTables parameters."""
+        """Execute a logs query with DataTables parameters.
+
+        Form parsing stays in apiv4 (DataTables-specific shape); the
+        query execution lives in ``LogsProcessed.query_paginated``.
+        """
         if isinstance(form_data, dict):
             parsed = form_data
         else:
             parsed = AdminDomainsService._parse_multi_form(form_data)
-
-        if view == "raw":
-            query, table_indexes = AdminDomainsService._build_logs_query(table, parsed)
-
-            with ApiAdmin._rdb_context():
-                total = r.table(table).count().run(ApiAdmin._rdb_connection)
-                filtered = query.count().run(ApiAdmin._rdb_connection)
-
-                # Add pagination
-                paged_query = query.skip(int(parsed.get("start", 0))).limit(
-                    int(parsed.get("length", 25))
-                )
-                data = list(paged_query.run(ApiAdmin._rdb_connection))
-
-            return {
-                "draw": int(parsed.get("draw", 1)),
-                "recordsTotal": total,
-                "recordsFiltered": filtered,
-                "data": data,
-                "indexs": table_indexes,
-            }
-
-        elif view == "desktop_grouping" and table == "logs_desktops":
-            query, _ = AdminDomainsService._build_logs_query(table, parsed)
-            group_query = r.table(table).group(index="desktop_id")
-            group_query = (
-                group_query.map(
-                    lambda log_entry: {
-                        "count": 1,
-                        "desktop_name": log_entry["desktop_name"],
-                        "desktop_id": log_entry["desktop_id"],
-                        "owner_user_name": log_entry["owner_user_name"],
-                        "owner_user_id": log_entry["owner_user_id"],
-                        "owner_group_name": log_entry["owner_group_name"],
-                        "owner_group_id": log_entry["owner_group_id"],
-                        "owner_category_name": log_entry["owner_category_name"],
-                        "owner_category_id": log_entry["owner_category_id"],
-                        "starting_time": log_entry["starting_time"],
-                    }
-                )
-                .reduce(
-                    lambda left, right: {
-                        "count": left["count"] + right["count"],
-                        "desktop_name": left["desktop_name"],
-                        "desktop_id": left["desktop_id"],
-                        "owner_user_name": left["owner_user_name"],
-                        "owner_user_id": left["owner_user_id"],
-                        "owner_group_name": left["owner_group_name"],
-                        "owner_group_id": left["owner_group_id"],
-                        "owner_category_name": left["owner_category_name"],
-                        "owner_category_id": left["owner_category_id"],
-                        "starting_time": right["starting_time"],
-                    }
-                )
-                .ungroup()["reduction"]
-            )
-            with ApiAdmin._rdb_context():
-                total = r.table(table).count().run(ApiAdmin._rdb_connection)
-                filtered = query.count().run(ApiAdmin._rdb_connection)
-                paged = group_query.skip(int(parsed.get("start", 0))).limit(
-                    int(parsed.get("length", 25))
-                )
-                data = list(paged.run(ApiAdmin._rdb_connection))
-            return {
-                "draw": int(parsed.get("draw", 1)),
-                "recordsTotal": total,
-                "recordsFiltered": filtered,
-                "data": data,
-                "indexs": [],
-            }
-
-        elif view == "user_grouping" and table == "logs_users":
-            query, _ = AdminDomainsService._build_logs_query(table, parsed)
-            group_query = r.table(table).group(index="owner_user_id")
-            group_query = (
-                group_query.map(
-                    lambda log_entry: {
-                        "count": 1,
-                        "owner_user_name": log_entry["owner_user_name"],
-                        "owner_user_id": log_entry["owner_user_id"],
-                        "owner_group_name": log_entry["owner_group_name"],
-                        "owner_group_id": log_entry["owner_group_id"],
-                        "owner_category_name": log_entry["owner_category_name"],
-                        "owner_category_id": log_entry["owner_category_id"],
-                        "started_time": log_entry["started_time"],
-                    }
-                )
-                .reduce(
-                    lambda left, right: {
-                        "count": left["count"] + right["count"],
-                        "owner_user_name": left["owner_user_name"],
-                        "owner_user_id": left["owner_user_id"],
-                        "owner_group_name": left["owner_group_name"],
-                        "owner_group_id": left["owner_group_id"],
-                        "owner_category_name": left["owner_category_name"],
-                        "owner_category_id": left["owner_category_id"],
-                        "started_time": right["started_time"],
-                    }
-                )
-                .ungroup()["reduction"]
-            )
-            with ApiAdmin._rdb_context():
-                total = r.table(table).count().run(ApiAdmin._rdb_connection)
-                filtered = query.count().run(ApiAdmin._rdb_connection)
-                paged = group_query.skip(int(parsed.get("start", 0))).limit(
-                    int(parsed.get("length", 25))
-                )
-                data = list(paged.run(ApiAdmin._rdb_connection))
-            return {
-                "draw": int(parsed.get("draw", 1)),
-                "recordsTotal": total,
-                "recordsFiltered": filtered,
-                "data": data,
-                "indexs": [],
-            }
-
-        elif view == "category_grouping":
-            # Get category names for mapping
-            with ApiAdmin._rdb_context():
-                categories = {
-                    item["id"]: item["name"]
-                    for item in r.table("categories")
-                    .pluck("id", "name")
-                    .run(ApiAdmin._rdb_connection)
-                }
-
-            pluck_field = "desktop_id" if table == "logs_desktops" else "owner_user_id"
-            cat_query = r.table(table).group(index="owner_category_id")
-
-            # Apply range filters if present
-            if parsed.get("range"):
-                s = parsed["range"]["start"]
-                e = parsed["range"]["end"]
-                start_str = (s if "T" in s else s + "T00:00:00") + "Z"
-                end_str = (e if "T" in e else e + "T23:59:59") + "Z"
-                cat_query = cat_query.filter(
-                    lambda doc: doc[parsed["range"]["field"]].during(
-                        r.iso8601(start_str), r.iso8601(end_str)
-                    )
-                )
-
-            cat_query = cat_query.pluck(pluck_field).distinct().count()
-
-            with ApiAdmin._rdb_context():
-                cat_data = cat_query.run(ApiAdmin._rdb_connection, array_limit=500000)
-
-            # Get totals via group_by
-            group_index = "owner_category_id"
-            totals_query = r.table(table).group(index=group_index)
-            if table == "logs_desktops":
-                totals_query = (
-                    totals_query.map(lambda log_entry: {"count": 1})
-                    .reduce(
-                        lambda left, right: {"count": left["count"] + right["count"]}
-                    )
-                    .ungroup()["reduction"]
-                )
-            else:
-                totals_query = (
-                    totals_query.map(lambda log_entry: {"count": 1})
-                    .reduce(
-                        lambda left, right: {"count": left["count"] + right["count"]}
-                    )
-                    .ungroup()["reduction"]
-                )
-
-            with ApiAdmin._rdb_context():
-                totals = list(totals_query.run(ApiAdmin._rdb_connection))
-
-            result_data = [
-                {
-                    "total": next(
-                        (
-                            t.get("count", 0)
-                            for t in totals
-                            if t.get("owner_category_id") == key
-                        ),
-                        0,
-                    ),
-                    "count": value,
-                    "owner_category_name": categories.get(key, "[DELETED]" + key),
-                    "owner_category_id": key,
-                }
-                for key, value in cat_data.items()
-            ]
-
-            # Sort
-            if parsed.get("order") and len(parsed["order"]):
-                col = parsed["order"][0].get("column", "0")
-                if col == "1":
-                    order_key = "total"
-                elif col == "2":
-                    order_key = "count"
-                elif col == "3":
-                    order_key = "owner_category_name"
-                else:
-                    order_key = "count"
-                reverse = parsed["order"][0].get("dir", "asc") == "desc"
-                result_data = sorted(
-                    result_data, key=lambda x: x[order_key], reverse=reverse
-                )
-
-            return {
-                "draw": int(parsed.get("draw", 1)),
-                "recordsTotal": len(result_data),
-                "recordsFiltered": len(result_data),
-                "data": result_data,
-                "indexs": [],
-            }
-
-        return {}
+        return LogsProcessed.query_paginated(table, parsed, view=view)
 
     @staticmethod
     def query_logs_desktops(form_data: Any, view: str = "raw") -> dict:
@@ -930,24 +537,18 @@ class AdminDomainsService:
         user_id: Optional[str] = None,
     ) -> list[dict]:
         """Simple list of desktop logs with filters (no DataTables)."""
-        from rethinkdb import r
-
-        query = r.table("logs_desktops")
-        if payload.get("role_id") == "manager":
-            query = query.filter({"owner_category_id": payload["category_id"]})
-        if desktop_id:
-            query = query.filter({"desktop_id": desktop_id})
-        if user_id:
-            query = query.filter({"owner_user_id": user_id})
-        if start_date:
-            s = (start_date if "T" in start_date else start_date + "T00:00:00") + "Z"
-            query = query.filter(lambda d: d["starting_time"] >= r.iso8601(s))
-        if end_date:
-            e = (end_date if "T" in end_date else end_date + "T23:59:59") + "Z"
-            query = query.filter(lambda d: d["starting_time"] <= r.iso8601(e))
-        query = query.order_by(r.desc("starting_time")).skip(offset).limit(limit)
-        with ApiAdmin._rdb_context():
-            return list(query.run(ApiAdmin._rdb_connection))
+        category_id = (
+            payload["category_id"] if payload.get("role_id") == "manager" else None
+        )
+        return LogsProcessed.list_simple_desktop(
+            category_id=category_id,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            offset=offset,
+            desktop_id=desktop_id,
+            user_id=user_id,
+        )
 
     @staticmethod
     def list_user_logs(
@@ -960,21 +561,15 @@ class AdminDomainsService:
         group_id: Optional[str] = None,
     ) -> list[dict]:
         """Simple list of user logs with filters (no DataTables)."""
-        from rethinkdb import r
-
-        query = r.table("logs_users")
-        if payload.get("role_id") == "manager":
-            query = query.filter({"category_id": payload["category_id"]})
-        if user_id:
-            query = query.filter({"user_id": user_id})
-        if group_id:
-            query = query.filter({"group_id": group_id})
-        if start_date:
-            s = (start_date if "T" in start_date else start_date + "T00:00:00") + "Z"
-            query = query.filter(lambda d: d["starting_time"] >= r.iso8601(s))
-        if end_date:
-            e = (end_date if "T" in end_date else end_date + "T23:59:59") + "Z"
-            query = query.filter(lambda d: d["starting_time"] <= r.iso8601(e))
-        query = query.order_by(r.desc("starting_time")).skip(offset).limit(limit)
-        with ApiAdmin._rdb_context():
-            return list(query.run(ApiAdmin._rdb_connection))
+        category_id = (
+            payload["category_id"] if payload.get("role_id") == "manager" else None
+        )
+        return LogsProcessed.list_simple_user(
+            category_id=category_id,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            offset=offset,
+            user_id=user_id,
+            group_id=group_id,
+        )
