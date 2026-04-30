@@ -42,7 +42,7 @@ from api.schemas.media import (
 from api.services.error import Error
 from api.services.media import MediaService
 from fastapi import Depends, Path, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from isardvdi_common.helpers.quotas import Quotas
 
 tag = "media"
@@ -408,7 +408,9 @@ async def change_media_owner(
         500: {"model": ErrorResponse},
     },
 )
-async def delete_media(request: Request, media_id=Depends(owns_media_id)):
+async def delete_media(
+    request: Request, response: Response, media_id=Depends(owns_media_id)
+):
     try:
         task_id = MediaService.delete_media(
             media_id,
@@ -416,13 +418,11 @@ async def delete_media(request: Request, media_id=Depends(owns_media_id)):
         )
         if task_id is None:
             return DeleteResponse(message="Media deleted", message_code="item.deleted")
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Task to delete media queued",
-                message_code="item.queued",
-                tasks_ids=[task_id],
-            ).model_dump(mode="json"),
-            status_code=202,
+        response.status_code = 202
+        return DeleteResponse(
+            message="Task to delete media queued",
+            message_code="item.queued",
+            tasks_ids=[task_id],
         )
     except Error:
         raise
@@ -440,6 +440,7 @@ async def delete_media(request: Request, media_id=Depends(owns_media_id)):
     summary="Create a new media item",
     tags=[tag],
     response_model=SimpleResponse,
+    status_code=201,
     description="Creates a new media item. Returns the created media ID on success.",
     responses={
         201: {"description": "Media created successfully"},
@@ -461,10 +462,7 @@ async def create_media(media_data: CreateMediaRequest, request: Request):
         media_id = await asyncio.to_thread(
             MediaService.create_media, media_data, request.token_payload
         )
-        return JSONResponse(
-            content=SimpleResponse(id=str(media_id)).model_dump(mode="json"),
-            status_code=201,
-        )
+        return SimpleResponse(id=str(media_id))
     except Error:
         raise
     except Exception as e:

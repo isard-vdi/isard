@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import Literal
 
 from api import admin_router
 from api.schemas.admin_notifications import (
@@ -484,7 +485,9 @@ async def admin_get_notification_statuses(request: Request):
     description="Returns notification data grouped by user for a given status.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_get_notifications_grouped_by_status(request: Request, status: str):
+async def admin_get_notifications_grouped_by_status(
+    request: Request, status: Literal["pending", "notified"]
+):
     try:
         data = AdminNotificationService.get_notifications_grouped_by_status(status)
         return NotificationGroupedDataResponse(data=data)

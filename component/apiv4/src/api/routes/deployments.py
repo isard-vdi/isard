@@ -202,6 +202,7 @@ async def get_deployment(
 )
 async def delete_deployment(
     request: Request,
+    response: Response,
     deployment_id: str,
     permanent: bool = Query(
         False, description="Whether to permanently delete the desktop"
@@ -215,15 +216,12 @@ async def delete_deployment(
             return DeleteResponse(
                 message="Item sent to recycle bin", message_code="item.recycled"
             )
-        else:
-            return JSONResponse(
-                content=DeleteResponse(
-                    message="Task queued to delete deployment",
-                    message_code="item.queued",
-                    tasks_ids=[t["id"] for t in tasks],
-                ).model_dump(mode="json"),
-                status_code=202,
-            )
+        response.status_code = 202
+        return DeleteResponse(
+            message="Task queued to delete deployment",
+            message_code="item.queued",
+            tasks_ids=[t["id"] for t in tasks],
+        )
 
     except Error:
         raise

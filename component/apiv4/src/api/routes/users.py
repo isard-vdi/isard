@@ -141,7 +141,7 @@ async def register_user(register_post_data: RegisterPostData, request: Request):
             photo=request.token_payload["photo"],
             email=request.token_payload["email"],
         )
-        return JSONResponse(content={"id": new_user.id}, status_code=201)
+        return SimpleResponse(id=new_user.id)
     except Error:
         raise
     except Exception as e:

@@ -59,7 +59,7 @@ from api.services.admin_users import AdminUsersService
 from api.services.error import Error
 from cachetools import TTLCache, cached
 from fastapi import Path, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_users"
 
@@ -326,15 +326,15 @@ async def admin_update_users_bulk(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_delete_users(request: Request, data: AdminUserDeleteData):
+async def admin_delete_users(
+    request: Request, response: Response, data: AdminUserDeleteData
+):
     try:
         result, status = AdminUsersService.delete_users(
             request.token_payload, data.model_dump()
         )
-        return JSONResponse(
-            content=AdminUserDeleteResponse(**result).model_dump(mode="json"),
-            status_code=status,
-        )
+        response.status_code = status
+        return AdminUserDeleteResponse(**result)
     except Error:
         raise
     except Exception as e:
@@ -1946,12 +1946,15 @@ async def admin_auto_register(request: Request, data: AutoRegisterRequest):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_migrate_user(request: Request, user_id: str, target_user_id: str):
+async def admin_migrate_user(
+    request: Request, response: Response, user_id: str, target_user_id: str
+):
     try:
         result, status = AdminUsersService.migrate_user(
             request.token_payload, user_id, target_user_id
         )
-        return JSONResponse(content=result, status_code=status)
+        response.status_code = status
+        return result
     except Error:
         raise
     except Exception as e:

@@ -135,6 +135,7 @@ async def get_recycle_bin_count(request: Request):
     "/item/recycle-bin/empty",
     tags=[tag],
     response_model=DeleteResponse,
+    status_code=202,
     summary="Empty recycle bin",
     description="Empties the entire recycle bin.",
     responses={
@@ -148,12 +149,9 @@ async def empty_recycle_bin(request: Request):
         await RecycleBinService.empty_user_recycle_bin(
             user_id=request.token_payload["user_id"]
         )
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Recycle bin entries queued for deletion",
-                message_code="item.queued",
-            ).model_dump(mode="json"),
-            status_code=202,
+        return DeleteResponse(
+            message="Recycle bin entries queued for deletion",
+            message_code="item.queued",
         )
     except Error:
         raise
@@ -305,6 +303,7 @@ async def bulk_delete_recycle_bin(request: Request, data: RecycleBinBulkRequest)
     "/item/recycle-bin/{recycle_bin_id}",
     tags=[tag],
     response_model=DeleteResponse,
+    status_code=202,
     summary="Delete recycle bin item",
     description="Deletes a recycle bin item by ID.",
     dependencies=[
@@ -321,12 +320,9 @@ async def delete_recycle_bin_entry(request: Request, recycle_bin_id: str):
         await RecycleBinService.delete_recycle_bin_entry(
             recycle_bin_id=recycle_bin_id, user_id=request.token_payload["user_id"]
         )
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Recycle bin entry queued for deletion",
-                message_code="item.queued",
-            ).model_dump(mode="json"),
-            status_code=202,
+        return DeleteResponse(
+            message="Recycle bin entry queued for deletion",
+            message_code="item.queued",
         )
     except Error:
         raise
@@ -728,10 +724,7 @@ async def create_unused_item_timeout_rule(
 ):
     try:
         rule_id = RecycleBinService.create_unused_item_timeout_rule(data.model_dump())
-        return JSONResponse(
-            content=SimpleResponse(id=rule_id).model_dump(mode="json"),
-            status_code=201,
-        )
+        return SimpleResponse(id=rule_id)
     except Error:
         raise
     except Exception as e:

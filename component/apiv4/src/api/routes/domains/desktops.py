@@ -688,6 +688,7 @@ async def force_stop_desktop(
 )
 async def delete_desktop(
     request: Request,
+    response: Response,
     desktop_id: str = Path(..., description="The ID of the desktop"),
     permanent: bool = Query(
         False, description="Whether to permanently delete the desktop"
@@ -699,20 +700,16 @@ async def delete_desktop(
         )
         if isinstance(tasks, bool):
             return Response(status_code=204)
-        else:
-            if tasks is None:
-                return DeleteResponse(
-                    message="Item sent to recycle bin", message_code="item.recycled"
-                )
-            else:
-                return JSONResponse(
-                    content=DeleteResponse(
-                        message="Task queued to delete desktop",
-                        message_code="item.queued",
-                        tasks_ids=[t["id"] for t in tasks],
-                    ).model_dump(mode="json"),
-                    status_code=202,
-                )
+        if tasks is None:
+            return DeleteResponse(
+                message="Item sent to recycle bin", message_code="item.recycled"
+            )
+        response.status_code = 202
+        return DeleteResponse(
+            message="Task queued to delete desktop",
+            message_code="item.queued",
+            tasks_ids=[t["id"] for t in tasks],
+        )
 
     except Error:
         raise
@@ -779,10 +776,10 @@ async def get_desktop_images(
     "/item/desktop/{deployment_id}/{user_id}",
     tags=[tag],
     response_model=DeleteResponse,
+    status_code=202,
     summary="Delete user desktops from a deployment",
     description="Deletes all desktops belonging to one user inside a deployment",
     responses={
-        200: {"model": DeleteResponse},
         202: {"model": DeleteResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -795,13 +792,10 @@ async def delete_user_deployment_desktops(
 ):
     try:
         task_ids = DeploymentService.delete_desktops(user_id, deployment_id, request)
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Task to delete desktops queued",
-                message_code="item.queued",
-                task_ids=task_ids,
-            ).model_dump(mode="json"),
-            status_code=202,
+        return DeleteResponse(
+            message="Task to delete desktops queued",
+            message_code="item.queued",
+            task_ids=task_ids,
         )
     except Error:
         raise
@@ -1022,10 +1016,7 @@ async def create_desktop_from_media(request: Request, data: CreateDesktopFromMed
         desktop_id = DesktopService.create_from_media(
             user_id=request.token_payload["user_id"], data=data
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=201,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
