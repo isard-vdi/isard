@@ -766,3 +766,52 @@ class ResourceItemsUsbs(RethinkSharedConnection):
     @classmethod
     def add_subitem_cascade_actions(cls, subitem_id):
         None
+
+
+class ReservablesProcessed(RethinkSharedConnection):
+    """Generic Layer-2 helpers for reservable items (gpus, usbs).
+
+    Per-type behaviour (profile assignment, plan computations) lives
+    in the existing ``ResourceItems<Type>`` classes. This class hosts
+    the table-agnostic CRUD that the apiv4 service layer dispatches
+    via ``reservable_type``.
+    """
+
+    @classmethod
+    def get_item(cls, table: str, item_id: str) -> dict | None:
+        """Return a single reservable row by id, or ``None`` if missing.
+
+        ``table`` is the rethinkdb table name (``gpus`` / ``usbs``);
+        the apiv4 service maps the reservable_type to the table.
+        """
+        with cls._rdb_context():
+            return r.table(table).get(item_id).run(cls._rdb_connection)
+
+    @classmethod
+    def name_exists_for_other(cls, table: str, name: str, exclude_item_id: str) -> bool:
+        """Return ``True`` if any row in ``table`` carries ``name`` and
+        is not ``exclude_item_id``.
+
+        Used to enforce per-table uniqueness on rename.
+        """
+        with cls._rdb_context():
+            existing = list(
+                r.table(table)
+                .filter(
+                    lambda row: (row["name"] == name) & (row["id"] != exclude_item_id)
+                )
+                .run(cls._rdb_connection)
+            )
+        return bool(existing)
+
+    @classmethod
+    def update_item(cls, table: str, item_id: str, update_data: dict) -> None:
+        """Apply ``update_data`` to ``item_id`` in ``table``.
+
+        Idempotent on a missing row (rdb returns skipped=1, no error).
+        Empty ``update_data`` is also a no-op.
+        """
+        if not update_data:
+            return
+        with cls._rdb_context():
+            r.table(table).get(item_id).update(update_data).run(cls._rdb_connection)

@@ -23,7 +23,7 @@ from typing import Optional
 
 from api.services.error import Error
 from isardvdi_common.connections.api_notifier import send_deleted_gpu_notification
-from isardvdi_common.lib.bookings.reservables import Reservables
+from isardvdi_common.lib.bookings.reservables import Reservables, ReservablesProcessed
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
 
 
@@ -325,41 +325,20 @@ class ReservableService:
     @staticmethod
     def update_item(reservable_type: str, item_id: str, data: dict) -> None:
         """Update a reservable item's name and description."""
-        from rethinkdb import r
-
         table_map = {"gpus": "gpus", "usbs": "usbs"}
         table = table_map.get(reservable_type)
         if not table:
             raise Error("bad_request", f"Unknown reservable type: {reservable_type}")
-        with ReservablesPlannerProccess._rdb_context():
-            item = (
-                r.table(table)
-                .get(item_id)
-                .run(ReservablesPlannerProccess._rdb_connection)
-            )
-        if not item:
+        if ReservablesProcessed.get_item(table, item_id) is None:
             raise Error("not_found", f"Item {item_id} not found in {table}")
         update_data = {}
         if "name" in data:
-            # Check duplicate name
-            with ReservablesPlannerProccess._rdb_context():
-                existing = list(
-                    r.table(table)
-                    .filter(
-                        lambda g: (g["name"] == data["name"]) & (g["id"] != item_id)
-                    )
-                    .run(ReservablesPlannerProccess._rdb_connection)
-                )
-            if existing:
+            if ReservablesProcessed.name_exists_for_other(table, data["name"], item_id):
                 raise Error("conflict", f"Name '{data['name']}' already exists")
             update_data["name"] = data["name"]
         if "description" in data:
             update_data["description"] = data["description"]
-        if update_data:
-            with ReservablesPlannerProccess._rdb_context():
-                r.table(table).get(item_id).update(update_data).run(
-                    ReservablesPlannerProccess._rdb_connection
-                )
+        ReservablesProcessed.update_item(table, item_id, update_data)
 
     @staticmethod
     def list_all_plans() -> list[dict]:
