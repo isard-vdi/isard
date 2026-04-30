@@ -25,11 +25,11 @@ import traceback
 
 from api import admin_router, advanced_router, manager_router, open_router, token_router
 from api.schemas.common import ErrorResponse
-from api.schemas.login import LoginConfigResponse
 from api.schemas.open import ApiVersion
 from api.services.admin_categories import AdminCategoryService
 from api.services.categories import CategoryService
 from api.services.error import Error
+from api.services.login_config_cache import logo_cache
 from cachetools import TTLCache, cached
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
@@ -103,31 +103,6 @@ _LOGO_MIME_TYPES = {
     "ico": "image/x-icon",
 }
 
-# Named caches so writers can invalidate them after mutations.
-login_config_cache = TTLCache(maxsize=10, ttl=20)
-logo_cache = TTLCache(maxsize=10, ttl=60)
-
-
-def clear_login_config_cache():
-    """Invalidate the per-category login-config cache.
-
-    Called from admin write paths that mutate login-notification or
-    per-category login settings, so the next GET returns fresh data
-    instead of the 20 s TTL'd response.
-    """
-    login_config_cache.clear()
-
-
-def clear_logo_cache():
-    """Invalidate the per-domain logo cache.
-
-    Called after branding updates so the next /logo request returns
-    the updated image instead of the 60 s TTL'd response. Keyed by
-    host header, so we clear the whole cache (categories can share
-    logos across domains).
-    """
-    logo_cache.clear()
-
 
 @cached(cache=logo_cache, key=lambda r: r.headers.get("host", ""))
 @open_router.get(
@@ -187,35 +162,6 @@ async def get_logo(request: Request):
             request,
             "internal_server",
             "Failed to retrieve logo",
-            traceback.format_exc(),
-        )
-
-
-@cached(
-    cache=login_config_cache,
-    key=lambda r, cid: cid,
-)
-@open_router.get(
-    "/item/login-config/{category_id}",
-    tags=["categories"],
-    response_model=LoginConfigResponse,
-    summary="Get login config for category",
-    description="Returns login configuration for a specific category, falling back to global.",
-    responses={
-        500: {"model": ErrorResponse},
-    },
-)
-async def get_login_config_by_category(request: Request, category_id: str):
-    try:
-        config = AdminCategoryService.get_login_config_for_category(category_id)
-        return LoginConfigResponse(**config)
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            f"Failed to retrieve login config for category '{category_id}'",
             traceback.format_exc(),
         )
 

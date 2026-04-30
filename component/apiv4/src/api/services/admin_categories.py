@@ -21,6 +21,7 @@
 import html
 
 from api.services.error import Error
+from api.services.login_config_cache import clear_login_config_cache, clear_logo_cache
 from isardvdi_common.configuration import Configuration
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.category import Category
@@ -76,8 +77,6 @@ class AdminCategoryService:
             logging.getLogger(__name__).warning(
                 "Failed to sync branding domains to HAProxy after update"
             )
-
-        from api.routes.open import clear_logo_cache
 
         clear_logo_cache()
 
@@ -148,8 +147,6 @@ class AdminCategoryService:
 
         Category(category_id).login_notification = current
 
-        from api.routes.open import clear_login_config_cache
-
         clear_login_config_cache()
 
     @staticmethod
@@ -164,8 +161,6 @@ class AdminCategoryService:
         notif["enabled"] = enabled
         current[key] = notif
         Category(category_id).login_notification = current
-
-        from api.routes.open import clear_login_config_cache
 
         clear_login_config_cache()
 
