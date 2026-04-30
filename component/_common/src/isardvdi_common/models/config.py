@@ -22,13 +22,15 @@ from isardvdi_common.connections.rethink_custom_base_factory import RethinkCusto
 from isardvdi_common.helpers.error_factory import Error
 from rethinkdb import r
 
+_get_config_cache: TTLCache = TTLCache(maxsize=10, ttl=1)
+
 
 class Config(RethinkCustomBase):
 
     _rdb_table = "config"
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=1))
+    @cached(cache=_get_config_cache)
     def get_config(cls):
         """
         Get the configuration from the database.
@@ -40,6 +42,10 @@ class Config(RethinkCustomBase):
             return None
 
         return config
+
+    @classmethod
+    def clear_get_config_cache(cls):
+        _get_config_cache.clear()
 
     @classmethod
     def get_user_migration_config(cls):

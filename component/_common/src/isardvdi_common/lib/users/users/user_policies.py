@@ -8,13 +8,15 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from rethinkdb import r
 
+_get_policies_category_role_provider_cache: TTLCache = TTLCache(maxsize=200, ttl=30)
+
 
 class UserPolicies(RethinkSharedConnection):
 
     _rdb_table = "users"
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=200, ttl=30))
+    @cached(cache=_get_policies_category_role_provider_cache)
     def get_policies_category_role_provider(
         cls, category_id: str, role_id: str, provider: str
     ) -> list:
@@ -33,6 +35,10 @@ class UserPolicies(RethinkSharedConnection):
                 )
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def clear_get_policies_category_role_provider_cache(cls):
+        _get_policies_category_role_provider_cache.clear()
 
     @classmethod
     @cached(

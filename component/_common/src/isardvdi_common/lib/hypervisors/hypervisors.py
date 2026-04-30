@@ -45,6 +45,11 @@ from isardvdi_common.models.hypervisor import HypervisorModel
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
+_get_desktops_max_timeout_cache: TTLCache = TTLCache(maxsize=200, ttl=100)
+_get_hyper_started_domains_cache: TTLCache = TTLCache(maxsize=200, ttl=10)
+_check_create_storage_pool_availability_cache: TTLCache = TTLCache(maxsize=50, ttl=10)
+_check_virt_storage_pool_availability_cache: TTLCache = TTLCache(maxsize=50, ttl=10)
+
 
 class HypervisorsProcessed(RethinkSharedConnection):
     """_From api/libv2/api_hypervisors.py ApiHypervisors_"""
@@ -986,7 +991,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
         return {"destroy_time": dtz}
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=200, ttl=100))
+    @cached(cache=_get_desktops_max_timeout_cache)
     def get_desktops_max_timeout(cls):
         with cls._rdb_context():
             return (
@@ -997,6 +1002,10 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 .default(720)  # Default to 12 hours if no max timeout found (12*60=720)
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def clear_get_desktops_max_timeout_cache(cls):
+        _get_desktops_max_timeout_cache.clear()
 
     @classmethod
     def set_hyper_orchestrator_managed(cls, hyper_id, reset=False):
@@ -1113,7 +1122,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
         return {"mountpoints": hyper["mountpoints"]}
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=200, ttl=10))
+    @cached(cache=_get_hyper_started_domains_cache)
     def get_hyper_started_domains(cls, hyper_id):
         with cls._rdb_context():
             domains = list(
@@ -1154,8 +1163,12 @@ class HypervisorsProcessed(RethinkSharedConnection):
             )
         return domains
 
+    @classmethod
+    def clear_get_hyper_started_domains_cache(cls):
+        _get_hyper_started_domains_cache.clear()
+
     @staticmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=10))
+    @cached(cache=_check_create_storage_pool_availability_cache)
     def check_create_storage_pool_availability(category_id=None):
         """_From api/libv2/api_hypervisors.py check_create_storage_pool_availability()_"""
         # Check category storage pools for category. Will raise error if no storage pool available
@@ -1178,8 +1191,12 @@ class HypervisorsProcessed(RethinkSharedConnection):
             description_code="no_storage_pool_available",
         )
 
+    @classmethod
+    def clear_check_create_storage_pool_availability_cache(cls):
+        _check_create_storage_pool_availability_cache.clear()
+
     @staticmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=10))
+    @cached(cache=_check_virt_storage_pool_availability_cache)
     def check_virt_storage_pool_availability(domain_id):
         """_From api/libv2/api_hypervisors.py check_virt_storage_pool_availability()_"""
         # Check category storage pools for category. Will raise error if no storage pool available
@@ -1198,3 +1215,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
             f"No hypervisor available for domain {domain_id} with storage pool {virt_pool_id}",
             description_code="no_storage_pool_available",
         )
+
+    @classmethod
+    def clear_check_virt_storage_pool_availability_cache(cls):
+        _check_virt_storage_pool_availability_cache.clear()

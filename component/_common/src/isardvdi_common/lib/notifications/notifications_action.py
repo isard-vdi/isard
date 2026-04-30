@@ -23,13 +23,15 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from rethinkdb import r
 
+_get_notification_action_cache: TTLCache = TTLCache(maxsize=10, ttl=60)
+
 
 class NotificationsActionProcessed(RethinkSharedConnection):
 
     _rdb_table = "notifications_action"
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=60))
+    @cached(cache=_get_notification_action_cache)
     def get_notification_action(cls, action_id):
         """
 
@@ -43,6 +45,10 @@ class NotificationsActionProcessed(RethinkSharedConnection):
         """
         with cls._rdb_context():
             return r.table(cls._rdb_table).get(action_id).run(cls._rdb_connection)
+
+    @classmethod
+    def clear_get_notification_action_cache(cls):
+        _get_notification_action_cache.clear()
 
     @classmethod
     def add_notification_action(cls, action):

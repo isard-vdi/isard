@@ -18,11 +18,14 @@ from isardvdi_common.models.user import User
 from isardvdi_common.schemas.shared.allowed import AllowedUpdate
 from rethinkdb import r
 
+_get_user_cache: TTLCache = TTLCache(maxsize=20, ttl=5)
+_get_allowed_groups_cache: TTLCache = TTLCache(maxsize=20, ttl=60)
+
 
 class Alloweds(RethinkCustomBase):
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=20, ttl=5))
+    @cached(cache=_get_user_cache)
     def get_user(cls, user_id):
         with cls._rdb_context():
             return (
@@ -31,6 +34,10 @@ class Alloweds(RethinkCustomBase):
                 .without("password", "user_storage")
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def clear_get_user_cache(cls):
+        _get_user_cache.clear()
 
     @classmethod
     @cached(
@@ -629,7 +636,7 @@ class Alloweds(RethinkCustomBase):
             )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=20, ttl=60))
+    @cached(cache=_get_allowed_groups_cache)
     def get_allowed_groups(cls, category_id: str) -> dict:
         with cls._rdb_context():
             groups = (
@@ -647,3 +654,7 @@ class Alloweds(RethinkCustomBase):
             )
 
         return groups
+
+    @classmethod
+    def clear_get_allowed_groups_cache(cls):
+        _get_allowed_groups_cache.clear()

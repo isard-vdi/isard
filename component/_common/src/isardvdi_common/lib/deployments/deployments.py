@@ -64,6 +64,8 @@ from isardvdi_common.schemas.domains import DesktopStatusEnum
 from isardvdi_common.schemas.shared.allowed import Allowed
 from rethinkdb import r
 
+_validate_tag_desktop_id_for_deployment_cache: TTLCache = TTLCache(maxsize=10, ttl=30)
+
 
 class DeploymentsProcessed(RethinkSharedConnection):
 
@@ -1255,7 +1257,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
         return create_dict
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=30))
+    @cached(cache=_validate_tag_desktop_id_for_deployment_cache)
     def validate_tag_desktop_id_for_deployment(
         cls,
         deployment_id: str,
@@ -1279,6 +1281,10 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
                 description_code="invalid_tag_desktop_id_for_deployment",
             )
+
+    @classmethod
+    def clear_validate_tag_desktop_id_for_deployment_cache(cls):
+        _validate_tag_desktop_id_for_deployment_cache.clear()
 
     @classmethod
     def validate_tag_desktop_ids_for_deployment(

@@ -40,6 +40,8 @@ from rethinkdb import r
 
 from .gen_image import gen_img_from_name
 
+_get_stock_cards_cache: TTLCache = TTLCache(maxsize=1, ttl=3600)
+
 api_spec = importlib.util.find_spec("api")
 if api_spec and api_spec.origin == "/api/api/__init__.py":
     """APIv3"""
@@ -102,9 +104,13 @@ class Cards(RethinkSharedConnection):
         ]
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=3600))
+    @cached(cache=_get_stock_cards_cache)
     def get_stock_cards(cls):
         return cls.read_stock_cards()
+
+    @classmethod
+    def clear_get_stock_cards_cache(cls):
+        _get_stock_cards_cache.clear()
 
     @classmethod
     def get_user_cards(cls, user_id, domain_id):

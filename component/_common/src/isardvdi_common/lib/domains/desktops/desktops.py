@@ -70,6 +70,8 @@ from ....schemas.domains import DesktopFromTemplate, DesktopStatusEnum, DomainSt
 
 socketio = RedisManager(socketio_url(), write_only=True)
 
+_get_domain_group_and_category_name_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
+
 
 class DesktopsProcessed(RethinkSharedConnection):
     _rdb_table = "domains"
@@ -854,7 +856,7 @@ class DesktopsProcessed(RethinkSharedConnection):
         return new_domain
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=30))
+    @cached(cache=_get_domain_group_and_category_name_cache)
     def get_domain_group_and_category_name(cls, domain_id):
         with cls._rdb_context():
             group_and_category_names = (
@@ -872,6 +874,10 @@ class DesktopsProcessed(RethinkSharedConnection):
                 .run(cls._rdb_connection)
             )
         return group_and_category_names
+
+    @classmethod
+    def clear_get_domain_group_and_category_name_cache(cls):
+        _get_domain_group_and_category_name_cache.clear()
 
     @classmethod
     def get_user_desktops(
