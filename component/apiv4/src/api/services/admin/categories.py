@@ -26,6 +26,7 @@ from isardvdi_common.configuration import Configuration
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.category import Category
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.lib.users.categories.categories import CategoriesProcessed
 
 _PROVIDER_SENSITIVE_KEYS = ("password", "client_secret")
 
@@ -173,33 +174,16 @@ class AdminCategoryService:
     @staticmethod
     def get_logo_by_domain(domain: str) -> str | None:
         """Get logo data URL for a domain. Falls back to default logo."""
-        from isardvdi_common.connections.rethink_connection_factory import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
-        try:
-            with RethinkSharedConnection._rdb_context():
-                categories = list(
-                    r.table("categories")
-                    .filter(
-                        lambda cat: cat.has_fields({"branding": {"domain": True}})
-                        & (cat["branding"]["domain"]["name"] == domain)
-                        & (cat["branding"]["domain"]["enabled"] == True)
-                    )
-                    .limit(1)
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-        except Exception:
+        category = CategoriesProcessed.find_by_branding_domain(domain)
+        if not category:
             return None
-        if categories:
-            try:
-                branding = Category(categories[0]["id"]).branding or {}
-                logo = branding.get("logo", {})
-                if logo.get("enabled") and logo.get("data"):
-                    return logo["data"]
-            except Exception:
-                pass
+        try:
+            branding = Category(category["id"]).branding or {}
+            logo = branding.get("logo", {})
+            if logo.get("enabled") and logo.get("data"):
+                return logo["data"]
+        except Exception:
+            pass
         return None
 
     # ── Per-category login config ────────────────────────────────────────
