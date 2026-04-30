@@ -75,10 +75,7 @@ async def set_storage_maintenance(
         result_id = StorageService.set_maintenance(
             request.token_payload, storage_id, body.action
         )
-        return JSONResponse(
-            content=SimpleResponse(id=result_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=result_id)
     except Error:
         raise
     except Exception:
@@ -104,10 +101,7 @@ async def set_storage_maintenance(
 async def set_storage_ready(request: Request, storage_id: str):
     try:
         result_id = StorageService.set_ready(request.token_payload, storage_id)
-        return JSONResponse(
-            content=SimpleResponse(id=result_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=result_id)
     except Error:
         raise
     except Exception:
@@ -136,10 +130,7 @@ async def batch_check_backing_chain(
 ):
     try:
         StorageService.batch_check_backing_chain(request.token_payload, body.ids)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -166,10 +157,7 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
         StorageService.batch_check_backing_chain_by_status(
             request.token_payload, status
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -197,7 +185,7 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
 async def get_storage(request: Request, storage_id: str):
     try:
         storage = StorageService.get_storage_detail(request.token_payload, storage_id)
-        return JSONResponse(content=storage, status_code=200)
+        return storage
     except Error:
         raise
     except Exception:
@@ -221,7 +209,7 @@ async def get_storage(request: Request, storage_id: str):
 async def get_user_ready_storages(request: Request):
     try:
         disks = StorageService.get_user_ready_storages(request.token_payload["user_id"])
-        return JSONResponse(content=disks, status_code=200)
+        return disks
     except Error:
         raise
     except Exception:
@@ -259,10 +247,7 @@ async def create_storage(
             user_id=body.user_id,
             priority=priority,
         )
-        return JSONResponse(
-            content=StorageCreateResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return StorageCreateResponse(**result)
     except Error:
         raise
     except Exception:
@@ -324,7 +309,7 @@ async def delete_storage(request: Request, storage_id: str):
 async def get_storage_parents(request: Request, storage_id: str):
     try:
         parents = StorageService.get_parents(request.token_payload, storage_id)
-        return JSONResponse(content=parents, status_code=200)
+        return parents
     except Error:
         raise
     except Exception:
@@ -349,7 +334,7 @@ async def get_storage_parents(request: Request, storage_id: str):
 async def get_storage_task(request: Request, storage_id: str):
     try:
         task = StorageService.get_task(request.token_payload, storage_id)
-        return JSONResponse(content=task, status_code=200)
+        return task
     except Error:
         raise
     except Exception:
@@ -374,7 +359,7 @@ async def get_storage_task(request: Request, storage_id: str):
 async def get_storage_statuses(request: Request, storage_id: str):
     try:
         statuses = StorageService.get_statuses(request.token_payload, storage_id)
-        return JSONResponse(content=statuses, status_code=200)
+        return statuses
     except Error:
         raise
     except Exception:
@@ -400,12 +385,7 @@ async def get_storage_statuses(request: Request, storage_id: str):
 async def get_storage_has_derivatives(request: Request, storage_id: str):
     try:
         count = StorageService.has_derivatives(request.token_payload, storage_id)
-        return JSONResponse(
-            content=StorageDerivativesResponse(derivatives=count).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return StorageDerivativesResponse(derivatives=count)
     except Error:
         raise
     except Exception:
@@ -435,10 +415,7 @@ async def get_storage_has_derivatives(request: Request, storage_id: str):
 async def sparsify_storage(request: Request, storage_id: str, priority: str):
     try:
         task_id = StorageService.sparsify(request.token_payload, storage_id, priority)
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -467,10 +444,7 @@ async def batch_sparsify_storages(
 ):
     try:
         StorageService.batch_sparsify(request.token_payload, body.ids)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -497,10 +471,7 @@ async def batch_sparsify_storages(
 async def disconnect_storage(request: Request, storage_id: str, priority: str):
     try:
         task_id = StorageService.disconnect(request.token_payload, storage_id, priority)
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -525,7 +496,7 @@ async def disconnect_storage(request: Request, storage_id: str, priority: str):
 async def check_storage_backing_chain(request: Request, storage_id: str):
     try:
         result = StorageService.check_backing_chain(request.token_payload, storage_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -563,10 +534,7 @@ async def convert_storage(
             compress=body.compress,
             priority=body.priority,
         )
-        return JSONResponse(
-            content=StorageConvertResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return StorageConvertResponse(**result)
     except Error:
         raise
     except Exception:
@@ -601,10 +569,7 @@ async def recreate_storage(
             priority=body.priority,
             retry=body.retry,
         )
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -642,10 +607,7 @@ async def virt_win_reg_storage(
             priority=priority,
             retry=body.retry,
         )
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -684,10 +646,7 @@ async def move_storage_by_path(
             dest_path=body.dest_path,
             priority=body.priority,
         )
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -725,10 +684,7 @@ async def rsync_storage_to_path(
             remove_source_file=body.remove_source_file,
             priority=body.priority,
         )
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -766,10 +722,7 @@ async def rsync_storage_to_storage_pool(
             remove_source_file=body.remove_source_file,
             priority=body.priority,
         )
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -798,10 +751,7 @@ async def rsync_storage_to_storage_pool(
 async def stop_storage_desktops(request: Request, storage_id: str):
     try:
         StorageService.stop_desktops(request.token_payload, storage_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -828,10 +778,7 @@ async def stop_storage_desktops(request: Request, storage_id: str):
 async def abort_storage_operations(request: Request, storage_id: str):
     try:
         task_id = StorageService.abort_operations(request.token_payload, storage_id)
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -868,10 +815,7 @@ async def set_storage_path(
             priority=body.priority,
             retry=body.retry,
         )
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -908,10 +852,7 @@ async def delete_storage_path(
             priority=body.priority,
             retry=body.retry,
         )
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -939,7 +880,7 @@ async def delete_storage_path(
 async def find_storage(request: Request, storage_id: str):
     try:
         result = StorageService.find(request.token_payload, storage_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -968,10 +909,7 @@ async def batch_find_storages(
 ):
     try:
         StorageService.batch_find(request.token_payload, body.ids)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -1002,10 +940,7 @@ async def batch_find_storages(
 async def get_storage_ready(request: Request):
     try:
         items = StorageService.get_user_ready_storages(request.token_payload["user_id"])
-        return JSONResponse(
-            content=StorageReadyResponse(items=items).model_dump(mode="json"),
-            status_code=200,
-        )
+        return StorageReadyResponse(items=items)
     except Error:
         raise
     except Exception:
@@ -1045,10 +980,7 @@ async def increase_storage_size(
             increment=increment,
             priority=priority,
         )
-        return JSONResponse(
-            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TaskIdResponse(task_id=task_id)
     except Error:
         raise
     except Exception:
@@ -1078,11 +1010,8 @@ async def increase_storage_size(
 )
 async def get_storage_storages_with_uuid(request: Request, storage_id: str):
     try:
-        return JSONResponse(
-            content=StorageService.get_storage_storages_with_uuid(
-                request.token_payload, storage_id
-            ),
-            status_code=200,
+        return StorageService.get_storage_storages_with_uuid(
+            request.token_payload, storage_id
         )
     except Error:
         raise
@@ -1108,10 +1037,7 @@ async def get_storage_storages_with_uuid(request: Request, storage_id: str):
 )
 async def list_all_storages_with_uuid(request: Request):
     try:
-        return JSONResponse(
-            content=StorageService.get_all_storages_with_uuid(request.token_payload),
-            status_code=200,
-        )
+        return StorageService.get_all_storages_with_uuid(request.token_payload)
     except Error:
         raise
     except Exception:
@@ -1135,12 +1061,7 @@ async def list_all_storages_with_uuid(request: Request):
 )
 async def list_all_storages_with_uuid_status(request: Request):
     try:
-        return JSONResponse(
-            content=StorageService.get_all_storages_with_uuid_status(
-                request.token_payload
-            ),
-            status_code=200,
-        )
+        return StorageService.get_all_storages_with_uuid_status(request.token_payload)
     except Error:
         raise
     except Exception:
@@ -1163,11 +1084,8 @@ async def list_all_storages_with_uuid_status(request: Request):
 )
 async def list_all_storages_with_uuid_filtered(request: Request, status: str):
     try:
-        return JSONResponse(
-            content=StorageService.get_all_storages_with_uuid(
-                request.token_payload, status=status
-            ),
-            status_code=200,
+        return StorageService.get_all_storages_with_uuid(
+            request.token_payload, status=status
         )
     except Error:
         raise

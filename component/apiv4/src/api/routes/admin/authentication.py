@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import Literal
 
 from api import admin_router, disclaimer_router, manager_router
 from api.schemas.admin_authentication import (
@@ -56,7 +57,7 @@ tag = "admin-authentication"
 async def admin_authentication_policy_add(request: Request, data: PolicyCreateRequest):
     try:
         AdminAuthenticationService.add_policy(data.model_dump(exclude_none=True))
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -78,7 +79,7 @@ async def admin_authentication_policy_add(request: Request, data: PolicyCreateRe
 async def admin_authentication_policies(request: Request):
     try:
         policies = AdminAuthenticationService.get_policies()
-        return JSONResponse(content=policies, status_code=200)
+        return policies
     except Error:
         raise
     except Exception:
@@ -100,7 +101,7 @@ async def admin_authentication_policies(request: Request):
 async def admin_authentication_policy(request: Request, policy_id: str):
     try:
         policy = AdminAuthenticationService.get_policy(policy_id)
-        return JSONResponse(content=policy, status_code=200)
+        return policy
     except Error:
         raise
     except Exception:
@@ -130,7 +131,7 @@ async def admin_authentication_policy_edit(
         AdminAuthenticationService.edit_policy(
             policy_id, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -156,7 +157,7 @@ async def admin_authentication_policy_edit(
 async def admin_authentication_policy_delete(request: Request, policy_id: str):
     try:
         AdminAuthenticationService.delete_policy(policy_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -183,7 +184,7 @@ async def admin_authentication_policy_delete(request: Request, policy_id: str):
 async def admin_authentication_providers(request: Request):
     try:
         providers = AdminAuthenticationService.get_providers()
-        return JSONResponse(content=providers, status_code=200)
+        return providers
     except Error:
         raise
     except Exception:
@@ -211,7 +212,7 @@ async def admin_authentication_providers(request: Request):
 async def admin_force_email(request: Request, policy_id: str):
     try:
         AdminAuthenticationService.force_policy_at_login(policy_id, "email_verified")
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -236,7 +237,7 @@ async def admin_force_disclaimer(request: Request, policy_id: str):
         AdminAuthenticationService.force_policy_at_login(
             policy_id, "disclaimer_acknowledged"
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -261,7 +262,7 @@ async def admin_force_password(request: Request, policy_id: str):
         AdminAuthenticationService.force_policy_at_login(
             policy_id, "password_last_updated"
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -290,7 +291,7 @@ async def get_disclaimer(request: Request):
         text = AdminAuthenticationService.get_disclaimer_template(
             request.token_payload["user_id"]
         )
-        return JSONResponse(content=text, status_code=200)
+        return text
     except Error:
         raise
     except Exception:
@@ -325,10 +326,12 @@ async def get_disclaimer(request: Request):
     description="Returns the configuration for a specific authentication provider.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def get_provider_config_route(request: Request, provider: str):
+async def get_provider_config_route(
+    request: Request, provider: Literal["local", "google", "saml", "ldap"]
+):
     try:
         config = AdminAuthenticationService.get_provider_config(provider)
-        return JSONResponse(content=config, status_code=200)
+        return config
     except Error:
         raise
     except Exception:
@@ -352,13 +355,15 @@ async def get_provider_config_route(request: Request, provider: str):
     },
 )
 async def edit_provider_config_route(
-    request: Request, provider: str, data: ProviderConfigUpdateRequest
+    request: Request,
+    provider: Literal["local", "google", "saml", "ldap"],
+    data: ProviderConfigUpdateRequest,
 ):
     try:
         AdminAuthenticationService.update_provider_config(
             provider, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -395,7 +400,7 @@ async def admin_get_migration_exceptions(request: Request):
             raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
         serialized = json.loads(json.dumps(exceptions, default=_serialize))
-        return JSONResponse(content=serialized, status_code=200)
+        return serialized
     except Error:
         raise
     except Exception:
@@ -423,7 +428,7 @@ async def admin_add_migration_exception(
 ):
     try:
         AdminAuthenticationService.add_migration_exception(data.model_dump())
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -446,7 +451,7 @@ async def admin_add_migration_exception(
 async def admin_delete_migration_exception(request: Request, exception_id: str):
     try:
         AdminAuthenticationService.delete_migration_exception(exception_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

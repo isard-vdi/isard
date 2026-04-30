@@ -46,7 +46,7 @@ tag = "admin_media"
 async def admin_media_status(request: Request):
     try:
         result = AdminMediaService.get_media_status(request.token_payload)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -73,7 +73,7 @@ async def admin_media_status(request: Request):
 async def admin_media_list(request: Request):
     try:
         result = AdminMediaService.get_media(request.token_payload)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -99,7 +99,7 @@ async def admin_media_by_status(
 ):
     try:
         result = AdminMediaService.get_media(request.token_payload, status=status)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

@@ -428,9 +428,10 @@ class AdminDomainsService:
 
     @staticmethod
     def set_logs_desktops_action(action):
-        """Set action for desktop logs old entries."""
-        if action not in ["delete", "none"]:
-            raise Error("bad_request", 'Action must be "delete" or "none"')
+        """Set action for desktop logs old entries.
+
+        Route layer constrains ``action`` to ``Literal["delete", "none"]``.
+        """
         return ApiAdmin.set_logs_desktops_old_entries_action(action)
 
     @staticmethod
@@ -512,9 +513,10 @@ class AdminDomainsService:
 
     @staticmethod
     def set_logs_users_action(action):
-        """Set action for user logs old entries."""
-        if action not in ["delete", "none"]:
-            raise Error("bad_request", 'Action must be "delete" or "none"')
+        """Set action for user logs old entries.
+
+        Route layer constrains ``action`` to ``Literal["delete", "none"]``.
+        """
         return ApiAdmin.set_logs_users_old_entries_action(action)
 
     @staticmethod

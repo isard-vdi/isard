@@ -40,7 +40,7 @@ tag = "admin_scheduler"
 async def admin_scheduler_jobs_system(request: Request):
     try:
         result = AdminSchedulerService.get_system_jobs()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -62,7 +62,7 @@ async def admin_scheduler_jobs_system(request: Request):
 async def admin_scheduler_jobs_bookings(request: Request):
     try:
         result = AdminSchedulerService.get_bookings_jobs()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

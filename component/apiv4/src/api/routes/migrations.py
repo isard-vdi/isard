@@ -49,11 +49,8 @@ tag = "user_migration"
 )
 async def migration_export_user(request: Request):
     try:
-        return JSONResponse(
-            content=MigrationExportResponse(
-                token=MigrationService.export_user(request.token_payload["user_id"])
-            ).model_dump(mode="json"),
-            status_code=200,
+        return MigrationExportResponse(
+            token=MigrationService.export_user(request.token_payload["user_id"])
         )
     except Error:
         raise
@@ -81,12 +78,7 @@ async def migration_export_user(request: Request):
 async def migration_import_user(request: Request, data: ImportUserRequest):
     try:
         MigrationService.import_user(request.token_payload["user_id"], data.token)
-        return JSONResponse(
-            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return SimpleResponse(id=request.token_payload["user_id"])
     except Error:
         raise
     except Exception as e:
@@ -118,12 +110,7 @@ async def migration_list_items(request: Request):
                 content={"errors": result["errors"]},
                 status_code=428,
             )
-        return JSONResponse(
-            content=MigrationListItemsResponse(**result["items"]).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return MigrationListItemsResponse(**result["items"])
     except Error:
         raise
     except Exception as e:
@@ -155,12 +142,7 @@ async def migration_migrate_user(request: Request):
                 content={"errors": result["errors"]},
                 status_code=428,
             )
-        return JSONResponse(
-            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return SimpleResponse(id=request.token_payload["user_id"])
     except Error:
         raise
     except Exception as e:
@@ -184,12 +166,7 @@ async def get_provider_export_enabled(request: Request, provider_id: str):
     try:
         provider_config = ConfigService.get_provider_config(provider_id)
         enabled = provider_config.get("migration", {}).get("export", False)
-        return JSONResponse(
-            content=MigrationProviderEnabledResponse(enabled=enabled).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return MigrationProviderEnabledResponse(enabled=enabled)
     except Error:
         raise
     except Exception as e:
@@ -213,12 +190,7 @@ async def get_provider_import_enabled(request: Request, provider_id: str):
     try:
         provider_config = ConfigService.get_provider_config(provider_id)
         enabled = provider_config.get("migration", {}).get("import", False)
-        return JSONResponse(
-            content=MigrationProviderEnabledResponse(enabled=enabled).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return MigrationProviderEnabledResponse(enabled=enabled)
     except Error:
         raise
     except Exception as e:
@@ -245,10 +217,7 @@ admin_tag = "admin_migrations"
 async def get_migration_config(request: Request):
     try:
         config = MigrationService.get_admin_migration_config()
-        return JSONResponse(
-            content=config,
-            status_code=200,
-        )
+        return config
     except Error:
         raise
     except Exception as e:
@@ -272,10 +241,7 @@ async def update_migration_config(request: Request, data: MigrationConfigUpdateR
         result = MigrationService.update_admin_migration_config(
             data.model_dump(exclude_none=True)
         )
-        return JSONResponse(
-            content=result,
-            status_code=200,
-        )
+        return result
     except Error:
         raise
     except Exception as e:
@@ -297,11 +263,8 @@ async def update_migration_config(request: Request, data: MigrationConfigUpdateR
 async def get_all_migrations(request: Request):
     try:
         migrations = MigrationService.get_all_migrations()
-        return JSONResponse(
-            content=AdminMigrationsResponse(
-                migrations=migrations,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return AdminMigrationsResponse(
+            migrations=migrations,
         )
     except Error:
         raise
@@ -324,10 +287,7 @@ async def get_all_migrations(request: Request):
 async def revoke_migration(request: Request, migration_id: str):
     try:
         MigrationService.revoke_migration(migration_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -349,10 +309,7 @@ async def revoke_migration(request: Request, migration_id: str):
 async def delete_migration(request: Request, migration_id: str):
     try:
         MigrationService.delete_migration(migration_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:

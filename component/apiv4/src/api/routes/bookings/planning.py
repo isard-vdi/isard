@@ -74,10 +74,7 @@ async def get_item_plannings(
 
     try:
         plannings = PlanningService.get_item_plannings(reservable_item_id, start, end)
-        return JSONResponse(
-            content=PlanningListResponse(plannings=plannings).model_dump(mode="json"),
-            status_code=200,
-        )
+        return PlanningListResponse(plannings=plannings)
     except Error:
         raise
     except Exception as e:
@@ -111,12 +108,7 @@ async def delete_planning(
     """
     try:
         PlanningService.delete_planning(plan_id)
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Planning deleted", message_code="item.deleted"
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DeleteResponse(message="Planning deleted", message_code="item.deleted")
     except Error:
         raise
     except Exception as e:

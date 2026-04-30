@@ -54,7 +54,7 @@ async def get_status_bar_notifications(request: Request):
         notification = AdminNotificationService.get_status_bar_notification(
             request.token_payload
         )
-        return JSONResponse(content=notification, status_code=200)
+        return notification
     except Error:
         raise
     except Exception:
@@ -76,13 +76,10 @@ async def get_status_bar_notifications(request: Request):
 async def get_user_notification_displays(request: Request, trigger: str):
 
     try:
-        return JSONResponse(
-            content=NotificationsUserDisplaysTriggerResponse(
-                displays=NotificationService.get_user_trigger_notifications_displays(
-                    request.token_payload, trigger
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return NotificationsUserDisplaysTriggerResponse(
+            displays=NotificationService.get_user_trigger_notifications_displays(
+                request.token_payload, trigger
+            )
         )
     except Error:
         raise
@@ -113,13 +110,10 @@ async def get_user_notification_trigger_display(
 ):
 
     try:
-        return JSONResponse(
-            content=NotificationsUserTriggerDisplayFlatResponse(
-                notifications=NotificationService.get_user_trigger_notifications_flat(
-                    request.token_payload, trigger, display
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return NotificationsUserTriggerDisplayFlatResponse(
+            notifications=NotificationService.get_user_trigger_notifications_flat(
+                request.token_payload, trigger, display
+            )
         )
     except Error:
         raise
@@ -152,13 +146,10 @@ async def get_user_notification_trigger_display_nested(
     request: Request, trigger: str, display: str
 ):
     try:
-        return JSONResponse(
-            content=NotificationsUserTriggerDisplayResponse(
-                notifications=NotificationService.get_user_trigger_notifications(
-                    request.token_payload, trigger, display
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return NotificationsUserTriggerDisplayResponse(
+            notifications=NotificationService.get_user_trigger_notifications(
+                request.token_payload, trigger, display
+            )
         )
     except Error:
         raise
@@ -181,12 +172,9 @@ async def get_user_notification_trigger_display_nested(
 async def delete_expired_user_notifications_data(request: Request):
     try:
         NotificationService.delete_expired_notifications_data()
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Expired notifications data deleted",
-                message_code="item.deleted",
-            ).model_dump(mode="json"),
-            status_code=200,
+        return DeleteResponse(
+            message="Expired notifications data deleted",
+            message_code="item.deleted",
         )
     except Error:
         raise

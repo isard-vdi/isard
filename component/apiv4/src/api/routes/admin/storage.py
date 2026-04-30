@@ -48,7 +48,7 @@ tag = "admin_storage"
 async def admin_storage_status(request: Request):
     try:
         result = AdminStorageService.get_storage_status(request.token_payload)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -75,7 +75,7 @@ async def admin_storage_status(request: Request):
 async def admin_storage_list(request: Request):
     try:
         result = AdminStorageService.get_storages(request.token_payload)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -104,7 +104,7 @@ async def admin_storage_list_filtered(
             request.token_payload,
             categories=data.categories,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -130,7 +130,7 @@ async def admin_storage_by_status(
 ):
     try:
         result = AdminStorageService.get_storages(request.token_payload, status=status)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -160,7 +160,7 @@ async def admin_storage_by_status_filtered(
             status=status,
             categories=data.categories,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -196,7 +196,7 @@ async def admin_storage_domains(
         result = AdminStorageService.get_storage_domains(
             request.token_payload, storage_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -227,7 +227,7 @@ async def admin_media_domains(
         result = AdminStorageService.get_media_domains(
             request.token_payload, storage_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -261,10 +261,7 @@ async def admin_storage_delete(
 ):
     try:
         AdminStorageService.delete_storage(storage_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -293,7 +290,7 @@ async def admin_storage_info(
 ):
     try:
         result = AdminStorageService.get_storage_info(request.token_payload, storage_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -324,7 +321,7 @@ async def admin_storage_search_info(
         result = AdminStorageService.get_storage_search_info(
             request.token_payload, storage_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -357,7 +354,7 @@ async def admin_storage_by_role(
 ):
     try:
         result = AdminStorageService.get_storages_by_role(role)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

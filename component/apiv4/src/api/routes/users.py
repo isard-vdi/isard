@@ -20,6 +20,7 @@
 
 import traceback
 from io import BytesIO
+from typing import Literal
 
 from api import (
     advanced_router,
@@ -164,11 +165,8 @@ async def register_user(register_post_data: RegisterPostData, request: Request):
 )
 async def get_user_password_policy(request: Request):
     try:
-        return JSONResponse(
-            UsersService.get_user_password_policy(
-                user_id=request.token_payload["user_id"],
-            ),
-            status_code=200,
+        return UsersService.get_user_password_policy(
+            user_id=request.token_payload["user_id"],
         )
     except Error:
         raise
@@ -257,10 +255,7 @@ async def get_allowed_hardware(request: Request):
         allowed_hardware = UsersService.get_allowed_hardware(
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(
-            UserAllowedHardwareResponse(**allowed_hardware).model_dump(mode="json"),
-            status_code=200,
-        )
+        return UserAllowedHardwareResponse(**allowed_hardware)
     except Error:
         raise
     except Exception as e:
@@ -293,10 +288,7 @@ async def get_allowed_hardware_for_domain(request: Request, domain_id: str):
             user_id=request.token_payload["user_id"],
             domain_id=domain_id,
         )
-        return JSONResponse(
-            UserAllowedHardwareResponse(**allowed_hardware).model_dump(mode="json"),
-            status_code=200,
-        )
+        return UserAllowedHardwareResponse(**allowed_hardware)
     except Error:
         raise
     except Exception:
@@ -321,13 +313,10 @@ async def get_allowed_hardware_for_domain(request: Request, domain_id: str):
 )
 async def get_all_users(request: Request):
     try:
-        return JSONResponse(
-            CommonUsers.get_with_category(
-                request.token_payload["category_id"]
-                if request.token_payload["role_id"] != "admin"
-                else None
-            ),
-            status_code=200,
+        return CommonUsers.get_with_category(
+            request.token_payload["category_id"]
+            if request.token_payload["role_id"] != "admin"
+            else None
         )
     except Error:
         raise
@@ -354,13 +343,10 @@ async def get_all_users(request: Request):
 )
 async def get_all_groups(request: Request):
     try:
-        return JSONResponse(
-            CommonGroups.get_with_category(
-                request.token_payload["category_id"]
-                if request.token_payload["role_id"] != "admin"
-                else None
-            ),
-            status_code=200,
+        return CommonGroups.get_with_category(
+            request.token_payload["category_id"]
+            if request.token_payload["role_id"] != "admin"
+            else None
         )
     except Error:
         raise
@@ -382,13 +368,10 @@ async def get_all_groups(request: Request):
 )
 async def get_user(request: Request):
     try:
-        return JSONResponse(
-            content=UserResponse(
-                **UsersService.get_user_info(
-                    request.token_payload["user_id"],
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserResponse(
+            **UsersService.get_user_info(
+                request.token_payload["user_id"],
+            )
         )
     except Error:
         raise
@@ -414,13 +397,10 @@ async def get_user_details(request: Request):
         # generated apiv4 client cannot handle JSON null on $ref fields
         # (UserStorageModel.from_dict(None) crashes with TypeError),
         # but it does handle the field being absent (treated as UNSET).
-        return JSONResponse(
-            content=UserDetailsResponse(
-                **UsersService.get_user_details(
-                    request.token_payload["user_id"],
-                )
-            ).model_dump(mode="json", exclude_none=True),
-            status_code=200,
+        return UserDetailsResponse(
+            **UsersService.get_user_details(
+                request.token_payload["user_id"],
+            )
         )
     except Error:
         raise
@@ -442,13 +422,10 @@ async def get_user_details(request: Request):
 )
 async def get_user_quotas(request: Request):
     try:
-        return JSONResponse(
-            content=UserQuotaResponse(
-                **UsersService.get_user_quotas(
-                    request.token_payload["user_id"],
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserQuotaResponse(
+            **UsersService.get_user_quotas(
+                request.token_payload["user_id"],
+            )
         )
     except Error:
         raise
@@ -470,11 +447,8 @@ async def get_user_quotas(request: Request):
 )
 async def get_user_config(request: Request):
     try:
-        return JSONResponse(
-            UserConfigResponse(
-                **UsersService.get_user_config(request.token_payload),
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserConfigResponse(
+            **UsersService.get_user_config(request.token_payload),
         )
     except Error:
         raise
@@ -504,12 +478,7 @@ async def set_user_language(request: Request, data: UserSetLangPutData):
         UsersService.set_user_language(
             user_id=request.token_payload["user_id"], lang=data.lang
         )
-        return JSONResponse(
-            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return SimpleResponse(id=request.token_payload["user_id"])
     except Error:
         raise
     except Exception as e:
@@ -538,12 +507,7 @@ async def set_user_email(request: Request, data: UserSetEmailPutData):
         UsersService.set_user_email(
             user_id=request.token_payload["user_id"], email=data.email
         )
-        return JSONResponse(
-            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return SimpleResponse(id=request.token_payload["user_id"])
     except Error:
         raise
     except Exception as e:
@@ -569,13 +533,8 @@ async def set_user_email(request: Request, data: UserSetEmailPutData):
 )
 async def get_user_api_key(request: Request):
     try:
-        return JSONResponse(
-            content=UserAPIKeyResponse(
-                **UsersService.get_user_api_key(
-                    user_id=request.token_payload["user_id"]
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserAPIKeyResponse(
+            **UsersService.get_user_api_key(user_id=request.token_payload["user_id"])
         )
     except Error:
         raise
@@ -603,7 +562,7 @@ async def expire_user_api_key(request: Request):
     try:
         UsersService.delete_user_api_key(user_id=request.token_payload["user_id"])
 
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -634,12 +593,7 @@ async def set_user_password(request: Request, data: UserSetPasswordPutData):
             new_password=data.password,
             current_password=data.current_password,
         )
-        return JSONResponse(
-            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return SimpleResponse(id=request.token_payload["user_id"])
     except Error:
         raise
     except Exception as e:
@@ -667,7 +621,7 @@ async def delete_user(request: Request):
         UsersService.delete_user(
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -696,7 +650,7 @@ async def get_user_desktops(request: Request):
         desktops = UsersService.get_user_desktops(
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(content=desktops, status_code=200)
+        return desktops
     except Error:
         raise
     except Exception as e:
@@ -726,10 +680,7 @@ async def get_user_desktop(request: Request, desktop_id: str):
             desktop_id=desktop_id,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(
-            content=UserDesktop(**desktop).model_dump(mode="json"),
-            status_code=200,
-        )
+        return UserDesktop(**desktop)
     except Error:
         raise
     except Exception as e:
@@ -752,17 +703,16 @@ async def get_user_desktop(request: Request, desktop_id: str):
     },
     response_model=UserVpnData,
 )
-async def get_user_vpn_with_os(request: Request, kind: str, os: str):
+async def get_user_vpn_with_os(
+    request: Request, kind: Literal["config", "install"], os: str
+):
     try:
         vpn_data = UsersService.get_user_vpn_data(
             kind=kind,
             os=os,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(
-            content=UserVpnData(**vpn_data).model_dump(mode="json"),
-            status_code=200,
-        )
+        return UserVpnData(**vpn_data)
     except Error:
         raise
     except Exception as e:
@@ -787,22 +737,14 @@ async def get_user_vpn_with_os(request: Request, kind: str, os: str):
     },
     response_model=UserVpnData,
 )
-async def get_user_vpn(request: Request, kind: str):
+async def get_user_vpn(request: Request, kind: Literal["config"]):
     try:
-        if kind != "config":
-            raise Error(
-                "bad_request",
-                "User VPN incorrect data",
-            )
         vpn_data = UsersService.get_user_vpn_data(
             kind=kind,
             os=False,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(
-            content=UserVpnData(**vpn_data).model_dump(mode="json"),
-            status_code=200,
-        )
+        return UserVpnData(**vpn_data)
     except Error:
         raise
     except Exception as e:
@@ -829,7 +771,7 @@ async def get_webapp_desktops(request: Request):
         desktops = UsersService.get_webapp_desktops(
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(content=desktops, status_code=200)
+        return desktops
     except Error:
         raise
     except Exception as e:
@@ -856,7 +798,7 @@ async def get_webapp_templates(request: Request):
         templates = UsersService.get_webapp_templates(
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(content=templates, status_code=200)
+        return templates
     except Error:
         raise
     except Exception as e:
@@ -885,10 +827,7 @@ async def groups_users_count(request: Request, data: GroupsUsersCountPutData):
             groups=data.groups,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(
-            content=GroupsUsersCountResponse(quantity=quantity).model_dump(mode="json"),
-            status_code=200,
-        )
+        return GroupsUsersCountResponse(quantity=quantity)
     except Error:
         raise
     except Exception as e:
@@ -911,13 +850,29 @@ async def groups_users_count(request: Request, data: GroupsUsersCountPutData):
         500: {"description": "Failed to retrieve hardware kind allowed"},
     },
 )
-async def get_hardware_kind_allowed(request: Request, kind: str):
+async def get_hardware_kind_allowed(
+    request: Request,
+    kind: Literal[
+        "interfaces",
+        "graphics",
+        "videos",
+        "boot_order",
+        "qos_id",
+        "reservables",
+        "forced_hyp",
+        "favourite_hyp",
+        "quota",
+        "isos",
+        "floppies",
+        "disk_bus",
+    ],
+):
     try:
         result = UsersService.get_hardware_kind_allowed(
             user_id=request.token_payload["user_id"],
             kind=kind,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -945,7 +900,7 @@ async def get_user_applied_quota(request: Request):
         applied_quota = UsersService.get_applied_quota(
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(content=applied_quota, status_code=200)
+        return applied_quota
     except Error:
         raise
     except Exception as e:
@@ -972,7 +927,7 @@ async def get_bastion_allowed(request: Request):
         result = UsersService.get_bastion_allowed(
             payload=request.token_payload,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1029,7 +984,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 role_id=payload.get("role_id"),
                 connection_ip=body.ip,
             )
-            return JSONResponse(content=EmptyResponse().model_dump(), status_code=200)
+            return EmptyResponse()
 
         # Variant 2: guess_ip in body → lookup by guest_ip index.
         if body.ip:
@@ -1039,7 +994,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 role_id=payload.get("role_id"),
                 guess_ip=body.ip,
             )
-            return JSONResponse(content=EmptyResponse().model_dump(), status_code=200)
+            return EmptyResponse()
 
         # Variant 3: proxy_video + proxy_hyper_host + port → proxies index.
         if not body.proxy_video or not body.proxy_hyper_host or not body.port:
@@ -1057,7 +1012,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
             proxy_hyper_host=body.proxy_hyper_host,
             port=body.port,
         )
-        return JSONResponse(content=EmptyResponse().model_dump(), status_code=200)
+        return EmptyResponse()
     except Error:
         raise
     except Exception:

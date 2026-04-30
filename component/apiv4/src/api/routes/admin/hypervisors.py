@@ -67,10 +67,7 @@ async def admin_hypervisors_list(
 ):
     try:
         result = AdminHypervisorsService.get_hypervisors(status)
-        return JSONResponse(
-            content=[AdminHypervisor(**h).model_dump(mode="json") for h in result],
-            status_code=200,
-        )
+        return [AdminHypervisor(**h) for h in result]
     except Error:
         raise
     except Exception as e:
@@ -100,7 +97,7 @@ async def admin_hypervisors_list_by_status(
 ):
     try:
         result = AdminHypervisorsService.get_hypervisors(status)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -131,7 +128,7 @@ async def admin_hypervisor_status(
 ):
     try:
         result = AdminHypervisorsService.get_hyper_status(hyper_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -164,7 +161,7 @@ async def admin_hypervisor_create(
 ):
     try:
         result = AdminHypervisorsService.create_or_update_hypervisor(data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -201,7 +198,7 @@ async def admin_hypervisor_enable(
                 hyper_id, data.numa_topology
             )
         result = AdminHypervisorsService.enable_hyper(hyper_id, data.enabled)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -234,10 +231,7 @@ async def admin_hypervisor_delete(
 ):
     try:
         AdminHypervisorsService.remove_hyper(hyper_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -268,10 +262,7 @@ async def admin_hypervisor_stop_domains(
 ):
     try:
         AdminHypervisorsService.stop_hyper_domains(hyper_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -302,7 +293,7 @@ async def admin_hypervisor_vpn(
 ):
     try:
         result = AdminHypervisorsService.get_hypervisor_vpn(hyper_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -334,7 +325,7 @@ async def admin_hypervisor_wg_addr(
 ):
     try:
         result = AdminHypervisorsService.update_wg_address(data.mac, data.ip)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -364,7 +355,7 @@ async def admin_hypervisor_media_found(
 ):
     try:
         AdminHypervisorsService.update_media_found(data.medias)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -391,7 +382,7 @@ async def admin_hypervisor_disks_found(
 ):
     try:
         AdminHypervisorsService.update_disks_found(data.disks)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -418,7 +409,7 @@ async def admin_hypervisor_media_delete(
 ):
     try:
         AdminHypervisorsService.delete_media(data.medias_paths)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -447,7 +438,7 @@ async def admin_hypervisors_assign_gpus(
 ):
     try:
         AdminHypervisorsService.assign_gpus()
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -477,12 +468,7 @@ async def admin_orchestrator_hypervisors_list(
 ):
     try:
         result = AdminHypervisorsService.get_orchestrator_hypervisors()
-        return JSONResponse(
-            content=[
-                OrchestratorHypervisor(**h).model_dump(mode="json") for h in result
-            ],
-            status_code=200,
-        )
+        return [OrchestratorHypervisor(**h) for h in result]
     except Error:
         raise
     except Exception as e:
@@ -513,10 +499,7 @@ async def admin_orchestrator_hypervisor_get(
         result = AdminHypervisorsService.get_orchestrator_hypervisors(
             hyp_id=hypervisor_id
         )
-        return JSONResponse(
-            content=OrchestratorHypervisor(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return OrchestratorHypervisor(**result)
     except Error:
         raise
     except Exception as e:
@@ -546,13 +529,7 @@ async def admin_orchestrator_managed_list(
 ):
     try:
         result = AdminHypervisorsService.get_orchestrator_managed_hypervisors()
-        return JSONResponse(
-            content=[
-                OrchestratorManagedHypervisor(**h).model_dump(mode="json")
-                for h in result
-            ],
-            status_code=200,
-        )
+        return [OrchestratorManagedHypervisor(**h) for h in result]
     except Error:
         raise
     except Exception as e:
@@ -585,10 +562,7 @@ async def admin_orchestrator_dead_row_set(
 ):
     try:
         result = AdminHypervisorsService.set_hyper_deadrow_time(hypervisor_id)
-        return JSONResponse(
-            content=DeadRowSetResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DeadRowSetResponse(**result)
     except Error:
         raise
     except Exception as e:
@@ -618,10 +592,7 @@ async def admin_orchestrator_dead_row_reset(
 ):
     try:
         AdminHypervisorsService.set_hyper_deadrow_time(hypervisor_id, reset=True)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -652,10 +623,7 @@ async def admin_orchestrator_stop_desktops(
 ):
     try:
         AdminHypervisorsService.stop_hyper_domains(hypervisor_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -687,10 +655,7 @@ async def admin_orchestrator_manage_set(
 ):
     try:
         AdminHypervisorsService.set_hyper_orchestrator_managed(hypervisor_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -721,10 +686,7 @@ async def admin_orchestrator_manage_unset(
         AdminHypervisorsService.set_hyper_orchestrator_managed(
             hypervisor_id, reset=True
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -755,7 +717,7 @@ async def admin_hypervisor_virt_pools_get(
 ):
     try:
         result = AdminHypervisorsService.get_hyper_virt_pools(hyper_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -786,10 +748,7 @@ async def admin_hypervisor_virt_pools_update(
 ):
     try:
         AdminHypervisorsService.update_hyper_virt_pools(hyper_id, data.model_dump())
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -820,7 +779,7 @@ async def admin_hypervisor_mountpoints(
 ):
     try:
         result = AdminHypervisorsService.get_hyper_mountpoints(hyper_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -851,7 +810,7 @@ async def admin_hypervisor_started_domains(
 ):
     try:
         result = AdminHypervisorsService.get_hyper_started_domains(hyper_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -873,7 +832,7 @@ async def admin_hypervisor_started_domains(
 async def admin_register_vlans(request: Request, data: AdminRegisterVlansRequest):
     try:
         await asyncio.to_thread(AdminHypervisorsService.register_vlans, data.vlans)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -903,7 +862,7 @@ async def admin_hypervisor_boot_progress(
             hyper_id,
             data.boot_progress,
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

@@ -64,7 +64,7 @@ async def admin_backups_list(request: Request):
             except (TypeError, ValueError):
                 raise Error("bad_request", "limit must be an integer")
             result = AdminBackupsService.list_backups(limit=limit)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -94,7 +94,7 @@ async def admin_backups_list(request: Request):
 async def admin_backup_integrity_get(request: Request):
     try:
         result = {"integrity_enabled": AdminBackupsService.get_integrity_enabled()}
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -125,7 +125,7 @@ async def admin_backup_integrity_set(
 ):
     try:
         result = AdminBackupsService.set_integrity_enabled(data.integrity_enabled)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -149,7 +149,7 @@ async def admin_backup_integrity_set(
 async def admin_backup_config(request: Request):
     try:
         result = AdminBackupsService.get_backup_config()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -177,7 +177,7 @@ async def admin_backup_get(
 ):
     try:
         result = AdminBackupsService.get_backup(backup_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -219,7 +219,7 @@ async def admin_backup_report(
         if request.token_payload.get("session_id") != "isardvdi-service":
             raise Error("forbidden", "Service token required.")
         result = AdminBackupsService.insert_backup(data.model_dump(exclude_none=True))
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

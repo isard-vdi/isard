@@ -38,7 +38,7 @@ async def admin_notify_user_desktop(request: Request, data: NotifyUserDesktopReq
         AdminNotifyService.notify_user_desktop(
             data.user_id, data.type, data.msg_code, data.params
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -63,7 +63,7 @@ async def admin_notify_desktop(request: Request, data: NotifyDesktopRequest):
         AdminNotifyService.notify_desktop(
             data.desktop_id, data.type, data.msg_code, data.params
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -93,7 +93,7 @@ async def admin_notify_desktop_queue(
 ):
     try:
         AdminNotifyService.notify_desktop_queue(data.root, hyp_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

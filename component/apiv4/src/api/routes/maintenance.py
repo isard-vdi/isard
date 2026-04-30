@@ -50,12 +50,7 @@ tag = "maintenance"
 )
 async def maintenance_status(request: Request):
     try:
-        return JSONResponse(
-            content=MaintenanceStatusResponse(
-                enabled=MaintenanceService.is_enabled()
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
+        return MaintenanceStatusResponse(enabled=MaintenanceService.is_enabled())
     except Error:
         raise
     except Exception as e:
@@ -79,10 +74,7 @@ async def get_maintenance_text_frontend(request: Request):
     try:
         if MaintenanceService.is_enabled():
             text = MaintenanceService.get_text()
-            return JSONResponse(
-                content=MaintenanceTextResponse(**text).model_dump(mode="json"),
-                status_code=200,
-            )
+            return MaintenanceTextResponse(**text)
         else:
             return Response(status_code=204)
     except Error:
@@ -109,22 +101,12 @@ async def get_maintenance(request: Request):
     try:
         if request.token_payload["role_id"] == "admin":
             # Admins should not be affected by maintenance
-            return JSONResponse(
-                content=MaintenanceStatusResponse(enabled=False).model_dump(
-                    mode="json"
-                ),
-                status_code=200,
-            )
+            return MaintenanceStatusResponse(enabled=False)
         status = MaintenanceService.is_enabled()
         category_status = MaintenanceService.get_category_status(
             request.token_payload["category_id"]
         )
-        return JSONResponse(
-            content=MaintenanceStatusResponse(
-                enabled=status or category_status
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
+        return MaintenanceStatusResponse(enabled=status or category_status)
     except Error:
         raise
     except Exception as e:
@@ -147,10 +129,7 @@ async def get_maintenance(request: Request):
 async def get_maintenance_text(request: Request):
     try:
         text = MaintenanceService.get_text()
-        return JSONResponse(
-            content=MaintenanceTextGetResponse(text=text).model_dump(mode="json"),
-            status_code=200,
-        )
+        return MaintenanceTextGetResponse(text=text)
     except Error:
         raise
     except Exception as e:
@@ -174,12 +153,7 @@ async def get_category_maintenance(request: Request, category_id: str):
     try:
         global_status = MaintenanceService.is_enabled()
         category_status = MaintenanceService.get_category_status(category_id)
-        return JSONResponse(
-            content=MaintenanceStatusResponse(
-                enabled=global_status or category_status
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
+        return MaintenanceStatusResponse(enabled=global_status or category_status)
     except Error:
         raise
     except Exception as e:
@@ -208,12 +182,7 @@ async def update_maintenance(
 ):
     try:
         MaintenanceService.set_enabled(status.enabled)
-        return JSONResponse(
-            content=MaintenanceStatusResponse(
-                enabled=MaintenanceService.is_enabled()
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
+        return MaintenanceStatusResponse(enabled=MaintenanceService.is_enabled())
     except Error:
         raise
     except Exception as e:
@@ -239,9 +208,7 @@ async def update_maintenance_text(
 ):
     try:
         MaintenanceService.update_text(text)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"), status_code=200
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:

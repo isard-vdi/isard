@@ -490,23 +490,38 @@ def test_analytics_desktops_less_used_serialises_datetime(
 
 @pytest.mark.real
 @pytest.mark.parametrize(
-    "path",
+    "method,path",
     [
-        "/api/v4/admin/users/bogus/users",
-        "/api/v4/admin/users/bogus/groups",
-        "/api/v4/admin/users/bogus/categories",
-        "/api/v4/admin/quota/bogus",
-        "/api/v4/admin/hypervisors/bogus",
+        # Phase 1 (already converted): nav / quota kind / hypervisor status
+        ("GET", "/api/v4/admin/users/bogus/users"),
+        ("GET", "/api/v4/admin/users/bogus/groups"),
+        ("GET", "/api/v4/admin/users/bogus/categories"),
+        ("GET", "/api/v4/admin/quota/bogus"),
+        ("GET", "/api/v4/admin/hypervisors/bogus"),
+        # Phase 2 (Literal sweep batch 2): vpn / users vpn / users hardware /
+        # admin user vpn / admin logs action / viewer / provider / table
+        ("DELETE", "/api/v4/admin/vpn_connection/bogus"),
+        ("GET", "/api/v4/item/user/vpn/bogus"),
+        ("GET", "/api/v4/item/user/vpn/bogus/linux"),
+        ("GET", "/api/v4/item/user/hardware/bogus/allowed"),
+        ("GET", "/api/v4/admin/user/00000000-0000-0000-0000-000000000000/vpn/bogus"),
+        ("PUT", "/api/v4/logs_desktops/config/old_entries/action/bogus"),
+        ("PUT", "/api/v4/logs_users/config/old_entries/action/bogus"),
+        ("PUT", "/api/v4/admin/viewers-config/reset/bogus"),
+        ("GET", "/api/v4/authentication/provider/bogus"),
+        ("POST", "/api/v4/admin/allowed/term/bogus"),
+        ("POST", "/api/v4/admin/allowed/update/bogus"),
     ],
 )
-def test_literal_path_param_rejects_invalid(admin_client: IsardClient, path: str):
-    """Invalid values for ``Literal``-typed path params (nav, quota
-    kind, hypervisor status) must 4xx with a structured validation
-    error, NOT 500. Pins that the route layer now does the
-    enumeration check (was a manual service-side block before)."""
-    resp = admin_client.raw("GET", path)
+def test_literal_path_param_rejects_invalid(
+    admin_client: IsardClient, method: str, path: str
+):
+    """Invalid values for ``Literal``-typed path params must 4xx with a
+    structured validation error, NOT 500. Pins that the route layer now
+    does the enumeration check (was manual service-side blocks before)."""
+    resp = admin_client.raw(method, path)
     assert resp.status_code in (400, 422), (
-        f"{path}: expected 400 or 422 (literal validation), "
+        f"{method} {path}: expected 400 or 422 (literal validation), "
         f"got {resp.status_code}; body={resp.text[:200]}"
     )
     body = resp.json()

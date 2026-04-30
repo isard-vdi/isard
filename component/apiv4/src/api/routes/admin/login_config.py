@@ -56,7 +56,7 @@ tag = "admin-login-config"
 async def admin_login_config_get(request: Request):
     try:
         result = AdminCategoryService.admin_get_login_config()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -90,7 +90,7 @@ async def admin_login_config_by_category(
 ):
     try:
         result = AdminCategoryService.admin_get_login_config(category_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -137,7 +137,7 @@ async def admin_login_notification_update(
                         # so admins see "bad URL" instead of generic 500.
                         raise Error("bad_request", str(e))
         AdminLoginConfigService.update_login_notification(dump)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -165,7 +165,7 @@ async def admin_login_notification_cover_enable(
 ):
     try:
         AdminLoginConfigService.enable_login_notification("cover", data.enabled)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -193,7 +193,7 @@ async def admin_login_notification_form_enable(
 ):
     try:
         AdminLoginConfigService.enable_login_notification("form", data.enabled)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

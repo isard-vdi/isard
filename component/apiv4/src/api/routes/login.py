@@ -50,10 +50,7 @@ async def api_v4_categories(request: Request):
     try:
         domain = request.headers.get("host")
         categories = CategoryService.get_categories_frontend(domain=domain)
-        return JSONResponse(
-            content=CategoryResponseList(categories=categories).model_dump(mode="json"),
-            status_code=200,
-        )
+        return CategoryResponseList(categories=categories)
     except Error:
         raise
     except Exception as e:
@@ -80,10 +77,7 @@ async def api_v4_category(custom_url: str, request: Request):
     try:
         domain = request.headers.get("host")
         category = CategoryService.get_category_by_custom_url(custom_url, domain=domain)
-        return JSONResponse(
-            content=CategoryResponse(**category).model_dump(mode="json"),
-            status_code=200,
-        )
+        return CategoryResponse(**category)
     except Error:
         raise
     except Exception as e:
@@ -108,10 +102,7 @@ async def api_v4_category(custom_url: str, request: Request):
 async def api_v4_login_config(request: Request):
     try:
         config = ConfigService.get_login_config()
-        return JSONResponse(
-            content=LoginConfigResponse(**config).model_dump(mode="json"),
-            status_code=200,
-        )
+        return LoginConfigResponse(**config)
     except Error:
         raise
     except Exception as e:
@@ -135,10 +126,7 @@ async def api_v4_disclaimer(request: Request):
         disclaimer = NotificationsTemplatesService.get_disclaimer(
             user_id=request.token_payload["user_id"]
         )
-        return JSONResponse(
-            content=DisclaimerResponse(**disclaimer).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DisclaimerResponse(**disclaimer)
     except Error:
         raise
     except Exception as e:

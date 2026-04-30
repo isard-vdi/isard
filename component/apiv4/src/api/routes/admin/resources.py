@@ -55,7 +55,7 @@ async def admin_remote_vpn_with_os(
 ):
     try:
         result = AdminResourcesService.get_remote_vpn(vpn_id, kind, os)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -84,7 +84,7 @@ async def admin_remote_vpn(
 ):
     try:
         result = AdminResourcesService.get_remote_vpn(vpn_id, kind)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -119,10 +119,7 @@ async def admin_qos_disk_add(
 ):
     try:
         AdminResourcesService.add_qos_disk(data.model_dump(exclude_none=True))
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -152,10 +149,7 @@ async def admin_qos_disk_update(
 ):
     try:
         AdminResourcesService.update_qos_disk(data.model_dump(exclude_none=True))
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:

@@ -74,11 +74,8 @@ tag = "templates"
 )
 async def get_template_info(template_id: str, request: Request):
     try:
-        return JSONResponse(
-            content=DomainInfoResponse(
-                **DomainService.get_domain_info(template_id, request.token_payload)
-            ).model_dump(mode="json"),
-            status_code=200,
+        return DomainInfoResponse(
+            **DomainService.get_domain_info(template_id, request.token_payload)
         )
     except Error:
         raise
@@ -111,10 +108,7 @@ async def get_template_details(
 ):
     try:
         info = TemplateService.get_template_details(template_id)
-        return JSONResponse(
-            content=TemplateDetailsResponse(**info).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TemplateDetailsResponse(**info)
     except Error:
         raise
     except Exception as e:
@@ -153,7 +147,7 @@ async def get_user_allowed_templates_flat(request: Request, kind: str):
         templates = TemplateService.get_user_allowed_templates_flat(
             request.token_payload, kind
         )
-        return JSONResponse(content=templates, status_code=200)
+        return templates
     except Error:
         raise
     except Exception:
@@ -181,13 +175,10 @@ async def get_user_templates(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=UserTemplatesResponse(
-                templates=TemplateService.get_user_templates(
-                    user_id=request.token_payload["user_id"]
-                ),
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserTemplatesResponse(
+            templates=TemplateService.get_user_templates(
+                user_id=request.token_payload["user_id"]
+            ),
         )
     except Error:
         raise
@@ -266,12 +257,7 @@ async def get_user_templates(
             search_field=search_field,
             filters=filter_dict,
         )
-        return JSONResponse(
-            content=UserTemplatesPaginationResponse(**user_templates).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return UserTemplatesPaginationResponse(**user_templates)
     except Error:
         raise
     except Exception as e:
@@ -298,10 +284,7 @@ async def get_all_templates(request: Request):
     try:
         templates = TemplateService.get_all_templates()
 
-        return JSONResponse(
-            content={"templates": templates},
-            status_code=200,
-        )
+        return {"templates": templates}
     except Error:
         raise
     except Exception as e:
@@ -328,13 +311,8 @@ async def get_user_shared_templates(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=UserSharedTemplatesResponse(
-                templates=TemplateService.get_user_shared_templates(
-                    request.token_payload
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserSharedTemplatesResponse(
+            templates=TemplateService.get_user_shared_templates(request.token_payload)
         )
     except Error:
         raise
@@ -365,13 +343,10 @@ async def get_user_shared_templates(
 )
 async def get_template_allowed(template_id: str, request: Request):
     try:
-        return JSONResponse(
-            content=AllowedResponse(
-                **TemplateService.get_template_allowed(
-                    template_id, request.token_payload["category_id"]
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return AllowedResponse(
+            **TemplateService.get_template_allowed(
+                template_id, request.token_payload["category_id"]
+            )
         )
     except Error:
         raise
@@ -400,10 +375,7 @@ async def update_template_allowed(
 ):
     try:
         TemplateService.update_template_allowed(template_id, allowed)
-        return JSONResponse(
-            content=SimpleResponse(id=template_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=template_id)
     except Error:
         raise
     except Exception as e:
@@ -480,12 +452,7 @@ async def get_user_allowed_templates(
             search=search,
             search_field=search_field,
         )
-        return JSONResponse(
-            content=UserAllowedTemplatesPaginationResponse(**user_templates).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return UserAllowedTemplatesPaginationResponse(**user_templates)
     except Error:
         raise
     except Exception as e:
@@ -517,10 +484,7 @@ async def update_template(
             template_id, data.model_dump(), request.token_payload
         )
 
-        return JSONResponse(
-            content=SimpleResponse(id=template_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=template_id)
     except Error:
         raise
     except Exception as e:
@@ -559,10 +523,7 @@ async def change_template_owner(
             template_id=template_id,
             new_user_id=user_id,
         )
-        return JSONResponse(
-            content=SimpleResponse(id=template_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=template_id)
     except Error:
         raise
     except Exception:
@@ -598,10 +559,7 @@ async def set_template_enabled(
 ):
     try:
         TemplateService.set_enabled(template_id, data.enabled, request.token_payload)
-        return JSONResponse(
-            content=SimpleResponse(id=template_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=template_id)
     except Error:
         raise
     except Exception:
@@ -629,14 +587,11 @@ async def get_template_tree(
     template_id: str,
 ):
     try:
-        return JSONResponse(
-            content=TemplateTreeResponse(
-                **TemplateService.get_template_tree(
-                    template_id,
-                    request.token_payload,
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return TemplateTreeResponse(
+            **TemplateService.get_template_tree(
+                template_id,
+                request.token_payload,
+            )
         )
     except Error:
         raise
@@ -666,14 +621,11 @@ async def create_template(
     data: NewTemplateRequest,
 ):
     try:
-        return JSONResponse(
-            content=SimpleResponse(
-                id=TemplateService.create_template(
-                    request.token_payload,
-                    data.model_dump(),
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return SimpleResponse(
+            id=TemplateService.create_template(
+                request.token_payload,
+                data.model_dump(),
+            )
         )
     except Error:
         raise
@@ -704,15 +656,12 @@ async def duplicate_template(
     data: DuplicateTemplateRequest,
 ):
     try:
-        return JSONResponse(
-            content=SimpleResponse(
-                id=TemplateService.duplicate_template(
-                    request.token_payload,
-                    template_id,
-                    data.model_dump(),
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return SimpleResponse(
+            id=TemplateService.duplicate_template(
+                request.token_payload,
+                template_id,
+                data.model_dump(),
+            )
         )
     except Error:
         raise
@@ -747,11 +696,8 @@ async def delete_template(request: Request, template_id: str):
     try:
         tasks = TemplateService.delete_template(request.token_payload, template_id)
         if tasks is None:
-            return JSONResponse(
-                content=DeleteResponse(
-                    message="Item sent to recycle bin", message_code="item.recycled"
-                ).model_dump(mode="json"),
-                status_code=200,
+            return DeleteResponse(
+                message="Item sent to recycle bin", message_code="item.recycled"
             )
         else:
             return JSONResponse(
@@ -800,10 +746,7 @@ async def convert_template_to_desktop(
         TemplateService.convert_to_desktop(
             request.token_payload, template_id, data.name
         )
-        return JSONResponse(
-            content=SimpleResponse(id=template_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=template_id)
     except Error:
         raise
     except Exception:
@@ -832,10 +775,7 @@ async def toggle_template_enabled(
 ):
     try:
         TemplateService.toggle_enabled(template_id)
-        return JSONResponse(
-            content=SimpleResponse(id=template_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=template_id)
     except Error:
         raise
     except Exception:

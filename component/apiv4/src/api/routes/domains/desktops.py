@@ -108,10 +108,7 @@ async def create_nonpersistent_desktop(
             payload=request.token_payload,
             template_id=data.template_id,
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception:
@@ -153,10 +150,7 @@ async def create_desktop(request: Request, data: CreateDesktopRequest):
         desktop_id = DesktopService.create_desktop(
             user_id=request.token_payload["user_id"], data=data
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -187,10 +181,7 @@ async def get_desktop(
 ):
     try:
         desktop = DesktopService.get_desktop(desktop_id)
-        return JSONResponse(
-            content=Desktop(**desktop).model_dump(mode="json"),
-            status_code=200,
-        )
+        return Desktop(**desktop)
     except Error:
         raise
     except Exception as e:
@@ -221,11 +212,8 @@ async def get_desktop_networks(
 ):
     try:
         networks = DesktopService.get_desktop_networks(desktop_id)
-        return JSONResponse(
-            content=DesktopNetworksResponse(
-                networks=networks,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return DesktopNetworksResponse(
+            networks=networks,
         )
     except Error:
         raise
@@ -257,10 +245,7 @@ async def get_desktop_info(
 ):
     try:
         info = DesktopService.get_desktop_details(desktop_id)
-        return JSONResponse(
-            content=DesktopDetailsResponse(**info).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DesktopDetailsResponse(**info)
     except Error:
         raise
     except Exception as e:
@@ -299,10 +284,7 @@ async def get_desktop_bastion(
 ):
     try:
         bastion = DesktopService.get_desktop_bastion(desktop_id)
-        return JSONResponse(
-            content=DesktopBastionResponse(**bastion).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DesktopBastionResponse(**bastion)
     except Error:
         raise
     except Exception as e:
@@ -337,10 +319,7 @@ async def update_desktop_bastion_authorized_keys(
 ):
     try:
         DesktopService.update_desktop_bastion_authorized_keys(desktop_id, data)
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -372,10 +351,7 @@ async def extend_desktop_timeout(
 ):
     try:
         DesktopService.extend_desktop_timeout(request.token_payload, desktop_id)
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -409,10 +385,7 @@ async def stop_desktop(
         DesktopService.stop_desktop(
             desktop_id, user_id=request.token_payload["user_id"]
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -437,10 +410,7 @@ async def stop_desktops(desktops_stop_request: DesktopsStopRequest, request: Req
         DesktopService.stop_user_desktops(
             user_id=request.token_payload["user_id"], force=desktops_stop_request.force
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -476,10 +446,7 @@ async def start_desktop(
         DesktopService.start_desktop(
             desktop_id, user_id=request.token_payload["user_id"], request=request
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -509,10 +476,7 @@ async def update_status_desktop(
 ):
     try:
         DesktopService.desktop_update_status(desktop_id)
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -551,10 +515,7 @@ async def change_desktop_owner(
             desktop_id=desktop_id,
             new_user_id=user_id,
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception:
@@ -590,10 +551,7 @@ async def retry_failed_desktop(
         result = DesktopService.retry_failed_desktop(
             desktop_id, user_id=request.token_payload["user_id"]
         )
-        return JSONResponse(
-            content=SimpleResponse(id=result["id"]).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=result["id"])
     except Error:
         raise
     except Exception:
@@ -631,7 +589,7 @@ async def bulk_edit_desktops(request: Request, data: BulkEditDesktopsRequest):
         result = DesktopService.bulk_edit_desktops(
             ids, update_payload, request.token_payload
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -668,7 +626,7 @@ async def bulk_create_persistent_desktops(
         result = DesktopService.bulk_create_persistent_desktops(
             request.token_payload, data.model_dump()
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -701,10 +659,7 @@ async def force_stop_desktop(
         DesktopService.stop_desktop(
             desktop_id, user_id=request.token_payload["user_id"], force=True
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -746,11 +701,8 @@ async def delete_desktop(
             return Response(status_code=204)
         else:
             if tasks is None:
-                return JSONResponse(
-                    content=DeleteResponse(
-                        message="Item sent to recycle bin", message_code="item.recycled"
-                    ).model_dump(mode="json"),
-                    status_code=200,
+                return DeleteResponse(
+                    message="Item sent to recycle bin", message_code="item.recycled"
                 )
             else:
                 return JSONResponse(
@@ -811,10 +763,7 @@ async def get_desktop_images(
 
         images = image_strategies[image_type]()
 
-        return JSONResponse(
-            content=DesktopImagesResponse(images=images).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DesktopImagesResponse(images=images)
     except Error:
         raise
     except Exception:
@@ -880,11 +829,8 @@ async def get_user_desktops(request: Request):
     try:
         user_id = request.token_payload["user_id"]
         user_desktops = DesktopService.get_user_desktops(user_id)
-        return JSONResponse(
-            content=UserDesktopsResponse(
-                desktops=user_desktops,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserDesktopsResponse(
+            desktops=user_desktops,
         )
     except Error:
         raise
@@ -963,10 +909,7 @@ async def get_user_desktops(
             search_field=search_field,
             filters=filter_dict,
         )
-        return JSONResponse(
-            content=DesktopsPaginationResponse(**user_desktops).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DesktopsPaginationResponse(**user_desktops)
     except Error:
         raise
     except Exception as e:
@@ -1021,10 +964,7 @@ async def get_all_desktops(
             search_field=search_field,
             # filters=filter_dict,
         )
-        return JSONResponse(
-            content=DesktopsPaginationResponse(**desktops).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DesktopsPaginationResponse(**desktops)
     except Error:
         raise
     except Exception as e:
@@ -1049,10 +989,7 @@ async def get_all_desktops(
 async def get_domains_allowed_reservables(request: Request):
     try:
         vgpus = DesktopService.get_user_allowed_reservables(request.token_payload)
-        return JSONResponse(
-            content=AllowedReservablesResponse(vgpus=vgpus).model_dump(mode="json"),
-            status_code=200,
-        )
+        return AllowedReservablesResponse(vgpus=vgpus)
     except Error:
         raise
     except Exception:
@@ -1124,10 +1061,7 @@ async def get_desktop_info(
         except Error:
             desktop_data["bastion_target"] = None
 
-        return JSONResponse(
-            content=desktop_data,
-            status_code=200,
-        )
+        return desktop_data
     except Error:
         raise
     except Exception as e:
@@ -1174,10 +1108,7 @@ async def edit_desktop(
         DesktopService.edit_desktop(
             desktop_id, data.model_dump(exclude_unset=True), request.token_payload
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -1218,12 +1149,7 @@ async def get_desktop_viewer(
             request.token_payload["role_id"] == "admin",
             request,
         )
-        return JSONResponse(
-            content=DesktopGetViewerResponse(**connection_string).model_dump(
-                mode="json", exclude_unset=True
-            ),
-            status_code=200,
-        )
+        return DesktopGetViewerResponse(**connection_string)
     except Error:
         raise
     except Exception as e:
@@ -1258,10 +1184,7 @@ async def recreate_desktop(
 ):
     try:
         DesktopService.recreate_desktop(request.token_payload, desktop_id)
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -1296,10 +1219,7 @@ async def update_desktop_bastion_domain(
 ):
     try:
         DesktopService.update_desktop_bastion_domain(desktop_id, data.domain_name)
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception as e:
@@ -1345,10 +1265,7 @@ async def update_desktop_bastion_domains(
             desktop_id=desktop_id,
             domains=data.domains,
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception:
@@ -1394,10 +1311,7 @@ async def verify_desktop_bastion_domain(
             desktop_id=desktop_id,
             domain=data.domain,
         )
-        return JSONResponse(
-            content=BastionDomainVerifyResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return BastionDomainVerifyResponse(**result)
     except Error:
         raise
     except Exception:

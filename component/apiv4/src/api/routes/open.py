@@ -53,7 +53,7 @@ async def api_version():
             isardvdi_version="fastapi",
             usage=os.environ["USAGE"],  # Raises KeyError if missing
         )
-        return JSONResponse(content=response.model_dump(), status_code=200)
+        return response
     except KeyError:
         return JSONResponse(
             content={"error": "USAGE environment variable is missing"},
@@ -208,10 +208,7 @@ async def get_logo(request: Request):
 async def get_login_config_by_category(request: Request, category_id: str):
     try:
         config = AdminCategoryService.get_login_config_for_category(category_id)
-        return JSONResponse(
-            content=LoginConfigResponse(**config).model_dump(mode="json"),
-            status_code=200,
-        )
+        return LoginConfigResponse(**config)
     except Error:
         raise
     except Exception:
@@ -228,4 +225,4 @@ if os.environ.get("USAGE", "production") != "production":
     @token_router.get("/test/payload")
     async def test_payload(request: Request):
         """Debug endpoint: returns decoded JWT payload (devel only)"""
-        return JSONResponse(request.token_payload)
+        return request.token_payload

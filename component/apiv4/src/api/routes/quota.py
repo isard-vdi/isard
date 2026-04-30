@@ -39,7 +39,7 @@ async def admin_get_quota_by_kind(
 ):
     try:
         result = QuotaService.get_max_quota(request.token_payload, kind)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -73,7 +73,7 @@ async def admin_get_quota_by_kind_item(
 ):
     try:
         result = QuotaService.get_max_quota(request.token_payload, kind, item_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

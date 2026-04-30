@@ -31,7 +31,7 @@ tag = "user_networks"
 async def list_user_networks(request: Request):
     try:
         networks = UserNetworkService.get_user_networks(request.token_payload)
-        return JSONResponse(content=networks, status_code=200)
+        return networks
     except Error:
         raise
     except Exception:
@@ -57,7 +57,7 @@ async def list_user_networks(request: Request):
 async def get_user_network(request: Request, network_id: str):
     try:
         network = UserNetworkService.get_user_network(network_id, request.token_payload)
-        return JSONResponse(content=network, status_code=200)
+        return network
     except Error:
         raise
     except Exception:
@@ -82,7 +82,7 @@ async def get_user_network(request: Request, network_id: str):
 async def create_user_network(request: Request, data: CreateUserNetworkRequest):
     try:
         network = UserNetworkService.create_user_network(data, request.token_payload)
-        return JSONResponse(content=network, status_code=200)
+        return network
     except Error:
         raise
     except Exception:
@@ -112,7 +112,7 @@ async def update_user_network(
         network = UserNetworkService.update_user_network(
             network_id, data, request.token_payload
         )
-        return JSONResponse(content=network, status_code=200)
+        return network
     except Error:
         raise
     except Exception:
@@ -139,7 +139,7 @@ async def update_user_network(
 async def delete_user_network(request: Request, network_id: str):
     try:
         UserNetworkService.delete_user_network(network_id, request.token_payload)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

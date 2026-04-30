@@ -20,6 +20,7 @@
 
 import json
 import traceback
+from typing import Literal
 
 from api import admin_router, manager_router
 from api.schemas.admin_domains import (
@@ -65,7 +66,7 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
             )
         else:
             result = AdminDomainsService.list_templates(request.token_payload)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -97,7 +98,7 @@ async def admin_domain_details(request: Request, domain_id: str):
         result = AdminDomainsService.get_domain_details(
             request.token_payload, domain_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -124,7 +125,7 @@ async def admin_domain_viewer_data(request: Request, domain_id: str):
         result = AdminDomainsService.get_domain_viewer_data(
             request.token_payload, domain_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -151,7 +152,7 @@ async def admin_deployment_viewer_data(request: Request, deployment_id: str):
         result = AdminDomainsService.get_deployment_viewer_data(
             request.token_payload, deployment_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -184,7 +185,7 @@ async def admin_domains_status(request: Request, status: str):
         result = AdminDomainsService.get_domains_by_status(
             request.token_payload, status
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -215,7 +216,7 @@ async def admin_find_storages_by_domain_status(request: Request, status: str):
         result = AdminDomainsService.find_storages_by_domain_status(
             request.token_payload, status
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -247,7 +248,7 @@ async def admin_domain_storage(request: Request, domain_id: str):
         result = AdminDomainsService.get_domain_storage(
             request.token_payload, domain_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -277,7 +278,7 @@ async def admin_domain_storage(request: Request, domain_id: str):
 async def admin_domain_xml_get(request: Request, domain_id: str):
     try:
         result = AdminDomainsService.get_domain_xml(domain_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -305,7 +306,7 @@ async def admin_domain_xml_update(
     try:
         request_data = data.model_dump(exclude_none=True)
         result = AdminDomainsService.update_domain_xml(domain_id, request_data)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -337,7 +338,7 @@ async def admin_desktops_tree_list(request: Request, template_id: str):
         result = AdminDomainsService.get_template_tree_list(
             request.token_payload, template_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -364,7 +365,7 @@ async def admin_domain_template_tree(request: Request, desktop_id: str):
         result = AdminDomainsService.get_domain_template_tree(
             request.token_payload, desktop_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -397,7 +398,7 @@ async def admin_multiple_actions(request: Request, data: AdminMultipleActionsDat
         AdminDomainsService.multiple_actions(
             request.token_payload, data.action, data.ids
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -428,7 +429,7 @@ async def admin_multiple_actions(request: Request, data: AdminMultipleActionsDat
 async def admin_template_delete(request: Request, template_id: str):
     try:
         AdminDomainsService.delete_template(request.token_payload, template_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -460,7 +461,7 @@ async def admin_domains_field(request: Request, field: str, kind: str):
         result = AdminDomainsService.get_domains_field(
             request.token_payload, field, kind
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -492,7 +493,7 @@ async def admin_domain_hardware(request: Request, domain_id: str):
         result = AdminDomainsService.get_domain_hardware(
             request.token_payload, domain_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -527,7 +528,7 @@ async def admin_desktops_status(
 ):
     try:
         AdminDomainsService.change_desktops_status(current_status, target_status)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -559,7 +560,7 @@ async def admin_desktops_status_category(
         AdminDomainsService.change_desktops_status_category(
             category, current_status, target_status
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -594,7 +595,7 @@ async def admin_domain_storage_path(
         result = AdminDomainsService.update_domain_storage_path(
             domain_id, data.old_path, data.new_path
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -626,7 +627,7 @@ async def admin_domain_search_info(request: Request, domain_id: str):
         result = AdminDomainsService.get_domain_search_info(
             request.token_payload, domain_id
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -680,7 +681,7 @@ async def admin_logs_desktops_raw(request: Request):
                 default=lambda o: o.isoformat() if isinstance(o, _dt) else str(o),
             )
         )
-        return JSONResponse(content=serialized, status_code=200)
+        return serialized
     except Error:
         raise
     except Exception as e:
@@ -713,7 +714,7 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw"):
                 "Request body must be multipart form data",
             )
         result = AdminDomainsService.query_logs_desktops(form_data, view=view)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -767,7 +768,7 @@ async def admin_logs_users_raw(request: Request):
                 default=lambda o: o.isoformat() if isinstance(o, _dt) else str(o),
             )
         )
-        return JSONResponse(content=serialized, status_code=200)
+        return serialized
     except Error:
         raise
     except Exception as e:
@@ -800,7 +801,7 @@ async def admin_logs_users_view(request: Request, view: str = "raw"):
                 "Request body must be multipart form data",
             )
         result = AdminDomainsService.query_logs_users(form_data, view=view)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -852,7 +853,7 @@ async def admin_logs_desktops_list(
                 default=lambda o: o.isoformat() if isinstance(o, _dt) else str(o),
             )
         )
-        return JSONResponse(content=serialized, status_code=200)
+        return serialized
     except Error:
         raise
     except Exception:
@@ -899,7 +900,7 @@ async def admin_logs_users_list(
                 default=lambda o: o.isoformat() if isinstance(o, _dt) else str(o),
             )
         )
-        return JSONResponse(content=serialized, status_code=200)
+        return serialized
     except Error:
         raise
     except Exception:
@@ -929,7 +930,7 @@ async def admin_logs_users_list(
 async def admin_logs_desktops_config(request: Request):
     try:
         result = AdminDomainsService.get_logs_desktops_config()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -955,7 +956,7 @@ async def admin_logs_desktops_config(request: Request):
 async def admin_logs_desktops_max_time(request: Request, max_time: int):
     try:
         result = AdminDomainsService.set_logs_desktops_max_time(max_time)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -979,10 +980,12 @@ async def admin_logs_desktops_max_time(request: Request, max_time: int):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_action(request: Request, action: str):
+async def admin_logs_desktops_action(
+    request: Request, action: Literal["delete", "none"]
+):
     try:
         result = AdminDomainsService.set_logs_desktops_action(action)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1008,7 +1011,7 @@ async def admin_logs_desktops_action(request: Request, action: str):
 async def admin_logs_desktops_delete(request: Request):
     try:
         count = AdminDomainsService.delete_old_desktop_logs()
-        return JSONResponse(content=count, status_code=200)
+        return count
     except Error:
         raise
     except Exception as e:
@@ -1034,7 +1037,7 @@ async def admin_logs_desktops_delete(request: Request):
 async def admin_logs_desktops_delete_all(request: Request):
     try:
         count = AdminDomainsService.delete_all_desktop_logs()
-        return JSONResponse(content=count, status_code=200)
+        return count
     except Error:
         raise
     except Exception as e:
@@ -1064,7 +1067,7 @@ async def admin_logs_desktops_delete_all(request: Request):
 async def admin_logs_users_config(request: Request):
     try:
         result = AdminDomainsService.get_logs_users_config()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1090,7 +1093,7 @@ async def admin_logs_users_config(request: Request):
 async def admin_logs_users_max_time(request: Request, max_time: int):
     try:
         result = AdminDomainsService.set_logs_users_max_time(max_time)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1114,10 +1117,10 @@ async def admin_logs_users_max_time(request: Request, max_time: int):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_action(request: Request, action: str):
+async def admin_logs_users_action(request: Request, action: Literal["delete", "none"]):
     try:
         result = AdminDomainsService.set_logs_users_action(action)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1143,7 +1146,7 @@ async def admin_logs_users_action(request: Request, action: str):
 async def admin_logs_users_delete(request: Request):
     try:
         count = AdminDomainsService.delete_old_user_logs()
-        return JSONResponse(content=count, status_code=200)
+        return count
     except Error:
         raise
     except Exception as e:
@@ -1169,7 +1172,7 @@ async def admin_logs_users_delete(request: Request):
 async def admin_logs_users_delete_all(request: Request):
     try:
         count = AdminDomainsService.delete_all_user_logs()
-        return JSONResponse(content=count, status_code=200)
+        return count
     except Error:
         raise
     except Exception as e:
@@ -1198,7 +1201,7 @@ async def admin_domain_xml_capabilities(request: Request):
         from api.services.xml_sections import get_domain_capabilities
 
         caps = get_domain_capabilities()
-        return JSONResponse(content=caps, status_code=200)
+        return caps
     except Error:
         raise
     except Exception:
@@ -1242,7 +1245,7 @@ async def admin_domain_xml_sections_parse(request: Request):
                 request, "bad_request", "XML exceeds maximum allowed size (2 MB)"
             )
         sections = split_xml_sections(xml_str, [])
-        return JSONResponse(content={"sections": sections}, status_code=200)
+        return {"sections": sections}
     except Error:
         raise
     except Exception:
@@ -1267,10 +1270,7 @@ async def admin_domain_xml_sections_get(request: Request, domain_id: str):
 
         domain = AdminDomainsService.get_domain_xml_and_protected(domain_id)
         sections = split_xml_sections(domain["xml"], domain["protected"])
-        return JSONResponse(
-            content={"sections": sections, "xml_full": domain["xml"]},
-            status_code=200,
-        )
+        return {"sections": sections, "xml_full": domain["xml"]}
     except Error:
         raise
     except Exception:
@@ -1302,7 +1302,7 @@ async def admin_domain_xml_sections_save(request: Request, domain_id: str):
         domain = AdminDomainsService.get_domain_xml_and_protected(domain_id)
         new_xml = merge_xml_sections(domain["xml"], sections)
         AdminDomainsService.save_domain_xml_sections(domain_id, new_xml, protected)
-        return JSONResponse(content={"xml": new_xml}, status_code=200)
+        return {"xml": new_xml}
     except Error:
         raise
     except Exception:
@@ -1355,10 +1355,7 @@ async def admin_domain_xml_sections_save_as_virt_install(
                 traceback.format_exc(),
             )
         record = save_as_virt_install(domain_id, data["sections"], data["name"])
-        return JSONResponse(
-            content={"id": record["id"], "name": record["name"]},
-            status_code=200,
-        )
+        return {"id": record["id"], "name": record["name"]}
     except Error:
         raise
     except Exception:
@@ -1388,7 +1385,7 @@ async def admin_virt_install_xml_sections_get(request: Request, virt_id: str):
         from api.services.xml_sections import get_virt_install_xml_sections
 
         result = get_virt_install_xml_sections(virt_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -1431,7 +1428,7 @@ async def admin_virt_install_xml_sections_save(request: Request, virt_id: str):
                 traceback.format_exc(),
             )
         result = save_virt_install_xml_sections(virt_id, data["sections"])
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

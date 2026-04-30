@@ -50,7 +50,7 @@ async def admin_table_get(
     try:
         options = dict(request.query_params)
         result = AdminTablesService.get_table(table, request.token_payload, options)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -82,7 +82,7 @@ async def admin_table_list(
     try:
         options = data.model_dump(exclude_none=True)
         result = AdminTablesService.get_table(table, request.token_payload, options)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -114,10 +114,7 @@ async def admin_table_insert(
 ):
     try:
         AdminTablesService.insert_table_item(table, data)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -149,10 +146,7 @@ async def admin_table_update(
 ):
     try:
         AdminTablesService.update_table_item(table, data)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -184,10 +178,7 @@ async def admin_table_delete(
 ):
     try:
         AdminTablesService.delete_table_item(table, item_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
