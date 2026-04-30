@@ -21,7 +21,7 @@ from rethinkdb import RethinkDB, r
 MAX_SNIPPET_SIZE = 256 * 1024
 
 
-def _safe_fromstring(xml_str):
+def _safe_fromstring(xml_str: str) -> ET.Element:
     """Parse XML string with protection against entity expansion (Billion Laughs).
 
     Python's xml.etree.ElementTree uses expat which does NOT resolve external
@@ -290,12 +290,12 @@ SECTION_DEFS = [
 ]
 
 
-def _elem_to_str(elem):
+def _elem_to_str(elem: ET.Element) -> str:
     """Convert an XML element to an indented string."""
     return ET.tostring(elem, encoding="unicode").strip()
 
 
-def split_xml_sections(xml_str, protected_sections):
+def split_xml_sections(xml_str: str, protected_sections: list[str]) -> list[dict]:
     """Split a domain XML string into labeled sections.
 
     Returns a list of dicts with keys: key, label, xml, protected, protectable.
@@ -348,7 +348,7 @@ def split_xml_sections(xml_str, protected_sections):
     return sections
 
 
-def merge_xml_sections(base_xml_str, edited_sections):
+def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
     """Merge edited XML snippets back into the base XML.
 
     edited_sections is a dict: {section_key: xml_snippet_string, ...}
@@ -466,14 +466,14 @@ def merge_xml_sections(base_xml_str, edited_sections):
     return merged_xml
 
 
-def _remove_elem(root, elem):
+def _remove_elem(root: ET.Element, elem: ET.Element) -> None:
     """Remove an element from anywhere in the tree."""
     parent = _find_parent(root, elem)
     if parent is not None:
         parent.remove(elem)
 
 
-def _find_parent(root, target):
+def _find_parent(root: ET.Element, target: ET.Element) -> ET.Element | None:
     """Find the parent of a target element in the tree."""
     for parent in root.iter():
         if target in list(parent):
@@ -481,7 +481,9 @@ def _find_parent(root, target):
     return None
 
 
-def save_domain_xml_and_protected(domain_id, xml, protected_sections):
+def save_domain_xml_and_protected(
+    domain_id: str, xml: str, protected_sections: list[str]
+) -> None:
     """Save the merged XML and xml_protected_sections to the domain."""
     with RethinkSharedConnection._rdb_context():
         r.table("domains").get(domain_id).update(
@@ -494,7 +496,7 @@ def save_domain_xml_and_protected(domain_id, xml, protected_sections):
         ).run(RethinkSharedConnection._rdb_connection)
 
 
-def get_domain_capabilities():
+def get_domain_capabilities() -> dict:
     """Get cached domain capabilities from first online hypervisor."""
     with RethinkSharedConnection._rdb_context():
         hyps = list(
@@ -510,7 +512,7 @@ def get_domain_capabilities():
     return {}
 
 
-def get_virt_install_xml_sections(virt_id):
+def get_virt_install_xml_sections(virt_id: str) -> dict:
     """Return the split XML sections for a virt_install row.
 
     Mirrors v3 ``api_v3_admin_virt_install_xml_sections`` GET branch
@@ -533,7 +535,7 @@ def get_virt_install_xml_sections(virt_id):
     return {"sections": sections, "xml_full": vi.get("xml")}
 
 
-def save_virt_install_xml_sections(virt_id, edited_sections):
+def save_virt_install_xml_sections(virt_id: str, edited_sections: dict) -> dict:
     """Merge edited sections back into a virt_install row's XML.
 
     Mirrors v3 ``api_v3_admin_virt_install_xml_sections`` POST branch
@@ -570,7 +572,7 @@ _VIRT_INSTALL_DISK_PLACEHOLDERS = {
 }
 
 
-def _generalize_xml(xml_str, name):
+def _generalize_xml(xml_str: str, name: str) -> str:
     """Generalize a domain XML for use as a virt_install template.
 
     Mirrors v3 ``api_xml_sections.generalize_xml``:
@@ -609,7 +611,7 @@ def _generalize_xml(xml_str, name):
     return ET.tostring(root, encoding="unicode")
 
 
-def _extract_virt_install_metadata(xml_str, name):
+def _extract_virt_install_metadata(xml_str: str, name: str) -> dict:
     """Extract ``{www, icon, vers}`` fields for a virt_install row.
 
     Mirrors v3 ``api_xml_sections._extract_virt_install_metadata``.
@@ -647,7 +649,7 @@ def _extract_virt_install_metadata(xml_str, name):
     return {"www": www, "icon": icon, "vers": vers}
 
 
-def save_as_virt_install(domain_id, edited_sections, name):
+def save_as_virt_install(domain_id: str, edited_sections: dict, name: str) -> dict:
     """Merge domain XML sections and store as a new virt_install row.
 
     Mirrors v3 ``api_xml_sections.save_as_virt_install`` (commit
