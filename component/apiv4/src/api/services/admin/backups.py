@@ -21,6 +21,7 @@
 import os
 import re
 from datetime import datetime
+from typing import Optional
 
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -36,7 +37,7 @@ from rethinkdb import r
 INTEGRITY_ENABLED_DEFAULT = False
 
 
-def _retention():
+def _retention() -> int:
     """How many backup records to keep. Configurable via env."""
     try:
         value = int(os.environ.get("BACKUP_RETENTION", "30"))
@@ -45,7 +46,9 @@ def _retention():
     return max(1, value)
 
 
-def _normalize_timestamp(value):
+def _normalize_timestamp(
+    value: Optional[datetime | int | float | str],
+) -> Optional[str]:
     """Return ISO string for a RethinkDB datetime, Unix int, or ISO string."""
     if value is None:
         return None
@@ -57,14 +60,14 @@ def _normalize_timestamp(value):
     return value
 
 
-def _normalize_times(item):
+def _normalize_times(item: dict) -> dict:
     for key in ("timestamp", "received_at", "created_at", "backup_start_time"):
         if key in item:
             item[key] = _normalize_timestamp(item[key])
     return item
 
 
-def _client_timestamp_to_rdb(value):
+def _client_timestamp_to_rdb(value: int | float | str | datetime) -> "r.RqlQuery":
     """Accept Unix int/float/ISO string and return a ReQL time."""
     if isinstance(value, (int, float)):
         seconds = value / 1000 if value > 1e10 else value
@@ -79,7 +82,7 @@ def _client_timestamp_to_rdb(value):
     return r.now()
 
 
-def _normalize_check(check):
+def _normalize_check(check: dict | str) -> dict:
     if isinstance(check, dict) and "name" in check and "status" in check:
         return check
     if isinstance(check, str):
@@ -90,7 +93,7 @@ def _normalize_check(check):
 class AdminBackupsService:
 
     @staticmethod
-    def list_backups(limit: int = None) -> list:
+    def list_backups(limit: Optional[int] = None) -> list[dict]:
         """List backup records ordered most-recent-first."""
         if limit is None:
             limit = _retention()
@@ -108,7 +111,7 @@ class AdminBackupsService:
         return result
 
     @staticmethod
-    def get_backup(backup_id: str, pluck: str = None) -> dict:
+    def get_backup(backup_id: str, pluck: Optional[str] = None) -> dict:
         """Get a specific backup by ID."""
         with RethinkSharedConnection._rdb_context():
             query = r.table("backups").get(backup_id)
@@ -190,7 +193,7 @@ class AdminBackupsService:
         }
 
     @staticmethod
-    def _cleanup_old_backups():
+    def _cleanup_old_backups() -> int:
         """Keep only the N most recent backup records (N = BACKUP_RETENTION)."""
         keep = _retention()
 
@@ -234,7 +237,7 @@ class AdminBackupsService:
         return bool(value)
 
     @staticmethod
-    def set_integrity_enabled(value) -> dict:
+    def set_integrity_enabled(value: bool) -> dict:
         """Persist the weekly-borg-integrity toggle. Schemaless config write."""
         if not isinstance(value, bool):
             raise Error("bad_request", "integrity_enabled must be a boolean")
@@ -248,7 +251,7 @@ class AdminBackupsService:
     def get_backup_config() -> dict:
         """Get backup configuration from environment variables."""
 
-        def parse_backup_schedule(schedule_env):
+        def parse_backup_schedule(schedule_env: str) -> Optional[int]:
             if not schedule_env:
                 return None
             match = re.search(r"at\s+(\d{1,2})(?::\d{2})?", schedule_env)

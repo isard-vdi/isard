@@ -5,9 +5,15 @@
 
 import os
 import traceback
+from typing import TYPE_CHECKING
 
 from api.services.error import Error
 from cachetools import TTLCache, cached
+
+if TYPE_CHECKING:
+    from isardvdi_protobuf.operations.v1.operations_pb2_grpc import (
+        OperationsServiceStub,
+    )
 
 # Named caches: 10 s TTL is mainly thundering-herd protection on the
 # orchestrator gRPC, so writers don't normally need to invalidate, but
@@ -111,7 +117,7 @@ class AdminOperationsService:
 
     @staticmethod
     @cached(cache=start_hypervisor_cache)
-    def start_hypervisor(hypervisor_id: str):
+    def start_hypervisor(hypervisor_id: str) -> dict:
         """Start a hypervisor via operations gRPC."""
         import grpc
         from isardvdi_protobuf.operations.v1 import operations_pb2
@@ -133,7 +139,7 @@ class AdminOperationsService:
 
     @staticmethod
     @cached(cache=stop_hypervisor_cache)
-    def stop_hypervisor(hypervisor_id: str):
+    def stop_hypervisor(hypervisor_id: str) -> dict:
         """Stop a hypervisor via operations gRPC."""
         import grpc
         from isardvdi_protobuf.operations.v1 import operations_pb2
@@ -163,7 +169,7 @@ _HYPERVISOR_STATE_MAP = {
 }
 
 
-def _get_operations_client():
+def _get_operations_client() -> "OperationsServiceStub":
     """Get or create operations gRPC client."""
     from isardvdi_common.connections.grpc_client import create_operations_client
 

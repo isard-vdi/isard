@@ -33,7 +33,7 @@ _SANITIZE_EXCLUDE_FIELDS = {
 }
 
 
-def _sanitize_table_data(table, data):
+def _sanitize_table_data(table: str, data: dict) -> None:
     """Sanitize string fields in sensitive tables to prevent stored XSS."""
     if table not in _SANITIZE_TABLES:
         return
