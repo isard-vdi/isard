@@ -124,6 +124,70 @@ class Config(RethinkCustomBase):
         return True
 
     @classmethod
+    def update_old_tasks(cls, updates: dict) -> None:
+        """Partial-update the ``old_tasks`` config block.
+
+        ``updates`` is a flat dict of keys to set inside ``old_tasks``
+        (e.g. ``{"older_than": 86400, "enabled": True}``). Other keys
+        in the existing ``old_tasks`` block are preserved.
+
+        Clears the get_config cache after the write.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update({"old_tasks": updates}).run(
+                cls._rdb_connection
+            )
+        cls.clear_get_config_cache()
+
+    @classmethod
+    def get_old_tasks_config(cls) -> dict:
+        """Read the ``old_tasks`` config block.
+
+        Returns an empty dict when the field is missing — callers fall
+        back to defaults rather than seeing the rdb error.
+        """
+        try:
+            with cls._rdb_context():
+                return (
+                    r.table(cls._rdb_table)
+                    .get(1)
+                    .get_field("old_tasks")
+                    .default({})
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            return {}
+
+    @classmethod
+    def get_backups_integrity_enabled(cls) -> bool | None:
+        """Read ``config[1].backups.integrity_enabled``.
+
+        Returns ``None`` when the field is unset — caller decides what
+        the default is (the apiv4 admin service uses
+        ``INTEGRITY_ENABLED_DEFAULT = False`` as a deployment-wide
+        opt-in). Going through ``get(1).default({})`` so a fresh deploy
+        with no config row doesn't 500.
+        """
+        with cls._rdb_context():
+            cfg = r.table(cls._rdb_table).get(1).run(cls._rdb_connection) or {}
+        value = (cfg.get("backups") or {}).get("integrity_enabled")
+        if value is None:
+            return None
+        return bool(value)
+
+    @classmethod
+    def set_backups_integrity_enabled(cls, value: bool) -> None:
+        """Persist ``config[1].backups.integrity_enabled = value``.
+
+        Clears the get_config cache after the write.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update(
+                {"backups": {"integrity_enabled": value}}
+            ).run(cls._rdb_connection)
+        cls.clear_get_config_cache()
+
+    @classmethod
     def enable_login_notification(cls, notification_type: str, enable: bool) -> None:
         """Toggle ``login.notification_<type>.enabled`` on/off.
 
@@ -161,3 +225,50 @@ class Config(RethinkCustomBase):
             except r.ReqlNonExistenceError:
                 config["template_name"] = "[DELETED]"
         return config["auth"].get(provider)
+
+    @classmethod
+    def get_admin_provider_config(cls, provider: str) -> dict:
+        """Fetch the provider sub-dict directly from ``config.auth.<provider>``.
+
+        Unlike :meth:`get_provider_config` (which goes through the cached
+        full-config read and resolves ``config.migration.notification_bar``),
+        this method reads the raw provider block and resolves the
+        provider's own ``migration.notification_bar.template_name`` from
+        the ``notification_tmpls`` table — used by the admin authentication
+        endpoint that surfaces the provider-config UI.
+
+        Raises ``not_found`` when the provider block is missing.
+        """
+        try:
+            with cls._rdb_context():
+                config = (
+                    r.table(cls._rdb_table)
+                    .get(1)["auth"][provider]
+                    .run(cls._rdb_connection)
+                )
+        except Exception:
+            raise Error("not_found", "Provider config not found")
+        try:
+            with cls._rdb_context():
+                config["migration"]["notification_bar"]["template_name"] = (
+                    r.table("notification_tmpls")
+                    .get(config["migration"]["notification_bar"]["template"])["name"]
+                    .run(cls._rdb_connection)
+                )
+        except r.ReqlNonExistenceError:
+            config["template_name"] = "[DELETED]"
+        return config
+
+    @classmethod
+    def update_provider_config(cls, provider: str, data: dict) -> None:
+        """Merge ``data`` into ``config.auth.<provider>``.
+
+        Uses ``r.row["auth"][provider].merge(data)`` so existing fields
+        outside ``data`` are preserved. Clears the get_config cache after
+        the write; service-side caches must be cleared by the caller.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update(
+                {"auth": {provider: r.row["auth"][provider].merge(data)}}
+            ).run(cls._rdb_connection)
+        cls.clear_get_config_cache()

@@ -182,6 +182,62 @@ class CategoriesProcessed(RethinkSharedConnection):
             )
 
     @classmethod
+    def get_id_by_name(cls, category_name: str) -> str:
+        """Resolve a category by its ``name`` to its ``id``.
+
+        Uses the ``name`` secondary index. Raises a typed ``not_found``
+        ``Error`` when no category matches — the bulk-import path needs
+        the explicit failure to stop processing.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        with cls._rdb_context():
+            rows = list(
+                r.table("categories")
+                .get_all(category_name, index="name")
+                .pluck("id")
+                .run(cls._rdb_connection)
+            )
+        if not rows:
+            raise Error("not_found", f"Category {category_name} not found")
+        return rows[0]["id"]
+
+    @classmethod
+    def find_duplicate_uid(
+        cls, uid: str, exclude_category_id: str | None = None
+    ) -> list[dict]:
+        """List categories whose ``uid`` matches ``uid``.
+
+        ``exclude_category_id`` lets the caller skip the row being
+        edited. Returns ``[]`` when no other category uses this uid.
+        Raw-row (no pluck) — caller decides what to do with the hits.
+        """
+        with cls._rdb_context():
+            return list(
+                r.table("categories")
+                .get_all(uid, index="uid")
+                .filter(lambda c: c["id"] != (exclude_category_id or False))
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def find_duplicate_custom_url(
+        cls, custom_url_name: str, exclude_category_id: str | None = None
+    ) -> list[dict]:
+        """List categories whose ``custom_url_name`` matches.
+
+        ``exclude_category_id`` lets the caller skip the row being
+        edited. Returns ``[]`` when no other category uses this URL.
+        """
+        with cls._rdb_context():
+            return list(
+                r.table("categories")
+                .get_all(custom_url_name, index="custom_url_name")
+                .filter(lambda c: c["id"] != (exclude_category_id or False))
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     def find_by_branding_domain(cls, domain: str) -> dict | None:
         """Find a category whose ``branding.domain`` matches ``domain``.
 

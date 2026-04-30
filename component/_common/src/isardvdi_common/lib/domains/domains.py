@@ -35,6 +35,192 @@ class DomainsProcessed(RethinkSharedConnection):
         return {d["id"]: d["user"] for d in domains}
 
     @classmethod
+    def get_by_ids(cls, domain_ids: list[str]) -> list[dict]:
+        """Fetch a batch of domains by id with ``user_name``,
+        ``category_name`` and ``group_name`` merged in.
+
+        Missing referenced rows surface as ``[deleted]`` rather than
+        crashing the merge. Used by the admin "fast-path" details list.
+        """
+        with cls._rdb_context():
+            return list(
+                r.table("domains")
+                .get_all(r.args(domain_ids))
+                .pluck(
+                    "id",
+                    "name",
+                    "kind",
+                    "status",
+                    "user",
+                    "category",
+                    "group",
+                    "accessed",
+                    "create_dict",
+                    "tag",
+                    "persistent",
+                )
+                .merge(
+                    lambda d: {
+                        "user_name": r.table("users")
+                        .get(d["user"])
+                        .default({"name": "[deleted]"})["name"],
+                        "category_name": r.table("categories")
+                        .get(d["category"])
+                        .default({"name": "[deleted]"})["name"],
+                        "group_name": r.table("groups")
+                        .get(d["group"])
+                        .default({"name": "[deleted]"})["name"],
+                    }
+                )
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def find_disks_by_kind_status(
+        cls, kind: str, status: str, category_id: str | None = None
+    ) -> list[dict]:
+        """List ``create_dict.hardware.disks`` for every domain of
+        ``kind`` in ``status``, scoped to ``category_id`` when given.
+
+        Returns ``[{create_dict: {hardware: {disks: [...]}}}, ...]`` —
+        the caller flattens to extract storage ids. Two indexes:
+        ``kind_status_category`` for managers, ``kind_status`` for
+        admins.
+        """
+        if category_id is not None:
+            index_key = "kind_status_category"
+            index_value = [kind, status, category_id]
+        else:
+            index_key = "kind_status"
+            index_value = [kind, status]
+        with cls._rdb_context():
+            return list(
+                r.table("domains")
+                .get_all(index_value, index=index_key)
+                .pluck({"create_dict": {"hardware": {"disks": True}}})
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def get_xml(cls, domain_id: str) -> str | None:
+        """Return the ``xml`` field of a domain row, or raise when missing.
+
+        Returns ``None`` when the row exists but has no ``xml``.
+        Raises a typed ``not_found`` ``Error`` when the row is absent.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        with cls._rdb_context():
+            domain = (
+                r.table("domains").get(domain_id).default(None).run(cls._rdb_connection)
+            )
+        if domain is None:
+            raise Error("not_found", f"Domain {domain_id} not found")
+        return domain.get("xml")
+
+    @classmethod
+    def update_xml(cls, domain_id: str, data: dict) -> str | None:
+        """Apply ``data`` to a domain row and return its (new) ``xml``.
+
+        Caller is responsible for the payload shape; this helper sets
+        ``status="Updating"`` and ``id=domain_id`` per the v3 contract,
+        then returns the freshly-stored xml. Raises ``not_found`` when
+        the row is absent.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        with cls._rdb_context():
+            existing = (
+                r.table("domains").get(domain_id).default(None).run(cls._rdb_connection)
+            )
+        if existing is None:
+            raise Error("not_found", f"Domain {domain_id} not found")
+        data["status"] = "Updating"
+        data["id"] = domain_id
+        with cls._rdb_context():
+            r.table("domains").get(domain_id).update(data).run(cls._rdb_connection)
+            result = (
+                r.table("domains").get(domain_id).pluck("xml").run(cls._rdb_connection)
+            )
+        return result.get("xml")
+
+    @classmethod
+    def get_xml_and_protected(cls, domain_id: str) -> dict:
+        """Return ``{xml, protected}`` for the XML-sections editor.
+
+        ``protected`` is ``create_dict.xml_protected_sections`` (defaults
+        to ``[]`` when unset). Raises ``not_found`` when the row is
+        absent.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        with cls._rdb_context():
+            domain = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck("xml", "create_dict")
+                .default(None)
+                .run(cls._rdb_connection)
+            )
+        if domain is None:
+            raise Error("not_found", "Domain not found")
+        return {
+            "xml": domain.get("xml"),
+            "protected": domain.get("create_dict", {}).get(
+                "xml_protected_sections", []
+            ),
+        }
+
+    @classmethod
+    def list_by_kind_user(
+        cls, kind: str, user_id: str, fields: list[str]
+    ) -> list[dict]:
+        """List rows of ``kind`` owned by ``user_id`` with ``fields``
+        plucked.
+
+        ``kind`` is the secondary index key (``"template"``,
+        ``"desktop"``, etc.) and is paired with ``user_id`` via the
+        ``kind_user`` compound index.
+        """
+        with cls._rdb_context():
+            return list(
+                r.table("domains")
+                .get_all([kind, user_id], index="kind_user")
+                .pluck(*fields)
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def list_templates_for_admin(
+        cls, fields: list[str], category_id: str | None = None
+    ) -> list[dict]:
+        """List every template visible to admin/manager.
+
+        ``category_id`` scopes managers to their own category; admins
+        pass ``None`` to see every template across categories.
+        """
+        with cls._rdb_context():
+            query = r.table("domains").get_all("template", index="kind")
+            if category_id is not None:
+                query = query.filter({"category": category_id})
+            return list(query.pluck(*fields).run(cls._rdb_connection))
+
+    @classmethod
+    def get_for_search(cls, domain_id: str) -> dict | None:
+        """Read the full row used by the admin search panel.
+
+        Returns ``None`` when the row is absent — the caller raises
+        ``not_found`` so it can craft a route-specific error message.
+        ``.default(None)`` BEFORE pluck — otherwise pluck on null
+        crashes with ReqlNonExistenceError before the if-check ever
+        runs.
+        """
+        with cls._rdb_context():
+            return (
+                r.table("domains").get(domain_id).default(None).run(cls._rdb_connection)
+            )
+
+    @classmethod
     def get_media_domains(cls, media_ids):
         """From api/libv2/api_storage.py get_media_domains()"""
         with cls._rdb_context():

@@ -71,6 +71,22 @@ class UsersProcessed(RethinkSharedConnection):
             )
 
     @classmethod
+    def list_by_category(cls, category_id: str) -> list[dict]:
+        """List users in ``category_id`` with the admin-summary
+        fields (id, name, username, photo, role, group, active).
+
+        Used by the webapp's category detail panel to render the
+        member-user table.
+        """
+        with cls._rdb_context():
+            return list(
+                r.table(cls._rdb_table)
+                .get_all(category_id, index="category")
+                .pluck("id", "name", "username", "photo", "role", "group", "active")
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     def get_with_category(cls, category_id: str | None) -> list:
         """
         Get all users with their categories.

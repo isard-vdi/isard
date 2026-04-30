@@ -30,9 +30,6 @@ from api.services.admin.tables import AdminTablesService
 from api.services.error import Error
 from api.services.templates import clear_templates_cache
 from isardvdi_common.connections.api_sessions import revoke_user_session
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.bastion import Bastion
 from isardvdi_common.helpers.caches import Caches
@@ -42,6 +39,7 @@ from isardvdi_common.helpers.password import Password
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.quotas_process import QuotasProcess
 from isardvdi_common.lib.api_admin import ApiAdmin
+from isardvdi_common.lib.domains.domains import DomainsProcessed
 from isardvdi_common.lib.storage.storage_pools.storage_pools import (
     StoragePoolsProcessed,
 )
@@ -63,7 +61,6 @@ from isardvdi_common.models.category import Category as RethinkCategory
 from isardvdi_common.models.group import Group as RethinkGroup
 from isardvdi_common.models.roles import Roles as RethinkRole
 from isardvdi_common.models.user import User as RethinkUser
-from rethinkdb import r
 
 
 class AdminUsersService:
@@ -649,12 +646,7 @@ class AdminUsersService:
     def get_category(payload: dict, category_id: str) -> dict:
         """Get a category by ID with authentication secrets stripped."""
         AdminUsersService.owns_category_id(payload, category_id)
-        with RethinkSharedConnection._rdb_context():
-            category = (
-                r.table("categories")
-                .get(category_id)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        category = ApiAdmin.get_table_item("categories", category_id)
         if category is None:
             raise Error("not_found", f"Category {category_id} not found")
         category["is_default"] = category["id"] == "default"
@@ -762,27 +754,12 @@ class AdminUsersService:
     def get_category_users(payload: dict, category_id: str) -> list[dict]:
         """Get users in a category."""
         AdminUsersService.owns_category_id(payload, category_id)
-        with RethinkSharedConnection._rdb_context():
-            return list(
-                r.table("users")
-                .get_all(category_id, index="category")
-                .pluck("id", "name", "username", "photo", "role", "group", "active")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        return CommonUsers.list_by_category(category_id)
 
     @staticmethod
     def get_category_by_name(category_name: str) -> str:
         """Get category ID by name."""
-        with RethinkSharedConnection._rdb_context():
-            rows = list(
-                r.table("categories")
-                .get_all(category_name, index="name")
-                .pluck("id")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        if not rows:
-            raise Error("not_found", f"Category {category_name} not found")
-        return rows[0]["id"]
+        return CommonCategories.get_id_by_name(category_name)
 
     @staticmethod
     def get_group_by_name_category(category_name: str, group_name: str) -> str:
@@ -861,13 +838,9 @@ class AdminUsersService:
     def get_user_templates(payload: dict, user_id: str) -> list[dict]:
         """Get templates allowed for a user."""
         AdminUsersService.owns_user_id(payload, user_id)
-        with RethinkSharedConnection._rdb_context():
-            templates = list(
-                r.table("domains")
-                .get_all(["template", user_id], index="kind_user")
-                .pluck("id", "name", "icon", "description")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        templates = DomainsProcessed.list_by_kind_user(
+            "template", user_id, ["id", "name", "icon", "description"]
+        )
         return [
             {
                 "id": t["id"],
@@ -882,27 +855,21 @@ class AdminUsersService:
     @staticmethod
     def get_admin_templates(payload: dict) -> list[dict]:
         """Get all templates allowed for the admin/manager."""
-        with RethinkSharedConnection._rdb_context():
-            query = r.table("domains").get_all("template", index="kind")
-            if payload.get("role_id") == "manager":
-                query = query.filter({"category": payload["category_id"]})
-            return list(
-                query.pluck("id", "name", "icon", "user", "category").run(
-                    RethinkSharedConnection._rdb_connection
-                )
-            )
+        category_id = (
+            payload["category_id"] if payload.get("role_id") == "manager" else None
+        )
+        return DomainsProcessed.list_templates_for_admin(
+            ["id", "name", "icon", "user", "category"],
+            category_id=category_id,
+        )
 
     @staticmethod
     def get_user_desktops(payload: dict, user_id: str) -> list[dict]:
         """Get desktops for a user."""
         AdminUsersService.owns_user_id(payload, user_id)
-        with RethinkSharedConnection._rdb_context():
-            return list(
-                r.table("domains")
-                .get_all(["desktop", user_id], index="kind_user")
-                .pluck("id", "name", "status", "icon", "image", "kind")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        return DomainsProcessed.list_by_kind_user(
+            "desktop", user_id, ["id", "name", "status", "icon", "image", "kind"]
+        )
 
     @staticmethod
     def _delete_checks_inline(ids: list[str], kind: str) -> dict:
@@ -1206,21 +1173,15 @@ class AdminUsersService:
         pairs = data.get("ids") or []
         if not pairs:
             return
-        with RethinkSharedConnection._rdb_context():
-            groups = {
-                g["id"]: g
-                for g in r.table("groups")
-                .get_all(r.args([p.get("group") for p in pairs if p.get("group")]))
-                .pluck("id", "parent_category")
-                .run(RethinkSharedConnection._rdb_connection)
-            }
+        group_ids = [p.get("group") for p in pairs if p.get("group")]
+        parent_by_group = CommonGroups.get_parent_category_map(group_ids)
         for p in pairs:
             gid = p.get("group")
             cid = p.get("category")
-            g = groups.get(gid)
-            if g is None:
+            parent = parent_by_group.get(gid)
+            if parent is None:
                 raise Error("not_found", f"Group {gid} not found")
-            if g["parent_category"] != cid:
+            if parent != cid:
                 raise Error(
                     "bad_request",
                     f"Group {gid} does not belong to category {cid}",
@@ -1310,13 +1271,7 @@ class AdminUsersService:
     @staticmethod
     def _check_duplicate_uid(uid: str, category_id: Optional[str] = None) -> None:
         """Reject a category uid that already exists in another category."""
-        with RethinkSharedConnection._rdb_context():
-            rows = list(
-                r.table("categories")
-                .get_all(uid, index="uid")
-                .filter(lambda c: c["id"] != (category_id or False))
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        rows = CommonCategories.find_duplicate_uid(uid, exclude_category_id=category_id)
         if rows:
             raise Error(
                 "conflict",
@@ -1329,13 +1284,9 @@ class AdminUsersService:
         custom_url_name: str, category_id: Optional[str] = None
     ) -> None:
         """Reject a category custom_url_name that another category already uses."""
-        with RethinkSharedConnection._rdb_context():
-            rows = list(
-                r.table("categories")
-                .get_all(custom_url_name, index="custom_url_name")
-                .filter(lambda c: c["id"] != (category_id or False))
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        rows = CommonCategories.find_duplicate_custom_url(
+            custom_url_name, exclude_category_id=category_id
+        )
         if rows:
             raise Error(
                 "conflict",

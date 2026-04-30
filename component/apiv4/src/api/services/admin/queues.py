@@ -12,6 +12,7 @@ from api.services.error import Error
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.redis_base import RedisBase
 from isardvdi_common.connections.redis_urls import RQ_DB
+from isardvdi_common.models.config import Config
 from redis import Redis
 from rq import Queue
 from rq.job import Job
@@ -256,49 +257,25 @@ class AdminQueuesService:
     @staticmethod
     def set_max_time(max_time: int) -> dict:
         """Set auto delete max time config."""
-        from isardvdi_common.connections.rethink_connection_factory import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
         max_time = 86400 if int(max_time) < 86400 else int(max_time)
         AdminQueuesService._set_auto_delete_enabled(True)
-        with RethinkSharedConnection._rdb_context():
-            r.table("config").update({"old_tasks": {"older_than": max_time}}).run(
-                RethinkSharedConnection._rdb_connection
-            )
+        Config.update_old_tasks({"older_than": max_time})
         return {"older_than": max_time}
 
     @staticmethod
     def _set_auto_delete_enabled(enabled: bool) -> None:
-        from isardvdi_common.connections.rethink_connection_factory import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
-        with RethinkSharedConnection._rdb_context():
-            r.table("config").update({"old_tasks": {"enabled": enabled}}).run(
-                RethinkSharedConnection._rdb_connection
-            )
+        Config.update_old_tasks({"enabled": enabled})
 
     @staticmethod
     def set_queue_registries(queue_registries: list) -> dict:
         """Set auto delete queue registries config."""
-        from isardvdi_common.connections.rethink_connection_factory import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
         for reg in queue_registries:
             if reg not in QUEUE_REGISTRIES:
                 raise Error(
                     "bad_request",
                     f"Invalid registry: {reg}. Valid registries are: {QUEUE_REGISTRIES}",
                 )
-        with RethinkSharedConnection._rdb_context():
-            r.table("config").update(
-                {"old_tasks": {"queue_registries": queue_registries}}
-            ).run(RethinkSharedConnection._rdb_connection)
+        Config.update_old_tasks({"queue_registries": queue_registries})
         return {"queue_registries": queue_registries}
 
     @staticmethod
@@ -310,18 +287,7 @@ class AdminQueuesService:
     @staticmethod
     def get_auto_delete_config() -> dict:
         """Get auto delete configuration."""
-        from isardvdi_common.connections.rethink_connection_factory import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
-        try:
-            with RethinkSharedConnection._rdb_context():
-                kwargs = r.table("config")[0]["old_tasks"].run(
-                    RethinkSharedConnection._rdb_connection
-                )
-        except Exception:
-            kwargs = {}
+        kwargs = Config.get_old_tasks_config()
         return {
             "older_than": kwargs.get("older_than", None),
             "queue_registries": kwargs.get("queue_registries", []),
