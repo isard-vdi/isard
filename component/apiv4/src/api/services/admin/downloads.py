@@ -550,7 +550,7 @@ class AdminDownloadsService:
             # ``_get_domain_if_already_downloaded`` (each retry would
             # otherwise re-wrap dict entries into ``{"id": <dict>, "mac": …}``,
             # producing the triple-nested ``{"id": {"id": {"id": …}}}``
-            # shape that breaks ``r.table('interfaces').get(id)``).
+            # shape that breaks the rdb interfaces lookup).
             d["create_dict"]["hardware"]["interfaces"] = [
                 (
                     interface

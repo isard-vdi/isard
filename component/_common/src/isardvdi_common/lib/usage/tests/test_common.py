@@ -270,3 +270,99 @@ class TestSecurizeFormulaEvaluation:
 
         with pytest.raises(ValueError):
             securize_eval("a[0]", {"a": [1]})
+
+
+class TestListConsumers:
+    def test_returns_distinct_consumers(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.get_all.return_value.pluck.return_value.distinct.return_value.__getitem__.return_value.run.return_value = [
+            "user",
+            "category",
+        ]
+        result = stub_rdb["Processed"].list_consumers("desktop")
+        assert result == ["user", "category"]
+        stub_rdb["mock_table"].assert_any_call("usage_consumption")
+
+
+class TestCountConsumptionRows:
+    def test_returns_count(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.count.return_value.run.return_value = 42
+        assert stub_rdb["Processed"].count_consumption_rows() == 42
+
+
+class TestDeleteAllConsumption:
+    def test_calls_delete(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.delete.return_value.run.return_value = {"deleted": 100}
+        stub_rdb["Processed"].delete_all_consumption()
+        chain.delete.assert_called_once()
+
+
+class TestUnifyItemName:
+    def test_rewrites_to_latest_name(self, stub_rdb):
+        chain = stub_rdb["mock_table"].return_value
+        chain.get_all.return_value.order_by.return_value.run.return_value = [
+            {"item_name": "old"},
+            {"item_name": "new"},
+        ]
+        chain.get_all.return_value.filter.return_value.update.return_value.run.return_value = {
+            "replaced": 1
+        }
+        result = stub_rdb["Processed"].unify_item_name("i1")
+        assert result == "new"
+
+    def test_missing_raises_not_found(self, stub_rdb):
+        from isardvdi_common.helpers.error_base import ErrorBase
+
+        chain = stub_rdb["mock_table"].return_value
+        chain.get_all.return_value.order_by.return_value.run.return_value = []
+        with pytest.raises(ErrorBase):
+            stub_rdb["Processed"].unify_item_name("missing")
+
+
+class TestCheckItemOwnership:
+    def test_returns_when_no_item_ids(self, stub_rdb):
+        stub_rdb["Processed"].check_item_ownership({"role_id": "manager"}, {})
+
+    def test_admin_skips_category_check(self, stub_rdb):
+        stub_rdb["Processed"].check_item_ownership(
+            {"role_id": "admin", "category_id": "c-self"},
+            {"item_type": "category", "item_ids": ["c-other"]},
+        )
+
+    def test_manager_blocked_on_other_category(self, stub_rdb):
+        from isardvdi_common.helpers.error_base import ErrorBase
+
+        with pytest.raises(ErrorBase):
+            stub_rdb["Processed"].check_item_ownership(
+                {"role_id": "manager", "category_id": "c-self"},
+                {"item_type": "category", "item_ids": ["c-other"]},
+            )
+
+    def test_manager_blocked_on_group_outside_category(self, stub_rdb):
+        from isardvdi_common.helpers.error_base import ErrorBase
+
+        chain = stub_rdb["mock_table"].return_value
+        chain.get.return_value.pluck.return_value.run.return_value = {
+            "parent_category": "c-other"
+        }
+        with pytest.raises(ErrorBase):
+            stub_rdb["Processed"].check_item_ownership(
+                {"role_id": "manager", "category_id": "c-self"},
+                {"item_type": "group", "item_ids": ["g1"]},
+            )
+
+
+class TestGetLogsStartedTime:
+    def test_returns_earliest_started_time(self, stub_rdb):
+        from datetime import datetime, timezone
+
+        ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        chain = stub_rdb["mock_table"].return_value
+        chain.order_by.return_value.nth.return_value.__getitem__.return_value.run.return_value = (
+            ts
+        )
+        result = stub_rdb["Processed"].get_logs_started_time("desktop")
+        assert result == ts
+        stub_rdb["mock_table"].assert_any_call("logs_desktop")

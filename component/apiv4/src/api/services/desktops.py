@@ -55,6 +55,7 @@ from isardvdi_common.lib.domains.desktops.desktops import (
 from isardvdi_common.lib.domains.desktops.desktops_nonpersistent import (
     DesktopsNonpersistentProcessed as CommonDesktopsNonpersistent,
 )
+from isardvdi_common.lib.domains.domains import DomainsProcessed
 from isardvdi_common.lib.domains.templates.templates import (
     TemplatesProcessed as CommonTemplates,
 )
@@ -853,15 +854,7 @@ class DesktopService:
     @staticmethod
     def extend_desktop_timeout(payload: dict, desktop_id: str) -> None:
         """Extend the remaining time before automatic desktop shutdown."""
-        from rethinkdb import r
-
-        with RethinkDomain._rdb_context():
-            desktop = (
-                r.table("domains")
-                .get(desktop_id)
-                .pluck("status", "scheduled")
-                .run(RethinkDomain._rdb_connection)
-            )
+        desktop = DomainsProcessed.get_status_and_scheduled(desktop_id)
         if not desktop or desktop.get("status") != "Started":
             raise Error(
                 "precondition_required",

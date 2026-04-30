@@ -30,6 +30,7 @@ from isardvdi_common.helpers.user_storage import UserStorage
 from isardvdi_common.lib.domains.desktops.desktops import (
     DesktopsProcessed as CommonDesktops,
 )
+from isardvdi_common.lib.domains.domains import DomainsProcessed
 from isardvdi_common.lib.users.groups.groups import GroupsProcessed as CommonGroups
 from isardvdi_common.lib.users.users.user import UsersProcessed as CommonUser
 from isardvdi_common.lib.users.users.user_policies import (
@@ -309,16 +310,7 @@ class UsersService:
                 "not_found",
                 f"User with ID '{user_id}' does not exist.",
             )
-        from rethinkdb import r
-
-        with CommonUser._rdb_context():
-            desktops = list(
-                r.table("domains")
-                .get_all(["desktop", user_id], index="kind_user")
-                .order_by("name")
-                .without("xml", "history_domain", "allowed")
-                .run(CommonUser._rdb_connection)
-            )
+        desktops = DomainsProcessed.list_webapp_desktops_for_user(user_id)
         return [
             d
             for d in desktops
@@ -330,16 +322,7 @@ class UsersService:
         """
         Get webapp templates for a user.
         """
-        from rethinkdb import r
-
-        with CommonUser._rdb_context():
-            templates = list(
-                r.table("domains")
-                .get_all(["template", user_id], index="kind_user")
-                .without("viewer", "xml", "history_domain")
-                .run(CommonUser._rdb_connection)
-            )
-        return templates
+        return DomainsProcessed.list_webapp_templates_for_user(user_id)
 
     @staticmethod
     def groups_users_count(groups: list, user_id: str) -> int:

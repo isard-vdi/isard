@@ -205,6 +205,144 @@ class UsageProcessed(RethinkSharedConnection):
         _params_item_type_custom_cache.clear()
 
     @classmethod
+    def list_consumers(cls, item_type: str) -> list[str]:
+        """Return the distinct ``item_consumer`` values seen for ``item_type``."""
+        with cls._rdb_context():
+            return list(
+                r.table("usage_consumption")
+                .get_all(item_type, index="item_type")
+                .pluck("item_consumer")
+                .distinct()["item_consumer"]
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
+    def count_consumption_rows(cls) -> int:
+        """Return the total number of rows in ``usage_consumption``."""
+        with cls._rdb_context():
+            return r.table("usage_consumption").count().run(cls._rdb_connection)
+
+    @classmethod
+    def delete_all_consumption(cls) -> None:
+        """Wipe every row from ``usage_consumption``.
+
+        Used by the admin "reset usage data" path. Caller must be sure;
+        there is no soft-delete fallback.
+        """
+        with cls._rdb_context():
+            r.table("usage_consumption").delete().run(cls._rdb_connection)
+
+    @classmethod
+    def unify_item_name(cls, item_id: str) -> str:
+        """Rewrite every consumption row's ``item_name`` to the latest one.
+
+        Items can be renamed (e.g. desktop name change); historical
+        consumption rows keep the old name and trigger duplicate-id
+        rendering in the admin UI. This helper picks the most-recent
+        row's name and back-fills it across the rest. Raises
+        ``not_found`` if no consumption row exists for the id.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        with cls._rdb_context():
+            rows = list(
+                r.table("usage_consumption")
+                .get_all(item_id, index="item_id")
+                .order_by("date")
+                .run(cls._rdb_connection)
+            )
+        if not rows:
+            raise Error(
+                "not_found",
+                f"No consumption data for item {item_id}",
+                description_code="consumption_not_found",
+            )
+        current_name = rows[-1]["item_name"]
+        with cls._rdb_context():
+            r.table("usage_consumption").get_all(item_id, index="item_id").filter(
+                lambda uc: uc["item_name"] != current_name
+            ).update({"item_name": current_name}).run(cls._rdb_connection)
+        return current_name
+
+    @classmethod
+    def check_item_ownership(cls, payload: dict, filters: dict) -> None:
+        """Reject manager access to items outside their own category.
+
+        ``filters`` carries ``item_type`` and ``item_ids``; the manager
+        category is in ``payload["category_id"]``. For each item kind
+        we verify the resource's parent category matches; admins
+        bypass via the absent ``role_id == "manager"`` check.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        if not filters.get("item_ids"):
+            return
+        item_type = filters.get("item_type")
+        if item_type == "category":
+            for item_id in filters["item_ids"]:
+                if (
+                    payload["role_id"] == "manager"
+                    and payload["category_id"] != item_id
+                ):
+                    raise Error(
+                        "forbidden",
+                        "You are not allowed to access this category",
+                    )
+        elif item_type == "group":
+            for item_id in filters["item_ids"]:
+                with cls._rdb_context():
+                    group = (
+                        r.table("groups")
+                        .get(item_id)
+                        .pluck("parent_category")
+                        .run(cls._rdb_connection)
+                    )
+                if (
+                    group
+                    and payload["role_id"] == "manager"
+                    and payload["category_id"] != group.get("parent_category")
+                ):
+                    raise Error(
+                        "forbidden",
+                        "You are not allowed to access this group",
+                    )
+        elif item_type == "user":
+            for item_id in filters["item_ids"]:
+                with cls._rdb_context():
+                    user = (
+                        r.table("users")
+                        .get(item_id)
+                        .pluck("category")
+                        .run(cls._rdb_connection)
+                    )
+                if (
+                    user
+                    and payload["role_id"] == "manager"
+                    and payload["category_id"] != user.get("category")
+                ):
+                    raise Error(
+                        "forbidden",
+                        "You are not allowed to access this user",
+                    )
+
+    @classmethod
+    def get_logs_started_time(cls, item_type: str) -> datetime:
+        """Return the earliest ``started_time`` in ``logs_<item_type>``.
+
+        Backs the ``consolidate_consumptions(total_days="all")`` path
+        — the admin trigger uses this to compute how far back to roll
+        consolidation. ``item_type`` is interpolated into the table
+        name; callers must pass a known kind ("desktop", "user", ...).
+        """
+        with cls._rdb_context():
+            return (
+                r.table("logs_" + item_type)
+                .order_by(index="started_time")
+                .nth(0)["started_time"]
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     def clear_all_caches(cls) -> None:
         """Clear every usage helper cache at once.
 
