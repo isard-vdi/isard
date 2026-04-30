@@ -134,7 +134,10 @@ export default {
       context.commit('resetDeploymentState')
     },
     socket_deploymentUpdate (context, data) {
-      const deployment = DeploymentsUtils.parseDeployment(JSON.parse(data))
+      // Partial-row merge — keep keys present in the payload so the
+      // exclude_none=True change-handler emit doesn't overwrite
+      // cached fields with undefined.
+      const deployment = DeploymentsUtils.parseDeployment(JSON.parse(data), { partial: true })
       context.commit('update_deployment', deployment)
     },
     socket_deploymentdesktopAdd (context, data) {
@@ -144,7 +147,10 @@ export default {
       }
     },
     socket_deploymentdesktopUpdate (context, data) {
-      const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
+      // Partial-row merge — keep keys present in the payload so the
+      // exclude_none=True change-handler emit doesn't overwrite
+      // cached fields with undefined.
+      const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data), { partial: true })
       if (deploymentdesktop.tag === context.state.deployment.id) {
         context.commit('update_deploymentdesktop', deploymentdesktop)
       }

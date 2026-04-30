@@ -94,7 +94,10 @@ export default {
       context.commit('add_media', media)
     },
     socket_mediaUpdate (context, data) {
-      const media = MediaUtils.parseMedia(JSON.parse(data))
+      // Partial-row merge — keep keys present in the payload so the
+      // exclude_none=True change-handler emit doesn't overwrite
+      // cached fields with undefined.
+      const media = MediaUtils.parseMedia(JSON.parse(data), { partial: true })
       context.commit('update_media', media)
     },
     socket_mediaDelete (context, data) {

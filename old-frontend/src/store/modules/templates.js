@@ -185,8 +185,11 @@ export default {
       // change-handler emits ``template_update`` on every row change,
       // including the periodic ``progress`` writes the move() task
       // makes during the rsync branch of the template-creation chain.
-      // Forwarding the payload keeps the progress bar live.
-      const template = DesktopUtils.parseTemplate(JSON.parse(data))
+      // Use ``partial: true`` so a payload that omits ``name`` /
+      // ``description`` / etc. doesn't clobber the cached row with the
+      // default-filled placeholders parseTemplate would otherwise emit
+      // ("data disappears when toggling template visibility").
+      const template = DesktopUtils.parseTemplate(JSON.parse(data), { partial: true })
       context.commit('update_templates', template)
     },
     fetchConvertToDesktop (context, data) {

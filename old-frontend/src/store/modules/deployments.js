@@ -64,7 +64,10 @@ export default {
       context.commit('add_deployments', deployment)
     },
     socket_deploymentsUpdate (context, data) {
-      const deployments = DeploymentsUtils.parseDeploymentsItem(JSON.parse(data))
+      // Partial-row merge — keep keys present in the payload so the
+      // exclude_none=True change-handler emit doesn't overwrite
+      // cached fields with undefined.
+      const deployments = DeploymentsUtils.parseDeploymentsItem(JSON.parse(data), { partial: true })
       context.commit('update_deployments', deployments)
     },
     socket_deploymentsDelete (context, data) {

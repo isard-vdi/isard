@@ -8,10 +8,13 @@ export class DeploymentsUtils {
     }) || []
   }
 
-  static parseDeploymentsItem (deployment) {
+  static parseDeploymentsItem (deployment, { partial = false } = {}) {
     // apiv4 OwnedDeployment shape: snake_case fields + desktop_names (plural list)
     // + tag_visible. Vue 2 has always read camelCase + a single desktopName.
     // Map apiv4 → Vue 2 here; multi-desktop deployments display the count.
+    // ``partial`` mode keeps only keys present in the payload so a
+    // change-handler emit with exclude_none=True doesn't clobber the
+    // cached row.
     const {
       id,
       name,
@@ -23,24 +26,27 @@ export class DeploymentsUtils {
       needs_booking: needsBooking,
       desktop_names: desktopNames
     } = deployment
-    const isMultiDesktop = Array.isArray(desktopNames) && desktopNames.length > 1
-    return {
+    const hasDesktopNames = desktopNames !== undefined
+    const isMultiDesktop = hasDesktopNames && Array.isArray(desktopNames) && desktopNames.length > 1
+    const out = {
       id,
       name,
       description,
       visibleDesktops,
       startedDesktops,
       totalDesktops,
-      creatingDesktops: 0,
+      creatingDesktops: partial ? undefined : 0,
       visible,
       needsBooking,
-      desktopName: isMultiDesktop ? `${desktopNames.length} desktop types` : (desktopNames && desktopNames[0]) || '',
-      template: isMultiDesktop ? '' : (desktopNames && desktopNames[0]) || '',
-      isMultiDesktop
+      desktopName: hasDesktopNames ? (isMultiDesktop ? `${desktopNames.length} desktop types` : (desktopNames && desktopNames[0]) || '') : undefined,
+      template: hasDesktopNames ? (isMultiDesktop ? '' : (desktopNames && desktopNames[0]) || '') : undefined,
+      isMultiDesktop: hasDesktopNames ? isMultiDesktop : undefined
     }
+    if (!partial) return out
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))
   }
 
-  static parseDeployment (deployment) {
+  static parseDeployment (deployment, { partial = false } = {}) {
     // apiv4 uses tag_visible at the deployment root; old-frontend has always
     // read `visible`. Accept either so this parser works on the apiv4 wire
     // shape without a per-call adapter.
@@ -50,8 +56,8 @@ export class DeploymentsUtils {
       ? deployment.desktops.map((desktop) => {
         return DeploymentsUtils.parseDeploymentDesktop(desktop)
       })
-      : []
-    return {
+      : (partial ? undefined : [])
+    const out = {
       id,
       name,
       desktops,
@@ -60,17 +66,19 @@ export class DeploymentsUtils {
       visible,
       needsBooking,
       bookingId,
-      nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
-      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : '',
+      nextBookingStart: nextBookingStart === undefined ? undefined : (nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : ''),
+      nextBookingEnd: nextBookingEnd === undefined ? undefined : (nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''),
       totalDesktops,
       totalUsers,
       desktopsEachUser
     }
+    if (!partial) return out
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))
   }
 
-  static parseDeploymentDesktop (desktop) {
+  static parseDeploymentDesktop (desktop, { partial = false } = {}) {
     const { id, ip, name, user, user_name: userName, user_photo: userPhoto, category_name: categoryName, group_name: groupName, state, viewer, viewers, image, accessed, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, visible, tag } = desktop
-    return {
+    const out = {
       id,
       ip,
       name,
@@ -83,14 +91,16 @@ export class DeploymentsUtils {
       state,
       viewer,
       viewers,
-      buttonIconName: desktop.state ? DesktopUtils.buttonIconName(desktop) : '',
+      buttonIconName: state === undefined ? undefined : (state ? DesktopUtils.buttonIconName(desktop) : ''),
       last: accessed,
       bookingId,
       needsBooking,
-      nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
-      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : '',
+      nextBookingStart: nextBookingStart === undefined ? undefined : (nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : ''),
+      nextBookingEnd: nextBookingEnd === undefined ? undefined : (nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''),
       visible,
       tag
     }
+    if (!partial) return out
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined))
   }
 }

@@ -277,7 +277,13 @@ export default {
       context.commit('add_desktop', desktop)
     },
     socket_desktopUpdate (context, data) {
-      const desktop = DesktopUtils.parseDesktop(JSON.parse(data))
+      // change-handler emits with ``model_dump(exclude_none=True)`` so
+      // fields the row doesn't carry are absent. Use ``partial: true``
+      // so parseDesktop returns only present keys and ``update_desktop``
+      // merges them into the cached row instead of clobbering with
+      // computed defaults — same pattern that hits templates also hits
+      // desktops on partial updates like booking-state changes.
+      const desktop = DesktopUtils.parseDesktop(JSON.parse(data), { partial: true })
 
       // Only update if there are actual changes
       const existingDesktop = context.getters.getDesktop(desktop.id)
