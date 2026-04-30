@@ -23,7 +23,7 @@ def test_admin_domain_details(monkeypatch, test_client):
         "user": "user-1",
     }
     monkeypatch.setattr(
-        "api.services.admin_domains.AdminDomainsService.get_domain_details",
+        "api.services.admin.domains.AdminDomainsService.get_domain_details",
         staticmethod(lambda payload, domain_id: stub),
     )
 
@@ -37,7 +37,7 @@ def test_admin_domain_viewer_data(monkeypatch, test_client):
     jwt = MockJWT()
     stub = {"viewers": {"browser-vnc": {"url": "https://viewer.example/vnc/1"}}}
     monkeypatch.setattr(
-        "api.services.admin_domains.AdminDomainsService.get_domain_viewer_data",
+        "api.services.admin.domains.AdminDomainsService.get_domain_viewer_data",
         staticmethod(lambda payload, domain_id: stub),
     )
 
@@ -51,7 +51,7 @@ def test_admin_domain_storage(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "stor-1", "size": 10737418240, "status": "ready"}]
     monkeypatch.setattr(
-        "api.services.admin_domains.AdminDomainsService.get_domain_storage",
+        "api.services.admin.domains.AdminDomainsService.get_domain_storage",
         staticmethod(lambda payload, domain_id: stub),
     )
 
@@ -65,7 +65,7 @@ def test_admin_domains_by_status(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "desktop-1", "status": "Failed"}]
     monkeypatch.setattr(
-        "api.services.admin_domains.AdminDomainsService.get_domains_by_status",
+        "api.services.admin.domains.AdminDomainsService.get_domains_by_status",
         staticmethod(lambda payload, status: stub),
     )
 
@@ -90,7 +90,7 @@ def test_admin_find_storages_by_domain_status(monkeypatch, test_client):
         return {"tasks_created": 7}
 
     monkeypatch.setattr(
-        "api.services.admin_domains.AdminDomainsService.find_storages_by_domain_status",
+        "api.services.admin.domains.AdminDomainsService.find_storages_by_domain_status",
         staticmethod(fake_find),
     )
 

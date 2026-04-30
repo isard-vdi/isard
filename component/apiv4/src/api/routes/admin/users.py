@@ -23,7 +23,7 @@ import traceback
 from typing import Literal, Optional
 
 from api import admin_router, manager_router
-from api.schemas.admin_users import (
+from api.schemas.admin.users import (
     AdminBastionDomainData,
     AdminBroadcastData,
     AdminBulkUserCreateData,
@@ -54,8 +54,8 @@ from api.schemas.admin_users import (
     RequiredCheckResponse,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_socketio import AdminSocketioService
-from api.services.admin_users import AdminUsersService
+from api.services.admin.socketio import AdminSocketioService
+from api.services.admin.users import AdminUsersService
 from api.services.error import Error
 from cachetools import TTLCache, cached
 from fastapi import Path, Query, Request

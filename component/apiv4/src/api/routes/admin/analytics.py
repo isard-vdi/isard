@@ -21,7 +21,7 @@
 import traceback
 
 from api import admin_router, manager_router
-from api.schemas.admin_analytics import (
+from api.schemas.admin.analytics import (
     AnalyticsCategoriesRequest,
     AnalyticsGraphCreateRequest,
     AnalyticsGraphUpdateRequest,
@@ -30,7 +30,7 @@ from api.schemas.admin_analytics import (
     EchartRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_analytics import AdminAnalyticsService
+from api.services.admin.analytics import AdminAnalyticsService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse

@@ -24,7 +24,7 @@ from datetime import datetime
 
 import pytz
 from api import admin_router, manager_router
-from api.schemas.admin_usage import (
+from api.schemas.admin.usage import (
     UsageConsumptionRequest,
     UsageCreditCreateRequest,
     UsageCreditUpdateRequest,
@@ -39,7 +39,7 @@ from api.schemas.admin_usage import (
     UsageStartEndRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_usage import AdminUsageService
+from api.services.admin.usage import AdminUsageService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse

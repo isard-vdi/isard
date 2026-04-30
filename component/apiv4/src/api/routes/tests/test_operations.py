@@ -20,11 +20,11 @@ def test_admin_operations_hypervisors_list(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "hyper-1", "state": "running"}]
     monkeypatch.setattr(
-        "api.services.admin_operations.AdminOperationsService.is_operations_api_enabled",
+        "api.services.admin.operations.AdminOperationsService.is_operations_api_enabled",
         staticmethod(lambda: True),
     )
     monkeypatch.setattr(
-        "api.services.admin_operations.AdminOperationsService.list_hypervisors",
+        "api.services.admin.operations.AdminOperationsService.list_hypervisors",
         staticmethod(lambda: stub),
     )
 
@@ -38,7 +38,7 @@ def test_admin_operations_hypervisors_disabled_is_forbidden(monkeypatch, test_cl
     """If the operations API is disabled, the route must return 403."""
     jwt = MockJWT()
     monkeypatch.setattr(
-        "api.services.admin_operations.AdminOperationsService.is_operations_api_enabled",
+        "api.services.admin.operations.AdminOperationsService.is_operations_api_enabled",
         staticmethod(lambda: False),
     )
 
@@ -51,11 +51,11 @@ def test_admin_operations_hypervisor_start(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_operations.AdminOperationsService.is_operations_api_enabled",
+        "api.services.admin.operations.AdminOperationsService.is_operations_api_enabled",
         staticmethod(lambda: True),
     )
     monkeypatch.setattr(
-        "api.services.admin_operations.AdminOperationsService.start_hypervisor",
+        "api.services.admin.operations.AdminOperationsService.start_hypervisor",
         staticmethod(
             lambda hyper_id: calls.append(hyper_id)
             or {"id": hyper_id, "state": "starting"}
@@ -76,11 +76,11 @@ def test_admin_operations_hypervisor_stop(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_operations.AdminOperationsService.is_operations_api_enabled",
+        "api.services.admin.operations.AdminOperationsService.is_operations_api_enabled",
         staticmethod(lambda: True),
     )
     monkeypatch.setattr(
-        "api.services.admin_operations.AdminOperationsService.stop_hypervisor",
+        "api.services.admin.operations.AdminOperationsService.stop_hypervisor",
         staticmethod(
             lambda hyper_id: calls.append(hyper_id)
             or {"id": hyper_id, "state": "stopping"}

@@ -22,13 +22,13 @@ import traceback
 from typing import Literal
 
 from api import token_router
-from api.schemas.admin_tables import (
+from api.schemas.admin.tables import (
     AllowedGetRequest,
     AllowedTermRequest,
     AllowedUpdateRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_alloweds import AdminAllowedsService
+from api.services.admin.alloweds import AdminAllowedsService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse

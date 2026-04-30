@@ -23,7 +23,7 @@ def test_admin_user_storage_list(monkeypatch, test_client):
         {"id": "prov-2", "provider": "nextcloud", "name": "Secondary"},
     ]
     monkeypatch.setattr(
-        "api.services.admin_user_storage.AdminUserStorageService.list_providers",
+        "api.services.admin.user_storage.AdminUserStorageService.list_providers",
         staticmethod(lambda: stub),
     )
 
@@ -37,7 +37,7 @@ def test_admin_user_storage_get(monkeypatch, test_client):
     jwt = MockJWT()
     stub = {"id": "prov-1", "provider": "webdav", "name": "Primary"}
     monkeypatch.setattr(
-        "api.services.admin_user_storage.AdminUserStorageService.get_provider",
+        "api.services.admin.user_storage.AdminUserStorageService.get_provider",
         staticmethod(lambda provider_id: stub),
     )
 
@@ -51,7 +51,7 @@ def test_admin_user_storage_delete(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_user_storage.AdminUserStorageService.delete_provider",
+        "api.services.admin.user_storage.AdminUserStorageService.delete_provider",
         staticmethod(lambda provider_id: calls.append(provider_id)),
     )
 
@@ -80,7 +80,7 @@ def test_admin_user_storage_add_basic_auth(monkeypatch, test_client):
         return "prov-new"
 
     monkeypatch.setattr(
-        "api.services.admin_user_storage.AdminUserStorageService.add_provider_basic_auth",
+        "api.services.admin.user_storage.AdminUserStorageService.add_provider_basic_auth",
         staticmethod(fake_add),
     )
 
@@ -115,7 +115,7 @@ def test_admin_user_storage_reset(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_user_storage.AdminUserStorageService.reset_provider",
+        "api.services.admin.user_storage.AdminUserStorageService.reset_provider",
         staticmethod(lambda provider_id: calls.append(provider_id)),
     )
 

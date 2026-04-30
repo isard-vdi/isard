@@ -49,7 +49,7 @@ def test_admin_hypervisors_list(monkeypatch, test_client):
         return stub
 
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.get_hypervisors",
+        "api.services.admin.hypervisors.AdminHypervisorsService.get_hypervisors",
         staticmethod(fake_get_hypervisors),
     )
 
@@ -70,7 +70,7 @@ def test_admin_hypervisors_list_by_status(monkeypatch, test_client):
         return []
 
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.get_hypervisors",
+        "api.services.admin.hypervisors.AdminHypervisorsService.get_hypervisors",
         staticmethod(fake_get_hypervisors),
     )
 
@@ -90,7 +90,7 @@ def test_admin_hypervisor_create(monkeypatch, test_client):
         return {"id": data["hyper_id"], "status": "Offline"}
 
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.create_or_update_hypervisor",
+        "api.services.admin.hypervisors.AdminHypervisorsService.create_or_update_hypervisor",
         staticmethod(fake_create),
     )
 
@@ -119,7 +119,7 @@ def test_admin_hypervisor_enable(monkeypatch, test_client):
         return {"id": hyper_id, "enabled": enabled}
 
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.enable_hyper",
+        "api.services.admin.hypervisors.AdminHypervisorsService.enable_hyper",
         staticmethod(fake_enable),
     )
 
@@ -138,7 +138,7 @@ def test_admin_hypervisor_delete(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.remove_hyper",
+        "api.services.admin.hypervisors.AdminHypervisorsService.remove_hyper",
         staticmethod(lambda hyper_id: calls.append(hyper_id) or {"removed": hyper_id}),
     )
 
@@ -156,7 +156,7 @@ def test_admin_hypervisor_stop_domains(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.stop_hyper_domains",
+        "api.services.admin.hypervisors.AdminHypervisorsService.stop_hyper_domains",
         staticmethod(lambda hyper_id: calls.append(hyper_id)),
     )
 
@@ -174,7 +174,7 @@ def test_admin_hypervisor_virt_pools_get(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "pool-1", "enabled": True}]
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.get_hyper_virt_pools",
+        "api.services.admin.hypervisors.AdminHypervisorsService.get_hyper_virt_pools",
         staticmethod(lambda hyper_id: stub),
     )
 
@@ -194,7 +194,7 @@ def test_admin_hypervisor_virt_pools_update(monkeypatch, test_client):
         captured["enable_virt_pool"] = data["enable_virt_pool"]
 
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.update_hyper_virt_pools",
+        "api.services.admin.hypervisors.AdminHypervisorsService.update_hyper_virt_pools",
         staticmethod(fake_update),
     )
 
@@ -217,7 +217,7 @@ def test_admin_hypervisor_mountpoints(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"path": "/isard", "size": 1000000}]
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.get_hyper_mountpoints",
+        "api.services.admin.hypervisors.AdminHypervisorsService.get_hyper_mountpoints",
         staticmethod(lambda hyper_id: stub),
     )
 
@@ -231,7 +231,7 @@ def test_admin_hypervisor_started_domains(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "desktop-1", "user_name": "alice"}]
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.get_hyper_started_domains",
+        "api.services.admin.hypervisors.AdminHypervisorsService.get_hyper_started_domains",
         staticmethod(lambda hyper_id: stub),
     )
 
@@ -248,7 +248,7 @@ def test_admin_orchestrator_managed_list(monkeypatch, test_client):
     jwt = MockJWT()
     stub = [{"id": "hyper-1", "status": "Online"}]
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.get_orchestrator_managed_hypervisors",
+        "api.services.admin.hypervisors.AdminHypervisorsService.get_orchestrator_managed_hypervisors",
         staticmethod(lambda: stub),
     )
 
@@ -275,7 +275,7 @@ def test_admin_orchestrator_manage_unset(monkeypatch, test_client):
         captured["reset"] = reset
 
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.set_hyper_orchestrator_managed",
+        "api.services.admin.hypervisors.AdminHypervisorsService.set_hyper_orchestrator_managed",
         staticmethod(fake_set),
     )
 
@@ -298,7 +298,7 @@ def test_admin_orchestrator_manage_set(monkeypatch, test_client):
         captured["reset"] = reset
 
     monkeypatch.setattr(
-        "api.services.admin_hypervisors.AdminHypervisorsService.set_hyper_orchestrator_managed",
+        "api.services.admin.hypervisors.AdminHypervisorsService.set_hyper_orchestrator_managed",
         staticmethod(fake_set),
     )
 

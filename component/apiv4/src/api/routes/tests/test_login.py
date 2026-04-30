@@ -244,7 +244,7 @@ def test_admin_update_login_notification(monkeypatch, test_client):
         captured["cover_enabled"] = dump["cover"]["enabled"]
 
     monkeypatch.setattr(
-        "api.services.admin_login_config.AdminLoginConfigService.update_login_notification",
+        "api.services.admin.login_config.AdminLoginConfigService.update_login_notification",
         staticmethod(fake_update),
     )
 
@@ -269,7 +269,7 @@ def test_admin_enable_cover_login_notification(monkeypatch, test_client):
         captured["enabled"] = enabled
 
     monkeypatch.setattr(
-        "api.services.admin_login_config.AdminLoginConfigService.enable_login_notification",
+        "api.services.admin.login_config.AdminLoginConfigService.enable_login_notification",
         staticmethod(fake_enable),
     )
 

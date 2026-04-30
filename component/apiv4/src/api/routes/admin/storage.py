@@ -22,9 +22,9 @@ import traceback
 from typing import Optional
 
 from api import admin_router, manager_router
-from api.schemas.admin_storage import AdminStorageFilterRequest
+from api.schemas.admin.storage import AdminStorageFilterRequest
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_storage import AdminStorageService
+from api.services.admin.storage import AdminStorageService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse

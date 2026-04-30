@@ -33,7 +33,7 @@ import traceback
 from typing import Literal
 
 from api import admin_router
-from api.schemas.admin_stats import (
+from api.schemas.admin.stats import (
     StatsCategoriesDeploymentsResponse,
     StatsCategoriesResponse,
     StatsDomainsStatusResponse,
@@ -43,7 +43,7 @@ from api.schemas.admin_stats import (
     StatsKindUser,
 )
 from api.schemas.common import ErrorResponse
-from api.services.admin_stats import AdminStatsService
+from api.services.admin.stats import AdminStatsService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

@@ -22,14 +22,14 @@ import traceback
 from typing import Literal
 
 from api import manager_router
-from api.schemas.admin_categories import (
+from api.schemas.admin.categories import (
     BrandingUpdateData,
     CategoryLoginNotificationData,
     CategoryLoginNotificationEnableData,
 )
-from api.schemas.admin_users import AdminCategoryAuthenticationData
+from api.schemas.admin.users import AdminCategoryAuthenticationData
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_categories import AdminCategoryService
+from api.services.admin.categories import AdminCategoryService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

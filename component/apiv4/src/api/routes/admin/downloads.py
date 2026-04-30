@@ -24,7 +24,7 @@ from typing import Optional
 
 from api import admin_router
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_downloads import AdminDownloadsService
+from api.services.admin.downloads import AdminDownloadsService
 from api.services.error import Error
 from fastapi import Body, Path, Request
 from fastapi.responses import JSONResponse

@@ -5,7 +5,7 @@
 
 from typing import List
 
-from api.schemas.admin_notify import SocketioEmitRequest
+from api.schemas.admin.notify import SocketioEmitRequest
 from api.services.error import Error
 from isardvdi_common.helpers.api_notify import notify_broadcast, notify_custom
 

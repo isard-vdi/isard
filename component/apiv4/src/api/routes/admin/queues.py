@@ -6,7 +6,7 @@
 import traceback
 
 from api import admin_router
-from api.schemas.admin_queues import (
+from api.schemas.admin.queues import (
     AutoDeleteConfigResponse,
     AutoDeleteEnabledRequest,
     DeleteOldTasksRequest,
@@ -14,7 +14,7 @@ from api.schemas.admin_queues import (
     QueueRegistriesRequest,
 )
 from api.schemas.common import ErrorResponse
-from api.services.admin_queues import AdminQueuesService
+from api.services.admin.queues import AdminQueuesService
 from api.services.error import Error
 from fastapi import Request
 from fastapi.responses import JSONResponse

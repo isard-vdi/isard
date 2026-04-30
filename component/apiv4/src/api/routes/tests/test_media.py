@@ -454,7 +454,7 @@ def test_list_media_installs(monkeypatch, test_client):
         return stub
 
     monkeypatch.setattr(
-        "api.services.admin_tables.AdminTablesService.get_table",
+        "api.services.admin.tables.AdminTablesService.get_table",
         staticmethod(fake_get_table),
     )
 

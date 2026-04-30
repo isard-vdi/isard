@@ -24,7 +24,7 @@ from typing import Literal
 
 from api import admin_router, manager_router
 from api.dependencies.body_parsers import parse_json_or_form
-from api.schemas.admin_domains import (
+from api.schemas.admin.domains import (
     AdminDomainStoragePathData,
     AdminDomainXmlData,
     AdminDomainXmlSectionsSaveData,
@@ -33,7 +33,7 @@ from api.schemas.admin_domains import (
     AdminMultipleActionsData,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_domains import AdminDomainsService
+from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
 from fastapi import Depends, Path, Request
 from fastapi.responses import JSONResponse

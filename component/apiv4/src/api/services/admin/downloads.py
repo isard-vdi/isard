@@ -24,7 +24,7 @@ import xml.etree.ElementTree as ET
 from uuid import uuid4
 
 import requests
-from api.services.admin_tables import AdminTablesService
+from api.services.admin.tables import AdminTablesService
 from api.services.cards import CardService
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.rethink_connection_factory import (

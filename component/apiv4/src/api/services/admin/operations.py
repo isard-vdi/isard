@@ -45,7 +45,7 @@ class AdminOperationsService:
 
         try:
             # Get gRPC client
-            from api.services.admin_operations import _get_operations_client
+            from api.services.admin.operations import _get_operations_client
 
             client = _get_operations_client()
             response = client.ListHypervisors(operations_pb2.ListHypervisorsRequest())

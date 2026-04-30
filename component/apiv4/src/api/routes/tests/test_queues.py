@@ -23,7 +23,7 @@ def test_admin_queues_list(monkeypatch, test_client):
         "storage.default": {"queued": 0, "started": 0, "failed": 0},
     }
     monkeypatch.setattr(
-        "api.services.admin_queues.AdminQueuesService.get_queues",
+        "api.services.admin.queues.AdminQueuesService.get_queues",
         staticmethod(lambda: stub),
     )
 
@@ -40,7 +40,7 @@ def test_admin_queues_consumers(monkeypatch, test_client):
         {"id": "worker-2", "queues": ["storage.default"], "state": "busy"},
     ]
     monkeypatch.setattr(
-        "api.services.admin_queues.AdminQueuesService.get_consumers",
+        "api.services.admin.queues.AdminQueuesService.get_consumers",
         staticmethod(lambda: stub),
     )
 
@@ -58,7 +58,7 @@ def test_admin_queues_get_old_tasks_config(monkeypatch, test_client):
         "enabled": True,
     }
     monkeypatch.setattr(
-        "api.services.admin_queues.AdminQueuesService.get_auto_delete_config",
+        "api.services.admin.queues.AdminQueuesService.get_auto_delete_config",
         staticmethod(lambda: stub),
     )
 
@@ -77,7 +77,7 @@ def test_admin_queues_set_old_tasks_max_time(monkeypatch, test_client):
         return {"older_than": max_time}
 
     monkeypatch.setattr(
-        "api.services.admin_queues.AdminQueuesService.set_max_time",
+        "api.services.admin.queues.AdminQueuesService.set_max_time",
         staticmethod(fake_set_max_time),
     )
 
@@ -101,7 +101,7 @@ def test_admin_queues_set_queue_registries(monkeypatch, test_client):
         return {"queue_registries": registries}
 
     monkeypatch.setattr(
-        "api.services.admin_queues.AdminQueuesService.set_queue_registries",
+        "api.services.admin.queues.AdminQueuesService.set_queue_registries",
         staticmethod(fake_set),
     )
 
@@ -125,7 +125,7 @@ def test_admin_queues_set_old_tasks_enabled(monkeypatch, test_client):
         return {"enabled": enabled}
 
     monkeypatch.setattr(
-        "api.services.admin_queues.AdminQueuesService.set_auto_delete_enabled",
+        "api.services.admin.queues.AdminQueuesService.set_auto_delete_enabled",
         staticmethod(fake_set),
     )
 

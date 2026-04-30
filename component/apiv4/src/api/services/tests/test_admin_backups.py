@@ -11,7 +11,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from api.services.admin_backups import (
+from api.services.admin.backups import (
     INTEGRITY_ENABLED_DEFAULT,
     AdminBackupsService,
     _normalize_check,
@@ -66,11 +66,11 @@ def _patch_rdb(monkeypatch, *, count, old_ids, delete_result=None):
     that ``get_all`` was passed the right ids.
     """
     monkeypatch.setattr(
-        "api.services.admin_backups.RethinkSharedConnection._rdb_context",
+        "api.services.admin.backups.RethinkSharedConnection._rdb_context",
         contextlib.nullcontext,
     )
     monkeypatch.setattr(
-        "api.services.admin_backups.RethinkSharedConnection._rdb_connection",
+        "api.services.admin.backups.RethinkSharedConnection._rdb_connection",
         MagicMock(),
     )
     delete_mock = MagicMock(return_value=delete_result or {"deleted": len(old_ids)})
@@ -80,7 +80,7 @@ def _patch_rdb(monkeypatch, *, count, old_ids, delete_result=None):
         {"id": i} for i in old_ids
     ]
     table.get_all.return_value.delete.return_value.run = delete_mock
-    monkeypatch.setattr("api.services.admin_backups.r.table", lambda _: table)
+    monkeypatch.setattr("api.services.admin.backups.r.table", lambda _: table)
     return delete_mock, table
 
 
@@ -130,18 +130,18 @@ class TestCleanupOldBackups:
 
 def _patch_config_read(monkeypatch, doc):
     monkeypatch.setattr(
-        "api.services.admin_backups.RethinkSharedConnection._rdb_context",
+        "api.services.admin.backups.RethinkSharedConnection._rdb_context",
         contextlib.nullcontext,
     )
     monkeypatch.setattr(
-        "api.services.admin_backups.RethinkSharedConnection._rdb_connection",
+        "api.services.admin.backups.RethinkSharedConnection._rdb_connection",
         MagicMock(),
     )
     table = MagicMock()
     table.get.return_value.run.return_value = doc
     update_mock = MagicMock(return_value={"replaced": 1})
     table.get.return_value.update.return_value.run = update_mock
-    monkeypatch.setattr("api.services.admin_backups.r.table", lambda _: table)
+    monkeypatch.setattr("api.services.admin.backups.r.table", lambda _: table)
     return table, update_mock
 
 

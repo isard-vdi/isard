@@ -25,7 +25,7 @@ import time
 import traceback
 from uuid import uuid4
 
-from api.services.admin_tables import AdminTablesService
+from api.services.admin.tables import AdminTablesService
 from api.services.error import Error
 from api.services.templates import clear_templates_cache
 from isardvdi_common.connections.api_sessions import revoke_user_session
@@ -656,7 +656,7 @@ class AdminUsersService:
             raise Error("not_found", f"Category {category_id} not found")
         category["is_default"] = category["id"] == "default"
         if "authentication" in category:
-            from api.services.admin_categories import _strip_authentication_secrets
+            from api.services.admin.categories import _strip_authentication_secrets
 
             category["authentication"] = _strip_authentication_secrets(
                 category["authentication"]

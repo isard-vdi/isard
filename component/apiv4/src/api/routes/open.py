@@ -26,7 +26,7 @@ import traceback
 from api import admin_router, advanced_router, manager_router, open_router, token_router
 from api.schemas.common import ErrorResponse
 from api.schemas.open import ApiVersion
-from api.services.admin_categories import AdminCategoryService
+from api.services.admin.categories import AdminCategoryService
 from api.services.categories import CategoryService
 from api.services.error import Error
 from api.services.login_config_cache import logo_cache

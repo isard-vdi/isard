@@ -33,7 +33,7 @@ import traceback
 from api import open_router
 from api.schemas.common import ErrorResponse
 from api.schemas.login import LoginConfigResponse
-from api.services.admin_categories import AdminCategoryService
+from api.services.admin.categories import AdminCategoryService
 from api.services.config import ConfigService
 from api.services.error import Error
 from api.services.login_config_cache import login_config_cache

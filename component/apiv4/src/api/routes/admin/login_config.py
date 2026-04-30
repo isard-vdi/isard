@@ -21,13 +21,13 @@
 import traceback
 
 from api import admin_router, manager_router
-from api.schemas.admin_login_config import (
+from api.schemas.admin.login_config import (
     LoginNotificationEnableRequest,
     LoginNotificationUpdateRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_categories import AdminCategoryService
-from api.services.admin_login_config import AdminLoginConfigService
+from api.services.admin.categories import AdminCategoryService
+from api.services.admin.login_config import AdminLoginConfigService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse

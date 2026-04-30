@@ -23,7 +23,7 @@ import traceback
 from typing import Literal, Optional
 
 from api import admin_router
-from api.schemas.admin_hypervisors import (
+from api.schemas.admin.hypervisors import (
     AdminBootProgressRequest,
     AdminHypervisor,
     AdminHypervisorCreateData,
@@ -39,7 +39,7 @@ from api.schemas.admin_hypervisors import (
     OrchestratorManagedHypervisor,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from api.services.admin_hypervisors import AdminHypervisorsService
+from api.services.admin.hypervisors import AdminHypervisorsService
 from api.services.error import Error
 from fastapi import Path, Request
 from fastapi.responses import JSONResponse
