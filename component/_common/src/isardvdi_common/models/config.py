@@ -73,6 +73,73 @@ class Config(RethinkCustomBase):
         return cls.get_user_migration_config()
 
     @classmethod
+    def update_login_notification(cls, data: dict) -> bool:
+        """Read-merge-write the ``login.notification_{cover,form}`` blocks.
+
+        ``data`` is a dict with optional ``cover`` / ``form`` keys; each
+        sub-dict supplies the new notification config. The ``enabled``
+        flag falls back to the existing DB value when omitted (so the
+        caller can edit content without re-asserting state).
+
+        Uses ``r.literal()`` so the merge replaces the whole ``login``
+        dict instead of unioning — keys present in DB but absent from
+        ``current`` are dropped cleanly.
+
+        Returns ``True`` if the DB was updated, ``False`` if ``data``
+        contained nothing to apply. Clears the ``get_config`` cache on
+        write; service-side caches must be cleared by the caller.
+        """
+        with cls._rdb_context():
+            current = (
+                r.table(cls._rdb_table)
+                .get(1)
+                .get_field("login")
+                .default({})
+                .run(cls._rdb_connection)
+            )
+
+            changed = False
+            for position, key in (
+                ("cover", "notification_cover"),
+                ("form", "notification_form"),
+            ):
+                position_data = data.get(position)
+                if position_data is None:
+                    continue
+                if "enabled" not in position_data:
+                    position_data["enabled"] = current.get(key, {}).get(
+                        "enabled", False
+                    )
+                current[key] = position_data
+                changed = True
+
+            if not changed:
+                return False
+
+            r.table(cls._rdb_table).get(1).update({"login": r.literal(current)}).run(
+                cls._rdb_connection
+            )
+
+        cls.clear_get_config_cache()
+        return True
+
+    @classmethod
+    def enable_login_notification(cls, notification_type: str, enable: bool) -> None:
+        """Toggle ``login.notification_<type>.enabled`` on/off.
+
+        ``notification_type`` is ``"cover"`` or ``"form"`` (Literal-shaped
+        but kept untyped here so the `_common` boundary stays loose;
+        the route validates it). Clears the ``get_config`` cache after
+        the write; service-side caches must be cleared by the caller.
+        """
+        with cls._rdb_context():
+            r.table(cls._rdb_table).get(1).update(
+                {"login": {f"notification_{notification_type}": {"enabled": enable}}}
+            ).run(cls._rdb_connection)
+
+        cls.clear_get_config_cache()
+
+    @classmethod
     def get_provider_config(cls, provider: str):
         config = cls.get_config()
         if not config["auth"].get(provider):
