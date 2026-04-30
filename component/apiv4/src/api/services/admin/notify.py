@@ -3,16 +3,15 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
-import traceback
 from typing import Any, Dict, List, Optional
 
 from api.schemas.admin.notify import DesktopQueueItem
-from api.services.error import Error
 from isardvdi_common.helpers.api_notify import (
     notify_custom,
     notify_desktop,
     notify_user,
 )
+from isardvdi_common.lib.domains.domains import DomainsProcessed
 
 
 class AdminNotifyService:
@@ -44,22 +43,9 @@ class AdminNotifyService:
         ``DesktopQueueItem`` models directly (not dicts) so the contract
         checked in :mod:`api.schemas.admin_notify` is preserved all the
         way down to the service boundary."""
-        from isardvdi_common.connections.rethink_connection_factory import (
-            RethinkSharedConnection,
+        domain_map = DomainsProcessed.get_user_id_by_desktop_id(
+            [item.desktop_id for item in items]
         )
-        from rethinkdb import r
-
-        desktop_ids = [item.desktop_id for item in items]
-
-        with RethinkSharedConnection._rdb_context():
-            domains = list(
-                r.table("domains")
-                .get_all(r.args(desktop_ids), index="id")
-                .pluck("id", "user")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-
-        domain_map = {domain["id"]: domain["user"] for domain in domains}
 
         users: Dict[str, Dict[str, Dict[str, Any]]] = {}
         for item in items:
