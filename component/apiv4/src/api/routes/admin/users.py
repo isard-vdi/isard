@@ -81,6 +81,7 @@ def clear_admin_user_full_data_cache() -> None:
 @manager_router.get(
     "/admin/jwt/{user_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get impersonation JWT for user",
     description="Generates a JWT token to impersonate the specified user. Requires ownership check.",
     responses={
@@ -88,11 +89,11 @@ def clear_admin_user_full_data_cache() -> None:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_jwt(request: Request, user_id: str):
+async def admin_get_jwt(request: Request, user_id: str) -> dict:
     try:
         AdminUsersService.owns_user_id(request.token_payload, user_id)
         result = AdminUsersService.get_impersonate_jwt(user_id)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -107,6 +108,7 @@ async def admin_get_jwt(request: Request, user_id: str):
 @manager_router.get(
     "/admin/user/{user_id}/exists",
     tags=[tag],
+    response_model=bool,
     summary="Check if user exists",
     description="Returns whether a user with the given ID exists.",
     responses={
@@ -114,10 +116,10 @@ async def admin_get_jwt(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_user_exists(request: Request, user_id: str):
+async def admin_user_exists(request: Request, user_id: str) -> bool:
     try:
         AdminUsersService.owns_user_id(request.token_payload, user_id)
-        return AdminUsersService.user_exists(user_id)
+        return bool(AdminUsersService.user_exists(user_id))
     except Error:
         raise
     except Exception as e:
@@ -133,6 +135,7 @@ async def admin_user_exists(request: Request, user_id: str):
 @manager_router.get(
     "/admin/user/{user_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get user full data",
     description="Returns full data for a user.",
     responses={
@@ -140,10 +143,11 @@ async def admin_user_exists(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_user(request: Request, user_id: str):
+async def admin_get_user(request: Request, user_id: str) -> dict:
     try:
         AdminUsersService.owns_user_id(request.token_payload, user_id)
-        return AdminUsersService.get_user_full_data(user_id)
+        result = AdminUsersService.get_user_full_data(user_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -158,6 +162,7 @@ async def admin_get_user(request: Request, user_id: str):
 @manager_router.get(
     "/admin/user/{user_id}/raw",
     tags=[tag],
+    response_model=dict,
     summary="Get user raw data",
     description="Returns raw user data from database.",
     responses={
@@ -165,10 +170,11 @@ async def admin_get_user(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_user_raw(request: Request, user_id: str):
+async def admin_get_user_raw(request: Request, user_id: str) -> dict:
     try:
         AdminUsersService.owns_user_id(request.token_payload, user_id)
-        return AdminUsersService.get_user_raw(user_id)
+        result = AdminUsersService.get_user_raw(user_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -214,6 +220,7 @@ async def admin_list_users(request: Request):
 @manager_router.get(
     "/admin/users/{nav}/users",
     tags=[tag],
+    response_model=list[dict],
     summary="List users by navigation context",
     description="Returns list of users for management or quotas_limits navigation.",
     responses={
@@ -223,9 +230,10 @@ async def admin_list_users(request: Request):
 )
 async def admin_list_users_nav(
     request: Request, nav: Literal["management", "quotas_limits"]
-):
+) -> list[dict]:
     try:
-        return AdminUsersService.list_users_nav(request.token_payload, nav)
+        result = AdminUsersService.list_users_nav(request.token_payload, nav)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -267,6 +275,7 @@ async def admin_create_user(request: Request, data: AdminUserCreateData):
 @manager_router.put(
     "/admin/user/{user_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Update user",
     description="Updates a single user.",
     responses={
@@ -274,12 +283,14 @@ async def admin_create_user(request: Request, data: AdminUserCreateData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_user(request: Request, user_id: str, data: AdminUserUpdateData):
+async def admin_update_user(
+    request: Request, user_id: str, data: AdminUserUpdateData
+) -> EmptyResponse:
     try:
         AdminUsersService.update_user(
             request.token_payload, user_id, data.model_dump(exclude_none=True)
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -294,6 +305,7 @@ async def admin_update_user(request: Request, user_id: str, data: AdminUserUpdat
 @manager_router.put(
     "/admin/users/bulk",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Bulk update users",
     description="Updates multiple users at once.",
     responses={
@@ -301,12 +313,14 @@ async def admin_update_user(request: Request, user_id: str, data: AdminUserUpdat
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_users_bulk(request: Request, data: AdminUserUpdateData):
+async def admin_update_users_bulk(
+    request: Request, data: AdminUserUpdateData
+) -> EmptyResponse:
     try:
         AdminUsersService.update_multiple_users(
             request.token_payload, data.model_dump(exclude_none=True)
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -353,6 +367,7 @@ async def admin_delete_users(
 @manager_router.put(
     "/admin/user/{user_id}/logout",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Force logout user",
     description="Revokes all sessions for a user.",
     responses={
@@ -360,10 +375,10 @@ async def admin_delete_users(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_user_logout(request: Request, user_id: str):
+async def admin_user_logout(request: Request, user_id: str) -> EmptyResponse:
     try:
         AdminUsersService.force_logout_user(request.token_payload, user_id)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -378,6 +393,7 @@ async def admin_user_logout(request: Request, user_id: str):
 @manager_router.post(
     "/admin/users/search",
     tags=[tag],
+    response_model=list[dict],
     summary="Search users",
     description="Search users by name term.",
     responses={
@@ -385,10 +401,10 @@ async def admin_user_logout(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_search_users(request: Request, data: AdminUserSearchData):
+async def admin_search_users(request: Request, data: AdminUserSearchData) -> list[dict]:
     try:
         result = AdminUsersService.search_users(request.token_payload, data.term)
-        return result
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -408,6 +424,7 @@ async def admin_search_users(request: Request, data: AdminUserSearchData):
 @manager_router.post(
     "/admin/users/csv/validate",
     tags=[tag],
+    response_model=dict,
     summary="Validate CSV for user creation",
     description="Validates a list of users from CSV data.",
     responses={
@@ -415,14 +432,14 @@ async def admin_search_users(request: Request, data: AdminUserSearchData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_validate_csv_users(request: Request):
+async def admin_validate_csv_users(request: Request) -> dict:
     try:
         try:
             user_list = await request.json()
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         result = AdminUsersService.validate_csv_users(request.token_payload, user_list)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -437,6 +454,7 @@ async def admin_validate_csv_users(request: Request):
 @manager_router.put(
     "/admin/users/csv/validate",
     tags=[tag],
+    response_model=list[dict],
     summary="Validate CSV for user editing",
     description="Validates a list of users from CSV for editing.",
     responses={
@@ -444,7 +462,7 @@ async def admin_validate_csv_users(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_validate_csv_users_edit(request: Request):
+async def admin_validate_csv_users_edit(request: Request) -> list[dict]:
     try:
         try:
             user_list = await request.json()
@@ -453,7 +471,7 @@ async def admin_validate_csv_users_edit(request: Request):
         result = AdminUsersService.validate_csv_users_edit(
             request.token_payload, user_list
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -468,6 +486,7 @@ async def admin_validate_csv_users_edit(request: Request):
 @manager_router.post(
     "/admin/users/csv",
     tags=[tag],
+    response_model=dict,
     summary="Import users from CSV",
     description="Creates users from validated CSV data.",
     responses={
@@ -475,7 +494,7 @@ async def admin_validate_csv_users_edit(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_import_csv_users(request: Request):
+async def admin_import_csv_users(request: Request) -> dict:
     try:
         try:
             data = await request.json()
@@ -500,6 +519,7 @@ async def admin_import_csv_users(request: Request):
 @manager_router.put(
     "/admin/users/csv",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Edit users from CSV",
     description="Updates users from validated CSV data.",
     responses={
@@ -507,10 +527,12 @@ async def admin_import_csv_users(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_edit_csv_users(request: Request, data: AdminCSVUserEditData):
+async def admin_edit_csv_users(
+    request: Request, data: AdminCSVUserEditData
+) -> EmptyResponse:
     try:
         AdminUsersService.edit_csv_users(request.token_payload, data.model_dump())
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -530,6 +552,7 @@ async def admin_edit_csv_users(request: Request, data: AdminCSVUserEditData):
 @manager_router.post(
     "/admin/bulk/user",
     tags=[tag],
+    response_model=dict,
     summary="Bulk create users",
     description="Creates multiple users in bulk.",
     responses={
@@ -537,7 +560,7 @@ async def admin_edit_csv_users(request: Request, data: AdminCSVUserEditData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_bulk_create_users(request: Request):
+async def admin_bulk_create_users(request: Request) -> dict:
     try:
         try:
             try:
@@ -574,6 +597,7 @@ async def admin_bulk_create_users(request: Request):
 @manager_router.put(
     "/admin/user/secondary-groups/add",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Add secondary groups",
     description="Adds secondary groups to specified users.",
     responses={
@@ -581,12 +605,14 @@ async def admin_bulk_create_users(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_secondary_groups_add(request: Request, data: AdminSecondaryGroupsData):
+async def admin_secondary_groups_add(
+    request: Request, data: AdminSecondaryGroupsData
+) -> EmptyResponse:
     try:
         AdminUsersService.update_secondary_groups(
             request.token_payload, "add", data.model_dump()
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -601,6 +627,7 @@ async def admin_secondary_groups_add(request: Request, data: AdminSecondaryGroup
 @manager_router.put(
     "/admin/user/secondary-groups/overwrite",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Overwrite secondary groups",
     description="Overwrites secondary groups for specified users.",
     responses={
@@ -610,12 +637,12 @@ async def admin_secondary_groups_add(request: Request, data: AdminSecondaryGroup
 )
 async def admin_secondary_groups_overwrite(
     request: Request, data: AdminSecondaryGroupsData
-):
+) -> EmptyResponse:
     try:
         AdminUsersService.update_secondary_groups(
             request.token_payload, "overwrite", data.model_dump()
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -630,6 +657,7 @@ async def admin_secondary_groups_overwrite(
 @manager_router.put(
     "/admin/user/secondary-groups/delete",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Remove secondary groups",
     description="Removes secondary groups from specified users.",
     responses={
@@ -639,12 +667,12 @@ async def admin_secondary_groups_overwrite(
 )
 async def admin_secondary_groups_delete(
     request: Request, data: AdminSecondaryGroupsData
-):
+) -> EmptyResponse:
     try:
         AdminUsersService.update_secondary_groups(
             request.token_payload, "delete", data.model_dump()
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -664,6 +692,7 @@ async def admin_secondary_groups_delete(
 @manager_router.get(
     "/admin/user/password-policy/{user_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get user password policy",
     description="Returns the password policy for a user.",
     responses={
@@ -671,9 +700,10 @@ async def admin_secondary_groups_delete(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_password_policy(request: Request, user_id: str):
+async def admin_get_password_policy(request: Request, user_id: str) -> dict:
     try:
-        return AdminUsersService.get_password_policy(request.token_payload, user_id)
+        result = AdminUsersService.get_password_policy(request.token_payload, user_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -799,6 +829,7 @@ async def admin_check_disclaimer(request: Request, user_id: str):
 @manager_router.put(
     "/admin/user/reset-vpn/{user_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Reset user VPN",
     description="Resets VPN credentials for a user.",
     responses={
@@ -806,10 +837,10 @@ async def admin_check_disclaimer(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_reset_vpn(request: Request, user_id: str):
+async def admin_reset_vpn(request: Request, user_id: str) -> EmptyResponse:
     try:
         AdminUsersService.reset_vpn(request.token_payload, user_id)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -829,6 +860,7 @@ async def admin_reset_vpn(request: Request, user_id: str):
 @manager_router.get(
     "/admin/groups",
     tags=[tag],
+    response_model=list[dict],
     summary="List groups",
     description="Returns all groups. Managers see only their category groups.",
     responses={
@@ -836,9 +868,10 @@ async def admin_reset_vpn(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_list_groups(request: Request):
+async def admin_list_groups(request: Request) -> list[dict]:
     try:
-        return AdminUsersService.list_groups(request.token_payload)
+        result = AdminUsersService.list_groups(request.token_payload)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -853,6 +886,7 @@ async def admin_list_groups(request: Request):
 @manager_router.get(
     "/admin/users/{nav}/groups",
     tags=[tag],
+    response_model=list[dict],
     summary="List groups by navigation context",
     description="Returns groups for management or quotas_limits navigation.",
     responses={
@@ -862,9 +896,10 @@ async def admin_list_groups(request: Request):
 )
 async def admin_list_groups_nav(
     request: Request, nav: Literal["management", "quotas_limits"]
-):
+) -> list[dict]:
     try:
-        return AdminUsersService.list_groups_nav(request.token_payload, nav)
+        result = AdminUsersService.list_groups_nav(request.token_payload, nav)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -879,6 +914,7 @@ async def admin_list_groups_nav(
 @manager_router.get(
     "/admin/group/{group_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get group",
     description="Returns full data for a group.",
     responses={
@@ -886,9 +922,10 @@ async def admin_list_groups_nav(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_group(request: Request, group_id: str):
+async def admin_get_group(request: Request, group_id: str) -> dict:
     try:
-        return AdminUsersService.get_group(group_id)
+        result = AdminUsersService.get_group(group_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -931,6 +968,7 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
 @manager_router.put(
     "/admin/group/{group_id}",
     tags=[tag],
+    response_model=dict,
     summary="Update group",
     description="Updates a group.",
     responses={
@@ -938,14 +976,14 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_group(request: Request, group_id: str):
+async def admin_update_group(request: Request, group_id: str) -> dict:
     try:
         try:
             data = await request.json()
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_group(request.token_payload, group_id, data)
-        return data
+        return data if isinstance(data, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -960,6 +998,7 @@ async def admin_update_group(request: Request, group_id: str):
 @manager_router.delete(
     "/admin/group/{group_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Delete group",
     description="Deletes a group.",
     responses={
@@ -967,10 +1006,10 @@ async def admin_update_group(request: Request, group_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_delete_group(request: Request, group_id: str):
+async def admin_delete_group(request: Request, group_id: str) -> EmptyResponse:
     try:
         AdminUsersService.delete_group(request.token_payload, group_id)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -985,6 +1024,7 @@ async def admin_delete_group(request: Request, group_id: str):
 @manager_router.get(
     "/admin/group/{group_id}/users",
     tags=[tag],
+    response_model=list[dict],
     summary="Get users in group",
     description="Returns all users in a specific group.",
     responses={
@@ -992,9 +1032,10 @@ async def admin_delete_group(request: Request, group_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_group_users(request: Request, group_id: str):
+async def admin_get_group_users(request: Request, group_id: str) -> list[dict]:
     try:
-        return AdminUsersService.get_group_users(request.token_payload, group_id)
+        result = AdminUsersService.get_group_users(request.token_payload, group_id)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1009,6 +1050,7 @@ async def admin_get_group_users(request: Request, group_id: str):
 @manager_router.post(
     "/admin/group/enrollment",
     tags=[tag],
+    response_model=dict,
     summary="Update group enrollment",
     description="Updates enrollment settings for a group.",
     responses={
@@ -1016,12 +1058,14 @@ async def admin_get_group_users(request: Request, group_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentData):
+async def admin_group_enrollment(
+    request: Request, data: AdminGroupEnrollmentData
+) -> dict:
     try:
         result = AdminUsersService.update_group_enrollment(
             request.token_payload, data.model_dump()
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1041,6 +1085,7 @@ async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentDat
 @admin_router.get(
     "/admin/categories",
     tags=[tag],
+    response_model=list[dict],
     summary="List categories",
     description="Returns all categories.",
     responses={
@@ -1048,9 +1093,10 @@ async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentDat
         500: {"model": ErrorResponse},
     },
 )
-async def admin_list_categories(request: Request):
+async def admin_list_categories(request: Request) -> list[dict]:
     try:
-        return AdminUsersService.list_categories(request.token_payload)
+        result = AdminUsersService.list_categories(request.token_payload)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1065,6 +1111,7 @@ async def admin_list_categories(request: Request):
 @admin_router.get(
     "/admin/categories/{frontend}",
     tags=[tag],
+    response_model=list[dict],
     summary="List frontend categories",
     description="Returns categories for frontend display.",
     responses={
@@ -1072,9 +1119,10 @@ async def admin_list_categories(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_list_categories_frontend(request: Request, frontend: str):
+async def admin_list_categories_frontend(request: Request, frontend: str) -> list[dict]:
     try:
-        return AdminUsersService.list_categories(request.token_payload, frontend=True)
+        result = AdminUsersService.list_categories(request.token_payload, frontend=True)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1089,6 +1137,7 @@ async def admin_list_categories_frontend(request: Request, frontend: str):
 @manager_router.get(
     "/admin/users/{nav}/categories",
     tags=[tag],
+    response_model=list[dict],
     summary="List categories by navigation context",
     description="Returns categories for management or quotas_limits navigation.",
     responses={
@@ -1098,9 +1147,10 @@ async def admin_list_categories_frontend(request: Request, frontend: str):
 )
 async def admin_list_categories_nav(
     request: Request, nav: Literal["management", "quotas_limits"]
-):
+) -> list[dict]:
     try:
-        return AdminUsersService.list_categories_nav(request.token_payload, nav)
+        result = AdminUsersService.list_categories_nav(request.token_payload, nav)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1115,6 +1165,7 @@ async def admin_list_categories_nav(
 @admin_router.get(
     "/admin/category/{category_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get category",
     description="Returns data for a specific category.",
     responses={
@@ -1122,9 +1173,10 @@ async def admin_list_categories_nav(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_category(request: Request, category_id: str):
+async def admin_get_category(request: Request, category_id: str) -> dict:
     try:
-        return AdminUsersService.get_category(request.token_payload, category_id)
+        result = AdminUsersService.get_category(request.token_payload, category_id)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1139,6 +1191,7 @@ async def admin_get_category(request: Request, category_id: str):
 @admin_router.post(
     "/admin/category",
     tags=[tag],
+    response_model=dict,
     summary="Create category",
     description="Creates a new category with an associated Main group.",
     responses={
@@ -1146,12 +1199,14 @@ async def admin_get_category(request: Request, category_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_create_category(request: Request, data: AdminCategoryCreateData):
+async def admin_create_category(
+    request: Request, data: AdminCategoryCreateData
+) -> dict:
     try:
         result = AdminUsersService.create_category(
             request.token_payload, data.model_dump()
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1166,6 +1221,7 @@ async def admin_create_category(request: Request, data: AdminCategoryCreateData)
 @admin_router.put(
     "/admin/category/{category_id}",
     tags=[tag],
+    response_model=dict,
     summary="Update category",
     description="Updates a category.",
     responses={
@@ -1173,14 +1229,14 @@ async def admin_create_category(request: Request, data: AdminCategoryCreateData)
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_category(request: Request, category_id: str):
+async def admin_update_category(request: Request, category_id: str) -> dict:
     try:
         try:
             data = await request.json()
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_category(request.token_payload, category_id, data)
-        return data
+        return data if isinstance(data, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1195,6 +1251,7 @@ async def admin_update_category(request: Request, category_id: str):
 @admin_router.delete(
     "/admin/category/{category_id}",
     tags=[tag],
+    response_model=dict,
     summary="Delete category",
     description="Deletes a category.",
     responses={
@@ -1202,10 +1259,10 @@ async def admin_update_category(request: Request, category_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_delete_category(request: Request, category_id: str):
+async def admin_delete_category(request: Request, category_id: str) -> dict:
     try:
         result = AdminUsersService.delete_category(request.token_payload, category_id)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1220,6 +1277,7 @@ async def admin_delete_category(request: Request, category_id: str):
 @manager_router.get(
     "/admin/category/{category_id}/users",
     tags=[tag],
+    response_model=list[dict],
     summary="Get users in category",
     description="Returns all users in a specific category.",
     responses={
@@ -1227,9 +1285,12 @@ async def admin_delete_category(request: Request, category_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_category_users(request: Request, category_id: str):
+async def admin_get_category_users(request: Request, category_id: str) -> list[dict]:
     try:
-        return AdminUsersService.get_category_users(request.token_payload, category_id)
+        result = AdminUsersService.get_category_users(
+            request.token_payload, category_id
+        )
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1244,6 +1305,7 @@ async def admin_get_category_users(request: Request, category_id: str):
 @manager_router.get(
     "/admin/category/get/{category_name}",
     tags=[tag],
+    response_model=str,
     summary="Get category by name",
     description="Returns a category ID by its name.",
     responses={
@@ -1252,10 +1314,10 @@ async def admin_get_category_users(request: Request, category_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_category_by_name(request: Request, category_name: str):
+async def admin_get_category_by_name(request: Request, category_name: str) -> str:
     try:
         category_id = AdminUsersService.get_category_by_name(category_name)
-        return category_id
+        return category_id or ""
     except Error:
         raise
     except Exception as e:
@@ -1270,6 +1332,7 @@ async def admin_get_category_by_name(request: Request, category_name: str):
 @manager_router.get(
     "/admin/group/get/{category_name}/{group_name}",
     tags=[tag],
+    response_model=str,
     summary="Get group by category and name",
     description="Returns a group ID by category name and group name.",
     responses={
@@ -1280,12 +1343,12 @@ async def admin_get_category_by_name(request: Request, category_name: str):
 )
 async def admin_get_group_by_name_category(
     request: Request, category_name: str, group_name: str
-):
+) -> str:
     try:
         group_id = AdminUsersService.get_group_by_name_category(
             category_name, group_name
         )
-        return group_id
+        return group_id or ""
     except Error:
         raise
     except Exception as e:
@@ -1305,6 +1368,7 @@ async def admin_get_group_by_name_category(
 @manager_router.put(
     "/admin/quota/group/{group_id}",
     tags=[tag],
+    response_model=dict,
     summary="Update group quota",
     description="Updates quota for a group.",
     responses={
@@ -1312,14 +1376,14 @@ async def admin_get_group_by_name_category(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_group_quota(request: Request, group_id: str):
+async def admin_update_group_quota(request: Request, group_id: str) -> dict:
     try:
         try:
             data = await request.json()
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_group_quota(request.token_payload, group_id, data)
-        return data
+        return data if isinstance(data, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1334,6 +1398,7 @@ async def admin_update_group_quota(request: Request, group_id: str):
 @admin_router.put(
     "/admin/quota/category/{category_id}",
     tags=[tag],
+    response_model=dict,
     summary="Update category quota",
     description="Updates quota for a category.",
     responses={
@@ -1341,7 +1406,7 @@ async def admin_update_group_quota(request: Request, group_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_category_quota(request: Request, category_id: str):
+async def admin_update_category_quota(request: Request, category_id: str) -> dict:
     try:
         try:
             data = await request.json()
@@ -1350,7 +1415,7 @@ async def admin_update_category_quota(request: Request, category_id: str):
         AdminUsersService.update_category_quota(
             request.token_payload, category_id, data
         )
-        return data
+        return data if isinstance(data, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1365,6 +1430,7 @@ async def admin_update_category_quota(request: Request, category_id: str):
 @manager_router.put(
     "/admin/limits/group/{group_id}",
     tags=[tag],
+    response_model=dict,
     summary="Update group limits",
     description="Updates limits for a group.",
     responses={
@@ -1372,14 +1438,14 @@ async def admin_update_category_quota(request: Request, category_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_group_limits(request: Request, group_id: str):
+async def admin_update_group_limits(request: Request, group_id: str) -> dict:
     try:
         try:
             data = await request.json()
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_group_limits(request.token_payload, group_id, data)
-        return data
+        return data if isinstance(data, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1394,6 +1460,7 @@ async def admin_update_group_limits(request: Request, group_id: str):
 @admin_router.put(
     "/admin/limits/category/{category_id}",
     tags=[tag],
+    response_model=dict,
     summary="Update category limits",
     description="Updates limits for a category.",
     responses={
@@ -1401,7 +1468,7 @@ async def admin_update_group_limits(request: Request, group_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_category_limits(request: Request, category_id: str):
+async def admin_update_category_limits(request: Request, category_id: str) -> dict:
     try:
         try:
             data = await request.json()
@@ -1410,7 +1477,7 @@ async def admin_update_category_limits(request: Request, category_id: str):
         AdminUsersService.update_category_limits(
             request.token_payload, category_id, data
         )
-        return data
+        return data if isinstance(data, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1430,6 +1497,7 @@ async def admin_update_category_limits(request: Request, category_id: str):
 @manager_router.post(
     "/admin/user/delete/check",
     tags=[tag],
+    response_model=dict,
     summary="Check user deletion dependencies",
     description="Checks dependencies before deleting users.",
     responses={
@@ -1437,10 +1505,12 @@ async def admin_update_category_limits(request: Request, category_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_user_delete_check(request: Request, data: AdminDeleteChecksData):
+async def admin_user_delete_check(
+    request: Request, data: AdminDeleteChecksData
+) -> dict:
     try:
         result = AdminUsersService.user_delete_checks(request.token_payload, data.ids)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1455,6 +1525,7 @@ async def admin_user_delete_check(request: Request, data: AdminDeleteChecksData)
 @manager_router.post(
     "/admin/group/delete/check",
     tags=[tag],
+    response_model=dict,
     summary="Check group deletion dependencies",
     description="Checks dependencies before deleting groups.",
     responses={
@@ -1462,10 +1533,12 @@ async def admin_user_delete_check(request: Request, data: AdminDeleteChecksData)
         500: {"model": ErrorResponse},
     },
 )
-async def admin_group_delete_check(request: Request, data: AdminDeleteChecksData):
+async def admin_group_delete_check(
+    request: Request, data: AdminDeleteChecksData
+) -> dict:
     try:
         result = AdminUsersService.group_delete_checks(request.token_payload, data.ids)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1480,6 +1553,7 @@ async def admin_group_delete_check(request: Request, data: AdminDeleteChecksData
 @manager_router.post(
     "/admin/category/delete/check",
     tags=[tag],
+    response_model=dict,
     summary="Check category deletion dependencies",
     description="Checks dependencies before deleting categories.",
     responses={
@@ -1487,12 +1561,14 @@ async def admin_group_delete_check(request: Request, data: AdminDeleteChecksData
         500: {"model": ErrorResponse},
     },
 )
-async def admin_category_delete_check(request: Request, data: AdminDeleteChecksData):
+async def admin_category_delete_check(
+    request: Request, data: AdminDeleteChecksData
+) -> dict:
     try:
         result = AdminUsersService.category_delete_checks(
             request.token_payload, data.ids
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1507,6 +1583,7 @@ async def admin_category_delete_check(request: Request, data: AdminDeleteChecksD
 @manager_router.post(
     "/admin/check/group/category",
     tags=[tag],
+    response_model=list[dict],
     summary="Check group/category association",
     description="Validates a group/category association.",
     responses={
@@ -1516,7 +1593,7 @@ async def admin_category_delete_check(request: Request, data: AdminDeleteChecksD
 )
 async def admin_check_group_category(
     request: Request, data: AdminCheckGroupCategoryData
-):
+) -> list[dict]:
     try:
         AdminUsersService.check_group_category(data.model_dump())
         return []
@@ -1565,6 +1642,7 @@ async def admin_get_templates(request: Request):
 @manager_router.get(
     "/admin/user/{user_id}/templates",
     tags=[tag],
+    response_model=list[dict],
     summary="Get user templates",
     description="Returns templates allowed for a specific user.",
     responses={
@@ -1572,9 +1650,10 @@ async def admin_get_templates(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_user_templates(request: Request, user_id: str):
+async def admin_get_user_templates(request: Request, user_id: str) -> list[dict]:
     try:
-        return AdminUsersService.get_user_templates(request.token_payload, user_id)
+        result = AdminUsersService.get_user_templates(request.token_payload, user_id)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1589,6 +1668,7 @@ async def admin_get_user_templates(request: Request, user_id: str):
 @manager_router.get(
     "/admin/user/{user_id}/desktops",
     tags=[tag],
+    response_model=list[dict],
     summary="Get user desktops",
     description="Returns desktops for a specific user.",
     responses={
@@ -1596,9 +1676,10 @@ async def admin_get_user_templates(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_user_desktops(request: Request, user_id: str):
+async def admin_get_user_desktops(request: Request, user_id: str) -> list[dict]:
     try:
-        return AdminUsersService.get_user_desktops(request.token_payload, user_id)
+        result = AdminUsersService.get_user_desktops(request.token_payload, user_id)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1613,6 +1694,7 @@ async def admin_get_user_desktops(request: Request, user_id: str):
 @manager_router.get(
     "/admin/roles",
     tags=[tag],
+    response_model=list[dict],
     summary="List available roles",
     description="Returns roles available to the current user.",
     responses={
@@ -1620,9 +1702,10 @@ async def admin_get_user_desktops(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_roles(request: Request):
+async def admin_get_roles(request: Request) -> list[dict]:
     try:
-        return AdminUsersService.get_roles(request.token_payload)
+        result = AdminUsersService.get_roles(request.token_payload)
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1637,6 +1720,7 @@ async def admin_get_roles(request: Request):
 @admin_router.put(
     "/admin/role/{role_id}",
     tags=[tag],
+    response_model=dict,
     summary="Update role",
     description="Updates a role.",
     responses={
@@ -1644,7 +1728,7 @@ async def admin_get_roles(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_role(request: Request, role_id: str):
+async def admin_update_role(request: Request, role_id: str) -> dict:
     try:
         try:
             try:
@@ -1664,7 +1748,7 @@ async def admin_update_role(request: Request, role_id: str):
         # one. Force the URL id and let any body id be ignored.
         data["id"] = role_id
         AdminUsersService.update_role(data)
-        return data
+        return data if isinstance(data, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1679,6 +1763,7 @@ async def admin_update_role(request: Request, role_id: str):
 @admin_router.get(
     "/admin/secrets",
     tags=[tag],
+    response_model=list[dict],
     summary="Get admin secrets",
     description="Returns admin secrets/keys.",
     responses={
@@ -1686,9 +1771,10 @@ async def admin_update_role(request: Request, role_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_secrets(request: Request):
+async def admin_get_secrets(request: Request) -> list[dict]:
     try:
-        return AdminUsersService.get_secrets()
+        result = AdminUsersService.get_secrets()
+        return result or []
     except Error:
         raise
     except Exception as e:
@@ -1703,6 +1789,7 @@ async def admin_get_secrets(request: Request):
 @admin_router.post(
     "/admin/secret",
     tags=[tag],
+    response_model=dict,
     summary="Create admin secret",
     description="Creates a new admin secret.",
     responses={
@@ -1710,10 +1797,10 @@ async def admin_get_secrets(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_create_secret(request: Request, data: AdminSecretCreateData):
+async def admin_create_secret(request: Request, data: AdminSecretCreateData) -> dict:
     try:
         result = AdminUsersService.create_secret(data.model_dump())
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1728,6 +1815,7 @@ async def admin_create_secret(request: Request, data: AdminSecretCreateData):
 @admin_router.delete(
     "/admin/secret/{kid}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Delete admin secret",
     description="Deletes an admin secret.",
     responses={
@@ -1735,10 +1823,10 @@ async def admin_create_secret(request: Request, data: AdminSecretCreateData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_delete_secret(request: Request, kid: str):
+async def admin_delete_secret(request: Request, kid: str) -> EmptyResponse:
     try:
         AdminUsersService.delete_secret(kid)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -1753,6 +1841,7 @@ async def admin_delete_secret(request: Request, kid: str):
 @manager_router.get(
     "/admin/user/{user_id}/vpn/{kind}/{os}",
     tags=[tag],
+    response_model=dict,
     summary="Get user VPN config with OS",
     description="Returns VPN configuration for a user with kind and OS.",
     responses={
@@ -1765,9 +1854,12 @@ async def admin_get_user_vpn_with_os(
     user_id: str,
     kind: Literal["config", "install"],
     os: str,
-):
+) -> dict:
     try:
-        return AdminUsersService.get_user_vpn(request.token_payload, user_id, kind, os)
+        result = AdminUsersService.get_user_vpn(
+            request.token_payload, user_id, kind, os
+        )
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1782,6 +1874,7 @@ async def admin_get_user_vpn_with_os(
 @manager_router.get(
     "/admin/user/{user_id}/vpn/{kind}",
     tags=[tag],
+    response_model=dict,
     summary="Get user VPN config",
     description="Returns VPN configuration for a user.",
     responses={
@@ -1791,9 +1884,10 @@ async def admin_get_user_vpn_with_os(
 )
 async def admin_get_user_vpn(
     request: Request, user_id: str, kind: Literal["config", "install"]
-):
+) -> dict:
     try:
-        return AdminUsersService.get_user_vpn(request.token_payload, user_id, kind)
+        result = AdminUsersService.get_user_vpn(request.token_payload, user_id, kind)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1808,6 +1902,7 @@ async def admin_get_user_vpn(
 @manager_router.get(
     "/admin/userschema",
     tags=[tag],
+    response_model=dict,
     summary="Get user schema",
     description="Returns roles, categories, and groups for admin forms.",
     responses={
@@ -1815,9 +1910,10 @@ async def admin_get_user_vpn(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_user_schema(request: Request):
+async def admin_get_user_schema(request: Request) -> dict:
     try:
-        return AdminUsersService.get_user_schema(request.token_payload)
+        result = AdminUsersService.get_user_schema(request.token_payload)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1832,6 +1928,7 @@ async def admin_get_user_schema(request: Request):
 @manager_router.get(
     "/admin/quotas",
     tags=[tag],
+    response_model=dict,
     summary="Get admin quotas",
     description="Returns quotas for the admin view.",
     responses={
@@ -1839,9 +1936,10 @@ async def admin_get_user_schema(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_quotas(request: Request):
+async def admin_get_quotas(request: Request) -> dict:
     try:
-        return AdminUsersService.get_admin_quotas(request.token_payload)
+        result = AdminUsersService.get_admin_quotas(request.token_payload)
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1856,6 +1954,7 @@ async def admin_get_quotas(request: Request):
 @manager_router.get(
     "/admin/user/appliedquota/{user_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get user applied quota",
     description="Returns the applied quota for a specific user.",
     responses={
@@ -1863,9 +1962,12 @@ async def admin_get_quotas(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_user_applied_quota(request: Request, user_id: str):
+async def admin_get_user_applied_quota(request: Request, user_id: str) -> dict:
     try:
-        return AdminUsersService.get_user_applied_quota(request.token_payload, user_id)
+        result = AdminUsersService.get_user_applied_quota(
+            request.token_payload, user_id
+        )
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1880,6 +1982,7 @@ async def admin_get_user_applied_quota(request: Request, user_id: str):
 @admin_router.get(
     "/admin/user/email-category/{email}/{category}",
     tags=[tag],
+    response_model=dict,
     summary="Get user by email and category",
     description="Returns user ID by email and category.",
     responses={
@@ -1887,7 +1990,9 @@ async def admin_get_user_applied_quota(request: Request, user_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_user_by_email_category(request: Request, email: str, category: str):
+async def admin_get_user_by_email_category(
+    request: Request, email: str, category: str
+) -> dict:
     try:
         return {"id": AdminUsersService.get_user_by_email_and_category(email, category)}
     except Error:
@@ -1942,6 +2047,7 @@ async def admin_auto_register(request: Request, data: AutoRegisterRequest):
 @manager_router.put(
     "/admin/user/migrate/{user_id}/{target_user_id}",
     tags=[tag],
+    response_model=dict,
     summary="Migrate user",
     description="Migrates a user's resources to another user.",
     responses={
@@ -1952,13 +2058,13 @@ async def admin_auto_register(request: Request, data: AutoRegisterRequest):
 )
 async def admin_migrate_user(
     request: Request, response: Response, user_id: str, target_user_id: str
-):
+) -> dict:
     try:
         result, status = AdminUsersService.migrate_user(
             request.token_payload, user_id, target_user_id
         )
         response.status_code = status
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception as e:
@@ -1973,6 +2079,7 @@ async def admin_migrate_user(
 @manager_router.get(
     "/admin/user/migrate/check/{user_id}/{target_user_id}",
     tags=[tag],
+    response_model=dict,
     summary="Check user migration",
     description="Checks if migration between two users is valid.",
     responses={
@@ -1980,7 +2087,9 @@ async def admin_migrate_user(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_check_migration(request: Request, user_id: str, target_user_id: str):
+async def admin_check_migration(
+    request: Request, user_id: str, target_user_id: str
+) -> dict:
     try:
         errors = AdminUsersService.check_valid_migration(
             request.token_payload, user_id, target_user_id
@@ -2000,6 +2109,7 @@ async def admin_check_migration(request: Request, user_id: str, target_user_id: 
 @manager_router.put(
     "/admin/user/migrate/resource/desktop/{user_id}/{target_user_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Migrate user desktops",
     description="Migrates desktops from one user to another.",
     responses={
@@ -2009,12 +2119,12 @@ async def admin_check_migration(request: Request, user_id: str, target_user_id: 
 )
 async def admin_migrate_user_desktops(
     request: Request, user_id: str, target_user_id: str
-):
+) -> EmptyResponse:
     try:
         AdminUsersService.migrate_user_resource(
             request.token_payload, user_id, target_user_id, "desktop"
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -2029,6 +2139,7 @@ async def admin_migrate_user_desktops(
 @manager_router.put(
     "/admin/user/migrate/resource/template/{user_id}/{target_user_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Migrate user templates",
     description="Migrates templates from one user to another.",
     responses={
@@ -2038,12 +2149,12 @@ async def admin_migrate_user_desktops(
 )
 async def admin_migrate_user_templates(
     request: Request, user_id: str, target_user_id: str
-):
+) -> EmptyResponse:
     try:
         AdminUsersService.migrate_user_resource(
             request.token_payload, user_id, target_user_id, "template"
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -2058,6 +2169,7 @@ async def admin_migrate_user_templates(
 @manager_router.put(
     "/admin/user/migrate/resource/media/{user_id}/{target_user_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Migrate user media",
     description="Migrates media from one user to another.",
     responses={
@@ -2065,12 +2177,14 @@ async def admin_migrate_user_templates(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_migrate_user_media(request: Request, user_id: str, target_user_id: str):
+async def admin_migrate_user_media(
+    request: Request, user_id: str, target_user_id: str
+) -> EmptyResponse:
     try:
         AdminUsersService.migrate_user_resource(
             request.token_payload, user_id, target_user_id, "media"
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -2085,6 +2199,7 @@ async def admin_migrate_user_media(request: Request, user_id: str, target_user_i
 @manager_router.put(
     "/admin/user/migrate/resource/deployments/{user_id}/{target_user_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Migrate user deployments",
     description="Migrates deployments from one user to another.",
     responses={
@@ -2094,12 +2209,12 @@ async def admin_migrate_user_media(request: Request, user_id: str, target_user_i
 )
 async def admin_migrate_user_deployments(
     request: Request, user_id: str, target_user_id: str
-):
+) -> EmptyResponse:
     try:
         AdminUsersService.migrate_user_resource(
             request.token_payload, user_id, target_user_id, "deployments"
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -2114,6 +2229,7 @@ async def admin_migrate_user_deployments(
 @manager_router.post(
     "/admin/user/check/migrated",
     tags=[tag],
+    response_model=dict,
     summary="Check migrated users",
     description="Checks if any users in the list are migrated.",
     responses={
@@ -2121,7 +2237,7 @@ async def admin_migrate_user_deployments(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_check_migrated(request: Request, data: AdminCheckMigratedData):
+async def admin_check_migrated(request: Request, data: AdminCheckMigratedData) -> dict:
     try:
         migrated = AdminUsersService.check_migrated_users(
             request.token_payload, data.users
@@ -2146,6 +2262,7 @@ async def admin_check_migrated(request: Request, data: AdminCheckMigratedData):
 @manager_router.get(
     "/admin/category/{category_id}/bastion_domain",
     tags=[tag],
+    response_model=dict,
     summary="Get category bastion domain",
     description="Returns the bastion domain for a category.",
     responses={
@@ -2153,7 +2270,7 @@ async def admin_check_migrated(request: Request, data: AdminCheckMigratedData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_bastion_domain(request: Request, category_id: str):
+async def admin_get_bastion_domain(request: Request, category_id: str) -> dict:
     try:
         bastion_domain = AdminUsersService.get_category_bastion_domain(
             request.token_payload, category_id
@@ -2173,6 +2290,7 @@ async def admin_get_bastion_domain(request: Request, category_id: str):
 @manager_router.put(
     "/admin/category/{category_id}/bastion_domain",
     tags=[tag],
+    response_model=dict,
     summary="Update category bastion domain",
     description="Updates the bastion domain for a category.",
     responses={
@@ -2182,12 +2300,12 @@ async def admin_get_bastion_domain(request: Request, category_id: str):
 )
 async def admin_update_bastion_domain(
     request: Request, category_id: str, data: AdminBastionDomainData
-):
+) -> dict:
     try:
         AdminUsersService.update_category_bastion_domain(
             request.token_payload, category_id, data.model_dump()
         )
-        return data
+        return data.model_dump()
     except Error:
         raise
     except Exception as e:
@@ -2207,6 +2325,7 @@ async def admin_update_bastion_domain(
 @admin_router.post(
     "/admin/socketio/broadcast",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Broadcast admin message",
     description="Broadcasts a message to all connected users via SocketIO.",
     responses={
@@ -2214,10 +2333,10 @@ async def admin_update_bastion_domain(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_broadcast(request: Request, data: AdminBroadcastData):
+async def admin_broadcast(request: Request, data: AdminBroadcastData) -> EmptyResponse:
     try:
         AdminSocketioService.broadcast(data.type, data.message)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
