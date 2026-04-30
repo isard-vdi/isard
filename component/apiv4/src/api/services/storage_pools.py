@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.storage.storage_pools.storage_pools import (
     StoragePoolsProcessed,
 )
@@ -80,17 +81,7 @@ class StoragePoolService:
         """
         Get the default storage pool.
         """
-        from isardvdi_common.connections.rethink_shared_connection import (
-            RethinkSharedConnection,
-        )
-        from rethinkdb import r
-
-        with RethinkSharedConnection._rdb_context():
-            pool = (
-                r.table("storage_pool")
-                .get(DEFAULT_STORAGE_POOL_ID)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        pool = ApiAdmin.get_table_item("storage_pool", DEFAULT_STORAGE_POOL_ID)
         return pool or {"id": DEFAULT_STORAGE_POOL_ID}
 
     @staticmethod
