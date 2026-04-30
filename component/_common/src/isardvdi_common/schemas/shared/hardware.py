@@ -17,9 +17,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic.experimental.missing_sentinel import MISSING
 
 from ..bookings import Reservables
@@ -27,9 +27,22 @@ from ..bookings import Reservables
 
 class Disk(BaseModel):
     storage_id: Optional[str] = None
-    bus: Optional[str] = False
+    bus: Optional[str] = None
     extension: Optional[str] = None
     parent: Optional[str] = None
+
+    @field_validator("bus", mode="before")
+    @classmethod
+    def _normalise_bus(cls, value: Any) -> Any:
+        # Historical desktops persisted ``bus: False`` (raw bool) in
+        # their ``create_dict.hardware.disks[]``. The deployment-edit
+        # revalidation through ``DeploymentUpdateModel`` would then
+        # 500 because the strict ``Optional[str]`` rejects bool.
+        # Map ``False`` → ``None`` here so legacy rows survive the
+        # round-trip without rewriting the stored data.
+        if value is False:
+            return None
+        return value
 
 
 class Iso(BaseModel):
