@@ -55,22 +55,7 @@ class CategoryService:
         """
         Get the custom login URL for a category by its ID.
         """
-        try:
-            from isardvdi_common.connections.rethink_connection_factory import (
-                RethinkSharedConnection,
-            )
-            from rethinkdb import r
-
-            with RethinkSharedConnection._rdb_context():
-                category = (
-                    r.table("categories")
-                    .get(category_id)
-                    .pluck("frontend", "custom_url_name")
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-            return category.get("custom_url_name")
-        except Exception:
-            return "/login"
+        return CommonCategories.get_custom_login_url(category_id) or "/login"
 
     @staticmethod
     def search_users_in_category(category_id: str, search: str) -> list[dict]:
