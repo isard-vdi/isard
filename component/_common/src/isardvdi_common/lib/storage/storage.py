@@ -545,3 +545,45 @@ class StorageProcessed(RethinkSharedConnection):
                 "Failed to mark storage for deletion",
                 description_code="generic_error",
             )
+
+    @classmethod
+    def get_storage_row(cls, storage_id: str) -> dict | None:
+        """Return the raw ``storage`` row by id (or ``None`` if missing).
+
+        Bypasses the ``Storage`` model wrapper, which can't be cast to
+        ``dict()`` directly because ``RethinkCustomBase.__getattr__``
+        returns ``None`` for unknown attributes — calling the builtin
+        ``dict()`` then dispatches to ``None()`` and dies. Endpoints
+        that need the wire-shape row use this helper instead.
+        """
+        with cls._rdb_context():
+            return r.table(cls._rdb_table).get(storage_id).run(cls._rdb_connection)
+
+    @classmethod
+    def batch_stop_desktops_by_kind_ids(
+        cls,
+        desktop_ids: list[str],
+        update_data: dict,
+        current_status: str,
+        batch_size: int = 20,
+    ) -> None:
+        """Update ``status`` on every desktop in ``desktop_ids`` whose
+        current row state is ``current_status``.
+
+        Backs the storage-action "stop these desktops" path: the rows
+        live in ``domains`` keyed by ``kind_ids`` (``[kind, id]``).
+        ``update_data`` is the partial update applied to matched rows
+        (typically ``{"status": new_status, "accessed": <ts>}``).
+
+        Batched via ``batch_size`` because ``get_all`` with hundreds of
+        keys produces a single large rdb cursor; chunking keeps memory
+        bounded on big bulk-stop calls. Caller decides whether to sleep
+        between batches.
+        """
+        for i in range(0, len(desktop_ids), batch_size):
+            batch_ids = desktop_ids[i : i + batch_size]
+            keys = [["desktop", d_id] for d_id in batch_ids]
+            with cls._rdb_context():
+                r.table("domains").get_all(*keys, index="kind_ids").filter(
+                    {"status": current_status}
+                ).update(update_data).run(cls._rdb_connection)

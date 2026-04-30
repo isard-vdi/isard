@@ -58,26 +58,33 @@ class TestBatchCheckBackingChain:
 
 class TestGetStorageDetail:
     @patch("api.services.storage.get_storage")
-    @patch("api.services.storage.r")
-    @patch("api.services.storage.RethinkSharedConnection")
-    def test_returns_raw_rethinkdb_row(self, mock_conn_cls, mock_r, mock_get_storage):
+    @patch("api.services.storage.StorageProcessed.get_storage_row")
+    def test_returns_raw_rethinkdb_row(self, mock_get_row, mock_get_storage):
         """``get_storage_detail`` queries the storage row directly from
         rethinkdb (bypasses ``dict(storage)``, which crashes on the
         ``RethinkCustomBase`` proxy because ``storage.keys`` resolves
-        to ``None`` via ``__getattr__``).
+        to ``None`` via ``__getattr__``). Migration moved the rdb query
+        to ``StorageProcessed.get_storage_row``; the test now pins the
+        new boundary.
         """
         mock_get_storage.return_value = MagicMock()
-        # Simulate ``r.table("storage").get(id).run(conn)`` returning a row.
         row = {"id": "s1", "status": "ready"}
-        mock_r.table.return_value.get.return_value.run.return_value = row
-        # Context manager noop.
-        mock_conn_cls._rdb_context.return_value.__enter__ = MagicMock()
-        mock_conn_cls._rdb_context.return_value.__exit__ = MagicMock()
+        mock_get_row.return_value = row
 
         result = StorageService.get_storage_detail(JWT_PAYLOAD_ADMIN, "s1")
         assert result == row
         # Access-control side-effect must run.
         mock_get_storage.assert_called_once_with(JWT_PAYLOAD_ADMIN, "s1")
+        mock_get_row.assert_called_once_with("s1")
+
+    @patch("api.services.storage.get_storage")
+    @patch("api.services.storage.StorageProcessed.get_storage_row", return_value=None)
+    def test_returns_empty_dict_when_row_missing(self, mock_get_row, mock_get_storage):
+        """When the row is gone (race / soft-delete), the helper folds
+        ``None`` to ``{}`` instead of returning ``None``."""
+        mock_get_storage.return_value = MagicMock()
+        result = StorageService.get_storage_detail(JWT_PAYLOAD_ADMIN, "s1")
+        assert result == {}
 
 
 class TestGetAllStoragesWithUuid:
