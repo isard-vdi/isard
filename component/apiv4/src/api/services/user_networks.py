@@ -8,10 +8,7 @@ from datetime import datetime, timezone
 
 from api.schemas.user_networks import CreateUserNetworkRequest, UpdateUserNetworkRequest
 from api.services.error import Error
-from isardvdi_common.connections.rethink_connection_factory import (
-    RethinkSharedConnection,
-)
-from rethinkdb import r
+from isardvdi_common.lib.user_networks.user_networks import UserNetworksProcessed
 
 
 def _uuid_to_metadata_id(uuid_str: str) -> int:
@@ -30,10 +27,7 @@ class UserNetworkService:
         group_id = payload["group_id"]
         role_id = payload["role_id"]
 
-        with RethinkSharedConnection._rdb_context():
-            all_networks = list(
-                r.table("user_networks").run(RethinkSharedConnection._rdb_connection)
-            )
+        all_networks = UserNetworksProcessed.list_all()
 
         if role_id == "admin":
             return all_networks
@@ -80,12 +74,7 @@ class UserNetworkService:
     @staticmethod
     def get_user_network(network_id: str, payload: dict) -> dict:
         """Get a specific user network if accessible."""
-        with RethinkSharedConnection._rdb_context():
-            network = (
-                r.table("user_networks")
-                .get(network_id)
-                .run(RethinkSharedConnection._rdb_connection)
-            )
+        network = UserNetworksProcessed.get(network_id)
 
         if not network:
             raise Error(
@@ -113,18 +102,11 @@ class UserNetworkService:
     @staticmethod
     def create_user_network(data: CreateUserNetworkRequest, payload: dict) -> dict:
         """Create a new user network."""
-        with RethinkSharedConnection._rdb_context():
-            while True:
-                network_id = str(uuid.uuid4())
-                metadata_id = _uuid_to_metadata_id(network_id)
-                existing = list(
-                    r.table("user_networks")
-                    .get_all(metadata_id, index="metadata_id")
-                    .limit(1)
-                    .run(RethinkSharedConnection._rdb_connection)
-                )
-                if not existing:
-                    break
+        while True:
+            network_id = str(uuid.uuid4())
+            metadata_id = _uuid_to_metadata_id(network_id)
+            if not UserNetworksProcessed.exists_by_metadata_id(metadata_id):
+                break
 
         now = datetime.now(timezone.utc).isoformat()
 
@@ -155,10 +137,7 @@ class UserNetworkService:
             "modified": now,
         }
 
-        with RethinkSharedConnection._rdb_context():
-            r.table("user_networks").insert(network).run(
-                RethinkSharedConnection._rdb_connection
-            )
+        UserNetworksProcessed.insert(network)
 
         return network
 
@@ -188,10 +167,7 @@ class UserNetworkService:
         if data.allowed is not None:
             update_data["allowed"] = data.allowed.model_dump()
 
-        with RethinkSharedConnection._rdb_context():
-            r.table("user_networks").get(network_id).update(update_data).run(
-                RethinkSharedConnection._rdb_connection
-            )
+        UserNetworksProcessed.update(network_id, update_data)
 
         return {**network, **update_data}
 
@@ -208,7 +184,4 @@ class UserNetworkService:
                     description_code="forbidden",
                 )
 
-        with RethinkSharedConnection._rdb_context():
-            r.table("user_networks").get(network_id).delete().run(
-                RethinkSharedConnection._rdb_connection
-            )
+        UserNetworksProcessed.delete(network_id)
