@@ -4,7 +4,7 @@
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from api import admin_router
 from api.schemas.common import EmptyResponse, ErrorResponse
@@ -35,7 +35,7 @@ tag = "vpn"
 )
 async def vpn_connection_connect(
     request: Request,
-    kind: str,
+    kind: Literal["users", "hypers"],
     client_ip: str,
     data: VpnConnectionRequest,
 ):
@@ -43,7 +43,7 @@ async def vpn_connection_connect(
         if AdminVpnService.active_client(
             kind, client_ip, data.remote_ip, data.remote_port, True
         ):
-            return JSONResponse(content={}, status_code=200)
+            return {}
         raise await Error.create(
             request,
             "not_found",
@@ -73,7 +73,7 @@ async def vpn_connection_connect(
 )
 async def vpn_connection_roam(
     request: Request,
-    kind: str,
+    kind: Literal["users", "hypers"],
     client_ip: str,
     data: VpnConnectionRequest,
 ):
@@ -81,7 +81,7 @@ async def vpn_connection_roam(
         if AdminVpnService.active_client(
             kind, client_ip, data.remote_ip, data.remote_port, True
         ):
-            return JSONResponse(content={}, status_code=200)
+            return {}
         raise await Error.create(
             request,
             "not_found",
@@ -108,10 +108,12 @@ async def vpn_connection_roam(
         500: {"model": ErrorResponse},
     },
 )
-async def vpn_connection_disconnect(request: Request, kind: str, client_ip: str):
+async def vpn_connection_disconnect(
+    request: Request, kind: Literal["users", "hypers"], client_ip: str
+):
     try:
         result = AdminVpnService.active_client(kind, client_ip)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -134,16 +136,10 @@ async def vpn_connection_disconnect(request: Request, kind: str, client_ip: str)
         500: {"model": ErrorResponse},
     },
 )
-async def vpn_connection_reset(request: Request, kind: str):
+async def vpn_connection_reset(request: Request, kind: Literal["all"]):
     try:
-        if kind == "all":
-            AdminVpnService.reset_connection_status(kind)
-            return JSONResponse(content={}, status_code=200)
-        raise await Error.create(
-            request,
-            "bad_request",
-            f"Unsupported reset kind '{kind}'; expected 'all'",
-        )
+        AdminVpnService.reset_connection_status(kind)
+        return {}
     except Error:
         raise
     except Exception:
@@ -169,7 +165,7 @@ async def vpn_connections_disconnect(
 ):
     try:
         AdminVpnService.reset_connections_list_status(data.root)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

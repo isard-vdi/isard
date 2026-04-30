@@ -83,7 +83,7 @@ async def admin_get_jwt(request: Request, user_id: str):
     try:
         AdminUsersService.owns_user_id(request.token_payload, user_id)
         result = AdminUsersService.get_impersonate_jwt(user_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -108,10 +108,7 @@ async def admin_get_jwt(request: Request, user_id: str):
 async def admin_user_exists(request: Request, user_id: str):
     try:
         AdminUsersService.owns_user_id(request.token_payload, user_id)
-        return JSONResponse(
-            content=AdminUsersService.user_exists(user_id),
-            status_code=200,
-        )
+        return AdminUsersService.user_exists(user_id)
     except Error:
         raise
     except Exception as e:
@@ -137,10 +134,7 @@ async def admin_user_exists(request: Request, user_id: str):
 async def admin_get_user(request: Request, user_id: str):
     try:
         AdminUsersService.owns_user_id(request.token_payload, user_id)
-        return JSONResponse(
-            content=AdminUsersService.get_user_full_data(user_id),
-            status_code=200,
-        )
+        return AdminUsersService.get_user_full_data(user_id)
     except Error:
         raise
     except Exception as e:
@@ -165,10 +159,7 @@ async def admin_get_user(request: Request, user_id: str):
 async def admin_get_user_raw(request: Request, user_id: str):
     try:
         AdminUsersService.owns_user_id(request.token_payload, user_id)
-        return JSONResponse(
-            content=AdminUsersService.get_user_raw(user_id),
-            status_code=200,
-        )
+        return AdminUsersService.get_user_raw(user_id)
     except Error:
         raise
     except Exception as e:
@@ -199,10 +190,7 @@ async def admin_list_users(request: Request):
             else None
         )
         result = AdminUsersService.list_users(category_id=category_id)
-        return JSONResponse(
-            content=[AdminUser(**u).model_dump(mode="json") for u in result],
-            status_code=200,
-        )
+        return [AdminUser(**u) for u in result]
     except Error:
         raise
     except Exception as e:
@@ -228,10 +216,7 @@ async def admin_list_users_nav(
     request: Request, nav: Literal["management", "quotas_limits"]
 ):
     try:
-        return JSONResponse(
-            content=AdminUsersService.list_users_nav(request.token_payload, nav),
-            status_code=200,
-        )
+        return AdminUsersService.list_users_nav(request.token_payload, nav)
     except Error:
         raise
     except Exception as e:
@@ -258,10 +243,7 @@ async def admin_list_users_nav(
 async def admin_create_user(request: Request, data: AdminUserCreateData):
     try:
         result = AdminUsersService.create_user(request.token_payload, data.model_dump())
-        return JSONResponse(
-            content=AdminUser(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return AdminUser(**result)
     except Error:
         raise
     except Exception as e:
@@ -291,7 +273,7 @@ async def admin_update_user(request: Request, user_id: str):
             raise Error("bad_request", "Request body must be JSON")
         data["ids"] = [user_id]
         AdminUsersService.update_user(request.token_payload, user_id, data)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -320,7 +302,7 @@ async def admin_update_users_bulk(request: Request):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_multiple_users(request.token_payload, data)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -377,7 +359,7 @@ async def admin_delete_users(request: Request, data: AdminUserDeleteData):
 async def admin_user_logout(request: Request, user_id: str):
     try:
         AdminUsersService.force_logout_user(request.token_payload, user_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -402,7 +384,7 @@ async def admin_user_logout(request: Request, user_id: str):
 async def admin_search_users(request: Request, data: AdminUserSearchData):
     try:
         result = AdminUsersService.search_users(request.token_payload, data.term)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -436,7 +418,7 @@ async def admin_validate_csv_users(request: Request):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         result = AdminUsersService.validate_csv_users(request.token_payload, user_list)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -467,7 +449,7 @@ async def admin_validate_csv_users_edit(request: Request):
         result = AdminUsersService.validate_csv_users_edit(
             request.token_payload, user_list
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -496,13 +478,10 @@ async def admin_import_csv_users(request: Request):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         result = AdminUsersService.import_csv_users(request.token_payload, data)
-        return JSONResponse(
-            content={
-                "created": len(result.get("users", [])),
-                "errors": result.get("errors", []),
-            },
-            status_code=200,
-        )
+        return {
+            "created": len(result.get("users", [])),
+            "errors": result.get("errors", []),
+        }
     except Error:
         raise
     except Exception as e:
@@ -527,7 +506,7 @@ async def admin_import_csv_users(request: Request):
 async def admin_edit_csv_users(request: Request, data: AdminCSVUserEditData):
     try:
         AdminUsersService.edit_csv_users(request.token_payload, data.model_dump())
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -568,13 +547,10 @@ async def admin_bulk_create_users(request: Request):
                 request, "bad_request", "Request body must be JSON"
             )
         result = AdminUsersService.import_csv_users(request.token_payload, data)
-        return JSONResponse(
-            content={
-                "created": len(result.get("users", [])),
-                "errors": result.get("errors", []),
-            },
-            status_code=200,
-        )
+        return {
+            "created": len(result.get("users", [])),
+            "errors": result.get("errors", []),
+        }
     except Error:
         raise
     except Exception as e:
@@ -606,7 +582,7 @@ async def admin_secondary_groups_add(request: Request, data: AdminSecondaryGroup
         AdminUsersService.update_secondary_groups(
             request.token_payload, "add", data.model_dump()
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -635,7 +611,7 @@ async def admin_secondary_groups_overwrite(
         AdminUsersService.update_secondary_groups(
             request.token_payload, "overwrite", data.model_dump()
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -664,7 +640,7 @@ async def admin_secondary_groups_delete(
         AdminUsersService.update_secondary_groups(
             request.token_payload, "delete", data.model_dump()
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -693,12 +669,7 @@ async def admin_secondary_groups_delete(
 )
 async def admin_get_password_policy(request: Request, user_id: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_password_policy(
-                request.token_payload, user_id
-            ),
-            status_code=200,
-        )
+        return AdminUsersService.get_password_policy(request.token_payload, user_id)
     except Error:
         raise
     except Exception as e:
@@ -728,10 +699,7 @@ async def admin_get_password_policy(request: Request, user_id: str):
 async def admin_reset_password(request: Request, data: AdminPasswordResetData):
     try:
         AdminUsersService.reset_password(data.model_dump())
-        return JSONResponse(
-            content=EmptyResponse().model_dump(),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -756,11 +724,8 @@ async def admin_reset_password(request: Request, data: AdminPasswordResetData):
 )
 async def admin_check_password_reset_required(request: Request, user_id: str):
     try:
-        return JSONResponse(
-            content=RequiredCheckResponse(
-                required=AdminUsersService.check_password_expiration(user_id)
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RequiredCheckResponse(
+            required=AdminUsersService.check_password_expiration(user_id)
         )
     except Error:
         raise
@@ -786,11 +751,8 @@ async def admin_check_password_reset_required(request: Request, user_id: str):
 )
 async def admin_check_email_verification(request: Request, user_id: str):
     try:
-        return JSONResponse(
-            content=RequiredCheckResponse(
-                required=AdminUsersService.check_email_verified(user_id)
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RequiredCheckResponse(
+            required=AdminUsersService.check_email_verified(user_id)
         )
     except Error:
         raise
@@ -816,11 +778,8 @@ async def admin_check_email_verification(request: Request, user_id: str):
 )
 async def admin_check_disclaimer(request: Request, user_id: str):
     try:
-        return JSONResponse(
-            content=RequiredCheckResponse(
-                required=AdminUsersService.check_disclaimer_acknowledgement(user_id)
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RequiredCheckResponse(
+            required=AdminUsersService.check_disclaimer_acknowledgement(user_id)
         )
     except Error:
         raise
@@ -846,7 +805,7 @@ async def admin_check_disclaimer(request: Request, user_id: str):
 async def admin_reset_vpn(request: Request, user_id: str):
     try:
         AdminUsersService.reset_vpn(request.token_payload, user_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -875,10 +834,7 @@ async def admin_reset_vpn(request: Request, user_id: str):
 )
 async def admin_list_groups(request: Request):
     try:
-        return JSONResponse(
-            content=AdminUsersService.list_groups(request.token_payload),
-            status_code=200,
-        )
+        return AdminUsersService.list_groups(request.token_payload)
     except Error:
         raise
     except Exception as e:
@@ -904,10 +860,7 @@ async def admin_list_groups_nav(
     request: Request, nav: Literal["management", "quotas_limits"]
 ):
     try:
-        return JSONResponse(
-            content=AdminUsersService.list_groups_nav(request.token_payload, nav),
-            status_code=200,
-        )
+        return AdminUsersService.list_groups_nav(request.token_payload, nav)
     except Error:
         raise
     except Exception as e:
@@ -931,10 +884,7 @@ async def admin_list_groups_nav(
 )
 async def admin_get_group(request: Request, group_id: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_group(group_id),
-            status_code=200,
-        )
+        return AdminUsersService.get_group(group_id)
     except Error:
         raise
     except Exception as e:
@@ -962,10 +912,7 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
         result = AdminUsersService.create_group(
             request.token_payload, data.model_dump()
         )
-        return JSONResponse(
-            content=AdminGroup(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return AdminGroup(**result)
     except Error:
         raise
     except Exception as e:
@@ -994,7 +941,7 @@ async def admin_update_group(request: Request, group_id: str):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_group(request.token_payload, group_id, data)
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception as e:
@@ -1019,7 +966,7 @@ async def admin_update_group(request: Request, group_id: str):
 async def admin_delete_group(request: Request, group_id: str):
     try:
         AdminUsersService.delete_group(request.token_payload, group_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -1043,10 +990,7 @@ async def admin_delete_group(request: Request, group_id: str):
 )
 async def admin_get_group_users(request: Request, group_id: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_group_users(request.token_payload, group_id),
-            status_code=200,
-        )
+        return AdminUsersService.get_group_users(request.token_payload, group_id)
     except Error:
         raise
     except Exception as e:
@@ -1073,7 +1017,7 @@ async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentDat
         result = AdminUsersService.update_group_enrollment(
             request.token_payload, data.model_dump()
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1102,10 +1046,7 @@ async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentDat
 )
 async def admin_list_categories(request: Request):
     try:
-        return JSONResponse(
-            content=AdminUsersService.list_categories(request.token_payload),
-            status_code=200,
-        )
+        return AdminUsersService.list_categories(request.token_payload)
     except Error:
         raise
     except Exception as e:
@@ -1129,12 +1070,7 @@ async def admin_list_categories(request: Request):
 )
 async def admin_list_categories_frontend(request: Request, frontend: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.list_categories(
-                request.token_payload, frontend=True
-            ),
-            status_code=200,
-        )
+        return AdminUsersService.list_categories(request.token_payload, frontend=True)
     except Error:
         raise
     except Exception as e:
@@ -1160,10 +1096,7 @@ async def admin_list_categories_nav(
     request: Request, nav: Literal["management", "quotas_limits"]
 ):
     try:
-        return JSONResponse(
-            content=AdminUsersService.list_categories_nav(request.token_payload, nav),
-            status_code=200,
-        )
+        return AdminUsersService.list_categories_nav(request.token_payload, nav)
     except Error:
         raise
     except Exception as e:
@@ -1187,10 +1120,7 @@ async def admin_list_categories_nav(
 )
 async def admin_get_category(request: Request, category_id: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_category(request.token_payload, category_id),
-            status_code=200,
-        )
+        return AdminUsersService.get_category(request.token_payload, category_id)
     except Error:
         raise
     except Exception as e:
@@ -1217,7 +1147,7 @@ async def admin_create_category(request: Request, data: AdminCategoryCreateData)
         result = AdminUsersService.create_category(
             request.token_payload, data.model_dump()
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1246,7 +1176,7 @@ async def admin_update_category(request: Request, category_id: str):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_category(request.token_payload, category_id, data)
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception as e:
@@ -1271,7 +1201,7 @@ async def admin_update_category(request: Request, category_id: str):
 async def admin_delete_category(request: Request, category_id: str):
     try:
         result = AdminUsersService.delete_category(request.token_payload, category_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1295,12 +1225,7 @@ async def admin_delete_category(request: Request, category_id: str):
 )
 async def admin_get_category_users(request: Request, category_id: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_category_users(
-                request.token_payload, category_id
-            ),
-            status_code=200,
-        )
+        return AdminUsersService.get_category_users(request.token_payload, category_id)
     except Error:
         raise
     except Exception as e:
@@ -1326,7 +1251,7 @@ async def admin_get_category_users(request: Request, category_id: str):
 async def admin_get_category_by_name(request: Request, category_name: str):
     try:
         category_id = AdminUsersService.get_category_by_name(category_name)
-        return JSONResponse(content=category_id, status_code=200)
+        return category_id
     except Error:
         raise
     except Exception as e:
@@ -1356,7 +1281,7 @@ async def admin_get_group_by_name_category(
         group_id = AdminUsersService.get_group_by_name_category(
             category_name, group_name
         )
-        return JSONResponse(content=group_id, status_code=200)
+        return group_id
     except Error:
         raise
     except Exception as e:
@@ -1390,7 +1315,7 @@ async def admin_update_group_quota(request: Request, group_id: str):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_group_quota(request.token_payload, group_id, data)
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception as e:
@@ -1421,7 +1346,7 @@ async def admin_update_category_quota(request: Request, category_id: str):
         AdminUsersService.update_category_quota(
             request.token_payload, category_id, data
         )
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception as e:
@@ -1450,7 +1375,7 @@ async def admin_update_group_limits(request: Request, group_id: str):
         except json.JSONDecodeError:
             raise Error("bad_request", "Request body must be JSON")
         AdminUsersService.update_group_limits(request.token_payload, group_id, data)
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception as e:
@@ -1481,7 +1406,7 @@ async def admin_update_category_limits(request: Request, category_id: str):
         AdminUsersService.update_category_limits(
             request.token_payload, category_id, data
         )
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception as e:
@@ -1511,7 +1436,7 @@ async def admin_update_category_limits(request: Request, category_id: str):
 async def admin_user_delete_check(request: Request, data: AdminDeleteChecksData):
     try:
         result = AdminUsersService.user_delete_checks(request.token_payload, data.ids)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1536,7 +1461,7 @@ async def admin_user_delete_check(request: Request, data: AdminDeleteChecksData)
 async def admin_group_delete_check(request: Request, data: AdminDeleteChecksData):
     try:
         result = AdminUsersService.group_delete_checks(request.token_payload, data.ids)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1563,7 +1488,7 @@ async def admin_category_delete_check(request: Request, data: AdminDeleteChecksD
         result = AdminUsersService.category_delete_checks(
             request.token_payload, data.ids
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1590,7 +1515,7 @@ async def admin_check_group_category(
 ):
     try:
         AdminUsersService.check_group_category(data.model_dump())
-        return JSONResponse(content=[], status_code=200)
+        return []
     except Error:
         raise
     except Exception as e:
@@ -1621,10 +1546,7 @@ async def admin_check_group_category(
 async def admin_get_templates(request: Request):
     try:
         result = AdminUsersService.get_admin_templates(request.token_payload)
-        return JSONResponse(
-            content=[AdminTemplateItem(**t).model_dump(mode="json") for t in result],
-            status_code=200,
-        )
+        return [AdminTemplateItem(**t) for t in result]
     except Error:
         raise
     except Exception as e:
@@ -1648,12 +1570,7 @@ async def admin_get_templates(request: Request):
 )
 async def admin_get_user_templates(request: Request, user_id: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_user_templates(
-                request.token_payload, user_id
-            ),
-            status_code=200,
-        )
+        return AdminUsersService.get_user_templates(request.token_payload, user_id)
     except Error:
         raise
     except Exception as e:
@@ -1677,10 +1594,7 @@ async def admin_get_user_templates(request: Request, user_id: str):
 )
 async def admin_get_user_desktops(request: Request, user_id: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_user_desktops(request.token_payload, user_id),
-            status_code=200,
-        )
+        return AdminUsersService.get_user_desktops(request.token_payload, user_id)
     except Error:
         raise
     except Exception as e:
@@ -1704,10 +1618,7 @@ async def admin_get_user_desktops(request: Request, user_id: str):
 )
 async def admin_get_roles(request: Request):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_roles(request.token_payload),
-            status_code=200,
-        )
+        return AdminUsersService.get_roles(request.token_payload)
     except Error:
         raise
     except Exception as e:
@@ -1749,7 +1660,7 @@ async def admin_update_role(request: Request, role_id: str):
         # one. Force the URL id and let any body id be ignored.
         data["id"] = role_id
         AdminUsersService.update_role(data)
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception as e:
@@ -1773,10 +1684,7 @@ async def admin_update_role(request: Request, role_id: str):
 )
 async def admin_get_secrets(request: Request):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_secrets(),
-            status_code=200,
-        )
+        return AdminUsersService.get_secrets()
     except Error:
         raise
     except Exception as e:
@@ -1801,7 +1709,7 @@ async def admin_get_secrets(request: Request):
 async def admin_create_secret(request: Request, data: AdminSecretCreateData):
     try:
         result = AdminUsersService.create_secret(data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -1826,7 +1734,7 @@ async def admin_create_secret(request: Request, data: AdminSecretCreateData):
 async def admin_delete_secret(request: Request, kid: str):
     try:
         AdminUsersService.delete_secret(kid)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -1849,15 +1757,13 @@ async def admin_delete_secret(request: Request, kid: str):
     },
 )
 async def admin_get_user_vpn_with_os(
-    request: Request, user_id: str, kind: str, os: str
+    request: Request,
+    user_id: str,
+    kind: Literal["config", "install"],
+    os: str,
 ):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_user_vpn(
-                request.token_payload, user_id, kind, os
-            ),
-            status_code=200,
-        )
+        return AdminUsersService.get_user_vpn(request.token_payload, user_id, kind, os)
     except Error:
         raise
     except Exception as e:
@@ -1879,14 +1785,11 @@ async def admin_get_user_vpn_with_os(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_user_vpn(request: Request, user_id: str, kind: str):
+async def admin_get_user_vpn(
+    request: Request, user_id: str, kind: Literal["config", "install"]
+):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_user_vpn(
-                request.token_payload, user_id, kind
-            ),
-            status_code=200,
-        )
+        return AdminUsersService.get_user_vpn(request.token_payload, user_id, kind)
     except Error:
         raise
     except Exception as e:
@@ -1910,10 +1813,7 @@ async def admin_get_user_vpn(request: Request, user_id: str, kind: str):
 )
 async def admin_get_user_schema(request: Request):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_user_schema(request.token_payload),
-            status_code=200,
-        )
+        return AdminUsersService.get_user_schema(request.token_payload)
     except Error:
         raise
     except Exception as e:
@@ -1937,10 +1837,7 @@ async def admin_get_user_schema(request: Request):
 )
 async def admin_get_quotas(request: Request):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_admin_quotas(request.token_payload),
-            status_code=200,
-        )
+        return AdminUsersService.get_admin_quotas(request.token_payload)
     except Error:
         raise
     except Exception as e:
@@ -1964,12 +1861,7 @@ async def admin_get_quotas(request: Request):
 )
 async def admin_get_user_applied_quota(request: Request, user_id: str):
     try:
-        return JSONResponse(
-            content=AdminUsersService.get_user_applied_quota(
-                request.token_payload, user_id
-            ),
-            status_code=200,
-        )
+        return AdminUsersService.get_user_applied_quota(request.token_payload, user_id)
     except Error:
         raise
     except Exception as e:
@@ -1993,12 +1885,7 @@ async def admin_get_user_applied_quota(request: Request, user_id: str):
 )
 async def admin_get_user_by_email_category(request: Request, email: str, category: str):
     try:
-        return JSONResponse(
-            content={
-                "id": AdminUsersService.get_user_by_email_and_category(email, category)
-            },
-            status_code=200,
-        )
+        return {"id": AdminUsersService.get_user_by_email_and_category(email, category)}
     except Error:
         raise
     except Exception as e:
@@ -2031,10 +1918,7 @@ async def admin_auto_register(request: Request, data: AutoRegisterRequest):
         user_id = AdminUsersService.auto_register_user(
             request.token_payload, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(
-            content=AutoRegisterResponse(id=user_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return AutoRegisterResponse(id=user_id)
     except Error:
         raise
     except Exception as e:
@@ -2094,7 +1978,7 @@ async def admin_check_migration(request: Request, user_id: str, target_user_id: 
         errors = AdminUsersService.check_valid_migration(
             request.token_payload, user_id, target_user_id
         )
-        return JSONResponse(content={"errors": errors}, status_code=200)
+        return {"errors": errors}
     except Error:
         raise
     except Exception as e:
@@ -2123,7 +2007,7 @@ async def admin_migrate_user_desktops(
         AdminUsersService.migrate_user_resource(
             request.token_payload, user_id, target_user_id, "desktop"
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -2152,7 +2036,7 @@ async def admin_migrate_user_templates(
         AdminUsersService.migrate_user_resource(
             request.token_payload, user_id, target_user_id, "template"
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -2179,7 +2063,7 @@ async def admin_migrate_user_media(request: Request, user_id: str, target_user_i
         AdminUsersService.migrate_user_resource(
             request.token_payload, user_id, target_user_id, "media"
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -2208,7 +2092,7 @@ async def admin_migrate_user_deployments(
         AdminUsersService.migrate_user_resource(
             request.token_payload, user_id, target_user_id, "deployments"
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -2235,7 +2119,7 @@ async def admin_check_migrated(request: Request, data: AdminCheckMigratedData):
         migrated = AdminUsersService.check_migrated_users(
             request.token_payload, data.users
         )
-        return JSONResponse(content={"migrated": migrated}, status_code=200)
+        return {"migrated": migrated}
     except Error:
         raise
     except Exception as e:
@@ -2267,10 +2151,7 @@ async def admin_get_bastion_domain(request: Request, category_id: str):
         bastion_domain = AdminUsersService.get_category_bastion_domain(
             request.token_payload, category_id
         )
-        return JSONResponse(
-            content={"bastion_domain": bastion_domain},
-            status_code=200,
-        )
+        return {"bastion_domain": bastion_domain}
     except Error:
         raise
     except Exception as e:
@@ -2299,7 +2180,7 @@ async def admin_update_bastion_domain(
         AdminUsersService.update_category_bastion_domain(
             request.token_payload, category_id, data.model_dump()
         )
-        return JSONResponse(content=data.model_dump(), status_code=200)
+        return data
     except Error:
         raise
     except Exception as e:
@@ -2329,7 +2210,7 @@ async def admin_update_bastion_domain(
 async def admin_broadcast(request: Request, data: AdminBroadcastData):
     try:
         AdminSocketioService.broadcast(data.type, data.message)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

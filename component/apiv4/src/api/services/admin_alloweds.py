@@ -54,10 +54,9 @@ class AdminAllowedsService:
         """
         Search table items by term.
         Returns matching items filtered by the user's role and category.
-        """
-        if table not in ALLOWED_TERM_TABLES:
-            raise Error("forbidden", "Table not allowed.")
 
+        Route layer constrains ``table`` to ``Literal[<ALLOWED_TERM_TABLES>]``.
+        """
         data["pluck"] = ["id", "name"]
 
         if payload["role_id"] == "admin":

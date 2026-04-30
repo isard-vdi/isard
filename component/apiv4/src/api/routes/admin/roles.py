@@ -37,7 +37,7 @@ tag = "admin_roles"
 async def admin_get_role(request: Request, role_id: str):
     try:
         role = AdminRolesService.get_role(role_id)
-        return JSONResponse(content=role, status_code=200)
+        return role
     except Error:
         raise
     except Exception:

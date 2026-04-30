@@ -62,11 +62,8 @@ tag = "media"
 async def get_media(request: Request, media_id=Depends(owns_media_id)):
     media = MediaService.get_media(media_id)
     try:
-        return JSONResponse(
-            content=MediaResponse(
-                **media,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return MediaResponse(
+            **media,
         )
     except Error:
         raise
@@ -108,7 +105,7 @@ async def list_media_installs(request: Request):
             for row in result
         ]
         plucked.sort(key=lambda r: (r["name"] or "").lower())
-        return JSONResponse(content=plucked, status_code=200)
+        return plucked
     except Error:
         raise
     except Exception:
@@ -136,12 +133,7 @@ async def list_media_installs(request: Request):
 async def list_desktop_attached_media(request: Request, desktop_id: str):
     try:
         media = MediaService.list_desktop_attached_media(desktop_id)
-        return JSONResponse(
-            content=[
-                DesktopAttachedMediaItem(**m).model_dump(mode="json") for m in media
-            ],
-            status_code=200,
-        )
+        return [DesktopAttachedMediaItem(**m) for m in media]
     except Error:
         raise
     except Exception:
@@ -169,11 +161,8 @@ async def list_desktop_attached_media(request: Request, desktop_id: str):
 )
 async def get_user_media(request: Request):
     try:
-        return JSONResponse(
-            UserMediaResponse(
-                media=MediaService.get_user_media(request.token_payload["user_id"]),
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserMediaResponse(
+            media=MediaService.get_user_media(request.token_payload["user_id"]),
         )
     except Error:
         raise
@@ -201,11 +190,8 @@ async def get_user_shared_media(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=UserSharedMediaResponse(
-                media=MediaService.get_user_shared_media(request.token_payload)
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserSharedMediaResponse(
+            media=MediaService.get_user_shared_media(request.token_payload)
         )
     except Error:
         raise
@@ -283,10 +269,7 @@ async def get_user_allowed_media(
             search=search,
             search_field=search_field,
         )
-        return JSONResponse(
-            content=user_media,
-            status_code=200,
-        )
+        return user_media
     except Error:
         raise
     except Exception as e:
@@ -308,12 +291,10 @@ async def get_user_allowed_media(
 )
 async def get_media_allowed_table(request: Request, media_id: str):
     try:
-        return JSONResponse(
-            AllowedResponse(
-                **MediaService.get_media_allowed(
-                    media_id, request.token_payload["category_id"]
-                )
-            ).model_dump(mode="json")
+        return AllowedResponse(
+            **MediaService.get_media_allowed(
+                media_id, request.token_payload["category_id"]
+            )
         )
     except Error:
         raise
@@ -337,10 +318,7 @@ async def get_media_allowed_table(request: Request, media_id: str):
 async def update_media_allowed(request: Request, allowed: AllowedUpdate, media_id: str):
     try:
         MediaService.update_media_allowed(media_id, allowed)
-        return JSONResponse(
-            content=SimpleResponse(id=media_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=media_id)
     except Error:
         raise
     except Exception as e:
@@ -361,12 +339,10 @@ async def update_media_allowed(request: Request, allowed: AllowedUpdate, media_i
 )
 async def get_media_desktops(request: Request, media_id=Depends(owns_media_id)):
     try:
-        return JSONResponse(
-            [
-                MediaDesktopResponse(**desktop).model_dump(mode="json")
-                for desktop in MediaService.get_media_desktops(media_id)
-            ]
-        )
+        return [
+            MediaDesktopResponse(**desktop)
+            for desktop in MediaService.get_media_desktops(media_id)
+        ]
     except Error:
         raise
     except Exception as e:
@@ -405,10 +381,7 @@ async def change_media_owner(
             media_id=media_id,
             new_user_id=user_id,
         )
-        return JSONResponse(
-            content=SimpleResponse(id=media_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=media_id)
     except Error:
         raise
     except Exception:
@@ -442,12 +415,7 @@ async def delete_media(request: Request, media_id=Depends(owns_media_id)):
             request.token_payload,
         )
         if task_id is None:
-            return JSONResponse(
-                content=DeleteResponse(
-                    message="Media deleted", message_code="item.deleted"
-                ).model_dump(mode="json"),
-                status_code=200,
-            )
+            return DeleteResponse(message="Media deleted", message_code="item.deleted")
         return JSONResponse(
             content=DeleteResponse(
                 message="Task to delete media queued",
@@ -530,10 +498,7 @@ async def check_media(request: Request, media_id=Depends(owns_media_id)):
         result = MediaService.check_media_existence(
             media_id, request.token_payload["user_id"]
         )
-        return JSONResponse(
-            content=MediaCheckResponse(**(result or {})).model_dump(mode="json"),
-            status_code=200,
-        )
+        return MediaCheckResponse(**(result or {}))
     except Error:
         raise
     except Exception:
@@ -558,10 +523,7 @@ async def check_media(request: Request, media_id=Depends(owns_media_id)):
 async def abort_media_download(request: Request, media_id=Depends(owns_media_id)):
     try:
         MediaService.abort_media_download(media_id)
-        return JSONResponse(
-            content=SimpleResponse(id=media_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=media_id)
     except Error:
         raise
     except Exception as e:
@@ -587,10 +549,7 @@ async def start_media_download(request: Request, media_id=Depends(owns_media_id)
     """Start a media download."""
     try:
         MediaService.start_media_download(media_id)
-        return JSONResponse(
-            content=SimpleResponse(id=media_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=media_id)
     except Error:
         raise
     except Exception as e:

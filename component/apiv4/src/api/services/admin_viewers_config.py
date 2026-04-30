@@ -34,9 +34,6 @@ class AdminViewersConfigService:
 
     @staticmethod
     def reset_viewers_config(viewer: str) -> None:
-        if viewer not in ["file_rdpgw", "file_rdpvpn", "file_spice"]:
-            raise Error(
-                "bad_request",
-                "Invalid viewer value to reset",
-            )
+        # Route layer constrains ``viewer`` to
+        # ``Literal["file_rdpgw", "file_rdpvpn", "file_spice"]``.
         ViewersConfig.reset_viewers_config(viewer)

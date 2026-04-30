@@ -67,10 +67,7 @@ async def admin_create_notification_template(
 ):
     try:
         AdminNotificationService.create_template(data.model_dump())
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -93,10 +90,7 @@ async def admin_create_notification_template(
 async def admin_list_notification_templates(request: Request):
     try:
         templates = AdminNotificationService.get_templates()
-        return JSONResponse(
-            content=TemplateListResponse(templates=templates).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TemplateListResponse(templates=templates)
     except Error:
         raise
     except Exception:
@@ -119,10 +113,7 @@ async def admin_list_notification_templates(request: Request):
 async def admin_list_custom_notification_templates(request: Request):
     try:
         templates = AdminNotificationService.get_templates("custom")
-        return JSONResponse(
-            content=TemplateListResponse(templates=templates).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TemplateListResponse(templates=templates)
     except Error:
         raise
     except Exception:
@@ -145,10 +136,7 @@ async def admin_list_custom_notification_templates(request: Request):
 async def admin_list_system_notification_templates(request: Request):
     try:
         templates = AdminNotificationService.get_templates("system")
-        return JSONResponse(
-            content=TemplateListResponse(templates=templates).model_dump(mode="json"),
-            status_code=200,
-        )
+        return TemplateListResponse(templates=templates)
     except Error:
         raise
     except Exception:
@@ -171,10 +159,7 @@ async def admin_list_system_notification_templates(request: Request):
 async def admin_get_notification_template(request: Request, template_id: str):
     try:
         template = AdminNotificationService.get_template(template_id)
-        return JSONResponse(
-            content=template,
-            status_code=200,
-        )
+        return template
     except Error:
         raise
     except Exception:
@@ -202,10 +187,7 @@ async def admin_preview_notification_template(
         texts = AdminNotificationService.preview_template(
             data.event, data.user_id, data.data
         )
-        return JSONResponse(
-            content=texts,
-            status_code=200,
-        )
+        return texts
     except Error:
         raise
     except Exception:
@@ -236,10 +218,7 @@ async def admin_update_notification_template(
 ):
     try:
         AdminNotificationService.update_template(template_id, data.model_dump())
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -266,12 +245,9 @@ async def admin_update_notification_template(
 async def admin_delete_notification_template(request: Request, template_id: str):
     try:
         AdminNotificationService.delete_template(template_id)
-        return JSONResponse(
-            content=DeleteResponse(
-                message="Notification template deleted",
-                message_code="item.deleted",
-            ).model_dump(mode="json"),
-            status_code=200,
+        return DeleteResponse(
+            message="Notification template deleted",
+            message_code="item.deleted",
         )
     except Error:
         raise
@@ -300,12 +276,7 @@ async def admin_delete_notification_template(request: Request, template_id: str)
 async def admin_list_notifications(request: Request):
     try:
         notifications = AdminNotificationService.get_all_notifications()
-        return JSONResponse(
-            content=NotificationListResponse(notifications=notifications).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return NotificationListResponse(notifications=notifications)
     except Error:
         raise
     except Exception:
@@ -333,10 +304,7 @@ async def admin_create_notification(
         notification_id = AdminNotificationService.create_notification(
             data.model_dump(exclude_none=True)
         )
-        return JSONResponse(
-            content=NotificationResponse(id=notification_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return NotificationResponse(id=notification_id)
     except Error:
         raise
     except Exception:
@@ -359,12 +327,7 @@ async def admin_create_notification(
 async def admin_list_notification_actions(request: Request):
     try:
         actions = AdminNotificationService.get_notification_actions()
-        return JSONResponse(
-            content=NotificationActionsResponse(actions=actions).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return NotificationActionsResponse(actions=actions)
     except Error:
         raise
     except Exception:
@@ -386,10 +349,7 @@ async def admin_list_notification_actions(request: Request):
 async def admin_get_notification(request: Request, notification_id: str):
     try:
         notification = AdminNotificationService.get_notification(notification_id)
-        return JSONResponse(
-            content=NotificationDetailResponse(notification).model_dump(mode="json"),
-            status_code=200,
-        )
+        return NotificationDetailResponse(notification)
     except Error:
         raise
     except Exception:
@@ -422,10 +382,7 @@ async def admin_update_notification(
         AdminNotificationService.update_notification(
             notification_id, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(
-            content=NotificationResponse(id=notification_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return NotificationResponse(id=notification_id)
     except Error:
         raise
     except Exception:
@@ -452,10 +409,7 @@ async def admin_delete_notification(
 ):
     try:
         AdminNotificationService.delete_notification(notification_id, data.delete_logs)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -487,10 +441,7 @@ async def admin_get_notifications_data_by_status(
         data = AdminNotificationService.get_notifications_data_by_status(
             status, user_id
         )
-        return JSONResponse(
-            content=NotificationDataListResponse(data=data).model_dump(mode="json"),
-            status_code=200,
-        )
+        return NotificationDataListResponse(data=data)
     except Error:
         raise
     except Exception:
@@ -513,12 +464,7 @@ async def admin_get_notifications_data_by_status(
 async def admin_get_notification_statuses(request: Request):
     try:
         statuses = AdminNotificationService.get_notification_statuses()
-        return JSONResponse(
-            content=NotificationStatusesResponse(statuses=statuses).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return NotificationStatusesResponse(statuses=statuses)
     except Error:
         raise
     except Exception:
@@ -541,10 +487,7 @@ async def admin_get_notification_statuses(request: Request):
 async def admin_get_notifications_grouped_by_status(request: Request, status: str):
     try:
         data = AdminNotificationService.get_notifications_grouped_by_status(status)
-        return JSONResponse(
-            content=NotificationGroupedDataResponse(data=data).model_dump(mode="json"),
-            status_code=200,
-        )
+        return NotificationGroupedDataResponse(data=data)
     except Error:
         raise
     except Exception:
@@ -567,10 +510,7 @@ async def admin_get_notifications_grouped_by_status(request: Request, status: st
 async def admin_delete_user_notification_data(request: Request, user_id: str):
     try:
         AdminNotificationService.delete_user_notification_data(user_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -593,10 +533,7 @@ async def admin_delete_user_notification_data(request: Request, user_id: str):
 async def admin_delete_notification_data(request: Request, notification_data_id: str):
     try:
         AdminNotificationService.delete_notification_data(notification_data_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -619,10 +556,7 @@ async def admin_delete_notification_data(request: Request, notification_data_id:
 async def admin_delete_all_notification_data(request: Request):
     try:
         AdminNotificationService.delete_all_notification_data()
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -652,12 +586,7 @@ async def admin_get_user_notification_displays(
 ):
     try:
         displays = AdminNotificationService.get_user_displays(user_id, trigger)
-        return JSONResponse(
-            content=AdminUserDisplaysResponse(displays=displays).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return AdminUserDisplaysResponse(displays=displays)
     except Error:
         raise
     except Exception:

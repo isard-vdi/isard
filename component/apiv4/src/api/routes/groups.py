@@ -52,10 +52,7 @@ async def get_users_in_group(
 ):
     try:
         users = GroupsService.get_users_in_group(group_id)
-        return JSONResponse(
-            content=GroupUsersResponse(users=users).model_dump(mode="json"),
-            status_code=200,
-        )
+        return GroupUsersResponse(users=users)
     except Error:
         raise
     except Exception as e:

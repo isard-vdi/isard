@@ -39,7 +39,7 @@ async def admin_operations_hypervisors(request: Request):
                 "Operations API is not enabled",
             )
         result = AdminOperationsService.list_hypervisors()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -70,7 +70,7 @@ async def admin_operations_hypervisor_start(request: Request, hypervisor_id: str
                 "Operations API is not enabled",
             )
         result = AdminOperationsService.start_hypervisor(hypervisor_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -101,7 +101,7 @@ async def admin_operations_hypervisor_stop(request: Request, hypervisor_id: str)
                 "Operations API is not enabled",
             )
         result = AdminOperationsService.stop_hypervisor(hypervisor_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

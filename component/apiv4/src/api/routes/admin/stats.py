@@ -65,7 +65,7 @@ tag = "admin_stats"
 async def stats_general(request: Request):
     try:
         result = AdminStatsService.get_general_stats()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -87,7 +87,7 @@ async def stats_general(request: Request):
 async def stats_desktops_status(request: Request):
     try:
         result = AdminStatsService.get_desktops_stats()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -110,10 +110,7 @@ async def stats_desktops_status(request: Request):
 async def stats_domains_status(request: Request):
     try:
         result = AdminStatsService.get_domains_status()
-        return JSONResponse(
-            content=StatsDomainsStatusResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return StatsDomainsStatusResponse(**result)
     except Error:
         raise
     except Exception:
@@ -135,7 +132,7 @@ async def stats_domains_status(request: Request):
 async def stats_category_status(request: Request):
     try:
         result = {"categories": AdminStatsService.get_category_status()}
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -164,10 +161,7 @@ async def stats_category_status(request: Request):
 async def stats_categories(request: Request):
     try:
         result = {"category": AdminStatsService.get_group_by_categories()}
-        return JSONResponse(
-            content=StatsCategoriesResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return StatsCategoriesResponse(**result)
     except Error:
         raise
     except Exception:
@@ -189,7 +183,7 @@ async def stats_categories(request: Request):
 async def stats_categories_limits(request: Request):
     try:
         result = {"category": AdminStatsService.get_categories_limits_hardware()}
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -212,12 +206,7 @@ async def stats_categories_limits(request: Request):
 async def stats_categories_deployments(request: Request):
     try:
         result = {"categories": AdminStatsService.get_categories_deployments()}
-        return JSONResponse(
-            content=StatsCategoriesDeploymentsResponse(**result).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return StatsCategoriesDeploymentsResponse(**result)
     except Error:
         raise
     except Exception:
@@ -239,7 +228,7 @@ async def stats_categories_deployments(request: Request):
 async def stats_categories_kind_state(request: Request, kind: str, state: str):
     try:
         result = {"category": AdminStatsService.get_categories_kind_state(kind, state)}
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -261,7 +250,7 @@ async def stats_categories_kind_state(request: Request, kind: str, state: str):
 async def stats_categories_kind(request: Request, kind: str):
     try:
         result = {"category": AdminStatsService.get_categories_kind_state(kind)}
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -289,10 +278,7 @@ async def stats_categories_kind(request: Request, kind: str):
 async def stats_users(request: Request):
     try:
         result = AdminStatsService.get_kind("users")
-        return JSONResponse(
-            content=[StatsKindUser(**u).model_dump(mode="json") for u in result],
-            status_code=200,
-        )
+        return [StatsKindUser(**u) for u in result]
     except Error:
         raise
     except Exception:
@@ -315,10 +301,7 @@ async def stats_users(request: Request):
 async def stats_desktops(request: Request):
     try:
         result = AdminStatsService.get_kind("desktops")
-        return JSONResponse(
-            content=[StatsKindDesktop(**d).model_dump(mode="json") for d in result],
-            status_code=200,
-        )
+        return [StatsKindDesktop(**d) for d in result]
     except Error:
         raise
     except Exception:
@@ -341,10 +324,7 @@ async def stats_desktops(request: Request):
 async def stats_templates(request: Request):
     try:
         result = AdminStatsService.get_kind("templates")
-        return JSONResponse(
-            content=[StatsKindTemplate(**t).model_dump(mode="json") for t in result],
-            status_code=200,
-        )
+        return [StatsKindTemplate(**t) for t in result]
     except Error:
         raise
     except Exception:
@@ -367,10 +347,7 @@ async def stats_templates(request: Request):
 async def stats_hypervisors(request: Request):
     try:
         result = AdminStatsService.get_kind("hypervisors")
-        return JSONResponse(
-            content=[StatsKindHypervisor(**h).model_dump(mode="json") for h in result],
-            status_code=200,
-        )
+        return [StatsKindHypervisor(**h) for h in result]
     except Error:
         raise
     except Exception:
@@ -396,7 +373,7 @@ async def stats_hypervisors(request: Request):
 async def admin_domains_started_count(request: Request):
     try:
         result = AdminStatsService.get_domains_by_category_count()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

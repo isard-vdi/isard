@@ -71,10 +71,7 @@ async def check_storage_pool_creation_availability():
 )
 async def get_default_storage_pool(request: Request):
     try:
-        return JSONResponse(
-            content=StoragePoolService.get_default_storage_pool(),
-            status_code=200,
-        )
+        return StoragePoolService.get_default_storage_pool()
     except Error:
         raise
     except Exception as e:
@@ -98,10 +95,7 @@ async def get_default_storage_pool(request: Request):
 async def get_storage_pool_by_path(request: Request, data: StoragePoolByPathRequest):
     try:
         storage_pool = StoragePoolService.get_storage_pool_by_path(data.path)
-        return JSONResponse(
-            content=storage_pool,
-            status_code=200,
-        )
+        return storage_pool
     except Error:
         raise
     except Exception as e:
@@ -129,10 +123,7 @@ async def get_storage_pool_by_path(request: Request, data: StoragePoolByPathRequ
 async def create_storage_pool(request: Request, data: StoragePoolCreateRequest):
     try:
         StoragePoolService.add_storage_pool(data.model_dump(exclude_none=True))
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -156,11 +147,8 @@ async def create_storage_pool(request: Request, data: StoragePoolCreateRequest):
 )
 async def list_storage_pools(request: Request):
     try:
-        return JSONResponse(
-            content=StoragePoolListResponse(
-                storage_pools=StoragePoolService.get_storage_pools()
-            ).model_dump(mode="json"),
-            status_code=200,
+        return StoragePoolListResponse(
+            storage_pools=StoragePoolService.get_storage_pools()
         )
     except Error:
         raise
@@ -187,11 +175,11 @@ async def check_storage_pool_availability_compat(request: Request):
         )
 
         await check_create_storage_pool_availability(request.token_payload)
-        return JSONResponse(content={"available": True}, status_code=200)
+        return {"available": True}
     except Error:
         raise
     except Exception:
-        return JSONResponse(content={"available": False}, status_code=200)
+        return {"available": False}
 
 
 @admin_router.get(
@@ -207,10 +195,7 @@ async def check_storage_pool_availability_compat(request: Request):
 async def get_storage_pool(request: Request, storage_pool_id: str):
     try:
         storage_pool = StoragePoolService.get_storage_pool(storage_pool_id)
-        return JSONResponse(
-            content=storage_pool,
-            status_code=200,
-        )
+        return storage_pool
     except Error:
         raise
     except Exception as e:
@@ -239,10 +224,7 @@ async def update_storage_pool(
         StoragePoolService.update_storage_pool(
             storage_pool_id, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -267,10 +249,7 @@ async def update_storage_pool(
 async def delete_storage_pool(request: Request, storage_pool_id: str):
     try:
         StoragePoolService.delete_storage_pool(storage_pool_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -299,12 +278,7 @@ async def check_category_storage_pool_availability(
         available = StoragePoolService.check_category_availability(
             data.categories, data.storage_pool_id
         )
-        return JSONResponse(
-            content=CheckCategoryAvailabilityResponse(available=available).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return CheckCategoryAvailabilityResponse(available=available)
     except Error:
         raise
     except Exception as e:

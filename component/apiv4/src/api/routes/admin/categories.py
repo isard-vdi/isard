@@ -56,7 +56,7 @@ tag = "admin-categories"
 async def get_category_branding(request: Request, category_id: str):
     try:
         branding = AdminCategoryService.get_branding(request.token_payload, category_id)
-        return JSONResponse(content=branding, status_code=200)
+        return branding
     except Error:
         raise
     except Exception:
@@ -88,7 +88,7 @@ async def update_category_branding(
         AdminCategoryService.update_branding(
             request.token_payload, category_id, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -122,7 +122,7 @@ async def get_category_authentication(request: Request, category_id: str):
         auth = AdminCategoryService.get_authentication(
             request.token_payload, category_id
         )
-        return JSONResponse(content=auth, status_code=200)
+        return auth
     except Error:
         raise
     except Exception:
@@ -155,7 +155,7 @@ async def update_category_authentication(
         AdminCategoryService.update_authentication(
             request.token_payload, category_id, data.model_dump()
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -191,7 +191,7 @@ async def update_category_login_notification(
         AdminCategoryService.update_login_notification(
             request.token_payload, category_id, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -225,7 +225,7 @@ async def enable_category_login_notification(
         AdminCategoryService.enable_login_notification(
             request.token_payload, category_id, notification_type, data.enabled
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

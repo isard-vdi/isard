@@ -54,7 +54,7 @@ async def admin_user_storage_auto_register(
         result = AdminUserStorageService.auto_register(
             data.domain, data.user, data.password, data.intra_docker, data.verify_cert
         )
-        return JSONResponse(content={"id": result}, status_code=200)
+        return {"id": result}
     except Error:
         raise
     except Exception:
@@ -89,7 +89,7 @@ async def admin_user_storage_test(request: Request, data: UserStorageConnTestReq
             data.password,
             data.verify_cert,
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -116,7 +116,7 @@ async def admin_user_storage_test(request: Request, data: UserStorageConnTestReq
 async def admin_user_storage_login_auth(request: Request, provider_id: str):
     try:
         login_url = AdminUserStorageService.get_login_auth(provider_id)
-        return JSONResponse(content={"login_url": login_url}, status_code=200)
+        return {"login_url": login_url}
     except Error:
         raise
     except Exception:
@@ -143,7 +143,7 @@ async def admin_user_storage_login_auth(request: Request, provider_id: str):
 async def admin_user_storage_list(request: Request):
     try:
         providers = AdminUserStorageService.list_providers()
-        return JSONResponse(content=providers, status_code=200)
+        return providers
     except Error:
         raise
     except Exception:
@@ -165,7 +165,7 @@ async def admin_user_storage_list(request: Request):
 async def admin_user_storage_users(request: Request):
     try:
         users = AdminUserStorageService.get_users()
-        return JSONResponse(content=users, status_code=200)
+        return users
     except Error:
         raise
     except Exception:
@@ -187,7 +187,7 @@ async def admin_user_storage_users(request: Request):
 async def admin_user_storage_get(request: Request, provider_id: str):
     try:
         provider = AdminUserStorageService.get_provider(provider_id)
-        return JSONResponse(content=provider, status_code=200)
+        return provider
     except Error:
         raise
     except Exception:
@@ -210,7 +210,7 @@ async def admin_user_storage_get(request: Request, provider_id: str):
 async def admin_user_storage_remove(request: Request, provider_id: str):
     try:
         AdminUserStorageService.delete_provider(provider_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -238,7 +238,7 @@ async def admin_user_storage_remove(request: Request, provider_id: str):
 async def admin_user_storage_reset(request: Request, provider_id: str):
     try:
         AdminUserStorageService.reset_provider(provider_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -261,7 +261,7 @@ async def admin_user_storage_reset(request: Request, provider_id: str):
 async def admin_user_storage_reset_all(request: Request):
     try:
         AdminUserStorageService.reset_all()
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -305,7 +305,7 @@ async def admin_user_storage_add(
                 data.quota,
                 data.verify_cert,
             )
-            return JSONResponse(content={"id": result}, status_code=200)
+            return {"id": result}
         raise Error(
             "bad_request",
             f"Auth protocol '{auth_protocol}' is not supported",
@@ -337,7 +337,7 @@ async def admin_user_storage_add(
 async def admin_user_storage_sync(request: Request, provider_id: str, item: str):
     try:
         AdminUserStorageService.sync(provider_id, item)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

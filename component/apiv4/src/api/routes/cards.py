@@ -39,7 +39,7 @@ async def get_desktop_images(
     try:
         stock = CardService.get_stock_cards()
         user = CardService.get_user_cards(request.token_payload["user_id"], desktop_id)
-        return JSONResponse(content=stock + user, status_code=200)
+        return stock + user
     except Error:
         raise
     except Exception:
@@ -81,7 +81,7 @@ async def get_desktop_images_by_type(
                 "bad_request",
                 f"Invalid image type: {kind}. Must be 'stock' or 'user'.",
             )
-        return JSONResponse(content=images, status_code=200)
+        return images
     except Error:
         raise
     except Exception:
@@ -103,7 +103,7 @@ async def get_desktop_images_by_type(
 async def get_stock_default_card(request: Request, domain_id: str):
     try:
         result = CardService.get_domain_stock_card(domain_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -128,7 +128,7 @@ async def get_stock_default_card(request: Request, domain_id: str):
 async def get_user_default_card(request: Request, domain_id: str):
     try:
         result = CardService.get_domain_user_card(domain_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -150,7 +150,7 @@ async def get_user_default_card(request: Request, domain_id: str):
 async def generate_default_card(request: Request, data: GenerateCardRequest):
     try:
         result = CardService.generate_default_card(data.desktop_id, data.desktop_name)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

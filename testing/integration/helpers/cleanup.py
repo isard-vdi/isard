@@ -88,12 +88,19 @@ def cleanup_by_prefix(client: IsardClient, prefix: str) -> dict:
             _safe_delete(client, "DELETE", f"/api/v4/item/media/{media['id']}")
             counts["media"] += 1
 
-    # Admin domain listing (kind=desktop). Catches downloaded desktops
-    # still owned by the admin that haven't been deleted via the
-    # user-facing endpoint, plus anything else named with our prefix.
-    # The ``/admin/domains/name/desktop`` endpoint only returns
-    # ``{name}`` (no id) — use the broader ``POST /admin/domains
-    # kind=desktop`` listing which carries full rows.
+    # Admin domain listing (kind=desktop). Catches anything named with
+    # the prefix that didn't show up in the user-facing ``/items/desktops``
+    # — typically desktops owned by another user (e.g. user01's quota
+    # leftovers) that the test admin cleanup needs to sweep.
+    #
+    # Use ``DELETE /item/desktop/{id}`` rather than
+    # ``POST /admin/downloads/delete/domains/{id}``: the admin-downloads
+    # endpoint is for registry-origin desktops only and side-effects the
+    # storage row to ``maintenance`` even for non-registry desktops,
+    # which then breaks ``GET /items/desktops`` for the actual owner.
+    # ``DELETE /item/desktop`` works for any desktop when called by an
+    # admin (``Helpers.owns_domain_id`` bypasses the owner check for
+    # the admin role).
     admin_resp = client.raw("POST", "/api/v4/admin/domains", json={"kind": "desktop"})
     if admin_resp.status_code == 200:
         for domain in admin_resp.json() or []:
@@ -102,8 +109,8 @@ def cleanup_by_prefix(client: IsardClient, prefix: str) -> dict:
             if _has_prefix(domain, prefix) and domain.get("id"):
                 _safe_delete(
                     client,
-                    "POST",
-                    f"/api/v4/admin/downloads/delete/domains/{domain['id']}",
+                    "DELETE",
+                    f"/api/v4/item/desktop/{domain['id']}",
                 )
                 counts["downloads"] += 1
 

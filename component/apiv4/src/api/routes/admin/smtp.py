@@ -48,7 +48,7 @@ tag = "admin-smtp"
 async def admin_smtp_get(request: Request):
     try:
         config = AdminSmtpService.get_smtp_config()
-        return JSONResponse(content=config, status_code=200)
+        return config
     except Error:
         raise
     except Exception:
@@ -73,7 +73,7 @@ async def admin_smtp_get(request: Request):
 async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
     try:
         config = AdminSmtpService.update_smtp_config(data.model_dump(exclude_none=True))
-        return JSONResponse(content=config, status_code=200)
+        return config
     except Error:
         raise
     except Exception:
@@ -96,7 +96,7 @@ async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
 async def admin_smtp_enabled_get(request: Request):
     try:
         enabled = AdminSmtpService.get_smtp_enabled()
-        return JSONResponse(content=enabled, status_code=200)
+        return enabled
     except Error:
         raise
     except Exception:
@@ -119,7 +119,7 @@ async def admin_smtp_enabled_get(request: Request):
 async def admin_smtp_test_post(request: Request, data: SmtpConfigRequest):
     try:
         result = AdminSmtpService.test_smtp(data.model_dump(exclude_none=True))
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

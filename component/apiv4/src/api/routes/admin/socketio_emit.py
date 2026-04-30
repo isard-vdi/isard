@@ -34,7 +34,7 @@ tag = "admin_socketio"
 async def admin_emit_socketio(request: Request, data: AdminSocketioEmitRequest):
     try:
         AdminSocketioService.emit_events(data.root)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

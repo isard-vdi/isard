@@ -55,7 +55,7 @@ async def admin_downloads(request: Request):
         # timeout). Offload to the threadpool so a slow upstream
         # doesn't freeze the apiv4 event loop for every other client.
         result = await asyncio.to_thread(AdminDownloadsService.get_downloads)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -97,7 +97,7 @@ async def admin_downloads_kind(
             kind,
             request.token_payload["user_id"],
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -126,10 +126,7 @@ async def admin_downloads_register(request: Request):
     try:
         # ``register()`` POSTs to the updates server synchronously.
         await asyncio.to_thread(AdminDownloadsService.register)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -173,10 +170,7 @@ async def admin_downloads_action(
             kind,
             request.token_payload["user_id"],
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -218,10 +212,7 @@ async def admin_downloads_action_id(
             id=id,
             data=body,
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:

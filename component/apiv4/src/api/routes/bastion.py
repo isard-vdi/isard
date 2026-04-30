@@ -56,11 +56,7 @@ async def get_bastion_targets(
     request: Request, can_use_bastion=Depends(can_use_bastion)
 ):
     targets = Targets.get_user_targets(request.token_payload["user_id"])
-    return JSONResponse(
-        content=[
-            BastionResponse(**target).model_dump(mode="json") for target in targets
-        ]
-    )
+    return [BastionResponse(**target) for target in targets]
 
 
 @token_router.get(
@@ -86,10 +82,7 @@ async def get_desktop_bastion(
 ):
     try:
         target = BastionService.get_desktop_bastion(desktop_id)
-        return JSONResponse(
-            content=BastionResponse(**target).model_dump(mode="json"),
-            status_code=200,
-        )
+        return BastionResponse(**target)
     except Error:
         raise
     except Exception as e:
@@ -135,10 +128,7 @@ async def update_desktop_bastion(
         BastionService.update_desktop_bastion(
             desktop_id, bastion_data, can_use_individual_domains
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -174,7 +164,7 @@ async def update_bastion_authorized_keys(
 ):
     try:
         BastionService.update_bastion_authorized_keys(desktop_id, data.authorized_keys)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -220,7 +210,7 @@ async def update_bastion_domains(
             data.domains,
             request.token_payload["category_id"],
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -266,7 +256,7 @@ async def verify_bastion_domain(
             data.domain,
             request.token_payload["category_id"],
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -291,10 +281,7 @@ async def verify_bastion_domain(
 async def get_admin_bastion_config(request: Request):
     try:
         config = BastionService.get_admin_bastion_config()
-        return JSONResponse(
-            content=AdminBastionConfigResponse(**config).model_dump(mode="json"),
-            status_code=200,
-        )
+        return AdminBastionConfigResponse(**config)
     except Error:
         raise
     except Exception as e:
@@ -318,10 +305,7 @@ async def get_admin_bastion_config(request: Request):
 async def remove_disallowed_bastion_targets(request: Request):
     try:
         result = BastionService.remove_disallowed_bastion_targets()
-        return JSONResponse(
-            content=result,
-            status_code=200,
-        )
+        return result
     except Error:
         raise
     except Exception as e:
@@ -353,10 +337,7 @@ async def update_bastion_config(
             data.bastion_domain,
             data.domain_verification_required,
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -381,12 +362,7 @@ async def update_bastion_config(
 async def get_bastion_domain_verification_config(request: Request):
     try:
         config = BastionService.get_bastion_domain_verification_config()
-        return JSONResponse(
-            content=BastionDomainVerificationConfigResponse(**config).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return BastionDomainVerificationConfigResponse(**config)
     except Error:
         raise
     except Exception as e:

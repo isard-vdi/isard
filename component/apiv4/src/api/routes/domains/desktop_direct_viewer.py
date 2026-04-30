@@ -78,10 +78,7 @@ async def get_share_link(
 ):
     try:
         link = DesktopService.get_desktop_share_link(desktop_id)
-        return JSONResponse(
-            content=DesktopShareLinkResponse(link=link).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DesktopShareLinkResponse(link=link)
     except Error:
         raise
     except Exception as e:
@@ -113,10 +110,7 @@ async def update_share_link(
 ):
     try:
         link = DesktopService.update_desktop_share_link(desktop_id, data.enabled)
-        return JSONResponse(
-            content=DesktopShareLinkResponse(link=link).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DesktopShareLinkResponse(link=link)
     except Error:
         raise
     except Exception as e:
@@ -154,12 +148,7 @@ async def get_desktop_viewer(
         return await _timed_not_found(start_time)
     try:
         desktop = DesktopService.get_desktop_direct_viewer_from_token(token, request)
-        return JSONResponse(
-            content=DesktopViewerResponse(**desktop).model_dump(
-                mode="json", by_alias=True
-            ),
-            status_code=200,
-        )
+        return DesktopViewerResponse(**desktop)
     except Error:
         raise
     except Exception:
@@ -184,12 +173,7 @@ async def get_desktop_viewer(
 async def get_viewer_docs(request: Request):
     try:
         docs_link = DesktopService.get_direct_viewer_docs()
-        return JSONResponse(
-            content=ViewersDocsResponse(viewers_documentation_url=docs_link).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return ViewersDocsResponse(viewers_documentation_url=docs_link)
     except Error:
         raise
     except Exception as e:
@@ -239,10 +223,7 @@ async def log_viewer_click(
             viewer_type=protocol,
             user_request=request,
         )
-        return JSONResponse(
-            content=SimpleResponse(id=desktop["id"]).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop["id"])
     except Error:
         raise
     except Exception:
@@ -275,10 +256,7 @@ async def reset_desktop(
         return await _timed_not_found(start_time)
     try:
         desktop_id = DesktopService.reset_desktop_from_token(token, request)
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception:

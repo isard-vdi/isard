@@ -74,7 +74,7 @@ async def admin_usage_consumption(request: Request, data: UsageConsumptionReques
             filters.get("item_type"),
             filters.get("grouping"),
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -116,7 +116,7 @@ async def admin_usage_start_end(request: Request, data: UsageStartEndRequest):
             filters.get("grouping"),
             payload["category_id"] if payload["role_id"] == "manager" else None,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -141,7 +141,7 @@ async def admin_usage_consumers(request: Request, item_type: str):
         consumers = AdminUsageService.get_usage_consumers(item_type)
         if payload["role_id"] != "admin" and "hypervisor" in consumers:
             consumers.remove("hypervisor")
-        return JSONResponse(content=consumers, status_code=200)
+        return consumers
     except Error:
         raise
     except Exception:
@@ -163,7 +163,7 @@ async def admin_usage_consumers(request: Request, item_type: str):
 async def admin_usage_consumers_count(request: Request):
     try:
         result = AdminUsageService.count_usage_consumers()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -201,7 +201,7 @@ async def admin_usage_distinct_items(
             end,
             payload["category_id"] if payload["role_id"] == "manager" else None,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -223,7 +223,7 @@ async def admin_usage_distinct_items(
 async def admin_usage_consolidate(request: Request):
     try:
         AdminUsageService.consolidate_consumptions()
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -249,7 +249,7 @@ async def admin_usage_consolidate_item_days(
 ):
     try:
         AdminUsageService.consolidate_consumptions(item_type, days)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -274,7 +274,7 @@ async def admin_usage_consolidate_item(
 ):
     try:
         AdminUsageService.consolidate_consumptions(item_type, 29)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -301,7 +301,7 @@ async def admin_usage_consolidate_item(
 async def admin_usage_parameters_list(request: Request):
     try:
         result = AdminUsageService.get_usage_parameters()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -326,7 +326,7 @@ async def admin_usage_list_parameters(request: Request, data: UsageParameterIdsR
             result = AdminUsageService.get_usage_parameters(data.ids)
         else:
             result = {}
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -353,7 +353,7 @@ async def admin_usage_parameters_add(
 ):
     try:
         result = AdminUsageService.add_usage_parameters(data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -383,7 +383,7 @@ async def admin_usage_parameters_update(
 ):
     try:
         result = AdminUsageService.update_usage_parameters(data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -411,7 +411,7 @@ async def admin_usage_parameters_delete(
 ):
     try:
         result = AdminUsageService.delete_usage_parameters(parameter_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -438,7 +438,7 @@ async def admin_usage_parameters_delete(
 async def admin_usage_limits_list(request: Request):
     try:
         result = AdminUsageService.get_usage_limits()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -465,7 +465,7 @@ async def admin_usage_limits_add(request: Request, data: UsageLimitCreateRequest
         result = AdminUsageService.add_usage_limits(
             data.name, data.desc, data.limits.model_dump()
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -496,7 +496,7 @@ async def admin_usage_limits_update(
         result = AdminUsageService.update_usage_limits(
             limit_id, data.name, data.desc, data.limits.model_dump()
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -524,7 +524,7 @@ async def admin_usage_limits_delete(
 ):
     try:
         result = AdminUsageService.delete_usage_limits(limit_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -551,7 +551,7 @@ async def admin_usage_limits_delete(
 async def admin_usage_groupings_list(request: Request):
     try:
         result = AdminUsageService.get_usage_groupings()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -573,7 +573,7 @@ async def admin_usage_groupings_list(request: Request):
 async def admin_usage_groupings_dropdown(request: Request):
     try:
         result = AdminUsageService.get_usage_groupings_dropdown()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -598,7 +598,7 @@ async def admin_usage_groupings_dropdown(request: Request):
 async def admin_usage_grouping_get(request: Request, grouping_id: str):
     try:
         result = AdminUsageService.get_usage_grouping(grouping_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -623,7 +623,7 @@ async def admin_usage_grouping_get(request: Request, grouping_id: str):
 async def admin_usage_groupings_add(request: Request, data: UsageGroupingCreateRequest):
     try:
         result = AdminUsageService.add_usage_grouping(data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -652,7 +652,7 @@ async def admin_usage_groupings_update(
 ):
     try:
         result = AdminUsageService.update_usage_grouping(data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -680,7 +680,7 @@ async def admin_usage_groupings_delete(
 ):
     try:
         result = AdminUsageService.delete_usage_grouping(grouping_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -707,7 +707,7 @@ async def admin_usage_groupings_delete(
 async def admin_usage_all_credits(request: Request):
     try:
         result = AdminUsageService.get_all_usage_credits()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -732,7 +732,7 @@ async def admin_usage_all_credits(request: Request):
 async def admin_usage_credits_by_id(request: Request, category_credit_id: str):
     try:
         result = AdminUsageService.get_usage_credits_by_id(category_credit_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -774,7 +774,7 @@ async def admin_usage_credits(
         result = AdminUsageService.get_usage_credits(
             item_id, item_type, grouping_id, start_date, end_date
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -800,7 +800,7 @@ async def admin_usage_credits(
 async def admin_usage_credits_add(request: Request, data: UsageCreditCreateRequest):
     try:
         result = AdminUsageService.add_usage_credit(data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -832,7 +832,7 @@ async def admin_usage_credits_update(
         result = AdminUsageService.update_usage_credit(
             credit_id, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -860,7 +860,7 @@ async def admin_usage_credits_delete(
 ):
     try:
         result = AdminUsageService.delete_usage_credit(credit_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -887,7 +887,7 @@ async def admin_usage_credits_delete(
 async def admin_usage_unify_item_name(request: Request, item_id: str):
     try:
         name = AdminUsageService.unify_item_name(item_id)
-        return JSONResponse(content={"name": name}, status_code=200)
+        return {"name": name}
     except Error:
         raise
     except Exception:
@@ -910,7 +910,7 @@ async def admin_usage_reset_dates_all(request: Request):
     try:
         reset_dates = AdminUsageService.get_reset_dates()
         result = [date.strftime("%m/%d/%Y") for date in reset_dates]
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -948,7 +948,7 @@ async def admin_usage_reset_dates_range(
             )
         reset_dates = AdminUsageService.get_reset_dates(start, end)
         result = [date.strftime("%m/%d/%Y") for date in reset_dates]
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -980,7 +980,7 @@ async def admin_usage_reset_dates_add(request: Request, data: UsageResetDatesReq
         except Exception:
             parsed_dates = []
         AdminUsageService.add_reset_dates(parsed_dates)
-        return JSONResponse(content=data.date_list, status_code=200)
+        return data.date_list
     except Error:
         raise
     except Exception:
@@ -1005,7 +1005,7 @@ async def admin_usage_delete_consumption_data(request: Request):
         asyncio.get_event_loop().run_in_executor(
             None, AdminUsageService.delete_all_consumption_data
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -1056,7 +1056,7 @@ async def admin_usage_check_overlapping(
             end,
             credit_id,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

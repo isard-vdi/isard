@@ -54,13 +54,10 @@ async def search_users_in_category(
     search: str = Query(..., description="String to search for users"),
 ):
     try:
-        return JSONResponse(
-            content=CategoriesUsersSearchResponse(
-                users=CategoryService.search_users_in_category(
-                    request.token_payload["category_id"], search
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return CategoriesUsersSearchResponse(
+            users=CategoryService.search_users_in_category(
+                request.token_payload["category_id"], search
+            )
         )
     except Error:
         raise

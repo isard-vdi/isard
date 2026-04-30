@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import Literal
 
 from api import token_router
 from api.schemas.admin_tables import (
@@ -50,13 +51,21 @@ tag = "admin_alloweds"
 async def alloweds_table_term(
     request: Request,
     data: AllowedTermRequest,
-    table: str = Path(..., description="Table to search in"),
+    table: Literal[
+        "domains",
+        "roles",
+        "categories",
+        "groups",
+        "users",
+        "media",
+        "deployments",
+    ] = Path(..., description="Table to search in"),
 ):
     try:
         result = AdminAllowedsService.get_table_term(
             table, data.model_dump(exclude_none=True), request.token_payload
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:
@@ -84,16 +93,21 @@ async def alloweds_table_term(
 async def admin_allowed_update(
     request: Request,
     data: AllowedUpdateRequest,
-    table: str = Path(..., description="Table containing the item"),
+    table: Literal[
+        "domains",
+        "roles",
+        "categories",
+        "groups",
+        "users",
+        "media",
+        "deployments",
+    ] = Path(..., description="Table containing the item"),
 ):
     try:
         AdminAllowedsService.update_allowed(
             table, data.model_dump(), request.token_payload
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -123,7 +137,7 @@ async def allowed_table(
 ):
     try:
         result = AdminAllowedsService.get_allowed_table(table, data.model_dump())
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception as e:

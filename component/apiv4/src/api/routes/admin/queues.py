@@ -37,7 +37,7 @@ tag = "admin_queues"
 async def admin_queues_jobs(request: Request):
     try:
         data = AdminQueuesService.get_queues()
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception:
@@ -59,7 +59,7 @@ async def admin_queues_jobs(request: Request):
 async def admin_queues_consumers(request: Request):
     try:
         data = AdminQueuesService.get_consumers()
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception:
@@ -82,7 +82,7 @@ async def admin_queues_consumers(request: Request):
 async def admin_get_old_tasks_config(request: Request):
     try:
         result = AdminQueuesService.get_auto_delete_config()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -107,7 +107,7 @@ async def admin_get_old_tasks_config(request: Request):
 async def admin_get_old_tasks(request: Request, older_than: int):
     try:
         data = AdminQueuesService.get_old_tasks(older_than)
-        return JSONResponse(content=data, status_code=200)
+        return data
     except Error:
         raise
     except Exception:
@@ -139,7 +139,7 @@ async def admin_delete_old_tasks(request: Request, data: DeleteOldTasksRequest):
                 "older_than parameter is required.",
             )
         result = AdminQueuesService.delete_old_tasks(data.older_than)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -161,7 +161,7 @@ async def admin_delete_old_tasks(request: Request, data: DeleteOldTasksRequest):
 async def admin_set_old_tasks_max_time(request: Request, max_time: int):
     try:
         result = AdminQueuesService.set_max_time(max_time)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -189,7 +189,7 @@ async def admin_set_old_tasks_queue_registries(
 ):
     try:
         result = AdminQueuesService.set_queue_registries(data.queue_registries or [])
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -217,7 +217,7 @@ async def admin_set_old_tasks_enabled(
 ):
     try:
         result = AdminQueuesService.set_auto_delete_enabled(data.enabled)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -243,7 +243,7 @@ async def admin_set_old_tasks_enabled(
 async def admin_delete_old_tasks_auto(request: Request):
     try:
         result = AdminQueuesService.delete_old_tasks_auto()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

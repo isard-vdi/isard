@@ -37,7 +37,7 @@ async def get_task(request: Request, task_id: str):
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
         )
-        return JSONResponse(content=task.to_dict(), status_code=200)
+        return task.to_dict()
     except Error:
         raise
     except Exception:
@@ -67,7 +67,7 @@ async def cancel_task(request: Request, task_id: str):
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -89,7 +89,7 @@ async def cancel_task(request: Request, task_id: str):
 async def get_user_tasks(request: Request):
     try:
         tasks = TaskService.get_user_tasks(request.token_payload["user_id"])
-        return JSONResponse(content=tasks, status_code=200)
+        return tasks
     except Error:
         raise
     except Exception:
@@ -120,7 +120,7 @@ async def get_admin_tasks(request: Request):
             request.token_payload.get("role_id", "user"),
             request.token_payload.get("category_id"),
         )
-        return JSONResponse(content=tasks, status_code=200)
+        return tasks
     except Error:
         raise
     except Exception:
@@ -146,7 +146,7 @@ async def get_admin_tasks(request: Request):
 async def retry_task(request: Request, task_id: str):
     try:
         result = TaskService.retry_task(task_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -169,7 +169,7 @@ async def retry_task(request: Request, task_id: str):
 async def retry_all_failed_tasks(request: Request):
     try:
         result = TaskService.retry_all_failed_tasks()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

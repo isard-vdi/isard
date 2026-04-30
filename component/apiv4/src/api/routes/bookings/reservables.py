@@ -60,12 +60,7 @@ async def get_reservables(request: Request):
     """Get list of all reservable types."""
     try:
         reservables = ReservableService.get_reservables()
-        return JSONResponse(
-            content=ReservablesListResponse(reservables=reservables).model_dump(
-                mode="json"
-            ),
-            status_code=200,
-        )
+        return ReservablesListResponse(reservables=reservables)
     except Error:
         raise
     except Exception as e:
@@ -95,10 +90,7 @@ async def list_profiles(
     reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
 ):
     try:
-        return JSONResponse(
-            content=ReservableService.list_profiles(reservable_type),
-            status_code=200,
-        )
+        return ReservableService.list_profiles(reservable_type)
     except Error:
         raise
     except Exception as e:
@@ -133,10 +125,7 @@ async def get_reservable_items(
     """
     try:
         items = ReservableService.get_reservable_detail(reservable_type)
-        return JSONResponse(
-            content=ReservableDetailResponse(items=items).model_dump(mode="json"),
-            status_code=200,
-        )
+        return ReservableDetailResponse(items=items)
     except Error:
         raise
     except Exception as e:
@@ -172,10 +161,7 @@ async def get_reservable_item(
     """
     try:
         item = ReservableService.get_reservable_item(reservable_type, item_id)
-        return JSONResponse(
-            content=ReservableItemResponse(**item).model_dump(mode="json"),
-            status_code=200,
-        )
+        return ReservableItemResponse(**item)
     except Error:
         raise
     except Exception as e:
@@ -197,13 +183,10 @@ async def get_reservable_item(
 )
 async def get_booking_reservables_available(request: Request):
     try:
-        return JSONResponse(
-            content=AvailableReservablesResponse(
-                reservables_available=ReservableService.get_available_reservables(
-                    request.token_payload
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return AvailableReservablesResponse(
+            reservables_available=ReservableService.get_available_reservables(
+                request.token_payload
+            )
         )
     except Error:
         raise
@@ -232,10 +215,7 @@ async def add_reservable_item(
 ):
     try:
         result = ReservableService.add_item(reservable_type, data.model_dump())
-        return JSONResponse(
-            content=result,
-            status_code=200,
-        )
+        return result
     except Error:
         raise
     except Exception as e:
@@ -283,10 +263,7 @@ async def enable_reservable_subitem(
             data.enabled,
             notify_user=notify_user,
         )
-        return JSONResponse(
-            content=result,
-            status_code=200,
-        )
+        return result
     except Error:
         raise
     except Exception as e:
@@ -313,10 +290,7 @@ async def list_enabled_subitems(
     item_id: str = Path(..., description="The item ID"),
 ):
     try:
-        return JSONResponse(
-            content=ReservableService.list_subitems_enabled(reservable_type, item_id),
-            status_code=200,
-        )
+        return ReservableService.list_subitems_enabled(reservable_type, item_id)
     except Error:
         raise
     except Exception as e:
@@ -348,10 +322,7 @@ async def check_last_subitem(
         data = ReservableService.check_last_subitem(
             reservable_type, subitem_id, item_id
         )
-        return JSONResponse(
-            content=CheckLastResponse(**data).model_dump(mode="json"),
-            status_code=200,
-        )
+        return CheckLastResponse(**data)
     except Error:
         raise
     except Exception as e:
@@ -380,10 +351,7 @@ async def check_last_item(
 ):
     try:
         data = ReservableService.check_last_item(reservable_type, item_id)
-        return JSONResponse(
-            content=CheckLastResponse(**data).model_dump(mode="json"),
-            status_code=200,
-        )
+        return CheckLastResponse(**data)
     except Error:
         raise
     except Exception as e:
@@ -423,10 +391,7 @@ async def delete_reservable_item(
 ):
     try:
         ReservableService.delete_item(reservable_type, item_id, notify_user=notify_user)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -457,10 +422,7 @@ async def update_reservable_item(
 ):
     try:
         ReservableService.update_item(reservable_type, item_id, data)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -489,10 +451,7 @@ async def list_all_plans(request: Request):
             for key in ("start", "end"):
                 if key in plan and hasattr(plan[key], "isoformat"):
                     plan[key] = plan[key].isoformat()
-        return JSONResponse(
-            content=plans,
-            status_code=200,
-        )
+        return plans
     except Error:
         raise
     except Exception as e:
@@ -516,10 +475,7 @@ async def list_all_plans(request: Request):
 )
 async def check_integrity(request: Request):
     try:
-        return JSONResponse(
-            content=ReservableService.check_integrity(),
-            status_code=200,
-        )
+        return ReservableService.check_integrity()
     except Error:
         raise
     except Exception as e:
@@ -545,10 +501,7 @@ async def get_actual_plan(
     item_id: str = Path(..., description="The item ID"),
 ):
     try:
-        return JSONResponse(
-            content=ReservableService.get_actual_plan(item_id),
-            status_code=200,
-        )
+        return ReservableService.get_actual_plan(item_id)
     except Error:
         raise
     except Exception as e:
@@ -574,10 +527,7 @@ async def get_plan_bookings(
     plan_id: str = Path(..., description="The plan ID"),
 ):
     try:
-        return JSONResponse(
-            content=ReservableService.get_plan_bookings(plan_id),
-            status_code=200,
-        )
+        return ReservableService.get_plan_bookings(plan_id)
     except Error:
         raise
     except Exception as e:
@@ -603,10 +553,7 @@ async def get_item_plans(
     item_id: str = Path(..., description="The item ID"),
 ):
     try:
-        return JSONResponse(
-            content=ReservableService.get_item_plans(item_id),
-            status_code=200,
-        )
+        return ReservableService.get_item_plans(item_id)
     except Error:
         raise
     except Exception as e:
@@ -637,10 +584,7 @@ async def create_plan(request: Request, data: CreatePlanRequest):
             "end": data.end,
         }
         result = ReservableService.add_plan(request.token_payload, plan_data)
-        return JSONResponse(
-            content=result,
-            status_code=200,
-        )
+        return result
     except Error:
         raise
     except Exception as e:
@@ -668,10 +612,7 @@ async def delete_plan(
 ):
     try:
         ReservableService.delete_plan(plan_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -701,10 +642,7 @@ async def update_plan(
 ):
     try:
         ReservableService.update_plan(request.token_payload, plan_id, start, end)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -734,10 +672,7 @@ async def booking_provisioning(request: Request, data: BookingProvisioningReques
             data.priority,
             data.block_interval,
         )
-        return JSONResponse(
-            content=result,
-            status_code=200,
-        )
+        return result
     except Error:
         raise
     except Exception as e:

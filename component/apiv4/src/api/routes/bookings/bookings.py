@@ -84,15 +84,12 @@ async def get_user_bookings(
             start_date = datetime.now(timezone.utc)
         if end_date is None:
             end_date = start_date + timedelta(days=30)
-        return JSONResponse(
-            content=[
-                UserBookingResponse(**booking).model_dump(mode="json")
-                for booking in BookingsService.get_user_bookings(
-                    start_date, end_date, request.token_payload
-                )
-            ],
-            status_code=200,
-        )
+        return [
+            UserBookingResponse(**booking)
+            for booking in BookingsService.get_user_bookings(
+                start_date, end_date, request.token_payload
+            )
+        ]
     except Error:
         raise
     except Exception as e:
@@ -162,18 +159,15 @@ async def get_booking_desktop(
             case _:
                 raise ValueError("Invalid endpoint")
 
-        return JSONResponse(
-            content=ItemBookingsResponse(
-                BookingsService.get_item_bookings(
-                    request.token_payload,
-                    start_date,
-                    end_date,
-                    item_type,
-                    item_id,
-                    return_type,
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return ItemBookingsResponse(
+            BookingsService.get_item_bookings(
+                request.token_payload,
+                start_date,
+                end_date,
+                item_type,
+                item_id,
+                return_type,
+            )
         )
     except Error:
         raise
@@ -207,10 +201,7 @@ async def get_booking_priority_desktop(request: Request, item_id: str):
         result = BookingsService.get_user_priority_for_desktop(
             request.token_payload, item_id
         )
-        return JSONResponse(
-            content=BookingPriorityDesktopResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
+        return BookingPriorityDesktopResponse(**result)
     except Error:
         raise
     except Exception:
@@ -243,7 +234,7 @@ async def get_booking_priority_desktop(request: Request, item_id: str):
 async def delete_booking_event(request: Request, booking_id: str):
     try:
         BookingsService.delete_booking_event(booking_id)
-        return JSONResponse(content=EmptyResponse().model_dump(mode="json"))
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -283,7 +274,7 @@ async def update_booking_event(
             start=booking_data.start.strftime("%Y-%m-%dT%H:%M%z"),
             end=booking_data.end.strftime("%Y-%m-%dT%H:%M%z"),
         )
-        return JSONResponse(content=EmptyResponse().model_dump(mode="json"))
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -333,13 +324,10 @@ async def create_booking_event(request: Request, new_event: CreateBookingEventRe
 )
 async def get_max_booking_date(request: Request, desktop_id: str):
     try:
-        return JSONResponse(
-            content=MaxBookingDateResponse(
-                max_booking_date=BookingsService.get_max_booking_date(
-                    request.token_payload, desktop_id
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return MaxBookingDateResponse(
+            max_booking_date=BookingsService.get_max_booking_date(
+                request.token_payload, desktop_id
+            )
         )
     except Error:
         raise
@@ -364,13 +352,10 @@ async def get_max_booking_date(request: Request, desktop_id: str):
 )
 async def get_all_bookings(request: Request):
     try:
-        return JSONResponse(
-            content=[
-                AdminBookingResponse(**booking).model_dump(mode="json")
-                for booking in BookingsService.get_all_bookings()
-            ],
-            status_code=200,
-        )
+        return [
+            AdminBookingResponse(**booking)
+            for booking in BookingsService.get_all_bookings()
+        ]
     except Error:
         raise
     except Exception as e:
@@ -393,10 +378,7 @@ async def get_all_bookings(request: Request):
 )
 async def get_users_priorities(request: Request, data: GetUsersPrioritiesRequest):
     try:
-        return JSONResponse(
-            content=BookingsService.get_users_priorities(data.rule_id),
-            status_code=200,
-        )
+        return BookingsService.get_users_priorities(data.rule_id)
     except Error:
         raise
     except Exception as e:
@@ -429,10 +411,7 @@ async def delete_priority(request: Request, priority_id: str):
         )
     try:
         BookingsService.delete_users_priority(priority_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -456,10 +435,7 @@ async def delete_priority(request: Request, priority_id: str):
 )
 async def list_priority_rules(request: Request):
     try:
-        return JSONResponse(
-            content=BookingsService.list_priority_rules(),
-            status_code=200,
-        )
+        return BookingsService.list_priority_rules()
     except Error:
         raise
     except Exception as e:
@@ -486,11 +462,8 @@ async def get_item_availability(
     item_id: str = Path(..., description="ID of the item"),
 ):
     try:
-        return JSONResponse(
-            content=BookingsService.get_item_availability(
-                request.token_payload, item_type, item_id
-            ),
-            status_code=200,
+        return BookingsService.get_item_availability(
+            request.token_payload, item_type, item_id
         )
     except Error:
         raise
@@ -515,10 +488,7 @@ async def get_item_availability(
 )
 async def get_gpu_bookings_forecast(request: Request):
     try:
-        return JSONResponse(
-            content=BookingsService.get_gpu_bookings_forecast(),
-            status_code=200,
-        )
+        return BookingsService.get_gpu_bookings_forecast()
     except Error:
         raise
     except Exception as e:
@@ -543,10 +513,7 @@ async def get_gpu_bookings_forecast(request: Request):
 async def empty_booking_plan(request: Request, plan_id: str):
     try:
         BookingsService.empty_planning(plan_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -570,13 +537,10 @@ async def empty_booking_plan(request: Request, plan_id: str):
 )
 async def get_booking_plans(request: Request, booking_id: str):
     try:
-        return JSONResponse(
-            content=[
-                BookingPlanResponse(**plan).model_dump(mode="json")
-                for plan in BookingsService.get_booking_plans(booking_id)
-            ],
-            status_code=200,
-        )
+        return [
+            BookingPlanResponse(**plan)
+            for plan in BookingsService.get_booking_plans(booking_id)
+        ]
     except Error:
         raise
     except Exception as e:
@@ -602,13 +566,10 @@ async def get_booking_plans(request: Request, booking_id: str):
 )
 async def get_booking_reservables_available(request: Request):
     try:
-        return JSONResponse(
-            content=AvailableReservablesResponse(
-                reservables_available=BookingsService.get_available_reservables(
-                    request.token_payload
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return AvailableReservablesResponse(
+            reservables_available=BookingsService.get_available_reservables(
+                request.token_payload
+            )
         )
     except Error:
         raise

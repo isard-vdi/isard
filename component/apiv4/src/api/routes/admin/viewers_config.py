@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import Literal
 
 from api import admin_router
 from api.schemas.admin_viewers_config import ViewerConfigUpdateRequest
@@ -46,7 +47,7 @@ tag = "admin-viewers-config"
 async def admin_viewers_config(request: Request):
     try:
         config = AdminViewersConfigService.get_viewers_config()
-        return JSONResponse(content=config, status_code=200)
+        return config
     except Error:
         raise
     except Exception:
@@ -67,11 +68,13 @@ async def admin_viewers_config(request: Request):
     responses={500: {"model": ErrorResponse}},
 )
 async def admin_viewers_config_update(
-    request: Request, viewer: str, data: ViewerConfigUpdateRequest
+    request: Request,
+    viewer: Literal["file_rdpgw", "file_rdpvpn", "file_spice"],
+    data: ViewerConfigUpdateRequest,
 ):
     try:
         AdminViewersConfigService.update_viewers_config(viewer, data.custom)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -95,10 +98,12 @@ async def admin_viewers_config_update(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_viewers_config_reset(request: Request, viewer: str):
+async def admin_viewers_config_reset(
+    request: Request, viewer: Literal["file_rdpgw", "file_rdpvpn", "file_spice"]
+):
     try:
         AdminViewersConfigService.reset_viewers_config(viewer)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:

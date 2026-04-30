@@ -66,10 +66,7 @@ tag = "recycle_bin"
 )
 async def get_recycle_bin_default_delete_config(request: Request):
     try:
-        return JSONResponse(
-            content=RecycleBinService.get_default_delete_config(),
-            status_code=200,
-        )
+        return RecycleBinService.get_default_delete_config()
     except Error:
         raise
     except Exception as e:
@@ -96,12 +93,9 @@ async def get_recycle_bin_cutoff_time(request: Request):
         cutoff = RecycleBinService.get_user_cutoff_time(
             category_id=request.token_payload["category_id"]
         )
-        return JSONResponse(
-            content=RecycleBinCutoffTimeResponse(
-                recycle_bin_cutoff_time=cutoff,
-                recycle_bin_cuttoff_time=cutoff,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RecycleBinCutoffTimeResponse(
+            recycle_bin_cutoff_time=cutoff,
+            recycle_bin_cuttoff_time=cutoff,
         )
     except Error:
         raise
@@ -123,11 +117,8 @@ async def get_recycle_bin_cutoff_time(request: Request):
 )
 async def get_recycle_bin_count(request: Request):
     try:
-        return JSONResponse(
-            content=RecycleBinService.get_user_count(
-                user_id=request.token_payload["user_id"]
-            ),
-            status_code=200,
+        return RecycleBinService.get_user_count(
+            user_id=request.token_payload["user_id"]
         )
     except Error:
         raise
@@ -184,13 +175,10 @@ async def empty_recycle_bin(request: Request):
 )
 async def get_recycle_bin_item_count_user(request: Request):
     try:
-        return JSONResponse(
-            content=RecycleBinEntriesResponse(
-                entries=RecycleBinService.get_user_recycle_bin_entries(
-                    user_id=request.token_payload["user_id"]
-                ),
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RecycleBinEntriesResponse(
+            entries=RecycleBinService.get_user_recycle_bin_entries(
+                user_id=request.token_payload["user_id"]
+            ),
         )
     except Error:
         raise
@@ -215,14 +203,11 @@ async def get_recycle_bin_item_count_user(request: Request):
 )
 async def get_recycle_bin(request: Request, recycle_bin_id: str):
     try:
-        return JSONResponse(
-            content=RecycleBinResponse(
-                **RecycleBinService.get_recycle_bin_entry_details(
-                    recycle_bin_id=recycle_bin_id,
-                    all_data=True,
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RecycleBinResponse(
+            **RecycleBinService.get_recycle_bin_entry_details(
+                recycle_bin_id=recycle_bin_id,
+                all_data=True,
+            )
         )
     except Error:
         raise
@@ -248,11 +233,8 @@ async def get_recycle_bin(request: Request, recycle_bin_id: str):
 async def restore_recycle_bin(request: Request, recycle_bin_id: str):
     try:
         RecycleBinService.restore_recycle_bin_entry(recycle_bin_id=recycle_bin_id)
-        return JSONResponse(
-            content=SimpleResponse(
-                id=recycle_bin_id,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return SimpleResponse(
+            id=recycle_bin_id,
         )
     except Error:
         raise
@@ -278,11 +260,8 @@ async def bulk_restore_recycle_bin(request: Request, data: RecycleBinBulkRequest
             recycle_bin_ids=data.recycle_bin_ids,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(
-            content=RecycleBinBulkResponse(
-                recycle_bin_ids=ids,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RecycleBinBulkResponse(
+            recycle_bin_ids=ids,
         )
     except Error:
         raise
@@ -308,11 +287,8 @@ async def bulk_delete_recycle_bin(request: Request, data: RecycleBinBulkRequest)
             recycle_bin_ids=data.recycle_bin_ids,
             user_id=request.token_payload["user_id"],
         )
-        return JSONResponse(
-            content=RecycleBinBulkResponse(
-                recycle_bin_ids=ids,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RecycleBinBulkResponse(
+            recycle_bin_ids=ids,
         )
     except Error:
         raise
@@ -380,13 +356,10 @@ async def get_system_cutoff_time(request: Request):
             if request.token_payload["role_id"] == "manager"
             else None
         )
-        return JSONResponse(
-            content=RecycleBinSystemCutoffTimeResponse(
-                recycle_bin_cuttoff_time=RecycleBinService.get_system_cutoff_time(
-                    category_id=category_id
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RecycleBinSystemCutoffTimeResponse(
+            recycle_bin_cuttoff_time=RecycleBinService.get_system_cutoff_time(
+                category_id=category_id
+            )
         )
     except Error:
         raise
@@ -419,11 +392,8 @@ async def update_system_cutoff_time(
             cutoff_time=data.recycle_bin_cuttoff_time,
             category_id=category_id,
         )
-        return JSONResponse(
-            content=RecycleBinSystemCutoffTimeResponse(
-                recycle_bin_cuttoff_time=data.recycle_bin_cuttoff_time
-            ).model_dump(mode="json"),
-            status_code=200,
+        return RecycleBinSystemCutoffTimeResponse(
+            recycle_bin_cuttoff_time=data.recycle_bin_cuttoff_time
         )
     except Error:
         raise
@@ -453,10 +423,7 @@ async def get_recycle_bin_status(request: Request):
             if request.token_payload["role_id"] == "manager"
             else None
         )
-        return JSONResponse(
-            content=RecycleBinService.get_status(category_id=category_id),
-            status_code=200,
-        )
+        return RecycleBinService.get_status(category_id=category_id)
     except Error:
         raise
     except Exception as e:
@@ -486,12 +453,7 @@ async def get_recycle_bin_admin_entries(request: Request, status: str | None = N
             if request.token_payload["role_id"] == "manager"
             else None
         )
-        return JSONResponse(
-            content=RecycleBinService.get_item_count(
-                category_id=category_id, status=status
-            ),
-            status_code=200,
-        )
+        return RecycleBinService.get_item_count(category_id=category_id, status=status)
     except Error:
         raise
     except Exception:
@@ -513,10 +475,7 @@ async def get_recycle_bin_admin_entries(request: Request, status: str | None = N
 async def update_recycle_bin_task(request: Request, data: RecycleBinUpdateTaskRequest):
     try:
         RecycleBinService.update_task(data.model_dump())
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -546,10 +505,7 @@ async def delete_cutoff_time_surpassed(request: Request):
         await RecycleBinService.delete_cutoff_time_surpassed(
             user_id=request.token_payload["user_id"]
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -571,10 +527,7 @@ async def delete_cutoff_time_surpassed(request: Request):
 async def set_old_entries_max_time(request: Request, max_time: str):
     try:
         RecycleBinService.set_old_entries_max_time(max_time)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -596,10 +549,7 @@ async def set_old_entries_max_time(request: Request, max_time: str):
 async def set_old_entries_action(request: Request, action: OldEntriesActionEnum):
     try:
         RecycleBinService.set_old_entries_action(action.value)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -621,10 +571,7 @@ async def set_old_entries_action(request: Request, action: OldEntriesActionEnum)
 async def get_old_entries_config(request: Request):
     try:
         config = RecycleBinService.get_old_entries_config()
-        return JSONResponse(
-            content=RecycleBinOldEntriesConfig(**config).model_dump(mode="json"),
-            status_code=200,
-        )
+        return RecycleBinOldEntriesConfig(**config)
     except Error:
         raise
     except Exception as e:
@@ -646,10 +593,7 @@ async def get_old_entries_config(request: Request):
 async def delete_old_entries(request: Request):
     try:
         RecycleBinService.delete_old_entries()
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -671,10 +615,7 @@ async def delete_old_entries(request: Request):
 async def set_default_delete(request: Request, data: RecycleBinSetDefaultDeleteRequest):
     try:
         RecycleBinService.set_default_delete(data.rb_default)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -695,10 +636,7 @@ async def set_default_delete(request: Request, data: RecycleBinSetDefaultDeleteR
 )
 async def get_delete_action(request: Request):
     try:
-        return JSONResponse(
-            content=RecycleBinService.get_delete_action(),
-            status_code=200,
-        )
+        return RecycleBinService.get_delete_action()
     except Error:
         raise
     except Exception as e:
@@ -720,10 +658,7 @@ async def get_delete_action(request: Request):
 async def set_delete_action(request: Request, action: DeleteActionEnum):
     try:
         RecycleBinService.set_delete_action(action.value)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -745,11 +680,8 @@ async def set_delete_action(request: Request, action: DeleteActionEnum):
 async def get_all_unused_item_timeout_rules(request: Request):
     try:
         rules = RecycleBinService.get_all_unused_item_timeout_rules()
-        return JSONResponse(
-            content=UnusedItemTimeoutRulesResponse(
-                rules=rules,
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UnusedItemTimeoutRulesResponse(
+            rules=rules,
         )
     except Error:
         raise
@@ -771,10 +703,7 @@ async def get_all_unused_item_timeout_rules(request: Request):
 async def get_unused_item_timeout_rule(request: Request, rule_id: str):
     try:
         rule = RecycleBinService.get_unused_item_timeout_rule(rule_id)
-        return JSONResponse(
-            content=rule,
-            status_code=200,
-        )
+        return rule
     except Error:
         raise
     except Exception as e:
@@ -830,10 +759,7 @@ async def update_unused_item_timeout_rule(
         RecycleBinService.update_unused_item_timeout_rule(
             rule_id, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -855,10 +781,7 @@ async def update_unused_item_timeout_rule(
 async def delete_unused_item_timeout_rule(request: Request, rule_id: str):
     try:
         RecycleBinService.delete_unused_item_timeout_rule(rule_id)
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -891,10 +814,7 @@ async def recycle_bin_add_unused_items(request: Request):
                 raise
             except Exception:
                 pass  # best-effort
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception:

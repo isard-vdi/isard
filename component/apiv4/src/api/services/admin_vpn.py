@@ -20,14 +20,10 @@ class AdminVpnService:
 
     @staticmethod
     def active_client(kind, client_ip, remote_ip=None, remote_port=None, status=False):
-        """Update or query VPN client connection status."""
-        if kind not in ["users", "hypers"]:
-            raise Error(
-                "not_found",
-                "Active client vpn connection: Vpn kind " + str(kind) + " not found",
-                description_code="vpn_kind_not_found",
-            )
+        """Update or query VPN client connection status.
 
+        Route layer constrains ``kind`` via ``Literal["users", "hypers"]``.
+        """
         connection_data = {
             "connected": status,
             "remote_ip": remote_ip,
@@ -73,13 +69,12 @@ class AdminVpnService:
 
     @staticmethod
     def reset_connection_status(kind):
-        """Reset VPN connection status for a kind."""
-        if kind not in ["users", "hypers", "all"]:
-            raise Error(
-                "not_found",
-                "Reset vpn connection: Vpn kind " + str(kind) + " not found",
-                description_code="vpn_kind_not_found",
-            )
+        """Reset VPN connection status for a kind.
+
+        Route layer constrains ``kind`` to ``Literal["all"]`` today.
+        The service still branches on ``users`` / ``hypers`` because
+        internal callers may pass those.
+        """
         connection_data = {
             "connected": False,
             "remote_ip": None,

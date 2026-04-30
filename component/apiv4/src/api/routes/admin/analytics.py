@@ -59,7 +59,7 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest):
             else data.categories
         )
         result = AdminAnalyticsService.storage_usage(categories)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -87,7 +87,7 @@ async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRe
             else data.categories
         )
         result = AdminAnalyticsService.resource_count(categories)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -149,7 +149,7 @@ async def analytics_suggested_removals(
 async def analytics_graphs_conf_list(request: Request):
     try:
         result = AdminAnalyticsService.get_usage_graphs_conf()
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -174,7 +174,7 @@ async def analytics_graphs_conf_list(request: Request):
 async def analytics_graph_conf_get(request: Request, conf_id: str):
     try:
         result = AdminAnalyticsService.get_usage_graph_conf(conf_id)
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -199,7 +199,7 @@ async def analytics_graph_conf_get(request: Request, conf_id: str):
 async def analytics_graph_conf_add(request: Request, data: AnalyticsGraphCreateRequest):
     try:
         AdminAnalyticsService.add_usage_graph_conf(data.model_dump(exclude_none=True))
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -228,7 +228,7 @@ async def analytics_graph_conf_update(
         AdminAnalyticsService.update_usage_graph_conf(
             conf_id, data.model_dump(exclude_none=True)
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -250,7 +250,7 @@ async def analytics_graph_conf_update(
 async def analytics_graph_conf_delete(request: Request, conf_id: str):
     try:
         AdminAnalyticsService.delete_usage_graph_conf(conf_id)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception:
@@ -338,7 +338,7 @@ async def analytics_desktops_most_used(request: Request, data: DesktopAnalyticsR
             data.not_in_directory_path,
             data.status or False,
         )
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:
@@ -383,7 +383,7 @@ async def admin_echart(request: Request, view: str, data: EchartRequest):
             )
         else:
             raise Error("bad_request", f"Unknown echart view: {view}")
-        return JSONResponse(content=result, status_code=200)
+        return result
     except Error:
         raise
     except Exception:

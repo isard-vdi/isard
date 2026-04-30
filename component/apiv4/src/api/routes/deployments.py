@@ -81,13 +81,8 @@ tag = "deployments"
 )
 async def get_all_deployments(request: Request):
     try:
-        return JSONResponse(
-            content=OwnedDeploymentsResponse(
-                deployments=DeploymentService.get_owned_deployments(
-                    request.token_payload
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return OwnedDeploymentsResponse(
+            deployments=DeploymentService.get_owned_deployments(request.token_payload)
         )
     except Error:
         raise
@@ -115,7 +110,7 @@ async def get_all_deployments(request: Request):
 async def check_deployment_quota_get(request: Request):
     try:
         DeploymentService.check_quota(request.token_payload["user_id"])
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -147,7 +142,7 @@ async def check_deployment_quota_post(
                 request.token_payload, data.allowed.model_dump()
             )
         DeploymentService.check_quota(request.token_payload["user_id"], users)
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -176,12 +171,7 @@ async def get_deployment(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=DeploymentResponse(
-                **DeploymentService.get_deployment(deployment_id)
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
+        return DeploymentResponse(**DeploymentService.get_deployment(deployment_id))
     except Error:
         raise
     except Exception as e:
@@ -222,11 +212,8 @@ async def delete_deployment(
             deployment_id, request.token_payload["user_id"], permanent=permanent
         )
         if tasks is None:
-            return JSONResponse(
-                content=DeleteResponse(
-                    message="Item sent to recycle bin", message_code="item.recycled"
-                ).model_dump(mode="json"),
-                status_code=200,
+            return DeleteResponse(
+                message="Item sent to recycle bin", message_code="item.recycled"
             )
         else:
             return JSONResponse(
@@ -270,14 +257,11 @@ async def create_deployment(
     request: Request,
     data: CreateDeploymentRequest,
 ):
-    return JSONResponse(
-        content=SimpleResponse(
-            id=DeploymentService.create_deployment(
-                data.model_dump(exclude_unset=True),
-                request.token_payload,
-            )
-        ).model_dump(mode="json"),
-        status_code=200,
+    return SimpleResponse(
+        id=DeploymentService.create_deployment(
+            data.model_dump(exclude_unset=True),
+            request.token_payload,
+        )
     )
 
 
@@ -374,10 +358,7 @@ async def toggle_deployment_visibility(
             pass
         stop_started_domains = bool(body.get("stop_started_domains", True))
         DeploymentService.toggle_visibility(deployment_id, stop_started_domains)
-        return JSONResponse(
-            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=deployment_id)
     except Error:
         raise
     except Exception as e:
@@ -428,10 +409,7 @@ async def edit_deployment(
             deployment_id=deployment_id,
             deployment_data=deployment_data.model_dump(mode="json", exclude_unset=True),
         )
-        return JSONResponse(
-            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=deployment_id)
     except Error:
         raise
     except Exception as e:
@@ -508,10 +486,7 @@ async def recreate_deployment(
             request.token_payload,
             deployment_id,
         )
-        return JSONResponse(
-            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=deployment_id)
     except Error:
         raise
     except Exception as e:
@@ -536,13 +511,8 @@ async def recreate_deployment(
 )
 async def get_all_shared_deployments(request: Request):
     try:
-        return JSONResponse(
-            content=SharedDeploymentsResponse(
-                deployments=DeploymentService.get_shared_deployments(
-                    request.token_payload
-                )
-            ).model_dump(mode="json"),
-            status_code=200,
+        return SharedDeploymentsResponse(
+            deployments=DeploymentService.get_shared_deployments(request.token_payload)
         )
     except Error:
         raise
@@ -576,11 +546,8 @@ async def get_deployment_user_desktops(
     Get all desktops in a deployment for a specific user.
     """
     try:
-        return JSONResponse(
-            content=UserDeploymentResponse(
-                **DeploymentService.get_deployment_user_desktops(deployment_id, user_id)
-            ).model_dump(mode="json"),
-            status_code=200,
+        return UserDeploymentResponse(
+            **DeploymentService.get_deployment_user_desktops(deployment_id, user_id)
         )
     except Error:
         raise
@@ -612,15 +579,12 @@ async def get_deployment_user_desktops_detail(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=[
-                DesktopDetailsResponse(**d).model_dump(mode="json")
-                for d in DeploymentService.get_deployment_user_desktops_detail(
-                    deployment_id, user_id
-                )
-            ],
-            status_code=200,
-        )
+        return [
+            DesktopDetailsResponse(**d)
+            for d in DeploymentService.get_deployment_user_desktops_detail(
+                deployment_id, user_id
+            )
+        ]
     except Error as e:
         raise e
     except Exception as e:
@@ -648,10 +612,7 @@ async def get_deployment_videowall(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=DeploymentService.get_deployment_videowall(deployment_id),
-            status_code=200,
-        )
+        return DeploymentService.get_deployment_videowall(deployment_id)
     except Error:
         raise
     except Exception as e:
@@ -706,7 +667,7 @@ async def bulk_delete_deployments(
         DeploymentService.bulk_delete_deployments(
             data.ids, request.token_payload["user_id"], data.permanent
         )
-        return JSONResponse(content={}, status_code=200)
+        return {}
     except Error:
         raise
     except Exception as e:
@@ -767,10 +728,7 @@ async def toggle_domain_visibility(
 ):
     try:
         DeploymentService.toggle_domain_visibility(domain_id)
-        return JSONResponse(
-            content=SimpleResponse(id=domain_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=domain_id)
     except Error:
         raise
     except Exception as e:
@@ -806,10 +764,7 @@ async def toggle_desktop_deployment_visibility(
 ):
     try:
         DeploymentService.toggle_domain_visibility(desktop_id)
-        return JSONResponse(
-            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=desktop_id)
     except Error:
         raise
     except Exception:
@@ -837,10 +792,7 @@ async def get_deployment_hardware(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=DeploymentService.get_deployment_hardware(deployment_id),
-            status_code=200,
-        )
+        return DeploymentService.get_deployment_hardware(deployment_id)
     except Error:
         raise
     except Exception as e:
@@ -868,11 +820,8 @@ async def get_deployment_info(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=DeploymentService.get_deployment_info(
-                deployment_id, request.token_payload
-            ),
-            status_code=200,
+        return DeploymentService.get_deployment_info(
+            deployment_id, request.token_payload
         )
     except Error:
         raise
@@ -902,12 +851,7 @@ async def get_deployment_co_owners(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=CoOwnersResponse(
-                **DeploymentService.get_co_owners(deployment_id)
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
+        return CoOwnersResponse(**DeploymentService.get_co_owners(deployment_id))
     except Error:
         raise
     except Exception as e:
@@ -938,10 +882,7 @@ async def update_deployment_co_owners(
 ):
     try:
         DeploymentService.update_co_owners(deployment_id, data.co_owners)
-        return JSONResponse(
-            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=deployment_id)
     except Error:
         raise
     except Exception as e:
@@ -979,10 +920,7 @@ async def edit_deployment_users(
         DeploymentService.edit_deployment_users(
             request.token_payload, deployment_id, data.allowed
         )
-        return JSONResponse(
-            content=EmptyResponse().model_dump(mode="json"),
-            status_code=200,
-        )
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -1013,10 +951,7 @@ async def change_deployment_owner(
 ):
     try:
         DeploymentService.change_owner(request.token_payload, deployment_id, user_id)
-        return JSONResponse(
-            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
-            status_code=200,
-        )
+        return SimpleResponse(id=deployment_id)
     except Error:
         raise
     except Exception as e:
@@ -1044,10 +979,7 @@ async def get_deployment_permissions(
     request: Request,
 ):
     try:
-        return JSONResponse(
-            content=DeploymentService.get_permissions(deployment_id),
-            status_code=200,
-        )
+        return DeploymentService.get_permissions(deployment_id)
     except Error:
         raise
     except Exception as e:
