@@ -18,121 +18,38 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.stats.stats import StatsProcessed
 from rethinkdb import r
 
 STABLE_STATUS = ["Started", "Stopped", "Failed"]
-
-_users_cache = TTLCache(maxsize=1, ttl=10)
-_desktops_cache = TTLCache(maxsize=1, ttl=5)
-_templates_cache = TTLCache(maxsize=1, ttl=10)
-_domains_status_cache = TTLCache(maxsize=1, ttl=5)
 
 
 class AdminStatsService:
     """Service for system statistics."""
 
     @staticmethod
-    @cached(cache=_users_cache)
     def get_users_stats():
-        with RethinkSharedConnection._rdb_context():
-            users_count = (
-                r.table("users").count().run(RethinkSharedConnection._rdb_connection)
-            )
-        with RethinkSharedConnection._rdb_context():
-            users_active = (
-                r.table("users")
-                .get_all(True, index="active")
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        with RethinkSharedConnection._rdb_context():
-            roles = (
-                r.table("users")
-                .group("role")
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        return {
-            "total": users_count,
-            "status": {
-                "enabled": users_active,
-                "disabled": users_count - users_active,
-            },
-            "roles": roles,
-        }
+        return StatsProcessed.get_users_stats()
 
     @staticmethod
-    @cached(cache=_desktops_cache)
     def get_desktops_stats():
-        with RethinkSharedConnection._rdb_context():
-            total = (
-                r.table("domains")
-                .get_all("desktop", index="kind")
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        with RethinkSharedConnection._rdb_context():
-            group_by_status = (
-                r.table("domains")
-                .get_all("desktop", index="kind")
-                .group("status")
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        return {
-            "total": total,
-            "status": group_by_status,
-        }
+        return StatsProcessed.get_desktops_stats()
 
     @staticmethod
-    @cached(cache=_templates_cache)
     def get_templates_stats():
-        with RethinkSharedConnection._rdb_context():
-            templates = list(
-                r.table("domains")
-                .get_all("template", index="kind")
-                .pluck("enabled")
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        # Older template docs predate the ``enabled`` field; treat missing
-        # as disabled rather than crashing the whole stats endpoint.
-        templates_enabled = len([t for t in templates if t.get("enabled")])
-        return {
-            "total": len(templates),
-            "enabled": templates_enabled,
-            "disabled": len(templates) - templates_enabled,
-        }
+        return StatsProcessed.get_templates_stats()
 
     @staticmethod
     def get_general_stats():
-        return {
-            "users": AdminStatsService.get_users_stats(),
-            "desktops": AdminStatsService.get_desktops_stats(),
-            "templates": AdminStatsService.get_templates_stats(),
-        }
+        return StatsProcessed.get_general_stats()
 
     @staticmethod
-    @cached(cache=_domains_status_cache)
     def get_domains_status():
-        with RethinkSharedConnection._rdb_context():
-            domains = (
-                r.table("domains")
-                .group(index="kind_status")
-                .count()
-                .run(RethinkSharedConnection._rdb_connection)
-            )
-        d = {"desktop": {}, "template": {}}
-        for k, v in domains.items():
-            kind = k[0]
-            if kind not in d:
-                d[kind] = {}
-            d[kind][k[1]] = v
-        return d
+        return StatsProcessed.get_domains_status()
 
     @staticmethod
     def get_kind(kind):
