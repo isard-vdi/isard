@@ -43,17 +43,23 @@ from isardvdi_common.schemas.domains import DesktopStatusEnum
 log = logging.getLogger(__name__)
 from rethinkdb import r
 
+_get_qos_disks_cache: TTLCache = TTLCache(maxsize=20, ttl=30)
+
 
 class DesktopEvents(RethinkCustomBase):
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=20, ttl=30))
+    @cached(cache=_get_qos_disks_cache)
     def get_qos_disks(cls):
         with cls._rdb_context():
             qos_disks = list(
                 r.table("qos_disk").pluck("id", "allowed").run(cls._rdb_connection)
             )
         return qos_disks
+
+    @classmethod
+    def clear_get_qos_disks_cache(cls):
+        _get_qos_disks_cache.clear()
 
     @classmethod
     def get_desktop_qos_disk_id(cls, desktop):

@@ -19,7 +19,7 @@
 
 import logging
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytz
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -494,7 +494,7 @@ class Scheduler(RethinkSharedConnection):
                 {
                     "id": desktop_id + ".nonpersistent_delete",
                     "date": (
-                        datetime.now()
+                        datetime.now(timezone.utc)
                         + timedelta(minutes=nonpersistent_desktops_inactivity_limit)
                     )
                     .astimezone(pytz.UTC)

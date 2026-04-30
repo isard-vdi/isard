@@ -40,13 +40,16 @@ from isardvdi_common.lib.bookings.reservables_planner_compute import (
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 from rethinkdb import r
 
+_get_cached_desktop_bookings_cache: TTLCache = TTLCache(maxsize=200, ttl=5)
+_get_cached_deployment_bookings_cache: TTLCache = TTLCache(maxsize=200, ttl=5)
+
 
 class BookingsProcessed(RethinkSharedConnection):
 
     _rdb_table = "bookings"
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=200, ttl=5))
+    @cached(cache=_get_cached_desktop_bookings_cache)
     def get_cached_desktop_bookings(cls, desktop_id):
         with cls._rdb_context():
             booking = (
@@ -59,7 +62,11 @@ class BookingsProcessed(RethinkSharedConnection):
         return booking
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=200, ttl=5))
+    def clear_get_cached_desktop_bookings_cache(cls):
+        _get_cached_desktop_bookings_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_cached_deployment_bookings_cache)
     def get_cached_deployment_bookings(cls, deployment_id):
         with cls._rdb_context():
             booking = (
@@ -70,6 +77,10 @@ class BookingsProcessed(RethinkSharedConnection):
                 .run(cls._rdb_connection)
             )
         return booking
+
+    @classmethod
+    def clear_get_cached_deployment_bookings_cache(cls):
+        _get_cached_deployment_bookings_cache.clear()
 
     @classmethod
     def get_all(cls):

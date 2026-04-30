@@ -26,7 +26,7 @@ import os
 import time
 import traceback
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -63,6 +63,8 @@ from isardvdi_common.models.domain import DomainUpdateModel
 from isardvdi_common.schemas.domains import DesktopStatusEnum
 from isardvdi_common.schemas.shared.allowed import Allowed
 from rethinkdb import r
+
+_validate_tag_desktop_id_for_deployment_cache: TTLCache = TTLCache(maxsize=10, ttl=30)
 
 
 class DeploymentsProcessed(RethinkSharedConnection):
@@ -1143,7 +1145,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
             if user_timeout_rule is False or user_timeout_rule["cutoff_time"] is None:
                 continue
             cutoff_time = timedelta(days=user_timeout_rule["cutoff_time"] * 30)
-            cutoff_timestamp = (datetime.now() - cutoff_time).timestamp()
+            cutoff_timestamp = (datetime.now(timezone.utc) - cutoff_time).timestamp()
             with cls._rdb_context():
                 user_deployments = list(
                     r.table("deployments")
@@ -1255,7 +1257,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
         return create_dict
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=30))
+    @cached(cache=_validate_tag_desktop_id_for_deployment_cache)
     def validate_tag_desktop_id_for_deployment(
         cls,
         deployment_id: str,
@@ -1279,6 +1281,10 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
                 description_code="invalid_tag_desktop_id_for_deployment",
             )
+
+    @classmethod
+    def clear_validate_tag_desktop_id_for_deployment_cache(cls):
+        _validate_tag_desktop_id_for_deployment_cache.clear()
 
     @classmethod
     def validate_tag_desktop_ids_for_deployment(

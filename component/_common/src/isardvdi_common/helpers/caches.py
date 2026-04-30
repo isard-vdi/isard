@@ -11,18 +11,37 @@ from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
+_get_cached_desktops_priority_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
+_get_cached_unused_item_timeout_by_op_cache: TTLCache = TTLCache(maxsize=5, ttl=60)
+_get_cached_deployment_desktops_cache: TTLCache = TTLCache(maxsize=10, ttl=1)
+_get_cached_users_migrations_exceptions_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
+_get_cached_hypervisors_online_cache: TTLCache = TTLCache(maxsize=64, ttl=10)
+_get_cached_default_storage_pool_cache: TTLCache = TTLCache(maxsize=1, ttl=3600)
+_get_cached_enabled_storage_pools_cache: TTLCache = TTLCache(maxsize=10, ttl=10)
+_get_cached_enabled_virt_pools_cache: TTLCache = TTLCache(maxsize=10, ttl=10)
+_get_cached_available_category_storage_pool_id_cache: TTLCache = TTLCache(
+    maxsize=200, ttl=10
+)
+
 
 class Caches(RethinkSharedConnection):
 
     cache = TTLCache(maxsize=5000, ttl=10)
 
     @classmethod
-    def get_document(cls, table, item_id, keys=[], invalidate=False):
+    def get_document(cls, table, item_id, keys=None, invalidate=False):
+        if keys is None:
+            keys = []
         try:
             if invalidate:
                 cls.invalidate_cache(table, item_id)
         except Exception as e:
-            pass
+            log.warning(
+                "Caches.get_document(%s, %s): cache invalidation failed: %s",
+                table,
+                item_id,
+                e,
+            )
         try:
             time_start = time()
             data = cls.get_cached(table, item_id)
@@ -127,7 +146,7 @@ class Caches(RethinkSharedConnection):
     ## Desktops priorities
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=60))
+    @cached(cache=_get_cached_desktops_priority_cache)
     def get_cached_desktops_priority(cls):
         with cls._rdb_context():
             return list(
@@ -135,6 +154,10 @@ class Caches(RethinkSharedConnection):
                 .order_by(r.desc("priority"))
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def clear_get_cached_desktops_priority_cache(cls):
+        _get_cached_desktops_priority_cache.clear()
 
     ## Config
 
@@ -153,7 +176,7 @@ class Caches(RethinkSharedConnection):
     ## Unused item timeout
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=5, ttl=60))
+    @cached(cache=_get_cached_unused_item_timeout_by_op_cache)
     def get_cached_unused_item_timeout_by_op(cls, op):
         with cls._rdb_context():
             return list(
@@ -162,6 +185,10 @@ class Caches(RethinkSharedConnection):
                 .order_by(r.desc("priority"))
                 .run(cls._rdb_connection)
             )
+
+    @classmethod
+    def clear_get_cached_unused_item_timeout_by_op_cache(cls):
+        _get_cached_unused_item_timeout_by_op_cache.clear()
 
     ## Domains wg mac
 
@@ -210,7 +237,7 @@ class Caches(RethinkSharedConnection):
     ## Deployment desktops
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=1))
+    @cached(cache=_get_cached_deployment_desktops_cache)
     def get_cached_deployment_desktops(cls, deployment_id):
         with cls._rdb_context():
             deployment_desktops = list(
@@ -220,10 +247,14 @@ class Caches(RethinkSharedConnection):
             )
         return deployment_desktops
 
+    @classmethod
+    def clear_get_cached_deployment_desktops_cache(cls):
+        _get_cached_deployment_desktops_cache.clear()
+
     ### Users migrations exceptions
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=60))
+    @cached(cache=_get_cached_users_migrations_exceptions_cache)
     def get_cached_users_migrations_exceptions(cls):
         with cls._rdb_context():
             data = list(r.table("users_migrations_exceptions").run(cls._rdb_connection))
@@ -240,10 +271,14 @@ class Caches(RethinkSharedConnection):
             "users": users,
         }
 
+    @classmethod
+    def clear_get_cached_users_migrations_exceptions_cache(cls):
+        _get_cached_users_migrations_exceptions_cache.clear()
+
     ## Hypervisors
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=64, ttl=10))
+    @cached(cache=_get_cached_hypervisors_online_cache)
     def get_cached_hypervisors_online(cls):
         with cls._rdb_context():
             return list(
@@ -252,10 +287,14 @@ class Caches(RethinkSharedConnection):
                 .run(cls._rdb_connection)
             )
 
+    @classmethod
+    def clear_get_cached_hypervisors_online_cache(cls):
+        _get_cached_hypervisors_online_cache.clear()
+
     ## Storage pools
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=3600))
+    @cached(cache=_get_cached_default_storage_pool_cache)
     def get_cached_default_storage_pool(cls):
         with cls._rdb_context():
             default_storage_pool = (
@@ -266,7 +305,11 @@ class Caches(RethinkSharedConnection):
         return default_storage_pool
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=10))
+    def clear_get_cached_default_storage_pool_cache(cls):
+        _get_cached_default_storage_pool_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_cached_enabled_storage_pools_cache)
     def get_cached_enabled_storage_pools(cls):
         with cls._rdb_context():
             storage_pools = list(
@@ -279,7 +322,11 @@ class Caches(RethinkSharedConnection):
         return storage_pools
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=10))
+    def clear_get_cached_enabled_storage_pools_cache(cls):
+        _get_cached_enabled_storage_pools_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_cached_enabled_virt_pools_cache)
     def get_cached_enabled_virt_pools(cls):
         with cls._rdb_context():
             virt_pools = list(
@@ -293,7 +340,11 @@ class Caches(RethinkSharedConnection):
         return virt_pools
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=200, ttl=10))
+    def clear_get_cached_enabled_virt_pools_cache(cls):
+        _get_cached_enabled_virt_pools_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_cached_available_category_storage_pool_id_cache)
     def get_cached_available_category_storage_pool_id(cls, category_id):
         # Used for create actions where the category is not yet assigned to the domain
         with cls._rdb_context():
@@ -327,3 +378,7 @@ class Caches(RethinkSharedConnection):
             f"Multiple storage pools found for category {category_id}",
             description_code="multiple_storage_pools",
         )
+
+    @classmethod
+    def clear_get_cached_available_category_storage_pool_id_cache(cls):
+        _get_cached_available_category_storage_pool_id_cache.clear()

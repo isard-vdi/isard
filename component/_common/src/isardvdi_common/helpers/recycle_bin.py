@@ -3,7 +3,7 @@ import logging as log
 import os
 import time
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -26,6 +26,26 @@ from isardvdi_common.schemas.migrations import MigrationsStatusEnum
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from isardvdi_common.schemas.storage import StorageStatusEnum
 from rethinkdb import r
+
+_get_status_cache: TTLCache = TTLCache(maxsize=10, ttl=30)
+_get_category_data_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
+_get_group_data_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
+_get_user_data_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
+_get_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
+_get_recycle_bin_entries_cutoff_time_surpassed_cache: TTLCache = TTLCache(
+    maxsize=50, ttl=10
+)
+_get_user_recycle_bin_ids_cache: TTLCache = TTLCache(maxsize=50, ttl=60)
+_get_count_cache: TTLCache = TTLCache(maxsize=50, ttl=60)
+_get_item_count_cache: TTLCache = TTLCache(maxsize=50, ttl=60)
+_get_user_amount_cache: TTLCache = TTLCache(maxsize=50, ttl=60)
+_get_old_entries_config_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
+_get_default_delete_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
+_get_delete_action_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
+_get_user_recycle_bin_cutoff_time_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
+_get_categories_recycle_bin_cutoff_time_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
+_get_category_recycle_bin_cuttoff_time_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
+_get_recycle_bin_cuttoff_time_cache: TTLCache = TTLCache(maxsize=1, ttl=10)
 
 
 class RecycleBinDeleteQueue(RethinkSharedConnection):
@@ -280,7 +300,7 @@ class Helpers(RethinkSharedConnection):
         )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=30))
+    @cached(cache=_get_status_cache)
     def get_status(cls, category_id=None):
 
         query = r.table("recycle_bin")
@@ -296,7 +316,11 @@ class Helpers(RethinkSharedConnection):
             return list(query.run(cls._rdb_connection))
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=30))
+    def clear_get_status_cache(cls):
+        _get_status_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_category_data_cache)
     def get_category_data(cls, category_id):
         with cls._rdb_context():
             return (
@@ -308,7 +332,11 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=30))
+    def clear_get_category_data_cache(cls):
+        _get_category_data_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_group_data_cache)
     def get_group_data(cls, group_id):
         with cls._rdb_context():
             return (
@@ -320,7 +348,11 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=30))
+    def clear_get_group_data_cache(cls):
+        _get_group_data_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_user_data_cache)
     def get_user_data(cls, user_id):
         with cls._rdb_context():
             user = (
@@ -351,7 +383,11 @@ class Helpers(RethinkSharedConnection):
         }
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=30))
+    def clear_get_user_data_cache(cls):
+        _get_user_data_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_cache)
     # TODO
     def get(cls, recycle_bin_id=None, all_data=None):
         """
@@ -500,7 +536,11 @@ class Helpers(RethinkSharedConnection):
         return result
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=10))
+    def clear_get_cache(cls):
+        _get_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_recycle_bin_entries_cutoff_time_surpassed_cache)
     def get_recycle_bin_entries_cutoff_time_surpassed(cls):
         """
         Retrieve all recycle bin entries that have surpassed the cutoff time. It will consider the global
@@ -518,7 +558,7 @@ class Helpers(RethinkSharedConnection):
         if not recycle_bin_categories_cuttoff_time:
             # Single query using status_accessed compound index
             cutoff_ts = (
-                datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+                datetime.now(timezone.utc) - timedelta(hours=recycle_bin_cuttoff_time)
             ).timestamp()
             with cls._rdb_context():
                 recycle_bin_entries = list(
@@ -537,7 +577,7 @@ class Helpers(RethinkSharedConnection):
                 queries = []
                 for category in recycle_bin_categories_cuttoff_time:
                     cutoff_ts = (
-                        datetime.now()
+                        datetime.now(timezone.utc)
                         - timedelta(hours=category["recycle_bin_cutoff_time"])
                     ).timestamp()
                     queries.append(
@@ -579,7 +619,8 @@ class Helpers(RethinkSharedConnection):
                     .filter(
                         r.row["accessed"]
                         < (
-                            datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+                            datetime.now(timezone.utc)
+                            - timedelta(hours=recycle_bin_cuttoff_time)
                         ).timestamp()
                     )
                     .pluck("id")["id"]
@@ -587,6 +628,10 @@ class Helpers(RethinkSharedConnection):
                 )
 
         return set(recycle_bin_entries)
+
+    @classmethod
+    def clear_get_recycle_bin_entries_cutoff_time_surpassed_cache(cls):
+        _get_recycle_bin_entries_cutoff_time_surpassed_cache.clear()
 
     @classmethod
     def update_status(cls, rb_id, owner_id, status):
@@ -704,7 +749,7 @@ class Helpers(RethinkSharedConnection):
         )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=60))
+    @cached(cache=_get_user_recycle_bin_ids_cache)
     def get_user_recycle_bin_ids(cls, user_id, status):
         """
         Get all the users recycle_bins ids
@@ -723,7 +768,11 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=60))
+    def clear_get_user_recycle_bin_ids_cache(cls):
+        _get_user_recycle_bin_ids_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_count_cache)
     def get_count(cls, recycle_bin_id):
         with cls._rdb_context():
             return (
@@ -758,7 +807,11 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=60))
+    def clear_get_count_cache(cls):
+        _get_count_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_item_count_cache)
     def get_item_count(cls, user_id=None, category_id=None, status=None):
         query = r.table("recycle_bin")
         if user_id:
@@ -808,7 +861,11 @@ class Helpers(RethinkSharedConnection):
             return list(query.run(cls._rdb_connection))
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=50, ttl=60))
+    def clear_get_item_count_cache(cls):
+        _get_item_count_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_user_amount_cache)
     def get_user_amount(cls, user_id):
         with cls._rdb_context():
             return (
@@ -821,7 +878,11 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=60))
+    def clear_get_user_amount_cache(cls):
+        _get_user_amount_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_old_entries_config_cache)
     def get_old_entries_config(cls):
         with cls._rdb_context():
             try:
@@ -832,16 +893,25 @@ class Helpers(RethinkSharedConnection):
                 return {"max_time": None, "action": None}
 
     @classmethod
+    def clear_get_old_entries_config_cache(cls):
+        _get_old_entries_config_cache.clear()
+
+    @classmethod
     def check_older_than_old_entry_max_time(cls, last):
         max_time_config = cls.get_old_entries_config()["max_time"]
         if max_time_config is None:
             return False
         else:
             max_time_hours = int(max_time_config)
-            return last < (datetime.now() - timedelta(hours=max_time_hours)).timestamp()
+            return (
+                last
+                < (
+                    datetime.now(timezone.utc) - timedelta(hours=max_time_hours)
+                ).timestamp()
+            )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=60))
+    @cached(cache=_get_default_delete_cache)
     def get_default_delete(cls):
         with cls._rdb_context():
             try:
@@ -852,7 +922,11 @@ class Helpers(RethinkSharedConnection):
                 return False
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=60))
+    def clear_get_default_delete_cache(cls):
+        _get_default_delete_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_delete_action_cache)
     def get_delete_action(cls):
         with cls._rdb_context():
             try:
@@ -863,7 +937,11 @@ class Helpers(RethinkSharedConnection):
                 return "delete"
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=10))
+    def clear_get_delete_action_cache(cls):
+        _get_delete_action_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_user_recycle_bin_cutoff_time_cache)
     def get_user_recycle_bin_cutoff_time(cls, user_id):
         """
         Retrieve the user recycle bin cutoff time.
@@ -895,7 +973,11 @@ class Helpers(RethinkSharedConnection):
         )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=10))
+    def clear_get_user_recycle_bin_cutoff_time_cache(cls):
+        _get_user_recycle_bin_cutoff_time_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_categories_recycle_bin_cutoff_time_cache)
     def get_categories_recycle_bin_cutoff_time(cls):
         """
         Retrieve all the categories cutoff time.
@@ -912,7 +994,11 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=10))
+    def clear_get_categories_recycle_bin_cutoff_time_cache(cls):
+        _get_categories_recycle_bin_cutoff_time_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_category_recycle_bin_cuttoff_time_cache)
     def get_category_recycle_bin_cuttoff_time(cls, category_id):
         """
         Get the recycle bin cutoff time applied to a category.
@@ -937,7 +1023,11 @@ class Helpers(RethinkSharedConnection):
         )
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=1, ttl=10))
+    def clear_get_category_recycle_bin_cuttoff_time_cache(cls):
+        _get_category_recycle_bin_cuttoff_time_cache.clear()
+
+    @classmethod
+    @cached(cache=_get_recycle_bin_cuttoff_time_cache)
     def get_recycle_bin_cuttoff_time(cls, category_id=None):
         """
         Get the recycle bin cutoff time for a category or the global cutoff time.
@@ -965,6 +1055,10 @@ class Helpers(RethinkSharedConnection):
                 "system": cls.get_system_recycle_bin_cutoff_time(),
             }
         return cls.get_system_recycle_bin_cutoff_time()
+
+    @classmethod
+    def clear_get_recycle_bin_cuttoff_time_cache(cls):
+        _get_recycle_bin_cuttoff_time_cache.clear()
 
     @classmethod
     def get_system_recycle_bin_cutoff_time(cls):

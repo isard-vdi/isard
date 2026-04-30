@@ -27,6 +27,8 @@ from isardvdi_common.lib.users.users.user import UsersProcessed
 from isardvdi_common.lib.users.users.user_policies import UserPolicies
 from rethinkdb import r
 
+_get_status_bar_notification_by_provider_cache: TTLCache = TTLCache(maxsize=10, ttl=30)
+
 
 def sanitize_href(href):
     if href:
@@ -268,7 +270,7 @@ class NotificationTemplatesProcessed(RethinkSharedConnection):
         return data
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=30))
+    @cached(cache=_get_status_bar_notification_by_provider_cache)
     def get_status_bar_notification_by_provider(cls, provider):
         try:
             with cls._rdb_context():
@@ -280,6 +282,10 @@ class NotificationTemplatesProcessed(RethinkSharedConnection):
                 )
         except Exception:
             raise Error("not_found", "Provider notification bar config not found")
+
+    @classmethod
+    def clear_get_status_bar_notification_by_provider_cache(cls):
+        _get_status_bar_notification_by_provider_cache.clear()
 
     @classmethod
     def get_disclaimer_template(cls, user_id: str):

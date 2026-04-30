@@ -45,6 +45,8 @@ ISARD_SHARE_FOLDER = "IsardVDI"
 isard_groups_cache = TTLCache(maxsize=10, ttl=5)
 cache_provider = TTLCache(maxsize=10, ttl=5)
 
+_isard_user_storage_get_users_cache: TTLCache = TTLCache(maxsize=10, ttl=5)
+
 login_thread = None
 
 
@@ -57,7 +59,7 @@ class UserStorage(RethinkSharedConnection):
     ## GET
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=10, ttl=5))
+    @cached(cache=_isard_user_storage_get_users_cache)
     def isard_user_storage_get_users(cls):
         with cls._rdb_context():
             provider_users = list(
@@ -78,6 +80,10 @@ class UserStorage(RethinkSharedConnection):
             pu["group_name"] = cls._get_isard_group_provider_name(pu["group"])
             pu["category_name"] = cls._get_isard_category_name(pu["category"])
         return provider_users
+
+    @classmethod
+    def clear_isard_user_storage_get_users_cache(cls):
+        _isard_user_storage_get_users_cache.clear()
 
     ## ADD
     @classmethod

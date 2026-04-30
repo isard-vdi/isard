@@ -55,6 +55,10 @@ from . import storage
 
 isard_viewer = IsardViewer()
 
+_get_cached_available_domain_storage_pool_id_cache: TTLCache = TTLCache(
+    maxsize=200, ttl=10
+)
+
 
 class DomainModel(PydanticBase):
     accessed: float | None = None
@@ -404,7 +408,7 @@ class Domain(RethinkCustomBase):
         }
 
     @classmethod
-    @cached(cache=TTLCache(maxsize=200, ttl=10))
+    @cached(cache=_get_cached_available_domain_storage_pool_id_cache)
     def get_cached_available_domain_storage_pool_id(cls, domain_id):
         # Used to virtualize the storage pool for the domain
         # No virtualitzation for a disabled storage_pool should be available
@@ -450,3 +454,7 @@ class Domain(RethinkCustomBase):
                 description_code="storage_pool_disabled",
             )
         return virt_pool_id
+
+    @classmethod
+    def clear_get_cached_available_domain_storage_pool_id_cache(cls):
+        _get_cached_available_domain_storage_pool_id_cache.clear()
