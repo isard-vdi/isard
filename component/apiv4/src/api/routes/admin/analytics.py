@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import traceback
+from typing import Literal
 
 from api import admin_router, manager_router
 from api.schemas.admin.analytics import (
@@ -32,8 +33,7 @@ from api.schemas.admin.analytics import (
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.analytics import AdminAnalyticsService
 from api.services.error import Error
-from fastapi import Path, Request
-from fastapi.responses import JSONResponse
+from fastapi import Request
 
 tag = "admin_analytics"
 
@@ -46,11 +46,12 @@ tag = "admin_analytics"
 @manager_router.post(
     "/analytics/storage",
     tags=[tag],
+    response_model=dict,
     summary="Get storage usage analytics",
     description="Returns storage usage analytics, optionally filtered by categories.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest):
+async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest) -> dict:
     try:
         payload = request.token_payload
         categories = (
@@ -59,7 +60,7 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest):
             else data.categories
         )
         result = AdminAnalyticsService.storage_usage(categories)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:
@@ -74,11 +75,14 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest):
 @manager_router.post(
     "/analytics/resources/count",
     tags=[tag],
+    response_model=dict,
     summary="Get resource count analytics",
     description="Returns resource count analytics (desktops, templates, media, etc.), optionally filtered by categories.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRequest):
+async def analytics_resource_count(
+    request: Request, data: AnalyticsCategoriesRequest
+) -> dict:
     try:
         payload = request.token_payload
         categories = (
@@ -87,7 +91,7 @@ async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRe
             else data.categories
         )
         result = AdminAnalyticsService.resource_count(categories)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:
@@ -102,6 +106,7 @@ async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRe
 @manager_router.post(
     "/analytics/suggested_removals",
     tags=[tag],
+    response_model=dict,
     summary="Get suggested removals",
     description="Returns suggested resources for removal based on inactivity.",
     responses={
@@ -111,7 +116,7 @@ async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRe
 )
 async def analytics_suggested_removals(
     request: Request, data: AnalyticsSuggestedRemovalsRequest
-):
+) -> dict:
     try:
         payload = request.token_payload
         categories = (
@@ -122,7 +127,7 @@ async def analytics_suggested_removals(
         result = AdminAnalyticsService.suggested_removals(
             categories, months_without_use=data.months_without_use
         )
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:
@@ -142,14 +147,15 @@ async def analytics_suggested_removals(
 @manager_router.get(
     "/analytics/graph",
     tags=[tag],
+    response_model=list[dict],
     summary="Get all analytics graph configurations",
     description="Returns all analytics graph configurations.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_graphs_conf_list(request: Request):
+async def analytics_graphs_conf_list(request: Request) -> list[dict]:
     try:
         result = AdminAnalyticsService.get_usage_graphs_conf()
-        return result
+        return result or []
     except Error:
         raise
     except Exception:
@@ -164,6 +170,7 @@ async def analytics_graphs_conf_list(request: Request):
 @admin_router.get(
     "/analytics/graph/{conf_id}",
     tags=[tag],
+    response_model=dict,
     summary="Get analytics graph configuration",
     description="Returns a specific analytics graph configuration by ID.",
     responses={
@@ -171,10 +178,10 @@ async def analytics_graphs_conf_list(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def analytics_graph_conf_get(request: Request, conf_id: str):
+async def analytics_graph_conf_get(request: Request, conf_id: str) -> dict:
     try:
         result = AdminAnalyticsService.get_usage_graph_conf(conf_id)
-        return result
+        return result if isinstance(result, dict) else {}
     except Error:
         raise
     except Exception:
@@ -189,6 +196,7 @@ async def analytics_graph_conf_get(request: Request, conf_id: str):
 @admin_router.post(
     "/analytics/graph",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Create analytics graph configuration",
     description="Creates a new analytics graph configuration.",
     responses={
@@ -196,10 +204,12 @@ async def analytics_graph_conf_get(request: Request, conf_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def analytics_graph_conf_add(request: Request, data: AnalyticsGraphCreateRequest):
+async def analytics_graph_conf_add(
+    request: Request, data: AnalyticsGraphCreateRequest
+) -> EmptyResponse:
     try:
         AdminAnalyticsService.add_usage_graph_conf(data.model_dump(exclude_none=True))
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -214,6 +224,7 @@ async def analytics_graph_conf_add(request: Request, data: AnalyticsGraphCreateR
 @admin_router.put(
     "/analytics/graph/{conf_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Update analytics graph configuration",
     description="Updates an existing analytics graph configuration.",
     responses={
@@ -223,12 +234,12 @@ async def analytics_graph_conf_add(request: Request, data: AnalyticsGraphCreateR
 )
 async def analytics_graph_conf_update(
     request: Request, conf_id: str, data: AnalyticsGraphUpdateRequest
-):
+) -> EmptyResponse:
     try:
         AdminAnalyticsService.update_usage_graph_conf(
             conf_id, data.model_dump(exclude_none=True)
         )
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -243,14 +254,15 @@ async def analytics_graph_conf_update(
 @admin_router.delete(
     "/analytics/graph/{conf_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Delete analytics graph configuration",
     description="Deletes an analytics graph configuration by ID.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_graph_conf_delete(request: Request, conf_id: str):
+async def analytics_graph_conf_delete(request: Request, conf_id: str) -> EmptyResponse:
     try:
         AdminAnalyticsService.delete_usage_graph_conf(conf_id)
-        return {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -270,11 +282,14 @@ async def analytics_graph_conf_delete(request: Request, conf_id: str):
 @admin_router.post(
     "/analytics/desktops/less_used",
     tags=[tag],
+    response_model=list[dict],
     summary="Get least used desktops",
     description="Returns desktops that have been least used within the specified period.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsRequest):
+async def analytics_desktops_less_used(
+    request: Request, data: DesktopAnalyticsRequest
+) -> list[dict]:
     try:
         result = AdminAnalyticsService.get_desktops_less_used(
             data.days_before,
@@ -282,7 +297,7 @@ async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsR
             data.not_in_directory_path,
             data.status or False,
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception:
@@ -297,13 +312,14 @@ async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsR
 @admin_router.post(
     "/analytics/desktops/recently_used",
     tags=[tag],
+    response_model=list[dict],
     summary="Get recently used desktops",
     description="Returns desktops that have been recently used within the specified period.",
     responses={500: {"model": ErrorResponse}},
 )
 async def analytics_desktops_recently_used(
     request: Request, data: DesktopAnalyticsRequest
-):
+) -> list[dict]:
     try:
         result = AdminAnalyticsService.get_desktops_recently_used(
             data.days_before,
@@ -311,7 +327,7 @@ async def analytics_desktops_recently_used(
             data.not_in_directory_path,
             data.status or False,
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception:
@@ -326,11 +342,14 @@ async def analytics_desktops_recently_used(
 @admin_router.post(
     "/analytics/desktops/most_used",
     tags=[tag],
+    response_model=list[dict],
     summary="Get most used desktops",
     description="Returns desktops that have been most frequently started within the specified period.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_desktops_most_used(request: Request, data: DesktopAnalyticsRequest):
+async def analytics_desktops_most_used(
+    request: Request, data: DesktopAnalyticsRequest
+) -> list[dict]:
     try:
         result = AdminAnalyticsService.get_desktops_most_used(
             data.days_before,
@@ -338,7 +357,7 @@ async def analytics_desktops_most_used(request: Request, data: DesktopAnalyticsR
             data.not_in_directory_path,
             data.status or False,
         )
-        return result
+        return result or []
     except Error:
         raise
     except Exception:
@@ -358,14 +377,24 @@ async def analytics_desktops_most_used(request: Request, data: DesktopAnalyticsR
 @admin_router.post(
     "/admin/echart/{view}",
     tags=[tag],
+    response_model=list[dict],
     summary="Get echart data",
-    description="Returns chart data for the specified view type (daily_items, grouped_items, grouped_unique_items, nested_array_grouped_items).",
+    description="Returns chart data for the specified view type.",
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
-async def admin_echart(request: Request, view: str, data: EchartRequest):
+async def admin_echart(
+    request: Request,
+    view: Literal[
+        "daily_items",
+        "grouped_items",
+        "grouped_unique_items",
+        "nested_array_grouped_items",
+    ],
+    data: EchartRequest,
+) -> list[dict]:
     try:
         if view == "daily_items":
             result = AdminAnalyticsService.get_daily_items(data.table, data.date_field)
@@ -377,13 +406,11 @@ async def admin_echart(request: Request, view: str, data: EchartRequest):
             result = AdminAnalyticsService.get_grouped_unique_data(
                 data.table, data.group_field, data.unique_field
             )
-        elif view == "nested_array_grouped_items":
+        else:  # view == "nested_array_grouped_items" — Literal route guard ensures
             result = AdminAnalyticsService.get_nested_array_grouped_data(
                 data.table, data.nested_array_field, data.group_field
             )
-        else:
-            raise Error("bad_request", f"Unknown echart view: {view}")
-        return result
+        return result or []
     except Error:
         raise
     except Exception:
