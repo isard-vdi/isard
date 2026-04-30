@@ -44,7 +44,6 @@ from isardvdi_common.models.domain import Domain as RethinkDomain
 from isardvdi_common.models.interfaces import Interface as RethinkInterfaces
 from isardvdi_common.models.user import User as RethinkUser
 from isardvdi_common.models.videos import Video as RethinkVideos
-from rethinkdb import r
 
 templates_cache = TTLCache(maxsize=1, ttl=360)
 
@@ -334,15 +333,7 @@ class TemplateService:
     def delete_template(payload: dict, template_id: str) -> dict:
         # Block managers from deleting templates with cross-category derivatives
         if payload["role_id"] == "manager":
-            from rethinkdb import r
-
-            with Helpers._rdb_context():
-                derivatives = list(
-                    r.table("domains")
-                    .get_all(template_id, index="parents")
-                    .pluck("category")
-                    .run(Helpers._rdb_connection)
-                )
+            derivatives = CommonTemplates.list_derivative_categories(template_id)
             cross_cat = [
                 d for d in derivatives if d.get("category") != payload["category_id"]
             ]
@@ -430,15 +421,9 @@ class TemplateService:
                 derivates["deployments"].append({})
                 derivates["pending"] = True
 
-        with Helpers._rdb_context():
-            cross_cat = list(
-                r.table("domains")
-                .get_all(template_id, index="parents")
-                .filter(lambda d: d["category"] != payload["category_id"])
-                .limit(1)
-                .run(Helpers._rdb_connection)
-            )
-        derivates["cross_category"] = len(cross_cat) > 0
+        derivates["cross_category"] = CommonTemplates.has_cross_category_derivatives(
+            template_id, payload["category_id"]
+        )
 
         return derivates
 
