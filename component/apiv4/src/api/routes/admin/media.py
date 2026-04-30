@@ -21,10 +21,13 @@
 import traceback
 
 from api import manager_router
-from api.schemas.common import ErrorResponse
+from api.dependencies.alloweds import owns_domain_id, owns_media_id
+from api.schemas.common import ErrorResponse, SimpleResponse
+from api.schemas.media import DesktopAttachedMediaItem, MediaCheckResponse
 from api.services.admin_media import AdminMediaService
 from api.services.error import Error
-from fastapi import Path, Request
+from api.services.media import MediaService
+from fastapi import Depends, Path, Request
 from fastapi.responses import JSONResponse
 
 tag = "admin_media"
@@ -107,5 +110,109 @@ async def admin_media_by_status(
             request,
             "internal_server",
             "Failed to get media by status",
+            traceback.format_exc(),
+        )
+
+
+# =============================================================================
+# MEDIA — admin/manager operations on individual media items
+# (paths kept under /item/... to stay wire-compatible with both
+#  Vue 2 and Vue 3 callers; only the file location changed.)
+# =============================================================================
+
+
+@manager_router.get(
+    "/item/desktop/{desktop_id}/media-list",
+    tags=[tag],
+    response_model=list[DesktopAttachedMediaItem],
+    summary="List media attached to a desktop",
+    description=(
+        "Returns the list of media items (isos + floppies) currently attached "
+        "to the given desktop's hardware configuration. Used to populate the "
+        "hotplug modal in the webapp admin. Admin/manager only — matches v3 "
+        "``POST /desktops/media_list`` ``@is_admin_or_manager``."
+    ),
+    dependencies=[Depends(owns_domain_id("desktop_id"))],
+)
+async def list_desktop_attached_media(request: Request, desktop_id: str):
+    try:
+        media = MediaService.list_desktop_attached_media(desktop_id)
+        return [DesktopAttachedMediaItem(**m) for m in media]
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve media list for desktop {desktop_id}",
+            traceback.format_exc(),
+        )
+
+
+@manager_router.put(
+    "/item/media/{media_id}/change-owner/{user_id}",
+    summary="Change media owner",
+    tags=[tag],
+    response_model=SimpleResponse,
+    description=(
+        "Reassigns a media item to a different user. ``@is_admin_or_manager``. "
+        "Both ``ownsUserId(user_id)`` and ``ownsMediaId(media_id)`` are "
+        "enforced by the service."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def change_media_owner(
+    request: Request,
+    media_id: str = Path(..., description="The ID of the media"),
+    user_id: str = Path(..., description="The ID of the new owner"),
+):
+    try:
+        MediaService.change_owner(
+            payload=request.token_payload,
+            media_id=media_id,
+            new_user_id=user_id,
+        )
+        return SimpleResponse(id=media_id)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to change media owner",
+            traceback.format_exc(),
+        )
+
+
+@manager_router.put(
+    "/item/media/{media_id}/check",
+    summary="Check media file existence on disk",
+    tags=[tag],
+    response_model=MediaCheckResponse,
+    description=(
+        "Schedules a background task that verifies the media file on disk. "
+        "If the media is not currently downloaded its status is forced to "
+        "``deleted``. Otherwise an RQ ``check_media_existence`` task is "
+        "enqueued against the storage pool that owns the file. Admin/manager "
+        "only — matches v3 ``PUT /media/check/{id}`` ``@is_admin_or_manager``."
+    ),
+)
+async def check_media(request: Request, media_id=Depends(owns_media_id)):
+    try:
+        result = MediaService.check_media_existence(
+            media_id, request.token_payload["user_id"]
+        )
+        return MediaCheckResponse(**(result or {}))
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to check media existence",
             traceback.format_exc(),
         )
