@@ -98,6 +98,74 @@ class ApiAdmin(RethinkSharedConnection):
             )
 
     @classmethod
+    def insert_table_item(cls, table: str, data: dict) -> None:
+        """Insert a row into ``table``.
+
+        Raises ``conflict`` if ``data["id"]`` already exists, or
+        ``internal_server`` if the insert returns ``inserted == 0``.
+        Caller is responsible for validating ``data["id"]`` is present
+        and for any sanitization.
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        cls._validate_table(table)
+        with cls._rdb_context():
+            existing = r.table(table).get(data["id"]).run(cls._rdb_connection)
+            if existing is not None:
+                raise Error(
+                    "conflict",
+                    "Id " + data["id"] + " already exists in table " + table,
+                )
+            result = r.table(table).insert(data).run(cls._rdb_connection)
+            if not result.get("inserted"):
+                raise Error(
+                    "internal_server",
+                    "Insert into " + table + " returned inserted=0",
+                    traceback.format_exc(),
+                )
+
+    @classmethod
+    def update_table_item(cls, table: str, data: dict) -> None:
+        """Update a row in ``table`` by ``data["id"]``.
+
+        No-op if the id doesn't exist (rethinkdb's ``get(id).update(...)``
+        returns silently). Caller is responsible for validating ``id`` is
+        present and for any sanitization.
+        """
+        cls._validate_table(table)
+        with cls._rdb_context():
+            r.table(table).get(data["id"]).update(data).run(cls._rdb_connection)
+
+    @classmethod
+    def delete_table_item(cls, table: str, item_id: str) -> None:
+        """Delete a row from ``table`` by id.
+
+        Raises ``not_found`` if the row doesn't exist, or
+        ``internal_server`` if the delete returns ``deleted == 0``.
+        Caller is responsible for any pre-delete cleanup (e.g.
+        unassigning the resource from desktops/deployments).
+        """
+        from isardvdi_common.helpers.error_factory import Error
+
+        cls._validate_table(table)
+        with cls._rdb_context():
+            item = r.table(table).get(item_id).run(cls._rdb_connection)
+            if not item:
+                raise Error(
+                    "not_found",
+                    "Item " + str(item_id) + " not found",
+                    description_code="not_found",
+                )
+            result = r.table(table).get(item_id).delete().run(cls._rdb_connection)
+            if not result.get("deleted"):
+                raise Error(
+                    "internal_server",
+                    "Delete of " + str(item_id) + " returned deleted=0",
+                    traceback.format_exc(),
+                    description_code="generic_error",
+                )
+
+    @classmethod
     def admin_table_list(
         cls,
         table,
