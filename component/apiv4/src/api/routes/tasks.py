@@ -7,6 +7,7 @@ import traceback
 
 from api import admin_router, manager_router, token_router
 from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.tasks import TaskResponse
 from api.services.error import Error
 from api.services.tasks import TaskService
 from fastapi import Request
@@ -23,6 +24,7 @@ tag = "tasks"
 @token_router.get(
     "/task/{task_id}",
     tags=[tag],
+    response_model=TaskResponse,
     summary="Get a task",
     description="Returns a task by its ID. Users can only see their own tasks.",
     responses={
@@ -30,14 +32,14 @@ tag = "tasks"
         500: {"model": ErrorResponse},
     },
 )
-async def get_task(request: Request, task_id: str):
+async def get_task(request: Request, task_id: str) -> TaskResponse:
     try:
         task = TaskService.get_task_with_owner_check(
             task_id,
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
         )
-        return task.to_dict()
+        return TaskResponse(**task.to_dict())
     except Error:
         raise
     except Exception:
@@ -52,6 +54,7 @@ async def get_task(request: Request, task_id: str):
 @token_router.delete(
     "/task/{task_id}",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Cancel a task",
     description="Cancels a queued task. Only the task owner can cancel it.",
     responses={
@@ -60,14 +63,14 @@ async def get_task(request: Request, task_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def cancel_task(request: Request, task_id: str):
+async def cancel_task(request: Request, task_id: str) -> EmptyResponse:
     try:
-        result = TaskService.cancel_task(
+        TaskService.cancel_task(
             task_id,
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
         )
-        return result
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
@@ -82,14 +85,15 @@ async def cancel_task(request: Request, task_id: str):
 @token_router.get(
     "/tasks",
     tags=[tag],
+    response_model=list[TaskResponse],
     summary="Get user tasks",
     description="Returns all tasks for the authenticated user.",
     responses={500: {"model": ErrorResponse}},
 )
-async def get_user_tasks(request: Request):
+async def get_user_tasks(request: Request) -> list[TaskResponse]:
     try:
         tasks = TaskService.get_user_tasks(request.token_payload["user_id"])
-        return tasks
+        return [TaskResponse(**t) for t in (tasks or [])]
     except Error:
         raise
     except Exception:
@@ -109,18 +113,19 @@ async def get_user_tasks(request: Request):
 @manager_router.get(
     "/admin/tasks",
     tags=[tag],
+    response_model=list[TaskResponse],
     summary="Get all tasks (admin/manager)",
     description="Returns all tasks. Admins see all tasks, managers see their category tasks.",
     responses={500: {"model": ErrorResponse}},
 )
-async def get_admin_tasks(request: Request):
+async def get_admin_tasks(request: Request) -> list[TaskResponse]:
     try:
         tasks = TaskService.get_admin_tasks(
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
             request.token_payload.get("category_id"),
         )
-        return tasks
+        return [TaskResponse(**t) for t in (tasks or [])]
     except Error:
         raise
     except Exception:
@@ -135,6 +140,7 @@ async def get_admin_tasks(request: Request):
 @admin_router.put(
     "/admin/task/{task_id}/retry",
     tags=[tag],
+    response_model=EmptyResponse,
     summary="Retry a failed task",
     description="Retries a failed task. Admin only.",
     responses={
@@ -143,10 +149,10 @@ async def get_admin_tasks(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def retry_task(request: Request, task_id: str):
+async def retry_task(request: Request, task_id: str) -> EmptyResponse:
     try:
-        result = TaskService.retry_task(task_id)
-        return result
+        TaskService.retry_task(task_id)
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
