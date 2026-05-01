@@ -410,8 +410,15 @@ class ResourceItemsGpus(RethinkSharedConnection):
 
     @classmethod
     def list_subitems_enabled(cls, item_id):
-        with cls._rdb_context():
-            item = r.table("gpus").get(item_id).run(cls._rdb_connection)
+        try:
+            with cls._rdb_context():
+                item = r.table("gpus").get(item_id).run(cls._rdb_connection)
+        except r.errors.ReqlError:
+            raise Error(
+                "not_found",
+                "GPU reservables not configured.",
+                description_code="not_found",
+            )
         if not item:
             raise Error(
                 "not_found",
@@ -425,15 +432,14 @@ class ResourceItemsGpus(RethinkSharedConnection):
                     .get_all([item["brand"], item["model"]], index="brand-model")
                     .run(cls._rdb_connection)
                 )[0]["profiles"]
-        except (IndexError, KeyError):
+        except (IndexError, KeyError, r.errors.ReqlError):
             raise Error(
                 "not_found",
                 "Gpu id not found in gpu definitions table",
                 description_code="not_found",
             )
-        return [
-            subitem for subitem in subitems if subitem["id"] in item["profiles_enabled"]
-        ]
+        enabled = item.get("profiles_enabled") or []
+        return [subitem for subitem in subitems if subitem["id"] in enabled]
 
     @classmethod
     def get_subitem(cls, item_id, subitem_id):
@@ -675,8 +681,15 @@ class ResourceItemsUsbs(RethinkSharedConnection):
 
     @classmethod
     def list_subitems_enabled(cls, item_id):
-        with cls._rdb_context():
-            item = r.table("usbs").get(item_id).run(cls._rdb_connection)
+        try:
+            with cls._rdb_context():
+                item = r.table("usbs").get(item_id).run(cls._rdb_connection)
+        except r.errors.ReqlError:
+            raise Error(
+                "not_found",
+                "USB reservables not configured.",
+                description_code="not_found",
+            )
         if not item:
             raise Error(
                 "not_found",
@@ -690,11 +703,10 @@ class ResourceItemsUsbs(RethinkSharedConnection):
                     .get_all([item["brand"], item["model"]], index="brand-model")
                     .run(cls._rdb_connection)
                 )[0]["profiles"]
-        except (IndexError, KeyError):
+        except (IndexError, KeyError, r.errors.ReqlError):
             raise Error("not_found", "Usb id not found in usb definitions table")
-        return [
-            subitem for subitem in subitems if subitem["id"] in item["profiles_enabled"]
-        ]
+        enabled = item.get("profiles_enabled") or []
+        return [subitem for subitem in subitems if subitem["id"] in enabled]
 
     @classmethod
     def get_subitem(cls, item_id, subitem_id):

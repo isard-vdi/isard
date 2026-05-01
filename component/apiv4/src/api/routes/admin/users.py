@@ -32,6 +32,7 @@ from api.schemas.admin.users import (
     AdminCheckGroupCategoryData,
     AdminCheckMigratedData,
     AdminCSVUserEditData,
+    AdminCSVUserImportData,
     AdminDeleteChecksData,
     AdminGroup,
     AdminGroupCreateData,
@@ -494,9 +495,12 @@ async def admin_validate_csv_users_edit(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_import_csv_users(request: Request, data: AdminCSVUserEditData) -> dict:
-    # Body shape matches ``AdminCSVUserEditData`` (``{"users": [...]}``);
-    # reuse the existing schema so the OAS spec advertises a request body.
+async def admin_import_csv_users(
+    request: Request, data: AdminCSVUserImportData
+) -> dict:
+    # Import body has no ``id`` per row (rows are NEW users). Edit
+    # body's ``id``-required schema would 422 those, so this route uses
+    # the looser ``AdminCSVUserImportData`` shape.
     try:
         result = AdminUsersService.import_csv_users(
             request.token_payload, data.model_dump()

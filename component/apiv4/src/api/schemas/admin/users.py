@@ -75,8 +75,47 @@ class AdminBulkUserCreateData(BaseModel):
 # ── CSV Operations ───────────────────────────────────────────────────────
 
 
+class AdminCSVUserEditRow(BaseModel):
+    """One row of PUT ``/admin/users/csv`` — an enriched user record
+    returned by ``/admin/users/csv/validate`` (PUT). Webapp/k6
+    round-trip the validate output back into the edit endpoint; ``id``
+    is the only load-bearing field. Anything else is optional so a
+    minimal rename ``{"id": "...", "name": "new"}`` is also accepted.
+    Pre-typed so a missing ``id`` yields 422 at the boundary instead
+    of falling into the service and surfacing as 500."""
+
+    id: str
+    username: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    category: Optional[str] = None
+    group: Optional[str] = None
+    provider: Optional[str] = None
+    uid: Optional[str] = None
+    category_id: Optional[str] = None
+    group_id: Optional[str] = None
+    secondary_groups: Optional[List[str]] = None
+    secondary_groups_names: Optional[List[str]] = None
+    password: Optional[str] = None
+    photo: Optional[str] = None
+    active: Optional[bool] = None
+
+    model_config = {"extra": "allow"}
+
+
 class AdminCSVUserEditData(BaseModel):
-    """Request body for editing users via CSV."""
+    """Request body for editing users via CSV (PUT ``/admin/users/csv``)."""
+
+    users: List[AdminCSVUserEditRow]
+
+
+class AdminCSVUserImportData(BaseModel):
+    """Request body for importing new users from CSV (POST
+    ``/admin/users/csv``). Rows here have no ``id`` yet — that's
+    assigned by ``CommonUsers.generate_users``. Kept as ``List[dict]``
+    so the upstream validate-create flow's permissive shape still
+    applies."""
 
     users: List[dict]
 

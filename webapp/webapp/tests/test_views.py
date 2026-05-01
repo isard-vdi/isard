@@ -292,7 +292,6 @@ def test_logout_with_saml_provider_falls_back_when_custom_url_missing(
         ("Bookables", "admin/pages/bookables.html", "briefcase"),
         ("BookablesEvents", "admin/pages/bookables_events.html", "history"),
         ("Priority", "admin/pages/bookables_priority.html", "briefcase"),
-        ("Recyclebin", "admin/pages/recyclebin.html", "trash"),
     ],
 )
 def test_admin_domains_renders_nav_template(
@@ -312,6 +311,25 @@ def test_admin_domains_renders_nav_template(
     assert args[0] == template
     assert kwargs["nav"] == nav
     assert kwargs["icon"] == icon
+
+
+def test_admin_domains_recyclebin_redirects_to_domains_subnav(
+    client, monkeypatch, admin_user_dict
+):
+    """Bare ``/Recyclebin`` redirects to the Domains sub-nav — the
+    standalone ``recyclebin.html`` template doesn't exist and previously
+    surfaced as a 500 ``TemplateNotFound``."""
+    _patch_login_callback(monkeypatch, admin_user_dict)
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = admin_user_dict["id"]
+        sess["_fresh"] = True
+
+    response = client.get("/isard-admin/admin/domains/render/Recyclebin")
+    assert response.status_code == 302
+    assert response.location.endswith(
+        "/isard-admin/admin/domains/render/Recyclebin/Domains"
+    )
 
 
 def test_admin_domains_unknown_nav_falls_through_to_desktops(

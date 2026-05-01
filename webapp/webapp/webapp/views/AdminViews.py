@@ -249,10 +249,13 @@ def admin_domains(nav="Domains"):
             icon=icon,
         )
     if nav == "Recyclebin":
-        icon = "trash"
-        return render_webapp(
-            "admin/pages/recyclebin.html", title=nav, nav=nav, icon=icon
-        )
+        # ``recyclebin.html`` is not in the templates tree — only
+        # ``recyclebin_domains.html`` and ``recyclebin_config.html``
+        # exist (rendered by ``admin_recyclebin`` below). Bookmarks
+        # and typos targeting bare ``/Recyclebin`` 500'd via
+        # ``TemplateNotFound``; redirect to the Domains sub-nav,
+        # mirroring the sidebar links.
+        return redirect("/isard-admin/admin/domains/render/Recyclebin/Domains")
 
     return render_webapp(
         "admin/pages/desktops.html",
