@@ -91,6 +91,21 @@ class DeploymentsProcessed(RethinkSharedConnection):
         return CommonDesktops._parse_desktop_booking(desktop)
 
     @classmethod
+    def get_deployment_or_none(cls, deployment_id, desktops=True):
+        """Like ``get_deployment`` but returns ``None`` for a missing row.
+
+        Useful for change-handler emits triggered by the cascading
+        domain-delete that follows a deployment delete: the parent
+        deployment row may already be gone by the time the per-domain
+        handler runs, and a raised ``Error("not_found")`` only spams the
+        backend log without changing what the WebSocket consumers see
+        (the deployment-delete event already fired upstream).
+        """
+        if Caches.get_document("deployments", deployment_id) is None:
+            return None
+        return cls.get_deployment(deployment_id, desktops=desktops)
+
+    @classmethod
     def get_deployment(cls, deployment_id, desktops=True):
         deployment = Caches.get_document("deployments", deployment_id)
         if deployment is None:

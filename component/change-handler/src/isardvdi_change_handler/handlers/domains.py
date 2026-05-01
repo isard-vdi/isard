@@ -160,7 +160,14 @@ class DesktopDomainHandler:
 
         ## Deployment rooms handling
         if new_val.tag:
-            deployment = DeploymentsProcessed.get_deployment(new_val.tag)
+            # ``get_deployment_or_none`` rather than ``get_deployment`` —
+            # the parent deployment row may already be gone if this
+            # handler is racing a cascading delete; in that case the
+            # deployment-delete event already fired upstream and there
+            # is nothing left to update.
+            deployment = DeploymentsProcessed.get_deployment_or_none(new_val.tag)
+            if deployment is None:
+                return
             deployment_owners = (deployment.get("co_owners") or []) + [
                 deployment["user"]
             ]
@@ -377,7 +384,9 @@ class DesktopDomainHandler:
                     room=old_val.user,
                 )
 
-            deployment = DeploymentsProcessed.get_deployment(new_val.tag)
+            deployment = DeploymentsProcessed.get_deployment_or_none(new_val.tag)
+            if deployment is None:
+                return
             deployment_owners = (deployment.get("co_owners") or []) + [
                 deployment["user"]
             ]
@@ -438,7 +447,9 @@ class DesktopDomainHandler:
         )
 
         if old_val.tag:
-            deployment = DeploymentsProcessed.get_deployment(old_val.tag)
+            deployment = DeploymentsProcessed.get_deployment_or_none(old_val.tag)
+            if deployment is None:
+                return
             deployment_owners = (deployment.get("co_owners") or []) + [
                 deployment["user"]
             ]
