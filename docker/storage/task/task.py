@@ -236,6 +236,20 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     # refactor from ``run()`` to Popen + ``run_with_progress``.
     if not isdir(dirname(storage_path)):
         makedirs(dirname(storage_path), exist_ok=True)
+    # Idempotency: if the destination disk already exists, treat the
+    # task as already done and return success. ``qemu-img create``
+    # would otherwise fail with ``File exists`` on the second run, and
+    # engine-restart recovery / manual re-trigger flows rely on being
+    # able to re-enqueue the create chain safely. The downstream
+    # ``qemu_img_info_backing_chain`` step still validates the file is
+    # a valid qcow2 with the expected backing chain; corrupted /
+    # mismatched files surface there as a clean Failed.
+    if isfile(storage_path):
+        log.info(
+            "task.create: %s already exists, skipping qemu-img create (idempotent)",
+            storage_path,
+        )
+        return 0
     backing_file = []
     if parent_path and parent_type:
         backing_file = ["-b", parent_path, "-F", parent_type]

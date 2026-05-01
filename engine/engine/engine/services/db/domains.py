@@ -155,24 +155,29 @@ def fail_incomplete_creating_domains(
         .run(r_conn)
     )
 
-    # Phase 2 — task-conditional sweep. Look up each candidate's
-    # storage row and ask the Task model whether the chain is still in
-    # flight. Only mark the desktop Failed if the storage's RQ task
-    # exists and is in a terminal non-success state (FAILED, CANCELED,
-    # STOPPED) OR if the task is missing entirely. Tasks still QUEUED /
-    # SCHEDULED / DEFERRED / STARTED are left alone so a slow worker
-    # recovery doesn't double-mark a desktop.
+    # Phase 2 — task-conditional sweep for ``CreatingDisk`` /
+    # ``CreatingTemplate``. Defer the actual classification to the
+    # storage ``find`` chain (``find → storage_update_pool →
+    # storage_domains_force_update``) which already does the right
+    # thing: when the disk file exists on the host the storage flips
+    # to ``ready`` and the linked domain converges to ``Stopped``;
+    # when the file is gone the storage flips to ``deleted`` /
+    # ``failed`` and the domain converges to ``Failed``. So we just
+    # need to (1) skip stuck domains whose original chain is still in
+    # flight, (2) re-enqueue ``find`` for the rest, (3) fall back to
+    # marking the domain ``Failed`` only when there is no storage row
+    # to find or the find re-enqueue itself raises.
     candidates = list(
         rtable.get_all(r.args(status_to_failed_if_no_task), index="status")
         .filter({"kind": kind})
-        .pluck("id", "status", "create_dict")
+        .pluck("id", "status", "create_dict", "user")
         .run(r_conn)
     )
     if candidates:
-        # Lazy import — engine boot has Task model on the path but this
-        # function is also called by ``clean_intermediate_status`` from
-        # the pool-hypervisors path where the import would otherwise
-        # fan out earlier than needed.
+        # Lazy import — engine boot has these on the path but this
+        # function is also called from the pool-hypervisors path where
+        # the imports would otherwise fan out earlier than needed.
+        from isardvdi_common.models.storage import Storage
         from isardvdi_common.models.task import Task
 
         storage_by_domain = {}
@@ -201,12 +206,12 @@ def fail_incomplete_creating_domains(
         )
 
         domain_ids_to_fail = []
-        storage_ids_to_release = []
         for domain in candidates:
             sid = storage_by_domain[domain["id"]]
             storage = storage_rows.get(sid) if sid else None
 
-            # No storage row → nothing left to wait for; mark Failed.
+            # No storage row → nothing the find chain could resolve;
+            # straight to Failed.
             if storage is None:
                 domain_ids_to_fail.append(domain["id"])
                 continue
@@ -218,26 +223,23 @@ def fail_incomplete_creating_domains(
                         # Chain is still in flight — leave alone.
                         continue
                 except Exception:
-                    # Task model raised; treat as terminal so we don't
-                    # leave the desktop hanging.
+                    # Task model raised; fall through and try to
+                    # re-enqueue find so the desktop doesn't hang.
                     pass
 
-            # Task is missing, terminal-failed, or unreadable → the
-            # chain will never finish on its own. Mark the desktop
-            # Failed and release the storage maintenance lock so a
-            # follow-up create / cleanup can proceed.
-            domain_ids_to_fail.append(domain["id"])
-            if sid and (storage or {}).get("status") == "maintenance":
-                storage_ids_to_release.append(sid)
+            # Task is missing, terminal-failed, or unreadable → kick
+            # off a fresh ``find`` chain and trust it to converge the
+            # storage + linked domains. ``blocking=False`` because the
+            # old task pointer is dead by definition.
+            try:
+                Storage(sid).find(user_id=domain.get("user"), blocking=False, retry=0)
+            except Exception:
+                domain_ids_to_fail.append(domain["id"])
 
         if domain_ids_to_fail:
             rtable.get_all(r.args(domain_ids_to_fail), index="id").update(
                 {"status": "Failed", "detail": detail}
             ).run(r_conn)
-        if storage_ids_to_release:
-            r.table("storage").get_all(
-                r.args(list(set(storage_ids_to_release))), index="id"
-            ).update({"status": "failed", "task": None}).run(r_conn)
 
     close_rethink_connection(r_conn)
     return results
