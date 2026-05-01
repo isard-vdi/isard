@@ -16,22 +16,27 @@ class TestGetViewersConfig:
     URL = "/admin/viewers-config"
 
     def test_admin_gets_config(self, monkeypatch, test_client):
-        sample = {
-            "file_spice": {"custom": "title=spice"},
-            "file_rdpgw": {"custom": "screen mode id:i:2"},
-        }
+        sample = [
+            {"key": "file_spice", "viewer": "SPICE", "custom": "title=spice"},
+            {"key": "file_rdpgw", "viewer": "RDP", "custom": "screen mode id:i:2"},
+        ]
         monkeypatch.setattr(
             "api.routes.admin.viewers_config.AdminViewersConfigService.get_viewers_config",
             staticmethod(lambda: sample),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
-        assert response.json()["file_spice"]["custom"] == "title=spice"
+        body = response.json()
+        assert isinstance(body, list)
+        assert {row["key"] for row in body} == {"file_spice", "file_rdpgw"}
+        assert next(r for r in body if r["key"] == "file_spice")["custom"] == (
+            "title=spice"
+        )
 
     def test_manager_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.viewers_config.AdminViewersConfigService.get_viewers_config",
-            staticmethod(lambda: {}),
+            staticmethod(lambda: []),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="manager"))
         assert response.status_code == 403
@@ -39,7 +44,7 @@ class TestGetViewersConfig:
     def test_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.viewers_config.AdminViewersConfigService.get_viewers_config",
-            staticmethod(lambda: {}),
+            staticmethod(lambda: []),
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="user"))
         assert response.status_code == 403

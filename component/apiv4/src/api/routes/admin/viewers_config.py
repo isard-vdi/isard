@@ -22,10 +22,7 @@ import traceback
 from typing import Literal
 
 from api import admin_router
-from api.schemas.admin.viewers_config import (
-    ViewerConfigUpdateRequest,
-    ViewersConfigResponse,
-)
+from api.schemas.admin.viewers_config import ViewerConfigUpdateRequest
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.viewers_config import AdminViewersConfigService
 from api.services.error import Error
@@ -43,15 +40,17 @@ tag = "admin-viewers-config"
 @admin_router.get(
     "/admin/viewers-config",
     tags=[tag],
-    response_model=ViewersConfigResponse,
+    response_model=list[dict],
     summary="Get viewers configuration",
-    description="Returns all viewers configurations.",
+    description="Returns all viewers configurations as a list — one entry"
+    " per viewer (``file_rdpgw``, ``file_rdpvpn``, ``file_spice``) with"
+    " ``key``, ``viewer``, ``custom``, ``default``, ``fixed`` fields."
+    " Webapp DataTables consumes the response root as the row array.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_viewers_config(request: Request) -> ViewersConfigResponse:
+async def admin_viewers_config(request: Request) -> list[dict]:
     try:
-        config = AdminViewersConfigService.get_viewers_config()
-        return ViewersConfigResponse(**(config or {}))
+        return AdminViewersConfigService.get_viewers_config() or []
     except Error:
         raise
     except Exception:

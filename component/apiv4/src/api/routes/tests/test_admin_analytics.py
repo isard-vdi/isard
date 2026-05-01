@@ -401,11 +401,16 @@ class TestEchart:
 
     def test_daily_items_dispatch(self, monkeypatch, test_client):
         called = {}
+        # ``get_daily_items`` returns the eChart contract — a dict
+        # ``{x, series}`` — distinct from the other views which return
+        # ``list[{value, name}]``. The dedicated route preserves it.
         monkeypatch.setattr(
             "api.routes.admin.analytics.AdminAnalyticsService.get_daily_items",
             staticmethod(
-                lambda table, date_field: called.update(table=table, df=date_field)
-                or []
+                lambda table, date_field: (
+                    called.update(table=table, df=date_field)
+                    or {"x": ["2026-05-01T00:00:00"], "series": {date_field: [3]}}
+                )
             ),
         )
         response = test_client(
@@ -415,6 +420,9 @@ class TestEchart:
             body={"table": "users", "date_field": "created"},
         )
         assert response.status_code == 200
+        body = response.json()
+        assert body["x"] == ["2026-05-01T00:00:00"]
+        assert body["series"] == {"created": [3]}
         assert called == {"table": "users", "df": "created"}
 
     def test_grouped_items_dispatch(self, monkeypatch, test_client):

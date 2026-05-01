@@ -106,3 +106,15 @@ class EchartRequest(BaseModel):
     nested_array_field: Optional[str] = Field(
         default=None, description="Nested array field name"
     )
+
+
+class EchartDailyItemsResponse(BaseModel):
+    """Response shape for ``POST /admin/echart/daily_items``.
+
+    The service returns ``{x: [iso-dates], series: {<date_field>: [counts]}}``
+    matching the eChart contract — a single dict, not a list. The
+    other ``echart`` views return ``list[{value, name}]``; this is
+    why daily_items has its own route + response model."""
+
+    x: list[str] = Field(default_factory=list)
+    series: dict[str, list[int]] = Field(default_factory=dict)

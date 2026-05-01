@@ -27,15 +27,3 @@ class ViewerConfigUpdateRequest(BaseModel):
     """Request to update a viewer custom configuration"""
 
     custom: Optional[str] = None
-
-
-class ViewersConfigResponse(BaseModel):
-    """Response shape for ``GET /admin/viewers-config``.
-
-    The service returns a dict keyed by viewer name (file_rdpgw,
-    file_rdpvpn, file_spice) where each value is the persisted custom
-    template plus the default. Permissive because the per-viewer
-    fields differ.
-    """
-
-    model_config = {"extra": "allow"}

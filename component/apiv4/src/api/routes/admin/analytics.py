@@ -28,6 +28,7 @@ from api.schemas.admin.analytics import (
     AnalyticsGraphUpdateRequest,
     AnalyticsSuggestedRemovalsRequest,
     DesktopAnalyticsRequest,
+    EchartDailyItemsResponse,
     EchartRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
@@ -375,11 +376,40 @@ async def analytics_desktops_most_used(
 
 
 @admin_router.post(
+    "/admin/echart/daily_items",
+    tags=[tag],
+    response_model=EchartDailyItemsResponse,
+    summary="Get echart daily-items data",
+    description="Returns ``{x, series}`` bucketed by ``(year, month, day)``"
+    " of ``table[date_field]``. Distinct from the other echart views which"
+    " return ``list[{value, name}]``.",
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_echart_daily_items(
+    request: Request,
+    data: EchartRequest,
+) -> EchartDailyItemsResponse:
+    try:
+        result = AdminAnalyticsService.get_daily_items(data.table, data.date_field)
+        return EchartDailyItemsResponse(**(result or {}))
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get echart daily-items data",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.post(
     "/admin/echart/{view}",
     tags=[tag],
     response_model=list[dict],
     summary="Get echart data",
-    description="Returns chart data for the specified view type.",
+    description="Returns chart data for the specified view type."
+    " For ``daily_items`` see ``/admin/echart/daily_items``.",
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -388,7 +418,6 @@ async def analytics_desktops_most_used(
 async def admin_echart(
     request: Request,
     view: Literal[
-        "daily_items",
         "grouped_items",
         "grouped_unique_items",
         "nested_array_grouped_items",
@@ -396,9 +425,7 @@ async def admin_echart(
     data: EchartRequest,
 ) -> list[dict]:
     try:
-        if view == "daily_items":
-            result = AdminAnalyticsService.get_daily_items(data.table, data.date_field)
-        elif view == "grouped_items":
+        if view == "grouped_items":
             result = AdminAnalyticsService.get_grouped_data(
                 data.table, data.group_field
             )

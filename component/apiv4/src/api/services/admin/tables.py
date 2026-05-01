@@ -20,6 +20,7 @@
 
 from html_sanitizer import Sanitizer
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.lib.api_admin_table_defaults import apply_table_defaults
 
 _html_sanitizer = Sanitizer()
 _SANITIZE_TABLES = ("domains", "notification_tmpls", "config", "users")
@@ -127,8 +128,12 @@ class AdminTablesService:
         Checks for duplicate names in tables that require it.
         """
         _sanitize_table_data(table, data)
-        if "id" not in data:
-            raise Error("bad_request", "Missing 'id' field in request body")
+        # Apply apiv3-equivalent ``default_setter`` matrix (genuuid /
+        # gensecret / mediaicon / storagepools). apiv3 ran these via
+        # Cerberus' ``.normalized(data)`` before insert — the apiv4
+        # port lost that pipeline, which is why every webapp ``Add``
+        # modal 400'd with "Missing 'id' field in request body".
+        apply_table_defaults(table, data)
         if table in DUPLICATE_CHECK_TABLES:
             if "name" not in data:
                 raise Error("bad_request", "Missing 'name' field in request body")
