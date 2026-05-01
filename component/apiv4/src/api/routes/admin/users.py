@@ -432,17 +432,18 @@ async def admin_search_users(request: Request, data: AdminUserSearchData) -> lis
         500: {"model": ErrorResponse},
     },
 )
-async def admin_validate_csv_users(request: Request) -> dict:
+async def admin_validate_csv_users(request: Request, user_list: list[dict]) -> dict:
+    # Body is a raw JSON array — webapp sends ``JSON.stringify(csv_data.users)``
+    # at ``static/admin/js/users_management.js`` line 1635. Declaring it as
+    # a typed parameter (instead of ``await request.json()``) makes the OAS
+    # spec carry a request body, which the generated client needs to expose
+    # the body argument to its caller.
     try:
-        try:
-            user_list = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
         result = AdminUsersService.validate_csv_users(request.token_payload, user_list)
         return result if isinstance(result, dict) else {}
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",
@@ -462,19 +463,18 @@ async def admin_validate_csv_users(request: Request) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_validate_csv_users_edit(request: Request) -> list[dict]:
+async def admin_validate_csv_users_edit(
+    request: Request, user_list: list[dict]
+) -> list[dict]:
+    # Same raw-array body as the POST sibling above.
     try:
-        try:
-            user_list = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
         result = AdminUsersService.validate_csv_users_edit(
             request.token_payload, user_list
         )
         return result or []
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",
@@ -494,20 +494,20 @@ async def admin_validate_csv_users_edit(request: Request) -> list[dict]:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_import_csv_users(request: Request) -> dict:
+async def admin_import_csv_users(request: Request, data: AdminCSVUserEditData) -> dict:
+    # Body shape matches ``AdminCSVUserEditData`` (``{"users": [...]}``);
+    # reuse the existing schema so the OAS spec advertises a request body.
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
-        result = AdminUsersService.import_csv_users(request.token_payload, data)
+        result = AdminUsersService.import_csv_users(
+            request.token_payload, data.model_dump()
+        )
         return {
             "created": len(result.get("users", [])),
             "errors": result.get("errors", []),
         }
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",

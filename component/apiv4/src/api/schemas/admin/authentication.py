@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -132,4 +133,8 @@ class MigrationException(BaseModel):
     id: Optional[str] = None
     item_type: Optional[str] = None
     item_ids: Optional[List[str]] = None
-    created_at: Optional[str] = None
+    # Stored as a rethinkdb timestamp; FastAPI's jsonable_encoder
+    # serialises ``datetime`` to ISO 8601. Typing this as ``str``
+    # crashes ``MigrationException(**row)`` with
+    # ``ValidationError: Input should be a valid string``.
+    created_at: Optional[datetime] = None

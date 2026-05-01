@@ -66,14 +66,22 @@ class TestGeneralStats:
 
 class TestStatusEndpoints:
     def test_desktops_status(self, monkeypatch, test_client):
+        # Service returns the single ``{"total": int, "status": {...}}``
+        # dict the webapp consumer expects (see
+        # ``static/admin/js/desktops_status.js`` reading ``data.total`` /
+        # ``data.status``). Iterating that dict like a list of rows used
+        # to 500 the route with ``StatsGenericResponse(**"total")``.
         monkeypatch.setattr(
             "api.routes.admin.stats.AdminStatsService.get_desktops_stats",
-            staticmethod(lambda: [{"status": "Started", "count": 3}]),
+            staticmethod(lambda: {"total": 3, "status": {"Started": 3}}),
         )
         response = test_client(
             url="/stats/desktops/status", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 3
+        assert body["status"] == {"Started": 3}
 
     def test_domains_status(self, monkeypatch, test_client):
         monkeypatch.setattr(

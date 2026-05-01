@@ -85,13 +85,19 @@ async def stats_general(request: Request) -> StatsGenericResponse:
     tags=[tag],
     summary="Get desktop status statistics",
     description="Returns desktop statistics grouped by status.",
-    response_model=list[StatsGenericResponse],
+    response_model=StatsGenericResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_desktops_status(request: Request) -> list[StatsGenericResponse]:
+async def stats_desktops_status(request: Request) -> StatsGenericResponse:
     try:
+        # Service returns a single ``{"total": int, "status": {<status>: int}}``
+        # dict, NOT a list of rows. The webapp consumer in
+        # ``static/admin/js/desktops_status.js`` reads ``data.total`` and
+        # ``data.status`` directly. Iterating ``for row in result`` looped
+        # over the dict's keys (``"total"``, ``"status"``) and called
+        # ``StatsGenericResponse(**"total")`` → 500.
         result = AdminStatsService.get_desktops_stats()
-        return [StatsGenericResponse(**row) for row in (result or [])]
+        return StatsGenericResponse(**(result or {}))
     except Error:
         raise
     except Exception:
