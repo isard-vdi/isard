@@ -40,10 +40,6 @@ class ErrorResponse(BaseModel):
     params: Optional[Dict[str, Any]]
 
 
-class UnauthorizedError(BaseModel):
-    detail: str
-
-
 # Generic type variable
 T = TypeVar("T")
 

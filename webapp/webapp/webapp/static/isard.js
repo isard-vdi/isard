@@ -471,11 +471,16 @@ function setupProviderFieldDependencies ($container, namePrefix, config) {
   var mutualRequired = config.mutualRequired || [];
   var externalRequired = config.externalRequired || {};
 
-  function setRequired ($field, required) {
+  function setRequired ($field, required, silent) {
     var parsleyField = $field.parsley();
     if (required) {
       $field.attr('required', 'required');
-      if (parsleyField) parsleyField.validate();
+      // Skip immediate ``validate()`` on initial-state setup so the
+      // page doesn't display "This value is required" before the user
+      // has interacted with the form. Live event handlers (input /
+      // checkbox change) leave ``silent`` falsy so validation still
+      // fires on real edits.
+      if (parsleyField && !silent) parsleyField.validate();
     } else {
       $field.removeAttr('required');
       if (parsleyField) parsleyField.reset();
@@ -491,15 +496,15 @@ function setupProviderFieldDependencies ($container, namePrefix, config) {
     return getField(name).closest('.item.form-group');
   }
 
-  function updateRegexVisibility (fieldName) {
+  function updateRegexVisibility (fieldName, silent) {
     var regexName = fieldName.replace('field', 'regex');
     var fieldVisible = getField(fieldName).attr('data-parsley-excluded') !== 'true';
     var hasField = fieldVisible && !!getField(fieldName).val();
     toggleFormSection(getFieldSection(regexName), hasField);
-    setRequired(getField(regexName), hasField);
+    setRequired(getField(regexName), hasField, silent);
   }
 
-  function updateFieldVisibility (fieldName) {
+  function updateFieldVisibility (fieldName, silent) {
     var condition = fieldVisibility[fieldName];
     if (!condition) return;
     var visible = getField(condition.checkbox).is(':checked');
@@ -507,30 +512,30 @@ function setupProviderFieldDependencies ($container, namePrefix, config) {
       visible = visible && !getField(condition.empty).val();
     }
     toggleFormSection(getFieldSection(fieldName), visible);
-    setRequired(getField(fieldName), visible && !condition.optional);
+    setRequired(getField(fieldName), visible && !condition.optional, silent);
     if (fieldsWithRegex.indexOf(fieldName) !== -1) {
-      updateRegexVisibility(fieldName);
+      updateRegexVisibility(fieldName, silent);
     }
   }
 
-  function updateExternalRequired (fieldName) {
+  function updateExternalRequired (fieldName, silent) {
     var $checkbox = externalRequired[fieldName];
     var $field = getField(fieldName);
     var required = $checkbox.is(':checked');
-    setRequired($field, required);
+    setRequired($field, required, silent);
     $field.attr('data-parsley-excluded', !required && !$field.val());
     if (fieldsWithRegex.indexOf(fieldName) !== -1) {
-      updateRegexVisibility(fieldName);
+      updateRegexVisibility(fieldName, silent);
     }
   }
 
-  function updateMutualRequired (pair) {
+  function updateMutualRequired (pair, silent) {
     var $a = getField(pair[0]);
     var $b = getField(pair[1]);
     var aVal = $a.val();
     var bVal = $b.val();
-    setRequired($a, !bVal);
-    setRequired($b, !aVal);
+    setRequired($a, !bVal, silent);
+    setRequired($b, !aVal, silent);
   }
 
   // Mutual required pairs
@@ -592,18 +597,21 @@ function setupProviderFieldDependencies ($container, namePrefix, config) {
     });
   });
 
-  // Set initial state
+  // Set initial state — silent=true so view-load doesn't surface
+  // "This value is required" before any user interaction (e.g. SAML
+  // enabled but ``metadata_url``/``metadata_file`` both empty triggers
+  // the mutual-required pair).
   $.each(mutualRequired, function (_, pair) {
-    updateMutualRequired(pair);
+    updateMutualRequired(pair, true);
   });
   $.each(fieldsWithRegex, function (_, fieldName) {
-    updateRegexVisibility(fieldName);
+    updateRegexVisibility(fieldName, true);
   });
   $.each(fieldVisibility, function (fieldName) {
-    updateFieldVisibility(fieldName);
+    updateFieldVisibility(fieldName, true);
   });
   $.each(externalRequired, function (fieldName) {
-    updateExternalRequired(fieldName);
+    updateExternalRequired(fieldName, true);
   });
 }
 

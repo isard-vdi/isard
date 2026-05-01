@@ -47,7 +47,7 @@ from isardvdi_common.helpers.maintenance import Maintenance
 from isardvdi_common.helpers.recycle_bin import RecycleBinDeleteQueue
 from pydantic import ValidationError
 
-from .schemas.common import UnauthorizedError
+from .schemas.common import ErrorResponse
 
 
 def _sync_haproxy_maps():
@@ -208,66 +208,66 @@ token_router = APIRouter(
     tags=["role_user", "role_advanced", "role_manager", "role_admin"],
     prefix="/api/v4",
     dependencies=[Depends(has_token)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 advanced_router = APIRouter(
     tags=["role_advanced", "role_manager", "role_admin"],
     prefix="/api/v4",
     dependencies=[Depends(is_not_user)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 manager_router = APIRouter(
     tags=["role_manager", "role_admin"],
     prefix="/api/v4",
     dependencies=[Depends(is_admin_or_manager)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 admin_router = APIRouter(
     tags=["role_admin"],
     prefix="/api/v4",
     dependencies=[Depends(is_admin)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 maintenance_router = APIRouter(
     tags=["maintenance"],
     prefix="/api/v4",
     dependencies=[Depends(has_token_maintenance)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 
 register_router = APIRouter(
     tags=["register"],
     prefix="/api/v4",
     dependencies=[Depends(has_token_register)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 
 password_reset_router = APIRouter(
     tags=["password_reset"],
     prefix="/api/v4",
     dependencies=[Depends(has_token_password_reset_login)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 
 disclaimer_router = APIRouter(
     tags=["disclaimer"],
     prefix="/api/v4",
     dependencies=[Depends(has_token_disclaimer)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 
 direct_viewer_router = APIRouter(
     tags=["direct_viewer"],
     prefix="/api/v4",
     dependencies=[Depends(has_token_direct_viewer)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 
 migration_router = APIRouter(
     tags=["migration"],
     prefix="/api/v4",
     dependencies=[Depends(has_migration_required_or_login_token)],
-    responses={401: {"model": UnauthorizedError}},
+    responses={401: {"model": ErrorResponse}},
 )
 
 from .routes import (
