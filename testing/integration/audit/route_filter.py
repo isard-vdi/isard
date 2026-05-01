@@ -83,13 +83,11 @@ SKIPPED_GLOBAL_STATE: set[tuple[str, str]] = {
 }
 
 # Endpoints that block the apiv4 event loop when exercised with a
-# stub id. nextcloud's `start_login_auth` spawns a gevent greenlet
-# that polls a remote server for 5 min; the greenlet starves the
-# asyncio worker so every subsequent request hangs. Skipped until
-# the gevent/asyncio mixing is fixed at source.
-SKIPPED_BLOCKING: set[tuple[str, str]] = {
-    ("GET", "/api/v4/admin/user_storage/{provider_id}/login_auth"),
-}
+# stub id. Empty since the Nextcloud ``start_login_auth`` flow was
+# migrated from ``gevent.spawn`` to a daemon ``threading.Thread`` —
+# the polling no longer starves the asyncio worker. See
+# APIV4_THREADING_INCIDENT_ANALYSIS.md §7 Week 2.
+SKIPPED_BLOCKING: set[tuple[str, str]] = set()
 
 # Specialty routers that need their own auth flows — out of scope for v1.
 SKIPPED_PATH_PREFIXES: tuple[str, ...] = (

@@ -20,6 +20,7 @@
 
 import traceback
 
+from fastapi import BackgroundTasks
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.api_admin import ApiAdmin
@@ -217,15 +218,24 @@ class AdminAllowedsService:
         return kind
 
     @staticmethod
-    def update_allowed(table: str, data: dict, payload: dict) -> dict:
+    def update_allowed(
+        table: str,
+        data: dict,
+        payload: dict,
+        background_tasks: BackgroundTasks,
+    ) -> dict:
         """
         Update the allowed access permissions for a table item.
         Handles special bastion table cases and resource unassignment.
         """
         if table == "bastion":
-            AdminAllowedsService._update_bastion_allowed(data, payload)
+            AdminAllowedsService._update_bastion_allowed(
+                data, payload, background_tasks
+            )
         elif table == "bastion_domains":
-            AdminAllowedsService._update_bastion_domains_allowed(data, payload)
+            AdminAllowedsService._update_bastion_domains_allowed(
+                data, payload, background_tasks
+            )
         else:
             Alloweds.update_item_allowed_dict(table, data["id"], data["allowed"])
 
@@ -235,7 +245,9 @@ class AdminAllowedsService:
         return {}
 
     @staticmethod
-    def _update_bastion_allowed(data: dict, payload: dict) -> None:
+    def _update_bastion_allowed(
+        data: dict, payload: dict, background_tasks: BackgroundTasks
+    ) -> None:
         """Update bastion allowed permissions (admin only)."""
         if payload["role_id"] != "admin":
             raise Error(
@@ -244,10 +256,16 @@ class AdminAllowedsService:
                 traceback.format_exc(),
             )
         Alloweds.update_bastion_alloweds(data["allowed"])
-        Alloweds.remove_disallowed_bastion_targets_th()
+        # Schedule the disallowed-targets cleanup after the response.
+        # Replaces the prior ``Alloweds.remove_disallowed_bastion_targets_th``
+        # which fired ``gevent.spawn`` and silently never ran inside the
+        # asyncio worker.
+        background_tasks.add_task(Alloweds.remove_disallowed_bastion_targets)
 
     @staticmethod
-    def _update_bastion_domains_allowed(data: dict, payload: dict) -> None:
+    def _update_bastion_domains_allowed(
+        data: dict, payload: dict, background_tasks: BackgroundTasks
+    ) -> None:
         """Update bastion domain allowed permissions (admin only)."""
         if payload["role_id"] != "admin":
             raise Error(
@@ -256,7 +274,7 @@ class AdminAllowedsService:
                 traceback.format_exc(),
             )
         Alloweds.update_bastion_target_domains_alloweds(data["allowed"])
-        Alloweds.remove_disallowed_bastion_target_domains_th()
+        background_tasks.add_task(Alloweds.remove_disallowed_bastion_target_domains)
 
     @staticmethod
     def _handle_resource_unassignment(table: str, data: dict, payload: dict) -> None:

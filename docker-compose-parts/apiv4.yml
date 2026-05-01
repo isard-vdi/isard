@@ -2,6 +2,15 @@ services:
   isard-apiv4:
     container_name: isard-apiv4
     image: ${DOCKER_IMAGE_PREFIX}apiv4:${DOCKER_IMAGE_TAG:-latest}
+    # SIGSEGV in gevent/libev/corecext under concurrent k6+e2e load
+    # took the container down for 43 min on 2026-05-01 (no auto-restart
+    # because the previous policy was "no"). See
+    # /opt/load-testing/APIV4_THREADING_INCIDENT_ANALYSIS.md for the
+    # full root-cause + remediation roadmap. unless-stopped restarts
+    # the container on any non-zero exit (including SIGSEGV signal-11)
+    # but respects an explicit `docker stop`, which is what the
+    # team's deploy pipeline issues.
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:

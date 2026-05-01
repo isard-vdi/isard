@@ -136,11 +136,189 @@ def test_admin_update_user(monkeypatch, test_client):
     assert "ids" not in captured["data"]
 
 
-# NOTE: DELETE /admin/user takes a body (AdminUserDeleteData) but
-# starlette's TestClient.delete() doesn't accept a ``json`` kwarg.
-# The route is functional; a test would require calling
-# ``client.request("DELETE", ..., json=...)`` directly, which is
-# out of scope for the simple ``test_client`` fixture. Skipped.
+# DELETE /admin/user takes a body (AdminUserDeleteData). The
+# ``test_client`` fixture forwards the body via ``client.request("DELETE",
+# ..., json=...)`` so it works fine; the previous skip note was
+# stale.
+
+
+def test_admin_delete_users_runs_bulk_deletion_after_response(monkeypatch, test_client):
+    """Pins the SIGSEGV remediation for ``services/admin/users.py:331``.
+
+    The previous implementation fired ``gevent.spawn(process_bulk_delete)``
+    inside an ``async def`` route — the spawned greenlet was queued on
+    a libev Hub that the asyncio worker never drives, so the bulk
+    deletion silently never ran (and could trigger a libev UAF SIGSEGV
+    under concurrent load). The fix routes the work through
+    ``BackgroundTasks``; FastAPI's test client runs the task after the
+    response is flushed, so the inner ``CommonUsers.delete_user`` MUST
+    have been called by the time ``response = test_client(...)``
+    returns.
+
+    Asserting that ``delete_user`` was called proves the asyncio path
+    actually executed the work — the test would fail on the prior
+    ``gevent.spawn`` implementation because the greenlet's queued
+    callback never fires inside the asyncio TestClient.
+    """
+    jwt = MockJWT()
+
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_user_id",
+        staticmethod(lambda payload, user_id: True),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.CommonUsers.get_user",
+        staticmethod(
+            lambda user_id: {
+                "id": user_id,
+                "username": user_id,
+                "group": "default-other",
+                "category": "default",
+            }
+        ),
+    )
+    deleted_args = []
+    monkeypatch.setattr(
+        "api.services.admin.users.CommonUsers.delete_user",
+        staticmethod(
+            lambda user_id, agent_id, delete_user: deleted_args.append(
+                (user_id, agent_id, delete_user)
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "isardvdi_common.connections.api_sessions.revoke_user_session",
+        lambda user_id: None,
+    )
+    # ``revoke_user_session`` is imported into the service module; the
+    # module-local binding must also be patched.
+    monkeypatch.setattr(
+        "api.services.admin.users.revoke_user_session",
+        lambda user_id: None,
+    )
+    monkeypatch.setattr(
+        "api.routes.users.clear_users_list_cache",
+        lambda: None,
+    )
+
+    response = test_client(
+        url="/admin/user",
+        method="DELETE",
+        body={"user": ["user-a", "user-b"], "delete_user": True},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    # The BackgroundTasks-scheduled work must have run by the time the
+    # TestClient returns. Prior gevent.spawn implementation would leave
+    # this list empty.
+    assert deleted_args == [
+        ("user-a", "local-default-admin-admin", True),
+        ("user-b", "local-default-admin-admin", True),
+    ]
+
+
+def test_admin_update_users_bulk_runs_after_response(monkeypatch, test_client):
+    """Pins the SIGSEGV remediation for ``_common/lib/users/users/user.py:1164``.
+
+    Previously ``CommonUsers.update_multiple_users_th`` fired
+    ``gevent.spawn(cls.update_multiple_users, …)``; under apiv4's
+    asyncio worker the spawned greenlet never ran and the bulk update
+    silently no-op'd. The fix removes the ``_th`` wrapper from
+    ``_common`` and the apiv4 service schedules the call via
+    ``BackgroundTasks``. The inner ``update_multiple_users`` MUST
+    have been called by the time the TestClient returns.
+    """
+    jwt = MockJWT()
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_user_id",
+        staticmethod(lambda payload, user_id: True),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_category_id",
+        staticmethod(lambda payload, category_id: True),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.Caches.get_document",
+        staticmethod(lambda table, item_id: {"id": item_id, "category": "default"}),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.CommonMigrations.enable_users_check",
+        staticmethod(lambda active, payload, user=None: None),
+    )
+    update_calls = []
+    monkeypatch.setattr(
+        "api.services.admin.users.CommonUsers.update_multiple_users",
+        classmethod(
+            lambda cls, user_ids, data, batch_id=None, payload=None: update_calls.append(
+                (tuple(user_ids), data.get("active"))
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routes.users.clear_users_list_cache",
+        lambda: None,
+    )
+
+    response = test_client(
+        url="/admin/users/bulk",
+        method="PUT",
+        body={"ids": ["user-a", "user-b"], "active": False},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    assert update_calls == [(("user-a", "user-b"), False)]
+
+
+def test_admin_migrate_user_runs_migration_after_response(monkeypatch, test_client):
+    """Pins the SIGSEGV remediation for ``services/admin/users.py:1159``.
+
+    Same shape as the bulk-delete test: the prior code fired
+    ``gevent.spawn(migrate_and_invalidate)`` and the migration silently
+    didn't happen under asyncio. The fix uses ``BackgroundTasks`` —
+    the inner ``CommonMigrations.process_migrate_user`` must run by the
+    time the TestClient returns.
+    """
+    jwt = MockJWT()
+
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_user_id",
+        staticmethod(lambda payload, user_id: True),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.CommonMigrations.check_valid_migration",
+        staticmethod(lambda user_id, target_user_id: []),
+    )
+    migrated_args = []
+    monkeypatch.setattr(
+        "api.services.admin.users.CommonMigrations.process_migrate_user",
+        staticmethod(
+            lambda user_id, target_user_id: migrated_args.append(
+                (user_id, target_user_id)
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routes.users.clear_users_list_cache",
+        lambda: None,
+    )
+    # ``clear_templates_cache`` is imported into admin/users at module
+    # load; the module-local binding must also be patched so the
+    # background task doesn't hit a real cache from another test.
+    monkeypatch.setattr(
+        "api.services.admin.users.clear_templates_cache",
+        lambda: None,
+    )
+
+    response = test_client(
+        url="/admin/user/migrate/user-src/user-dst",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    assert migrated_args == [("user-src", "user-dst")]
 
 
 def test_admin_user_logout(monkeypatch, test_client):

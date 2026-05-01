@@ -25,7 +25,6 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from os import getenv
 
-import gevent
 import jwt
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
@@ -1158,16 +1157,12 @@ class UsersProcessed(RethinkSharedConnection):
                         }
                     ).run(cls._rdb_connection)
 
-    @classmethod
-    def update_multiple_users_th(cls, user_ids, data, payload):
-        """_From api/libv2/api_users.py ApiUsers.update_multiple_users_th()_"""
-        gevent.spawn(
-            cls.update_multiple_users,
-            user_ids,
-            data,
-            str(uuid.uuid4()),
-            payload,
-        )
+    # ``update_multiple_users_th`` was a fire-and-forget gevent.spawn
+    # wrapper around ``update_multiple_users``. Under apiv4's asyncio
+    # worker the spawned greenlet sat on a libev Hub the loop never
+    # drives, so the bulk update silently never ran. Apiv4 callers now
+    # schedule ``update_multiple_users`` directly via FastAPI's
+    # ``BackgroundTasks``. See APIV4_THREADING_INCIDENT_ANALYSIS.md §5.1.
 
     @classmethod
     def update_multiple_users(cls, user_ids, data, batch_id=None, payload=None):

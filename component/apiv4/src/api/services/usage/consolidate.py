@@ -27,11 +27,12 @@ log = logging.getLogger("apiv4")
 
 import hashlib
 import os
+import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from math import ceil
 from time import time
 
-import gevent
 import pytz
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.usage.consolidate import ConsolidateProcessed
@@ -101,7 +102,7 @@ class ConsolidateConsumption:
                     self.consolidating.remove(self.name)
                 return
             log.info(
-                "--> Got %s %s consumptions for date %s. Starting %s gevent threads with %s items per thread"
+                "--> Got %s %s consumptions for date %s. Starting %s worker threads with %s items per thread"
                 % (
                     len(self.Usage.day_data),
                     self.name,
@@ -221,17 +222,35 @@ class ConsolidateConsumption:
             for i in range(0, len(data_batch), self.batch_size)
         ]
 
-        # Process each batch in a separate thread
+        # Process each batch in a worker thread. Originally this used
+        # ``gevent.spawn`` + ``gevent.joinall``; under apiv4's asyncio
+        # worker the join blocked the loop on libev's ``ev_run`` and
+        # was a UAF risk per APIV4_THREADING_INCIDENT_ANALYSIS.md
+        # §3 Tier-D / §5.7 Pattern C. ThreadPoolExecutor keeps the
+        # parallelism without the gevent dependency.
         log.info(
-            "--> Adding %s %s jobs to gevent thread pool, processing data.."
+            "--> Adding %s %s jobs to thread pool, processing data.."
             % (consumer, len(batches))
         )
         data = []
-        jobs = []
-        for batch in batches:
-            jobs.append(gevent.spawn(self.update_items_consumption, batch, consumer))
-        gevent.joinall(jobs)
-        batches_processed = [job.value for job in jobs]
+        if not batches:
+            self.times["get_" + self.name + "_batches"] = time()
+            return
+        with ThreadPoolExecutor(max_workers=min(10, len(batches))) as pool:
+            futures = [
+                pool.submit(self.update_items_consumption, batch, consumer)
+                for batch in batches
+            ]
+            batches_processed = []
+            for future in futures:
+                try:
+                    batches_processed.append(future.result())
+                except Exception:
+                    log.error(
+                        "USAGE consolidate batch raised: %s",
+                        traceback.format_exc(),
+                    )
+                    batches_processed.append(None)
         for result in batches_processed:
             if result == None:
                 continue

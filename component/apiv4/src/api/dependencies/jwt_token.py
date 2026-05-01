@@ -19,6 +19,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
+import logging as log
 import os
 import traceback
 from typing import Literal, TypedDict
@@ -28,6 +30,7 @@ from fastapi import Depends, Path, Request, status
 from fastapi.security import HTTPBearer
 from isardvdi_common.connections import api_sessions
 from isardvdi_common.helpers.alloweds import Alloweds
+from isardvdi_common.helpers.api_logs_users import LogsUsers
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.maintenance import Maintenance
@@ -69,6 +72,42 @@ class TokenFastAPI(Token):
         """
 
         return {}
+
+    @classmethod
+    def log_user(cls, payload):
+        """apiv4 override of ``Token.log_user``.
+
+        The base implementation calls ``LogsUsers(payload)`` synchronously,
+        which opens a TCP connection to ``isard-db:28015`` on the asyncio
+        thread. Under the JWT-validation hot path that's a 10-50ms
+        blocker per authenticated request (up to 5s if rethinkdb is
+        unreachable — see ``conftest.py:_mock_log_user`` for prior art).
+
+        Schedule the write to run in a worker thread instead so it
+        doesn't pin the event loop. We hold a strong reference to the
+        Task in a module-level set to satisfy Python's
+        ``asyncio.create_task`` contract (the loop only weakly
+        references tasks; an unreferenced task may be GC'd before
+        completion). See APIV4_THREADING_INCIDENT_ANALYSIS.md §5.2.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # Not inside an event loop (e.g. service-layer caller from a
+            # sync context, or a unit test without a running loop). Fall
+            # through to the synchronous base path.
+            super().log_user(payload)
+            return
+
+        task = loop.create_task(asyncio.to_thread(LogsUsers, payload))
+        _LOG_USER_TASKS.add(task)
+        task.add_done_callback(_LOG_USER_TASKS.discard)
+
+
+# Strong references for `TokenFastAPI.log_user` background tasks. The
+# event loop only keeps weak references; an un-referenced task may be
+# GC'd before completion. See https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+_LOG_USER_TASKS: set[asyncio.Task] = set()
 
 
 class TokenPayload(TypedDict):

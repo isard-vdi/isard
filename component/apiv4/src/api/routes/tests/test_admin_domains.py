@@ -196,3 +196,166 @@ def test_admin_domains_save_as_virt_install(monkeypatch, test_client):
         "name": "My new VI template",
         "section_count": 1,
     }
+
+
+# ─── Async log-deletion BackgroundTasks remediation ─────────────────────
+
+
+def _stub_log_delete_dependencies(monkeypatch):
+    """Common monkeypatches for the log-delete BackgroundTasks tests.
+
+    Returns a dict capturing what the inner task processed so each test
+    can assert on it.
+    """
+    captured = {"deleted": [], "notifications": []}
+
+    def fake_get_old(*args):
+        # Mirrors ApiAdmin.get_older_than_old_entry_max_time(table[, max])
+        return [{"id": f"log-{args[0]}-1"}, {"id": f"log-{args[0]}-2"}]
+
+    def fake_delete_batch(table, rows):
+        captured["deleted"].append((table, [r["id"] for r in rows]))
+
+    def fake_notify(event, payload):
+        captured["notifications"].append((event, payload))
+
+    monkeypatch.setattr(
+        "api.services.admin.domains.ApiAdmin.get_older_than_old_entry_max_time",
+        staticmethod(fake_get_old),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.domains.LogsProcessed.delete_batch",
+        staticmethod(fake_delete_batch),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.domains.notify_admins",
+        fake_notify,
+    )
+    return captured
+
+
+def test_admin_logs_desktops_delete_runs_batch_after_response(monkeypatch, test_client):
+    """Pins the SIGSEGV remediation for ``services/admin/domains.py:419``.
+
+    Previously this fired ``gevent.spawn(delete_old_logs_process)`` from
+    an ``async def`` route — the spawned greenlet was queued on a libev
+    Hub the asyncio worker never drives, so log deletion silently never
+    ran. The fix routes the work through ``BackgroundTasks``; FastAPI's
+    test client runs the task after the response is flushed, so
+    ``LogsProcessed.delete_batch`` MUST have been called by the time
+    ``response = test_client(...)`` returns.
+    """
+    jwt = MockJWT()
+    captured = _stub_log_delete_dependencies(monkeypatch)
+
+    response = test_client(
+        url="/logs_desktops/old_entries/delete",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == 2
+    # Background task must have run before the TestClient returned.
+    assert captured["deleted"] == [
+        ("logs_desktops", ["log-logs_desktops-1", "log-logs_desktops-2"])
+    ]
+    assert captured["notifications"] == [
+        ("logs_desktops_action", {"action": "delete_all", "status": "completed"})
+    ]
+
+
+def test_admin_logs_desktops_delete_all_runs_batch_after_response(
+    monkeypatch, test_client
+):
+    """Same pattern as ``test_admin_logs_desktops_delete_runs_batch_after_response``
+    but for the ``delete/all`` (max_time_arg=0) path.
+    """
+    jwt = MockJWT()
+    captured = _stub_log_delete_dependencies(monkeypatch)
+
+    response = test_client(
+        url="/logs_desktops/old_entries/delete/all",
+        method="DELETE",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured["deleted"] == [
+        ("logs_desktops", ["log-logs_desktops-1", "log-logs_desktops-2"])
+    ]
+
+
+def test_admin_logs_users_delete_runs_batch_after_response(monkeypatch, test_client):
+    """Same pattern, for the user-logs delete route."""
+    jwt = MockJWT()
+    captured = _stub_log_delete_dependencies(monkeypatch)
+
+    response = test_client(
+        url="/logs_users/old_entries/delete",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured["deleted"] == [
+        ("logs_users", ["log-logs_users-1", "log-logs_users-2"])
+    ]
+    assert captured["notifications"] == [
+        ("logs_users_action", {"action": "delete_all", "status": "completed"})
+    ]
+
+
+def test_admin_logs_users_delete_all_runs_batch_after_response(
+    monkeypatch, test_client
+):
+    """Same pattern, for the user-logs delete-all route."""
+    jwt = MockJWT()
+    captured = _stub_log_delete_dependencies(monkeypatch)
+
+    response = test_client(
+        url="/logs_users/old_entries/delete/all",
+        method="DELETE",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured["deleted"] == [
+        ("logs_users", ["log-logs_users-1", "log-logs_users-2"])
+    ]
+
+
+def test_admin_multiple_actions_runs_bulk_action_after_response(
+    monkeypatch, test_client
+):
+    """Pins the SIGSEGV remediation for ``_common/lib/api_admin.py:1138``.
+
+    Previously ``ApiAdmin.multiple_actions`` fired
+    ``gevent.spawn(process_bulk_action)``; under apiv4's asyncio worker
+    the spawned greenlet never ran, so the bulk action silently no-op'd.
+    The fix removes the gevent.spawn from ``_common`` (now synchronous)
+    and the apiv4 service schedules the call via ``BackgroundTasks``.
+    The inner ``DesktopEvents.desktops_toggle`` MUST have been called by
+    the time the TestClient returns.
+    """
+    jwt = MockJWT()
+    monkeypatch.setattr(
+        "api.services.admin.domains.AdminDomainsService.owns_domain_id",
+        staticmethod(lambda payload, domain_id: True),
+    )
+    toggle_args = []
+    monkeypatch.setattr(
+        "isardvdi_common.lib.api_admin.DesktopEvents.desktops_toggle",
+        staticmethod(lambda ids, force=False: toggle_args.append((tuple(ids), force))),
+    )
+
+    response = test_client(
+        url="/admin/multiple_actions",
+        method="POST",
+        body={"action": "toggle", "ids": ["d-1", "d-2"]},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    # toggle with force=True (action == "toggle") MUST have run by now.
+    assert toggle_args == [(("d-1", "d-2"), True)]

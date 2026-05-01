@@ -1,6 +1,5 @@
 import traceback
 
-import gevent
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -1099,43 +1098,49 @@ class ApiAdmin(RethinkSharedConnection):
 
     @classmethod
     def multiple_actions(cls, action, ids, agent_id):
-        """_From api/libv2/api_admin.py ApiAdmin.multiple_actions()_"""
+        """Synchronously dispatch a bulk admin action.
 
-        def process_bulk_action():
-            if action == "soft_toggle":
-                DesktopEvents.desktops_toggle(ids)
+        Originally fired ``gevent.spawn(process_bulk_action)`` so v3's
+        Flask+gevent stack returned 200 immediately. Under apiv4
+        (FastAPI on uvicorn/asyncio) the spawned greenlet sat on a
+        libev Hub the asyncio worker never drives, so the work
+        silently never ran (and risked a libev UAF SIGSEGV). Callers
+        are now expected to schedule this method via FastAPI's
+        ``BackgroundTasks`` (apiv4) or run it inline in a sync context.
+        See APIV4_THREADING_INCIDENT_ANALYSIS.md §5.1.
+        """
+        if action == "soft_toggle":
+            DesktopEvents.desktops_toggle(ids)
 
-            if action == "toggle":
-                DesktopEvents.desktops_toggle(ids, force=True)
+        if action == "toggle":
+            DesktopEvents.desktops_toggle(ids, force=True)
 
-            if action == "delete":
-                DesktopEvents.desktops_delete(agent_id, ids)
+        if action == "delete":
+            DesktopEvents.desktops_delete(agent_id, ids)
 
-            if action == "force_failed":
-                DesktopEvents.desktops_force_failed(ids)
+        if action == "force_failed":
+            DesktopEvents.desktops_force_failed(ids)
 
-            if action == "shutting_down":
-                DesktopEvents.desktops_stop(ids, force=False)
+        if action == "shutting_down":
+            DesktopEvents.desktops_stop(ids, force=False)
 
-            if action == "stopping":
-                DesktopEvents.desktops_stop(ids, force=True)
+        if action == "stopping":
+            DesktopEvents.desktops_stop(ids, force=True)
 
-            if action == "starting_paused":
-                DesktopEvents.desktops_start(ids, paused=True)
+        if action == "starting_paused":
+            DesktopEvents.desktops_start(ids, paused=True)
 
-            if action == "remove_forced_hyper":
-                DesktopEvents.remove_forced_hyper(ids)
+        if action == "remove_forced_hyper":
+            DesktopEvents.remove_forced_hyper(ids)
 
-            if action == "remove_favourite_hyper":
-                DesktopEvents.remove_favourite_hyper(ids)
+        if action == "remove_favourite_hyper":
+            DesktopEvents.remove_favourite_hyper(ids)
 
-            if action == "activate_autostart":
-                DesktopEvents.activate_autostart(ids)
+        if action == "activate_autostart":
+            DesktopEvents.activate_autostart(ids)
 
-            if action == "deactivate_autostart":
-                DesktopEvents.deactivate_autostart(ids)
-
-        gevent.spawn(process_bulk_action)
+        if action == "deactivate_autostart":
+            DesktopEvents.deactivate_autostart(ids)
 
     @classmethod
     def get_domains_field(cls, field, kind, payload):

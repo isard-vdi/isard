@@ -30,7 +30,7 @@ from api.schemas.admin.tables import (
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.alloweds import AdminAllowedsService
 from api.services.error import Error
-from fastapi import Path, Request
+from fastapi import BackgroundTasks, Path, Request
 from fastapi.responses import JSONResponse
 
 tag = "admin_alloweds"
@@ -96,6 +96,7 @@ async def alloweds_table_term(
 async def admin_allowed_update(
     request: Request,
     data: AllowedUpdateRequest,
+    background_tasks: BackgroundTasks,
     table: Literal[
         "domains",
         "roles",
@@ -108,7 +109,7 @@ async def admin_allowed_update(
 ):
     try:
         AdminAllowedsService.update_allowed(
-            table, data.model_dump(), request.token_payload
+            table, data.model_dump(), request.token_payload, background_tasks
         )
         return EmptyResponse()
     except Error:

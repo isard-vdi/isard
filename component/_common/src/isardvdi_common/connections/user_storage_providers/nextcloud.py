@@ -20,11 +20,11 @@
 
 import json
 import logging as log
+import threading
 import time
 import traceback
 import xml.etree.ElementTree as ET
 
-import gevent
 import requests
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -168,17 +168,24 @@ class Helpers(RethinkSharedConnection):
             )
         )
         if data.get("poll", {}).get("token"):
-            # Launch thread to see if user has logged in and wait for it
-            # Nextcloud allows for 20 minutes, we are not that patient
-            # We will wait 5 minutes. Thread will be started in 5 seconds...
+            # Launch a daemon thread to poll Nextcloud's login-callback
+            # endpoint until the admin authorizes the provider (or the
+            # 5-minute timeout inside ``get_login_auth_callback``
+            # expires). Originally this used ``gevent.spawn``; under
+            # apiv4's asyncio worker the spawned greenlet sat on a
+            # libev Hub the loop never drives — the
+            # ``SKIPPED_BLOCKING`` quarantine in
+            # ``testing/integration/audit/route_filter.py`` was opened
+            # specifically because of this hang. A daemon thread runs
+            # the callback off the request thread without depending on
+            # gevent. See APIV4_THREADING_INCIDENT_ANALYSIS.md §3
+            # Tier-C "Nextcloud orphan" / §5.7 Pattern A.
             # https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html#login-flow-v2
-            login_thread = gevent.spawn(
-                cls.get_login_auth_callback,
-                data["poll"]["token"],
-                login_url,
-                provider_id,
-            )
-            # gevent.joinall([login_thread], timeout=5 * 60, raise_error=False)
+            threading.Thread(
+                target=cls.get_login_auth_callback,
+                args=(data["poll"]["token"], login_url, provider_id),
+                daemon=True,
+            ).start()
         # Should be opened in a new window
         return data.get("login")
 

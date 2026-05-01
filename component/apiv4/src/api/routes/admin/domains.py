@@ -35,7 +35,7 @@ from api.schemas.admin.domains import (
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
-from fastapi import Depends, Path, Request
+from fastapi import BackgroundTasks, Depends, Path, Request
 
 tag = "admin_domains"
 
@@ -409,11 +409,13 @@ async def admin_domain_template_tree(request: Request, desktop_id: str) -> list[
     },
 )
 async def admin_multiple_actions(
-    request: Request, data: AdminMultipleActionsData
+    request: Request,
+    data: AdminMultipleActionsData,
+    background_tasks: BackgroundTasks,
 ) -> EmptyResponse:
     try:
         AdminDomainsService.multiple_actions(
-            request.token_payload, data.action, data.ids
+            request.token_payload, data.action, data.ids, background_tasks
         )
         return EmptyResponse()
     except Error:
@@ -979,9 +981,11 @@ async def admin_logs_desktops_action(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_delete(request: Request) -> int:
+async def admin_logs_desktops_delete(
+    request: Request, background_tasks: BackgroundTasks
+) -> int:
     try:
-        count = AdminDomainsService.delete_old_desktop_logs()
+        count = AdminDomainsService.delete_old_desktop_logs(background_tasks)
         return count or 0
     except Error:
         raise
@@ -1006,9 +1010,11 @@ async def admin_logs_desktops_delete(request: Request) -> int:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_delete_all(request: Request) -> int:
+async def admin_logs_desktops_delete_all(
+    request: Request, background_tasks: BackgroundTasks
+) -> int:
     try:
-        count = AdminDomainsService.delete_all_desktop_logs()
+        count = AdminDomainsService.delete_all_desktop_logs(background_tasks)
         return count or 0
     except Error:
         raise
@@ -1121,9 +1127,11 @@ async def admin_logs_users_action(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_delete(request: Request) -> int:
+async def admin_logs_users_delete(
+    request: Request, background_tasks: BackgroundTasks
+) -> int:
     try:
-        count = AdminDomainsService.delete_old_user_logs()
+        count = AdminDomainsService.delete_old_user_logs(background_tasks)
         return count or 0
     except Error:
         raise
@@ -1148,9 +1156,11 @@ async def admin_logs_users_delete(request: Request) -> int:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_delete_all(request: Request) -> int:
+async def admin_logs_users_delete_all(
+    request: Request, background_tasks: BackgroundTasks
+) -> int:
     try:
-        count = AdminDomainsService.delete_all_user_logs()
+        count = AdminDomainsService.delete_all_user_logs(background_tasks)
         return count or 0
     except Error:
         raise

@@ -158,7 +158,7 @@ class TestAlloweds_Update:
 
         monkeypatch.setattr(
             "api.routes.admin.alloweds.AdminAllowedsService.update_allowed",
-            staticmethod(fake),
+            staticmethod(lambda t, d, p, bt: fake(t, d, p)),
         )
         response = test_client(
             url=self.URL,
@@ -188,7 +188,7 @@ class TestAlloweds_Update:
         assert response.status_code in (400, 422)
 
     def test_unknown_item_returns_404(self, monkeypatch, test_client):
-        def fail(table, data, payload):
+        def fail(table, data, payload, background_tasks):
             raise Error("not_found", "Item not found")
 
         monkeypatch.setattr(
@@ -208,7 +208,7 @@ class TestAlloweds_Update:
         for items in their category. Service enforces the scope."""
         monkeypatch.setattr(
             "api.routes.admin.alloweds.AdminAllowedsService.update_allowed",
-            staticmethod(lambda t, d, p: None),
+            staticmethod(lambda t, d, p, bt: None),
         )
         response = test_client(
             url=self.URL,
@@ -224,7 +224,7 @@ class TestAlloweds_Update:
         item gets a typed 403 from the service, not a generic 500.
         """
 
-        def reject(table, data, payload):
+        def reject(table, data, payload, background_tasks):
             raise Error("forbidden", "Item belongs to another category")
 
         monkeypatch.setattr(
@@ -306,3 +306,91 @@ class TestAlloweds_GetTable:
             body={"id": "m-1"},
         )
         assert response.status_code == 200
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Bastion BackgroundTasks remediation
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestAlloweds_BastionBackgroundTask:
+    """Pins the SIGSEGV remediation for ``_common/helpers/alloweds.py:561+606``.
+
+    Previously ``Alloweds.remove_disallowed_bastion_targets_th()`` and
+    its sibling ``_target_domains_th()`` fired ``gevent.spawn(...)``;
+    under apiv4's asyncio worker the spawned greenlet sat on a libev
+    Hub the loop never drives, so the disallowed-target cleanup
+    silently never ran. The fix schedules the (now sync) cleanup via
+    FastAPI's ``BackgroundTasks``.
+    """
+
+    def test_bastion_allowed_schedules_cleanup_after_response(self, monkeypatch):
+        from api.services.admin.alloweds import AdminAllowedsService
+        from fastapi import BackgroundTasks
+
+        update_args = []
+        cleanup_calls = []
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Alloweds.update_bastion_alloweds",
+            staticmethod(lambda allowed: update_args.append(allowed)),
+        )
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Alloweds.remove_disallowed_bastion_targets",
+            classmethod(lambda cls: cleanup_calls.append("ran") or []),
+        )
+
+        bt = BackgroundTasks()
+        AdminAllowedsService._update_bastion_allowed(
+            {"allowed": {"roles": ["admin"]}},
+            {"role_id": "admin"},
+            bt,
+        )
+
+        # Sync update happens immediately.
+        assert update_args == [{"roles": ["admin"]}]
+        # Cleanup must be queued (not yet run).
+        assert cleanup_calls == []
+        assert len(bt.tasks) == 1
+
+        # FastAPI runs ``BackgroundTasks`` after the response. Driving
+        # the queue manually proves the registered callable is the
+        # cleanup we expected. With the prior gevent.spawn-based
+        # ``_th`` wrapper, this assertion would never trigger because
+        # the cleanup wasn't registered with the framework at all.
+        import asyncio
+
+        asyncio.run(bt())
+        assert cleanup_calls == ["ran"]
+
+    def test_bastion_domains_allowed_schedules_cleanup_after_response(
+        self, monkeypatch
+    ):
+        from api.services.admin.alloweds import AdminAllowedsService
+        from fastapi import BackgroundTasks
+
+        update_args = []
+        cleanup_calls = []
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Alloweds.update_bastion_target_domains_alloweds",
+            staticmethod(lambda allowed: update_args.append(allowed)),
+        )
+        monkeypatch.setattr(
+            "api.services.admin.alloweds.Alloweds.remove_disallowed_bastion_target_domains",
+            classmethod(lambda cls: cleanup_calls.append("ran") or []),
+        )
+
+        bt = BackgroundTasks()
+        AdminAllowedsService._update_bastion_domains_allowed(
+            {"allowed": {"roles": ["admin"]}},
+            {"role_id": "admin"},
+            bt,
+        )
+
+        assert update_args == [{"roles": ["admin"]}]
+        assert cleanup_calls == []
+        assert len(bt.tasks) == 1
+
+        import asyncio
+
+        asyncio.run(bt())
+        assert cleanup_calls == ["ran"]

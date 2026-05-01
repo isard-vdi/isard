@@ -8,7 +8,6 @@
 import re
 import traceback
 
-import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
@@ -556,9 +555,12 @@ class Alloweds(RethinkCustomBase):
 
         return disallowed_targets
 
-    @classmethod
-    def remove_disallowed_bastion_targets_th(cls):
-        gevent.spawn(cls.remove_disallowed_bastion_targets)
+    # ``remove_disallowed_bastion_targets_th`` was a fire-and-forget
+    # gevent.spawn wrapper around ``remove_disallowed_bastion_targets``.
+    # Under apiv4's asyncio worker the spawned greenlet sat on a libev
+    # Hub the loop never drives, so the cleanup silently never ran.
+    # Apiv4 callers now schedule ``remove_disallowed_bastion_targets``
+    # directly via FastAPI's ``BackgroundTasks``.
 
     @classmethod
     def update_bastion_alloweds(cls, allowed):
@@ -601,9 +603,10 @@ class Alloweds(RethinkCustomBase):
 
         return disallowed_targets
 
-    @classmethod
-    def remove_disallowed_bastion_target_domains_th(cls):
-        gevent.spawn(cls.remove_disallowed_bastion_target_domains)
+    # ``remove_disallowed_bastion_target_domains_th`` was a
+    # fire-and-forget gevent.spawn wrapper. See the note on
+    # ``remove_disallowed_bastion_targets_th`` above; apiv4 callers now
+    # schedule via ``BackgroundTasks`` directly.
 
     @classmethod
     def update_bastion_target_domains_alloweds(cls, allowed):

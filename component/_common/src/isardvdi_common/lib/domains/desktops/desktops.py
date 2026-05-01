@@ -29,7 +29,6 @@ import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-import gevent
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.redis_urls import socketio_url
 from isardvdi_common.connections.rethink_connection_factory import (

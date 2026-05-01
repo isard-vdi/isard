@@ -29,6 +29,7 @@ from uuid import uuid4
 from api.services.admin.tables import AdminTablesService
 from api.services.error import Error
 from api.services.templates import clear_templates_cache
+from fastapi import BackgroundTasks
 from isardvdi_common.connections.api_sessions import revoke_user_session
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.bastion import Bastion
@@ -254,8 +255,17 @@ class AdminUsersService:
         clear_users_list_cache()
 
     @staticmethod
-    def update_multiple_users(payload: dict, data: dict) -> None:
-        """Update multiple users in bulk."""
+    def update_multiple_users(
+        payload: dict, data: dict, background_tasks: BackgroundTasks
+    ) -> None:
+        """Update multiple users in bulk.
+
+        The bulk update runs after the response is sent (FastAPI default
+        thread pool). Originally v3 used a ``gevent.spawn`` wrapper
+        (``CommonUsers.update_multiple_users_th``); under apiv4's
+        asyncio worker that silently never ran. See
+        APIV4_THREADING_INCIDENT_ANALYSIS.md §5.1.
+        """
         user_ids = data.get("ids", [])
 
         for u_id in user_ids:
@@ -271,14 +281,22 @@ class AdminUsersService:
                         user["category"], data["secondary_groups"]
                     )
 
-        CommonUsers.update_multiple_users_th(user_ids, data, payload)
+        background_tasks.add_task(
+            CommonUsers.update_multiple_users,
+            user_ids,
+            data,
+            str(uuid4()),
+            payload,
+        )
 
         from api.routes.users import clear_users_list_cache
 
         clear_users_list_cache()
 
     @staticmethod
-    def delete_users(payload: dict, data: dict) -> tuple[dict, int]:
+    def delete_users(
+        payload: dict, data: dict, background_tasks: BackgroundTasks
+    ) -> tuple[dict, int]:
         """Delete one or more users."""
         exceptions = []
 
@@ -306,9 +324,6 @@ class AdminUsersService:
         if exceptions:
             return {"exceptions": exceptions}, 428
 
-        # Process bulk delete asynchronously
-        import gevent
-
         def process_bulk_delete() -> None:
             try:
                 for user_id in data["user"]:
@@ -320,7 +335,7 @@ class AdminUsersService:
                 log.error(f"Error during bulk delete: {e}")
                 log.error(traceback.format_exc())
             finally:
-                # Clear inside the spawn: the list view changes only
+                # Clear inside the task: the list view changes only
                 # once the delete actually completes, so clearing here
                 # avoids a window where the next read caches pre-delete
                 # state for 360 s.
@@ -328,7 +343,11 @@ class AdminUsersService:
 
                 clear_users_list_cache()
 
-        gevent.spawn(process_bulk_delete)
+        # FastAPI runs the task in its default thread-pool executor after
+        # the response is sent — replaces a gevent.spawn that would have
+        # silently never run inside the asyncio worker. See
+        # APIV4_THREADING_INCIDENT_ANALYSIS.md §5.1.
+        background_tasks.add_task(process_bulk_delete)
         return {}, 200
 
     @staticmethod
@@ -1125,7 +1144,10 @@ class AdminUsersService:
 
     @staticmethod
     def migrate_user(
-        payload: dict, user_id: str, target_user_id: str
+        payload: dict,
+        user_id: str,
+        target_user_id: str,
+        background_tasks: BackgroundTasks,
     ) -> tuple[dict, int]:
         """Migrate a user to another user."""
         if user_id == target_user_id:
@@ -1140,8 +1162,6 @@ class AdminUsersService:
         if errors:
             return {"errors": errors}, 428
 
-        import gevent
-
         def migrate_and_invalidate() -> None:
             try:
                 CommonMigrations.process_migrate_user(user_id, target_user_id)
@@ -1149,14 +1169,17 @@ class AdminUsersService:
                 # User migration reassigns the source user's data and
                 # eventually deletes the source user, so the /items/users
                 # list view changes only once the migration actually
-                # completes — clear inside the spawn. The routes import
+                # completes — clear inside the task. The routes import
                 # stays lazy to avoid the services→routes cycle.
                 from api.routes.users import clear_users_list_cache
 
                 clear_users_list_cache()
                 clear_templates_cache()
 
-        gevent.spawn(migrate_and_invalidate)
+        # FastAPI runs the task after the response. Replaces the prior
+        # gevent.spawn that silently never ran inside the asyncio worker.
+        # See APIV4_THREADING_INCIDENT_ANALYSIS.md §5.1.
+        background_tasks.add_task(migrate_and_invalidate)
         return {}, 200
 
     @staticmethod

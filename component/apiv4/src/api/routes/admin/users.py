@@ -59,7 +59,7 @@ from api.services.admin.socketio import AdminSocketioService
 from api.services.admin.users import AdminUsersService
 from api.services.error import Error
 from cachetools import TTLCache, cached
-from fastapi import Path, Query, Request
+from fastapi import BackgroundTasks, Path, Query, Request
 from fastapi.responses import JSONResponse, Response
 
 tag = "admin_users"
@@ -315,11 +315,15 @@ async def admin_update_user(
     },
 )
 async def admin_update_users_bulk(
-    request: Request, data: AdminUserUpdateData
+    request: Request,
+    data: AdminUserUpdateData,
+    background_tasks: BackgroundTasks,
 ) -> EmptyResponse:
     try:
         AdminUsersService.update_multiple_users(
-            request.token_payload, data.model_dump(exclude_none=True)
+            request.token_payload,
+            data.model_dump(exclude_none=True),
+            background_tasks,
         )
         return EmptyResponse()
     except Error:
@@ -346,11 +350,14 @@ async def admin_update_users_bulk(
     },
 )
 async def admin_delete_users(
-    request: Request, response: Response, data: AdminUserDeleteData
+    request: Request,
+    response: Response,
+    data: AdminUserDeleteData,
+    background_tasks: BackgroundTasks,
 ):
     try:
         result, status = AdminUsersService.delete_users(
-            request.token_payload, data.model_dump()
+            request.token_payload, data.model_dump(), background_tasks
         )
         response.status_code = status
         return AdminUserDeleteResponse(**result)
@@ -2059,11 +2066,15 @@ async def admin_auto_register(request: Request, data: AutoRegisterRequest):
     },
 )
 async def admin_migrate_user(
-    request: Request, response: Response, user_id: str, target_user_id: str
+    request: Request,
+    response: Response,
+    user_id: str,
+    target_user_id: str,
+    background_tasks: BackgroundTasks,
 ) -> dict:
     try:
         result, status = AdminUsersService.migrate_user(
-            request.token_payload, user_id, target_user_id
+            request.token_payload, user_id, target_user_id, background_tasks
         )
         response.status_code = status
         return result if isinstance(result, dict) else {}

@@ -27,6 +27,7 @@ from api.services.error import Error
 from api.services.templates import clear_templates_cache
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
+from fastapi import BackgroundTasks
 from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
@@ -245,11 +246,25 @@ class AdminDomainsService:
     # ── Multiple Actions ─────────────────────────────────────────────────
 
     @staticmethod
-    def multiple_actions(payload: dict, action: str, ids: list[str]) -> None:
-        """Perform actions on multiple domains."""
+    def multiple_actions(
+        payload: dict,
+        action: str,
+        ids: list[str],
+        background_tasks: BackgroundTasks,
+    ) -> None:
+        """Perform actions on multiple domains.
+
+        The bulk action runs after the response is sent (FastAPI default
+        thread pool). Originally v3 used ``gevent.spawn`` here; that
+        silently never ran inside the asyncio worker and was the
+        Tier-B remediation site in
+        ``APIV4_THREADING_INCIDENT_ANALYSIS.md``.
+        """
         for d_id in ids:
             AdminDomainsService.owns_domain_id(payload, d_id)
-        ApiAdmin.multiple_actions(action, ids, payload["user_id"])
+        background_tasks.add_task(
+            ApiAdmin.multiple_actions, action, ids, payload["user_id"]
+        )
         clear_domains_field_cache()
 
     # ── Template Delete ──────────────────────────────────────────────────
@@ -375,11 +390,12 @@ class AdminDomainsService:
 
     @staticmethod
     def _delete_logs_async(
-        table: str, event_name: str, max_time_arg: Optional[int] = None
+        table: str,
+        event_name: str,
+        background_tasks: BackgroundTasks,
+        max_time_arg: Optional[int] = None,
     ) -> int:
         """Delete old logs asynchronously (shared logic)."""
-        import gevent
-
         args = [table]
         if max_time_arg is not None:
             args.append(max_time_arg)
@@ -416,21 +432,24 @@ class AdminDomainsService:
                     },
                 )
 
-        gevent.spawn(delete_old_logs_process)
+        # FastAPI runs this in its default thread-pool after the response,
+        # replacing a gevent.spawn that silently never executed inside the
+        # asyncio worker. See APIV4_THREADING_INCIDENT_ANALYSIS.md §5.1.
+        background_tasks.add_task(delete_old_logs_process)
         return len(old_logs)
 
     @staticmethod
-    def delete_old_desktop_logs() -> int:
+    def delete_old_desktop_logs(background_tasks: BackgroundTasks) -> int:
         """Delete old desktop logs asynchronously."""
         return AdminDomainsService._delete_logs_async(
-            "logs_desktops", "logs_desktops_action"
+            "logs_desktops", "logs_desktops_action", background_tasks
         )
 
     @staticmethod
-    def delete_all_desktop_logs() -> int:
+    def delete_all_desktop_logs(background_tasks: BackgroundTasks) -> int:
         """Delete all desktop logs asynchronously."""
         return AdminDomainsService._delete_logs_async(
-            "logs_desktops", "logs_desktops_action", 0
+            "logs_desktops", "logs_desktops_action", background_tasks, 0
         )
 
     # ── Logs Users ───────────────────────────────────────────────────────
@@ -455,15 +474,17 @@ class AdminDomainsService:
         return ApiAdmin.get_logs_users_old_entries_config()
 
     @staticmethod
-    def delete_old_user_logs() -> int:
+    def delete_old_user_logs(background_tasks: BackgroundTasks) -> int:
         """Delete old user logs asynchronously."""
-        return AdminDomainsService._delete_logs_async("logs_users", "logs_users_action")
+        return AdminDomainsService._delete_logs_async(
+            "logs_users", "logs_users_action", background_tasks
+        )
 
     @staticmethod
-    def delete_all_user_logs() -> int:
+    def delete_all_user_logs(background_tasks: BackgroundTasks) -> int:
         """Delete all user logs asynchronously."""
         return AdminDomainsService._delete_logs_async(
-            "logs_users", "logs_users_action", 0
+            "logs_users", "logs_users_action", background_tasks, 0
         )
 
     # ── Logs Queries ─────────────────────────────────────────────────────

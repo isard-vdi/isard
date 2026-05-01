@@ -22,10 +22,12 @@ import json
 import logging as log
 import os
 import secrets
+import threading
+import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from math import ceil
 
-import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -47,7 +49,85 @@ cache_provider = TTLCache(maxsize=10, ttl=5)
 
 _isard_user_storage_get_users_cache: TTLCache = TTLCache(maxsize=10, ttl=5)
 
-login_thread = None
+# The login-auth watcher is one-at-a-time: a fresh
+# ``isard_user_storage_provider_login_auth`` call signals the previous
+# watcher to stop via the ``Event`` and joins it before starting a new
+# thread. Replaces a ``login_thread = gevent.spawn(...)`` /
+# ``login_thread.kill()`` pattern that was unsafe under apiv4.
+_login_thread: "threading.Thread | None" = None
+_login_thread_stop: threading.Event = threading.Event()
+
+
+def _spawn_daemon(target, *args, **kwargs) -> threading.Thread:
+    """Fire-and-forget a sync ``target`` on a daemon thread.
+
+    Replaces the prior ``gevent.spawn(target, *args, **kwargs)`` pattern.
+    Under apiv4 (FastAPI on uvicorn/asyncio) the gevent Hub was never
+    driven by the asyncio worker, so spawned greenlets silently never
+    ran — the same root cause as the SIGSEGV documented in
+    ``APIV4_THREADING_INCIDENT_ANALYSIS.md``. A daemon thread runs the
+    target on its own OS thread, doesn't block process exit, and is
+    framework-agnostic (works under sync Flask/waitress, asyncio, and
+    plain CLI scripts alike).
+
+    Exceptions raised by the target are surfaced via stderr by the
+    threading runtime; we deliberately do not wrap with try/except
+    here because the original ``gevent.spawn`` semantics also did not
+    intercept the target's exception.
+    """
+    thread = threading.Thread(target=target, args=args, kwargs=kwargs, daemon=True)
+    thread.start()
+    return thread
+
+
+def _spawn_daemon_later(
+    delay_seconds: float, target, *args, **kwargs
+) -> threading.Timer:
+    """Fire-and-forget a sync ``target`` on a daemon ``Timer`` thread
+    after ``delay_seconds``.
+
+    Replaces ``gevent.spawn_later(delay_seconds, target, *args, **kwargs)``.
+    The returned ``Timer`` is started and marked daemon; callers that
+    need to cancel the pending fire can keep the reference and call
+    ``.cancel()``.
+    """
+    timer = threading.Timer(delay_seconds, target, args=args, kwargs=kwargs)
+    timer.daemon = True
+    timer.start()
+    return timer
+
+
+def _run_batches_in_pool(
+    target, batches, *args, max_workers: int = 10, **kwargs
+) -> None:
+    """Run ``target(batch, *args, **kwargs)`` over ``batches`` in a
+    bounded ``ThreadPoolExecutor``, blocking until all batches finish.
+
+    Replaces the prior ``[gevent.spawn(target, batch, …) for batch in
+    batches]; gevent.joinall(jobs)`` fan-out pattern. Under apiv4
+    (FastAPI on uvicorn/asyncio) ``gevent.joinall`` blocked the
+    asyncio loop on libev's ``ev_run`` and was the most likely UAF
+    trigger documented in ``APIV4_THREADING_INCIDENT_ANALYSIS.md``.
+
+    Exceptions raised by individual batches are logged and swallowed
+    here (matching the prior ``gevent.joinall(raise_error=False)``
+    semantics — callers do not handle per-batch failures and we don't
+    want one bad batch to abort the rest).
+    """
+    if not batches:
+        return
+    workers = min(max_workers, len(batches))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(target, batch, *args, **kwargs) for batch in batches]
+        for future in futures:
+            try:
+                future.result()
+            except Exception:
+                log.error(
+                    "USER_STORAGE batch %s raised: %s",
+                    target.__name__,
+                    traceback.format_exc(),
+                )
 
 
 class UserStorage(RethinkSharedConnection):
@@ -435,7 +515,7 @@ class UserStorage(RethinkSharedConnection):
             else:
                 provider["authorization"] = True
                 # Check connection Thread
-                gevent.spawn_later(0.5, cls.get_ws_connection_status, provider.copy())
+                _spawn_daemon_later(0.5, cls.get_ws_connection_status, provider.copy())
             provider.pop("password", None)
             new_providers.append(provider)
         return new_providers
@@ -607,47 +687,80 @@ class UserStorage(RethinkSharedConnection):
     def isard_user_storage_provider_login_auth_socketio(
         cls,
         provider_id,
+        stop_event: "threading.Event | None" = None,
     ):
-        with cls._rdb_context():
+        """Poll the ``user_storage`` row until the admin sets a
+        password (i.e. authorises the provider) or the 5-minute
+        deadline expires.
+
+        Originally this used ``gevent.Timeout(5 * 60)`` around a
+        rethinkdb ``.changes()`` feed; under apiv4's asyncio worker
+        the gevent Hub never ran, so the watcher silently never fired.
+        The poll-with-deadline pattern is framework-agnostic — it
+        works under apiv4 (called from a daemon ``threading.Thread``),
+        webapp (Flask + waitress), and CLI scripts alike. See
+        APIV4_THREADING_INCIDENT_ANALYSIS.md §3 Tier-C / §5.7.
+        """
+        deadline = time.monotonic() + 5 * 60
+        log.info("USER_STORAGE - Waiting for admin to authorize provider")
+        while time.monotonic() < deadline:
+            if stop_event is not None and stop_event.is_set():
+                log.info(
+                    "USER_STORAGE - Login-auth watcher for %s cancelled",
+                    provider_id,
+                )
+                return
             try:
-                # Wait for admin to authorize provider
-                log.info("USER_STORAGE - Waiting for admin to authorize provider")
-                with gevent.Timeout(5 * 60):
-                    for data in (
+                with cls._rdb_context():
+                    row = (
                         r.table("user_storage")
                         .get(provider_id)
-                        .changes()
-                        .pluck({"new_val": {"password": True}})
+                        .pluck("password")
                         .run(cls._rdb_connection)
-                    ):
-                        notify_admins(
-                            "user_storage_provider",
-                            {
-                                "id": provider_id,
-                                "authorization": True,
-                                "connection": True,
-                            },
-                        )
-                        log.info(
-                            f"USER_STORAGE - Admin authorized provider {provider_id}"
-                        )
-                        return
+                    )
             except Exception:
-                log.warning(
-                    f"USER_STORAGE - Timeout when waiting for admin to authorize provider {provider_id}"
+                row = None
+            if row and row.get("password"):
+                notify_admins(
+                    "user_storage_provider",
+                    {
+                        "id": provider_id,
+                        "authorization": True,
+                        "connection": True,
+                    },
                 )
+                log.info(f"USER_STORAGE - Admin authorized provider {provider_id}")
+                return
+            # Honour cancellation during the sleep too.
+            if stop_event is not None:
+                if stop_event.wait(timeout=2):
+                    return
+            else:
+                time.sleep(2)
+        log.warning(
+            f"USER_STORAGE - Timeout when waiting for admin to authorize provider {provider_id}"
+        )
 
     @classmethod
     def isard_user_storage_provider_login_auth(
         cls,
         provider_id,
     ):
-        global login_thread
-        if login_thread:
-            login_thread.kill()
-        login_thread = gevent.spawn(
-            cls.isard_user_storage_provider_login_auth_socketio, provider_id
+        global _login_thread, _login_thread_stop
+        if _login_thread is not None and _login_thread.is_alive():
+            # Signal the previous watcher to exit and wait briefly for
+            # it to finish; replaces the unsafe ``login_thread.kill()``
+            # call which under gevent could leave libev watchers in a
+            # half-freed state under apiv4 (see incident analysis).
+            _login_thread_stop.set()
+            _login_thread.join(timeout=5)
+        _login_thread_stop = threading.Event()
+        _login_thread = threading.Thread(
+            target=cls.isard_user_storage_provider_login_auth_socketio,
+            args=(provider_id, _login_thread_stop),
+            daemon=True,
         )
+        _login_thread.start()
         return NextcloudHelpers.start_login_auth(provider_id)
 
     ####################
@@ -927,19 +1040,14 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_add_user_batch,
-                    batch,
-                    provider_id,
-                    create_groups=False,
-                    webdav_folder=webdav_folder,
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_add_user_batch,
+            batches,
+            provider_id,
+            max_workers=max_batch_threads,
+            create_groups=False,
+            webdav_folder=webdav_folder,
+        )
 
     @classmethod
     def process_user_storage_enable_user_batch(cls, data_batch, enabled, provider_id):
@@ -970,18 +1078,13 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_enable_user_batch,
-                    batch,
-                    enabled,
-                    provider_id,
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_enable_user_batch,
+            batches,
+            enabled,
+            provider_id,
+            max_workers=max_batch_threads,
+        )
 
     @classmethod
     def process_user_storage_remove_user_batch(cls, data_batch, provider_id):
@@ -1011,15 +1114,12 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_remove_user_batch, batch, provider_id
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_remove_user_batch,
+            batches,
+            provider_id,
+            max_workers=max_batch_threads,
+        )
 
     @classmethod
     def process_user_storage_add_user_subadmin_batch(cls, data_batch, provider_id):
@@ -1060,15 +1160,12 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_add_user_subadmin_batch, batch, provider_id
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_add_user_subadmin_batch,
+            batches,
+            provider_id,
+            max_workers=max_batch_threads,
+        )
 
     @classmethod
     def process_user_storage_delete_subadmin_batch(cls, data_batch, provider_id):
@@ -1111,15 +1208,12 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_delete_subadmin_batch, batch, provider_id
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_delete_subadmin_batch,
+            batches,
+            provider_id,
+            max_workers=max_batch_threads,
+        )
 
     @classmethod
     def user_storage_provider_users_sync(cls, provider_id):
@@ -1206,18 +1300,13 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_add_group_batch,
-                    batch,
-                    provider_id,
-                    skip_if_exists=skip_if_exists,
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_add_group_batch,
+            batches,
+            provider_id,
+            max_workers=max_batch_threads,
+            skip_if_exists=skip_if_exists,
+        )
 
     @classmethod
     def process_user_storage_update_group_batch(cls, data_batch, provider_id):
@@ -1247,15 +1336,12 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_update_group_batch, batch, provider_id
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_update_group_batch,
+            batches,
+            provider_id,
+            max_workers=max_batch_threads,
+        )
 
     @classmethod
     def process_user_storage_remove_group_batch(cls, data_batch, provider_id):
@@ -1281,15 +1367,12 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_remove_group_batch, batch, provider_id
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_remove_group_batch,
+            batches,
+            provider_id,
+            max_workers=max_batch_threads,
+        )
 
     @classmethod
     def user_storage_provider_groups_sync(cls, provider_id):
@@ -1332,15 +1415,12 @@ class UserStorage(RethinkSharedConnection):
             % (len(data_batch), len(batches), batch_size)
         )
 
-        # Process each batch in a separate thread
-        jobs = []
-        for batch in batches:
-            jobs.append(
-                gevent.spawn(
-                    cls.process_user_storage_add_category_batch, batch, provider_id
-                )
-            )
-        gevent.joinall(jobs)
+        _run_batches_in_pool(
+            cls.process_user_storage_add_category_batch,
+            batches,
+            provider_id,
+            max_workers=max_batch_threads,
+        )
 
     ########################
     #   USERS MANAGEMENT   #
@@ -1353,7 +1433,7 @@ class UserStorage(RethinkSharedConnection):
         cls, user_id, provider_id=None, create_groups=False, webdav_folder=True
     ):
         # Wait 1 second before adding to let user be in database for sure
-        gevent.spawn_later(
+        _spawn_daemon_later(
             1,
             cls.user_storage_add_user,
             user_id,
@@ -1367,7 +1447,7 @@ class UserStorage(RethinkSharedConnection):
         cls, user_id, provider_id=None, create_groups=False, webdav_folder=True
     ):
         # This is the function to be called when adding a new user through the web interface, to not block the creation
-        gevent.spawn(
+        _spawn_daemon(
             cls.user_storage_add_user,
             user_id,
             provider_id,
@@ -1482,7 +1562,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_remove_user_th(cls, user_id, provider_id):
-        gevent.spawn(cls.user_storage_remove_user, user_id, provider_id)
+        _spawn_daemon(cls.user_storage_remove_user, user_id, provider_id)
 
     @classmethod
     def user_storage_remove_user(cls, user_id, provider_id):
@@ -1534,7 +1614,7 @@ class UserStorage(RethinkSharedConnection):
         displayname=None,
         role=None,
     ):
-        gevent.spawn(
+        _spawn_daemon(
             cls.user_storage_update_user,
             user_id,
             password=password,
@@ -1610,7 +1690,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_enable_user_th(cls, user_id, enabled, provider_id=None):
-        gevent.spawn(cls.user_storage_enable_user, user_id, enabled, provider_id)
+        _spawn_daemon(cls.user_storage_enable_user, user_id, enabled, provider_id)
 
     @classmethod
     def user_storage_enable_user(cls, user_id, enabled, provider_id=None):
@@ -1714,7 +1794,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_update_user_quota_th(cls, user_id):
-        gevent.spawn(cls.user_storage_update_user_quota, user_id)
+        _spawn_daemon(cls.user_storage_update_user_quota, user_id)
 
     @classmethod
     def user_storage_update_user_quota(cls, user_id):
@@ -1896,7 +1976,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_add_group_th(cls, group_id, provider_id):
-        gevent.spawn(
+        _spawn_daemon(
             cls.user_storage_add_group,
             group_id,
             provider_id,
@@ -1941,7 +2021,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_update_group_th(cls, group_id, new_group_name, provider_id):
-        gevent.spawn(
+        _spawn_daemon(
             cls.user_storage_update_group,
             group_id,
             new_group_name,
@@ -1992,7 +2072,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_enable_group_th(cls, group_id, enabled, provider_id=None):
-        gevent.spawn(cls.user_storage_enable_group, group_id, enabled, provider_id)
+        _spawn_daemon(cls.user_storage_enable_group, group_id, enabled, provider_id)
 
     @classmethod
     def user_storage_enable_group(cls, group_id, enabled, provider_id=None):
@@ -2006,7 +2086,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_remove_group_th(cls, group_id, provider_id, cascade=False):
-        gevent.spawn(cls.user_storage_remove_group, group_id, provider_id, cascade)
+        _spawn_daemon(cls.user_storage_remove_group, group_id, provider_id, cascade)
 
     @classmethod
     def user_storage_remove_group(cls, group_id, provider_id, cascade=False):
@@ -2057,7 +2137,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_add_category_th(cls, category_id, provider_id):
-        gevent.spawn(
+        _spawn_daemon(
             cls.user_storage_add_category,
             category_id,
             provider_id,
@@ -2099,7 +2179,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_add_provider_categories_th(cls, provider_id):
-        gevent.spawn(cls.user_storage_add_provider_categories, provider_id)
+        _spawn_daemon(cls.user_storage_add_provider_categories, provider_id)
 
     @classmethod
     def user_storage_add_provider_categories(cls, provider_id):
@@ -2122,7 +2202,7 @@ class UserStorage(RethinkSharedConnection):
 
     @classmethod
     def user_storage_enable_category_th(cls, category_id, enabled, provider_id=None):
-        gevent.spawn(
+        _spawn_daemon(
             cls.user_storage_enable_category, category_id, enabled, provider_id
         )
 
@@ -2140,7 +2220,7 @@ class UserStorage(RethinkSharedConnection):
     def user_storage_remove_category_th(
         cls, category, groups, provider_id, cascade=False
     ):
-        gevent.spawn(
+        _spawn_daemon(
             cls.user_storage_remove_category,
             category,
             groups,
@@ -2172,7 +2252,7 @@ class UserStorage(RethinkSharedConnection):
     def user_storage_update_category_th(
         cls, category_id, new_category_name, provider_id
     ):
-        gevent.spawn(
+        _spawn_daemon(
             cls.user_storage_update_category,
             category_id,
             new_category_name,
