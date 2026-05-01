@@ -5,3 +5,10 @@ services:
       # Explicit default so the Faro ACL in 16_12_fe_http_secured_services.cfg
       # always sees a concrete value. Mirrors stats.yml.
       FARO_ENABLED: ${FARO_ENABLED:-false}
+      # Read by the ``.if streq("$USAGE","devel")`` preprocessor
+      # blocks in 16_12_fe_http_secured_services.cfg + 20_be_web.cfg
+      # to expose ``/debug/db`` (RethinkDB admin GUI) on devel
+      # deployments only. Default ``production`` keeps the route
+      # closed on any deployment that doesn't set ``USAGE`` in its
+      # ``isardvdi.cfg``. Upstream main removed the route entirely.
+      USAGE: ${USAGE:-production}

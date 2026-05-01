@@ -58,6 +58,7 @@ from the previous block. Every existing caller is inside a context
 block (verified by grep), so no breakage in practice.
 """
 
+import logging
 import threading
 from abc import ABC, ABCMeta
 from os import environ
@@ -66,7 +67,72 @@ from typing import Optional
 from isardvdi_common.helpers.atexit_register import atexit_register
 from rethinkdb import r
 from rethinkdb.connection_pool import ThreadSafeConnectionPool
-from rethinkdb.net import Connection
+from rethinkdb.net import Connection, Query
+
+# Slow-query telemetry. Default 500ms — every query taking longer
+# than this emits a single ``rdb_query_slow`` log line; failed
+# queries always log as ``rdb_query_failed`` regardless of duration.
+# Override via ``RETHINKDB_SLOW_QUERY_MS`` env var on the service
+# container.
+_SLOW_QUERY_S = float(environ.get("RETHINKDB_SLOW_QUERY_MS", "500")) / 1000.0
+_query_log = logging.getLogger("rdb.query")
+
+
+def _summarize_query(query: Optional[Query]) -> str:
+    """Render a short PII-bounded summary of a Query's term AST.
+
+    The repr of a ReQL term is structural — it shows
+    ``r.table('users').get('<id>').pluck('a','b')`` or similar; the
+    table/field names and any literal id are visible but no row data
+    is ever serialized into the query AST itself, so this stays
+    safe-by-default for log shipping. Truncated to 200 chars to bound
+    log volume on long batched expressions.
+    """
+    if query is None or query.term is None:
+        return f"<query type={getattr(query, 'type', '?')}>"
+    try:
+        rendered = repr(query.term)
+    except Exception:
+        rendered = "<unrepresentable>"
+    return rendered[:200]
+
+
+def _query_observer_on_end(
+    query: Query, duration_s: float, exception: Optional[BaseException]
+) -> None:
+    """Per-query telemetry hook attached to every pooled connection.
+
+    Hooks run synchronously on the rdb network thread; keep them
+    cheap. The driver (commit ``2564aab`` on the modernize branch)
+    snapshots its observer list before firing, so it's safe to add
+    this once per pooled connection and leave it.
+
+    Emits one structured warning log per slow query (``duration_s
+    >= _SLOW_QUERY_S``) and one per failed query. Fast successful
+    queries are silent — at default 500ms threshold the volume is
+    bounded to genuine outliers.
+    """
+    duration_ms = round(duration_s * 1000.0, 2)
+    if exception is not None:
+        _query_log.warning(
+            "rdb_query_failed",
+            extra={
+                "query": _summarize_query(query),
+                "duration_ms": duration_ms,
+                "error_type": type(exception).__name__,
+                "error_msg": str(exception)[:200],
+            },
+        )
+        return
+    if duration_s >= _SLOW_QUERY_S:
+        _query_log.warning(
+            "rdb_query_slow",
+            extra={
+                "query": _summarize_query(query),
+                "duration_ms": duration_ms,
+            },
+        )
+
 
 # Per-thread storage for the connection currently checked out from the
 # pool, plus a re-entrancy depth counter. ``threading.local`` was chosen
@@ -84,13 +150,22 @@ _pool_lock = threading.Lock()
 
 def _connection_factory() -> Connection:
     """Build a fresh blocking RethinkDB connection. Used by the pool
-    to top up to ``max_size`` on demand."""
-    return r.connect(
+    to top up to ``max_size`` on demand.
+
+    Each connection is wired with a slow/failed-query observer so the
+    pool emits structured log lines when individual queries breach
+    the threshold. The observer is registered once per connection at
+    creation and lives for the lifetime of the connection in the
+    pool.
+    """
+    conn = r.connect(
         host=environ.get("RETHINKDB_HOST", "isard-db"),
         port=int(environ.get("RETHINKDB_PORT", "28015")),
         auth_key=environ.get("RETHINKDB_AUTH", ""),
         db=environ.get("RETHINKDB_DB", "isard"),
     )
+    conn.add_query_observer(on_end=_query_observer_on_end)
+    return conn
 
 
 def _get_pool() -> ThreadSafeConnectionPool:

@@ -7,7 +7,7 @@ dependencies = [
   "isardvdi-common",
   "python-socketio==5.13.0",
   "redis==5.2.1",
-  "rethinkdb==2.4.10.post1",
+  "rethinkdb @ https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz",
 ]
 
 [dependency-groups]
@@ -21,6 +21,9 @@ test = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/isardvdi_change_handler"]

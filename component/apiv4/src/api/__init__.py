@@ -23,7 +23,6 @@ import logging as log
 import os
 from contextlib import asynccontextmanager
 
-from api.dependencies.database import db_pool
 from api.dependencies.jwt_token import (
     has_migration_required_or_login_token,
     has_token,
@@ -59,7 +58,6 @@ def _sync_haproxy_maps():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    await db_pool.initialize_pool()
     Maintenance.initialization()
     Cards.seed_stock_cards()
     Cards.cleanup_missing()
@@ -97,7 +95,6 @@ async def lifespan(app: FastAPI):
     if health_task:
         health_task.cancel()
     await recycle_bin_queue.stop()
-    await db_pool.close_pool()
 
 
 _debug_mode = os.environ.get("USAGE", "production") != "production"
