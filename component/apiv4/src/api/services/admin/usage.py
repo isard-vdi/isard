@@ -130,6 +130,20 @@ class AdminUsageService:
         start_date = _parse_iso_date(start_date, "start_date")
         end_date = _parse_iso_date(end_date, "end_date")
         if items_ids is None:
+            # ``list_distinct_items_by_consumer`` resolves through to a
+            # ``get_all(item_consumer, index="item_consumer")`` rdb
+            # query — RethinkDB raises ``ReqlNonExistenceError: Keys
+            # cannot be NULL`` if ``item_consumer`` is None, the
+            # route's generic ``except Exception`` swallows it, and
+            # the caller gets a generic 500 with no hint about what
+            # to fix. Validate at the service boundary instead.
+            # Tracked as Bug 31.
+            if not item_consumer:
+                raise Error(
+                    "bad_request",
+                    "Either items_ids or item_consumer must be provided",
+                    description_code="usage_consumer_required",
+                )
             items = ConsumptionUsageProcessed.list_distinct_items_by_consumer(
                 item_consumer, category_id
             )

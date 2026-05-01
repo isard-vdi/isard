@@ -31,16 +31,27 @@ class StorageDomain(BaseModel):
 
 
 class StorageItem(BaseModel):
-    """Storage item model"""
+    """Storage item model.
+
+    ``actual_size`` / ``virtual_size`` are populated by
+    ``StorageProcessed.parse_disks`` from the row's ``qemu-img-info``
+    sub-document; rows with no ``qemu-img-info`` (e.g. disks queued
+    for creation, or disks whose qemu-img info hasn't been refreshed
+    yet) drop the keys entirely. Likewise ``last`` is the most recent
+    ``status_logs`` timestamp — disks with no status history don't
+    carry it. Declaring all three required surfaced as a 500 from
+    ``GET /api/v4/items/storage/get-ready`` (Bug 34) the moment the
+    user table contained any such row.
+    """
 
     category: str
     domains: list[StorageDomain]
     id: str
     user_id: str
     user_name: str
-    actual_size: int
-    virtual_size: int
-    last: int
+    actual_size: int | None = None
+    virtual_size: int | None = None
+    last: int | None = None
 
 
 class StorageReadyResponse(BaseModel):

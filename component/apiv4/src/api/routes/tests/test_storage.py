@@ -318,6 +318,58 @@ def test_get_storage_ready_wires_real_service(monkeypatch, test_client):
     assert body["items"][0]["id"] == "storage-1"
 
 
+def test_get_storage_ready_tolerates_partial_rows(monkeypatch, test_client):
+    """Pins Bug 34 — ``StorageProcessed.parse_disks`` only emits
+    ``actual_size`` / ``virtual_size`` when the source row has
+    ``qemu-img-info``, and only emits ``last`` when ``status_logs``
+    is non-empty. Production data legitimately contains rows in those
+    states (a disk queued for creation, a disk whose qemu-img info
+    hasn't been refreshed). Declaring those fields required on
+    ``StorageItem`` 500'd the whole list endpoint as soon as one
+    such row appeared.
+
+    The fix widens the response model to ``int | None = None`` for
+    those three fields. This test pins the contract by feeding a
+    partial row through the route and asserting it round-trips.
+    """
+    jwt = MockJWT()
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.get_user_ready_storages",
+        staticmethod(
+            lambda user_id: [
+                # Fully populated row (the happy path).
+                {
+                    "category": "default",
+                    "domains": [],
+                    "id": "storage-full",
+                    "user_id": user_id,
+                    "user_name": "admin",
+                    "actual_size": 1024,
+                    "virtual_size": 2048,
+                    "last": 1700000000,
+                },
+                # Partial row — no qemu-img-info / status_logs source.
+                {
+                    "category": "default",
+                    "domains": [],
+                    "id": "storage-partial",
+                    "user_id": user_id,
+                    "user_name": "admin",
+                },
+            ]
+        ),
+    )
+
+    response = test_client(url="/items/storage/get-ready", jwt=jwt)
+    assert response.status_code == 200, response.text
+    items = response.json()["items"]
+    assert len(items) == 2
+    assert items[0]["actual_size"] == 1024
+    assert items[1]["actual_size"] is None
+    assert items[1]["virtual_size"] is None
+    assert items[1]["last"] is None
+
+
 def test_increase_storage_size_advanced_router(monkeypatch, test_client):
     """PUT /item/storage/{id}/priority/{p}/increase/{inc} — previously
     a mock on open_router that did nothing. Now wires to

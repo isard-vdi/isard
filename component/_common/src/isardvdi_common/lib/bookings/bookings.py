@@ -683,8 +683,18 @@ class BookingsProcessed(RethinkSharedConnection):
         for b in bookings:
             cls.delete(b["id"])
 
-    @classmethod
+    @staticmethod
     def bookings_max_units(bookings):
+        # Was ``@classmethod`` with a single ``bookings`` parameter, which
+        # silently bound ``cls`` as ``bookings`` on every call (the three
+        # call sites in ``get_booking_profile_count_within_one_hour``
+        # passed a list as the only positional arg, so Python passed two
+        # args to a one-arg signature → TypeError before the body ever
+        # ran). The function only operates on its argument, so
+        # ``@staticmethod`` is the right shape. Tracked as Bug 33 in
+        # APIV4_LOAD_TESTING_BUGS_FOUND.md (root cause was misdiagnosed
+        # as a response-model mismatch in the load-testing report —
+        # actual cause is this decorator/signature mismatch).
         if not len(bookings):
             return 0
         # We need to use portions library to get bookings intersections max units

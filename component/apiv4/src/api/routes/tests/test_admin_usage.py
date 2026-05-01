@@ -181,6 +181,32 @@ class TestStartEndConsumption:
         assert response.status_code == 200
         assert captured["manager_cat"] is None
 
+    def test_no_consumer_no_items_returns_400_not_500(self, monkeypatch, test_client):
+        """Pins Bug 31 — when neither ``item_consumer`` nor
+        ``items_ids`` is supplied, the service used to forward
+        ``None`` to ``r.table(...).get_all(None, index="item_consumer")``
+        which raises ``ReqlNonExistenceError: Keys cannot be NULL``;
+        the route's generic ``except Exception`` swallowed that into a
+        500 "Failed to get start/end consumption". The fix raises an
+        explicit ``Error("bad_request", ...)`` at the service boundary.
+        """
+        # Don't stub the service — exercise the real validation.
+        monkeypatch.setattr(
+            "api.routes.admin.usage.AdminUsageService.check_item_ownership",
+            staticmethod(lambda *a: None),
+        )
+
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={"start_date": "2025-01-01", "end_date": "2026-01-01"},
+        )
+
+        assert response.status_code == 400, response.text
+        body = response.json()
+        assert body["description_code"] == "usage_consumer_required"
+
 
 # ══════════════════════════════════════════════════════════════════════════
 #  GET /admin/usage/consumers/{item_type}

@@ -64,6 +64,8 @@ class PlanningService:
                 plannings.append(planning_item)
 
             return plannings
+        except Error:
+            raise
         except Exception as e:
             raise Error(
                 "internal_server",
@@ -84,6 +86,8 @@ class PlanningService:
         """
         try:
             ReservablesPlannerProccess.delete_plan(plan_id)
+        except Error:
+            raise
         except Exception as e:
             raise Error(
                 "internal_server",

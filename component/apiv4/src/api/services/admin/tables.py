@@ -134,6 +134,14 @@ class AdminTablesService:
         # port lost that pipeline, which is why every webapp ``Add``
         # modal 400'd with "Missing 'id' field in request body".
         apply_table_defaults(table, data)
+        # ``apply_table_defaults`` only injects an ``id`` for tables
+        # whose default_setter matrix declares ``genuuid`` (categories,
+        # groups, ...). For tables where the webapp form supplies the
+        # id (hypervisors, hypervisors_pools, ...), an empty body must
+        # 400, not crash on ``ApiAdmin.insert_table_item``'s
+        # ``data["id"]`` KeyError → generic 500. Tracked as Bug 32.
+        if "id" not in data:
+            raise Error("bad_request", "Missing 'id' field in request body")
         if table in DUPLICATE_CHECK_TABLES:
             if "name" not in data:
                 raise Error("bad_request", "Missing 'name' field in request body")

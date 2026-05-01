@@ -219,6 +219,13 @@ class ResourceItemsGpus(RethinkSharedConnection):
             "name": data["name"],
             "profiles_enabled": [],
             "physical_device": None,
+            # Required by ``GPUsModel`` (``Literal["gpus", "usbs"]``) and by
+            # the polymorphic dispatch in
+            # ``ReservablesPlannerProcess.check_subitem_*``. Omitting it
+            # tripped a Pydantic ResourceValidationError below and surfaced
+            # as a 500 on ``POST /api/v4/item/reservable/gpus``. Tracked as
+            # Bug 36 in APIV4_LOAD_TESTING_BUGS_FOUND.md.
+            "reservable_type": "gpus",
         }
         GPUsModel(**new_gpu)
 

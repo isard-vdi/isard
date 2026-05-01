@@ -323,7 +323,16 @@ class AdminUser(BaseModel):
     secondary_groups: list[str] = []
     email: Optional[str] = None
     accessed: Optional[float] = None
-    email_verified: bool | int = False
+    # ``email_verified`` is ``False`` for never-verified, ``True`` for
+    # password-flow self-verified, or an epoch ``int`` for email-link-
+    # verified. The same field can land in the DB as ``None`` for users
+    # created via paths that skipped the input Pydantic validation
+    # (SAML auto-register, user-migration, direct seeds). Without
+    # ``None`` in the response union, ``GET /api/v4/admin/users`` 500s
+    # on the first such row — the route's ``except Exception`` swallows
+    # the ResponseValidationError into "Failed to list users".
+    # Tracked as Bug 37 in APIV4_LOAD_TESTING_BUGS_FOUND.md.
+    email_verified: bool | int | None = None
     disclaimer_acknowledged: Optional[bool] = None
     vpn: Optional[AdminUserVpn] = None
     user_storage: Optional[AdminUserStorage] = None

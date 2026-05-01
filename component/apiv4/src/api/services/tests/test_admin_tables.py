@@ -79,3 +79,67 @@ class TestInsertTableItemDefaults:
         )
         forwarded = mock_insert.call_args.args[1]
         assert forwarded == {"name": "x", "id": "explicit"}
+
+
+class TestInsertTableItemEmptyBody:
+    """Pins Bug 32 — empty body must 400, not 500.
+
+    Tables whose default_setter matrix doesn't auto-generate an ``id``
+    (``hypervisors``, ``hypervisors_pools``) used to crash deep inside
+    ``ApiAdmin.insert_table_item`` on ``data["id"]`` KeyError. The
+    route's generic ``except Exception`` re-wrapped that as 500
+    "Failed to insert table item".
+
+    The fix raises an explicit ``Error("bad_request", "Missing 'id'")``
+    when ``id`` is missing AND ``apply_table_defaults`` didn't fill it
+    in. The route's typed ``except Error: raise`` then surfaces it as
+    400.
+    """
+
+    def test_hypervisors_empty_body_raises_bad_request(self):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error) as exc_info:
+            AdminTablesService.insert_table_item("hypervisors", {})
+        assert exc_info.value.args[0] == "bad_request"
+        assert "id" in exc_info.value.args[1].lower()
+
+    def test_hypervisors_pools_empty_body_raises_bad_request(self):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error) as exc_info:
+            AdminTablesService.insert_table_item("hypervisors_pools", {})
+        assert exc_info.value.args[0] == "bad_request"
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_hypervisors_with_id_passes_through(self, _check, mock_insert):
+        """Sanity — the new id-required guard does not break the
+        normal hypervisor create flow that the webapp form actually
+        sends.
+        """
+        AdminTablesService.insert_table_item(
+            "hypervisors",
+            {
+                "id": "hyper-new",
+                "hostname": "host-1",
+                "user": "root",
+                "port": "22",
+                "enabled": True,
+            },
+        )
+        forwarded = mock_insert.call_args.args[1]
+        assert forwarded["id"] == "hyper-new"
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_genuuid_table_still_works_without_id(self, _check, mock_insert):
+        """Tables that DO auto-generate an id (e.g. ``categories``)
+        keep working with an empty-id body — ``apply_table_defaults``
+        fills it in before the new guard runs.
+        """
+        AdminTablesService.insert_table_item("categories", {"name": "cat-1"})
+        forwarded = mock_insert.call_args.args[1]
+        assert UUID_RE.match(forwarded["id"]), forwarded["id"]

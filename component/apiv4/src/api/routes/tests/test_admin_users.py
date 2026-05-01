@@ -65,6 +65,75 @@ def test_admin_list_users(monkeypatch, test_client):
     assert captured["category_id"] is None
 
 
+def test_admin_list_users_accepts_null_email_verified(monkeypatch, test_client):
+    """Pins Bug 37 — DB rows with ``email_verified=None`` must not 500.
+
+    The user table accumulates ``email_verified=None`` for users created
+    via paths that skipped the input Pydantic validation (SAML
+    auto-register, user migration, direct seeds). Before the fix the
+    response model declared ``email_verified: bool | int = False``,
+    which Pydantic v2 enforces strictly: the first ``None`` row tripped
+    a ResponseValidationError, the route's generic ``except Exception``
+    swallowed it, and ``GET /api/v4/admin/users`` 500'd with
+    "Failed to list users". The fix widens the union to
+    ``bool | int | None = None``.
+    """
+    jwt = MockJWT()
+    stub = [
+        # Row 0: never-verified user (legacy DB shape — None).
+        {
+            "id": "user-legacy",
+            "name": "Legacy",
+            "provider": "saml",
+            "category": "default",
+            "uid": "legacy",
+            "username": "legacy",
+            "role": "user",
+            "group": "default-default",
+            "email_verified": None,
+        },
+        # Row 1: password-flow self-verified.
+        {
+            "id": "user-self",
+            "name": "Self",
+            "provider": "local",
+            "category": "default",
+            "uid": "self",
+            "username": "self",
+            "role": "user",
+            "group": "default-default",
+            "email_verified": True,
+        },
+        # Row 2: email-link verified (epoch timestamp).
+        {
+            "id": "user-link",
+            "name": "Link",
+            "provider": "local",
+            "category": "default",
+            "uid": "link",
+            "username": "link",
+            "role": "user",
+            "group": "default-default",
+            "email_verified": 1748774400,
+        },
+    ]
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.list_users",
+        staticmethod(lambda category_id=None: stub),
+    )
+
+    response = test_client(url="/admin/users", jwt=jwt)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert len(body) == 3
+    # The None row survives the response model validation.
+    assert body[0]["id"] == "user-legacy"
+    assert body[0]["email_verified"] is None
+    assert body[1]["email_verified"] is True
+    assert body[2]["email_verified"] == 1748774400
+
+
 def test_admin_create_user(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
