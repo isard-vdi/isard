@@ -1571,8 +1571,8 @@ class Quotas(RethinkCustomBase):
         #         }
         #         create_dict["hardware"]["qos_id"] = "unlimited"
 
-        if create_dict.get("reservables", {}).get("vgpus") and len(
-            create_dict.get("reservables", {}).get("vgpus", [])
+        if (create_dict.get("reservables") or {}).get("vgpus") and len(
+            (create_dict.get("reservables") or {}).get("vgpus", [])
         ):
             reservables_vgpus = [
                 uh["id"] for uh in user_hardware["reservables"]["vgpus"]
@@ -1745,7 +1745,7 @@ class Quotas(RethinkCustomBase):
                     query_merge=False,
                     extra_ids_allowed=(
                         []
-                        if not domain.get("reservables", {}).get("vgpus")
+                        if not (domain.get("reservables") or {}).get("vgpus")
                         else domain["reservables"]["vgpus"]
                     ),
                 )

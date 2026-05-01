@@ -231,9 +231,9 @@ class DesktopViewers(RethinkSharedConnection):
                     description_code="only_works_rdp",
                 )
             if (
-                template.get("reservables", {}).get("vgpus")
-                and not new_data.get("reservables", {}).get("vgpus")
-            ) or (new_data.get("reservables", {}).get("vgpus") in [[], None, ""]):
+                (template.get("reservables") or {}).get("vgpus")
+                and not (new_data.get("reservables") or {}).get("vgpus")
+            ) or ((new_data.get("reservables") or {}).get("vgpus") in [[], None, ""]):
                 raise Error(
                     "bad_request",
                     "A reservable vgpu must be selected when using 'Only GPU' video mode.",

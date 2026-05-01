@@ -175,7 +175,7 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         }
 
         # TODO: Evaluate reservables for non-persistent desktops, perhaps someday
-        if create_dict.get("reservables", {}).get("vgpus"):
+        if (create_dict.get("reservables") or {}).get("vgpus"):
             raise Error(
                 "bad_request",
                 "Can't create temporal desktop from a template with a reservable",

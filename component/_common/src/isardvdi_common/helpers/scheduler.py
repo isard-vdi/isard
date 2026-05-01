@@ -188,7 +188,7 @@ class Scheduler(RethinkSharedConnection):
 
         start_date = datetime.now(pytz.utc)
 
-        if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus"):
+        if ((desktop.get("create_dict") or {}).get("reservables") or {}).get("vgpus"):
             # First find if deployment has a booking
             booking = []
             if desktop.get("tag"):

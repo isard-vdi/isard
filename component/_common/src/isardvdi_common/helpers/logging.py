@@ -223,7 +223,7 @@ class Logging(RethinkSharedConnection):
             log.warning("Unable to fetch log data for start logs id")
             log.debug(traceback.format_exc())
             return
-        if domain.get("create_dict", {}).get("reservables", {}).get("vgpus"):
+        if ((domain.get("create_dict") or {}).get("reservables") or {}).get("vgpus"):
             data["hardware_bookables_vgpus"] = domain["create_dict"]["reservables"][
                 "vgpus"
             ]

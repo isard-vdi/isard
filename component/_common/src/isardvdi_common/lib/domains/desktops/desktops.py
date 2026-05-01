@@ -1481,9 +1481,9 @@ class DesktopsProcessed(RethinkSharedConnection):
             desktop = cls.parse_domain_update(d, data, admin_or_manager)
             domain = Caches.get_document("domains", d)
 
-            if desktop_data.get("reservables", {}).get("vgpus", []) != domain.get(
-                "create_dict"
-            ).get("reservables", {}).get("vgpus", []):
+            if (desktop_data.get("reservables") or {}).get("vgpus", []) != (
+                domain.get("create_dict", {}).get("reservables") or {}
+            ).get("vgpus", []):
                 # Delete booking when the vGPU profile is changed
                 Bookings.delete_item_bookings("desktop", d)
 
@@ -1721,15 +1721,15 @@ class DesktopsProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
             )
 
-        if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus") and (
-            data.get("server")
-        ):
+        if ((desktop.get("create_dict") or {}).get("reservables") or {}).get(
+            "vgpus"
+        ) and (data.get("server")):
             raise Error(
                 "precondition_required",
                 "Servers can not have a bookable item",
                 traceback.format_exc(),
             )
-        if data.get("reservables", {}).get("vgpus") and data[
+        if (data.get("reservables") or {}).get("vgpus") and data[
             "reservables"
         ] != desktop.get("create_dict", {}).get("reservables"):
             with cls._rdb_context():
