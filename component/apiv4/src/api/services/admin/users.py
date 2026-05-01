@@ -435,11 +435,31 @@ class AdminUsersService:
     @staticmethod
     def edit_csv_users(payload: dict, data: dict) -> None:
         """Edit users from validated CSV data."""
+        # The validate-edit endpoint enriches each row with the
+        # resolved ``category`` / ``group`` / ``category_id`` /
+        # ``group_id`` / ``provider`` / ``uid`` / ``id`` fields so the
+        # webapp can render the CSV preview. ``CommonUsers.update_user``
+        # treats the presence of those keys as a *change* request and
+        # rejects with ``Error("bad_request", "Category can not be
+        # changed", ...)``. Strip them here so a vanilla edit (rename,
+        # password change, role bump) round-trips cleanly.
+        immutable_keys = {
+            "category",
+            "category_id",
+            "group",
+            "group_id",
+            "provider",
+            "uid",
+            "username",
+        }
         for user_data in data["users"]:
             AdminUsersService.owns_user_id(payload, user_data["id"])
             if user_data.get("password"):
                 user_data["password_last_updated"] = 0
-            CommonUsers.update_user(user_data["id"], user_data)
+            update_payload = {
+                k: v for k, v in user_data.items() if k not in immutable_keys
+            }
+            CommonUsers.update_user(user_data["id"], update_payload)
 
         from api.routes.users import clear_users_list_cache
 

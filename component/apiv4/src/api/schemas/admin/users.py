@@ -69,6 +69,7 @@ class AdminBulkUserCreateData(BaseModel):
     """Request body for bulk user creation."""
 
     users: List[dict]
+    email_verified: bool = False
 
 
 # ── CSV Operations ───────────────────────────────────────────────────────

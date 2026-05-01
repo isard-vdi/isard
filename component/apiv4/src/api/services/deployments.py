@@ -375,7 +375,19 @@ class DeploymentService:
                 "not_found",
                 f"Domain with ID {domain_id} does not exist.",
             )
-        RethinkDomain(domain_id).toggle_user_visible()
+        domain = RethinkDomain(domain_id)
+        # ``RethinkDomain.toggle_user_visible`` raises a plain
+        # ``ValueError`` when the desktop has no tag; the route's
+        # ``except Exception`` then surfaces it as a generic 500.
+        # Pre-check at the service layer so a wrong-button click goes
+        # to a typed 400 instead.
+        if not domain.tag:
+            raise Error(
+                "bad_request",
+                "Desktop is not part of a deployment; visibility toggle does not apply.",
+                description_code="not_in_deployment",
+            )
+        domain.toggle_user_visible()
 
     @staticmethod
     def get_deployment_hardware(deployment_id: str) -> dict:

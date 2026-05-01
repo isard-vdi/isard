@@ -20,7 +20,7 @@
 
 import logging
 import traceback
-from typing import Optional
+from typing import Literal, Optional
 
 log = logging.getLogger("apiv4")
 
@@ -290,18 +290,20 @@ async def enable_reservable_subitem(
 )
 async def list_enabled_subitems(
     request: Request,
-    reservable_type: str = Path(..., description="The reservable type"),
+    reservable_type: Literal["gpus", "usbs"] = Path(
+        ..., description="The reservable type"
+    ),
     item_id: str = Path(..., description="The item ID"),
 ) -> list[dict]:
     try:
         return ReservableService.list_subitems_enabled(reservable_type, item_id) or []
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",
-            f"Failed to retrieve enabled subitems",
+            "Failed to retrieve enabled subitems",
             traceback.format_exc(),
         )
 

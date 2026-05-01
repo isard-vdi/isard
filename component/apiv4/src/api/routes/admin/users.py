@@ -560,20 +560,18 @@ async def admin_edit_csv_users(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_bulk_create_users(request: Request) -> dict:
+async def admin_bulk_create_users(
+    request: Request, data: AdminBulkUserCreateData
+) -> dict:
+    # Body declared as ``AdminBulkUserCreateData`` (``{users:[...],
+    # email_verified: bool}``) so the OAS spec advertises a
+    # ``requestBody`` and the generated isardvdi_apiv4_client / k6
+    # client can carry it. The webapp sends this exact shape from
+    # ``static/admin/js/users_management.js:745``.
     try:
-        try:
-            try:
-                data = await request.json()
-            except json.JSONDecodeError:
-                raise Error("bad_request", "Request body must be JSON")
-        except Error:
-            raise
-        except Exception:
-            raise await Error.create(
-                request, "bad_request", "Request body must be JSON"
-            )
-        result = AdminUsersService.import_csv_users(request.token_payload, data)
+        result = AdminUsersService.import_csv_users(
+            request.token_payload, data.model_dump()
+        )
         return {
             "created": len(result.get("users", [])),
             "errors": result.get("errors", []),
