@@ -102,10 +102,12 @@ def test_category_custom_url_returns_url(monkeypatch, test_client):
     response = test_client(url="/api/v4/item/category/default/custom_url")
 
     assert response.status_code == 200
-    # PlainTextResponse returns the raw string (no JSON quoting) so the
-    # Flask webapp can concatenate it into the redirect URL unmodified.
-    assert response.text == "my-url"
-    assert response.headers["content-type"].startswith("text/plain")
+    # Returned as a JSON string so the OAS spec matches the wire format
+    # and every generated client (`isardvdi_apiv4_client`, vue 3 sdk)
+    # can call `response.json()` without crashing. The Flask webapp
+    # logout handler still recovers the raw value via `.strip('"')`.
+    assert response.json() == "my-url"
+    assert response.headers["content-type"].startswith("application/json")
 
 
 @pytest.mark.clear_cache
@@ -140,4 +142,4 @@ def test_category_custom_url_service_fallback_on_error(monkeypatch, test_client)
     response = test_client(url="/api/v4/item/category/unknown-id/custom_url")
 
     assert response.status_code == 200
-    assert response.text == "/login"
+    assert response.json() == "/login"

@@ -32,7 +32,7 @@ from api.services.error import Error
 from api.services.login_config_cache import logo_cache
 from cachetools import TTLCache, cached
 from fastapi import Depends, Request
-from fastapi.responses import JSONResponse, PlainTextResponse, Response
+from fastapi.responses import JSONResponse, Response
 
 # with open("/version", "r") as file:
 #     version = file.read()
@@ -77,14 +77,22 @@ async def api_version():
     tags=["categories"],
     summary="Get category custom login URL",
     description="Returns the custom login URL for a specific category.",
+    response_model=str,
     responses={
         500: {"model": ErrorResponse},
     },
 )
 async def api_v4_category_custom_url(category_id: str, request: Request):
+    # Returned as a JSON-encoded string so the OAS spec (and every
+    # generated client built from it) sees `application/json` and parses
+    # the body with `response.json()`. Returning `PlainTextResponse`
+    # here used to mismatch the spec, which crashed
+    # `isardvdi_apiv4_client._parse_response` with
+    # `JSONDecodeError: Expecting value` on the Flask webapp logout
+    # path. Webapp consumers that decode the raw bytes still work —
+    # `"my-url"` strips back to `my-url` via `.strip('"')`.
     try:
-        custom_url = CategoryService.get_category_custom_login_url(category_id)
-        return PlainTextResponse(content=custom_url, status_code=200)
+        return CategoryService.get_category_custom_login_url(category_id)
     except Error:
         raise
     except Exception:
