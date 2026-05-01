@@ -30,7 +30,10 @@ class TestAlloweds_TermSearch:
             captured["table"] = table
             captured["data"] = data
             captured["role_id"] = payload["role_id"]
-            return {"users": [{"id": "u-1"}]}
+            # Service returns a flat list of pluck'd rows (the webapp
+            # iterates with ``$.map``). The route's response_model is
+            # ``list[dict]`` to match.
+            return [{"id": "u-1", "name": "admin"}]
 
         monkeypatch.setattr(
             "api.routes.admin.alloweds.AdminAllowedsService.get_table_term",
@@ -52,7 +55,7 @@ class TestAlloweds_TermSearch:
         responsible for category scoping."""
         monkeypatch.setattr(
             "api.routes.admin.alloweds.AdminAllowedsService.get_table_term",
-            staticmethod(lambda t, d, p: {}),
+            staticmethod(lambda t, d, p: []),
         )
         response = test_client(
             url=self.URL,

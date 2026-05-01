@@ -79,7 +79,12 @@ class UserNetworkResponse(BaseModel):
     kind: str = "user_network"
     model: str = "virtio"
     qos_id: str = "unlimited"
-    metadata_id: int = 0
+    # rethinkdb has no native int type — large integers (the ones that
+    # ``_uuid_to_metadata_id`` derives from a uuid) round-trip as floats
+    # like ``1.2351930250381197e+19``. Pydantic v2 refuses float→int
+    # coercion when the float can't represent the original integer
+    # exactly, so accept either. Long-term fix: store as string.
+    metadata_id: int | float = 0
     allowed: Optional[Dict[str, Any]] = None
     user: str = ""
     group: str = ""

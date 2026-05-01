@@ -39,11 +39,13 @@ tag = "admin_alloweds"
 @token_router.post(
     "/admin/allowed/term/{table}",
     tags=[tag],
-    response_model=dict,
+    response_model=list[dict],
     summary="Search table items by term",
     description="Search for items in a table matching a term. "
-    "Returns roles, categories, groups, and users matching a 2+ character term. "
-    "Results are filtered based on the user's role and category.",
+    "Returns matching rows pluck'd to ``{id, name, ...}`` for typeahead "
+    "autocompletes (the webapp's select2 ajax adapters at "
+    "``static/admin/js/{storage,desktops,authentication,...}.js`` iterate "
+    "the response with ``$.map``, expecting a list).",
     responses={
         403: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -61,15 +63,15 @@ async def alloweds_table_term(
         "media",
         "deployments",
     ] = Path(..., description="Table to search in"),
-) -> dict:
+) -> list[dict]:
     try:
         result = AdminAllowedsService.get_table_term(
             table, data.model_dump(exclude_none=True), request.token_payload
         )
-        return result or {}
+        return result or []
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",

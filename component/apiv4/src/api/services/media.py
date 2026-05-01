@@ -190,12 +190,21 @@ class MediaService:
                 description_code="not_found",
             )
 
-        if sort_field == "accessed":
-            # Admin users can access all templates, ignoring if enabled or not
-            index = "status_accessed"
+        # Route layer constrains ``sort_field`` to ``Literal["accessed"]``;
+        # an explicit map keeps the service safe under a stale generated
+        # client and avoids the ``UnboundLocalError`` pattern that hit
+        # ``DesktopService.get_user_desktops_paginated``.
+        sort_index = {"accessed": "status_accessed"}
+        if sort_field not in sort_index:
+            raise Error(
+                "bad_request",
+                f"Unsupported sort_field: {sort_field!r}",
+                description_code="bad_sort_field",
+            )
+        index = sort_index[sort_field]
         index_value = [MediaStatusEnum.downloaded.value]
 
-        return RethinkMedia.get_user_allowed_media(
+        result = RethinkMedia.get_user_allowed_media(
             user_id=user_id,
             user_category=user_category,
             user_group=user_group,
@@ -208,6 +217,20 @@ class MediaService:
             search=search,
             search_field=search_field,
         )
+        # The model query plucks the row's ``user`` (id) and joins
+        # ``user_name`` separately. The route's ``UserSharedMedia.user``
+        # is a ``MediaUser`` object — hydrate the id/name pair into
+        # that shape so FastAPI's ``response_model`` doesn't 500 with
+        # ``model_attributes_type: Input should be a valid dictionary``.
+        for row in result.get("rows", []) or []:
+            uid = row.get("user")
+            if isinstance(uid, str):
+                row["user"] = {
+                    "id": uid,
+                    "name": row.get("user_name", "") or "",
+                    "photo": "",
+                }
+        return result
 
     @staticmethod
     def create_media(media_data: CreateMediaRequest, payload: dict) -> str:

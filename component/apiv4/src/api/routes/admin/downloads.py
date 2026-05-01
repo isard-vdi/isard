@@ -20,7 +20,7 @@
 
 import asyncio
 import traceback
-from typing import Optional
+from typing import Literal, Optional
 
 from api import admin_router
 from api.schemas.admin.downloads import DownloadItem, DownloadsOverviewResponse
@@ -88,7 +88,7 @@ async def admin_downloads(request: Request) -> DownloadsOverviewResponse:
 )
 async def admin_downloads_kind(
     request: Request,
-    kind: str = Path(
+    kind: Literal["domains", "media", "virt_install", "videos", "viewers"] = Path(
         ..., description="Download kind: domains, media, virt_install, videos, viewers"
     ),
 ) -> list[DownloadItem]:

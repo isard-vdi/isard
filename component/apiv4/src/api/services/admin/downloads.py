@@ -200,6 +200,19 @@ class AdminDownloadsService:
         """Get available downloads for a specific kind."""
         AdminDownloadsService.check_registered()
         web = AdminDownloadsService._get_web_kinds()
+        # Defence in depth — the route layer already constrains ``kind``
+        # via ``Literal[...]``, but a stale generated client or direct
+        # service-layer call could still pass an unknown value. A
+        # ``KeyError`` here would surface as a generic 500 with no
+        # actionable description.
+        if kind not in web:
+            from api.services.error import Error
+
+            raise Error(
+                "bad_request",
+                f"Unknown download kind {kind!r}; expected one of {sorted(web)}",
+                description_code="bad_kind",
+            )
         if kind == "viewers":
             return web[kind]
 

@@ -587,15 +587,19 @@ async def admin_usage_groupings_list(request: Request) -> list[dict]:
 @manager_router.get(
     "/admin/usage/groupings_dropdown",
     tags=[tag],
-    response_model=list[dict],
+    response_model=dict,
     summary="Get usage groupings dropdown",
-    description="Returns usage groupings structured for dropdown menus.",
+    description="Returns usage groupings structured for dropdown menus. "
+    "Shape: ``{system: {desktop:[...], media:[...], storage:[...], "
+    "user:[...]}, custom: {...}}``. Declared as ``dict`` rather than a "
+    "nested model because the inner per-grouping rows carry free-form "
+    "``parameters`` lists that vary by grouping kind.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_usage_groupings_dropdown(request: Request) -> list[dict]:
+async def admin_usage_groupings_dropdown(request: Request) -> dict:
     try:
         result = AdminUsageService.get_usage_groupings_dropdown()
-        return result or []
+        return result or {}
     except Error:
         raise
     except Exception:
