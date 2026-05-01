@@ -116,6 +116,8 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
 def fail_incomplete_creating_domains(
     only_domain_id=None, detail="Failed by engine as it was incomplete", kind="desktop"
 ):
+    # Statuses that always have to converge to Failed when the
+    # transition that put them there is no longer in flight.
     status_to_failed = [
         "Updating",
         "Deleting",
@@ -124,6 +126,19 @@ def fail_incomplete_creating_domains(
         "DeletingDomainDisk",
         "StartingDomainDisposable",
     ]
+    # ``CreatingDisk`` and ``CreatingTemplate`` are driven by the
+    # storage-worker RQ chain; the chain ends with a
+    # ``core.update_status`` task that flips the domain to Failed when
+    # any earlier step failed. If the chain succeeded, the desktop
+    # has already moved to Stopped. So a desktop that is *still* in
+    # one of these states by the time the engine reaches this cleanup
+    # — and whose first disk's storage row no longer carries an
+    # active task — is genuinely stuck (e.g. the storage worker
+    # crashed mid-chain, the redis registry was dropped, or the parent
+    # template file disappeared so qemu-img exited 1 and downstream
+    # update_status never got the chance). Mark them Failed instead of
+    # leaving them blocking the desktop list forever.
+    status_to_failed_if_no_task = ["CreatingDisk", "CreatingTemplate"]
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if only_domain_id:
@@ -139,6 +154,91 @@ def fail_incomplete_creating_domains(
         .update({"status": "Failed", "detail": detail})
         .run(r_conn)
     )
+
+    # Phase 2 — task-conditional sweep. Look up each candidate's
+    # storage row and ask the Task model whether the chain is still in
+    # flight. Only mark the desktop Failed if the storage's RQ task
+    # exists and is in a terminal non-success state (FAILED, CANCELED,
+    # STOPPED) OR if the task is missing entirely. Tasks still QUEUED /
+    # SCHEDULED / DEFERRED / STARTED are left alone so a slow worker
+    # recovery doesn't double-mark a desktop.
+    candidates = list(
+        rtable.get_all(r.args(status_to_failed_if_no_task), index="status")
+        .filter({"kind": kind})
+        .pluck("id", "status", "create_dict")
+        .run(r_conn)
+    )
+    if candidates:
+        # Lazy import — engine boot has Task model on the path but this
+        # function is also called by ``clean_intermediate_status`` from
+        # the pool-hypervisors path where the import would otherwise
+        # fan out earlier than needed.
+        from isardvdi_common.models.task import Task
+
+        storage_by_domain = {}
+        all_storage_ids = []
+        for domain in candidates:
+            sid = (
+                (domain.get("create_dict") or {})
+                .get("hardware", {})
+                .get("disks", [{}])[0]
+                .get("storage_id")
+            )
+            storage_by_domain[domain["id"]] = sid
+            if sid:
+                all_storage_ids.append(sid)
+
+        storage_rows = (
+            {
+                row["id"]: row
+                for row in r.table("storage")
+                .get_all(r.args(list(set(all_storage_ids))), index="id")
+                .pluck("id", "status", "task")
+                .run(r_conn)
+            }
+            if all_storage_ids
+            else {}
+        )
+
+        domain_ids_to_fail = []
+        storage_ids_to_release = []
+        for domain in candidates:
+            sid = storage_by_domain[domain["id"]]
+            storage = storage_rows.get(sid) if sid else None
+
+            # No storage row → nothing left to wait for; mark Failed.
+            if storage is None:
+                domain_ids_to_fail.append(domain["id"])
+                continue
+
+            task_id = storage.get("task")
+            if task_id and Task.exists(task_id):
+                try:
+                    if Task(task_id).pending:
+                        # Chain is still in flight — leave alone.
+                        continue
+                except Exception:
+                    # Task model raised; treat as terminal so we don't
+                    # leave the desktop hanging.
+                    pass
+
+            # Task is missing, terminal-failed, or unreadable → the
+            # chain will never finish on its own. Mark the desktop
+            # Failed and release the storage maintenance lock so a
+            # follow-up create / cleanup can proceed.
+            domain_ids_to_fail.append(domain["id"])
+            if sid and (storage or {}).get("status") == "maintenance":
+                storage_ids_to_release.append(sid)
+
+        if domain_ids_to_fail:
+            rtable.get_all(r.args(domain_ids_to_fail), index="id").update(
+                {"status": "Failed", "detail": detail}
+            ).run(r_conn)
+        if storage_ids_to_release:
+            r.table("storage").get_all(
+                r.args(list(set(storage_ids_to_release))), index="id"
+            ).update({"status": "failed", "task": None}).run(r_conn)
+
     close_rethink_connection(r_conn)
     return results
 
