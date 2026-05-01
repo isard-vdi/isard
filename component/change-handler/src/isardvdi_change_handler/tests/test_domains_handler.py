@@ -228,3 +228,200 @@ class TestDomainsNoneRoomRegression:
         h = TemplateDomainHandler(sio)
         await h.emit("template_data", "{}", namespace="/administrators", room=None)
         sio.emit.assert_not_called()
+
+
+class TestDomainsHandlerOnDelete:
+    """Pin the asyncio.to_thread offload of the deployment-cleanup
+    rdb work in ``DomainsHandler.on_delete``.
+
+    Before the offload, ``on_delete`` ran three rdb queries
+    (count + get + delete) on the event-loop thread, freezing every
+    other handler in the process for the duration. After the
+    offload the rdb work runs in a worker thread; the handler's
+    asyncio context is free between calls.
+    """
+
+    @pytest.fixture
+    def handler(self):
+        from isardvdi_change_handler.handlers.domains import DomainsHandler
+
+        sio = AsyncMock()
+        h = DomainsHandler(sio, "domains")
+        h.desktop_handler = AsyncMock()
+        h.desktop_handler.on_delete = AsyncMock()
+        h.template_handler = AsyncMock()
+        return h
+
+    @pytest.mark.asyncio
+    async def test_cleanup_runs_off_event_loop(self, handler):
+        """Smoking-gun assertion: the rdb cleanup is invoked through
+        ``asyncio.to_thread``. Patching the cleanup to a sync function
+        with a synchronous side-effect AND patching ``asyncio.to_thread``
+        lets us assert the dispatch goes through to_thread (and so
+        the event loop is free during the call)."""
+        from isardvdi_change_handler.handlers.domains import DomainsHandler
+
+        called = []
+
+        def fake_cleanup(tag):
+            called.append(tag)
+
+        with patch.object(
+            DomainsHandler,
+            "_cleanup_deployment_if_empty",
+            staticmethod(fake_cleanup),
+        ), patch("isardvdi_change_handler.handlers.domains.asyncio") as fake_asyncio:
+            # Make to_thread an awaitable that records its target
+            scheduled = []
+
+            async def fake_to_thread(fn, *args, **kwargs):
+                scheduled.append((fn, args))
+                fn(*args, **kwargs)
+                return None
+
+            fake_asyncio.to_thread = fake_to_thread
+
+            old_val = FakeRow(
+                kind="desktop",
+                status="Stopped",
+                user="u1",
+                tag="deploy-1",
+                image=None,
+            )
+            await handler.on_delete(old_val)
+
+            assert called == ["deploy-1"], "cleanup must run with the deployment tag"
+            assert (
+                len(scheduled) == 1
+            ), "cleanup must dispatch through asyncio.to_thread (not call sync)"
+            assert scheduled[0][1] == ("deploy-1",)
+
+        # Delegate must always run after the cleanup, regardless of
+        # whether the cleanup found anything to delete.
+        handler.desktop_handler.on_delete.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_no_cleanup_when_no_tag(self, handler):
+        """Tagless desktops skip the rdb cleanup entirely — there's
+        no deployment to potentially delete."""
+        from isardvdi_change_handler.handlers.domains import DomainsHandler
+
+        with patch.object(
+            DomainsHandler, "_cleanup_deployment_if_empty"
+        ) as fake_cleanup:
+            old_val = FakeRow(
+                kind="desktop",
+                status="Stopped",
+                user="u1",
+                tag=None,
+                image=None,
+            )
+            await handler.on_delete(old_val)
+
+            fake_cleanup.assert_not_called()
+
+        handler.desktop_handler.on_delete.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_no_cleanup_when_template(self, handler):
+        """Template deletes never have a tag and never need cleanup."""
+        from isardvdi_change_handler.handlers.domains import DomainsHandler
+
+        with patch.object(
+            DomainsHandler, "_cleanup_deployment_if_empty"
+        ) as fake_cleanup:
+            old_val = FakeRow(
+                kind="template",
+                status="Stopped",
+                user="u1",
+                tag="never-set-on-templates",
+                image=None,
+            )
+            await handler.on_delete(old_val)
+
+            # Templates skip the deployment-cleanup branch — kind != "desktop".
+            fake_cleanup.assert_not_called()
+
+        handler.template_handler.on_delete.assert_awaited_once()
+
+
+class TestCleanupDeploymentIfEmpty:
+    """Drive the sync helper directly through a stubbed _rdb_context
+    + r.table chain. Pin the three branches: remaining > 0 (no
+    delete); remaining == 0 + status != deleting (no delete);
+    remaining == 0 + status == deleting (delete fires).
+    """
+
+    @pytest.fixture
+    def stub_rdb(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from isardvdi_change_handler.handlers import domains as mod
+
+        class _Ctx:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        # Override the _rdb_context that the helper acquires.
+        monkeypatch.setattr(
+            mod.Deployment,
+            "_rdb_context",
+            classmethod(lambda cls: _Ctx()),
+        )
+        monkeypatch.setattr(
+            type(mod.Deployment),
+            "_rdb_connection",
+            property(lambda self: MagicMock(name="conn")),
+        )
+        mock_table = MagicMock(name="r.table")
+        monkeypatch.setattr(mod.r, "table", mock_table)
+        return mock_table
+
+    def test_skips_delete_when_remaining_desktops(self, stub_rdb):
+        """Count returns nonzero → no get/delete fires."""
+        from isardvdi_change_handler.handlers.domains import DomainsHandler
+
+        # First .run() (the count) returns 5 (remaining desktops).
+        stub_rdb.return_value.get_all.return_value.count.return_value.run.return_value = (
+            5
+        )
+
+        DomainsHandler._cleanup_deployment_if_empty("deploy-1")
+
+        # The deployment-row delete chain must NOT have fired.
+        stub_rdb.return_value.get.return_value.delete.assert_not_called()
+
+    def test_skips_delete_when_status_not_deleting(self, stub_rdb):
+        """Empty deployment but status != 'deleting' → leave it alone."""
+        from isardvdi_change_handler.handlers.domains import DomainsHandler
+
+        stub_rdb.return_value.get_all.return_value.count.return_value.run.return_value = (
+            0
+        )
+        stub_rdb.return_value.get.return_value.run.return_value = {
+            "id": "deploy-1",
+            "status": "active",
+        }
+
+        DomainsHandler._cleanup_deployment_if_empty("deploy-1")
+
+        stub_rdb.return_value.get.return_value.delete.assert_not_called()
+
+    def test_deletes_empty_deployment_in_deleting_status(self, stub_rdb):
+        """Empty + status='deleting' → delete fires."""
+        from isardvdi_change_handler.handlers.domains import DomainsHandler
+
+        stub_rdb.return_value.get_all.return_value.count.return_value.run.return_value = (
+            0
+        )
+        stub_rdb.return_value.get.return_value.run.return_value = {
+            "id": "deploy-1",
+            "status": "deleting",
+        }
+
+        DomainsHandler._cleanup_deployment_if_empty("deploy-1")
+
+        stub_rdb.return_value.get.return_value.delete.assert_called_once()

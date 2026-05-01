@@ -12,6 +12,7 @@ from subprocess import check_output
 
 from changefeed_models.hypervisors_row import HypervisorsRow
 from changefeed_models.users_row import UsersRow
+from db import vpn_rethink_conn
 from pydantic import BaseModel
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
@@ -81,36 +82,37 @@ class Keys(object):
             log.error("Server read keys internal error: \n" + traceback.format_exc())
             exit(1)
 
-        old_key = r.table("config").get(1).pluck("vpn_" + self.interface).run()
-        if (
-            "vpn_" + self.interface not in old_key.keys()
-            or actual_private_key
-            != old_key["vpn_" + self.interface]["wireguard"]["keys"]["private"]
-        ):
-            r.table("config").get(1).update(
-                {
-                    "vpn_"
-                    + self.interface: {
-                        "wireguard": {
-                            "keys": {
-                                "private": actual_private_key,
-                                "public": actual_public_key,
+        with vpn_rethink_conn() as conn:
+            old_key = r.table("config").get(1).pluck("vpn_" + self.interface).run(conn)
+            if (
+                "vpn_" + self.interface not in old_key.keys()
+                or actual_private_key
+                != old_key["vpn_" + self.interface]["wireguard"]["keys"]["private"]
+            ):
+                r.table("config").get(1).update(
+                    {
+                        "vpn_"
+                        + self.interface: {
+                            "wireguard": {
+                                "keys": {
+                                    "private": actual_private_key,
+                                    "public": actual_public_key,
+                                }
                             }
                         }
                     }
-                }
-            ).run()
-            update_clients = True
-            try:
-                with open("/certs/" + self.interface + "_private.key", "w") as f:
-                    f.write(actual_private_key)
-                with open("/certs/" + self.interface + "_public.key", "w") as f:
-                    f.write(actual_public_key)
-            except Exception as e:
-                log.error(
-                    "Server write keys internal error: \n" + traceback.format_exc()
-                )
-                exit(1)
+                ).run(conn)
+                update_clients = True
+                try:
+                    with open("/certs/" + self.interface + "_private.key", "w") as f:
+                        f.write(actual_private_key)
+                    with open("/certs/" + self.interface + "_public.key", "w") as f:
+                        f.write(actual_public_key)
+                except Exception as e:
+                    log.error(
+                        "Server write keys internal error: \n" + traceback.format_exc()
+                    )
+                    exit(1)
         self.skeys = {"private": actual_private_key, "public": actual_public_key}
 
 
@@ -196,30 +198,35 @@ class Wg(object):
         ## End server config
 
     def init_peers(self, reset=False):
-        # This will reset all vpn config on restart.
-        if reset == True:
-            log.info("Reset %s peer certificates...", self.table)
-            r.table(self.table).replace(r.row.without("vpn")).run()
-            if self.table == "users":
-                r.table("remotevpn").replace(r.row.without("vpn")).run()
+        with vpn_rethink_conn() as conn:
+            # This will reset all vpn config on restart.
+            if reset == True:
+                log.info("Reset %s peer certificates...", self.table)
+                r.table(self.table).replace(r.row.without("vpn")).run(conn)
+                if self.table == "users":
+                    r.table("remotevpn").replace(r.row.without("vpn")).run(conn)
 
-        log.info("Initializing peers...")
-        if self.table == "hypervisors":
-            # Exclude geneve-only hypervisors from WireGuard initialization
-            wglist = list(
-                r.table(self.table)
-                .pluck("id", "vpn")
-                .filter(
-                    lambda hyper: r.expr(["wireguard+geneve", None]).contains(
-                        hyper["vpn"].get_field("tunneling_mode").default(None)
+            log.info("Initializing peers...")
+            if self.table == "hypervisors":
+                # Exclude geneve-only hypervisors from WireGuard initialization
+                wglist = list(
+                    r.table(self.table)
+                    .pluck("id", "vpn")
+                    .filter(
+                        lambda hyper: r.expr(["wireguard+geneve", None]).contains(
+                            hyper["vpn"].get_field("tunneling_mode").default(None)
+                        )
                     )
+                    .run(conn)
                 )
-                .run()
-            )
-            # wglist = [d for d in wglist if d['id'] != 'isard-hypervisor']
-        elif self.table == "users":
-            wglist = list(r.table(self.table).pluck("id", "vpn", "active").run())
-            wglist_remotevpn = list(r.table("remotevpn").pluck("id", "vpn").run())
+                # wglist = [d for d in wglist if d['id'] != 'isard-hypervisor']
+            elif self.table == "users":
+                wglist = list(
+                    r.table(self.table).pluck("id", "vpn", "active").run(conn)
+                )
+                wglist_remotevpn = list(
+                    r.table("remotevpn").pluck("id", "vpn").run(conn)
+                )
 
         self.clients_reserved_ips = self.clients_reserved_ips + [
             p["vpn"]["wireguard"]["Address"]
@@ -258,7 +265,8 @@ class Wg(object):
             # if self.table=='users':
             #    self.uipt.add_user(peer['id'],peer['vpn']['wireguard']['Address'])
 
-        r.table(self.table).insert(create_peers, conflict="update").run()
+        with vpn_rethink_conn() as conn:
+            r.table(self.table).insert(create_peers, conflict="update").run(conn)
 
         ##### The same for remotevpn table
         if self.table == "users":
@@ -297,7 +305,8 @@ class Wg(object):
                     self.up_peer(self._to_model(peer))
                 else:
                     self.up_peer(self._to_model(new_peer))
-            r.table("remotevpn").insert(create_peers, conflict="update").run()
+            with vpn_rethink_conn() as conn:
+                r.table("remotevpn").insert(create_peers, conflict="update").run(conn)
 
     def gen_new_peer(self, peer, extra_client_nets=None):
         peer_dict = peer.model_dump() if isinstance(peer, BaseModel) else peer
@@ -567,9 +576,12 @@ class Wg(object):
             #    self.uipt.add_user(peer["id"],new_peer['vpn']['wireguard']['Address'])
             if table == False:
                 table = self.table
-            r.table(table).insert(new_peer, conflict="update").run()
-            if table == "remotevpn":
-                r.table(table).get(new_peer["id"]).replace(r.row.without("nets")).run()
+            with vpn_rethink_conn() as conn:
+                r.table(table).insert(new_peer, conflict="update").run(conn)
+                if table == "remotevpn":
+                    r.table(table).get(new_peer["id"]).replace(
+                        r.row.without("nets")
+                    ).run(conn)
         else:
             log.error("Error adding peer: " + peer["id"])
             try:
@@ -756,12 +768,13 @@ PostUp = %s
         )
 
     def set_initial_rules(self):
-        started_desktops = (
-            r.table("domains")
-            .get_all(["Started"], index="status")
-            .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
-            .run()
-        )
+        with vpn_rethink_conn() as conn:
+            started_desktops = (
+                r.table("domains")
+                .get_all(["Started"], index="status")
+                .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
+                .run(conn)
+            )
         for started_desktop in started_desktops:
             self.desktop_iptables(started_desktop)
 
@@ -772,11 +785,12 @@ PostUp = %s
             self.uipt.desktop_add(data["user"], data["viewer"]["guest_ip"])
 
     def set_user_rules(self, user_id):
-        started_desktops = (
-            r.table("domains")
-            .get_all(["Started", user_id], index="status_user")
-            .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
-            .run()
-        )
+        with vpn_rethink_conn() as conn:
+            started_desktops = (
+                r.table("domains")
+                .get_all(["Started", user_id], index="status_user")
+                .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
+                .run(conn)
+            )
         for started_desktop in started_desktops:
             self.user_desktop_iptables(started_desktop)

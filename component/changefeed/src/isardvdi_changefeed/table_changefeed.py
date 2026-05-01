@@ -30,6 +30,9 @@ from isardvdi_common.connections.redis_urls import changefeed_url
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.connections.rethink_dedicated_connection import (
+    dedicated_connection,
+)
 from rethinkdb import r
 from rethinkdb.errors import ReqlDriverError
 
@@ -127,9 +130,14 @@ class TableChangefeed(RethinkSharedConnection):
                             )
                         )
 
-                with self._rdb_context():
-                    for change in changes_query.run(self._rdb_connection):
-                        await self._publish_change(change)
+                # The cursor is open for the lifetime of the process —
+                # holding a pool slot across that span would starve the
+                # short-query traffic in `_wait_for_tables` and any
+                # future shared-pool callers in this service. Use a
+                # dedicated connection the loop owns; close it on
+                # reconnect or exception so a hung socket can't outlive
+                # the cursor.
+                await self._consume_cursor(changes_query)
                 self._retry_delay = 5
             except ReqlDriverError:
                 log.warning("RethinkDB connection lost, attempting to reconnect...")
@@ -140,6 +148,26 @@ class TableChangefeed(RethinkSharedConnection):
             log.info("Waiting %ds before retrying...", self._retry_delay)
             await asyncio.sleep(self._retry_delay)
             self._retry_delay = min(self._retry_delay * 2, 60)
+
+    async def _consume_cursor(self, changes_query):
+        """Run ``changes_query`` against a dedicated (non-pool)
+        connection and dispatch each change to ``_publish_change``.
+
+        The connection is owned by this method: opened on entry,
+        closed on every exit path (normal completion, exception,
+        cancellation). Holding the cursor on a shared-pool slot
+        would starve every other caller of the pool — see the
+        comment in ``run`` for the design rationale.
+        """
+        cursor_conn = dedicated_connection()
+        try:
+            for change in changes_query.run(cursor_conn):
+                await self._publish_change(change)
+        finally:
+            try:
+                cursor_conn.close()
+            except Exception:
+                log.exception("Failed to close changefeed cursor connection")
 
     async def _publish_change(self, change):
         change_val = change.get("new_val") or change.get("old_val")

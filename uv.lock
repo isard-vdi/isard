@@ -1333,6 +1333,11 @@ dependencies = [
     { name = "rethinkdb" },
 ]
 
+[package.dev-dependencies]
+test = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "isardvdi-apiv4-client", editable = "component/_common/isardvdi_apiv4_client" },
@@ -1343,6 +1348,9 @@ requires-dist = [
     { name = "requests", specifier = "==2.32.4" },
     { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
 ]
+
+[package.metadata.requires-dev]
+test = [{ name = "pytest" }]
 
 [[package]]
 name = "isardvdi-webapp"

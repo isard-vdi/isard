@@ -23,14 +23,34 @@ MAX_LEN_PREV_STATUS_HYP = 10
 
 
 def new_rethink_connection():
-    r_conn = r.connect(RETHINK_HOST, RETHINK_PORT, db=RETHINK_DB)
-    # r_conn = r.connect("localhost", 28015, db='isard')
-    return r_conn
+    """Acquire a connection from the engine's pool.
+
+    Legacy callsites still use the ``new_rethink_connection()`` /
+    ``close_rethink_connection()`` shape; rather than rewrite them
+    all in one go, route both functions through the existing
+    ``connection_pool``. The pool pre-allocates ``RETHINKDB_POOL_SIZE``
+    sockets at startup; per-call cost drops from a TCP/TLS handshake
+    to a queue.get(). The caller MUST release the connection via
+    ``close_rethink_connection`` so the slot returns to the pool.
+
+    The bare ``r.connect(...)`` form previously used here meant every
+    call opened a fresh socket the rdb server then had to terminate.
+    Under load (50+ concurrent engine threads) that thrashed the
+    server's connection budget and blocked on the handshake.
+    """
+    return connection_pool.get_connection()
 
 
 def close_rethink_connection(r_conn):
-    r_conn.close()
-    del r_conn
+    """Release a connection back to the engine's pool.
+
+    Mirrors ``new_rethink_connection`` above: this used to do
+    ``r_conn.close()``, now it returns the slot to the pool so the
+    next caller reuses it. Returns ``True`` for source compatibility
+    with callers that propagate the legacy return value.
+    """
+    if r_conn is not None:
+        connection_pool.release_connection(r_conn)
     return True
 
 
@@ -140,27 +160,27 @@ def get_dict_from_item_in_table(table, id):
 
 
 def get_hyp_viewer_info(hyp_id):
-    r_conn = new_rethink_connection()
-    h = (
-        r.table("hypervisors")
-        .get(hyp_id)
-        .pluck("hypervisors_pools", "viewer", "id")
-        .run(r_conn)
-    )
-    hp = (
-        r.table("hypervisors_pools")
-        .get(h["hypervisors_pools"][0])
-        .pluck("viewer")
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        h = (
+            r.table("hypervisors")
+            .get(hyp_id)
+            .pluck("hypervisors_pools", "viewer", "id")
+            .run(r_conn)
+        )
+        hp = (
+            r.table("hypervisors_pools")
+            .get(h["hypervisors_pools"][0])
+            .pluck("viewer")
+            .run(r_conn)
+        )
     return {"viewer": h["viewer"], "tls": hp["viewer"]}
 
 
 def update_domain_viewer_passwd(domain_id, passwd):
-    r_conn = new_rethink_connection()
-    r.table("domains").get(domain_id).update({"viewer": {"passwd": passwd}}).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        r.table("domains").get(domain_id).update({"viewer": {"passwd": passwd}}).run(
+            r_conn
+        )
 
 
 def update_domain_viewer_started_values(
@@ -176,7 +196,6 @@ def update_domain_viewer_started_values(
     status=None,
     detail=None,
 ):
-    r_conn = new_rethink_connection()
     try:
         update_dict = {
             "viewer": {
@@ -198,25 +217,24 @@ def update_domain_viewer_started_values(
             update_dict["status"] = status
             update_dict["detail"] = json.dumps(detail)
             update_dict["hyp_started"] = hyp_id
-        r.table("domains").get(domain_id).update(update_dict).run(r_conn)
+        with rethink_conn() as r_conn:
+            r.table("domains").get(domain_id).update(update_dict).run(r_conn)
     except Exception as e:
         log.error(
             f"exception in update_domain_viewer_started_values for domain {domain_id}: {e}"
         )
-    close_rethink_connection(r_conn)
 
 
 def get_interface(id):
-    r_conn = new_rethink_connection()
     rtable = r.table("interfaces")
 
     try:
-        dict_domain = rtable.get(id).run(r_conn)
+        with rethink_conn() as r_conn:
+            dict_domain = rtable.get(id).run(r_conn)
     except:
         log.error(f"interface with id {id} not defined in database table interfaces")
         dict_domain = None
 
-    close_rethink_connection(r_conn)
     return dict_domain
 
 
@@ -230,11 +248,10 @@ def create_list_buffer_history_domain(
 
 
 def insert_table_dict(table, d_new, ignore_if_exists=False):
-    r_conn = new_rethink_connection()
     rtable = r.table(table)
 
-    rtable.insert(d_new).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable.insert(d_new).run(r_conn)
 
 
 def get_table_field(table, id_item, field):
@@ -254,21 +271,17 @@ def get_table_field(table, id_item, field):
 def get_table_fields(table, id_item, fields):
     rtable = r.table(table)
     try:
-        r_conn = new_rethink_connection()
-        result = rtable.get(id_item).pluck(fields).run(r_conn)
-        close_rethink_connection(r_conn)
-        return result
+        with rethink_conn() as r_conn:
+            return rtable.get(id_item).pluck(fields).run(r_conn)
     except Exception as e:
-        close_rethink_connection(r_conn)
         return None
 
 
 def delete_table_item(table, id_item):
-    r_conn = new_rethink_connection()
     rtable = r.table(table)
 
-    rtable.get(id_item).delete().run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable.get(id_item).delete().run(r_conn)
 
 
 def update_table_field(table, id_doc, field, value, merge_dict=True, soft=False):
@@ -298,11 +311,10 @@ def update_table_dict(table, id_doc, dict, soft=False):
 
 
 def remove_media(id):
-    r_conn = new_rethink_connection()
     rtable = r.table("media")
 
-    rtable.get(id).delete().run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as r_conn:
+        rtable.get(id).delete().run(r_conn)
 
 
 def get_media_with_status(status):
@@ -311,14 +323,11 @@ def get_media_with_status(status):
     :param status
     :return: list id_domains
     """
-    r_conn = new_rethink_connection()
     rtable = r.table("media")
     try:
-        results = rtable.get_all(status, index="status").pluck("id").run(r_conn)
-        close_rethink_connection(r_conn)
+        with rethink_conn() as r_conn:
+            results = rtable.get_all(status, index="status").pluck("id").run(r_conn)
     except:
-        # if results is None:
-        close_rethink_connection(r_conn)
         return []
     return [d["id"] for d in results]
 
@@ -329,29 +338,26 @@ def get_graphics_types(id_graphics="default"):
     :param id_graphics:
     :return:
     """
-    r_conn = new_rethink_connection()
     rtable = r.table("graphics")
     try:
-        types = rtable.get(id_graphics).pluck("types").run(r_conn)
+        with rethink_conn() as r_conn:
+            types = rtable.get(id_graphics).pluck("types").run(r_conn)
         d_types = types["types"]
     except:
         d_types = None
-    close_rethink_connection(r_conn)
 
     return d_types
 
 
 def get_isardvdi_secret():
-    r_conn = new_rethink_connection()
-    d = (
-        r.table("secrets")
-        .get("isardvdi")
-        .pluck("secret")
-        .default({"secret": os.environ["API_ISARDVDI_SECRET"]})
-        .run(r_conn)["secret"]
-    )
-    close_rethink_connection(r_conn)
-    return d
+    with rethink_conn() as r_conn:
+        return (
+            r.table("secrets")
+            .get("isardvdi")
+            .pluck("secret")
+            .default({"secret": os.environ["API_ISARDVDI_SECRET"]})
+            .run(r_conn)["secret"]
+        )
 
 
 def cleanup_hypervisor_gpus(hyp_id: str):
@@ -374,21 +380,18 @@ def cleanup_hypervisor_gpus(hyp_id: str):
 
 
 def get_pools_from_hyp(hyp_id):
-    r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
 
-    d = rtable.get(hyp_id).pluck("hypervisors_pools").run(r_conn)
+    with rethink_conn() as r_conn:
+        d = rtable.get(hyp_id).pluck("hypervisors_pools").run(r_conn)
 
-    close_rethink_connection(r_conn)
     return d["hypervisors_pools"]
 
 
 def get_pool(id_pool):
-    r_conn = new_rethink_connection()
     rtable = r.table("hypervisors_pools")
-    pool = rtable.get(id_pool).run(r_conn)
-    close_rethink_connection(r_conn)
-    return pool
+    with rethink_conn() as r_conn:
+        return rtable.get(id_pool).run(r_conn)
 
 
 def get_domains_from_classroom(classroom):
@@ -404,9 +407,7 @@ def get_domains_from_template_origin():
 
 
 def get_user(id):
-    r_conn = new_rethink_connection()
     rtable = r.table("users")
 
-    dict_user = rtable.get(id).run(r_conn)
-    close_rethink_connection(r_conn)
-    return dict_user
+    with rethink_conn() as r_conn:
+        return rtable.get(id).run(r_conn)

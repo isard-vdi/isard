@@ -5,6 +5,7 @@ import logging as log
 import traceback
 from subprocess import check_output
 
+from db import vpn_rethink_conn
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
 
@@ -54,36 +55,37 @@ class Keys(object):
             log.error("Server read keys internal error: \n" + traceback.format_exc())
             exit(1)
 
-        old_key = r.table("config").get(1).pluck("vpn_" + self.interface).run()
+        with vpn_rethink_conn() as conn:
+            old_key = r.table("config").get(1).pluck("vpn_" + self.interface).run(conn)
 
-        if (
-            "vpn" not in old_key.keys()
-            or actual_private_key
-            != old_key["vpn_" + self.interface]["wireguard"]["keys"]["private"]
-        ):
-            r.table("config").get(1).update(
-                {
-                    "vpn_"
-                    + self.interface: {
-                        "wireguard": {
-                            "keys": {
-                                "private": actual_private_key,
-                                "public": actual_public_key,
+            if (
+                "vpn" not in old_key.keys()
+                or actual_private_key
+                != old_key["vpn_" + self.interface]["wireguard"]["keys"]["private"]
+            ):
+                r.table("config").get(1).update(
+                    {
+                        "vpn_"
+                        + self.interface: {
+                            "wireguard": {
+                                "keys": {
+                                    "private": actual_private_key,
+                                    "public": actual_public_key,
+                                }
                             }
                         }
                     }
-                }
-            ).run()
-            update_clients = True
-            try:
-                with open("/certs/" + self.interface + "_private.key", "w") as f:
-                    f.write(actual_private_key)
-                with open("/certs/" + self.interface + "_public.key", "w") as f:
-                    f.write(actual_public_key)
-            except Exception as e:
-                log.error(
-                    "Server write keys internal error: \n" + traceback.format_exc()
-                )
-                exit(1)
+                ).run(conn)
+                update_clients = True
+                try:
+                    with open("/certs/" + self.interface + "_private.key", "w") as f:
+                        f.write(actual_private_key)
+                    with open("/certs/" + self.interface + "_public.key", "w") as f:
+                        f.write(actual_public_key)
+                except Exception as e:
+                    log.error(
+                        "Server write keys internal error: \n" + traceback.format_exc()
+                    )
+                    exit(1)
         self.skeys = {"private": actual_private_key, "public": actual_public_key}
         self.update_clients = update_clients

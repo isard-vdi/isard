@@ -34,6 +34,34 @@ if "rethinkdb.errors" not in sys.modules:
     errors_stub.ReqlDriverError = _ReqlDriverError  # type: ignore[attr-defined]
     sys.modules["rethinkdb.errors"] = errors_stub
 
+# The dedicated-connection helper introduced in P7 imports
+# ``rethinkdb.net.Connection`` and ``rethinkdb.connection_pool.
+# ThreadSafeConnectionPool``. The bare-module stub above doesn't
+# carry those submodules, so extend it with no-op placeholders to
+# keep the changefeed tests pure-Python.
+if "rethinkdb.net" not in sys.modules:
+    net_stub = types.ModuleType("rethinkdb.net")
+
+    class _Connection:
+        pass
+
+    class _Query:
+        pass
+
+    net_stub.Connection = _Connection  # type: ignore[attr-defined]
+    net_stub.Query = _Query  # type: ignore[attr-defined]
+    sys.modules["rethinkdb.net"] = net_stub
+
+if "rethinkdb.connection_pool" not in sys.modules:
+    pool_stub = types.ModuleType("rethinkdb.connection_pool")
+
+    class _ThreadSafeConnectionPool:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    pool_stub.ThreadSafeConnectionPool = _ThreadSafeConnectionPool  # type: ignore[attr-defined]
+    sys.modules["rethinkdb.connection_pool"] = pool_stub
+
 if "redis" not in sys.modules:
     redis_stub = types.ModuleType("redis")
     sys.modules["redis"] = redis_stub

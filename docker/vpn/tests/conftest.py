@@ -58,7 +58,7 @@ def _install_stubs() -> None:
     os.environ.setdefault("WG_USERS_PORT", "4444")
     os.environ.setdefault("WG_GUESTS_NETS", "10.2.0.0/24")
 
-    # Neutralise RethinkDB so the module-level dbConnect() does not try to
+    # Neutralise RethinkDB so the module-level rdb queries do not try to
     # reach a real server before the while-loop aborts.
     import rethinkdb as _rdb
 
@@ -73,7 +73,7 @@ def _install_stubs() -> None:
         def filter(self, *args, **kwargs):
             return self
 
-        def run(self):
+        def run(self, *args, **kwargs):
             return []
 
     class _FakeR:
@@ -84,6 +84,23 @@ def _install_stubs() -> None:
             return _FakeQuery()
 
     _rdb.RethinkDB = lambda: _FakeR()  # type: ignore[attr-defined]
+
+    # Stub the new pooled-connection helper so tests don't hit the real
+    # ``isardvdi_common`` pool (which would try to open an rdb socket).
+    db_stub = types.ModuleType("db")
+
+    class _FakePoolConn:
+        """Yielded value from ``vpn_rethink_conn()`` in tests."""
+
+    class _FakeVpnRethinkConn:
+        def __enter__(self):
+            return _FakePoolConn()
+
+        def __exit__(self, *args):
+            return False
+
+    db_stub.vpn_rethink_conn = _FakeVpnRethinkConn  # type: ignore[attr-defined]
+    sys.modules["db"] = db_stub
 
     # Force the while-True loop to exit via a BaseException subclass that the
     # except-Exception clause will not catch.

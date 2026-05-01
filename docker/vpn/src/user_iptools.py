@@ -9,6 +9,7 @@ import traceback
 from subprocess import check_call, check_output
 
 import iptc
+from db import vpn_rethink_conn
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
 REJECT = {"target": {"REJECT": {"reject-with": "icmp-host-prohibited"}}}
@@ -37,12 +38,13 @@ class UserIpTools(object):
         print("XXXXXXXXXXXXXXXXXX")
 
     def init_domains_started(self):
-        domains_started = (
-            r.table("domains")
-            .get_all("Started", index="status")
-            .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
-            .run()
-        )
+        with vpn_rethink_conn() as conn:
+            domains_started = (
+                r.table("domains")
+                .get_all("Started", index="status")
+                .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
+                .run(conn)
+            )
         for ds in domains_started:
             if "guest_ip" in ds["viewer"].keys():
                 self.desktop_add(ds["user"], ds["viewer"]["guest_ip"])
@@ -71,12 +73,13 @@ class UserIpTools(object):
     def _add_user(self, id, src=False):
         # iptables -A fw-beto -j fw-users
         try:
-            user_addr = (
-                r.table("users")
-                .get(id)
-                .pluck({"vpn": {"wireguard": "Address"}})
-                .run()["vpn"]["wireguard"]["Address"]
-            )
+            with vpn_rethink_conn() as conn:
+                user_addr = (
+                    r.table("users")
+                    .get(id)
+                    .pluck({"vpn": {"wireguard": "Address"}})
+                    .run(conn)["vpn"]["wireguard"]["Address"]
+                )
         except Exception as e:
             print("EXCEPTION READING USERS: " + e)
             return

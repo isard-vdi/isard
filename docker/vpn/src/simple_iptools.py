@@ -9,6 +9,7 @@ import traceback
 from subprocess import check_call, check_output
 
 import iptc
+from db import vpn_rethink_conn
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
 REJECT = {"target": {"REJECT": {"reject-with": "icmp-host-prohibited"}}}
@@ -21,19 +22,21 @@ class UserIpTools(object):
         self.init_domains_started()
 
     def init_domains_started(self):
-        domains_started = (
-            r.table("domains")
-            .get_all("Started", index="status")
-            .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
-            .run()
-        )
+        with vpn_rethink_conn() as conn:
+            domains_started = (
+                r.table("domains")
+                .get_all("Started", index="status")
+                .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
+                .run(conn)
+            )
         for ds in domains_started:
             if ds.get("viewer") and "guest_ip" in ds["viewer"].keys():
                 self.desktop_add(ds["user"], ds["viewer"]["guest_ip"])
 
     def desktop_add(self, user_id, desktop_ip):
         try:
-            user = r.table("users").get(user_id).run()
+            with vpn_rethink_conn() as conn:
+                user = r.table("users").get(user_id).run(conn)
             user_addr = user["vpn"]["wireguard"]["Address"]
         except Exception as e:
             log.debug("EXCEPTION READING USERS: " + str(e))
@@ -80,7 +83,8 @@ class UserIpTools(object):
 
     def desktop_remove(self, user_id, desktop_ip):
         try:
-            user = r.table("users").get(user_id).run()
+            with vpn_rethink_conn() as conn:
+                user = r.table("users").get(user_id).run(conn)
             user_addr = user["vpn"]["wireguard"]["Address"]
         except Exception as e:
             log.error("EXCEPTION READING USERS: " + e)
@@ -329,7 +333,8 @@ class UserIpTools(object):
                         pass
 
     def get_extra_alloweds(self, user, table="remotevpn"):
-        data = r.table(table).run()
+        with vpn_rethink_conn() as conn:
+            data = list(r.table(table).run(conn))
         allowed_data = []
         for d in data:
             # False doesn't check, [] means all allowed

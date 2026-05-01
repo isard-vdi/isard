@@ -19,20 +19,13 @@ log.basicConfig(
 )
 
 from changefeed_subscribers import TABLE_TO_SUBSCRIBER
+from db import vpn_rethink_conn
 from isardvdi_common.redis_stream import RedisStreamConsumer
 from rethinkdb.errors import ReqlDriverError, ReqlOpFailedError, ReqlTimeoutError
 from wg_monitor import start_monitoring_vpn_status
 from wgtools import Wg
 
 start_monitoring_vpn_status()
-
-
-def dbConnect():
-    r.connect(
-        host=os.environ.get("RETHINKDB_HOST", "isard-db"),
-        port=os.environ.get("RETHINKDB_PORT", "28015"),
-        db=os.environ.get("RETHINKDB_DB", "isard"),
-    ).repl()
 
 
 def _process_vpn_change(change, wg_users, wg_hypers):
@@ -206,9 +199,10 @@ geneve_only_infra = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "tru
 
 while True:
     try:
-        # App was restarted or db was lost. Just sync peers before get into changes.
+        # App was restarted or db was lost. The shared pool reconnects
+        # transparently via its connection factory; this loop re-runs
+        # the peer-sync pass each iteration.
         log.info("Connecting to database...")
-        dbConnect()
 
         # WireGuard for hypervisors - only when not in geneve-only infrastructure mode
         hypers_net = ipaddress.ip_network(os.environ["WG_HYPERS_NET"], strict=False)
@@ -227,17 +221,18 @@ while True:
 
         # Initialize OVS ports for geneve-only hypervisors
         if geneve_only_infra:
-            geneve_hypers = list(
-                r.table("hypervisors")
-                .pluck("id", "vpn", "hostname")
-                .filter(
-                    lambda h: h["vpn"]
-                    .get_field("tunneling_mode")
-                    .default(None)
-                    .eq("geneve")
+            with vpn_rethink_conn() as _conn:
+                geneve_hypers = list(
+                    r.table("hypervisors")
+                    .pluck("id", "vpn", "hostname")
+                    .filter(
+                        lambda h: h["vpn"]
+                        .get_field("tunneling_mode")
+                        .default(None)
+                        .eq("geneve")
+                    )
+                    .run(_conn)
                 )
-                .run()
-            )
             for hyper in geneve_hypers:
                 hostname = hyper.get("hostname")
                 hyper_id = hyper.get("id")

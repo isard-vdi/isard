@@ -5,8 +5,8 @@
 #
 #   IsardVDI is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
-#   the Free Software Foundation, either version 3 of the License, or (at your
-#   option) any later version.
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
 #
 #   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
 #   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import threading
 from unittest.mock import MagicMock
 
 import pytest
@@ -76,8 +77,60 @@ def test_loadconfig_init_app_calls_exit_when_hostname_missing(monkeypatch):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# RDB — Flask extension wrapper for RethinkDB pool
+# RDB — Flask extension wrapper for the rethinkdb shared pool
+#
+# The extension delegates connection acquisition to
+# ``isardvdi_common.connections.rethink_shared_connection``'s
+# ``ThreadSafeConnectionPool``. The tests inject a fake pool through
+# ``_set_pool_for_tests`` (the module-private test seam) so no real
+# rdb sockets open and we can assert acquire/release symmetry.
 # ──────────────────────────────────────────────────────────────────────
+
+
+class _FakePool:
+    """Minimal ``ThreadSafeConnectionPool`` stand-in.
+
+    Hands out a fresh ``MagicMock`` on each acquire, tracks acquires
+    + releases for assertion, and refuses to reuse a connection until
+    it's released.
+    """
+
+    def __init__(self):
+        self.acquired = []
+        self.released = []
+        self._lock = threading.RLock()
+        self._next = 0
+
+    def acquire(self, timeout=None):
+        with self._lock:
+            conn = MagicMock(name=f"FakeConn-{self._next}")
+            conn.is_open = lambda _conn=conn: not getattr(_conn, "_closed", False)
+            self._next += 1
+            self.acquired.append(conn)
+            return conn
+
+    def release(self, conn):
+        with self._lock:
+            self.released.append(conn)
+
+
+@pytest.fixture
+def fake_pool():
+    """Mount a fresh fake pool for each test and clean up after."""
+    from isardvdi_common.connections import rethink_shared_connection as mod
+
+    pool = _FakePool()
+    mod._set_pool_for_tests(pool)
+    if hasattr(mod._thread_local, "conn"):
+        del mod._thread_local.conn
+    if hasattr(mod._thread_local, "depth"):
+        del mod._thread_local.depth
+    yield pool
+    mod._set_pool_for_tests(None)
+    if hasattr(mod._thread_local, "conn"):
+        del mod._thread_local.conn
+    if hasattr(mod._thread_local, "depth"):
+        del mod._thread_local.depth
 
 
 def test_rdb_init_with_app_registers_teardown():
@@ -95,78 +148,127 @@ def test_rdb_init_with_app_registers_teardown():
 
 
 def test_rdb_init_without_app_skips_init():
-    """RDB() with no app must not register teardown — used in lazy-init code paths."""
+    """RDB() with no app must not register teardown — used in
+    lazy-init code paths that wire the extension after Flask config."""
     rdb = RDB()
     assert rdb.app is None
     assert rdb.db is None
 
 
-def test_rdb_conn_caches_per_request_context(monkeypatch):
+def test_rdb_conn_acquires_from_pool_and_caches_per_request(fake_pool):
+    """First ``db.conn`` access in a request enters the pool's
+    Context (acquiring one connection). Subsequent accesses in the
+    same request return the cached connection — only one pool
+    acquire per request."""
     fresh = Flask(__name__)
-    fresh.config.update(
-        RETHINKDB_HOST="db",
-        RETHINKDB_PORT=28015,
-        RETHINKDB_DB="isard",
-        RETHINKDB_AUTH=None,
-    )
-    fake_conn = MagicMock(name="conn")
-    fake_r = MagicMock()
-    fake_r.connect.return_value = fake_conn
-    monkeypatch.setattr("webapp.lib.flask_rethink.r", fake_r)
-
+    fresh.config.update(RETHINKDB_DB="isard")
     rdb = RDB(fresh)
+
     with fresh.app_context():
-        assert rdb.conn is fake_conn
-        # Second access in the same context must return the cached connection.
-        assert rdb.conn is fake_conn
-        assert g.rethinkdb is fake_conn
+        c1 = rdb.conn
+        c2 = rdb.conn
 
-    fake_r.connect.assert_called_once_with(
-        host="db", port=28015, auth_key=None, db="isard"
-    )
+    assert c1 is c2, "second access must return the cached connection"
+    assert (
+        len(fake_pool.acquired) == 1
+    ), "exactly one acquire per request — extra acquires defeat the pool"
 
 
-def test_rdb_conn_uses_explicit_db_when_provided(monkeypatch):
+def test_rdb_teardown_releases_pool_connection(fake_pool):
+    """When the Flask app-context exits, the per-request connection
+    must be released back to the pool — a leak here would deplete
+    the pool over time."""
     fresh = Flask(__name__)
-    fresh.config.update(
-        RETHINKDB_HOST="db",
-        RETHINKDB_PORT=28015,
-        RETHINKDB_DB="default-db",
-    )
-    fake_r = MagicMock()
-    fake_r.connect.return_value = MagicMock()
-    monkeypatch.setattr("webapp.lib.flask_rethink.r", fake_r)
+    fresh.config.update(RETHINKDB_DB="isard")
+    rdb = RDB(fresh)
 
-    rdb = RDB(fresh, db="override-db")
     with fresh.app_context():
         _ = rdb.conn
+        # Inside the context, acquire is recorded but release is not.
+        assert len(fake_pool.acquired) == 1
+        assert len(fake_pool.released) == 0
 
-    args, kwargs = fake_r.connect.call_args
-    assert kwargs["db"] == "override-db"
+    # After context exit, release runs.
+    assert len(fake_pool.released) == 1
+    assert (
+        fake_pool.released[0] is fake_pool.acquired[0]
+    ), "release must return the same connection that was acquired"
 
 
-def test_rdb_teardown_closes_connection():
+def test_rdb_teardown_noop_without_connection(fake_pool):
+    """If the request never calls ``db.conn``, no pool slot was
+    acquired and the teardown must run without raising and without
+    spurious releases."""
     fresh = Flask(__name__)
-    fresh.config.update(
-        RETHINKDB_HOST="db",
-        RETHINKDB_PORT=28015,
-        RETHINKDB_DB="isard",
-    )
+    fresh.config.update(RETHINKDB_DB="isard")
     RDB(fresh)
-    fake_conn = MagicMock()
-    teardown = fresh.teardown_appcontext_funcs[-1]
 
     with fresh.app_context():
-        g.rethinkdb = fake_conn
+        pass  # no db.conn use
 
-    fake_conn.close.assert_called_once()
+    assert fake_pool.acquired == []
+    assert fake_pool.released == []
 
 
-def test_rdb_teardown_noop_without_connection():
+def test_rdb_db_kwarg_matching_default_works(fake_pool):
+    """Passing the same db as the Flask config is a no-op — kept
+    for source compatibility with old call sites."""
     fresh = Flask(__name__)
-    RDB(fresh)
-    teardown = fresh.teardown_appcontext_funcs[-1]
+    fresh.config.update(RETHINKDB_DB="isard")
+    rdb = RDB(fresh, db="isard")
 
-    # Without g.rethinkdb set, the teardown must run without raising.
     with fresh.app_context():
-        pass  # context exit triggers teardown with rethinkdb missing
+        c = rdb.conn
+
+    assert c is fake_pool.acquired[0]
+
+
+def test_rdb_db_kwarg_mismatch_raises(fake_pool):
+    """Passing a different db than RETHINKDB_DB must raise — the
+    pool is process-global to one DB and silent fallback would
+    confuse callers."""
+    fresh = Flask(__name__)
+    fresh.config.update(RETHINKDB_DB="isard")
+    rdb = RDB(fresh, db="other-db")
+
+    with fresh.app_context():
+        with pytest.raises(RuntimeError, match="does not match the pool"):
+            _ = rdb.conn
+
+    assert fake_pool.acquired == []
+
+
+def test_rdb_concurrent_requests_each_get_their_own_connection(fake_pool):
+    """Two concurrent requests must each acquire a distinct
+    connection — the pool is per-thread underneath, and Flask
+    handles requests on separate threads. A regression here would
+    bring back the pre-pool clobbering bug.
+    """
+    fresh = Flask(__name__)
+    fresh.config.update(RETHINKDB_DB="isard")
+    rdb = RDB(fresh)
+
+    barrier = threading.Barrier(2)
+    seen = {}
+    errors = []
+
+    def worker(name):
+        try:
+            with fresh.app_context():
+                # All threads enter the conn property together so the
+                # pool issues two distinct acquires concurrently.
+                barrier.wait()
+                seen[name] = rdb.conn
+        except Exception as exc:  # surface any error in the test
+            errors.append(exc)
+
+    t1 = threading.Thread(target=worker, args=("a",))
+    t2 = threading.Thread(target=worker, args=("b",))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert errors == []
+    assert len(seen) == 2
+    assert seen["a"] is not seen["b"], "concurrent requests must not share a connection"

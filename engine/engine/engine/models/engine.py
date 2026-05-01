@@ -501,7 +501,13 @@ class Engine(object):
             )
             ui = UiActions(self.manager)
 
-            self.r_conn = new_rethink_connection()
+            # Long-lived changes() cursor: held for the process
+            # lifetime, so it MUST NOT come from the shared pool —
+            # holding a pool slot forever starves every other caller.
+            # Bypass the pool with a direct ``r.connect()``.
+            from engine.config import RETHINK_DB, RETHINK_HOST, RETHINK_PORT
+
+            self.r_conn = r.connect(RETHINK_HOST, RETHINK_PORT, db=RETHINK_DB)
 
             cursor = (
                 r.table("domains")

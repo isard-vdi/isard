@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import logging as log
 
 from isardvdi_common.helpers.caches import Caches
@@ -61,11 +62,26 @@ class DomainsHandler(BaseHandler):
             except (OSError, KeyError):
                 log.exception("Failed to delete card image for domain %s", old_val.id)
 
-        # Clean up empty deployments in "deleting" status
+        # Clean up empty deployments in "deleting" status. The rdb
+        # work runs on a worker thread (via asyncio.to_thread) so the
+        # event loop isn't frozen while we count rows + read +
+        # potentially delete the deployment row. The pool connection
+        # is held only for the duration of the to_thread call, not
+        # across the trailing ``await self._delegate(...)``.
         tag = old_val.tag
-        if not (tag and old_val.kind == "desktop"):
-            return await self._delegate("on_delete", old_val=old_val)
+        if tag and old_val.kind == "desktop":
+            await asyncio.to_thread(self._cleanup_deployment_if_empty, tag)
+        return await self._delegate("on_delete", old_val=old_val)
 
+    @staticmethod
+    def _cleanup_deployment_if_empty(tag):
+        """Sync helper: best-effort cleanup of an empty deployment row.
+
+        If ``tag`` has any remaining desktops, do nothing. Otherwise,
+        when the deployment row is in ``deleting`` status, drop it.
+        Errors are logged and swallowed — the caller's downstream
+        delegate runs regardless of whether this cleanup succeeded.
+        """
         try:
             with Deployment._rdb_context():
                 remaining = (
@@ -75,7 +91,7 @@ class DomainsHandler(BaseHandler):
                     .run(Deployment._rdb_connection)
                 )
                 if remaining:
-                    return await self._delegate("on_delete", old_val=old_val)
+                    return
                 deployment = (
                     r.table("deployments").get(tag).run(Deployment._rdb_connection)
                 )
@@ -87,7 +103,6 @@ class DomainsHandler(BaseHandler):
             log.exception(
                 "Failed to clean up deployment %s after last desktop deleted", tag
             )
-        return await self._delegate("on_delete", old_val=old_val)
 
     async def _delegate(self, method_name, old_val=None, new_val=None):
         val = new_val or old_val
