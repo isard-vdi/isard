@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router
@@ -56,8 +57,13 @@ async def admin_user_storage_auto_register(
     request: Request, data: UserStorageAutoRegisterRequest
 ) -> UserStorageIdResponse:
     try:
-        result = AdminUserStorageService.auto_register(
-            data.domain, data.user, data.password, data.intra_docker, data.verify_cert
+        result = await asyncio.to_thread(
+            AdminUserStorageService.auto_register,
+            data.domain,
+            data.user,
+            data.password,
+            data.intra_docker,
+            data.verify_cert,
         )
         return UserStorageIdResponse(id=result)
     except Error:
@@ -86,7 +92,8 @@ async def admin_user_storage_auto_register(
 )
 async def admin_user_storage_test(request: Request, data: UserStorageConnTestRequest):
     try:
-        AdminUserStorageService.conn_test(
+        await asyncio.to_thread(
+            AdminUserStorageService.conn_test,
             data.provider,
             data.url,
             data.urlprefix,
@@ -123,7 +130,9 @@ async def admin_user_storage_login_auth(
     request: Request, provider_id: str
 ) -> UserStorageLoginAuthResponse:
     try:
-        login_url = AdminUserStorageService.get_login_auth(provider_id)
+        login_url = await asyncio.to_thread(
+            AdminUserStorageService.get_login_auth, provider_id
+        )
         return UserStorageLoginAuthResponse(login_url=login_url)
     except Error:
         raise
@@ -151,7 +160,7 @@ async def admin_user_storage_login_auth(
 )
 async def admin_user_storage_list(request: Request) -> list[UserStorageProvider]:
     try:
-        providers = AdminUserStorageService.list_providers()
+        providers = await asyncio.to_thread(AdminUserStorageService.list_providers)
         return [UserStorageProvider(**row) for row in (providers or [])]
     except Error:
         raise
@@ -174,7 +183,7 @@ async def admin_user_storage_list(request: Request) -> list[UserStorageProvider]
 )
 async def admin_user_storage_users(request: Request) -> list[UserStorageUser]:
     try:
-        users = AdminUserStorageService.get_users()
+        users = await asyncio.to_thread(AdminUserStorageService.get_users)
         return [UserStorageUser(**row) for row in (users or [])]
     except Error:
         raise
@@ -199,7 +208,9 @@ async def admin_user_storage_get(
     request: Request, provider_id: str
 ) -> UserStorageProvider:
     try:
-        provider = AdminUserStorageService.get_provider(provider_id)
+        provider = await asyncio.to_thread(
+            AdminUserStorageService.get_provider, provider_id
+        )
         return UserStorageProvider(**(provider or {}))
     except Error:
         raise
@@ -222,7 +233,7 @@ async def admin_user_storage_get(
 )
 async def admin_user_storage_remove(request: Request, provider_id: str):
     try:
-        AdminUserStorageService.delete_provider(provider_id)
+        await asyncio.to_thread(AdminUserStorageService.delete_provider, provider_id)
         return {}
     except Error:
         raise
@@ -250,7 +261,7 @@ async def admin_user_storage_remove(request: Request, provider_id: str):
 )
 async def admin_user_storage_reset(request: Request, provider_id: str):
     try:
-        AdminUserStorageService.reset_provider(provider_id)
+        await asyncio.to_thread(AdminUserStorageService.reset_provider, provider_id)
         return {}
     except Error:
         raise
@@ -273,7 +284,7 @@ async def admin_user_storage_reset(request: Request, provider_id: str):
 )
 async def admin_user_storage_reset_all(request: Request):
     try:
-        AdminUserStorageService.reset_all()
+        await asyncio.to_thread(AdminUserStorageService.reset_all)
         return {}
     except Error:
         raise
@@ -309,7 +320,8 @@ async def admin_user_storage_add(
 ) -> UserStorageIdResponse:
     try:
         if auth_protocol == "auth_basic":
-            result = AdminUserStorageService.add_provider_basic_auth(
+            result = await asyncio.to_thread(
+                AdminUserStorageService.add_provider_basic_auth,
                 data.provider,
                 data.name,
                 data.description,
@@ -350,7 +362,7 @@ async def admin_user_storage_add(
 )
 async def admin_user_storage_sync(request: Request, provider_id: str, item: str):
     try:
-        AdminUserStorageService.sync(provider_id, item)
+        await asyncio.to_thread(AdminUserStorageService.sync, provider_id, item)
         return {}
     except Error:
         raise

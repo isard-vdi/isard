@@ -3,6 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router
@@ -39,13 +40,15 @@ async def admin_operations_hypervisors(
     request: Request,
 ) -> list[OperationsHypervisorResponse]:
     try:
-        if not AdminOperationsService.is_operations_api_enabled():
+        if not await asyncio.to_thread(
+            AdminOperationsService.is_operations_api_enabled
+        ):
             raise await Error.create(
                 request,
                 "forbidden",
                 "Operations API is not enabled",
             )
-        result = AdminOperationsService.list_hypervisors()
+        result = await asyncio.to_thread(AdminOperationsService.list_hypervisors)
         return [OperationsHypervisorResponse(**row) for row in (result or [])]
     except Error:
         raise
@@ -73,13 +76,17 @@ async def admin_operations_hypervisor_start(
     request: Request, hypervisor_id: str
 ) -> HypervisorActionResponse:
     try:
-        if not AdminOperationsService.is_operations_api_enabled():
+        if not await asyncio.to_thread(
+            AdminOperationsService.is_operations_api_enabled
+        ):
             raise await Error.create(
                 request,
                 "forbidden",
                 "Operations API is not enabled",
             )
-        result = AdminOperationsService.start_hypervisor(hypervisor_id)
+        result = await asyncio.to_thread(
+            AdminOperationsService.start_hypervisor, hypervisor_id
+        )
         return HypervisorActionResponse(**(result or {}))
     except Error:
         raise
@@ -107,13 +114,17 @@ async def admin_operations_hypervisor_stop(
     request: Request, hypervisor_id: str
 ) -> HypervisorActionResponse:
     try:
-        if not AdminOperationsService.is_operations_api_enabled():
+        if not await asyncio.to_thread(
+            AdminOperationsService.is_operations_api_enabled
+        ):
             raise await Error.create(
                 request,
                 "forbidden",
                 "Operations API is not enabled",
             )
-        result = AdminOperationsService.stop_hypervisor(hypervisor_id)
+        result = await asyncio.to_thread(
+            AdminOperationsService.stop_hypervisor, hypervisor_id
+        )
         return HypervisorActionResponse(**(result or {}))
     except Error:
         raise

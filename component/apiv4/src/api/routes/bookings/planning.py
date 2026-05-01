@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from datetime import datetime
 from typing import Optional
@@ -65,7 +66,9 @@ async def get_item_plannings(
     Get plannings for a specific reservable item.
     """
 
-    if not ReservableService.reservable_item_exists(reservable_item_id):
+    if not await asyncio.to_thread(
+        ReservableService.reservable_item_exists, reservable_item_id
+    ):
         raise Error(
             "not_found",
             f"Reservable item '{reservable_item_id}' not found",
@@ -73,7 +76,9 @@ async def get_item_plannings(
         )
 
     try:
-        plannings = PlanningService.get_item_plannings(reservable_item_id, start, end)
+        plannings = await asyncio.to_thread(
+            PlanningService.get_item_plannings, reservable_item_id, start, end
+        )
         return PlanningListResponse(plannings=plannings)
     except Error:
         raise
@@ -107,7 +112,7 @@ async def delete_planning(
     Delete a specific planning by its ID.
     """
     try:
-        PlanningService.delete_planning(plan_id)
+        await asyncio.to_thread(PlanningService.delete_planning, plan_id)
         return DeleteResponse(message="Planning deleted", message_code="item.deleted")
     except Error:
         raise
@@ -140,8 +145,10 @@ async def create_planning(
     Create a new planning for a reservable resource.
     """
     try:
-        plan_id = PlanningService.create_planning(
-            request.token_payload, planning_data.model_dump()
+        plan_id = await asyncio.to_thread(
+            PlanningService.create_planning,
+            request.token_payload,
+            planning_data.model_dump(),
         )
         return SimpleResponse(id=plan_id)
     except Error:

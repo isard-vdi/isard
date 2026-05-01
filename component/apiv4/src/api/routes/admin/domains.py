@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import json
 import traceback
 from typing import Literal
@@ -62,15 +63,21 @@ async def admin_list_domains(
 ) -> list[dict]:
     try:
         if data.domain_ids:
-            result = AdminDomainsService.get_domains_by_ids(
-                request.token_payload, data.domain_ids
+            result = await asyncio.to_thread(
+                AdminDomainsService.get_domains_by_ids,
+                request.token_payload,
+                data.domain_ids,
             )
         elif data.kind == "desktop":
-            result = AdminDomainsService.list_desktops(
-                request.token_payload, data.categories
+            result = await asyncio.to_thread(
+                AdminDomainsService.list_desktops,
+                request.token_payload,
+                data.categories,
             )
         else:
-            result = AdminDomainsService.list_templates(request.token_payload)
+            result = await asyncio.to_thread(
+                AdminDomainsService.list_templates, request.token_payload
+            )
         return result or []
     except Error:
         raise
@@ -101,8 +108,8 @@ async def admin_list_domains(
 )
 async def admin_domain_details(request: Request, domain_id: str) -> dict:
     try:
-        result = AdminDomainsService.get_domain_details(
-            request.token_payload, domain_id
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_domain_details, request.token_payload, domain_id
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -129,8 +136,8 @@ async def admin_domain_details(request: Request, domain_id: str) -> dict:
 )
 async def admin_domain_viewer_data(request: Request, domain_id: str) -> dict:
     try:
-        result = AdminDomainsService.get_domain_viewer_data(
-            request.token_payload, domain_id
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_domain_viewer_data, request.token_payload, domain_id
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -157,8 +164,10 @@ async def admin_domain_viewer_data(request: Request, domain_id: str) -> dict:
 )
 async def admin_deployment_viewer_data(request: Request, deployment_id: str) -> dict:
     try:
-        result = AdminDomainsService.get_deployment_viewer_data(
-            request.token_payload, deployment_id
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_deployment_viewer_data,
+            request.token_payload,
+            deployment_id,
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -191,8 +200,8 @@ async def admin_deployment_viewer_data(request: Request, deployment_id: str) -> 
 )
 async def admin_domains_status(request: Request, status: str) -> list[dict]:
     try:
-        result = AdminDomainsService.get_domains_by_status(
-            request.token_payload, status
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_domains_by_status, request.token_payload, status
         )
         return result or []
     except Error:
@@ -223,8 +232,10 @@ async def admin_domains_status(request: Request, status: str) -> list[dict]:
 )
 async def admin_find_storages_by_domain_status(request: Request, status: str) -> dict:
     try:
-        result = AdminDomainsService.find_storages_by_domain_status(
-            request.token_payload, status
+        result = await asyncio.to_thread(
+            AdminDomainsService.find_storages_by_domain_status,
+            request.token_payload,
+            status,
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -256,8 +267,8 @@ async def admin_find_storages_by_domain_status(request: Request, status: str) ->
 )
 async def admin_domain_storage(request: Request, domain_id: str) -> list[dict]:
     try:
-        result = AdminDomainsService.get_domain_storage(
-            request.token_payload, domain_id
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_domain_storage, request.token_payload, domain_id
         )
         return result or []
     except Error:
@@ -289,7 +300,7 @@ async def admin_domain_storage(request: Request, domain_id: str) -> list[dict]:
 )
 async def admin_domain_xml_get(request: Request, domain_id: str) -> dict:
     try:
-        result = AdminDomainsService.get_domain_xml(domain_id)
+        result = await asyncio.to_thread(AdminDomainsService.get_domain_xml, domain_id)
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -318,7 +329,9 @@ async def admin_domain_xml_update(
 ) -> dict:
     try:
         request_data = data.model_dump(exclude_none=True)
-        result = AdminDomainsService.update_domain_xml(domain_id, request_data)
+        result = await asyncio.to_thread(
+            AdminDomainsService.update_domain_xml, domain_id, request_data
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -349,8 +362,10 @@ async def admin_domain_xml_update(
 )
 async def admin_desktops_tree_list(request: Request, template_id: str) -> list[dict]:
     try:
-        result = AdminDomainsService.get_template_tree_list(
-            request.token_payload, template_id
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_template_tree_list,
+            request.token_payload,
+            template_id,
         )
         return result or []
     except Error:
@@ -377,8 +392,10 @@ async def admin_desktops_tree_list(request: Request, template_id: str) -> list[d
 )
 async def admin_domain_template_tree(request: Request, desktop_id: str) -> list[dict]:
     try:
-        result = AdminDomainsService.get_domain_template_tree(
-            request.token_payload, desktop_id
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_domain_template_tree,
+            request.token_payload,
+            desktop_id,
         )
         return result or []
     except Error:
@@ -414,8 +431,12 @@ async def admin_multiple_actions(
     background_tasks: BackgroundTasks,
 ) -> EmptyResponse:
     try:
-        AdminDomainsService.multiple_actions(
-            request.token_payload, data.action, data.ids, background_tasks
+        await asyncio.to_thread(
+            AdminDomainsService.multiple_actions,
+            request.token_payload,
+            data.action,
+            data.ids,
+            background_tasks,
         )
         return EmptyResponse()
     except Error:
@@ -447,7 +468,9 @@ async def admin_multiple_actions(
 )
 async def admin_template_delete(request: Request, template_id: str) -> EmptyResponse:
     try:
-        AdminDomainsService.delete_template(request.token_payload, template_id)
+        await asyncio.to_thread(
+            AdminDomainsService.delete_template, request.token_payload, template_id
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -478,8 +501,8 @@ async def admin_template_delete(request: Request, template_id: str) -> EmptyResp
 )
 async def admin_domains_field(request: Request, field: str, kind: str) -> list:
     try:
-        result = AdminDomainsService.get_domains_field(
-            request.token_payload, field, kind
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_domains_field, request.token_payload, field, kind
         )
         return result or []
     except Error:
@@ -511,8 +534,8 @@ async def admin_domains_field(request: Request, field: str, kind: str) -> list:
 )
 async def admin_domain_hardware(request: Request, domain_id: str) -> dict:
     try:
-        result = AdminDomainsService.get_domain_hardware(
-            request.token_payload, domain_id
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_domain_hardware, request.token_payload, domain_id
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -548,7 +571,9 @@ async def admin_desktops_status(
     request: Request, current_status: str, target_status: str
 ) -> EmptyResponse:
     try:
-        AdminDomainsService.change_desktops_status(current_status, target_status)
+        await asyncio.to_thread(
+            AdminDomainsService.change_desktops_status, current_status, target_status
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -578,8 +603,11 @@ async def admin_desktops_status_category(
     request: Request, category: str, current_status: str, target_status: str
 ) -> EmptyResponse:
     try:
-        AdminDomainsService.change_desktops_status_category(
-            category, current_status, target_status
+        await asyncio.to_thread(
+            AdminDomainsService.change_desktops_status_category,
+            category,
+            current_status,
+            target_status,
         )
         return EmptyResponse()
     except Error:
@@ -614,8 +642,11 @@ async def admin_domain_storage_path(
     request: Request, domain_id: str, data: AdminDomainStoragePathData
 ) -> dict:
     try:
-        result = AdminDomainsService.update_domain_storage_path(
-            domain_id, data.old_path, data.new_path
+        result = await asyncio.to_thread(
+            AdminDomainsService.update_domain_storage_path,
+            domain_id,
+            data.old_path,
+            data.new_path,
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -647,8 +678,8 @@ async def admin_domain_storage_path(
 )
 async def admin_domain_search_info(request: Request, domain_id: str) -> dict:
     try:
-        result = AdminDomainsService.get_domain_search_info(
-            request.token_payload, domain_id
+        result = await asyncio.to_thread(
+            AdminDomainsService.get_domain_search_info, request.token_payload, domain_id
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -683,7 +714,9 @@ async def admin_logs_desktops_raw(
     request: Request, form_data=Depends(parse_json_or_form)
 ) -> dict:
     try:
-        result = AdminDomainsService.query_logs_desktops(form_data, view="raw")
+        result = await asyncio.to_thread(
+            AdminDomainsService.query_logs_desktops, form_data, view="raw"
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -717,7 +750,9 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw") -> dict:
                 "bad_request",
                 "Request body must be multipart form data",
             )
-        result = AdminDomainsService.query_logs_desktops(form_data, view=view)
+        result = await asyncio.to_thread(
+            AdminDomainsService.query_logs_desktops, form_data, view=view
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -751,7 +786,9 @@ async def admin_logs_users_raw(
     request: Request, form_data=Depends(parse_json_or_form)
 ) -> dict:
     try:
-        result = AdminDomainsService.query_logs_users(form_data, view="raw")
+        result = await asyncio.to_thread(
+            AdminDomainsService.query_logs_users, form_data, view="raw"
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -785,7 +822,9 @@ async def admin_logs_users_view(request: Request, view: str = "raw") -> dict:
                 "bad_request",
                 "Request body must be multipart form data",
             )
-        result = AdminDomainsService.query_logs_users(form_data, view=view)
+        result = await asyncio.to_thread(
+            AdminDomainsService.query_logs_users, form_data, view=view
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -821,7 +860,8 @@ async def admin_logs_desktops_list(
     user_id: str = None,
 ) -> list[dict]:
     try:
-        result = AdminDomainsService.list_desktop_logs(
+        result = await asyncio.to_thread(
+            AdminDomainsService.list_desktop_logs,
             request.token_payload,
             start_date,
             end_date,
@@ -860,7 +900,8 @@ async def admin_logs_users_list(
     group_id: str = None,
 ) -> list[dict]:
     try:
-        result = AdminDomainsService.list_user_logs(
+        result = await asyncio.to_thread(
+            AdminDomainsService.list_user_logs,
             request.token_payload,
             start_date,
             end_date,
@@ -899,7 +940,7 @@ async def admin_logs_users_list(
 )
 async def admin_logs_desktops_config(request: Request) -> dict:
     try:
-        result = AdminDomainsService.get_logs_desktops_config()
+        result = await asyncio.to_thread(AdminDomainsService.get_logs_desktops_config)
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -926,7 +967,9 @@ async def admin_logs_desktops_config(request: Request) -> dict:
 )
 async def admin_logs_desktops_max_time(request: Request, max_time: int) -> dict:
     try:
-        result = AdminDomainsService.set_logs_desktops_max_time(max_time)
+        result = await asyncio.to_thread(
+            AdminDomainsService.set_logs_desktops_max_time, max_time
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -956,7 +999,9 @@ async def admin_logs_desktops_action(
     request: Request, action: Literal["delete", "none"]
 ) -> dict:
     try:
-        result = AdminDomainsService.set_logs_desktops_action(action)
+        result = await asyncio.to_thread(
+            AdminDomainsService.set_logs_desktops_action, action
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -985,7 +1030,9 @@ async def admin_logs_desktops_delete(
     request: Request, background_tasks: BackgroundTasks
 ) -> int:
     try:
-        count = AdminDomainsService.delete_old_desktop_logs(background_tasks)
+        count = await asyncio.to_thread(
+            AdminDomainsService.delete_old_desktop_logs, background_tasks
+        )
         return count or 0
     except Error:
         raise
@@ -1014,7 +1061,9 @@ async def admin_logs_desktops_delete_all(
     request: Request, background_tasks: BackgroundTasks
 ) -> int:
     try:
-        count = AdminDomainsService.delete_all_desktop_logs(background_tasks)
+        count = await asyncio.to_thread(
+            AdminDomainsService.delete_all_desktop_logs, background_tasks
+        )
         return count or 0
     except Error:
         raise
@@ -1045,7 +1094,7 @@ async def admin_logs_desktops_delete_all(
 )
 async def admin_logs_users_config(request: Request) -> dict:
     try:
-        result = AdminDomainsService.get_logs_users_config()
+        result = await asyncio.to_thread(AdminDomainsService.get_logs_users_config)
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -1072,7 +1121,9 @@ async def admin_logs_users_config(request: Request) -> dict:
 )
 async def admin_logs_users_max_time(request: Request, max_time: int) -> dict:
     try:
-        result = AdminDomainsService.set_logs_users_max_time(max_time)
+        result = await asyncio.to_thread(
+            AdminDomainsService.set_logs_users_max_time, max_time
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -1102,7 +1153,9 @@ async def admin_logs_users_action(
     request: Request, action: Literal["delete", "none"]
 ) -> dict:
     try:
-        result = AdminDomainsService.set_logs_users_action(action)
+        result = await asyncio.to_thread(
+            AdminDomainsService.set_logs_users_action, action
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -1131,7 +1184,9 @@ async def admin_logs_users_delete(
     request: Request, background_tasks: BackgroundTasks
 ) -> int:
     try:
-        count = AdminDomainsService.delete_old_user_logs(background_tasks)
+        count = await asyncio.to_thread(
+            AdminDomainsService.delete_old_user_logs, background_tasks
+        )
         return count or 0
     except Error:
         raise
@@ -1160,7 +1215,9 @@ async def admin_logs_users_delete_all(
     request: Request, background_tasks: BackgroundTasks
 ) -> int:
     try:
-        count = AdminDomainsService.delete_all_user_logs(background_tasks)
+        count = await asyncio.to_thread(
+            AdminDomainsService.delete_all_user_logs, background_tasks
+        )
         return count or 0
     except Error:
         raise
@@ -1260,7 +1317,9 @@ async def admin_domain_xml_sections_get(request: Request, domain_id: str) -> dic
     try:
         from api.services.xml_sections import split_xml_sections
 
-        domain = AdminDomainsService.get_domain_xml_and_protected(domain_id)
+        domain = await asyncio.to_thread(
+            AdminDomainsService.get_domain_xml_and_protected, domain_id
+        )
         sections = split_xml_sections(domain["xml"], domain["protected"])
         return {"sections": sections, "xml_full": domain["xml"]}
     except Error:
@@ -1286,8 +1345,11 @@ async def admin_domain_xml_sections_save(
     request: Request, domain_id: str, data: AdminDomainXmlSectionsSaveData
 ):
     try:
-        new_xml = AdminDomainsService.apply_xml_section_edits(
-            domain_id, data.sections, data.protected_sections
+        new_xml = await asyncio.to_thread(
+            AdminDomainsService.apply_xml_section_edits,
+            domain_id,
+            data.sections,
+            data.protected_sections,
         )
         return AdminDomainXmlSectionsSaveResponse(xml=new_xml)
     except Error:

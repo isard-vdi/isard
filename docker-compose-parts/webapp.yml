@@ -23,3 +23,10 @@ services:
       OPERATIONS_API_ENABLED:
       FARO_ENABLED:
       FARO_URL:
+      # webapp's per-request rdb pattern doesn't currently use the
+      # shared pool; flagged for migration in
+      # RETHINKDB_DRIVER_ADAPTATION.md (Tier 3). Once migrated, the
+      # pool size will apply. Set defensively now so the eventual
+      # migration inherits a sensible default.
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-5}
+      RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}

@@ -28,6 +28,7 @@ forced two writers to clear caches owned by routes/open.py via lazy
 imports — the cache now lives in ``services.login_config_cache``.
 """
 
+import asyncio
 import traceback
 
 from api import open_router
@@ -55,7 +56,7 @@ tag = "login"
 )
 async def get_login_config(request: Request):
     try:
-        config = ConfigService.get_login_config()
+        config = await asyncio.to_thread(ConfigService.get_login_config)
         return LoginConfigResponse(**config)
     except Error:
         raise
@@ -84,7 +85,9 @@ async def get_login_config(request: Request):
 )
 async def get_login_config_by_category(request: Request, category_id: str):
     try:
-        config = AdminCategoryService.get_login_config_for_category(category_id)
+        config = await asyncio.to_thread(
+            AdminCategoryService.get_login_config_for_category, category_id
+        )
         return LoginConfigResponse(**config)
     except Error:
         raise

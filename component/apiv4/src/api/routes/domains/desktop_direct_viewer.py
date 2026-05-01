@@ -94,7 +94,9 @@ async def get_share_link(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        link = DesktopService.get_desktop_share_link(desktop_id)
+        link = await asyncio.to_thread(
+            DesktopService.get_desktop_share_link, desktop_id
+        )
         return DesktopShareLinkResponse(link=link)
     except Error:
         raise
@@ -126,7 +128,9 @@ async def update_share_link(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        link = DesktopService.update_desktop_share_link(desktop_id, data.enabled)
+        link = await asyncio.to_thread(
+            DesktopService.update_desktop_share_link, desktop_id, data.enabled
+        )
         return DesktopShareLinkResponse(link=link)
     except Error:
         raise
@@ -164,7 +168,9 @@ async def get_desktop_viewer(
         log.warning(f"Direct viewer rate limit exceeded for token request")
         return await _timed_not_found(start_time)
     try:
-        desktop = DesktopService.get_desktop_direct_viewer_from_token(token, request)
+        desktop = await asyncio.to_thread(
+            DesktopService.get_desktop_direct_viewer_from_token, token, request
+        )
         return DesktopViewerResponse(**desktop)
     except Error:
         raise
@@ -189,7 +195,7 @@ async def get_desktop_viewer(
 )
 async def get_viewer_docs(request: Request):
     try:
-        docs_link = DesktopService.get_direct_viewer_docs()
+        docs_link = await asyncio.to_thread(DesktopService.get_direct_viewer_docs)
         return ViewersDocsResponse(viewers_documentation_url=docs_link)
     except Error:
         raise
@@ -231,7 +237,9 @@ async def log_viewer_click(
     if protocol not in _VIEWER_PROTOCOLS:
         return await _timed_not_found(start_time)
     try:
-        desktop = DesktopService.get_desktop_direct_viewer_from_token(token, request)
+        desktop = await asyncio.to_thread(
+            DesktopService.get_desktop_direct_viewer_from_token, token, request
+        )
         from isardvdi_common.helpers.logging import Logging
 
         Logging.logs_domain_event_directviewer(
@@ -272,7 +280,9 @@ async def reset_desktop(
         log.warning("Direct viewer rate limit exceeded for reset request")
         return await _timed_not_found(start_time)
     try:
-        desktop_id = DesktopService.reset_desktop_from_token(token, request)
+        desktop_id = await asyncio.to_thread(
+            DesktopService.reset_desktop_from_token, token, request
+        )
         return SimpleResponse(id=desktop_id)
     except Error:
         raise

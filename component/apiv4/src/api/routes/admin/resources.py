@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Optional
 
@@ -59,7 +60,9 @@ async def admin_remote_vpn_with_os(
     os: str = Path(..., description="Operating system"),
 ) -> RemoteVpnResponse:
     try:
-        result = AdminResourcesService.get_remote_vpn(vpn_id, kind, os)
+        result = await asyncio.to_thread(
+            AdminResourcesService.get_remote_vpn, vpn_id, kind, os
+        )
         if isinstance(result, dict):
             return RemoteVpnResponse(**result)
         return RemoteVpnResponse()
@@ -91,7 +94,9 @@ async def admin_remote_vpn(
     kind: str = Path(..., description="VPN data kind: config or install"),
 ) -> RemoteVpnResponse:
     try:
-        result = AdminResourcesService.get_remote_vpn(vpn_id, kind)
+        result = await asyncio.to_thread(
+            AdminResourcesService.get_remote_vpn, vpn_id, kind
+        )
         if isinstance(result, dict):
             return RemoteVpnResponse(**result)
         return RemoteVpnResponse()
@@ -128,7 +133,9 @@ async def admin_qos_disk_add(
     data: QosDiskCreateRequest,
 ):
     try:
-        AdminResourcesService.add_qos_disk(data.model_dump(exclude_none=True))
+        await asyncio.to_thread(
+            AdminResourcesService.add_qos_disk, data.model_dump(exclude_none=True)
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -158,7 +165,9 @@ async def admin_qos_disk_update(
     data: QosDiskUpdateRequest,
 ):
     try:
-        AdminResourcesService.update_qos_disk(data.model_dump(exclude_none=True))
+        await asyncio.to_thread(
+            AdminResourcesService.update_qos_disk, data.model_dump(exclude_none=True)
+        )
         return EmptyResponse()
     except Error:
         raise

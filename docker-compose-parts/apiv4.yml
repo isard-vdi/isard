@@ -51,6 +51,14 @@ services:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
       RETHINKDB_DB:
+      # apiv4 fans out N concurrent ``asyncio.to_thread`` worker
+      # threads (default executor sizes at min(32, cpu+4)). With
+      # every route handler now offloading rdb work to the pool,
+      # 10 slots is too tight under concurrent load. 20 is a
+      # conservative bump; tune higher only if RETHINKDB_SLOW_QUERY_*
+      # telemetry shows pool acquire-time saturation.
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-20}
+      RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
       API_ISARDVDI_SECRET:
       API_HYPERVISORS_SECRET:
       BACKUP_RETENTION: ${BACKUP_RETENTION:-30}

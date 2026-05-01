@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router, manager_router, token_router
@@ -72,7 +73,7 @@ async def check_storage_pool_creation_availability():
 )
 async def get_default_storage_pool(request: Request) -> StoragePoolResponse:
     try:
-        result = StoragePoolService.get_default_storage_pool()
+        result = await asyncio.to_thread(StoragePoolService.get_default_storage_pool)
         return StoragePoolResponse(**(result or {}))
     except Error:
         raise
@@ -99,7 +100,9 @@ async def get_storage_pool_by_path(
     request: Request, data: StoragePoolByPathRequest
 ) -> StoragePoolResponse:
     try:
-        storage_pool = StoragePoolService.get_storage_pool_by_path(data.path)
+        storage_pool = await asyncio.to_thread(
+            StoragePoolService.get_storage_pool_by_path, data.path
+        )
         return StoragePoolResponse(**(storage_pool or {}))
     except Error:
         raise
@@ -127,7 +130,9 @@ async def get_storage_pool_by_path(
 )
 async def create_storage_pool(request: Request, data: StoragePoolCreateRequest):
     try:
-        StoragePoolService.add_storage_pool(data.model_dump(exclude_none=True))
+        await asyncio.to_thread(
+            StoragePoolService.add_storage_pool, data.model_dump(exclude_none=True)
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -153,7 +158,7 @@ async def create_storage_pool(request: Request, data: StoragePoolCreateRequest):
 async def list_storage_pools(request: Request):
     try:
         return StoragePoolListResponse(
-            storage_pools=StoragePoolService.get_storage_pools()
+            storage_pools=await asyncio.to_thread(StoragePoolService.get_storage_pools)
         )
     except Error:
         raise
@@ -202,7 +207,9 @@ async def check_storage_pool_availability_compat(
 )
 async def get_storage_pool(request: Request, storage_pool_id: str):
     try:
-        storage_pool = StoragePoolService.get_storage_pool(storage_pool_id)
+        storage_pool = await asyncio.to_thread(
+            StoragePoolService.get_storage_pool, storage_pool_id
+        )
         return storage_pool
     except Error:
         raise
@@ -229,8 +236,10 @@ async def update_storage_pool(
     request: Request, storage_pool_id: str, data: StoragePoolUpdateRequest
 ):
     try:
-        StoragePoolService.update_storage_pool(
-            storage_pool_id, data.model_dump(exclude_none=True)
+        await asyncio.to_thread(
+            StoragePoolService.update_storage_pool,
+            storage_pool_id,
+            data.model_dump(exclude_none=True),
         )
         return EmptyResponse()
     except Error:
@@ -256,7 +265,7 @@ async def update_storage_pool(
 )
 async def delete_storage_pool(request: Request, storage_pool_id: str):
     try:
-        StoragePoolService.delete_storage_pool(storage_pool_id)
+        await asyncio.to_thread(StoragePoolService.delete_storage_pool, storage_pool_id)
         return EmptyResponse()
     except Error:
         raise
@@ -283,8 +292,10 @@ async def check_category_storage_pool_availability(
     request: Request, data: CheckCategoryAvailabilityRequest
 ):
     try:
-        available = StoragePoolService.check_category_availability(
-            data.categories, data.storage_pool_id
+        available = await asyncio.to_thread(
+            StoragePoolService.check_category_availability,
+            data.categories,
+            data.storage_pool_id,
         )
         return CheckCategoryAvailabilityResponse(available=available)
     except Error:

@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 import traceback
 
 from api import admin_router, manager_router, token_router
@@ -81,7 +82,7 @@ async def get_desktop_bastion(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        target = BastionService.get_desktop_bastion(desktop_id)
+        target = await asyncio.to_thread(BastionService.get_desktop_bastion, desktop_id)
         return BastionResponse(**target)
     except Error:
         raise
@@ -125,8 +126,11 @@ async def update_desktop_bastion(
         except Exception:
             can_use_individual_domains = False
         bastion_data = data.model_dump(exclude_none=True)
-        BastionService.update_desktop_bastion(
-            desktop_id, bastion_data, can_use_individual_domains
+        await asyncio.to_thread(
+            BastionService.update_desktop_bastion,
+            desktop_id,
+            bastion_data,
+            can_use_individual_domains,
         )
         return EmptyResponse()
     except Error:
@@ -163,7 +167,11 @@ async def update_bastion_authorized_keys(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        BastionService.update_bastion_authorized_keys(desktop_id, data.authorized_keys)
+        await asyncio.to_thread(
+            BastionService.update_bastion_authorized_keys,
+            desktop_id,
+            data.authorized_keys,
+        )
         return {}
     except Error:
         raise
@@ -205,7 +213,8 @@ async def update_bastion_domains(
                 "forbidden",
                 "User cannot use individual bastion domains",
             )
-        BastionService.update_bastion_domains(
+        await asyncio.to_thread(
+            BastionService.update_bastion_domains,
             desktop_id,
             data.domains,
             request.token_payload["category_id"],
@@ -251,7 +260,8 @@ async def verify_bastion_domain(
                 "forbidden",
                 "User cannot use individual bastion domains",
             )
-        result = BastionService.verify_bastion_domain(
+        result = await asyncio.to_thread(
+            BastionService.verify_bastion_domain,
             desktop_id,
             data.domain,
             request.token_payload["category_id"],
@@ -280,7 +290,7 @@ async def verify_bastion_domain(
 )
 async def get_admin_bastion_config(request: Request):
     try:
-        config = BastionService.get_admin_bastion_config()
+        config = await asyncio.to_thread(BastionService.get_admin_bastion_config)
         return AdminBastionConfigResponse(**config)
     except Error:
         raise
@@ -305,7 +315,9 @@ async def get_admin_bastion_config(request: Request):
 )
 async def remove_disallowed_bastion_targets(request: Request) -> dict:
     try:
-        result = BastionService.remove_disallowed_bastion_targets()
+        result = await asyncio.to_thread(
+            BastionService.remove_disallowed_bastion_targets
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -333,7 +345,8 @@ async def update_bastion_config(
     data: AdminBastionConfigUpdateRequest,
 ):
     try:
-        BastionService.update_bastion_config(
+        await asyncio.to_thread(
+            BastionService.update_bastion_config,
             data.enabled,
             data.bastion_domain,
             data.domain_verification_required,
@@ -362,7 +375,9 @@ async def update_bastion_config(
 )
 async def get_bastion_domain_verification_config(request: Request):
     try:
-        config = BastionService.get_bastion_domain_verification_config()
+        config = await asyncio.to_thread(
+            BastionService.get_bastion_domain_verification_config
+        )
         return BastionDomainVerificationConfigResponse(**config)
     except Error:
         raise

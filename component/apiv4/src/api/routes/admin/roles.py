@@ -3,6 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router
@@ -38,7 +39,7 @@ tag = "admin_roles"
 )
 async def admin_get_role(request: Request, role_id: str) -> RoleResponse:
     try:
-        role = AdminRolesService.get_role(role_id)
+        role = await asyncio.to_thread(AdminRolesService.get_role, role_id)
         return RoleResponse(**role)
     except Error:
         raise

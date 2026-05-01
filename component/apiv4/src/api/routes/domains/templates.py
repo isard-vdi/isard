@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 import traceback
 from typing import Annotated, Literal, Optional
 
@@ -75,7 +76,9 @@ tag = "templates"
 async def get_template_info(template_id: str, request: Request):
     try:
         return DomainInfoResponse(
-            **DomainService.get_domain_info(template_id, request.token_payload)
+            **await asyncio.to_thread(
+                DomainService.get_domain_info, template_id, request.token_payload
+            )
         )
     except Error:
         raise
@@ -107,7 +110,9 @@ async def get_template_details(
     template_id: str = Path(..., description="The ID of the template"),
 ):
     try:
-        info = TemplateService.get_template_details(template_id)
+        info = await asyncio.to_thread(
+            TemplateService.get_template_details, template_id
+        )
         return TemplateDetailsResponse(**info)
     except Error:
         raise
@@ -146,8 +151,8 @@ async def get_user_allowed_templates_flat(
     request: Request, kind: Literal["all", "shared"]
 ):
     try:
-        templates = TemplateService.get_user_allowed_templates_flat(
-            request.token_payload, kind
+        templates = await asyncio.to_thread(
+            TemplateService.get_user_allowed_templates_flat, request.token_payload, kind
         )
         return templates
     except Error:
@@ -178,8 +183,9 @@ async def get_user_templates(
 ):
     try:
         return UserTemplatesResponse(
-            templates=TemplateService.get_user_templates(
-                user_id=request.token_payload["user_id"]
+            templates=await asyncio.to_thread(
+                TemplateService.get_user_templates,
+                user_id=request.token_payload["user_id"],
             ),
         )
     except Error:
@@ -249,7 +255,8 @@ async def get_user_templates(
                 traceback.format_exc(),
             )
         filter_dict = filters.dict(exclude_none=True)
-        user_templates = TemplateService.get_user_templates_paginated(
+        user_templates = await asyncio.to_thread(
+            TemplateService.get_user_templates_paginated,
             user_id=request.token_payload["user_id"],
             start_after=start_after,
             page_size=page_size,
@@ -284,7 +291,7 @@ async def get_user_templates(
 )
 async def get_all_templates(request: Request):
     try:
-        templates = TemplateService.get_all_templates()
+        templates = await asyncio.to_thread(TemplateService.get_all_templates)
 
         return {"templates": templates}
     except Error:
@@ -314,7 +321,9 @@ async def get_user_shared_templates(
 ):
     try:
         return UserSharedTemplatesResponse(
-            templates=TemplateService.get_user_shared_templates(request.token_payload)
+            templates=await asyncio.to_thread(
+                TemplateService.get_user_shared_templates, request.token_payload
+            )
         )
     except Error:
         raise
@@ -346,8 +355,10 @@ async def get_user_shared_templates(
 async def get_template_allowed(template_id: str, request: Request):
     try:
         return AllowedResponse(
-            **TemplateService.get_template_allowed(
-                template_id, request.token_payload["category_id"]
+            **await asyncio.to_thread(
+                TemplateService.get_template_allowed,
+                template_id,
+                request.token_payload["category_id"],
             )
         )
     except Error:
@@ -376,7 +387,9 @@ async def update_template_allowed(
     request: Request, allowed: AllowedUpdate, template_id: str
 ):
     try:
-        TemplateService.update_template_allowed(template_id, allowed)
+        await asyncio.to_thread(
+            TemplateService.update_template_allowed, template_id, allowed
+        )
         return SimpleResponse(id=template_id)
     except Error:
         raise
@@ -442,7 +455,8 @@ async def get_user_allowed_templates(
                 "search must be provided when search_field is set",
                 traceback.format_exc(),
             )
-        user_templates = TemplateService.get_user_allowed_templates(
+        user_templates = await asyncio.to_thread(
+            TemplateService.get_user_allowed_templates,
             user_id=request.token_payload["user_id"],
             user_category=request.token_payload["category_id"],
             user_group=request.token_payload["group_id"],
@@ -482,8 +496,11 @@ async def update_template(
     data: TemplateEditRequest,
 ):
     try:
-        DesktopService.edit_desktop(
-            template_id, data.model_dump(), request.token_payload
+        await asyncio.to_thread(
+            DesktopService.edit_desktop,
+            template_id,
+            data.model_dump(),
+            request.token_payload,
         )
 
         return SimpleResponse(id=template_id)
@@ -520,7 +537,8 @@ async def change_template_owner(
     user_id: str = Path(..., description="The ID of the new owner"),
 ):
     try:
-        TemplateService.change_owner(
+        await asyncio.to_thread(
+            TemplateService.change_owner,
             payload=request.token_payload,
             template_id=template_id,
             new_user_id=user_id,
@@ -560,7 +578,12 @@ async def set_template_enabled(
     data: TemplateSetEnabledRequest,
 ):
     try:
-        TemplateService.set_enabled(template_id, data.enabled, request.token_payload)
+        await asyncio.to_thread(
+            TemplateService.set_enabled,
+            template_id,
+            data.enabled,
+            request.token_payload,
+        )
         return SimpleResponse(id=template_id)
     except Error:
         raise
@@ -590,7 +613,8 @@ async def get_template_tree(
 ):
     try:
         return TemplateTreeResponse(
-            **TemplateService.get_template_tree(
+            **await asyncio.to_thread(
+                TemplateService.get_template_tree,
                 template_id,
                 request.token_payload,
             )
@@ -624,7 +648,8 @@ async def create_template(
 ):
     try:
         return SimpleResponse(
-            id=TemplateService.create_template(
+            id=await asyncio.to_thread(
+                TemplateService.create_template,
                 request.token_payload,
                 data.model_dump(),
             )
@@ -659,7 +684,8 @@ async def duplicate_template(
 ):
     try:
         return SimpleResponse(
-            id=TemplateService.duplicate_template(
+            id=await asyncio.to_thread(
+                TemplateService.duplicate_template,
                 request.token_payload,
                 template_id,
                 data.model_dump(),
@@ -696,7 +722,9 @@ async def duplicate_template(
 )
 async def delete_template(request: Request, response: Response, template_id: str):
     try:
-        tasks = TemplateService.delete_template(request.token_payload, template_id)
+        tasks = await asyncio.to_thread(
+            TemplateService.delete_template, request.token_payload, template_id
+        )
         if tasks is None:
             return DeleteResponse(
                 message="Item sent to recycle bin", message_code="item.recycled"
@@ -742,8 +770,11 @@ async def convert_template_to_desktop(
     data: TemplateToDesktopRequest,
 ):
     try:
-        TemplateService.convert_to_desktop(
-            request.token_payload, template_id, data.name
+        await asyncio.to_thread(
+            TemplateService.convert_to_desktop,
+            request.token_payload,
+            template_id,
+            data.name,
         )
         return SimpleResponse(id=template_id)
     except Error:
@@ -773,7 +804,7 @@ async def toggle_template_enabled(
     template_id: str,
 ):
     try:
-        TemplateService.toggle_enabled(template_id)
+        await asyncio.to_thread(TemplateService.toggle_enabled, template_id)
         return SimpleResponse(id=template_id)
     except Error:
         raise

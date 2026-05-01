@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 import traceback
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -88,8 +89,11 @@ async def get_user_bookings(
             end_date = start_date + timedelta(days=30)
         return [
             UserBookingResponse(**booking)
-            for booking in BookingsService.get_user_bookings(
-                start_date, end_date, request.token_payload
+            for booking in await asyncio.to_thread(
+                BookingsService.get_user_bookings,
+                start_date,
+                end_date,
+                request.token_payload,
             )
         ]
     except Error:
@@ -162,7 +166,8 @@ async def get_booking_desktop(
                 raise ValueError("Invalid endpoint")
 
         return ItemBookingsResponse(
-            BookingsService.get_item_bookings(
+            await asyncio.to_thread(
+                BookingsService.get_item_bookings,
                 request.token_payload,
                 start_date,
                 end_date,
@@ -200,8 +205,10 @@ async def get_booking_desktop(
 )
 async def get_booking_priority_desktop(request: Request, item_id: str):
     try:
-        result = BookingsService.get_user_priority_for_desktop(
-            request.token_payload, item_id
+        result = await asyncio.to_thread(
+            BookingsService.get_user_priority_for_desktop,
+            request.token_payload,
+            item_id,
         )
         return BookingPriorityDesktopResponse(**result)
     except Error:
@@ -235,7 +242,7 @@ async def get_booking_priority_desktop(request: Request, item_id: str):
 )
 async def delete_booking_event(request: Request, booking_id: str):
     try:
-        BookingsService.delete_booking_event(booking_id)
+        await asyncio.to_thread(BookingsService.delete_booking_event, booking_id)
         return EmptyResponse()
     except Error:
         raise
@@ -269,7 +276,8 @@ async def update_booking_event(
     request: Request, booking_id: str, booking_data: UpdateBookingEventRequest
 ):
     try:
-        BookingsService.update_booking_event(
+        await asyncio.to_thread(
+            BookingsService.update_booking_event,
             payload=request.token_payload,
             booking_id=booking_id,
             title=booking_data.title,
@@ -302,7 +310,9 @@ async def update_booking_event(
 async def create_booking_event(request: Request, new_event: CreateBookingEventRequest):
     try:
         return BookingEventResponse(
-            **BookingsService.create_booking_event(request.token_payload, new_event)
+            **await asyncio.to_thread(
+                BookingsService.create_booking_event, request.token_payload, new_event
+            )
         )
     except Error:
         raise
@@ -325,8 +335,8 @@ async def create_booking_event(request: Request, new_event: CreateBookingEventRe
 async def get_max_booking_date(request: Request, desktop_id: str):
     try:
         return MaxBookingDateResponse(
-            max_booking_date=BookingsService.get_max_booking_date(
-                request.token_payload, desktop_id
+            max_booking_date=await asyncio.to_thread(
+                BookingsService.get_max_booking_date, request.token_payload, desktop_id
             )
         )
     except Error:
@@ -354,7 +364,7 @@ async def get_all_bookings(request: Request):
     try:
         return [
             AdminBookingResponse(**booking)
-            for booking in BookingsService.get_all_bookings()
+            for booking in await asyncio.to_thread(BookingsService.get_all_bookings)
         ]
     except Error:
         raise
@@ -381,7 +391,9 @@ async def get_users_priorities(
     request: Request, data: GetUsersPrioritiesRequest
 ) -> list[BookingPriorityUser]:
     try:
-        result = BookingsService.get_users_priorities(data.rule_id)
+        result = await asyncio.to_thread(
+            BookingsService.get_users_priorities, data.rule_id
+        )
         return [BookingPriorityUser(**row) for row in (result or [])]
     except Error:
         raise
@@ -414,7 +426,7 @@ async def delete_priority(request: Request, priority_id: str):
             "",
         )
     try:
-        BookingsService.delete_users_priority(priority_id)
+        await asyncio.to_thread(BookingsService.delete_users_priority, priority_id)
         return EmptyResponse()
     except Error:
         raise
@@ -439,7 +451,7 @@ async def delete_priority(request: Request, priority_id: str):
 )
 async def list_priority_rules(request: Request):
     try:
-        return BookingsService.list_priority_rules()
+        return await asyncio.to_thread(BookingsService.list_priority_rules)
     except Error:
         raise
     except Exception as e:
@@ -467,8 +479,11 @@ async def get_item_availability(
     item_id: str = Path(..., description="ID of the item"),
 ) -> AvailabilityResponse:
     try:
-        result = BookingsService.get_item_availability(
-            request.token_payload, item_type, item_id
+        result = await asyncio.to_thread(
+            BookingsService.get_item_availability,
+            request.token_payload,
+            item_type,
+            item_id,
         )
         if isinstance(result, dict):
             return AvailabilityResponse(**result)
@@ -496,7 +511,7 @@ async def get_item_availability(
 )
 async def get_gpu_bookings_forecast(request: Request):
     try:
-        return BookingsService.get_gpu_bookings_forecast()
+        return await asyncio.to_thread(BookingsService.get_gpu_bookings_forecast)
     except Error:
         raise
     except Exception as e:
@@ -520,7 +535,7 @@ async def get_gpu_bookings_forecast(request: Request):
 )
 async def empty_booking_plan(request: Request, plan_id: str):
     try:
-        BookingsService.empty_planning(plan_id)
+        await asyncio.to_thread(BookingsService.empty_planning, plan_id)
         return EmptyResponse()
     except Error:
         raise
@@ -547,7 +562,9 @@ async def get_booking_plans(request: Request, booking_id: str):
     try:
         return [
             BookingPlanResponse(**plan)
-            for plan in BookingsService.get_booking_plans(booking_id)
+            for plan in await asyncio.to_thread(
+                BookingsService.get_booking_plans, booking_id
+            )
         ]
     except Error:
         raise
@@ -575,8 +592,8 @@ async def get_booking_plans(request: Request, booking_id: str):
 async def get_booking_reservables_available(request: Request):
     try:
         return AvailableReservablesResponse(
-            reservables_available=BookingsService.get_available_reservables(
-                request.token_payload
+            reservables_available=await asyncio.to_thread(
+                BookingsService.get_available_reservables, request.token_payload
             )
         )
     except Error:

@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router, manager_router
@@ -57,7 +58,7 @@ tag = "admin-login-config"
 )
 async def admin_login_config_get(request: Request) -> AdminLoginConfigResponse:
     try:
-        result = AdminCategoryService.admin_get_login_config()
+        result = await asyncio.to_thread(AdminCategoryService.admin_get_login_config)
         return AdminLoginConfigResponse(**(result or {}))
     except Error:
         raise
@@ -92,7 +93,9 @@ async def admin_login_config_by_category(
     category_id: str = Path(..., description="Category ID"),
 ) -> AdminLoginConfigResponse:
     try:
-        result = AdminCategoryService.admin_get_login_config(category_id)
+        result = await asyncio.to_thread(
+            AdminCategoryService.admin_get_login_config, category_id
+        )
         return AdminLoginConfigResponse(**(result or {}))
     except Error:
         raise
@@ -139,7 +142,7 @@ async def admin_login_notification_update(
                         # raises plain ValueError. Convert to a typed 400
                         # so admins see "bad URL" instead of generic 500.
                         raise Error("bad_request", str(e))
-        AdminLoginConfigService.update_login_notification(dump)
+        await asyncio.to_thread(AdminLoginConfigService.update_login_notification, dump)
         return {}
     except Error:
         raise
@@ -167,7 +170,9 @@ async def admin_login_notification_cover_enable(
     request: Request, data: LoginNotificationEnableRequest
 ):
     try:
-        AdminLoginConfigService.enable_login_notification("cover", data.enabled)
+        await asyncio.to_thread(
+            AdminLoginConfigService.enable_login_notification, "cover", data.enabled
+        )
         return {}
     except Error:
         raise
@@ -195,7 +200,9 @@ async def admin_login_notification_form_enable(
     request: Request, data: LoginNotificationEnableRequest
 ):
     try:
-        AdminLoginConfigService.enable_login_notification("form", data.enabled)
+        await asyncio.to_thread(
+            AdminLoginConfigService.enable_login_notification, "form", data.enabled
+        )
         return {}
     except Error:
         raise

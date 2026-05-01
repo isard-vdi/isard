@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 import traceback
 from typing import Literal, Optional
 
@@ -104,7 +105,8 @@ async def create_nonpersistent_desktop(
     request: Request, data: NewNonpersistentDesktopRequest
 ):
     try:
-        desktop_id = DesktopService.create_nonpersistent_desktop(
+        desktop_id = await asyncio.to_thread(
+            DesktopService.create_nonpersistent_desktop,
             payload=request.token_payload,
             template_id=data.template_id,
         )
@@ -147,8 +149,10 @@ async def create_desktop(request: Request, data: CreateDesktopRequest):
                 )
 
     try:
-        desktop_id = DesktopService.create_desktop(
-            user_id=request.token_payload["user_id"], data=data
+        desktop_id = await asyncio.to_thread(
+            DesktopService.create_desktop,
+            user_id=request.token_payload["user_id"],
+            data=data,
         )
         return SimpleResponse(id=desktop_id)
     except Error:
@@ -180,7 +184,7 @@ async def get_desktop(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        desktop = DesktopService.get_desktop(desktop_id)
+        desktop = await asyncio.to_thread(DesktopService.get_desktop, desktop_id)
         return Desktop(**desktop)
     except Error:
         raise
@@ -211,7 +215,9 @@ async def get_desktop_networks(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        networks = DesktopService.get_desktop_networks(desktop_id)
+        networks = await asyncio.to_thread(
+            DesktopService.get_desktop_networks, desktop_id
+        )
         return DesktopNetworksResponse(
             networks=networks,
         )
@@ -244,7 +250,7 @@ async def get_desktop_info(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        info = DesktopService.get_desktop_details(desktop_id)
+        info = await asyncio.to_thread(DesktopService.get_desktop_details, desktop_id)
         return DesktopDetailsResponse(**info)
     except Error:
         raise
@@ -283,7 +289,9 @@ async def get_desktop_bastion(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        bastion = DesktopService.get_desktop_bastion(desktop_id)
+        bastion = await asyncio.to_thread(
+            DesktopService.get_desktop_bastion, desktop_id
+        )
         return DesktopBastionResponse(**bastion)
     except Error:
         raise
@@ -318,7 +326,9 @@ async def update_desktop_bastion_authorized_keys(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.update_desktop_bastion_authorized_keys(desktop_id, data)
+        await asyncio.to_thread(
+            DesktopService.update_desktop_bastion_authorized_keys, desktop_id, data
+        )
         return SimpleResponse(id=desktop_id)
     except Error:
         raise
@@ -350,7 +360,9 @@ async def extend_desktop_timeout(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.extend_desktop_timeout(request.token_payload, desktop_id)
+        await asyncio.to_thread(
+            DesktopService.extend_desktop_timeout, request.token_payload, desktop_id
+        )
         return SimpleResponse(id=desktop_id)
     except Error:
         raise
@@ -382,8 +394,10 @@ async def stop_desktop(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.stop_desktop(
-            desktop_id, user_id=request.token_payload["user_id"]
+        await asyncio.to_thread(
+            DesktopService.stop_desktop,
+            desktop_id,
+            user_id=request.token_payload["user_id"],
         )
         return SimpleResponse(id=desktop_id)
     except Error:
@@ -407,8 +421,10 @@ async def stop_desktop(
 )
 async def stop_desktops(desktops_stop_request: DesktopsStopRequest, request: Request):
     try:
-        DesktopService.stop_user_desktops(
-            user_id=request.token_payload["user_id"], force=desktops_stop_request.force
+        await asyncio.to_thread(
+            DesktopService.stop_user_desktops,
+            user_id=request.token_payload["user_id"],
+            force=desktops_stop_request.force,
         )
         return EmptyResponse()
     except Error:
@@ -443,8 +459,11 @@ async def start_desktop(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.start_desktop(
-            desktop_id, user_id=request.token_payload["user_id"], request=request
+        await asyncio.to_thread(
+            DesktopService.start_desktop,
+            desktop_id,
+            user_id=request.token_payload["user_id"],
+            request=request,
         )
         return SimpleResponse(id=desktop_id)
     except Error:
@@ -475,7 +494,7 @@ async def update_status_desktop(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.desktop_update_status(desktop_id)
+        await asyncio.to_thread(DesktopService.desktop_update_status, desktop_id)
         return SimpleResponse(id=desktop_id)
     except Error:
         raise
@@ -510,7 +529,8 @@ async def change_desktop_owner(
     user_id: str = Path(..., description="The ID of the new owner"),
 ):
     try:
-        DesktopService.change_owner(
+        await asyncio.to_thread(
+            DesktopService.change_owner,
             payload=request.token_payload,
             desktop_id=desktop_id,
             new_user_id=user_id,
@@ -548,8 +568,10 @@ async def retry_failed_desktop(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        result = DesktopService.retry_failed_desktop(
-            desktop_id, user_id=request.token_payload["user_id"]
+        result = await asyncio.to_thread(
+            DesktopService.retry_failed_desktop,
+            desktop_id,
+            user_id=request.token_payload["user_id"],
         )
         return SimpleResponse(id=result["id"])
     except Error:
@@ -586,8 +608,11 @@ async def bulk_edit_desktops(request: Request, data: BulkEditDesktopsRequest):
         # Pydantic ``model_dump`` keeps unknown fields too because the
         # schema is configured with ``extra = "allow"``.
         update_payload = data.model_dump(exclude_none=True, exclude={"ids"})
-        result = DesktopService.bulk_edit_desktops(
-            ids, update_payload, request.token_payload
+        result = await asyncio.to_thread(
+            DesktopService.bulk_edit_desktops,
+            ids,
+            update_payload,
+            request.token_payload,
         )
         return result
     except Error:
@@ -623,8 +648,10 @@ async def bulk_create_persistent_desktops(
     request: Request, data: BulkCreatePersistentDesktopsRequest
 ):
     try:
-        result = DesktopService.bulk_create_persistent_desktops(
-            request.token_payload, data.model_dump()
+        result = await asyncio.to_thread(
+            DesktopService.bulk_create_persistent_desktops,
+            request.token_payload,
+            data.model_dump(),
         )
         return result
     except Error:
@@ -656,8 +683,11 @@ async def force_stop_desktop(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.stop_desktop(
-            desktop_id, user_id=request.token_payload["user_id"], force=True
+        await asyncio.to_thread(
+            DesktopService.stop_desktop,
+            desktop_id,
+            user_id=request.token_payload["user_id"],
+            force=True,
         )
         return SimpleResponse(id=desktop_id)
     except Error:
@@ -695,8 +725,11 @@ async def delete_desktop(
     ),
 ):
     try:
-        tasks = DesktopService.delete_desktop(
-            desktop_id, request.token_payload["user_id"], permanent=permanent
+        tasks = await asyncio.to_thread(
+            DesktopService.delete_desktop,
+            desktop_id,
+            request.token_payload["user_id"],
+            permanent=permanent,
         )
         if isinstance(tasks, bool):
             return Response(status_code=204)
@@ -791,7 +824,9 @@ async def delete_user_deployment_desktops(
     deployment_id: str = Path(..., description="The ID of the deployment"),
 ):
     try:
-        task_ids = DeploymentService.delete_desktops(user_id, deployment_id, request)
+        task_ids = await asyncio.to_thread(
+            DeploymentService.delete_desktops, user_id, deployment_id, request
+        )
         return DeleteResponse(
             message="Task to delete desktops queued",
             message_code="item.queued",
@@ -822,7 +857,9 @@ async def delete_user_deployment_desktops(
 async def get_user_desktops(request: Request):
     try:
         user_id = request.token_payload["user_id"]
-        user_desktops = DesktopService.get_user_desktops(user_id)
+        user_desktops = await asyncio.to_thread(
+            DesktopService.get_user_desktops, user_id
+        )
         return UserDesktopsResponse(
             desktops=user_desktops,
         )
@@ -893,7 +930,8 @@ async def get_user_desktops(
                 traceback.format_exc(),
             )
         filter_dict = filters.dict(exclude_none=True)
-        user_desktops = DesktopService.get_user_desktops_paginated(
+        user_desktops = await asyncio.to_thread(
+            DesktopService.get_user_desktops_paginated,
             user_id=request.token_payload["user_id"],
             start_after=start_after,
             page_size=page_size,
@@ -949,7 +987,8 @@ async def get_all_desktops(
                 traceback.format_exc(),
             )
         # filter_dict = filters.dict(exclude_none=True)
-        desktops = DesktopService.get_all_desktops(
+        desktops = await asyncio.to_thread(
+            DesktopService.get_all_desktops,
             start_after=start_after,
             page_size=page_size,
             sort_field=sort_field,
@@ -982,7 +1021,9 @@ async def get_all_desktops(
 )
 async def get_domains_allowed_reservables(request: Request):
     try:
-        vgpus = DesktopService.get_user_allowed_reservables(request.token_payload)
+        vgpus = await asyncio.to_thread(
+            DesktopService.get_user_allowed_reservables, request.token_payload
+        )
         return AllowedReservablesResponse(vgpus=vgpus)
     except Error:
         raise
@@ -1013,8 +1054,10 @@ async def get_domains_allowed_reservables(request: Request):
 )
 async def create_desktop_from_media(request: Request, data: CreateDesktopFromMedia):
     try:
-        desktop_id = DesktopService.create_from_media(
-            user_id=request.token_payload["user_id"], data=data
+        desktop_id = await asyncio.to_thread(
+            DesktopService.create_from_media,
+            user_id=request.token_payload["user_id"],
+            data=data,
         )
         return SimpleResponse(id=desktop_id)
     except Error:
@@ -1043,11 +1086,13 @@ async def get_desktop_info(
 ):
 
     try:
-        desktop_data = DomainService.get_domain_info(desktop_id, request.token_payload)
+        desktop_data = await asyncio.to_thread(
+            DomainService.get_domain_info, desktop_id, request.token_payload
+        )
 
         try:
-            desktop_data["bastion_target"] = DesktopService.get_desktop_bastion(
-                desktop_id
+            desktop_data["bastion_target"] = await asyncio.to_thread(
+                DesktopService.get_desktop_bastion, desktop_id
             )
         except Error:
             desktop_data["bastion_target"] = None
@@ -1096,8 +1141,11 @@ async def edit_desktop(
                 )
 
     try:
-        DesktopService.edit_desktop(
-            desktop_id, data.model_dump(exclude_unset=True), request.token_payload
+        await asyncio.to_thread(
+            DesktopService.edit_desktop,
+            desktop_id,
+            data.model_dump(exclude_unset=True),
+            request.token_payload,
         )
         return SimpleResponse(id=desktop_id)
     except Error:
@@ -1133,7 +1181,8 @@ async def get_desktop_viewer(
     ] = Path(..., description="The type of viewer to get the connection string for"),
 ):
     try:
-        connection_string = DesktopService.get_desktop_viewer(
+        connection_string = await asyncio.to_thread(
+            DesktopService.get_desktop_viewer,
             request.token_payload["user_id"],
             desktop_id,
             viewer_type,
@@ -1174,7 +1223,9 @@ async def recreate_desktop(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.recreate_desktop(request.token_payload, desktop_id)
+        await asyncio.to_thread(
+            DesktopService.recreate_desktop, request.token_payload, desktop_id
+        )
         return SimpleResponse(id=desktop_id)
     except Error:
         raise
@@ -1209,7 +1260,9 @@ async def update_desktop_bastion_domain(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.update_desktop_bastion_domain(desktop_id, data.domain_name)
+        await asyncio.to_thread(
+            DesktopService.update_desktop_bastion_domain, desktop_id, data.domain_name
+        )
         return SimpleResponse(id=desktop_id)
     except Error:
         raise
@@ -1251,7 +1304,8 @@ async def update_desktop_bastion_domains(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        DesktopService.update_desktop_bastion_domains(
+        await asyncio.to_thread(
+            DesktopService.update_desktop_bastion_domains,
             payload=request.token_payload,
             desktop_id=desktop_id,
             domains=data.domains,
@@ -1297,7 +1351,8 @@ async def verify_desktop_bastion_domain(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        result = DesktopService.verify_bastion_domain(
+        result = await asyncio.to_thread(
+            DesktopService.verify_bastion_domain,
             payload=request.token_payload,
             desktop_id=desktop_id,
             domain=data.domain,

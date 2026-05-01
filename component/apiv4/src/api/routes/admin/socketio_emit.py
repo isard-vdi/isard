@@ -3,6 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router
@@ -36,7 +37,7 @@ async def admin_emit_socketio(
     request: Request, data: AdminSocketioEmitRequest
 ) -> EmptyResponse:
     try:
-        AdminSocketioService.emit_events(data.root)
+        await asyncio.to_thread(AdminSocketioService.emit_events, data.root)
         return EmptyResponse()
     except Error:
         raise

@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Union
 
@@ -51,7 +52,9 @@ async def admin_table_get(
 ) -> Union[TableItem, list[TableItem]]:
     try:
         options = dict(request.query_params)
-        result = AdminTablesService.get_table(table, request.token_payload, options)
+        result = await asyncio.to_thread(
+            AdminTablesService.get_table, table, request.token_payload, options
+        )
         if isinstance(result, list):
             return [TableItem(**row) for row in result]
         return TableItem(**(result or {}))
@@ -86,7 +89,9 @@ async def admin_table_list(
 ) -> Union[TableItem, list[TableItem]]:
     try:
         options = data.model_dump(exclude_none=True)
-        result = AdminTablesService.get_table(table, request.token_payload, options)
+        result = await asyncio.to_thread(
+            AdminTablesService.get_table, table, request.token_payload, options
+        )
         if isinstance(result, list):
             return [TableItem(**row) for row in result]
         return TableItem(**(result or {}))
@@ -120,7 +125,7 @@ async def admin_table_insert(
     table: str = Path(..., description="Database table name"),
 ):
     try:
-        AdminTablesService.insert_table_item(table, data)
+        await asyncio.to_thread(AdminTablesService.insert_table_item, table, data)
         return EmptyResponse()
     except Error:
         raise
@@ -152,7 +157,7 @@ async def admin_table_update(
     table: str = Path(..., description="Database table name"),
 ):
     try:
-        AdminTablesService.update_table_item(table, data)
+        await asyncio.to_thread(AdminTablesService.update_table_item, table, data)
         return EmptyResponse()
     except Error:
         raise
@@ -184,7 +189,7 @@ async def admin_table_delete(
     item_id: str = Path(..., description="Item ID to delete"),
 ):
     try:
-        AdminTablesService.delete_table_item(table, item_id)
+        await asyncio.to_thread(AdminTablesService.delete_table_item, table, item_id)
         return EmptyResponse()
     except Error:
         raise

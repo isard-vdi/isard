@@ -3,6 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router
@@ -35,8 +36,12 @@ tag = "admin_notify"
 )
 async def admin_notify_user_desktop(request: Request, data: NotifyUserDesktopRequest):
     try:
-        AdminNotifyService.notify_user_desktop(
-            data.user_id, data.type, data.msg_code, data.params
+        await asyncio.to_thread(
+            AdminNotifyService.notify_user_desktop,
+            data.user_id,
+            data.type,
+            data.msg_code,
+            data.params,
         )
         return {}
     except Error:
@@ -60,8 +65,12 @@ async def admin_notify_user_desktop(request: Request, data: NotifyUserDesktopReq
 )
 async def admin_notify_desktop(request: Request, data: NotifyDesktopRequest):
     try:
-        AdminNotifyService.notify_desktop(
-            data.desktop_id, data.type, data.msg_code, data.params
+        await asyncio.to_thread(
+            AdminNotifyService.notify_desktop,
+            data.desktop_id,
+            data.type,
+            data.msg_code,
+            data.params,
         )
         return {}
     except Error:
@@ -92,7 +101,9 @@ async def admin_notify_desktop_queue(
     data: AdminNotifyDesktopsQueueRequest,
 ):
     try:
-        AdminNotifyService.notify_desktop_queue(data.root, hyp_id)
+        await asyncio.to_thread(
+            AdminNotifyService.notify_desktop_queue, data.root, hyp_id
+        )
         return {}
     except Error:
         raise

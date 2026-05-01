@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Literal
 
@@ -68,7 +69,9 @@ async def admin_create_notification_template(
     data: TemplateCreateRequest,
 ):
     try:
-        AdminNotificationService.create_template(data.model_dump())
+        await asyncio.to_thread(
+            AdminNotificationService.create_template, data.model_dump()
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -91,7 +94,7 @@ async def admin_create_notification_template(
 )
 async def admin_list_notification_templates(request: Request):
     try:
-        templates = AdminNotificationService.get_templates()
+        templates = await asyncio.to_thread(AdminNotificationService.get_templates)
         return TemplateListResponse(templates=templates)
     except Error:
         raise
@@ -114,7 +117,9 @@ async def admin_list_notification_templates(request: Request):
 )
 async def admin_list_custom_notification_templates(request: Request):
     try:
-        templates = AdminNotificationService.get_templates("custom")
+        templates = await asyncio.to_thread(
+            AdminNotificationService.get_templates, "custom"
+        )
         return TemplateListResponse(templates=templates)
     except Error:
         raise
@@ -137,7 +142,9 @@ async def admin_list_custom_notification_templates(request: Request):
 )
 async def admin_list_system_notification_templates(request: Request):
     try:
-        templates = AdminNotificationService.get_templates("system")
+        templates = await asyncio.to_thread(
+            AdminNotificationService.get_templates, "system"
+        )
         return TemplateListResponse(templates=templates)
     except Error:
         raise
@@ -160,7 +167,9 @@ async def admin_list_system_notification_templates(request: Request):
 )
 async def admin_get_notification_template(request: Request, template_id: str):
     try:
-        template = AdminNotificationService.get_template(template_id)
+        template = await asyncio.to_thread(
+            AdminNotificationService.get_template, template_id
+        )
         return template
     except Error:
         raise
@@ -186,8 +195,11 @@ async def admin_preview_notification_template(
     data: TemplatePreviewRequest,
 ):
     try:
-        texts = AdminNotificationService.preview_template(
-            data.event, data.user_id, data.data
+        texts = await asyncio.to_thread(
+            AdminNotificationService.preview_template,
+            data.event,
+            data.user_id,
+            data.data,
         )
         return texts
     except Error:
@@ -219,7 +231,9 @@ async def admin_update_notification_template(
     data: TemplateUpdateRequest,
 ):
     try:
-        AdminNotificationService.update_template(template_id, data.model_dump())
+        await asyncio.to_thread(
+            AdminNotificationService.update_template, template_id, data.model_dump()
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -246,7 +260,7 @@ async def admin_update_notification_template(
 )
 async def admin_delete_notification_template(request: Request, template_id: str):
     try:
-        AdminNotificationService.delete_template(template_id)
+        await asyncio.to_thread(AdminNotificationService.delete_template, template_id)
         return DeleteResponse(
             message="Notification template deleted",
             message_code="item.deleted",
@@ -277,7 +291,9 @@ async def admin_delete_notification_template(request: Request, template_id: str)
 )
 async def admin_list_notifications(request: Request):
     try:
-        notifications = AdminNotificationService.get_all_notifications()
+        notifications = await asyncio.to_thread(
+            AdminNotificationService.get_all_notifications
+        )
         return NotificationListResponse(notifications=notifications)
     except Error:
         raise
@@ -303,8 +319,9 @@ async def admin_create_notification(
     data: NotificationCreateRequest,
 ):
     try:
-        notification_id = AdminNotificationService.create_notification(
-            data.model_dump(exclude_none=True)
+        notification_id = await asyncio.to_thread(
+            AdminNotificationService.create_notification,
+            data.model_dump(exclude_none=True),
         )
         return NotificationResponse(id=notification_id)
     except Error:
@@ -328,7 +345,9 @@ async def admin_create_notification(
 )
 async def admin_list_notification_actions(request: Request):
     try:
-        actions = AdminNotificationService.get_notification_actions()
+        actions = await asyncio.to_thread(
+            AdminNotificationService.get_notification_actions
+        )
         return NotificationActionsResponse(actions=actions)
     except Error:
         raise
@@ -353,7 +372,9 @@ async def admin_get_notification(
     request: Request, notification_id: str
 ) -> NotificationDetailResponse:
     try:
-        notification = AdminNotificationService.get_notification(notification_id)
+        notification = await asyncio.to_thread(
+            AdminNotificationService.get_notification, notification_id
+        )
         return NotificationDetailResponse(notification)
     except Error:
         raise
@@ -384,8 +405,10 @@ async def admin_update_notification(
     data: NotificationUpdateRequest,
 ):
     try:
-        AdminNotificationService.update_notification(
-            notification_id, data.model_dump(exclude_none=True)
+        await asyncio.to_thread(
+            AdminNotificationService.update_notification,
+            notification_id,
+            data.model_dump(exclude_none=True),
         )
         return NotificationResponse(id=notification_id)
     except Error:
@@ -413,7 +436,11 @@ async def admin_delete_notification(
     data: NotificationDeleteRequest,
 ):
     try:
-        AdminNotificationService.delete_notification(notification_id, data.delete_logs)
+        await asyncio.to_thread(
+            AdminNotificationService.delete_notification,
+            notification_id,
+            data.delete_logs,
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -443,8 +470,8 @@ async def admin_get_notifications_data_by_status(
     request: Request, status: str, user_id: str
 ):
     try:
-        data = AdminNotificationService.get_notifications_data_by_status(
-            status, user_id
+        data = await asyncio.to_thread(
+            AdminNotificationService.get_notifications_data_by_status, status, user_id
         )
         return NotificationDataListResponse(data=data)
     except Error:
@@ -468,7 +495,9 @@ async def admin_get_notifications_data_by_status(
 )
 async def admin_get_notification_statuses(request: Request):
     try:
-        statuses = AdminNotificationService.get_notification_statuses()
+        statuses = await asyncio.to_thread(
+            AdminNotificationService.get_notification_statuses
+        )
         return NotificationStatusesResponse(statuses=statuses)
     except Error:
         raise
@@ -493,7 +522,9 @@ async def admin_get_notifications_grouped_by_status(
     request: Request, status: Literal["pending", "notified"]
 ):
     try:
-        data = AdminNotificationService.get_notifications_grouped_by_status(status)
+        data = await asyncio.to_thread(
+            AdminNotificationService.get_notifications_grouped_by_status, status
+        )
         return NotificationGroupedDataResponse(data=data)
     except Error:
         raise
@@ -516,7 +547,9 @@ async def admin_get_notifications_grouped_by_status(
 )
 async def admin_delete_user_notification_data(request: Request, user_id: str):
     try:
-        AdminNotificationService.delete_user_notification_data(user_id)
+        await asyncio.to_thread(
+            AdminNotificationService.delete_user_notification_data, user_id
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -539,7 +572,9 @@ async def admin_delete_user_notification_data(request: Request, user_id: str):
 )
 async def admin_delete_notification_data(request: Request, notification_data_id: str):
     try:
-        AdminNotificationService.delete_notification_data(notification_data_id)
+        await asyncio.to_thread(
+            AdminNotificationService.delete_notification_data, notification_data_id
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -562,7 +597,7 @@ async def admin_delete_notification_data(request: Request, notification_data_id:
 )
 async def admin_delete_all_notification_data(request: Request):
     try:
-        AdminNotificationService.delete_all_notification_data()
+        await asyncio.to_thread(AdminNotificationService.delete_all_notification_data)
         return EmptyResponse()
     except Error:
         raise
@@ -592,7 +627,9 @@ async def admin_get_user_notification_displays(
     request: Request, user_id: str, trigger: str
 ):
     try:
-        displays = AdminNotificationService.get_user_displays(user_id, trigger)
+        displays = await asyncio.to_thread(
+            AdminNotificationService.get_user_displays, user_id, trigger
+        )
         return AdminUserDisplaysResponse(displays=displays)
     except Error:
         raise
@@ -628,7 +665,7 @@ async def admin_get_user_notification_displays(
 )
 async def delete_expired_user_notifications_data(request: Request):
     try:
-        NotificationService.delete_expired_notifications_data()
+        await asyncio.to_thread(NotificationService.delete_expired_notifications_data)
         return DeleteResponse(
             message="Expired notifications data deleted",
             message_code="item.deleted",

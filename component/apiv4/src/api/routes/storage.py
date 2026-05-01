@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router, advanced_router, manager_router, token_router
@@ -72,8 +73,11 @@ async def set_storage_maintenance(
     body: StorageMaintenanceRequest,
 ):
     try:
-        result_id = StorageService.set_maintenance(
-            request.token_payload, storage_id, body.action
+        result_id = await asyncio.to_thread(
+            StorageService.set_maintenance,
+            request.token_payload,
+            storage_id,
+            body.action,
         )
         return SimpleResponse(id=result_id)
     except Error:
@@ -100,7 +104,9 @@ async def set_storage_maintenance(
 )
 async def set_storage_ready(request: Request, storage_id: str):
     try:
-        result_id = StorageService.set_ready(request.token_payload, storage_id)
+        result_id = await asyncio.to_thread(
+            StorageService.set_ready, request.token_payload, storage_id
+        )
         return SimpleResponse(id=result_id)
     except Error:
         raise
@@ -129,7 +135,9 @@ async def batch_check_backing_chain(
     body: StorageBatchIdsRequest,
 ):
     try:
-        StorageService.batch_check_backing_chain(request.token_payload, body.ids)
+        await asyncio.to_thread(
+            StorageService.batch_check_backing_chain, request.token_payload, body.ids
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -154,8 +162,10 @@ async def batch_check_backing_chain(
 )
 async def batch_check_backing_chain_by_status(request: Request, status: str):
     try:
-        StorageService.batch_check_backing_chain_by_status(
-            request.token_payload, status
+        await asyncio.to_thread(
+            StorageService.batch_check_backing_chain_by_status,
+            request.token_payload,
+            status,
         )
         return EmptyResponse()
     except Error:
@@ -185,7 +195,9 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
 )
 async def get_storage(request: Request, storage_id: str) -> dict:
     try:
-        storage = StorageService.get_storage_detail(request.token_payload, storage_id)
+        storage = await asyncio.to_thread(
+            StorageService.get_storage_detail, request.token_payload, storage_id
+        )
         return storage if isinstance(storage, dict) else {}
     except Error:
         raise
@@ -210,7 +222,9 @@ async def get_storage(request: Request, storage_id: str) -> dict:
 )
 async def get_user_ready_storages(request: Request) -> list[dict]:
     try:
-        disks = StorageService.get_user_ready_storages(request.token_payload["user_id"])
+        disks = await asyncio.to_thread(
+            StorageService.get_user_ready_storages, request.token_payload["user_id"]
+        )
         return disks or []
     except Error:
         raise
@@ -240,7 +254,8 @@ async def create_storage(
     body: StorageCreateRequest,
 ):
     try:
-        result = StorageService.create_storage(
+        result = await asyncio.to_thread(
+            StorageService.create_storage,
             payload=request.token_payload,
             usage=body.usage,
             storage_type=body.storage_type,
@@ -276,7 +291,9 @@ async def create_storage(
 )
 async def delete_storage(request: Request, storage_id: str):
     try:
-        task_id = StorageService.delete_storage(request.token_payload, storage_id)
+        task_id = await asyncio.to_thread(
+            StorageService.delete_storage, request.token_payload, storage_id
+        )
         return DeleteResponse(
             message="Task to delete storage queued",
             message_code="item.queued",
@@ -309,7 +326,9 @@ async def delete_storage(request: Request, storage_id: str):
 )
 async def get_storage_parents(request: Request, storage_id: str) -> list[dict]:
     try:
-        parents = StorageService.get_parents(request.token_payload, storage_id)
+        parents = await asyncio.to_thread(
+            StorageService.get_parents, request.token_payload, storage_id
+        )
         return parents or []
     except Error:
         raise
@@ -335,7 +354,9 @@ async def get_storage_parents(request: Request, storage_id: str) -> list[dict]:
 )
 async def get_storage_task(request: Request, storage_id: str) -> dict:
     try:
-        task = StorageService.get_task(request.token_payload, storage_id)
+        task = await asyncio.to_thread(
+            StorageService.get_task, request.token_payload, storage_id
+        )
         return task if isinstance(task, dict) else {}
     except Error:
         raise
@@ -361,7 +382,9 @@ async def get_storage_task(request: Request, storage_id: str) -> dict:
 )
 async def get_storage_statuses(request: Request, storage_id: str) -> list[dict]:
     try:
-        statuses = StorageService.get_statuses(request.token_payload, storage_id)
+        statuses = await asyncio.to_thread(
+            StorageService.get_statuses, request.token_payload, storage_id
+        )
         return statuses or []
     except Error:
         raise
@@ -387,7 +410,9 @@ async def get_storage_statuses(request: Request, storage_id: str) -> list[dict]:
 )
 async def get_storage_has_derivatives(request: Request, storage_id: str):
     try:
-        count = StorageService.has_derivatives(request.token_payload, storage_id)
+        count = await asyncio.to_thread(
+            StorageService.has_derivatives, request.token_payload, storage_id
+        )
         return StorageDerivativesResponse(derivatives=count)
     except Error:
         raise
@@ -417,7 +442,9 @@ async def get_storage_has_derivatives(request: Request, storage_id: str):
 )
 async def sparsify_storage(request: Request, storage_id: str, priority: str):
     try:
-        task_id = StorageService.sparsify(request.token_payload, storage_id, priority)
+        task_id = await asyncio.to_thread(
+            StorageService.sparsify, request.token_payload, storage_id, priority
+        )
         return TaskIdResponse(task_id=task_id)
     except Error:
         raise
@@ -446,7 +473,9 @@ async def batch_sparsify_storages(
     body: StorageBatchIdsRequest,
 ):
     try:
-        StorageService.batch_sparsify(request.token_payload, body.ids)
+        await asyncio.to_thread(
+            StorageService.batch_sparsify, request.token_payload, body.ids
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -473,7 +502,9 @@ async def batch_sparsify_storages(
 )
 async def disconnect_storage(request: Request, storage_id: str, priority: str):
     try:
-        task_id = StorageService.disconnect(request.token_payload, storage_id, priority)
+        task_id = await asyncio.to_thread(
+            StorageService.disconnect, request.token_payload, storage_id, priority
+        )
         return TaskIdResponse(task_id=task_id)
     except Error:
         raise
@@ -499,7 +530,9 @@ async def disconnect_storage(request: Request, storage_id: str, priority: str):
 )
 async def check_storage_backing_chain(request: Request, storage_id: str) -> dict:
     try:
-        result = StorageService.check_backing_chain(request.token_payload, storage_id)
+        result = await asyncio.to_thread(
+            StorageService.check_backing_chain, request.token_payload, storage_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -530,7 +563,8 @@ async def convert_storage(
     body: StorageConvertRequest,
 ):
     try:
-        result = StorageService.convert(
+        result = await asyncio.to_thread(
+            StorageService.convert,
             payload=request.token_payload,
             storage_id=storage_id,
             new_storage_type=body.new_storage_type,
@@ -567,7 +601,8 @@ async def recreate_storage(
     body: StorageRecreateRequest,
 ):
     try:
-        task_id = StorageService.recreate(
+        task_id = await asyncio.to_thread(
+            StorageService.recreate,
             payload=request.token_payload,
             storage_id=storage_id,
             priority=body.priority,
@@ -604,7 +639,8 @@ async def virt_win_reg_storage(
     body: StorageVirtWinRegRequest,
 ):
     try:
-        task_id = StorageService.virt_win_reg(
+        task_id = await asyncio.to_thread(
+            StorageService.virt_win_reg,
             payload=request.token_payload,
             storage_id=storage_id,
             registry_patch=body.registry_patch,
@@ -644,7 +680,8 @@ async def move_storage_by_path(
     body: StorageMoveByPathRequest,
 ):
     try:
-        task_id = StorageService.move_by_path(
+        task_id = await asyncio.to_thread(
+            StorageService.move_by_path,
             payload=request.token_payload,
             storage_id=storage_id,
             dest_path=body.dest_path,
@@ -680,7 +717,8 @@ async def rsync_storage_to_path(
     body: StorageRsyncToPathRequest,
 ):
     try:
-        task_id = StorageService.rsync_to_path(
+        task_id = await asyncio.to_thread(
+            StorageService.rsync_to_path,
             payload=request.token_payload,
             storage_id=storage_id,
             destination_path=body.destination_path,
@@ -718,7 +756,8 @@ async def rsync_storage_to_storage_pool(
     body: StorageRsyncToStoragePoolRequest,
 ):
     try:
-        task_id = StorageService.rsync_to_storage_pool(
+        task_id = await asyncio.to_thread(
+            StorageService.rsync_to_storage_pool,
             payload=request.token_payload,
             storage_id=storage_id,
             destination_storage_pool_id=body.destination_storage_pool_id,
@@ -754,7 +793,9 @@ async def rsync_storage_to_storage_pool(
 )
 async def stop_storage_desktops(request: Request, storage_id: str):
     try:
-        StorageService.stop_desktops(request.token_payload, storage_id)
+        await asyncio.to_thread(
+            StorageService.stop_desktops, request.token_payload, storage_id
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -781,7 +822,9 @@ async def stop_storage_desktops(request: Request, storage_id: str):
 )
 async def abort_storage_operations(request: Request, storage_id: str):
     try:
-        task_id = StorageService.abort_operations(request.token_payload, storage_id)
+        task_id = await asyncio.to_thread(
+            StorageService.abort_operations, request.token_payload, storage_id
+        )
         return TaskIdResponse(task_id=task_id)
     except Error:
         raise
@@ -812,7 +855,8 @@ async def set_storage_path(
     body: StoragePathRequest,
 ):
     try:
-        task_id = StorageService.set_path(
+        task_id = await asyncio.to_thread(
+            StorageService.set_path,
             payload=request.token_payload,
             storage_id=storage_id,
             path=body.path,
@@ -849,7 +893,8 @@ async def delete_storage_path(
     body: StoragePathRequest,
 ):
     try:
-        task_id = StorageService.delete_path(
+        task_id = await asyncio.to_thread(
+            StorageService.delete_path,
             payload=request.token_payload,
             storage_id=storage_id,
             path=body.path,
@@ -884,7 +929,9 @@ async def delete_storage_path(
 )
 async def find_storage(request: Request, storage_id: str) -> dict:
     try:
-        result = StorageService.find(request.token_payload, storage_id)
+        result = await asyncio.to_thread(
+            StorageService.find, request.token_payload, storage_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -913,7 +960,9 @@ async def batch_find_storages(
     body: StorageBatchIdsRequest,
 ):
     try:
-        StorageService.batch_find(request.token_payload, body.ids)
+        await asyncio.to_thread(
+            StorageService.batch_find, request.token_payload, body.ids
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -944,7 +993,9 @@ async def batch_find_storages(
 )
 async def get_storage_ready(request: Request):
     try:
-        items = StorageService.get_user_ready_storages(request.token_payload["user_id"])
+        items = await asyncio.to_thread(
+            StorageService.get_user_ready_storages, request.token_payload["user_id"]
+        )
         return StorageReadyResponse(items=items)
     except Error:
         raise
@@ -979,7 +1030,8 @@ async def increase_storage_size(
     increment: int,
 ):
     try:
-        task_id = StorageService.increase_size(
+        task_id = await asyncio.to_thread(
+            StorageService.increase_size,
             payload=request.token_payload,
             storage_id=storage_id,
             increment=increment,
@@ -1018,8 +1070,10 @@ async def get_storage_storages_with_uuid(
     request: Request, storage_id: str
 ) -> list[dict]:
     try:
-        result = StorageService.get_storage_storages_with_uuid(
-            request.token_payload, storage_id
+        result = await asyncio.to_thread(
+            StorageService.get_storage_storages_with_uuid,
+            request.token_payload,
+            storage_id,
         )
         return result or []
     except Error:
@@ -1047,7 +1101,9 @@ async def get_storage_storages_with_uuid(
 )
 async def list_all_storages_with_uuid(request: Request) -> list[dict]:
     try:
-        result = StorageService.get_all_storages_with_uuid(request.token_payload)
+        result = await asyncio.to_thread(
+            StorageService.get_all_storages_with_uuid, request.token_payload
+        )
         return result or []
     except Error:
         raise
@@ -1073,7 +1129,9 @@ async def list_all_storages_with_uuid(request: Request) -> list[dict]:
 )
 async def list_all_storages_with_uuid_status(request: Request) -> list[dict]:
     try:
-        result = StorageService.get_all_storages_with_uuid_status(request.token_payload)
+        result = await asyncio.to_thread(
+            StorageService.get_all_storages_with_uuid_status, request.token_payload
+        )
         return result or []
     except Error:
         raise
@@ -1100,8 +1158,10 @@ async def list_all_storages_with_uuid_filtered(
     request: Request, status: str
 ) -> list[dict]:
     try:
-        result = StorageService.get_all_storages_with_uuid(
-            request.token_payload, status=status
+        result = await asyncio.to_thread(
+            StorageService.get_all_storages_with_uuid,
+            request.token_payload,
+            status=status,
         )
         return result or []
     except Error:

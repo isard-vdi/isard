@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Literal
 
@@ -61,7 +62,9 @@ tag = "admin-authentication"
 )
 async def admin_authentication_policy_add(request: Request, data: PolicyCreateRequest):
     try:
-        AdminAuthenticationService.add_policy(data.model_dump(exclude_none=True))
+        await asyncio.to_thread(
+            AdminAuthenticationService.add_policy, data.model_dump(exclude_none=True)
+        )
         return {}
     except Error:
         raise
@@ -84,7 +87,7 @@ async def admin_authentication_policy_add(request: Request, data: PolicyCreateRe
 )
 async def admin_authentication_policies(request: Request) -> list[PolicyResponse]:
     try:
-        policies = AdminAuthenticationService.get_policies()
+        policies = await asyncio.to_thread(AdminAuthenticationService.get_policies)
         return [PolicyResponse(**row) for row in (policies or [])]
     except Error:
         raise
@@ -109,7 +112,9 @@ async def admin_authentication_policy(
     request: Request, policy_id: str
 ) -> PolicyResponse:
     try:
-        policy = AdminAuthenticationService.get_policy(policy_id)
+        policy = await asyncio.to_thread(
+            AdminAuthenticationService.get_policy, policy_id
+        )
         return PolicyResponse(**(policy or {}))
     except Error:
         raise
@@ -137,8 +142,10 @@ async def admin_authentication_policy_edit(
     request: Request, policy_id: str, data: PolicyEditRequest
 ):
     try:
-        AdminAuthenticationService.edit_policy(
-            policy_id, data.model_dump(exclude_none=True)
+        await asyncio.to_thread(
+            AdminAuthenticationService.edit_policy,
+            policy_id,
+            data.model_dump(exclude_none=True),
         )
         return {}
     except Error:
@@ -165,7 +172,7 @@ async def admin_authentication_policy_edit(
 )
 async def admin_authentication_policy_delete(request: Request, policy_id: str):
     try:
-        AdminAuthenticationService.delete_policy(policy_id)
+        await asyncio.to_thread(AdminAuthenticationService.delete_policy, policy_id)
         return {}
     except Error:
         raise
@@ -193,7 +200,7 @@ async def admin_authentication_policy_delete(request: Request, policy_id: str):
 )
 async def admin_authentication_providers(request: Request) -> ProvidersResponse:
     try:
-        providers = AdminAuthenticationService.get_providers()
+        providers = await asyncio.to_thread(AdminAuthenticationService.get_providers)
         return ProvidersResponse(**(providers or {}))
     except Error:
         raise
@@ -221,7 +228,11 @@ async def admin_authentication_providers(request: Request) -> ProvidersResponse:
 )
 async def admin_force_email(request: Request, policy_id: str):
     try:
-        AdminAuthenticationService.force_policy_at_login(policy_id, "email_verified")
+        await asyncio.to_thread(
+            AdminAuthenticationService.force_policy_at_login,
+            policy_id,
+            "email_verified",
+        )
         return {}
     except Error:
         raise
@@ -244,8 +255,10 @@ async def admin_force_email(request: Request, policy_id: str):
 )
 async def admin_force_disclaimer(request: Request, policy_id: str):
     try:
-        AdminAuthenticationService.force_policy_at_login(
-            policy_id, "disclaimer_acknowledged"
+        await asyncio.to_thread(
+            AdminAuthenticationService.force_policy_at_login,
+            policy_id,
+            "disclaimer_acknowledged",
         )
         return {}
     except Error:
@@ -269,8 +282,10 @@ async def admin_force_disclaimer(request: Request, policy_id: str):
 )
 async def admin_force_password(request: Request, policy_id: str):
     try:
-        AdminAuthenticationService.force_policy_at_login(
-            policy_id, "password_last_updated"
+        await asyncio.to_thread(
+            AdminAuthenticationService.force_policy_at_login,
+            policy_id,
+            "password_last_updated",
         )
         return {}
     except Error:
@@ -299,8 +314,9 @@ async def admin_force_password(request: Request, policy_id: str):
 )
 async def get_disclaimer(request: Request) -> DisclaimerResponse:
     try:
-        text = AdminAuthenticationService.get_disclaimer_template(
-            request.token_payload["user_id"]
+        text = await asyncio.to_thread(
+            AdminAuthenticationService.get_disclaimer_template,
+            request.token_payload["user_id"],
         )
         return DisclaimerResponse(**(text or {}))
     except Error:
@@ -342,7 +358,9 @@ async def get_provider_config_route(
     request: Request, provider: Literal["local", "google", "saml", "ldap"]
 ) -> ProviderConfigResponse:
     try:
-        config = AdminAuthenticationService.get_provider_config(provider)
+        config = await asyncio.to_thread(
+            AdminAuthenticationService.get_provider_config, provider
+        )
         return ProviderConfigResponse(**(config or {}))
     except Error:
         raise
@@ -372,8 +390,10 @@ async def edit_provider_config_route(
     data: ProviderConfigUpdateRequest,
 ):
     try:
-        AdminAuthenticationService.update_provider_config(
-            provider, data.model_dump(exclude_none=True)
+        await asyncio.to_thread(
+            AdminAuthenticationService.update_provider_config,
+            provider,
+            data.model_dump(exclude_none=True),
         )
         return {}
     except Error:
@@ -402,7 +422,9 @@ async def edit_provider_config_route(
 )
 async def admin_get_migration_exceptions(request: Request) -> list[MigrationException]:
     try:
-        exceptions = AdminAuthenticationService.get_migrations_exceptions()
+        exceptions = await asyncio.to_thread(
+            AdminAuthenticationService.get_migrations_exceptions
+        )
         # FastAPI's jsonable_encoder handles RethinkDB datetimes via the
         # Pydantic model's serialisation; the previous manual
         # json.dumps(default=...) shim was a pre-response_model relic.
@@ -433,7 +455,9 @@ async def admin_add_migration_exception(
     request: Request, data: MigrationExceptionCreateRequest
 ):
     try:
-        AdminAuthenticationService.add_migration_exception(data.model_dump())
+        await asyncio.to_thread(
+            AdminAuthenticationService.add_migration_exception, data.model_dump()
+        )
         return {}
     except Error:
         raise
@@ -456,7 +480,9 @@ async def admin_add_migration_exception(
 )
 async def admin_delete_migration_exception(request: Request, exception_id: str):
     try:
-        AdminAuthenticationService.delete_migration_exception(exception_id)
+        await asyncio.to_thread(
+            AdminAuthenticationService.delete_migration_exception, exception_id
+        )
         return {}
     except Error:
         raise

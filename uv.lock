@@ -1341,7 +1341,7 @@ requires-dist = [
     { name = "pyjwt", specifier = "==2.10.1" },
     { name = "python-iptables", specifier = "==1.0.1" },
     { name = "requests", specifier = "==2.32.4" },
-    { name = "rethinkdb", specifier = "==2.4.10.post1" },
+    { name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" },
 ]
 
 [[package]]

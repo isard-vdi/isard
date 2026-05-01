@@ -58,7 +58,7 @@ tag = "media"
     },
 )
 async def get_media(request: Request, media_id=Depends(owns_media_id)):
-    media = MediaService.get_media(media_id)
+    media = await asyncio.to_thread(MediaService.get_media, media_id)
     try:
         return MediaResponse(
             **media,
@@ -90,7 +90,9 @@ async def list_media_installs(request: Request):
     try:
         from api.services.admin.tables import AdminTablesService
 
-        result = AdminTablesService.get_table("virt_install", request.token_payload, {})
+        result = await asyncio.to_thread(
+            AdminTablesService.get_table, "virt_install", request.token_payload, {}
+        )
         # Pluck to the v3 wire shape and stable-sort by name so callers
         # see a deterministic order regardless of underlying storage.
         plucked = [
@@ -132,7 +134,9 @@ async def list_media_installs(request: Request):
 async def get_user_media(request: Request):
     try:
         return UserMediaResponse(
-            media=MediaService.get_user_media(request.token_payload["user_id"]),
+            media=await asyncio.to_thread(
+                MediaService.get_user_media, request.token_payload["user_id"]
+            ),
         )
     except Error:
         raise
@@ -161,7 +165,9 @@ async def get_user_shared_media(
 ):
     try:
         return UserSharedMediaResponse(
-            media=MediaService.get_user_shared_media(request.token_payload)
+            media=await asyncio.to_thread(
+                MediaService.get_user_shared_media, request.token_payload
+            )
         )
     except Error:
         raise
@@ -227,7 +233,8 @@ async def get_user_allowed_media(
                 "search must be provided when search_field is set",
                 traceback.format_exc(),
             )
-        user_media = MediaService.get_user_allowed_media(
+        user_media = await asyncio.to_thread(
+            MediaService.get_user_allowed_media,
             user_id=request.token_payload["user_id"],
             user_category=request.token_payload["category_id"],
             user_group=request.token_payload["group_id"],
@@ -262,8 +269,10 @@ async def get_user_allowed_media(
 async def get_media_allowed_table(request: Request, media_id: str):
     try:
         return AllowedResponse(
-            **MediaService.get_media_allowed(
-                media_id, request.token_payload["category_id"]
+            **await asyncio.to_thread(
+                MediaService.get_media_allowed,
+                media_id,
+                request.token_payload["category_id"],
             )
         )
     except Error:
@@ -287,7 +296,7 @@ async def get_media_allowed_table(request: Request, media_id: str):
 )
 async def update_media_allowed(request: Request, allowed: AllowedUpdate, media_id: str):
     try:
-        MediaService.update_media_allowed(media_id, allowed)
+        await asyncio.to_thread(MediaService.update_media_allowed, media_id, allowed)
         return SimpleResponse(id=media_id)
     except Error:
         raise
@@ -311,7 +320,9 @@ async def get_media_desktops(request: Request, media_id=Depends(owns_media_id)):
     try:
         return [
             MediaDesktopResponse(**desktop)
-            for desktop in MediaService.get_media_desktops(media_id)
+            for desktop in await asyncio.to_thread(
+                MediaService.get_media_desktops, media_id
+            )
         ]
     except Error:
         raise
@@ -343,7 +354,8 @@ async def delete_media(
     request: Request, response: Response, media_id=Depends(owns_media_id)
 ):
     try:
-        task_id = MediaService.delete_media(
+        task_id = await asyncio.to_thread(
+            MediaService.delete_media,
             media_id,
             request.token_payload,
         )
@@ -421,7 +433,7 @@ async def create_media(media_data: CreateMediaRequest, request: Request):
 )
 async def abort_media_download(request: Request, media_id=Depends(owns_media_id)):
     try:
-        MediaService.abort_media_download(media_id)
+        await asyncio.to_thread(MediaService.abort_media_download, media_id)
         return SimpleResponse(id=media_id)
     except Error:
         raise
@@ -447,7 +459,7 @@ async def abort_media_download(request: Request, media_id=Depends(owns_media_id)
 async def start_media_download(request: Request, media_id=Depends(owns_media_id)):
     """Start a media download."""
     try:
-        MediaService.start_media_download(media_id)
+        await asyncio.to_thread(MediaService.start_media_download, media_id)
         return SimpleResponse(id=media_id)
     except Error:
         raise

@@ -3,6 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Literal, Optional
 
@@ -38,8 +39,10 @@ async def get_desktop_images(
     ),
 ) -> list[CardResponse]:
     try:
-        stock = CardService.get_stock_cards()
-        user = CardService.get_user_cards(request.token_payload["user_id"], desktop_id)
+        stock = await asyncio.to_thread(CardService.get_stock_cards)
+        user = await asyncio.to_thread(
+            CardService.get_user_cards, request.token_payload["user_id"], desktop_id
+        )
         return [CardResponse(**c) for c in (stock + user)]
     except Error:
         raise
@@ -72,10 +75,10 @@ async def get_desktop_images_by_type(
 ) -> list[CardResponse]:
     try:
         if kind == "stock":
-            images = CardService.get_stock_cards()
+            images = await asyncio.to_thread(CardService.get_stock_cards)
         else:  # kind == "user" — Literal route guard ensures
-            images = CardService.get_user_cards(
-                request.token_payload["user_id"], desktop_id
+            images = await asyncio.to_thread(
+                CardService.get_user_cards, request.token_payload["user_id"], desktop_id
             )
         return [CardResponse(**c) for c in (images or [])]
     except Error:
@@ -99,7 +102,7 @@ async def get_desktop_images_by_type(
 )
 async def get_stock_default_card(request: Request, domain_id: str) -> CardResponse:
     try:
-        result = CardService.get_domain_stock_card(domain_id)
+        result = await asyncio.to_thread(CardService.get_domain_stock_card, domain_id)
         return CardResponse(**(result or {}))
     except Error:
         raise
@@ -125,7 +128,7 @@ async def get_stock_default_card(request: Request, domain_id: str) -> CardRespon
 )
 async def get_user_default_card(request: Request, domain_id: str) -> CardResponse:
     try:
-        result = CardService.get_domain_user_card(domain_id)
+        result = await asyncio.to_thread(CardService.get_domain_user_card, domain_id)
         return CardResponse(**(result or {}))
     except Error:
         raise
@@ -150,7 +153,9 @@ async def generate_default_card(
     request: Request, data: GenerateCardRequest
 ) -> CardResponse:
     try:
-        result = CardService.generate_default_card(data.desktop_id, data.desktop_name)
+        result = await asyncio.to_thread(
+            CardService.generate_default_card, data.desktop_id, data.desktop_name
+        )
         return CardResponse(**(result or {}))
     except Error:
         raise

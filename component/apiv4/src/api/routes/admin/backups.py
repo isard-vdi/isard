@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Union
 
@@ -63,8 +64,10 @@ async def admin_backups_list(request: Request) -> Union[BackupItem, list[BackupI
     try:
         options = dict(request.query_params)
         if options.get("id"):
-            result = AdminBackupsService.get_backup(
-                options["id"], pluck=options.get("pluck")
+            result = await asyncio.to_thread(
+                AdminBackupsService.get_backup,
+                options["id"],
+                pluck=options.get("pluck"),
             )
             return BackupItem(**(result or {}))
         else:
@@ -73,7 +76,9 @@ async def admin_backups_list(request: Request) -> Union[BackupItem, list[BackupI
                 limit = int(limit) if limit else None
             except (TypeError, ValueError):
                 raise Error("bad_request", "limit must be an integer")
-            result = AdminBackupsService.list_backups(limit=limit)
+            result = await asyncio.to_thread(
+                AdminBackupsService.list_backups, limit=limit
+            )
             return [BackupItem(**row) for row in (result or [])]
     except Error:
         raise
@@ -105,7 +110,9 @@ async def admin_backups_list(request: Request) -> Union[BackupItem, list[BackupI
 async def admin_backup_integrity_get(request: Request) -> BackupIntegrityResponse:
     try:
         return BackupIntegrityResponse(
-            integrity_enabled=AdminBackupsService.get_integrity_enabled()
+            integrity_enabled=await asyncio.to_thread(
+                AdminBackupsService.get_integrity_enabled
+            )
         )
     except Error:
         raise
@@ -137,7 +144,9 @@ async def admin_backup_integrity_set(
     data: BackupIntegritySetRequest,
 ) -> BackupIntegrityResponse:
     try:
-        result = AdminBackupsService.set_integrity_enabled(data.integrity_enabled)
+        result = await asyncio.to_thread(
+            AdminBackupsService.set_integrity_enabled, data.integrity_enabled
+        )
         return BackupIntegrityResponse(**result)
     except Error:
         raise
@@ -162,7 +171,7 @@ async def admin_backup_integrity_set(
 )
 async def admin_backup_config(request: Request) -> BackupConfigResponse:
     try:
-        result = AdminBackupsService.get_backup_config()
+        result = await asyncio.to_thread(AdminBackupsService.get_backup_config)
         return BackupConfigResponse(**result)
     except Error:
         raise
@@ -191,7 +200,7 @@ async def admin_backup_get(
     backup_id: str = Path(..., description="Backup ID"),
 ) -> BackupItem:
     try:
-        result = AdminBackupsService.get_backup(backup_id)
+        result = await asyncio.to_thread(AdminBackupsService.get_backup, backup_id)
         return BackupItem(**(result or {}))
     except Error:
         raise
@@ -234,7 +243,9 @@ async def admin_backup_report(
         # services so an admin user cannot forge or pollute backup history.
         if request.token_payload.get("session_id") != "isardvdi-service":
             raise Error("forbidden", "Service token required.")
-        result = AdminBackupsService.insert_backup(data.model_dump(exclude_none=True))
+        result = await asyncio.to_thread(
+            AdminBackupsService.insert_backup, data.model_dump(exclude_none=True)
+        )
         return BackupReportInsertResponse(**result)
     except Error:
         raise

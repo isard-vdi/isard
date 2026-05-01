@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Literal
 
@@ -60,7 +61,9 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest) 
             if payload["role_id"] == "manager"
             else data.categories
         )
-        result = AdminAnalyticsService.storage_usage(categories)
+        result = await asyncio.to_thread(
+            AdminAnalyticsService.storage_usage, categories
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -91,7 +94,9 @@ async def analytics_resource_count(
             if payload["role_id"] == "manager"
             else data.categories
         )
-        result = AdminAnalyticsService.resource_count(categories)
+        result = await asyncio.to_thread(
+            AdminAnalyticsService.resource_count, categories
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -125,8 +130,10 @@ async def analytics_suggested_removals(
             if payload["role_id"] == "manager"
             else data.categories
         )
-        result = AdminAnalyticsService.suggested_removals(
-            categories, months_without_use=data.months_without_use
+        result = await asyncio.to_thread(
+            AdminAnalyticsService.suggested_removals,
+            categories,
+            months_without_use=data.months_without_use,
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -155,7 +162,7 @@ async def analytics_suggested_removals(
 )
 async def analytics_graphs_conf_list(request: Request) -> list[dict]:
     try:
-        result = AdminAnalyticsService.get_usage_graphs_conf()
+        result = await asyncio.to_thread(AdminAnalyticsService.get_usage_graphs_conf)
         return result or []
     except Error:
         raise
@@ -181,7 +188,9 @@ async def analytics_graphs_conf_list(request: Request) -> list[dict]:
 )
 async def analytics_graph_conf_get(request: Request, conf_id: str) -> dict:
     try:
-        result = AdminAnalyticsService.get_usage_graph_conf(conf_id)
+        result = await asyncio.to_thread(
+            AdminAnalyticsService.get_usage_graph_conf, conf_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -209,7 +218,10 @@ async def analytics_graph_conf_add(
     request: Request, data: AnalyticsGraphCreateRequest
 ) -> EmptyResponse:
     try:
-        AdminAnalyticsService.add_usage_graph_conf(data.model_dump(exclude_none=True))
+        await asyncio.to_thread(
+            AdminAnalyticsService.add_usage_graph_conf,
+            data.model_dump(exclude_none=True),
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -237,8 +249,10 @@ async def analytics_graph_conf_update(
     request: Request, conf_id: str, data: AnalyticsGraphUpdateRequest
 ) -> EmptyResponse:
     try:
-        AdminAnalyticsService.update_usage_graph_conf(
-            conf_id, data.model_dump(exclude_none=True)
+        await asyncio.to_thread(
+            AdminAnalyticsService.update_usage_graph_conf,
+            conf_id,
+            data.model_dump(exclude_none=True),
         )
         return EmptyResponse()
     except Error:
@@ -262,7 +276,7 @@ async def analytics_graph_conf_update(
 )
 async def analytics_graph_conf_delete(request: Request, conf_id: str) -> EmptyResponse:
     try:
-        AdminAnalyticsService.delete_usage_graph_conf(conf_id)
+        await asyncio.to_thread(AdminAnalyticsService.delete_usage_graph_conf, conf_id)
         return EmptyResponse()
     except Error:
         raise
@@ -292,7 +306,8 @@ async def analytics_desktops_less_used(
     request: Request, data: DesktopAnalyticsRequest
 ) -> list[dict]:
     try:
-        result = AdminAnalyticsService.get_desktops_less_used(
+        result = await asyncio.to_thread(
+            AdminAnalyticsService.get_desktops_less_used,
             data.days_before,
             data.limit,
             data.not_in_directory_path,
@@ -322,7 +337,8 @@ async def analytics_desktops_recently_used(
     request: Request, data: DesktopAnalyticsRequest
 ) -> list[dict]:
     try:
-        result = AdminAnalyticsService.get_desktops_recently_used(
+        result = await asyncio.to_thread(
+            AdminAnalyticsService.get_desktops_recently_used,
             data.days_before,
             data.limit,
             data.not_in_directory_path,
@@ -352,7 +368,8 @@ async def analytics_desktops_most_used(
     request: Request, data: DesktopAnalyticsRequest
 ) -> list[dict]:
     try:
-        result = AdminAnalyticsService.get_desktops_most_used(
+        result = await asyncio.to_thread(
+            AdminAnalyticsService.get_desktops_most_used,
             data.days_before,
             data.limit,
             data.not_in_directory_path,
@@ -390,7 +407,9 @@ async def admin_echart_daily_items(
     data: EchartRequest,
 ) -> EchartDailyItemsResponse:
     try:
-        result = AdminAnalyticsService.get_daily_items(data.table, data.date_field)
+        result = await asyncio.to_thread(
+            AdminAnalyticsService.get_daily_items, data.table, data.date_field
+        )
         return EchartDailyItemsResponse(**(result or {}))
     except Error:
         raise
@@ -426,16 +445,22 @@ async def admin_echart(
 ) -> list[dict]:
     try:
         if view == "grouped_items":
-            result = AdminAnalyticsService.get_grouped_data(
-                data.table, data.group_field
+            result = await asyncio.to_thread(
+                AdminAnalyticsService.get_grouped_data, data.table, data.group_field
             )
         elif view == "grouped_unique_items":
-            result = AdminAnalyticsService.get_grouped_unique_data(
-                data.table, data.group_field, data.unique_field
+            result = await asyncio.to_thread(
+                AdminAnalyticsService.get_grouped_unique_data,
+                data.table,
+                data.group_field,
+                data.unique_field,
             )
         else:  # view == "nested_array_grouped_items" — Literal route guard ensures
-            result = AdminAnalyticsService.get_nested_array_grouped_data(
-                data.table, data.nested_array_field, data.group_field
+            result = await asyncio.to_thread(
+                AdminAnalyticsService.get_nested_array_grouped_data,
+                data.table,
+                data.nested_array_field,
+                data.group_field,
             )
         return result or []
     except Error:

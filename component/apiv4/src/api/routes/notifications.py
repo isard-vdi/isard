@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Union
 
@@ -51,8 +52,8 @@ tag = "notifications"
 )
 async def get_status_bar_notifications(request: Request):
     try:
-        notification = AdminNotificationService.get_status_bar_notification(
-            request.token_payload
+        notification = await asyncio.to_thread(
+            AdminNotificationService.get_status_bar_notification, request.token_payload
         )
         return notification
     except Error:
@@ -77,8 +78,10 @@ async def get_user_notification_displays(request: Request, trigger: str):
 
     try:
         return NotificationsUserDisplaysTriggerResponse(
-            displays=NotificationService.get_user_trigger_notifications_displays(
-                request.token_payload, trigger
+            displays=await asyncio.to_thread(
+                NotificationService.get_user_trigger_notifications_displays,
+                request.token_payload,
+                trigger,
             )
         )
     except Error:
@@ -111,8 +114,11 @@ async def get_user_notification_trigger_display(
 
     try:
         return NotificationsUserTriggerDisplayFlatResponse(
-            notifications=NotificationService.get_user_trigger_notifications_flat(
-                request.token_payload, trigger, display
+            notifications=await asyncio.to_thread(
+                NotificationService.get_user_trigger_notifications_flat,
+                request.token_payload,
+                trigger,
+                display,
             )
         )
     except Error:
@@ -147,8 +153,11 @@ async def get_user_notification_trigger_display_nested(
 ):
     try:
         return NotificationsUserTriggerDisplayResponse(
-            notifications=NotificationService.get_user_trigger_notifications(
-                request.token_payload, trigger, display
+            notifications=await asyncio.to_thread(
+                NotificationService.get_user_trigger_notifications,
+                request.token_payload,
+                trigger,
+                display,
             )
         )
     except Error:

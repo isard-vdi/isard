@@ -1,3 +1,4 @@
+import asyncio
 import traceback
 from typing import Literal
 
@@ -38,7 +39,9 @@ async def admin_get_quota_by_kind(
     request: Request, kind: Literal["user", "category", "group"]
 ):
     try:
-        result = QuotaService.get_max_quota(request.token_payload, kind)
+        result = await asyncio.to_thread(
+            QuotaService.get_max_quota, request.token_payload, kind
+        )
         return result
     except Error:
         raise
@@ -72,7 +75,9 @@ async def admin_get_quota_by_kind_item(
     item_id: str,
 ):
     try:
-        result = QuotaService.get_max_quota(request.token_payload, kind, item_id)
+        result = await asyncio.to_thread(
+            QuotaService.get_max_quota, request.token_payload, kind, item_id
+        )
         return result
     except Error:
         raise

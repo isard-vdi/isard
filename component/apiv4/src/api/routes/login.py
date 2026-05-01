@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import disclaimer_router, open_router
@@ -43,7 +44,9 @@ from fastapi.responses import JSONResponse
 async def api_v4_categories(request: Request):
     try:
         domain = request.headers.get("host")
-        categories = CategoryService.get_categories_frontend(domain=domain)
+        categories = await asyncio.to_thread(
+            CategoryService.get_categories_frontend, domain=domain
+        )
         return CategoryResponseList(categories=categories)
     except Error:
         raise
@@ -70,7 +73,9 @@ async def api_v4_categories(request: Request):
 async def api_v4_category(custom_url: str, request: Request):
     try:
         domain = request.headers.get("host")
-        category = CategoryService.get_category_by_custom_url(custom_url, domain=domain)
+        category = await asyncio.to_thread(
+            CategoryService.get_category_by_custom_url, custom_url, domain=domain
+        )
         return CategoryResponse(**category)
     except Error:
         raise
@@ -92,8 +97,9 @@ async def api_v4_category(custom_url: str, request: Request):
 )
 async def api_v4_disclaimer(request: Request):
     try:
-        disclaimer = NotificationsTemplatesService.get_disclaimer(
-            user_id=request.token_payload["user_id"]
+        disclaimer = await asyncio.to_thread(
+            NotificationsTemplatesService.get_disclaimer,
+            user_id=request.token_payload["user_id"],
         )
         return DisclaimerResponse(**disclaimer)
     except Error:

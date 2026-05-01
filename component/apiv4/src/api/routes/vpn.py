@@ -3,6 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import List, Literal, Optional
 
@@ -40,8 +41,13 @@ async def vpn_connection_connect(
     data: VpnConnectionRequest,
 ):
     try:
-        if AdminVpnService.active_client(
-            kind, client_ip, data.remote_ip, data.remote_port, True
+        if await asyncio.to_thread(
+            AdminVpnService.active_client,
+            kind,
+            client_ip,
+            data.remote_ip,
+            data.remote_port,
+            True,
         ):
             return {}
         raise await Error.create(
@@ -78,8 +84,13 @@ async def vpn_connection_roam(
     data: VpnConnectionRequest,
 ):
     try:
-        if AdminVpnService.active_client(
-            kind, client_ip, data.remote_ip, data.remote_port, True
+        if await asyncio.to_thread(
+            AdminVpnService.active_client,
+            kind,
+            client_ip,
+            data.remote_ip,
+            data.remote_port,
+            True,
         ):
             return {}
         raise await Error.create(
@@ -113,7 +124,7 @@ async def vpn_connection_disconnect(
     request: Request, kind: Literal["users", "hypers"], client_ip: str
 ) -> EmptyResponse:
     try:
-        AdminVpnService.active_client(kind, client_ip)
+        await asyncio.to_thread(AdminVpnService.active_client, kind, client_ip)
         return EmptyResponse()
     except Error:
         raise
@@ -139,7 +150,7 @@ async def vpn_connection_disconnect(
 )
 async def vpn_connection_reset(request: Request, kind: Literal["all"]):
     try:
-        AdminVpnService.reset_connection_status(kind)
+        await asyncio.to_thread(AdminVpnService.reset_connection_status, kind)
         return {}
     except Error:
         raise
@@ -165,7 +176,9 @@ async def vpn_connections_disconnect(
     data: AdminVpnConnectionsDisconnectRequest,
 ):
     try:
-        AdminVpnService.reset_connections_list_status(data.root)
+        await asyncio.to_thread(
+            AdminVpnService.reset_connections_list_status, data.root
+        )
         return {}
     except Error:
         raise

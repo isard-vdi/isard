@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 import os
 import traceback
 
@@ -63,7 +64,9 @@ def clear_maintenance_caches() -> None:
 )
 async def maintenance_status(request: Request):
     try:
-        return MaintenanceStatusResponse(enabled=MaintenanceService.is_enabled())
+        return MaintenanceStatusResponse(
+            enabled=await asyncio.to_thread(MaintenanceService.is_enabled)
+        )
     except Error:
         raise
     except Exception as e:
@@ -85,8 +88,8 @@ async def maintenance_status(request: Request):
 )
 async def get_maintenance_text_frontend(request: Request):
     try:
-        if MaintenanceService.is_enabled():
-            text = MaintenanceService.get_text()
+        if await asyncio.to_thread(MaintenanceService.is_enabled):
+            text = await asyncio.to_thread(MaintenanceService.get_text)
             return MaintenanceTextResponse(**text)
         else:
             return Response(status_code=204)
@@ -115,9 +118,9 @@ async def get_maintenance(request: Request):
         if request.token_payload["role_id"] == "admin":
             # Admins should not be affected by maintenance
             return MaintenanceStatusResponse(enabled=False)
-        status = MaintenanceService.is_enabled()
-        category_status = MaintenanceService.get_category_status(
-            request.token_payload["category_id"]
+        status = await asyncio.to_thread(MaintenanceService.is_enabled)
+        category_status = await asyncio.to_thread(
+            MaintenanceService.get_category_status, request.token_payload["category_id"]
         )
         return MaintenanceStatusResponse(enabled=status or category_status)
     except Error:
@@ -141,7 +144,7 @@ async def get_maintenance(request: Request):
 )
 async def get_maintenance_text(request: Request):
     try:
-        text = MaintenanceService.get_text()
+        text = await asyncio.to_thread(MaintenanceService.get_text)
         return MaintenanceTextGetResponse(text=text)
     except Error:
         raise
@@ -164,8 +167,10 @@ async def get_maintenance_text(request: Request):
 )
 async def get_category_maintenance(request: Request, category_id: str):
     try:
-        global_status = MaintenanceService.is_enabled()
-        category_status = MaintenanceService.get_category_status(category_id)
+        global_status = await asyncio.to_thread(MaintenanceService.is_enabled)
+        category_status = await asyncio.to_thread(
+            MaintenanceService.get_category_status, category_id
+        )
         return MaintenanceStatusResponse(enabled=global_status or category_status)
     except Error:
         raise
@@ -194,8 +199,10 @@ async def update_maintenance(
     status: MaintenanceStatusUpdate,
 ):
     try:
-        MaintenanceService.set_enabled(status.enabled)
-        return MaintenanceStatusResponse(enabled=MaintenanceService.is_enabled())
+        await asyncio.to_thread(MaintenanceService.set_enabled, status.enabled)
+        return MaintenanceStatusResponse(
+            enabled=await asyncio.to_thread(MaintenanceService.is_enabled)
+        )
     except Error:
         raise
     except Exception as e:
@@ -220,7 +227,7 @@ async def update_maintenance_text(
     text: MaintenanceTextUpdate,
 ):
     try:
-        MaintenanceService.update_text(text)
+        await asyncio.to_thread(MaintenanceService.update_text, text)
         return EmptyResponse()
     except Error:
         raise

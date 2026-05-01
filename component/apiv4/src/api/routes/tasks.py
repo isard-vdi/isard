@@ -3,6 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router, manager_router, token_router
@@ -34,7 +35,8 @@ tag = "tasks"
 )
 async def get_task(request: Request, task_id: str) -> TaskResponse:
     try:
-        task = TaskService.get_task_with_owner_check(
+        task = await asyncio.to_thread(
+            TaskService.get_task_with_owner_check,
             task_id,
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
@@ -65,7 +67,8 @@ async def get_task(request: Request, task_id: str) -> TaskResponse:
 )
 async def cancel_task(request: Request, task_id: str) -> EmptyResponse:
     try:
-        TaskService.cancel_task(
+        await asyncio.to_thread(
+            TaskService.cancel_task,
             task_id,
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
@@ -92,7 +95,9 @@ async def cancel_task(request: Request, task_id: str) -> EmptyResponse:
 )
 async def get_user_tasks(request: Request) -> list[TaskResponse]:
     try:
-        tasks = TaskService.get_user_tasks(request.token_payload["user_id"])
+        tasks = await asyncio.to_thread(
+            TaskService.get_user_tasks, request.token_payload["user_id"]
+        )
         return [TaskResponse(**t) for t in (tasks or [])]
     except Error:
         raise
@@ -120,7 +125,8 @@ async def get_user_tasks(request: Request) -> list[TaskResponse]:
 )
 async def get_admin_tasks(request: Request) -> list[TaskResponse]:
     try:
-        tasks = TaskService.get_admin_tasks(
+        tasks = await asyncio.to_thread(
+            TaskService.get_admin_tasks,
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
             request.token_payload.get("category_id"),
@@ -151,7 +157,7 @@ async def get_admin_tasks(request: Request) -> list[TaskResponse]:
 )
 async def retry_task(request: Request, task_id: str) -> EmptyResponse:
     try:
-        TaskService.retry_task(task_id)
+        await asyncio.to_thread(TaskService.retry_task, task_id)
         return EmptyResponse()
     except Error:
         raise
@@ -174,7 +180,7 @@ async def retry_task(request: Request, task_id: str) -> EmptyResponse:
 )
 async def retry_all_failed_tasks(request: Request):
     try:
-        result = TaskService.retry_all_failed_tasks()
+        result = await asyncio.to_thread(TaskService.retry_all_failed_tasks)
         return result
     except Error:
         raise

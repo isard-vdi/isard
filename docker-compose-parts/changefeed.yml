@@ -19,6 +19,13 @@ services:
       RETHINKDB_HOST: ${RETHINKDB_HOST:-isard-db}
       RETHINKDB_PORT: ${RETHINKDB_PORT:-28015}
       RETHINKDB_DB: ${RETHINKDB_DB:-isard}
+      # changefeed holds one long-lived cursor per watched table; the
+      # remaining slots are for occasional setup / catch-up reads.
+      # Anything more than ~4 is wasted. RETHINKDB_DRIVER_ADAPTATION.md
+      # also flags the long-held-cursor issue (Tier 2) for a future
+      # dedicated non-pooled connection.
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-4}
+      RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
       REDIS_HOST:
       REDIS_PORT:
       REDIS_PASSWORD:

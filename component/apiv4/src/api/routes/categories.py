@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import List, Optional
 
@@ -64,8 +65,10 @@ async def search_users_in_category(
 ):
     try:
         return CategoriesUsersSearchResponse(
-            users=CategoryService.search_users_in_category(
-                request.token_payload["category_id"], search
+            users=await asyncio.to_thread(
+                CategoryService.search_users_in_category,
+                request.token_payload["category_id"],
+                search,
             )
         )
     except Error:

@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import logging
 import traceback
 from datetime import datetime
@@ -60,7 +61,7 @@ tag = "reservables"
 async def get_reservables(request: Request):
     """Get list of all reservable types."""
     try:
-        reservables = ReservableService.get_reservables()
+        reservables = await asyncio.to_thread(ReservableService.get_reservables)
         return ReservablesListResponse(reservables=reservables)
     except Error:
         raise
@@ -92,7 +93,10 @@ async def list_profiles(
     reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
 ) -> list[dict]:
     try:
-        return ReservableService.list_profiles(reservable_type) or []
+        return (
+            await asyncio.to_thread(ReservableService.list_profiles, reservable_type)
+            or []
+        )
     except Error:
         raise
     except Exception as e:
@@ -126,7 +130,9 @@ async def get_reservable_items(
     Get all items for a specific reservable type
     """
     try:
-        items = ReservableService.get_reservable_detail(reservable_type)
+        items = await asyncio.to_thread(
+            ReservableService.get_reservable_detail, reservable_type
+        )
         return ReservableDetailResponse(items=items)
     except Error:
         raise
@@ -162,7 +168,9 @@ async def get_reservable_item(
     Get detailed information for a specific reservable item.
     """
     try:
-        item = ReservableService.get_reservable_item(reservable_type, item_id)
+        item = await asyncio.to_thread(
+            ReservableService.get_reservable_item, reservable_type, item_id
+        )
         return ReservableItemResponse(**item)
     except Error:
         raise
@@ -186,8 +194,8 @@ async def get_reservable_item(
 async def get_booking_reservables_available(request: Request):
     try:
         return AvailableReservablesResponse(
-            reservables_available=ReservableService.get_available_reservables(
-                request.token_payload
+            reservables_available=await asyncio.to_thread(
+                ReservableService.get_available_reservables, request.token_payload
             )
         )
     except Error:
@@ -217,7 +225,9 @@ async def add_reservable_item(
     data: AddReservableItemRequest = ...,
 ) -> dict:
     try:
-        result = ReservableService.add_item(reservable_type, data.model_dump())
+        result = await asyncio.to_thread(
+            ReservableService.add_item, reservable_type, data.model_dump()
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -260,7 +270,8 @@ async def enable_reservable_subitem(
     ),
 ) -> dict:
     try:
-        result = ReservableService.enable_subitem(
+        result = await asyncio.to_thread(
+            ReservableService.enable_subitem,
             reservable_type,
             item_id,
             subitem_id,
@@ -297,7 +308,12 @@ async def list_enabled_subitems(
     item_id: str = Path(..., description="The item ID"),
 ) -> list[dict]:
     try:
-        return ReservableService.list_subitems_enabled(reservable_type, item_id) or []
+        return (
+            await asyncio.to_thread(
+                ReservableService.list_subitems_enabled, reservable_type, item_id
+            )
+            or []
+        )
     except Error:
         raise
     except Exception:
@@ -326,8 +342,8 @@ async def check_last_subitem(
     item_id: str = Path(..., description="The item ID"),
 ):
     try:
-        data = ReservableService.check_last_subitem(
-            reservable_type, subitem_id, item_id
+        data = await asyncio.to_thread(
+            ReservableService.check_last_subitem, reservable_type, subitem_id, item_id
         )
         return CheckLastResponse(**data)
     except Error:
@@ -357,7 +373,9 @@ async def check_last_item(
     item_id: str = Path(..., description="The item ID"),
 ):
     try:
-        data = ReservableService.check_last_item(reservable_type, item_id)
+        data = await asyncio.to_thread(
+            ReservableService.check_last_item, reservable_type, item_id
+        )
         return CheckLastResponse(**data)
     except Error:
         raise
@@ -397,7 +415,12 @@ async def delete_reservable_item(
     ),
 ):
     try:
-        ReservableService.delete_item(reservable_type, item_id, notify_user=notify_user)
+        await asyncio.to_thread(
+            ReservableService.delete_item,
+            reservable_type,
+            item_id,
+            notify_user=notify_user,
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -429,7 +452,9 @@ async def update_reservable_item(
     data: dict = {},
 ) -> EmptyResponse:
     try:
-        ReservableService.update_item(reservable_type, item_id, data)
+        await asyncio.to_thread(
+            ReservableService.update_item, reservable_type, item_id, data
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -454,7 +479,7 @@ async def update_reservable_item(
 )
 async def list_all_plans(request: Request) -> list[dict]:
     try:
-        plans = ReservableService.list_all_plans()
+        plans = await asyncio.to_thread(ReservableService.list_all_plans)
         return plans or []
     except Error:
         raise
@@ -480,7 +505,7 @@ async def list_all_plans(request: Request) -> list[dict]:
 )
 async def check_integrity(request: Request) -> dict:
     try:
-        result = ReservableService.check_integrity()
+        result = await asyncio.to_thread(ReservableService.check_integrity)
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -508,7 +533,7 @@ async def get_actual_plan(
     item_id: str = Path(..., description="The item ID"),
 ) -> dict:
     try:
-        result = ReservableService.get_actual_plan(item_id)
+        result = await asyncio.to_thread(ReservableService.get_actual_plan, item_id)
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -536,7 +561,9 @@ async def get_plan_bookings(
     plan_id: str = Path(..., description="The plan ID"),
 ) -> list[dict]:
     try:
-        return ReservableService.get_plan_bookings(plan_id) or []
+        return (
+            await asyncio.to_thread(ReservableService.get_plan_bookings, plan_id) or []
+        )
     except Error:
         raise
     except Exception as e:
@@ -563,7 +590,7 @@ async def get_item_plans(
     item_id: str = Path(..., description="The item ID"),
 ) -> list[dict]:
     try:
-        return ReservableService.get_item_plans(item_id) or []
+        return await asyncio.to_thread(ReservableService.get_item_plans, item_id) or []
     except Error:
         raise
     except Exception as e:
@@ -594,7 +621,9 @@ async def create_plan(request: Request, data: CreatePlanRequest) -> dict:
             "start": data.start,
             "end": data.end,
         }
-        result = ReservableService.add_plan(request.token_payload, plan_data)
+        result = await asyncio.to_thread(
+            ReservableService.add_plan, request.token_payload, plan_data
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -622,7 +651,7 @@ async def delete_plan(
     plan_id: str = Path(..., description="The plan ID"),
 ):
     try:
-        ReservableService.delete_plan(plan_id)
+        await asyncio.to_thread(ReservableService.delete_plan, plan_id)
         return EmptyResponse()
     except Error:
         raise
@@ -658,8 +687,12 @@ async def update_plan(
     # for backwards compatibility (it formats them itself), so coerce
     # back to ISO 8601 before forwarding.
     try:
-        ReservableService.update_plan(
-            request.token_payload, plan_id, start.isoformat(), end.isoformat()
+        await asyncio.to_thread(
+            ReservableService.update_plan,
+            request.token_payload,
+            plan_id,
+            start.isoformat(),
+            end.isoformat(),
         )
         return EmptyResponse()
     except Error:
@@ -687,7 +720,8 @@ async def booking_provisioning(
     request: Request, data: BookingProvisioningRequest
 ) -> dict:
     try:
-        result = ReservableService.booking_provisioning(
+        result = await asyncio.to_thread(
+            ReservableService.booking_provisioning,
             request.token_payload,
             data.subitems,
             data.units,

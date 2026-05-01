@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router, manager_router, token_router
@@ -66,7 +67,7 @@ tag = "recycle_bin"
 )
 async def get_recycle_bin_default_delete_config(request: Request):
     try:
-        return RecycleBinService.get_default_delete_config()
+        return await asyncio.to_thread(RecycleBinService.get_default_delete_config)
     except Error:
         raise
     except Exception as e:
@@ -90,8 +91,9 @@ async def get_recycle_bin_default_delete_config(request: Request):
 )
 async def get_recycle_bin_cutoff_time(request: Request):
     try:
-        cutoff = RecycleBinService.get_user_cutoff_time(
-            category_id=request.token_payload["category_id"]
+        cutoff = await asyncio.to_thread(
+            RecycleBinService.get_user_cutoff_time,
+            category_id=request.token_payload["category_id"],
         )
         return RecycleBinCutoffTimeResponse(
             recycle_bin_cutoff_time=cutoff,
@@ -117,8 +119,8 @@ async def get_recycle_bin_cutoff_time(request: Request):
 )
 async def get_recycle_bin_count(request: Request):
     try:
-        return RecycleBinService.get_user_count(
-            user_id=request.token_payload["user_id"]
+        return await asyncio.to_thread(
+            RecycleBinService.get_user_count, user_id=request.token_payload["user_id"]
         )
     except Error:
         raise
@@ -174,8 +176,9 @@ async def empty_recycle_bin(request: Request):
 async def get_recycle_bin_item_count_user(request: Request):
     try:
         return RecycleBinEntriesResponse(
-            entries=RecycleBinService.get_user_recycle_bin_entries(
-                user_id=request.token_payload["user_id"]
+            entries=await asyncio.to_thread(
+                RecycleBinService.get_user_recycle_bin_entries,
+                user_id=request.token_payload["user_id"],
             ),
         )
     except Error:
@@ -202,7 +205,8 @@ async def get_recycle_bin_item_count_user(request: Request):
 async def get_recycle_bin(request: Request, recycle_bin_id: str):
     try:
         return RecycleBinResponse(
-            **RecycleBinService.get_recycle_bin_entry_details(
+            **await asyncio.to_thread(
+                RecycleBinService.get_recycle_bin_entry_details,
                 recycle_bin_id=recycle_bin_id,
                 all_data=True,
             )
@@ -230,7 +234,9 @@ async def get_recycle_bin(request: Request, recycle_bin_id: str):
 )
 async def restore_recycle_bin(request: Request, recycle_bin_id: str):
     try:
-        RecycleBinService.restore_recycle_bin_entry(recycle_bin_id=recycle_bin_id)
+        await asyncio.to_thread(
+            RecycleBinService.restore_recycle_bin_entry, recycle_bin_id=recycle_bin_id
+        )
         return SimpleResponse(
             id=recycle_bin_id,
         )
@@ -353,8 +359,8 @@ async def get_system_cutoff_time(request: Request):
             else None
         )
         return RecycleBinSystemCutoffTimeResponse(
-            recycle_bin_cuttoff_time=RecycleBinService.get_system_cutoff_time(
-                category_id=category_id
+            recycle_bin_cuttoff_time=await asyncio.to_thread(
+                RecycleBinService.get_system_cutoff_time, category_id=category_id
             )
         )
     except Error:
@@ -384,7 +390,8 @@ async def update_system_cutoff_time(
             if request.token_payload["role_id"] == "manager"
             else None
         )
-        RecycleBinService.set_system_cutoff_time(
+        await asyncio.to_thread(
+            RecycleBinService.set_system_cutoff_time,
             cutoff_time=data.recycle_bin_cuttoff_time,
             category_id=category_id,
         )
@@ -424,7 +431,9 @@ async def get_recycle_bin_status(request: Request):
         # ``{total, by_status}`` dict. Fold the list into the model
         # shape here so FastAPI's ``response_model`` doesn't 500 on the
         # mismatched type.
-        rows = RecycleBinService.get_status(category_id=category_id)
+        rows = await asyncio.to_thread(
+            RecycleBinService.get_status, category_id=category_id
+        )
         return RecycleBinStatusResponse(
             total=sum(r.get("count", 0) for r in rows),
             by_status={r["status"]: r.get("count", 0) for r in rows},
@@ -461,7 +470,9 @@ async def get_recycle_bin_admin_entries(
             if request.token_payload["role_id"] == "manager"
             else None
         )
-        return RecycleBinService.get_item_count(category_id=category_id, status=status)
+        return await asyncio.to_thread(
+            RecycleBinService.get_item_count, category_id=category_id, status=status
+        )
     except Error:
         raise
     except Exception:
@@ -482,7 +493,7 @@ async def get_recycle_bin_admin_entries(
 )
 async def update_recycle_bin_task(request: Request, data: RecycleBinUpdateTaskRequest):
     try:
-        RecycleBinService.update_task(data.model_dump())
+        await asyncio.to_thread(RecycleBinService.update_task, data.model_dump())
         return EmptyResponse()
     except Error:
         raise
@@ -534,7 +545,7 @@ async def delete_cutoff_time_surpassed(request: Request):
 )
 async def set_old_entries_max_time(request: Request, max_time: str):
     try:
-        RecycleBinService.set_old_entries_max_time(max_time)
+        await asyncio.to_thread(RecycleBinService.set_old_entries_max_time, max_time)
         return EmptyResponse()
     except Error:
         raise
@@ -556,7 +567,7 @@ async def set_old_entries_max_time(request: Request, max_time: str):
 )
 async def set_old_entries_action(request: Request, action: OldEntriesActionEnum):
     try:
-        RecycleBinService.set_old_entries_action(action.value)
+        await asyncio.to_thread(RecycleBinService.set_old_entries_action, action.value)
         return EmptyResponse()
     except Error:
         raise
@@ -578,7 +589,7 @@ async def set_old_entries_action(request: Request, action: OldEntriesActionEnum)
 )
 async def get_old_entries_config(request: Request):
     try:
-        config = RecycleBinService.get_old_entries_config()
+        config = await asyncio.to_thread(RecycleBinService.get_old_entries_config)
         return RecycleBinOldEntriesConfig(**config)
     except Error:
         raise
@@ -600,7 +611,7 @@ async def get_old_entries_config(request: Request):
 )
 async def delete_old_entries(request: Request):
     try:
-        RecycleBinService.delete_old_entries()
+        await asyncio.to_thread(RecycleBinService.delete_old_entries)
         return EmptyResponse()
     except Error:
         raise
@@ -622,7 +633,7 @@ async def delete_old_entries(request: Request):
 )
 async def set_default_delete(request: Request, data: RecycleBinSetDefaultDeleteRequest):
     try:
-        RecycleBinService.set_default_delete(data.rb_default)
+        await asyncio.to_thread(RecycleBinService.set_default_delete, data.rb_default)
         return EmptyResponse()
     except Error:
         raise
@@ -644,7 +655,7 @@ async def set_default_delete(request: Request, data: RecycleBinSetDefaultDeleteR
 )
 async def get_delete_action(request: Request):
     try:
-        return RecycleBinService.get_delete_action()
+        return await asyncio.to_thread(RecycleBinService.get_delete_action)
     except Error:
         raise
     except Exception as e:
@@ -665,7 +676,7 @@ async def get_delete_action(request: Request):
 )
 async def set_delete_action(request: Request, action: DeleteActionEnum):
     try:
-        RecycleBinService.set_delete_action(action.value)
+        await asyncio.to_thread(RecycleBinService.set_delete_action, action.value)
         return EmptyResponse()
     except Error:
         raise
@@ -687,7 +698,9 @@ async def set_delete_action(request: Request, action: DeleteActionEnum):
 )
 async def get_all_unused_item_timeout_rules(request: Request):
     try:
-        rules = RecycleBinService.get_all_unused_item_timeout_rules()
+        rules = await asyncio.to_thread(
+            RecycleBinService.get_all_unused_item_timeout_rules
+        )
         return UnusedItemTimeoutRulesResponse(
             rules=rules,
         )
@@ -711,7 +724,9 @@ async def get_all_unused_item_timeout_rules(request: Request):
 )
 async def get_unused_item_timeout_rule(request: Request, rule_id: str) -> dict:
     try:
-        rule = RecycleBinService.get_unused_item_timeout_rule(rule_id)
+        rule = await asyncio.to_thread(
+            RecycleBinService.get_unused_item_timeout_rule, rule_id
+        )
         return rule
     except Error:
         raise
@@ -736,7 +751,9 @@ async def create_unused_item_timeout_rule(
     request: Request, data: UnusedItemTimeoutRuleCreateRequest
 ):
     try:
-        rule_id = RecycleBinService.create_unused_item_timeout_rule(data.model_dump())
+        rule_id = await asyncio.to_thread(
+            RecycleBinService.create_unused_item_timeout_rule, data.model_dump()
+        )
         return SimpleResponse(id=rule_id)
     except Error:
         raise
@@ -762,8 +779,10 @@ async def update_unused_item_timeout_rule(
     data: UnusedItemTimeoutRuleUpdateRequest,
 ):
     try:
-        RecycleBinService.update_unused_item_timeout_rule(
-            rule_id, data.model_dump(exclude_none=True)
+        await asyncio.to_thread(
+            RecycleBinService.update_unused_item_timeout_rule,
+            rule_id,
+            data.model_dump(exclude_none=True),
         )
         return EmptyResponse()
     except Error:
@@ -786,7 +805,9 @@ async def update_unused_item_timeout_rule(
 )
 async def delete_unused_item_timeout_rule(request: Request, rule_id: str):
     try:
-        RecycleBinService.delete_unused_item_timeout_rule(rule_id)
+        await asyncio.to_thread(
+            RecycleBinService.delete_unused_item_timeout_rule, rule_id
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -815,7 +836,9 @@ async def recycle_bin_add_unused_items(request: Request):
         unused = Desktops.get_unused_desktops()
         for desktop in unused:
             try:
-                RecycleBinService.delete_item(desktop["id"], "isard-scheduler")
+                await asyncio.to_thread(
+                    RecycleBinService.delete_item, desktop["id"], "isard-scheduler"
+                )
             except Error:
                 raise
             except Exception:

@@ -68,8 +68,11 @@ async def admin_usage_consumption(
     try:
         payload = request.token_payload
         filters = data.model_dump(exclude_none=True)
-        AdminUsageService.check_item_ownership(payload, filters)
-        result = AdminUsageService.get_usage_consumption_between_dates(
+        await asyncio.to_thread(
+            AdminUsageService.check_item_ownership, payload, filters
+        )
+        result = await asyncio.to_thread(
+            AdminUsageService.get_usage_consumption_between_dates,
             filters.get("start_date"),
             filters.get("end_date"),
             filters.get("items_ids"),
@@ -109,8 +112,11 @@ async def admin_usage_start_end(request: Request, data: UsageStartEndRequest) ->
             and filters.get("item_consumer") == "hypervisor"
         ):
             raise Error("forbidden", "Not enough rights to access hypervisor usage")
-        AdminUsageService.check_item_ownership(payload, filters)
-        result = AdminUsageService.get_start_end_consumption(
+        await asyncio.to_thread(
+            AdminUsageService.check_item_ownership, payload, filters
+        )
+        result = await asyncio.to_thread(
+            AdminUsageService.get_start_end_consumption,
             filters.get("start_date"),
             filters.get("end_date"),
             filters.get("items_ids"),
@@ -142,7 +148,10 @@ async def admin_usage_start_end(request: Request, data: UsageStartEndRequest) ->
 async def admin_usage_consumers(request: Request, item_type: str) -> list[str]:
     try:
         payload = request.token_payload
-        consumers = AdminUsageService.get_usage_consumers(item_type) or []
+        consumers = (
+            await asyncio.to_thread(AdminUsageService.get_usage_consumers, item_type)
+            or []
+        )
         if payload["role_id"] != "admin" and "hypervisor" in consumers:
             consumers.remove("hypervisor")
         return consumers
@@ -167,7 +176,7 @@ async def admin_usage_consumers(request: Request, item_type: str) -> list[str]:
 )
 async def admin_usage_consumers_count(request: Request) -> dict:
     try:
-        result = AdminUsageService.count_usage_consumers()
+        result = await asyncio.to_thread(AdminUsageService.count_usage_consumers)
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -201,7 +210,8 @@ async def admin_usage_distinct_items(
         payload = request.token_payload
         if payload["role_id"] != "admin" and item_consumer == "hypervisor":
             raise Error("forbidden", "Not enough rights to access hypervisor usage")
-        result = AdminUsageService.get_usage_distinct_items(
+        result = await asyncio.to_thread(
+            AdminUsageService.get_usage_distinct_items,
             item_consumer,
             start,
             end,
@@ -229,7 +239,7 @@ async def admin_usage_distinct_items(
 )
 async def admin_usage_consolidate(request: Request) -> EmptyResponse:
     try:
-        AdminUsageService.consolidate_consumptions()
+        await asyncio.to_thread(AdminUsageService.consolidate_consumptions)
         return EmptyResponse()
     except Error:
         raise
@@ -256,7 +266,9 @@ async def admin_usage_consolidate_item_days(
     days: int = 29,
 ) -> EmptyResponse:
     try:
-        AdminUsageService.consolidate_consumptions(item_type, days)
+        await asyncio.to_thread(
+            AdminUsageService.consolidate_consumptions, item_type, days
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -282,7 +294,9 @@ async def admin_usage_consolidate_item(
     item_type: str,
 ) -> EmptyResponse:
     try:
-        AdminUsageService.consolidate_consumptions(item_type, 29)
+        await asyncio.to_thread(
+            AdminUsageService.consolidate_consumptions, item_type, 29
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -310,7 +324,7 @@ async def admin_usage_consolidate_item(
 )
 async def admin_usage_parameters_list(request: Request) -> list[dict]:
     try:
-        result = AdminUsageService.get_usage_parameters()
+        result = await asyncio.to_thread(AdminUsageService.get_usage_parameters)
         return result or []
     except Error:
         raise
@@ -336,7 +350,12 @@ async def admin_usage_list_parameters(
 ) -> list[dict] | dict:
     try:
         if data.ids:
-            return AdminUsageService.get_usage_parameters(data.ids) or []
+            return (
+                await asyncio.to_thread(
+                    AdminUsageService.get_usage_parameters, data.ids
+                )
+                or []
+            )
         return {}
     except Error:
         raise
@@ -364,7 +383,9 @@ async def admin_usage_parameters_add(
     request: Request, data: UsageParameterCreateRequest
 ) -> dict:
     try:
-        result = AdminUsageService.add_usage_parameters(data.model_dump())
+        result = await asyncio.to_thread(
+            AdminUsageService.add_usage_parameters, data.model_dump()
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -395,7 +416,9 @@ async def admin_usage_parameters_update(
     data: UsageParameterUpdateRequest,
 ) -> dict:
     try:
-        result = AdminUsageService.update_usage_parameters(data.model_dump())
+        result = await asyncio.to_thread(
+            AdminUsageService.update_usage_parameters, data.model_dump()
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -424,7 +447,9 @@ async def admin_usage_parameters_delete(
     parameter_id: str = Path(..., description="Parameter ID"),
 ) -> dict:
     try:
-        result = AdminUsageService.delete_usage_parameters(parameter_id)
+        result = await asyncio.to_thread(
+            AdminUsageService.delete_usage_parameters, parameter_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -452,7 +477,7 @@ async def admin_usage_parameters_delete(
 )
 async def admin_usage_limits_list(request: Request) -> list[dict]:
     try:
-        result = AdminUsageService.get_usage_limits()
+        result = await asyncio.to_thread(AdminUsageService.get_usage_limits)
         return result or []
     except Error:
         raise
@@ -480,8 +505,11 @@ async def admin_usage_limits_add(
     request: Request, data: UsageLimitCreateRequest
 ) -> dict:
     try:
-        result = AdminUsageService.add_usage_limits(
-            data.name, data.desc, data.limits.model_dump()
+        result = await asyncio.to_thread(
+            AdminUsageService.add_usage_limits,
+            data.name,
+            data.desc,
+            data.limits.model_dump(),
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -512,8 +540,12 @@ async def admin_usage_limits_update(
     data: UsageLimitUpdateRequest,
 ) -> dict:
     try:
-        result = AdminUsageService.update_usage_limits(
-            limit_id, data.name, data.desc, data.limits.model_dump()
+        result = await asyncio.to_thread(
+            AdminUsageService.update_usage_limits,
+            limit_id,
+            data.name,
+            data.desc,
+            data.limits.model_dump(),
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -543,7 +575,9 @@ async def admin_usage_limits_delete(
     limit_id: str = Path(..., description="Limit ID"),
 ) -> dict:
     try:
-        result = AdminUsageService.delete_usage_limits(limit_id)
+        result = await asyncio.to_thread(
+            AdminUsageService.delete_usage_limits, limit_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -571,7 +605,7 @@ async def admin_usage_limits_delete(
 )
 async def admin_usage_groupings_list(request: Request) -> list[dict]:
     try:
-        result = AdminUsageService.get_usage_groupings()
+        result = await asyncio.to_thread(AdminUsageService.get_usage_groupings)
         return result or []
     except Error:
         raise
@@ -598,7 +632,7 @@ async def admin_usage_groupings_list(request: Request) -> list[dict]:
 )
 async def admin_usage_groupings_dropdown(request: Request) -> dict:
     try:
-        result = AdminUsageService.get_usage_groupings_dropdown()
+        result = await asyncio.to_thread(AdminUsageService.get_usage_groupings_dropdown)
         return result or {}
     except Error:
         raise
@@ -624,7 +658,9 @@ async def admin_usage_groupings_dropdown(request: Request) -> dict:
 )
 async def admin_usage_grouping_get(request: Request, grouping_id: str) -> dict:
     try:
-        result = AdminUsageService.get_usage_grouping(grouping_id)
+        result = await asyncio.to_thread(
+            AdminUsageService.get_usage_grouping, grouping_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -652,7 +688,9 @@ async def admin_usage_groupings_add(
     request: Request, data: UsageGroupingCreateRequest
 ) -> dict:
     try:
-        result = AdminUsageService.add_usage_grouping(data.model_dump())
+        result = await asyncio.to_thread(
+            AdminUsageService.add_usage_grouping, data.model_dump()
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -682,7 +720,9 @@ async def admin_usage_groupings_update(
     data: UsageGroupingUpdateRequest,
 ) -> dict:
     try:
-        result = AdminUsageService.update_usage_grouping(data.model_dump())
+        result = await asyncio.to_thread(
+            AdminUsageService.update_usage_grouping, data.model_dump()
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -711,7 +751,9 @@ async def admin_usage_groupings_delete(
     grouping_id: str = Path(..., description="Grouping ID"),
 ) -> dict:
     try:
-        result = AdminUsageService.delete_usage_grouping(grouping_id)
+        result = await asyncio.to_thread(
+            AdminUsageService.delete_usage_grouping, grouping_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -739,7 +781,7 @@ async def admin_usage_groupings_delete(
 )
 async def admin_usage_all_credits(request: Request) -> list[dict]:
     try:
-        result = AdminUsageService.get_all_usage_credits()
+        result = await asyncio.to_thread(AdminUsageService.get_all_usage_credits)
         return result or []
     except Error:
         raise
@@ -765,7 +807,9 @@ async def admin_usage_all_credits(request: Request) -> list[dict]:
 )
 async def admin_usage_credits_by_id(request: Request, category_credit_id: str) -> dict:
     try:
-        result = AdminUsageService.get_usage_credits_by_id(category_credit_id)
+        result = await asyncio.to_thread(
+            AdminUsageService.get_usage_credits_by_id, category_credit_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -806,8 +850,13 @@ async def admin_usage_credits(
             and payload["category_id"] != item_id
         ):
             raise Error("forbidden", "You are not allowed to access this category")
-        result = AdminUsageService.get_usage_credits(
-            item_id, item_type, grouping_id, start_date, end_date
+        result = await asyncio.to_thread(
+            AdminUsageService.get_usage_credits,
+            item_id,
+            item_type,
+            grouping_id,
+            start_date,
+            end_date,
         )
         return result or []
     except Error:
@@ -837,7 +886,9 @@ async def admin_usage_credits_add(
     request: Request, data: UsageCreditCreateRequest
 ) -> dict:
     try:
-        result = AdminUsageService.add_usage_credit(data.model_dump())
+        result = await asyncio.to_thread(
+            AdminUsageService.add_usage_credit, data.model_dump()
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -868,8 +919,10 @@ async def admin_usage_credits_update(
     data: UsageCreditUpdateRequest,
 ) -> dict:
     try:
-        result = AdminUsageService.update_usage_credit(
-            credit_id, data.model_dump(exclude_none=True)
+        result = await asyncio.to_thread(
+            AdminUsageService.update_usage_credit,
+            credit_id,
+            data.model_dump(exclude_none=True),
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -899,7 +952,9 @@ async def admin_usage_credits_delete(
     credit_id: str = Path(..., description="Credit ID"),
 ) -> dict:
     try:
-        result = AdminUsageService.delete_usage_credit(credit_id)
+        result = await asyncio.to_thread(
+            AdminUsageService.delete_usage_credit, credit_id
+        )
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -927,7 +982,7 @@ async def admin_usage_credits_delete(
 )
 async def admin_usage_unify_item_name(request: Request, item_id: str) -> dict:
     try:
-        name = AdminUsageService.unify_item_name(item_id)
+        name = await asyncio.to_thread(AdminUsageService.unify_item_name, item_id)
         return {"name": name}
     except Error:
         raise
@@ -950,7 +1005,7 @@ async def admin_usage_unify_item_name(request: Request, item_id: str) -> dict:
 )
 async def admin_usage_reset_dates_all(request: Request) -> list[str]:
     try:
-        reset_dates = AdminUsageService.get_reset_dates()
+        reset_dates = await asyncio.to_thread(AdminUsageService.get_reset_dates)
         return [date.strftime("%m/%d/%Y") for date in reset_dates]
     except Error:
         raise
@@ -988,7 +1043,9 @@ async def admin_usage_reset_dates_range(
                 "Invalid date: expected YYYY-MM-DD",
                 description_code="invalid_date",
             )
-        reset_dates = AdminUsageService.get_reset_dates(start, end)
+        reset_dates = await asyncio.to_thread(
+            AdminUsageService.get_reset_dates, start, end
+        )
         return [date.strftime("%m/%d/%Y") for date in reset_dates]
     except Error:
         raise
@@ -1023,7 +1080,7 @@ async def admin_usage_reset_dates_add(
             raise
         except Exception:
             parsed_dates = []
-        AdminUsageService.add_reset_dates(parsed_dates)
+        await asyncio.to_thread(AdminUsageService.add_reset_dates, parsed_dates)
         return data.date_list
     except Error:
         raise
@@ -1081,7 +1138,9 @@ async def admin_usage_check_overlapping(
     end_date: str,
 ) -> dict:
     try:
-        credit = AdminUsageService.get_usage_credits_by_id(credit_id)
+        credit = await asyncio.to_thread(
+            AdminUsageService.get_usage_credits_by_id, credit_id
+        )
         start = start_date if start_date != "null" else None
         end = end_date if end_date != "null" else None
         try:
@@ -1094,7 +1153,8 @@ async def admin_usage_check_overlapping(
             raise Error(
                 "bad_request", "Incorrect date format. Expected format: %Y-%m-%d"
             )
-        result = AdminUsageService.check_overlapping_credits(
+        result = await asyncio.to_thread(
+            AdminUsageService.check_overlapping_credits,
             credit["item_id"],
             credit["item_type"],
             credit["grouping_id"],

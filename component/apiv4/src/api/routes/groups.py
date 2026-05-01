@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import advanced_router
@@ -59,7 +60,7 @@ async def get_users_in_group(
     owns_group_id=Depends(owns_domain_id("group_id")),
 ):
     try:
-        users = GroupsService.get_users_in_group(group_id)
+        users = await asyncio.to_thread(GroupsService.get_users_in_group, group_id)
         return GroupUsersResponse(users=users)
     except Error:
         raise

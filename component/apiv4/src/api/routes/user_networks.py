@@ -3,6 +3,7 @@
 #
 #   SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import token_router
@@ -35,7 +36,9 @@ tag = "user_networks"
 )
 async def list_user_networks(request: Request) -> list[UserNetworkResponse]:
     try:
-        networks = UserNetworkService.get_user_networks(request.token_payload)
+        networks = await asyncio.to_thread(
+            UserNetworkService.get_user_networks, request.token_payload
+        )
         return [UserNetworkResponse(**n) for n in (networks or [])]
     except Error:
         raise
@@ -62,7 +65,9 @@ async def list_user_networks(request: Request) -> list[UserNetworkResponse]:
 )
 async def get_user_network(request: Request, network_id: str) -> UserNetworkResponse:
     try:
-        network = UserNetworkService.get_user_network(network_id, request.token_payload)
+        network = await asyncio.to_thread(
+            UserNetworkService.get_user_network, network_id, request.token_payload
+        )
         return UserNetworkResponse(**(network or {}))
     except Error:
         raise
@@ -90,7 +95,9 @@ async def create_user_network(
     request: Request, data: CreateUserNetworkRequest
 ) -> UserNetworkResponse:
     try:
-        network = UserNetworkService.create_user_network(data, request.token_payload)
+        network = await asyncio.to_thread(
+            UserNetworkService.create_user_network, data, request.token_payload
+        )
         return UserNetworkResponse(**(network or {}))
     except Error:
         raise
@@ -119,8 +126,11 @@ async def update_user_network(
     request: Request, network_id: str, data: UpdateUserNetworkRequest
 ) -> UserNetworkResponse:
     try:
-        network = UserNetworkService.update_user_network(
-            network_id, data, request.token_payload
+        network = await asyncio.to_thread(
+            UserNetworkService.update_user_network,
+            network_id,
+            data,
+            request.token_payload,
         )
         return UserNetworkResponse(**(network or {}))
     except Error:
@@ -148,7 +158,9 @@ async def update_user_network(
 )
 async def delete_user_network(request: Request, network_id: str):
     try:
-        UserNetworkService.delete_user_network(network_id, request.token_payload)
+        await asyncio.to_thread(
+            UserNetworkService.delete_user_network, network_id, request.token_payload
+        )
         return {}
     except Error:
         raise

@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Literal
 
@@ -58,7 +59,9 @@ tag = "admin-categories"
 )
 async def get_category_branding(request: Request, category_id: str) -> BrandingResponse:
     try:
-        branding = AdminCategoryService.get_branding(request.token_payload, category_id)
+        branding = await asyncio.to_thread(
+            AdminCategoryService.get_branding, request.token_payload, category_id
+        )
         return BrandingResponse(**(branding or {}))
     except Error:
         raise
@@ -88,8 +91,11 @@ async def update_category_branding(
     request: Request, category_id: str, data: BrandingUpdateData
 ):
     try:
-        AdminCategoryService.update_branding(
-            request.token_payload, category_id, data.model_dump(exclude_none=True)
+        await asyncio.to_thread(
+            AdminCategoryService.update_branding,
+            request.token_payload,
+            category_id,
+            data.model_dump(exclude_none=True),
         )
         return {}
     except Error:
@@ -125,8 +131,8 @@ async def get_category_authentication(
     request: Request, category_id: str
 ) -> CategoryAuthenticationResponse:
     try:
-        auth = AdminCategoryService.get_authentication(
-            request.token_payload, category_id
+        auth = await asyncio.to_thread(
+            AdminCategoryService.get_authentication, request.token_payload, category_id
         )
         return CategoryAuthenticationResponse(**(auth or {}))
     except Error:
@@ -158,8 +164,11 @@ async def update_category_authentication(
     request: Request, category_id: str, data: AdminCategoryAuthenticationData
 ):
     try:
-        AdminCategoryService.update_authentication(
-            request.token_payload, category_id, data.model_dump()
+        await asyncio.to_thread(
+            AdminCategoryService.update_authentication,
+            request.token_payload,
+            category_id,
+            data.model_dump(),
         )
         return {}
     except Error:
@@ -194,8 +203,11 @@ async def update_category_login_notification(
     request: Request, category_id: str, data: CategoryLoginNotificationData
 ):
     try:
-        AdminCategoryService.update_login_notification(
-            request.token_payload, category_id, data.model_dump(exclude_none=True)
+        await asyncio.to_thread(
+            AdminCategoryService.update_login_notification,
+            request.token_payload,
+            category_id,
+            data.model_dump(exclude_none=True),
         )
         return {}
     except Error:
@@ -228,8 +240,12 @@ async def enable_category_login_notification(
     data: CategoryLoginNotificationEnableData,
 ):
     try:
-        AdminCategoryService.enable_login_notification(
-            request.token_payload, category_id, notification_type, data.enabled
+        await asyncio.to_thread(
+            AdminCategoryService.enable_login_notification,
+            request.token_payload,
+            category_id,
+            notification_type,
+            data.enabled,
         )
         return {}
     except Error:

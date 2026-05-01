@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router
@@ -63,7 +64,7 @@ def clear_smtp_caches() -> None:
 )
 async def admin_smtp_get(request: Request) -> SmtpConfigResponse:
     try:
-        config = AdminSmtpService.get_smtp_config()
+        config = await asyncio.to_thread(AdminSmtpService.get_smtp_config)
         return SmtpConfigResponse(**(config or {}))
     except Error:
         raise
@@ -91,7 +92,9 @@ async def admin_smtp_put(
     request: Request, data: SmtpConfigRequest
 ) -> SmtpConfigResponse:
     try:
-        config = AdminSmtpService.update_smtp_config(data.model_dump(exclude_none=True))
+        config = await asyncio.to_thread(
+            AdminSmtpService.update_smtp_config, data.model_dump(exclude_none=True)
+        )
         return SmtpConfigResponse(**(config or {}))
     except Error:
         raise
@@ -115,7 +118,7 @@ async def admin_smtp_put(
 )
 async def admin_smtp_enabled_get(request: Request) -> bool:
     try:
-        return AdminSmtpService.get_smtp_enabled()
+        return await asyncio.to_thread(AdminSmtpService.get_smtp_enabled)
     except Error:
         raise
     except Exception:
@@ -137,7 +140,9 @@ async def admin_smtp_enabled_get(request: Request) -> bool:
 )
 async def admin_smtp_test_post(request: Request, data: SmtpConfigRequest):
     try:
-        result = AdminSmtpService.test_smtp(data.model_dump(exclude_none=True))
+        result = await asyncio.to_thread(
+            AdminSmtpService.test_smtp, data.model_dump(exclude_none=True)
+        )
         return result
     except Error:
         raise

@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from io import BytesIO
 from typing import Literal
@@ -114,13 +115,16 @@ tag = "users"
 )
 async def register_user(register_post_data: RegisterPostData, request: Request):
     try:
-        new_user_data = GroupsService.code_search(register_post_data.code)
+        new_user_data = await asyncio.to_thread(
+            GroupsService.code_search, register_post_data.code
+        )
         if request.token_payload["category_id"] != new_user_data["category_id"]:
             raise Error(
                 "not_found",
                 f"Register code not found in the category {request.token_payload['category_id']}.",
             )
-        user_exists = UsersService.check_user_exists(
+        user_exists = await asyncio.to_thread(
+            UsersService.check_user_exists,
             uid=request.token_payload["user_id"],
             category_id=request.token_payload["category_id"],
             provider=request.token_payload["provider"],
@@ -130,7 +134,8 @@ async def register_user(register_post_data: RegisterPostData, request: Request):
                 "bad_request",
                 "User already exists with the provided UID in the category.",
             )
-        new_user = UsersService.create(
+        new_user = await asyncio.to_thread(
+            UsersService.create,
             provider=request.token_payload["provider"],
             category_id=request.token_payload["category_id"],
             uid=request.token_payload["user_id"],
@@ -165,7 +170,8 @@ async def register_user(register_post_data: RegisterPostData, request: Request):
 )
 async def get_user_password_policy(request: Request):
     try:
-        return UsersService.get_user_password_policy(
+        return await asyncio.to_thread(
+            UsersService.get_user_password_policy,
             user_id=request.token_payload["user_id"],
         )
     except Error:
@@ -189,7 +195,8 @@ async def get_user_password_policy(request: Request):
 )
 async def get_user_vpn(request: Request):
     try:
-        file = UsersService.get_user_vpn(
+        file = await asyncio.to_thread(
+            UsersService.get_user_vpn,
             user_id=request.token_payload["user_id"],
         )
 
@@ -226,7 +233,9 @@ async def get_user_vpn(request: Request):
 )
 async def user_reset_vpn(request: Request):
     try:
-        UsersService.reset_user_vpn(request.token_payload["user_id"])
+        await asyncio.to_thread(
+            UsersService.reset_user_vpn, request.token_payload["user_id"]
+        )
 
         return Response(status_code=204)
     except Error:
@@ -252,7 +261,8 @@ async def user_reset_vpn(request: Request):
 )
 async def get_allowed_hardware(request: Request):
     try:
-        allowed_hardware = UsersService.get_allowed_hardware(
+        allowed_hardware = await asyncio.to_thread(
+            UsersService.get_allowed_hardware,
             user_id=request.token_payload["user_id"],
         )
         return UserAllowedHardwareResponse(**allowed_hardware)
@@ -284,7 +294,8 @@ async def get_allowed_hardware(request: Request):
 )
 async def get_allowed_hardware_for_domain(request: Request, domain_id: str):
     try:
-        allowed_hardware = UsersService.get_allowed_hardware(
+        allowed_hardware = await asyncio.to_thread(
+            UsersService.get_allowed_hardware,
             user_id=request.token_payload["user_id"],
             domain_id=domain_id,
         )
@@ -373,7 +384,8 @@ async def get_all_groups(request: Request):
 async def get_user(request: Request):
     try:
         return UserResponse(
-            **UsersService.get_user_info(
+            **await asyncio.to_thread(
+                UsersService.get_user_info,
                 request.token_payload["user_id"],
             )
         )
@@ -404,7 +416,8 @@ async def get_user_details(request: Request):
         # crashes with TypeError), but it does handle the field being
         # absent (treated as UNSET).
         return UserDetailsResponse(
-            **UsersService.get_user_details(
+            **await asyncio.to_thread(
+                UsersService.get_user_details,
                 request.token_payload["user_id"],
             )
         )
@@ -429,7 +442,8 @@ async def get_user_details(request: Request):
 async def get_user_quotas(request: Request):
     try:
         return UserQuotaResponse(
-            **UsersService.get_user_quotas(
+            **await asyncio.to_thread(
+                UsersService.get_user_quotas,
                 request.token_payload["user_id"],
             )
         )
@@ -454,7 +468,9 @@ async def get_user_quotas(request: Request):
 async def get_user_config(request: Request):
     try:
         return UserConfigResponse(
-            **UsersService.get_user_config(request.token_payload),
+            **await asyncio.to_thread(
+                UsersService.get_user_config, request.token_payload
+            ),
         )
     except Error:
         raise
@@ -481,8 +497,10 @@ async def get_user_config(request: Request):
 )
 async def set_user_language(request: Request, data: UserSetLangPutData):
     try:
-        UsersService.set_user_language(
-            user_id=request.token_payload["user_id"], lang=data.lang
+        await asyncio.to_thread(
+            UsersService.set_user_language,
+            user_id=request.token_payload["user_id"],
+            lang=data.lang,
         )
         return SimpleResponse(id=request.token_payload["user_id"])
     except Error:
@@ -510,8 +528,10 @@ async def set_user_language(request: Request, data: UserSetLangPutData):
 )
 async def set_user_email(request: Request, data: UserSetEmailPutData):
     try:
-        UsersService.set_user_email(
-            user_id=request.token_payload["user_id"], email=data.email
+        await asyncio.to_thread(
+            UsersService.set_user_email,
+            user_id=request.token_payload["user_id"],
+            email=data.email,
         )
         return SimpleResponse(id=request.token_payload["user_id"])
     except Error:
@@ -540,7 +560,9 @@ async def set_user_email(request: Request, data: UserSetEmailPutData):
 async def get_user_api_key(request: Request):
     try:
         return UserAPIKeyResponse(
-            **UsersService.get_user_api_key(user_id=request.token_payload["user_id"])
+            **await asyncio.to_thread(
+                UsersService.get_user_api_key, user_id=request.token_payload["user_id"]
+            )
         )
     except Error:
         raise
@@ -567,7 +589,9 @@ async def get_user_api_key(request: Request):
 )
 async def expire_user_api_key(request: Request) -> EmptyResponse:
     try:
-        UsersService.delete_user_api_key(user_id=request.token_payload["user_id"])
+        await asyncio.to_thread(
+            UsersService.delete_user_api_key, user_id=request.token_payload["user_id"]
+        )
 
         return EmptyResponse()
     except Error:
@@ -595,7 +619,8 @@ async def expire_user_api_key(request: Request) -> EmptyResponse:
 )
 async def set_user_password(request: Request, data: UserSetPasswordPutData):
     try:
-        UsersService.set_user_password(
+        await asyncio.to_thread(
+            UsersService.set_user_password,
             user_id=request.token_payload["user_id"],
             new_password=data.password,
             current_password=data.current_password,
@@ -626,7 +651,8 @@ async def set_user_password(request: Request, data: UserSetPasswordPutData):
 )
 async def delete_user(request: Request) -> EmptyResponse:
     try:
-        UsersService.delete_user(
+        await asyncio.to_thread(
+            UsersService.delete_user,
             user_id=request.token_payload["user_id"],
         )
         return EmptyResponse()
@@ -656,7 +682,8 @@ async def delete_user(request: Request) -> EmptyResponse:
 )
 async def get_user_desktops(request: Request) -> list[dict]:
     try:
-        desktops = UsersService.get_user_desktops(
+        desktops = await asyncio.to_thread(
+            UsersService.get_user_desktops,
             user_id=request.token_payload["user_id"],
         )
         return desktops or []
@@ -685,7 +712,8 @@ async def get_user_desktops(request: Request) -> list[dict]:
 )
 async def get_user_desktop(request: Request, desktop_id: str):
     try:
-        desktop = UsersService.get_user_desktop(
+        desktop = await asyncio.to_thread(
+            UsersService.get_user_desktop,
             desktop_id=desktop_id,
             user_id=request.token_payload["user_id"],
         )
@@ -716,7 +744,8 @@ async def get_user_vpn_with_os(
     request: Request, kind: Literal["config", "install"], os: str
 ):
     try:
-        vpn_data = UsersService.get_user_vpn_data(
+        vpn_data = await asyncio.to_thread(
+            UsersService.get_user_vpn_data,
             kind=kind,
             os=os,
             user_id=request.token_payload["user_id"],
@@ -748,7 +777,8 @@ async def get_user_vpn_with_os(
 )
 async def get_user_vpn(request: Request, kind: Literal["config"]):
     try:
-        vpn_data = UsersService.get_user_vpn_data(
+        vpn_data = await asyncio.to_thread(
+            UsersService.get_user_vpn_data,
             kind=kind,
             os=False,
             user_id=request.token_payload["user_id"],
@@ -778,7 +808,8 @@ async def get_user_vpn(request: Request, kind: Literal["config"]):
 )
 async def get_webapp_desktops(request: Request) -> list[dict]:
     try:
-        desktops = UsersService.get_webapp_desktops(
+        desktops = await asyncio.to_thread(
+            UsersService.get_webapp_desktops,
             user_id=request.token_payload["user_id"],
         )
         return desktops or []
@@ -806,7 +837,8 @@ async def get_webapp_desktops(request: Request) -> list[dict]:
 )
 async def get_webapp_templates(request: Request) -> list[dict]:
     try:
-        templates = UsersService.get_webapp_templates(
+        templates = await asyncio.to_thread(
+            UsersService.get_webapp_templates,
             user_id=request.token_payload["user_id"],
         )
         return templates or []
@@ -834,7 +866,8 @@ async def get_webapp_templates(request: Request) -> list[dict]:
 )
 async def groups_users_count(request: Request, data: GroupsUsersCountPutData):
     try:
-        quantity = UsersService.groups_users_count(
+        quantity = await asyncio.to_thread(
+            UsersService.groups_users_count,
             groups=data.groups,
             user_id=request.token_payload["user_id"],
         )
@@ -880,7 +913,8 @@ async def get_hardware_kind_allowed(
     ],
 ) -> dict:
     try:
-        result = UsersService.get_hardware_kind_allowed(
+        result = await asyncio.to_thread(
+            UsersService.get_hardware_kind_allowed,
             user_id=request.token_payload["user_id"],
             kind=kind,
         )
@@ -909,7 +943,8 @@ async def get_hardware_kind_allowed(
 )
 async def get_user_applied_quota(request: Request):
     try:
-        applied_quota = UsersService.get_applied_quota(
+        applied_quota = await asyncio.to_thread(
+            UsersService.get_applied_quota,
             user_id=request.token_payload["user_id"],
         )
         return applied_quota
@@ -937,7 +972,8 @@ async def get_user_applied_quota(request: Request):
 )
 async def get_bastion_allowed(request: Request) -> dict:
     try:
-        result = UsersService.get_bastion_allowed(
+        result = await asyncio.to_thread(
+            UsersService.get_bastion_allowed,
             payload=request.token_payload,
         )
         return result or {}
@@ -990,7 +1026,8 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
         # Variant 1: direct-viewer token carries desktop_id.
         desktop_id = payload.get("desktop_id")
         if desktop_id:
-            DesktopService.owns_desktop_viewer_by_desktop_id(
+            await asyncio.to_thread(
+                DesktopService.owns_desktop_viewer_by_desktop_id,
                 desktop_id=desktop_id,
                 user_id=payload.get("user_id"),
                 category_id=payload.get("category_id"),
@@ -1001,7 +1038,8 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
 
         # Variant 2: guess_ip in body → lookup by guest_ip index.
         if body.ip:
-            DesktopService.owns_desktop_viewer_by_ip(
+            await asyncio.to_thread(
+                DesktopService.owns_desktop_viewer_by_ip,
                 user_id=payload.get("user_id"),
                 category_id=payload.get("category_id"),
                 role_id=payload.get("role_id"),
@@ -1017,7 +1055,8 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 traceback.format_exc(),
                 description_code="bad_request",
             )
-        DesktopService.owns_desktop_viewer_by_proxies(
+        await asyncio.to_thread(
+            DesktopService.owns_desktop_viewer_by_proxies,
             user_id=payload.get("user_id"),
             category_id=payload.get("category_id"),
             role_id=payload.get("role_id"),

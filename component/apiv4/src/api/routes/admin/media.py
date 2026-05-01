@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import manager_router
@@ -50,7 +51,9 @@ tag = "admin_media"
 )
 async def admin_media_status(request: Request) -> list[AdminMediaStatusCount]:
     try:
-        result = AdminMediaService.get_media_status(request.token_payload)
+        result = await asyncio.to_thread(
+            AdminMediaService.get_media_status, request.token_payload
+        )
         return [AdminMediaStatusCount(**row) for row in (result or [])]
     except Error:
         raise
@@ -78,7 +81,9 @@ async def admin_media_status(request: Request) -> list[AdminMediaStatusCount]:
 )
 async def admin_media_list(request: Request) -> list[AdminMediaItem]:
     try:
-        result = AdminMediaService.get_media(request.token_payload)
+        result = await asyncio.to_thread(
+            AdminMediaService.get_media, request.token_payload
+        )
         return [AdminMediaItem(**row) for row in (result or [])]
     except Error:
         raise
@@ -105,7 +110,9 @@ async def admin_media_by_status(
     status: str = Path(..., description="Media status to filter by"),
 ) -> list[AdminMediaItem]:
     try:
-        result = AdminMediaService.get_media(request.token_payload, status=status)
+        result = await asyncio.to_thread(
+            AdminMediaService.get_media, request.token_payload, status=status
+        )
         return [AdminMediaItem(**row) for row in (result or [])]
     except Error:
         raise
@@ -140,7 +147,9 @@ async def admin_media_by_status(
 )
 async def list_desktop_attached_media(request: Request, desktop_id: str):
     try:
-        media = MediaService.list_desktop_attached_media(desktop_id)
+        media = await asyncio.to_thread(
+            MediaService.list_desktop_attached_media, desktop_id
+        )
         return [DesktopAttachedMediaItem(**m) for m in media]
     except Error:
         raise
@@ -175,7 +184,8 @@ async def change_media_owner(
     user_id: str = Path(..., description="The ID of the new owner"),
 ):
     try:
-        MediaService.change_owner(
+        await asyncio.to_thread(
+            MediaService.change_owner,
             payload=request.token_payload,
             media_id=media_id,
             new_user_id=user_id,
@@ -207,8 +217,10 @@ async def change_media_owner(
 )
 async def check_media(request: Request, media_id=Depends(owns_media_id)):
     try:
-        result = MediaService.check_media_existence(
-            media_id, request.token_payload["user_id"]
+        result = await asyncio.to_thread(
+            MediaService.check_media_existence,
+            media_id,
+            request.token_payload["user_id"],
         )
         return MediaCheckResponse(**(result or {}))
     except Error:

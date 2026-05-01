@@ -25,6 +25,10 @@ services:
       RETHINKDB_HOST: ${RETHINKDB_HOST:-isard-db}
       RETHINKDB_PORT: ${RETHINKDB_PORT:-28015}
       RETHINKDB_DB: ${RETHINKDB_DB:-isard}
+      # Single-event-loop process consuming Redis stream events;
+      # only modest concurrency. Default 10 was over-allocated.
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-5}
+      RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
       REDIS_HOST:
       REDIS_PORT:
       REDIS_PASSWORD:

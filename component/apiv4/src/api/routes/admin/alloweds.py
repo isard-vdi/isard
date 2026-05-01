@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Literal
 
@@ -65,8 +66,11 @@ async def alloweds_table_term(
     ] = Path(..., description="Table to search in"),
 ) -> list[dict]:
     try:
-        result = AdminAllowedsService.get_table_term(
-            table, data.model_dump(exclude_none=True), request.token_payload
+        result = await asyncio.to_thread(
+            AdminAllowedsService.get_table_term,
+            table,
+            data.model_dump(exclude_none=True),
+            request.token_payload,
         )
         return result or []
     except Error:
@@ -108,8 +112,12 @@ async def admin_allowed_update(
     ] = Path(..., description="Table containing the item"),
 ):
     try:
-        AdminAllowedsService.update_allowed(
-            table, data.model_dump(), request.token_payload, background_tasks
+        await asyncio.to_thread(
+            AdminAllowedsService.update_allowed,
+            table,
+            data.model_dump(),
+            request.token_payload,
+            background_tasks,
         )
         return EmptyResponse()
     except Error:
@@ -141,7 +149,9 @@ async def allowed_table(
     table: str = Path(..., description="Table containing the item"),
 ) -> dict:
     try:
-        result = AdminAllowedsService.get_allowed_table(table, data.model_dump())
+        result = await asyncio.to_thread(
+            AdminAllowedsService.get_allowed_table, table, data.model_dump()
+        )
         return result or {}
     except Error:
         raise

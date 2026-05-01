@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 
 from api import admin_router
@@ -41,7 +42,7 @@ tag = "admin_scheduler"
 )
 async def admin_scheduler_jobs_system(request: Request) -> list[SchedulerSystemJob]:
     try:
-        result = AdminSchedulerService.get_system_jobs()
+        result = await asyncio.to_thread(AdminSchedulerService.get_system_jobs)
         return [SchedulerSystemJob(**row) for row in result]
     except Error:
         raise
@@ -66,7 +67,7 @@ async def admin_scheduler_jobs_bookings(
     request: Request,
 ) -> list[SchedulerBookingsJob]:
     try:
-        result = AdminSchedulerService.get_bookings_jobs()
+        result = await asyncio.to_thread(AdminSchedulerService.get_bookings_jobs)
         return [SchedulerBookingsJob(**row) for row in result]
     except Error:
         raise

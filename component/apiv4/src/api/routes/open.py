@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import base64
 import glob
 import os
@@ -92,7 +93,9 @@ async def api_v4_category_custom_url(category_id: str, request: Request):
     # path. Webapp consumers that decode the raw bytes still work —
     # `"my-url"` strips back to `my-url` via `.strip('"')`.
     try:
-        return CategoryService.get_category_custom_login_url(category_id)
+        return await asyncio.to_thread(
+            CategoryService.get_category_custom_login_url, category_id
+        )
     except Error:
         raise
     except Exception:
@@ -136,7 +139,9 @@ _LOGO_MIME_TYPES = {
 async def get_logo(request: Request):
     try:
         domain = request.headers.get("host", "").split(":")[0]
-        data_url = AdminCategoryService.get_logo_by_domain(domain)
+        data_url = await asyncio.to_thread(
+            AdminCategoryService.get_logo_by_domain, domain
+        )
         if data_url and data_url.startswith("data:"):
             header, b64_data = data_url.split(",", 1)
             mime_type = header.split(":")[1].split(";")[0]

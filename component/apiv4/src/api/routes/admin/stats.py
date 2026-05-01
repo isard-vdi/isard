@@ -29,6 +29,7 @@
 #     /stats/{kind} (they don't actually collide because they have two
 #     segments after /stats/, but we keep the defensive order for clarity)
 
+import asyncio
 import traceback
 from typing import Literal
 
@@ -67,7 +68,7 @@ tag = "admin_stats"
 )
 async def stats_general(request: Request) -> StatsGenericResponse:
     try:
-        result = AdminStatsService.get_general_stats()
+        result = await asyncio.to_thread(AdminStatsService.get_general_stats)
         return StatsGenericResponse(**(result or {}))
     except Error:
         raise
@@ -96,7 +97,7 @@ async def stats_desktops_status(request: Request) -> StatsGenericResponse:
         # ``data.status`` directly. Iterating ``for row in result`` looped
         # over the dict's keys (``"total"``, ``"status"``) and called
         # ``StatsGenericResponse(**"total")`` → 500.
-        result = AdminStatsService.get_desktops_stats()
+        result = await asyncio.to_thread(AdminStatsService.get_desktops_stats)
         return StatsGenericResponse(**(result or {}))
     except Error:
         raise
@@ -119,7 +120,7 @@ async def stats_desktops_status(request: Request) -> StatsGenericResponse:
 )
 async def stats_domains_status(request: Request):
     try:
-        result = AdminStatsService.get_domains_status()
+        result = await asyncio.to_thread(AdminStatsService.get_domains_status)
         return StatsDomainsStatusResponse(**result)
     except Error:
         raise
@@ -142,7 +143,9 @@ async def stats_domains_status(request: Request):
 )
 async def stats_category_status(request: Request) -> StatsGenericResponse:
     try:
-        result = {"categories": AdminStatsService.get_category_status()}
+        result = {
+            "categories": await asyncio.to_thread(AdminStatsService.get_category_status)
+        }
         return StatsGenericResponse(**result)
     except Error:
         raise
@@ -171,7 +174,11 @@ async def stats_category_status(request: Request) -> StatsGenericResponse:
 )
 async def stats_categories(request: Request):
     try:
-        result = {"category": AdminStatsService.get_group_by_categories()}
+        result = {
+            "category": await asyncio.to_thread(
+                AdminStatsService.get_group_by_categories
+            )
+        }
         return StatsCategoriesResponse(**result)
     except Error:
         raise
@@ -194,7 +201,11 @@ async def stats_categories(request: Request):
 )
 async def stats_categories_limits(request: Request) -> StatsGenericResponse:
     try:
-        result = {"category": AdminStatsService.get_categories_limits_hardware()}
+        result = {
+            "category": await asyncio.to_thread(
+                AdminStatsService.get_categories_limits_hardware
+            )
+        }
         return StatsGenericResponse(**result)
     except Error:
         raise
@@ -217,7 +228,11 @@ async def stats_categories_limits(request: Request) -> StatsGenericResponse:
 )
 async def stats_categories_deployments(request: Request):
     try:
-        result = {"categories": AdminStatsService.get_categories_deployments()}
+        result = {
+            "categories": await asyncio.to_thread(
+                AdminStatsService.get_categories_deployments
+            )
+        }
         return StatsCategoriesDeploymentsResponse(**result)
     except Error:
         raise
@@ -242,7 +257,11 @@ async def stats_categories_kind_state(
     request: Request, kind: Literal["desktop", "template"], state: str
 ) -> StatsGenericResponse:
     try:
-        result = {"category": AdminStatsService.get_categories_kind_state(kind, state)}
+        result = {
+            "category": await asyncio.to_thread(
+                AdminStatsService.get_categories_kind_state, kind, state
+            )
+        }
         return StatsGenericResponse(**result)
     except Error:
         raise
@@ -267,7 +286,11 @@ async def stats_categories_kind(
     request: Request, kind: Literal["desktop", "template"]
 ) -> StatsGenericResponse:
     try:
-        result = {"category": AdminStatsService.get_categories_kind_state(kind)}
+        result = {
+            "category": await asyncio.to_thread(
+                AdminStatsService.get_categories_kind_state, kind
+            )
+        }
         return StatsGenericResponse(**result)
     except Error:
         raise
@@ -295,7 +318,7 @@ async def stats_categories_kind(
 )
 async def stats_users(request: Request):
     try:
-        result = AdminStatsService.get_kind("users")
+        result = await asyncio.to_thread(AdminStatsService.get_kind, "users")
         return [StatsKindUser(**u) for u in result]
     except Error:
         raise
@@ -318,7 +341,7 @@ async def stats_users(request: Request):
 )
 async def stats_desktops(request: Request):
     try:
-        result = AdminStatsService.get_kind("desktops")
+        result = await asyncio.to_thread(AdminStatsService.get_kind, "desktops")
         return [StatsKindDesktop(**d) for d in result]
     except Error:
         raise
@@ -341,7 +364,7 @@ async def stats_desktops(request: Request):
 )
 async def stats_templates(request: Request):
     try:
-        result = AdminStatsService.get_kind("templates")
+        result = await asyncio.to_thread(AdminStatsService.get_kind, "templates")
         return [StatsKindTemplate(**t) for t in result]
     except Error:
         raise
@@ -364,7 +387,7 @@ async def stats_templates(request: Request):
 )
 async def stats_hypervisors(request: Request):
     try:
-        result = AdminStatsService.get_kind("hypervisors")
+        result = await asyncio.to_thread(AdminStatsService.get_kind, "hypervisors")
         return [StatsKindHypervisor(**h) for h in result]
     except Error:
         raise
@@ -393,7 +416,9 @@ async def admin_domains_started_count(
     request: Request,
 ) -> list[StatsGenericResponse]:
     try:
-        result = AdminStatsService.get_domains_by_category_count()
+        result = await asyncio.to_thread(
+            AdminStatsService.get_domains_by_category_count
+        )
         return [StatsGenericResponse(**row) for row in (result or [])]
     except Error:
         raise

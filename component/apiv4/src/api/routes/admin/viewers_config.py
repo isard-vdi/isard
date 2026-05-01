@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Literal
 
@@ -50,7 +51,9 @@ tag = "admin-viewers-config"
 )
 async def admin_viewers_config(request: Request) -> list[dict]:
     try:
-        return AdminViewersConfigService.get_viewers_config() or []
+        return (
+            await asyncio.to_thread(AdminViewersConfigService.get_viewers_config) or []
+        )
     except Error:
         raise
     except Exception:
@@ -76,7 +79,9 @@ async def admin_viewers_config_update(
     data: ViewerConfigUpdateRequest,
 ):
     try:
-        AdminViewersConfigService.update_viewers_config(viewer, data.custom)
+        await asyncio.to_thread(
+            AdminViewersConfigService.update_viewers_config, viewer, data.custom
+        )
         return {}
     except Error:
         raise
@@ -105,7 +110,7 @@ async def admin_viewers_config_reset(
     request: Request, viewer: Literal["file_rdpgw", "file_rdpvpn", "file_spice"]
 ):
     try:
-        AdminViewersConfigService.reset_viewers_config(viewer)
+        await asyncio.to_thread(AdminViewersConfigService.reset_viewers_config, viewer)
         return {}
     except Error:
         raise
