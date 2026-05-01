@@ -135,7 +135,7 @@ class AdminUsersService:
             match = AdminUsersService._category_name_group_name_match(
                 data["category"], data["group"]
             )
-            data["category"] = CommonUsers.category_get_by_name(match["category"])["id"]
+            data["category"] = CommonCategories.get_id_by_name(match["category"])
             data["group"] = CommonGroups.get_group_by_name_category(
                 match["group"], data["category"]
             )["id"]
@@ -221,7 +221,7 @@ class AdminUsersService:
             match = AdminUsersService._category_name_group_name_match(
                 data["category"], data["group"]
             )
-            data["category"] = CommonUsers.category_get_by_name(match["category"])["id"]
+            data["category"] = CommonCategories.get_id_by_name(match["category"])
             data["group"] = CommonGroups.get_group_by_name_category(
                 match["group"], data["category"]
             )["id"]
@@ -394,12 +394,21 @@ class AdminUsersService:
                 user_list[i]["secondary_groups_names"] = user["secondary_groups"]
             if user.get("name"):
                 user_list[i]["name"] = user_list[i]["name"].strip('"')
+            # Webapp's CSV-edit flow seeds rows from the validate-create
+            # output, which doesn't carry ``provider`` or ``uid`` — for
+            # local-provider users ``uid`` is the same as ``username``.
+            # Default both so KeyError can't dump a 500 with no useful
+            # description.
+            provider = user.get("provider", "local")
+            uid = user.get("uid") or user.get("username")
             try:
                 found = CommonUsers.get_by_provider_category_uid(
-                    user["provider"], cg_data["category_id"], user["uid"]
+                    provider, cg_data["category_id"], uid
                 )
                 user_list[i]["id"] = found[0]["id"]
                 AdminUsersService.owns_user_id(payload, user_list[i]["id"])
+            except Error:
+                raise
             except Exception:
                 raise Error(
                     "not_found",
@@ -1239,10 +1248,10 @@ class AdminUsersService:
         return {
             "category": category,
             "group": group,
-            "category_id": CommonUsers.category_get_by_name(category)["id"],
+            "category_id": CommonCategories.get_id_by_name(category),
             "group_id": CommonGroups.get_group_by_name_category(
                 group,
-                CommonUsers.category_get_by_name(category)["id"],
+                CommonCategories.get_id_by_name(category),
             )["id"],
         }
 

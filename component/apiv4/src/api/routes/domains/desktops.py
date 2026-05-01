@@ -861,9 +861,9 @@ async def get_user_desktops(
         ge=1,
         le=50,
     ),
-    sort_field: str = Query(
+    sort_field: Literal["accessed"] = Query(
         default="accessed",
-        description="Field to sort the desktops by. Default is 'accessed'.",
+        description="Field to sort the desktops by. Only 'accessed' is supported.",
     ),
     sort_order: Literal["desc", "asc"] = Query(
         default="desc",

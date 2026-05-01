@@ -1032,8 +1032,18 @@ class DesktopService:
                 description_code="not_found",
             )
 
-        if sort_field == "accessed":
-            index = "kind_user_accessed"
+        # The only supported sort_field is "accessed" — the route layer
+        # enforces it via ``Literal["accessed"]``. Map it explicitly so
+        # an unmapped value never reaches the rdb query and crashes
+        # downstream with ``UnboundLocalError: local variable 'index'``.
+        sort_index = {"accessed": "kind_user_accessed"}
+        if sort_field not in sort_index:
+            raise Error(
+                "bad_request",
+                f"Unsupported sort_field: {sort_field!r}",
+                description_code="bad_sort_field",
+            )
+        index = sort_index[sort_field]
         index_value = ["desktop", user_id]
 
         desktops = RethinkDomain.get_desktops(
