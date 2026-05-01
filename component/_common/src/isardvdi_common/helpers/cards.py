@@ -61,7 +61,13 @@ elif api_spec and api_spec.origin == "/app/api/__init__.py":
     USERS_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/user")
     if not os.path.exists(USERS_CARDS):
         os.makedirs(USERS_CARDS, exist_ok=True)
-    STOCK_ASSETS_SEED = os.path.join(APP_ROOT, "static/stock_assets")
+    # Seed images live alongside ``api/`` (sibling), not inside it, so
+    # the apiv4 service tree carries no bundled binary data — the images
+    # are copied into ``STOCK_CARDS`` once at startup and served from
+    # the host bind-mount via nginx after that.
+    STOCK_ASSETS_SEED = os.path.join(
+        os.path.dirname(APP_ROOT.rstrip("/")), "seed_assets"
+    )
 
 
 def _safe_card_path(base_dir, filename):
