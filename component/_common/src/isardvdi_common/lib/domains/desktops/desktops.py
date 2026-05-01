@@ -325,8 +325,25 @@ class DesktopsProcessed(RethinkSharedConnection):
                 [deployment["user"]] + deployment["co_owners"],
             )
 
-        # Spawn the process_desktops greenlet and return immediately
-        asyncio.create_task(process_desktops())
+        # Fire-and-forget the coroutine. Caller may be either an async
+        # FastAPI route handler (we have a running event loop and can
+        # ``asyncio.create_task``) or a sync entry point dispatched via
+        # ``asyncio.to_thread`` (e.g. the deployment recreate path —
+        # ``RuntimeError: no running event loop`` would otherwise be
+        # caught by the route's bare ``except Exception:`` and surface
+        # as a generic 500 with the deployment already half-deleted).
+        # Detect the missing loop and run the coroutine on a daemon
+        # thread that owns its own event loop instead.
+        try:
+            asyncio.get_running_loop().create_task(process_desktops())
+        except RuntimeError:
+            import threading
+
+            threading.Thread(
+                target=lambda: asyncio.run(process_desktops()),
+                daemon=True,
+                name="new_from_templateTh-asyncio",
+            ).start()
 
     @classmethod
     def merge_new_data_with_template(cls, template_id, new_data):

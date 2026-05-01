@@ -1789,7 +1789,6 @@ class Quotas(RethinkCustomBase):
             quota = {}
 
         dict = {**dict, **quota}
-        print(dict)
         return dict
 
     @classmethod

@@ -1532,6 +1532,12 @@ class DeploymentsProcessed(RethinkSharedConnection):
                 if "interfaces" in desktop_data.get("hardware", {}):
                     desktop_data["hardware"].pop("interfaces")
                 with cls._rdb_context():
+                    # ``hardware`` is optional — the legacy apiv3 flat
+                    # edit fan-out in apiv4's ``update_deployment``
+                    # builds entries with only the fields the caller
+                    # provided (``name``, ``desktop_visible``, etc.),
+                    # so unconditionally indexing ``desktop_data["hardware"]``
+                    # would KeyError on a vanilla rename.
                     r.table("domains").get_all(
                         [deployment_id, desktop_data["tag_desktop_id"]],
                         index="tag_tag_desktop_id",
@@ -1546,11 +1552,15 @@ class DeploymentsProcessed(RethinkSharedConnection):
                                 if desktop_data.get("reservables")
                                 else {}
                             ),
-                            **{
-                                "create_dict": {
-                                    "hardware": desktop_data["hardware"],
+                            **(
+                                {
+                                    "create_dict": {
+                                        "hardware": desktop_data["hardware"],
+                                    }
                                 }
-                            },
+                                if desktop_data.get("hardware")
+                                else {}
+                            ),
                             **desktop_data,
                         ).model_dump(mode="json", exclude_unset=True)
                     ).run(

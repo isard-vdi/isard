@@ -700,6 +700,14 @@ class StorageService:
     def abort_operations(payload: dict, storage_id: str) -> str:
         """Abort ongoing operations for a storage."""
         storage = get_storage(payload, storage_id)
+        # Idempotent no-op when the storage has no active task — the
+        # Vue 2 desktop-edit modal fans this call out per attached
+        # storage when the user clicks "cancel", and most attached
+        # storages have nothing to abort. ``Task(None)`` would raise a
+        # bare exception that the route's ``except Exception`` would
+        # swallow as 500.
+        if not storage.task:
+            return ""
         task_agent_id = Task(storage.task).user_id
         # Check ownership: only the user who initiated the task or admin can abort
         if payload["role_id"] != "admin" and task_agent_id != payload["user_id"]:

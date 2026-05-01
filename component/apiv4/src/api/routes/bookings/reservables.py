@@ -20,6 +20,7 @@
 
 import logging
 import traceback
+from datetime import datetime
 from typing import Literal, Optional
 
 log = logging.getLogger("apiv4")
@@ -647,15 +648,23 @@ async def delete_plan(
 async def update_plan(
     request: Request,
     plan_id: str = Path(..., description="The plan ID"),
-    start: str = Path(..., description="New start datetime"),
-    end: str = Path(..., description="New end datetime"),
+    start: datetime = Path(..., description="New start datetime (ISO 8601)"),
+    end: datetime = Path(..., description="New end datetime (ISO 8601)"),
 ):
+    # ``datetime`` path params let FastAPI auto-validate ISO 8601 at
+    # the route boundary so a malformed string returns 422 with a
+    # proper datetime_parsing error instead of falling through to the
+    # service's bare parse → 500. The service still receives strings
+    # for backwards compatibility (it formats them itself), so coerce
+    # back to ISO 8601 before forwarding.
     try:
-        ReservableService.update_plan(request.token_payload, plan_id, start, end)
+        ReservableService.update_plan(
+            request.token_payload, plan_id, start.isoformat(), end.isoformat()
+        )
         return EmptyResponse()
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",
