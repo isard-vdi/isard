@@ -392,15 +392,17 @@ async def get_user(request: Request):
     "/item/user/get-details",
     tags=[tag],
     response_model=UserDetailsResponse,
+    response_model_exclude_none=True,
     summary="Get current user details",
     description="Returns detailed information about the current user.",
 )
 async def get_user_details(request: Request):
     try:
-        # exclude_none drops user_storage when it is None — the
-        # generated apiv4 client cannot handle JSON null on $ref fields
-        # (UserStorageModel.from_dict(None) crashes with TypeError),
-        # but it does handle the field being absent (treated as UNSET).
+        # `response_model_exclude_none=True` drops `user_storage` when it
+        # is None: the generated `isardvdi_apiv4_client` cannot handle
+        # JSON null on $ref fields (`UserStorageModel.from_dict(None)`
+        # crashes with TypeError), but it does handle the field being
+        # absent (treated as UNSET).
         return UserDetailsResponse(
             **UsersService.get_user_details(
                 request.token_payload["user_id"],

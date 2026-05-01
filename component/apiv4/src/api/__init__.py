@@ -130,6 +130,42 @@ if cors_origins:
     )
 
 
+def _error_response_body(
+    *,
+    error: str,
+    description: str = "",
+    description_code: str | None = None,
+    msg: str | None = None,
+    extra: dict | None = None,
+) -> dict:
+    """Build a body matching the ``ErrorResponse`` schema in
+    ``schemas/common.py``.
+
+    Every required field is populated (with empty strings or ``{}``
+    where appropriate) so consumers using the strictly-typed generated
+    ``isardvdi_apiv4_client.ErrorResponse.from_dict`` decoder parse the
+    body without ``KeyError``. Internal debug fields are left blank to
+    satisfy OWASP A05. Handler-specific structured data (e.g. pydantic
+    ``exc.errors()``) is merged via ``extra`` and lands as additional
+    properties on the response.
+    """
+    body = {
+        "error": error,
+        "msg": msg if msg is not None else error,
+        "description_code": description_code or error,
+        "function": "",
+        "function_call": "",
+        "description": description,
+        "debug": "",
+        "request": "",
+        "data": "",
+        "params": {},
+    }
+    if extra:
+        body.update(extra)
+    return body
+
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(
     request: Request, exc: RequestValidationError
@@ -140,11 +176,11 @@ async def request_validation_exception_handler(
     """
     return JSONResponse(
         status_code=400,
-        content={
-            "error": "validation_error",
-            "description": "Request validation failed",
-            "details": exc.errors(),
-        },
+        content=_error_response_body(
+            error="validation_error",
+            description="Request validation failed",
+            extra={"details": exc.errors()},
+        ),
     )
 
 
@@ -156,11 +192,11 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
     """
     return JSONResponse(
         status_code=400,
-        content={
-            "error": "validation_error",
-            "description": "Request validation failed",
-            "details": exc.errors(),
-        },
+        content=_error_response_body(
+            error="validation_error",
+            description="Request validation failed",
+            extra={"details": exc.errors()},
+        ),
     )
 
 
@@ -300,12 +336,17 @@ app.include_router(migration_router)
 
 @app.exception_handler(Error)
 async def error_handler(request: Request, exception: Error):
-    # Strip internal debug info before sending to client (OWASP A05)
-    safe_error = {
-        k: v
-        for k, v in exception.error.items()
-        if k not in ("debug", "request", "function", "function_call")
-    }
+    # Blank internal debug info before sending to client (OWASP A05). The
+    # keys must remain in the body — `isardvdi_apiv4_client` and other
+    # generated consumers decode `ErrorResponse` with strict `d.pop(field)`
+    # and a missing key surfaces as a parse-time `KeyError` that hides the
+    # real apiv4 error. `params` must also never be null because the
+    # generated `ErrorResponse.params: ErrorResponseParams` decoder is not
+    # null-safe.
+    sensitive = {"debug", "request", "function", "function_call"}
+    safe_error = {k: ("" if k in sensitive else v) for k, v in exception.error.items()}
+    if safe_error.get("params") is None:
+        safe_error["params"] = {}
     return JSONResponse(
         status_code=exception.status_code,
         content=safe_error,
@@ -326,12 +367,11 @@ async def value_error_handler(request: Request, exception: ValueError):
     """
     return JSONResponse(
         status_code=404,
-        content={
-            "error": "not_found",
-            "msg": "Not found",
-            "description_code": "not_found",
-            "description": str(exception),
-        },
+        content=_error_response_body(
+            error="not_found",
+            msg="Not found",
+            description=str(exception),
+        ),
     )
 
 
