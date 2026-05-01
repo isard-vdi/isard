@@ -120,6 +120,15 @@ class Cards(RethinkSharedConnection):
 
     @classmethod
     def get_user_cards(cls, user_id, domain_id):
+        # ``domain_id`` is optional — the route exposes it as a Query
+        # filter, so callers that just want the user's full image
+        # gallery (e.g. ``GET /api/v4/images/desktops`` without a
+        # ``desktop_id`` query param) pass ``None``. The image-existence
+        # probe + the proposed-image generation only make sense when a
+        # specific desktop is selected, so guard them on ``domain_id``.
+        # Without the guard ``domain_id + ".jpg"`` raises
+        # ``TypeError: unsupported operand type(s) for +: 'NoneType' and 'str'``
+        # and the route returns 500.
         with cls._rdb_context():
             images = list(
                 r.table("domains")
@@ -128,14 +137,14 @@ class Cards(RethinkSharedConnection):
                 .distinct()
                 .run(cls._rdb_connection)
             )
-        with cls._rdb_context():
-            proposed_img_exists = (
-                r.table("domains")
-                .get_all(domain_id + ".jpg", index="image_id")
-                .count()
-                .run(cls._rdb_connection)
-            )
         if domain_id:
+            with cls._rdb_context():
+                proposed_img_exists = (
+                    r.table("domains")
+                    .get_all(domain_id + ".jpg", index="image_id")
+                    .count()
+                    .run(cls._rdb_connection)
+                )
             proposed_img = [cls.get_card(domain_id + ".jpg", "user")]
             if not proposed_img_exists:
                 with cls._rdb_context():

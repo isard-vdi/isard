@@ -419,10 +419,19 @@ async def get_recycle_bin_status(request: Request):
             if request.token_payload["role_id"] == "manager"
             else None
         )
-        return RecycleBinService.get_status(category_id=category_id)
+        # The helper returns ``[{"status": <s>, "count": <n>}]`` (rdb
+        # group-by); the route's ``RecycleBinStatusResponse`` is a
+        # ``{total, by_status}`` dict. Fold the list into the model
+        # shape here so FastAPI's ``response_model`` doesn't 500 on the
+        # mismatched type.
+        rows = RecycleBinService.get_status(category_id=category_id)
+        return RecycleBinStatusResponse(
+            total=sum(r.get("count", 0) for r in rows),
+            by_status={r["status"]: r.get("count", 0) for r in rows},
+        )
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",

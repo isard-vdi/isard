@@ -35,7 +35,8 @@ from .log import *
 """
 Update to new database release version when new code version release
 """
-release_version = 190
+release_version = 191
+# release 191: Add domains.kind_user_accessed compound index for apiv4 pagination
 # release 190: Add allow_insecure_tls field to LDAP and SAML provider configs
 # release 189: Move hypervisor thread_status from DB to engine RAM; drop the field
 # release 187: Add recycle_bin compound indexes + pre-computed count fields for performance
@@ -3619,6 +3620,25 @@ password:s:%s"""
                     [r.row["enabled"], r.row["kind"], r.row["accessed"]],
                 ).run(self.conn)
                 r.table(table).index_wait("enabled_kind_accessed").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 191:
+            # Compound index for apiv4 desktops pagination. Used by
+            # ``DesktopService.get_user_desktops_paginated`` (route
+            # ``GET /api/v4/items/paginated/desktops``); without it the
+            # endpoint 500s with
+            # ``ReqlOpFailedError: Index 'kind_user_accessed' was not
+            # found on table 'isard.domains'``. Mirrors the index
+            # introduced on the apiv4-and-websockets reference branch
+            # in commit ``a474b1278`` that never reached upgrade.py on
+            # apiv4-integration.
+            try:
+                r.table(table).index_create(
+                    "kind_user_accessed",
+                    [r.row["kind"], r.row["user"], r.row["accessed"]],
+                ).run(self.conn)
+                r.table(table).index_wait("kind_user_accessed").run(self.conn)
             except Exception as e:
                 print(e)
 
