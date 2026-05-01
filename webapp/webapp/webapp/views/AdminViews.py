@@ -20,7 +20,7 @@
 
 import os
 
-from flask import jsonify, make_response, redirect, render_template
+from flask import abort, jsonify, make_response, redirect, render_template
 from flask_login import current_user, login_required, login_user, logout_user
 from isardvdi_apiv4_client.api.open_ import api_v4_category_custom_url
 from isardvdi_apiv4_client_auth import build_client
@@ -277,6 +277,10 @@ def admin_recyclebin(nav="Disks"):
         return render_webapp(
             "admin/pages/recyclebin_config.html", title=nav, nav=nav, icon=icon
         )
+    # Unknown nav values would fall off the end and return None,
+    # which Flask wraps as a 500 ``did not return a valid response``.
+    # Bookmarks / typos / sidebar drift surface as 4xx instead.
+    abort(404)
 
 
 @app.route("/isard-admin/admin/domains/render/status")
@@ -328,6 +332,10 @@ def admin_users(nav):
             nav=nav,
             title="Quotas / Limits",
         )
+    # Unknown nav values would fall off the end and return None,
+    # which Flask wraps as a 500. Surface as a 404 so a typo /
+    # bookmark / sidebar drift gets a clean error page.
+    abort(404)
 
 
 @app.route("/isard-admin/admin/users/UserStorage", methods=["POST", "GET"])
