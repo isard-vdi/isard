@@ -588,6 +588,18 @@ class UsersProcessed(RethinkSharedConnection):
 
     @classmethod
     def admin_list_users(cls, nav, category_id=None):
+        # Bug 43: the ``users`` table can carry orphan rows that only
+        # have ``id`` (+ stranded ``vpn`` config) — typically a user
+        # whose document was deleted but whose wireguard peer config
+        # was not. The merge below dereferences ``user["group"]`` /
+        # ``user["role"]`` / ``user["category"]`` directly; on an
+        # orphan row each access raises ``ReqlNonExistenceError`` and
+        # the route's ``except Exception`` 500s the entire admin user
+        # list. Wrap each field access in ``.default(None)`` so the
+        # orphan row surfaces with empty cells instead of breaking the
+        # endpoint — same philosophy as the Bug 44 schema relax,
+        # applied at the ReQL layer because this code path doesn't
+        # round-trip through ``AdminUser``.
         query = r.table("users")
         if category_id:
             query = query.get_all(category_id, index="category")
@@ -613,11 +625,15 @@ class UsersProcessed(RethinkSharedConnection):
         if nav == "management":
             query = query.merge(
                 lambda user: {
-                    "group_name": r.table("groups").get(user["group"])["name"],
-                    "role_name": r.table("roles").get(user["role"])["name"],
-                    "category_name": r.table("categories").get(user["category"])[
-                        "name"
-                    ],
+                    "group_name": r.table("groups")
+                    .get(user["group"].default(None))["name"]
+                    .default(None),
+                    "role_name": r.table("roles")
+                    .get(user["role"].default(None))["name"]
+                    .default(None),
+                    "category_name": r.table("categories")
+                    .get(user["category"].default(None))["name"]
+                    .default(None),
                     # Older user docs created before ``secondary_groups``
                     # was added to the schema lack the field; default to
                     # an empty list so the merge doesn't blow up.
@@ -637,11 +653,15 @@ class UsersProcessed(RethinkSharedConnection):
                 {"user_storage": {"provider_quota": {"used": True, "relative": True}}},
             ).merge(
                 lambda user: {
-                    "group_name": r.table("groups").get(user["group"])["name"],
-                    "role_name": r.table("roles").get(user["role"])["name"],
-                    "category_name": r.table("categories").get(user["category"])[
-                        "name"
-                    ],
+                    "group_name": r.table("groups")
+                    .get(user["group"].default(None))["name"]
+                    .default(None),
+                    "role_name": r.table("roles")
+                    .get(user["role"].default(None))["name"]
+                    .default(None),
+                    "category_name": r.table("categories")
+                    .get(user["category"].default(None))["name"]
+                    .default(None),
                     "volatile": r.table("domains")
                     .get_all(["desktop", user["id"]], index="kind_user")
                     .filter({"persistent": False})

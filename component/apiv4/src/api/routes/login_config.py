@@ -47,6 +47,15 @@ tag = "login"
 @open_router.get(
     "/item/login-config",
     tags=[tag],
+    # Pin the legacy ``apiV4LoginConfig`` operation_id so the generated
+    # openapi-ts client keeps producing ``apiV4LoginConfigOptions`` —
+    # consumed by Vue 3's LoginView, MaintenanceView, RegisterView,
+    # DirectViewerView. The 51f865b6d consolidation renamed the
+    # function from ``api_v4_login_config`` to ``get_login_config`` and
+    # silently dropped the prefix from the auto-derived operation_id,
+    # breaking every consumer until codegen ran. Set it explicitly so
+    # future renames don't regress the wire contract.
+    operation_id="apiV4LoginConfig",
     response_model=LoginConfigResponse,
     summary="Get login configuration",
     description="Returns login page configuration including notifications.",

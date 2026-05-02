@@ -18,16 +18,26 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 # -- /stats/{kind} per-kind response models --
 
 
 class StatsKindUser(BaseModel):
+    # Bug 46: same orphan-row family as Bugs 43/44 — the ``users``
+    # table can carry rows with only ``id`` (+ stranded vpn config)
+    # for users whose document was deleted but whose wireguard peer
+    # was not. The strict ``str`` types rejected those rows and
+    # 500'd the entire ``/stats/users`` endpoint via Pydantic's
+    # response_model validation. Make every non-id field Optional
+    # so the orphan row surfaces with empty cells instead of breaking
+    # the admin user-stats panel.
     id: str
-    role: str
-    category: str
-    group: str
+    role: Optional[str] = None
+    category: Optional[str] = None
+    group: Optional[str] = None
 
 
 class StatsKindDesktop(BaseModel):

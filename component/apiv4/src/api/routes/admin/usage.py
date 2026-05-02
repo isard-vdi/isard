@@ -243,11 +243,16 @@ async def admin_usage_consolidate(request: Request) -> EmptyResponse:
         return EmptyResponse()
     except Error:
         raise
-    except Exception:
+    except Exception as e:
+        # Bug 47 diagnosis aid: surface the underlying exception type
+        # so probes can identify the real blocker instead of stopping
+        # at the generic "Failed to consolidate consumption". Same
+        # pattern as Bug 23/24's groundwork. Full traceback still
+        # lands in the structured log via ``format_exc()``.
         raise await Error.create(
             request,
             "internal_server",
-            "Failed to consolidate consumption",
+            f"Failed to consolidate consumption: {type(e).__name__}: {e}",
             traceback.format_exc(),
         )
 
@@ -272,11 +277,12 @@ async def admin_usage_consolidate_item_days(
         return EmptyResponse()
     except Error:
         raise
-    except Exception:
+    except Exception as e:
+        # Bug 47 diagnosis aid (item-type variant).
         raise await Error.create(
             request,
             "internal_server",
-            "Failed to consolidate consumption",
+            f"Failed to consolidate consumption: {type(e).__name__}: {e}",
             traceback.format_exc(),
         )
 
@@ -300,11 +306,12 @@ async def admin_usage_consolidate_item(
         return EmptyResponse()
     except Error:
         raise
-    except Exception:
+    except Exception as e:
+        # Bug 47 diagnosis aid (item-type-only variant).
         raise await Error.create(
             request,
             "internal_server",
-            "Failed to consolidate consumption",
+            f"Failed to consolidate consumption: {type(e).__name__}: {e}",
             traceback.format_exc(),
         )
 

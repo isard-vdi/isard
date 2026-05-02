@@ -45,3 +45,14 @@ services:
       AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS:
       AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER:
       AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR:
+
+      # SAML defaults to disabled. The Go auth service flips its
+      # /healthcheck to 503 the moment a provider it has been told to
+      # enable cannot finish bootstrapping; on a fresh install with no
+      # SAML metadata file (default points at /keys/test-idp-metadata.xml
+      # which doesn't exist) the container shows ``(unhealthy)`` even
+      # though every form-login flow succeeds. Bug 45 in the
+      # load-testing markdown. Operators that need SAML override this
+      # via ``AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=true`` in
+      # ``isardvdi.cfg`` and ship the metadata.
+      AUTHENTICATION_AUTHENTICATION_SAML_ENABLED: ${AUTHENTICATION_AUTHENTICATION_SAML_ENABLED:-false}

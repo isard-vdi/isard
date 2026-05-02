@@ -40,6 +40,19 @@ services:
       RETHINKDB_DB:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
+      # Engine maintains its own ``RethinkDBConnectionPool`` (not the
+      # ``_common`` pool every other Python service uses) but reads
+      # ``RETHINKDB_POOL_SIZE`` from the env. Engine is the heaviest
+      # rdb consumer in the stack — desktop balancer threads, hyper
+      # status threads, the changes cursor — so a 50-slot pool is the
+      # historical sizing. Set explicitly per the team's per-service
+      # tuning policy. ``RETHINKDB_SLOW_QUERY_MS`` is read when the
+      # engine pool eventually adopts the same slow-/failed-query
+      # observer wired into ``_common``'s pool — currently a no-op
+      # for engine, but the env var stays consistent with the rest of
+      # the stack.
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-50}
+      RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
       STATS_RETHINKDB_PORT:
       TELEGRAM_ENGINE_CHAT_ID:
       TELEGRAM_ENGINE_TOKEN:
