@@ -40,19 +40,26 @@ services:
       RETHINKDB_DB:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
-      # Engine maintains its own ``RethinkDBConnectionPool`` (not the
-      # ``_common`` pool every other Python service uses) but reads
-      # ``RETHINKDB_POOL_SIZE`` from the env. Engine is the heaviest
-      # rdb consumer in the stack — desktop balancer threads, hyper
-      # status threads, the changes cursor — so a 50-slot pool is the
-      # historical sizing. Set explicitly per the team's per-service
-      # tuning policy. ``RETHINKDB_SLOW_QUERY_MS`` is read when the
-      # engine pool eventually adopts the same slow-/failed-query
-      # observer wired into ``_common``'s pool — currently a no-op
-      # for engine, but the env var stays consistent with the rest of
-      # the stack.
+      # Engine uses the fork's ``ThreadSafeConnectionPool`` (P2 #7,
+      # 2026-05-02) — own instance, distinct from `_common`'s shared
+      # pool but with the same observer wiring. Env vars match the
+      # rest of the Python stack so operators tune one knob:
+      # - ``RETHINKDB_POOL_SIZE`` — engine is the heaviest rdb
+      #   consumer (desktop balancer threads, hyper status threads,
+      #   the changes cursor); 50-slot historical sizing kept.
+      # - ``RETHINKDB_SLOW_QUERY_MS`` — slow-query threshold for the
+      #   ``rdb_query_slow`` log line emitted by the observer wired
+      #   into ``_connection_factory``.
+      # - ``RETHINKDB_POOL_IDLE_SEC`` — idle eviction window
+      #   (default 1800s in code; bumped from `_common`'s 300s
+      #   because engine has long-quiet worker threads).
+      # - ``RETHINKDB_ACQUIRE_TIMEOUT_SEC`` — pool exhaustion fast-
+      #   fail (raises ``PoolExhaustedError``, a ``ReqlDriverError``
+      #   subclass engine's outer reconnect loops catch).
       RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-50}
       RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
+      RETHINKDB_POOL_IDLE_SEC: ${RETHINKDB_POOL_IDLE_SEC:-1800}
+      RETHINKDB_ACQUIRE_TIMEOUT_SEC: ${RETHINKDB_ACQUIRE_TIMEOUT_SEC:-30}
       STATS_RETHINKDB_PORT:
       TELEGRAM_ENGINE_CHAT_ID:
       TELEGRAM_ENGINE_TOKEN:

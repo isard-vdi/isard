@@ -58,7 +58,7 @@ class DomainsHandler(BaseHandler):
         image = old_val.image or {}
         if isinstance(image, dict) and image.get("type") == "user":
             try:
-                Cards.delete_card(image["id"])
+                await asyncio.to_thread(Cards.delete_card, image["id"])
             except (OSError, KeyError):
                 log.exception("Failed to delete card image for domain %s", old_val.id)
 
@@ -242,7 +242,7 @@ class DesktopDomainHandler:
             DesktopStatusEnum.stopped.value,
             DesktopStatusEnum.failed.value,
         ]:
-            Scheduler.remove_desktop_timeouts(new_val.id)
+            await asyncio.to_thread(Scheduler.remove_desktop_timeouts, new_val.id)
             # Send an event to the desktop hypervisor
             await self.emit(
                 "desktop_hyp_stop",
@@ -295,9 +295,14 @@ class DesktopDomainHandler:
                     DesktopStatusEnum.failed.value,
                 ]:
                     Logging.logs_domain_stop_engine(start_logs_id, new_val.status)
-                    Scheduler.remove_desktop_timeouts(new_val.id)
+                    await asyncio.to_thread(
+                        Scheduler.remove_desktop_timeouts, new_val.id
+                    )
                     if new_val.persistent is False:
-                        Scheduler.add_nonpersistent_desktop_delete_timeout(new_val.id)
+                        await asyncio.to_thread(
+                            Scheduler.add_nonpersistent_desktop_delete_timeout,
+                            new_val.id,
+                        )
         else:
             if (
                 new_val.status == DesktopStatusEnum.started.value
@@ -346,8 +351,10 @@ class DesktopDomainHandler:
             and old_viewer.get("guest_ip") != new_viewer.get("guest_ip")
         ):
             try:
-                viewers = DesktopDirectViewer.desktop_viewer_from_token(
-                    jumperurl, start_desktop=False
+                viewers = await asyncio.to_thread(
+                    DesktopDirectViewer.desktop_viewer_from_token,
+                    jumperurl,
+                    start_desktop=False,
                 )
             except Exception:
                 log.exception(

@@ -66,8 +66,18 @@ from typing import Optional
 
 from isardvdi_common.helpers.atexit_register import atexit_register
 from rethinkdb import r
-from rethinkdb.connection_pool import ThreadSafeConnectionPool
+from rethinkdb.connection_pool import PoolExhaustedError, ThreadSafeConnectionPool
 from rethinkdb.net import Connection, Query
+
+# Bound on how long ``Context.__enter__`` may block waiting for a free
+# pool slot. Without a finite timeout an exhausted pool wedges the
+# calling worker thread indefinitely; with one, the fork raises
+# ``PoolExhaustedError`` (a ``ReqlDriverError`` subclass) which the
+# apiv4 exception handler maps to a 503. The default sits well above
+# the observed worst-case query duration so it never trips on a
+# healthy pool, only on real saturation. Override via
+# ``RETHINKDB_ACQUIRE_TIMEOUT_SEC`` on the service container.
+_ACQUIRE_TIMEOUT_S = float(environ.get("RETHINKDB_ACQUIRE_TIMEOUT_SEC", "30"))
 
 # Slow-query telemetry. Default 500ms — every query taking longer
 # than this emits a single ``rdb_query_slow`` log line; failed
@@ -97,41 +107,97 @@ def _summarize_query(query: Optional[Query]) -> str:
     return rendered[:200]
 
 
-def _query_observer_on_end(
-    query: Query, duration_s: float, exception: Optional[BaseException]
-) -> None:
-    """Per-query telemetry hook attached to every pooled connection.
+def _pool_stats_extra(pool=None) -> dict:
+    """Snapshot a pool's size / in_use / idle for log enrichment.
 
-    Hooks run synchronously on the rdb network thread; keep them
-    cheap. The driver (commit ``2564aab`` on the modernize branch)
-    snapshots its observer list before firing, so it's safe to add
-    this once per pooled connection and leave it.
+    Reads are racy by design — these are diagnostic fields, not
+    invariants — so we don't bother with locking.
 
-    Emits one structured warning log per slow query (``duration_s
-    >= _SLOW_QUERY_S``) and one per failed query. Fast successful
-    queries are silent — at default 500ms threshold the volume is
-    bounded to genuine outliers.
+    ``pool`` defaults to the module-scoped shared pool; engine has
+    its own ``ThreadSafeConnectionPool`` instance distinct from
+    `_common`'s and passes it explicitly via
+    :func:`make_query_observer`. Returns an empty dict when no pool
+    is reachable (test contexts, dedicated-connection callers in
+    services that never touched any pool). Empty merges cleanly
+    into the log ``extra`` so callers don't have to branch.
     """
-    duration_ms = round(duration_s * 1000.0, 2)
-    if exception is not None:
-        _query_log.warning(
-            "rdb_query_failed",
-            extra={
-                "query": _summarize_query(query),
-                "duration_ms": duration_ms,
-                "error_type": type(exception).__name__,
-                "error_msg": str(exception)[:200],
-            },
-        )
-        return
-    if duration_s >= _SLOW_QUERY_S:
-        _query_log.warning(
-            "rdb_query_slow",
-            extra={
-                "query": _summarize_query(query),
-                "duration_ms": duration_ms,
-            },
-        )
+    pool = pool if pool is not None else _pool
+    if pool is None:
+        return {}
+    try:
+        return {
+            "pool_size": pool.size,
+            "pool_in_use": pool.in_use,
+            "pool_idle": pool.idle,
+            "pool_max_size": pool.max_size,
+        }
+    except Exception:
+        # If the pool is partway through close() the properties may
+        # transiently raise. Drop the enrichment rather than break
+        # the observer call — a slow-query line without pool stats
+        # is still useful.
+        return {}
+
+
+def make_query_observer(pool=None):
+    """Return a per-query telemetry observer bound to ``pool``.
+
+    Engine maintains its own ``ThreadSafeConnectionPool`` (see
+    ``engine/services/db/db.py``) distinct from `_common`'s shared
+    pool. Calling ``make_query_observer(engine_pool)`` returns an
+    observer whose emitted ``rdb_query_slow`` / ``rdb_query_failed``
+    lines carry the *engine* pool's size / in_use / idle / max_size
+    instead of `_common`'s — without the engine factory needing to
+    duplicate the observer's logging logic.
+
+    ``pool=None`` (the default) keeps the legacy `_common` behaviour:
+    pool stats come from the module-scoped shared pool. Use that for
+    callers attaching the observer to dedicated (non-pooled)
+    connections too — the enrichment will simply be empty since the
+    shared pool is uninvolved.
+    """
+
+    def _observer(
+        query: Query, duration_s: float, exception: Optional[BaseException]
+    ) -> None:
+        # Hooks run synchronously on the rdb network thread; keep
+        # them cheap. The driver (commit ``2564aab`` on the modernize
+        # branch) snapshots its observer list before firing, so it's
+        # safe to add this once per pooled connection and leave it.
+        duration_ms = round(duration_s * 1000.0, 2)
+        if exception is not None:
+            _query_log.warning(
+                "rdb_query_failed",
+                extra={
+                    "query": _summarize_query(query),
+                    "duration_ms": duration_ms,
+                    "error_type": type(exception).__name__,
+                    "error_msg": str(exception)[:200],
+                    **_pool_stats_extra(pool),
+                },
+            )
+            return
+        if duration_s >= _SLOW_QUERY_S:
+            _query_log.warning(
+                "rdb_query_slow",
+                extra={
+                    "query": _summarize_query(query),
+                    "duration_ms": duration_ms,
+                    **_pool_stats_extra(pool),
+                },
+            )
+
+    return _observer
+
+
+# Default observer bound to the shared `_common` pool — preserved as
+# a module-level attribute so existing imports
+# (``from isardvdi_common.connections.rethink_shared_connection import
+# _query_observer_on_end``) keep working unchanged. Used by the
+# dedicated-connection helper (``rethink_dedicated_connection.py``)
+# and historically by every Tier-1/3/4 service that consumes the
+# shared pool.
+_query_observer_on_end = make_query_observer()
 
 
 # Per-thread storage for the connection currently checked out from the
@@ -214,8 +280,12 @@ class Context:
             # Acquire a fresh connection from the pool. The pool's
             # ``acquire`` validates ``is_open()`` and evicts stale
             # connections automatically — no manual reconnect logic
-            # needed here, unlike the legacy ``Context``.
-            _thread_local.conn = _get_pool().acquire()
+            # needed here, unlike the legacy ``Context``. A finite
+            # timeout converts pool exhaustion into a fast
+            # ``PoolExhaustedError`` (mapped to 503 in apiv4) instead
+            # of wedging the worker thread until the caller's
+            # request timeout fires.
+            _thread_local.conn = _get_pool().acquire(timeout=_ACQUIRE_TIMEOUT_S)
         _thread_local.depth = depth + 1
 
     def __exit__(self, *args):

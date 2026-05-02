@@ -153,134 +153,315 @@ class TestWaitForTables:
             assert table_list.run.call_count == 2
 
 
-class TestConsumeCursor:
-    """Pin the contract for the long-running cursor path:
+class _AsyncCursorMock:
+    """Stand-in for :class:`rethinkdb.asyncio_net.net_asyncio.AsyncioCursor`.
 
-    1. The cursor query runs against a connection from
-       ``dedicated_connection()`` — NOT the shared pool. The pool is
-       sized for short-query traffic; a process-lifetime cursor that
-       held a pool slot would starve everything else.
-    2. The cursor connection's ``close()`` is invoked on every exit
-       path (normal completion, publish raises, exception in driver),
-       so a wedged socket can't outlive the cursor it fed.
-
-    These tests drive ``_consume_cursor`` directly rather than the
-    full ``run()`` while-loop. The while-loop is already pinned via
-    the ``_wait_for_tables`` tests above; isolating the cursor
-    method avoids fighting the patched ``asyncio.sleep`` and yields
-    a deterministic single trip through the cursor.
+    Yields ``items`` one per ``__anext__`` await; if ``raise_after`` is
+    set, raises that exception after the items are exhausted (instead
+    of ``StopAsyncIteration``). ``close`` is an :class:`AsyncMock` so
+    test-side assertions can pin "connection close happened on
+    teardown" without coupling to driver internals.
     """
 
-    def test_cursor_runs_against_dedicated_connection(self):
-        """The cursor's ``run`` must receive the dedicated connection,
-        and that socket must be closed when the cursor exits."""
-        from unittest.mock import AsyncMock
+    def __init__(self, items, raise_after=None):
+        self._items = list(items)
+        self._raise_after = raise_after
+        self.close = AsyncMock(name="cursor.close")
 
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if not self._items:
+            if self._raise_after is not None:
+                raise self._raise_after
+            raise StopAsyncIteration
+        return self._items.pop(0)
+
+
+def _patch_async_dedicated(conn):
+    """Patch ``dedicated_async_connection`` to an :class:`AsyncMock`
+    that returns ``conn``. The fork's helper is a coroutine; the mock
+    must be awaitable too."""
+    return patch(
+        "isardvdi_changefeed.table_changefeed.dedicated_async_connection",
+        new=AsyncMock(return_value=conn),
+    )
+
+
+def _make_async_query(cursor):
+    """Build a Mock ``changes_query`` whose ``run`` is awaitable and
+    resolves to ``cursor`` — mirrors the fork's
+    ``await query.run(async_conn)`` shape."""
+    q = MagicMock(name="changes-query")
+    q.run = AsyncMock(return_value=cursor)
+    return q
+
+
+# Imported once so every test's AsyncMock helper is in scope.
+from unittest.mock import AsyncMock  # noqa: E402
+
+
+class TestConsumeCursor:
+    """Pin the contract for the long-running cursor path (P2 #10,
+    2026-05-02 — native asyncio):
+
+    1. The cursor query runs against a connection from
+       ``dedicated_async_connection()`` — NOT the shared pool. The
+       pool is sized for short-query traffic; a process-lifetime
+       cursor that held a pool slot would starve everything else.
+    2. The connection is closed on every exit path (normal
+       completion, publish raises, ``ReqlDriverError`` mid-stream,
+       cancellation). A wedged socket must not outlive the cursor it
+       fed.
+    3. Iteration is native asyncio (``async for change in cursor:``)
+       — exceptions raised by the cursor's ``__anext__`` propagate
+       directly to the outer ``run`` loop's ``except ReqlDriverError``
+       reconnect branch with no envelope / queue plumbing.
+    """
+
+    def test_cursor_runs_against_dedicated_async_connection(self):
+        """The cursor's ``run`` must receive the dedicated async
+        connection, and that socket must be closed when the cursor
+        exits."""
         cf = TableChangefeed([{"table": "domains"}], redis=MagicMock())
         cf._publish_change = AsyncMock()
 
         dedicated_conn = MagicMock(name="dedicated-cursor-conn")
-        changes_query = MagicMock(name="changes-query")
-        changes_query.run.return_value = iter(
-            [{"new_val": {"table": "domains", "id": "d1"}}]
-        )
+        dedicated_conn.close = AsyncMock()
+        cursor = _AsyncCursorMock([{"new_val": {"table": "domains", "id": "d1"}}])
+        changes_query = _make_async_query(cursor)
 
-        with patch(
-            "isardvdi_changefeed.table_changefeed.dedicated_connection",
-            return_value=dedicated_conn,
-        ) as fake_dedicated:
+        with _patch_async_dedicated(dedicated_conn) as fake_dedicated:
             asyncio.run(cf._consume_cursor(changes_query))
 
-        assert fake_dedicated.called, "cursor must use dedicated_connection"
-        # The cursor's ``run`` is called with the dedicated socket
-        # as the only positional argument — never the shared-pool
-        # connection.
-        changes_query.run.assert_called_once_with(dedicated_conn)
-        assert (
-            dedicated_conn.close.called
-        ), "dedicated cursor connection must be closed on cursor teardown"
+        assert fake_dedicated.called, "cursor must use dedicated_async_connection"
+        # The cursor's ``run`` is called with the async conn as the
+        # only positional argument — never the shared-pool connection.
+        changes_query.run.assert_awaited_once_with(dedicated_conn)
+        # noreply_wait=False: the cursor stop already happened via
+        # cursor.close(); we don't want to block process shutdown
+        # waiting for any noreply replies to drain.
+        dedicated_conn.close.assert_awaited_once_with(noreply_wait=False)
+        cursor.close.assert_awaited_once()
         cf._publish_change.assert_awaited_once()
 
     def test_cursor_close_runs_when_publish_raises(self):
         """If the publish path crashes mid-cursor, the ``finally``
-        block must still close the dedicated socket. Otherwise a
-        wedged socket leaks per failure."""
-        from unittest.mock import AsyncMock
-
+        block must still close the dedicated socket and the cursor.
+        Otherwise a wedged socket leaks per failure."""
         cf = TableChangefeed([{"table": "domains"}], redis=MagicMock())
         cf._publish_change = AsyncMock(side_effect=RuntimeError("publish boom"))
 
         dedicated_conn = MagicMock(name="dedicated-cursor-conn")
-        changes_query = MagicMock(name="changes-query")
-        changes_query.run.return_value = iter(
-            [{"new_val": {"table": "domains", "id": "d1"}}]
-        )
+        dedicated_conn.close = AsyncMock()
+        cursor = _AsyncCursorMock([{"new_val": {"table": "domains", "id": "d1"}}])
+        changes_query = _make_async_query(cursor)
 
-        with patch(
-            "isardvdi_changefeed.table_changefeed.dedicated_connection",
-            return_value=dedicated_conn,
-        ):
+        with _patch_async_dedicated(dedicated_conn):
             with pytest.raises(RuntimeError, match="publish boom"):
                 asyncio.run(cf._consume_cursor(changes_query))
 
-        assert (
-            dedicated_conn.close.called
-        ), "cursor connection must close even when publish raises"
+        cursor.close.assert_awaited_once()
+        dedicated_conn.close.assert_awaited_once_with(noreply_wait=False)
 
     def test_cursor_close_runs_when_driver_errors_mid_iteration(self):
-        """A driver-side error mid-iteration must still let
-        ``finally`` run — the connection should be closed before
-        the exception propagates."""
-        from unittest.mock import AsyncMock
-
+        """A driver-side error mid-iteration must let ``finally`` run
+        — the connection should be closed before the exception
+        propagates to the outer ``run`` loop's reconnect branch."""
         from rethinkdb.errors import ReqlDriverError
 
         cf = TableChangefeed([{"table": "domains"}], redis=MagicMock())
         cf._publish_change = AsyncMock()
 
         dedicated_conn = MagicMock(name="dedicated-cursor-conn")
+        dedicated_conn.close = AsyncMock()
+        # First item delivers normally; second raises ReqlDriverError
+        # — mimics the rdb driver dropping the cursor connection
+        # during a stream.
+        cursor = _AsyncCursorMock(
+            [{"new_val": {"table": "domains", "id": "d1"}}],
+            raise_after=ReqlDriverError("driver dropped"),
+        )
+        changes_query = _make_async_query(cursor)
 
-        # An iterator that raises mid-iteration — mimics the rdb
-        # driver dropping the cursor connection during a stream.
-        def _broken_cursor():
-            yield {"new_val": {"table": "domains", "id": "d1"}}
-            raise ReqlDriverError("driver dropped")
-
-        changes_query = MagicMock(name="changes-query")
-        changes_query.run.return_value = _broken_cursor()
-
-        with patch(
-            "isardvdi_changefeed.table_changefeed.dedicated_connection",
-            return_value=dedicated_conn,
-        ):
-            with pytest.raises(ReqlDriverError):
+        with _patch_async_dedicated(dedicated_conn):
+            with pytest.raises(ReqlDriverError, match="driver dropped"):
                 asyncio.run(cf._consume_cursor(changes_query))
 
-        assert (
-            dedicated_conn.close.called
-        ), "cursor connection must close even on driver error"
+        cursor.close.assert_awaited_once()
+        dedicated_conn.close.assert_awaited_once_with(noreply_wait=False)
 
     def test_cursor_close_failure_is_logged_and_swallowed(self):
-        """If ``close()`` itself raises (e.g. socket already torn
-        down), the error must be logged but not propagated — the
-        outer ``run`` loop's reconnect path is what handles
-        recovery, and re-raising would obscure the original
+        """If the cursor or connection ``close()`` raises (e.g. socket
+        already torn down), the error must be logged but not
+        propagated — the outer ``run`` loop's reconnect path is what
+        handles recovery, and re-raising would obscure the original
         exception (or break the success path)."""
-        from unittest.mock import AsyncMock
+        cf = TableChangefeed([{"table": "domains"}], redis=MagicMock())
+        cf._publish_change = AsyncMock()
+
+        dedicated_conn = MagicMock(name="dedicated-cursor-conn")
+        dedicated_conn.close = AsyncMock(side_effect=OSError("socket already closed"))
+        cursor = _AsyncCursorMock([])  # no changes; clean exit
+        cursor.close = AsyncMock(side_effect=OSError("cursor torn down"))
+        changes_query = _make_async_query(cursor)
+
+        with _patch_async_dedicated(dedicated_conn):
+            # No raise — both close failures must be swallowed.
+            asyncio.run(cf._consume_cursor(changes_query))
+
+        cursor.close.assert_awaited_once()
+        dedicated_conn.close.assert_awaited_once_with(noreply_wait=False)
+
+
+class TestConsumeCursorAsyncResponsiveness:
+    """Pin the P2 #10 contract: native ``async for change in cursor:``
+    yields control back to the asyncio event loop on every
+    ``__anext__`` await, so coroutines on the same loop keep getting
+    scheduled. Replaces the worker-thread offload pattern that lived
+    here between P2 #8 (2026-04) and P2 #10 (2026-05)."""
+
+    def test_loop_stays_responsive_during_cursor_iteration(self):
+        """A concurrent heartbeat coroutine must run while the cursor
+        is mid-iteration. With native async iteration each
+        ``__anext__`` await yields the loop; the heartbeat fires on
+        every yield. The legacy on-loop sync iteration would freeze
+        the loop until the entire cursor drained."""
+        cf = TableChangefeed([{"table": "domains"}], redis=MagicMock())
+        cf._publish_change = AsyncMock()
+
+        dedicated_conn = MagicMock(name="dedicated-cursor-conn")
+        dedicated_conn.close = AsyncMock()
+
+        class _SlowAsyncCursor:
+            """Each ``__anext__`` sleeps 50ms (async sleep yields the
+            loop) before delivering the next item. After 3 deliveries,
+            raises StopAsyncIteration."""
+
+            def __init__(self, n=3):
+                self._remaining = n
+                self.close = AsyncMock()
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if self._remaining == 0:
+                    raise StopAsyncIteration
+                await asyncio.sleep(0.05)
+                self._remaining -= 1
+                return {"new_val": {"table": "domains", "id": "d"}}
+
+        cursor = _SlowAsyncCursor(n=3)
+        changes_query = _make_async_query(cursor)
+
+        async def _runner():
+            heartbeat_count = 0
+
+            async def _heartbeat():
+                nonlocal heartbeat_count
+                while True:
+                    await asyncio.sleep(0.02)
+                    heartbeat_count += 1
+
+            heartbeat_task = asyncio.create_task(_heartbeat())
+            try:
+                with _patch_async_dedicated(dedicated_conn):
+                    await cf._consume_cursor(changes_query)
+            finally:
+                heartbeat_task.cancel()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
+            return heartbeat_count
+
+        beats = asyncio.run(_runner())
+
+        # 3 cursor items × 50ms sleep ≈ 150ms total. Heartbeat at
+        # 20ms cadence → ≥3 beats if the loop was actually running
+        # concurrently with the cursor's per-anext awaits.
+        assert beats >= 3, (
+            f"loop appears starved during cursor iteration "
+            f"(got {beats} heartbeat ticks, expected ≥3)"
+        )
+        assert cf._publish_change.await_count == 3
+
+    def test_cursor_cancellation_closes_socket(self):
+        """Cancelling the consumer task mid-publish must trigger a
+        clean cursor + connection close. Otherwise long-lived
+        cursors would leak their sockets on changefeed shutdown."""
+        cf = TableChangefeed([{"table": "domains"}], redis=MagicMock())
+
+        dedicated_conn = MagicMock(name="dedicated-cursor-conn")
+        dedicated_conn.close = AsyncMock()
+
+        published = asyncio.Event()
+
+        async def _publish_capture(change):
+            published.set()
+            await asyncio.sleep(60)  # block forever — cancel point
+
+        cf._publish_change = _publish_capture
+
+        # Cursor delivers one item then would block forever on
+        # __anext__ — but we cancel before that happens.
+        class _OneShotThenBlock:
+            def __init__(self):
+                self._delivered = False
+                self.close = AsyncMock()
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if self._delivered:
+                    await asyncio.sleep(60)  # block until cancelled
+                    raise StopAsyncIteration  # unreachable
+                self._delivered = True
+                return {"new_val": {"table": "domains", "id": "d1"}}
+
+        cursor = _OneShotThenBlock()
+        changes_query = _make_async_query(cursor)
+
+        async def _runner():
+            with _patch_async_dedicated(dedicated_conn):
+                task = asyncio.create_task(cf._consume_cursor(changes_query))
+                # Wait until the consumer has pulled the first
+                # change and is blocked in publish.
+                await asyncio.wait_for(published.wait(), timeout=2.0)
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+
+        asyncio.run(_runner())
+
+        # The dedicated socket must close even when cancellation
+        # arrives mid-cursor — we don't want to leak it on shutdown.
+        cursor.close.assert_awaited_once()
+        dedicated_conn.close.assert_awaited_once_with(noreply_wait=False)
+
+    def test_cursor_run_failure_skips_close_path(self):
+        """If ``await changes_query.run(conn)`` itself raises (e.g.
+        the rdb server immediately rejects the changes query), the
+        finally block must still close the connection — but cursor
+        close is guarded since cursor was never assigned."""
+        from rethinkdb.errors import ReqlDriverError
 
         cf = TableChangefeed([{"table": "domains"}], redis=MagicMock())
         cf._publish_change = AsyncMock()
 
         dedicated_conn = MagicMock(name="dedicated-cursor-conn")
-        dedicated_conn.close.side_effect = OSError("socket already closed")
+        dedicated_conn.close = AsyncMock()
+
         changes_query = MagicMock(name="changes-query")
-        changes_query.run.return_value = iter([])  # no changes; clean exit
+        changes_query.run = AsyncMock(side_effect=ReqlDriverError("connection lost"))
 
-        with patch(
-            "isardvdi_changefeed.table_changefeed.dedicated_connection",
-            return_value=dedicated_conn,
-        ):
-            # No raise — the close failure must not surface here.
-            asyncio.run(cf._consume_cursor(changes_query))
+        with _patch_async_dedicated(dedicated_conn):
+            with pytest.raises(ReqlDriverError, match="connection lost"):
+                asyncio.run(cf._consume_cursor(changes_query))
 
-        assert dedicated_conn.close.called
+        cf._publish_change.assert_not_called()
+        # Connection still closes even though cursor was never built.
+        dedicated_conn.close.assert_awaited_once_with(noreply_wait=False)

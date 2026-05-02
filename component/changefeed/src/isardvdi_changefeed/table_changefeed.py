@@ -20,7 +20,6 @@
 
 import asyncio
 import logging as log
-import time
 from datetime import datetime
 
 import redis.asyncio as aioredis
@@ -31,7 +30,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.connections.rethink_dedicated_connection import (
-    dedicated_connection,
+    dedicated_async_connection,
 )
 from rethinkdb import r
 from rethinkdb.errors import ReqlDriverError
@@ -150,8 +149,18 @@ class TableChangefeed(RethinkSharedConnection):
             self._retry_delay = min(self._retry_delay * 2, 60)
 
     async def _consume_cursor(self, changes_query):
-        """Run ``changes_query`` against a dedicated (non-pool)
+        """Run ``changes_query`` against a dedicated asyncio-native
         connection and dispatch each change to ``_publish_change``.
+
+        Native ``async for change in cursor:`` (P2 #10, 2026-05-02):
+        the cursor's socket recv yields control to the asyncio event
+        loop between deliveries via :class:`AsyncioCursor.__anext__`,
+        so other coroutines on the same loop (health checks, metrics
+        endpoints) keep getting scheduled — without the worker-thread
+        + ``asyncio.Queue`` plumbing the previous P2 #8 implementation
+        used. ``ReqlDriverError`` raised mid-iteration (socket loss)
+        propagates naturally to the outer ``run`` loop's reconnect
+        branch.
 
         The connection is owned by this method: opened on entry,
         closed on every exit path (normal completion, exception,
@@ -159,13 +168,29 @@ class TableChangefeed(RethinkSharedConnection):
         would starve every other caller of the pool — see the
         comment in ``run`` for the design rationale.
         """
-        cursor_conn = dedicated_connection()
+        cursor_conn = await dedicated_async_connection()
+        cursor = None
         try:
-            for change in changes_query.run(cursor_conn):
+            cursor = await changes_query.run(cursor_conn)
+            async for change in cursor:
                 await self._publish_change(change)
         finally:
+            # Close the cursor first so the rdb server stops streaming.
+            # ``cursor.close`` is async on :class:`AsyncioCursor`; it
+            # may race with cancellation (the cursor is mid-recv) but
+            # the driver tolerates a double-close. Tests stub the
+            # cursor with a Mock that has no ``close`` — guard with
+            # try/except for that case.
+            if cursor is not None:
+                try:
+                    await cursor.close()
+                except Exception:
+                    log.debug(
+                        "Cursor close raised (expected on test stubs / dropped sockets)",
+                        exc_info=True,
+                    )
             try:
-                cursor_conn.close()
+                await cursor_conn.close(noreply_wait=False)
             except Exception:
                 log.exception("Failed to close changefeed cursor connection")
 

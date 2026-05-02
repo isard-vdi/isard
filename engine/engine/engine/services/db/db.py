@@ -4,12 +4,13 @@
 # License: AGPLv3
 
 import json
-import queue
-import threading
+import os
 from contextlib import contextmanager
 from functools import wraps
 
+from isardvdi_common.connections.rethink_shared_connection import make_query_observer
 from rethinkdb import r
+from rethinkdb.connection_pool import ThreadSafeConnectionPool
 
 from engine.config import (
     MAX_QUEUE_DOMAINS_STATUS,
@@ -21,36 +22,97 @@ from engine.services.log import *
 
 MAX_LEN_PREV_STATUS_HYP = 10
 
+# Bound on how long ``acquire`` may block waiting for a free pool slot
+# before raising ``PoolExhaustedError`` (a ``ReqlDriverError`` subclass).
+# Engine paths used to block on ``queue.get(timeout=60)`` and surface
+# pool exhaustion as an opaque ``RuntimeError`` no caller could
+# distinguish from a generic bug. The new fast-fail mirrors what
+# ``_common``'s shared pool already does for apiv4 / change-handler /
+# scheduler / webapp / vpn.
+_ACQUIRE_TIMEOUT_S = float(os.environ.get("RETHINKDB_ACQUIRE_TIMEOUT_SEC", "30"))
+
+# Engine has long-lived worker threads (DiskOperationsThread,
+# ThreadHypEvents, manager_pooling, hypervisor workers) that go quiet
+# for 10+ minutes between queries. The default 300s eviction would
+# make every cold-path query pay a TCP/TLS handshake; bump to keep
+# steady-state warm without holding sockets open forever after a
+# real traffic drop.
+_MAX_IDLE_TIME_S = float(os.environ.get("RETHINKDB_POOL_IDLE_SEC", "1800"))
+
+
+_pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "50"))
+
+
+def _connection_factory():
+    """Build a fresh blocking RethinkDB connection for the engine pool.
+
+    Wires the slow-/failed-query observer so engine queries surface
+    in the ``rdb_query_slow`` / ``rdb_query_failed`` log stream the
+    rest of the monorepo grep'd by Loki. The observer is built via
+    ``make_query_observer(connection_pool)`` so its enrichment
+    fields carry *engine's* pool size / in_use / idle / max_size,
+    not `_common`'s shared pool — the two are distinct instances.
+    """
+    try:
+        conn = r.connect(
+            host=RETHINK_HOST,
+            port=RETHINK_PORT,
+            db=RETHINK_DB,
+        )
+    except r.errors.ReqlDriverError as e:
+        logs.main.error(f"RethinkDB connection failed: {e}")
+        raise
+    conn.add_query_observer(on_end=_query_observer_on_end)
+    return conn
+
+
+# The fork's pool grows on demand up to ``max_size`` and evicts idle
+# connections after ``max_idle_time`` — no eager pre-create. The
+# legacy hand-rolled pool opened all 50 sockets at module import,
+# which both delayed boot and pinned 50 server-side slots regardless
+# of actual concurrency.
+connection_pool = ThreadSafeConnectionPool(
+    connection_factory=_connection_factory,
+    max_size=_pool_size,
+    max_idle_time=_MAX_IDLE_TIME_S,
+)
+
+# Build the observer AFTER the pool exists so it can capture
+# pool-stats from the engine pool on every emitted line. The
+# factory function takes a closure over ``connection_pool`` — the
+# rdb driver's observer-list snapshot makes this safe to register
+# once per connection at factory time.
+_query_observer_on_end = make_query_observer(connection_pool)
+
 
 def new_rethink_connection():
     """Acquire a connection from the engine's pool.
 
     Legacy callsites still use the ``new_rethink_connection()`` /
-    ``close_rethink_connection()`` shape; rather than rewrite them
-    all in one go, route both functions through the existing
-    ``connection_pool``. The pool pre-allocates ``RETHINKDB_POOL_SIZE``
-    sockets at startup; per-call cost drops from a TCP/TLS handshake
-    to a queue.get(). The caller MUST release the connection via
-    ``close_rethink_connection`` so the slot returns to the pool.
-
-    The bare ``r.connect(...)`` form previously used here meant every
-    call opened a fresh socket the rdb server then had to terminate.
-    Under load (50+ concurrent engine threads) that thrashed the
-    server's connection budget and blocked on the handshake.
+    ``close_rethink_connection()`` shape; rather than rewrite the
+    ~93 historical callsites in one go, route both functions through
+    the fork's ``ThreadSafeConnectionPool``. The pool grows on demand
+    up to ``RETHINKDB_POOL_SIZE`` (default 50). On exhaustion this
+    raises ``PoolExhaustedError`` (a ``ReqlDriverError`` subclass)
+    after ``RETHINKDB_ACQUIRE_TIMEOUT_SEC`` instead of the legacy
+    opaque ``RuntimeError``. The caller MUST release the connection
+    via ``close_rethink_connection`` so the slot returns to the pool.
     """
-    return connection_pool.get_connection()
+    return connection_pool.acquire(timeout=_ACQUIRE_TIMEOUT_S)
 
 
 def close_rethink_connection(r_conn):
     """Release a connection back to the engine's pool.
 
-    Mirrors ``new_rethink_connection`` above: this used to do
-    ``r_conn.close()``, now it returns the slot to the pool so the
-    next caller reuses it. Returns ``True`` for source compatibility
+    Mirrors ``new_rethink_connection`` above: returns the slot to
+    the pool so the next caller reuses it. The fork's pool validates
+    ``is_open()`` on release and silently drops dead connections
+    (with a warning log via ``_is_usable``); the next acquire grows
+    a fresh socket if needed. Returns ``True`` for source compat
     with callers that propagate the legacy return value.
     """
     if r_conn is not None:
-        connection_pool.release_connection(r_conn)
+        connection_pool.release(r_conn)
     return True
 
 
@@ -67,91 +129,13 @@ def rethink(function):
     return decorate
 
 
-class RethinkDBConnectionPool:
-    def __init__(self, pool_size):
-        """Initialize the connection pool."""
-        self._pool_size = pool_size
-        self._pool = queue.Queue(maxsize=pool_size)
-        self._lock = threading.Lock()
-        self._in_use = 0
-
-        # Pre-create connections to fill the pool
-        for _ in range(pool_size):
-            self._pool.put(self._create_connection())
-
-    def _create_connection(self):
-        """Create a new RethinkDB connection."""
-        try:
-            return r.connect(
-                host=RETHINK_HOST,
-                port=RETHINK_PORT,
-                db=RETHINK_DB,
-            )
-        except r.errors.ReqlDriverError as e:
-            logs.main.error(f"RethinkDB connection failed: {e}")
-            raise
-
-    def get_connection(self):
-        """Retrieve a connection from the pool."""
-        try:
-            conn = self._pool.get(timeout=60)
-            with self._lock:
-                self._in_use += 1
-            logs.main.debug(
-                f"rethinkdb connection acquired (in_use={self._in_use}, idle={self._pool.qsize()}, pool_size={self._pool_size})"
-            )
-            return conn
-        except queue.Empty:
-            raise RuntimeError("No available connections in the pool.")
-
-    def release_connection(self, conn):
-        """Return a connection to the pool."""
-        if conn and conn.is_open():
-            self._pool.put(conn)
-        else:
-            try:
-                self._pool.put(self._create_connection())
-                logs.main.warning("Replaced dead RethinkDB connection in pool")
-            except Exception as e:
-                logs.main.error(f"Failed to replace dead connection in pool: {e}")
-        with self._lock:
-            self._in_use = max(0, self._in_use - 1)
-        logs.main.debug(
-            f"rethinkdb connection released (in_use={self._in_use}, idle={self._pool.qsize()}, pool_size={self._pool_size})"
-        )
-
-    def close_all_connections(self):
-        """Close all connections in the pool."""
-        with self._lock:
-            while not self._pool.empty():
-                conn = self._pool.get()
-                if conn.is_open():
-                    conn.close()
-
-
-class PooledConnection:
-    def __init__(self, pool):
-        self.pool = pool
-        self.connection = None
-
-    def __enter__(self):
-        self.connection = self.pool.get_connection()
-        return self.connection
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.pool.release_connection(self.connection)
-
-
-import os
-
-_pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "50"))
-connection_pool = RethinkDBConnectionPool(pool_size=_pool_size)
-
-
 @contextmanager
 def rethink_conn():
-    with PooledConnection(connection_pool) as conn:
+    conn = connection_pool.acquire(timeout=_ACQUIRE_TIMEOUT_S)
+    try:
         yield conn
+    finally:
+        connection_pool.release(conn)
 
 
 def get_dict_from_item_in_table(table, id):
