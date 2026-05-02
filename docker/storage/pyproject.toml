@@ -6,7 +6,6 @@ dependencies = [
   "isardvdi-apiv4-client",
   "isardvdi-common",
   "redis==5.2.1",
-  "rethinkdb==2.4.10.post1",
   "rq==2.3.2",
   "tabulate==0.9.0",
 ]

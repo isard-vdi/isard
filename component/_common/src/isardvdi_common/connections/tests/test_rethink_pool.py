@@ -48,10 +48,17 @@ class _FakePool:
         self._active: set = set()
         self._lock = threading.RLock()
         self.acquired: List = []
+        self.acquire_timeouts: List = []
         self.released: List = []
         self.closed = False
 
     def acquire(self, timeout=None):
+        # Record every acquire's timeout so tests can pin that the
+        # shim's ``Context.__enter__`` passed a finite timeout (the
+        # production code MUST never call ``acquire()`` with no
+        # bound — otherwise pool exhaustion wedges the worker thread
+        # indefinitely instead of converting into a 503).
+        self.acquire_timeouts.append(timeout)
         with self._lock:
             if self._idle:
                 conn = self._idle.pop()
@@ -212,6 +219,49 @@ def test_rethink_custom_base_satisfies_abstract_rdb_connection(fake_pool):
     # un-implemented abstract methods would fail
     # ``__abstractmethods__``-emptiness here.
     assert "_rdb_connection" not in RethinkCustomBase.__abstractmethods__
+
+
+def test_context_passes_finite_timeout_to_acquire(fake_pool):
+    """Production code MUST pass a finite timeout to ``acquire`` so
+    pool exhaustion converts into ``PoolExhaustedError`` (which apiv4
+    maps to a 503) instead of wedging the worker thread until the
+    upstream request timeout fires. This test pins that the shim
+    threads a non-None timeout through to the pool — the actual
+    value is configurable via ``RETHINKDB_ACQUIRE_TIMEOUT_SEC`` and
+    not asserted here, only its non-None-ness."""
+    from isardvdi_common.connections.rethink_shared_connection import (
+        RethinkSharedConnection,
+    )
+
+    with RethinkSharedConnection._rdb_context():
+        pass
+
+    assert fake_pool.acquire_timeouts, "acquire was never called"
+    assert all(
+        t is not None and t > 0 for t in fake_pool.acquire_timeouts
+    ), f"Context.__enter__ must pass a finite timeout, got {fake_pool.acquire_timeouts}"
+
+
+def test_context_propagates_pool_exhausted_error(monkeypatch, fake_pool):
+    """When the pool's ``acquire`` raises ``PoolExhaustedError`` (the
+    fork's signal that no slot freed up within the timeout) the shim
+    must let it propagate unchanged, not swallow or rewrap it. The
+    apiv4 global handler depends on the typed exception reaching it
+    so the response is a structured 503 distinguishable from a
+    generic 500."""
+    from isardvdi_common.connections.rethink_shared_connection import (
+        RethinkSharedConnection,
+    )
+    from rethinkdb.connection_pool import PoolExhaustedError
+
+    def boom(timeout=None):
+        raise PoolExhaustedError("simulated saturation")
+
+    monkeypatch.setattr(fake_pool, "acquire", boom)
+
+    with pytest.raises(PoolExhaustedError):
+        with RethinkSharedConnection._rdb_context():
+            pass
 
 
 def test_pool_close_swallows_secondary_errors_during_atexit(fake_pool):

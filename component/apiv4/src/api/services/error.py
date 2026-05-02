@@ -17,13 +17,32 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import sys
+
 from fastapi import Request
 from isardvdi_common.helpers.error_base import ErrorBase
+from rethinkdb.connection_pool import PoolClosedError, PoolExhaustedError
 
 
 class Error(ErrorBase):
     @classmethod
     async def create(cls, request: Request, *args, **kwargs) -> "Error":
+        # When the active exception is a pool-control signal
+        # (saturation or shutdown) re-raise the original instead of
+        # wrapping it. The dedicated apiv4 exception handlers map
+        # those to 503 with a structured payload — wrapping them as
+        # ``internal_server`` would surface the same wire shape as
+        # genuine query failures and lose the actionable signal
+        # (raise pool size / a stuck connection is holding the pool
+        # open). Routes still call this from
+        # ``except Exception: raise await Error.create(...)``; the
+        # re-raise propagates out of the awaited coroutine through
+        # the outer ``raise`` and lands at the global handler.
+        exc_type, exc_value, _ = sys.exc_info()
+        if exc_value is not None and isinstance(
+            exc_value, (PoolExhaustedError, PoolClosedError)
+        ):
+            raise exc_value
         return cls(
             *args, custom_request=request, request_body=await request.body(), **kwargs
         )

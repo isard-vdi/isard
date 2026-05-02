@@ -148,3 +148,85 @@ class TestObserverWiringContract:
             "the registered hook must be the module-level callable so "
             "tests can drive it directly without standing up a real pool"
         )
+
+
+class TestPoolStatsEnrichment:
+    """Pin that every emitted slow/failed log line carries the pool's
+    snapshot (size/in_use/idle/max_size). Without it, "slow" and
+    "saturated" look identical in Loki and operators can't tell
+    whether to raise the pool size or hunt the slow query.
+    """
+
+    def _stub_pool(self, monkeypatch, **stats):
+        from isardvdi_common.connections import rethink_shared_connection as mod
+
+        class _StubPool:
+            size = stats.get("size", 4)
+            in_use = stats.get("in_use", 3)
+            idle = stats.get("idle", 1)
+            max_size = stats.get("max_size", 10)
+
+        monkeypatch.setattr(mod, "_pool", _StubPool())
+
+    def test_slow_log_carries_pool_stats(self, observer, caplog, monkeypatch):
+        self._stub_pool(monkeypatch, size=8, in_use=7, idle=1, max_size=10)
+        caplog.set_level(logging.WARNING, logger="rdb.query")
+        observer(_fake_query(), 1.0, None)
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.pool_size == 8
+        assert rec.pool_in_use == 7
+        assert rec.pool_idle == 1
+        assert rec.pool_max_size == 10
+
+    def test_failed_log_carries_pool_stats(self, observer, caplog, monkeypatch):
+        self._stub_pool(monkeypatch, size=4, in_use=4, idle=0, max_size=4)
+        caplog.set_level(logging.WARNING, logger="rdb.query")
+        observer(_fake_query(), 0.01, RuntimeError("boom"))
+        rec = caplog.records[0]
+        assert rec.pool_in_use == 4
+        assert rec.pool_idle == 0
+
+    def test_no_pool_omits_stats(self, observer, caplog, monkeypatch):
+        """Tests / dedicated-connection callers may run before the
+        pool is initialized; the observer must NOT raise and must
+        omit the pool fields rather than emit ``None``s."""
+        from isardvdi_common.connections import rethink_shared_connection as mod
+
+        monkeypatch.setattr(mod, "_pool", None)
+        caplog.set_level(logging.WARNING, logger="rdb.query")
+        observer(_fake_query(), 1.0, None)
+        rec = caplog.records[0]
+        assert not hasattr(rec, "pool_size")
+
+    def test_pool_property_failure_does_not_break_observer(
+        self, observer, caplog, monkeypatch
+    ):
+        """Pool properties raise transiently mid-close() — the observer
+        must drop the enrichment rather than propagate, otherwise a
+        single log line could break the network thread's query loop."""
+        from isardvdi_common.connections import rethink_shared_connection as mod
+
+        class _BadPool:
+            @property
+            def size(self):
+                raise RuntimeError("closing")
+
+            @property
+            def in_use(self):
+                raise RuntimeError("closing")
+
+            @property
+            def idle(self):
+                raise RuntimeError("closing")
+
+            @property
+            def max_size(self):
+                raise RuntimeError("closing")
+
+        monkeypatch.setattr(mod, "_pool", _BadPool())
+        caplog.set_level(logging.WARNING, logger="rdb.query")
+        observer(_fake_query(), 1.0, None)
+        # Still a log record, just without pool fields.
+        rec = caplog.records[0]
+        assert not hasattr(rec, "pool_size")

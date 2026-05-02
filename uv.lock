@@ -735,7 +735,6 @@ dependencies = [
     { name = "isardvdi-common" },
     { name = "pyjwt" },
     { name = "requests" },
-    { name = "rethinkdb" },
 ]
 
 [package.metadata]
@@ -744,7 +743,6 @@ requires-dist = [
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "pyjwt", specifier = "==2.10.1" },
     { name = "requests", specifier = "==2.32.4" },
-    { name = "rethinkdb", specifier = "==2.4.10.post1" },
 ]
 
 [[package]]
@@ -965,12 +963,6 @@ test = [
 name = "isardvdi-db"
 version = "0.0.0"
 source = { editable = "docker/db" }
-dependencies = [
-    { name = "rethinkdb" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "rethinkdb", specifier = "==2.4.10.post1" }]
 
 [[package]]
 name = "isardvdi-engine"
@@ -1277,7 +1269,6 @@ dependencies = [
     { name = "isardvdi-apiv4-client" },
     { name = "isardvdi-common" },
     { name = "redis" },
-    { name = "rethinkdb" },
     { name = "rq" },
     { name = "tabulate" },
 ]
@@ -1287,7 +1278,6 @@ requires-dist = [
     { name = "isardvdi-apiv4-client", editable = "component/_common/isardvdi_apiv4_client" },
     { name = "isardvdi-common", editable = "component/_common" },
     { name = "redis", specifier = "==5.2.1" },
-    { name = "rethinkdb", specifier = "==2.4.10.post1" },
     { name = "rq", specifier = "==2.3.2" },
     { name = "tabulate", specifier = "==0.9.0" },
 ]

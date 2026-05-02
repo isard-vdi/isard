@@ -59,7 +59,23 @@ if "rethinkdb.connection_pool" not in sys.modules:
         def __init__(self, *args, **kwargs):
             pass
 
+    # Stub the pool error hierarchy so ``_common``'s
+    # ``rethink_shared_connection`` module imports cleanly when the
+    # changefeed tests run with the rethinkdb fork un-installed
+    # (the test suite is pure-Python and doesn't talk to a server).
+    class _PoolError(Exception):
+        pass
+
+    class _PoolExhaustedError(_PoolError):
+        pass
+
+    class _PoolClosedError(_PoolError):
+        pass
+
     pool_stub.ThreadSafeConnectionPool = _ThreadSafeConnectionPool  # type: ignore[attr-defined]
+    pool_stub.PoolError = _PoolError  # type: ignore[attr-defined]
+    pool_stub.PoolExhaustedError = _PoolExhaustedError  # type: ignore[attr-defined]
+    pool_stub.PoolClosedError = _PoolClosedError  # type: ignore[attr-defined]
     sys.modules["rethinkdb.connection_pool"] = pool_stub
 
 if "redis" not in sys.modules:
