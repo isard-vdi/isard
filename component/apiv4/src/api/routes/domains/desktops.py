@@ -784,14 +784,22 @@ async def get_desktop_images(
                 "desktop_id is required when image_type is 'user' or omitted (both).",
             )
 
-        image_strategies = {
-            None: lambda: CardService.get_stock_cards()
-            + CardService.get_user_cards(user_id, desktop_id),
-            "stock": lambda: CardService.get_stock_cards(),
-            "user": lambda: CardService.get_user_cards(user_id, desktop_id),
-        }
-
-        images = image_strategies[image_type]()
+        # Both ``CardService.get_stock_cards`` and ``get_user_cards`` are
+        # sync ReQL helpers; calling them straight from this async handler
+        # blocks the event loop. Offload via ``asyncio.to_thread`` so
+        # concurrent callers don't serialise behind the rdb round-trip.
+        if image_type is None:
+            stock, user = await asyncio.gather(
+                asyncio.to_thread(CardService.get_stock_cards),
+                asyncio.to_thread(CardService.get_user_cards, user_id, desktop_id),
+            )
+            images = stock + user
+        elif image_type == "stock":
+            images = await asyncio.to_thread(CardService.get_stock_cards)
+        else:  # "user"
+            images = await asyncio.to_thread(
+                CardService.get_user_cards, user_id, desktop_id
+            )
 
         return DesktopImagesResponse(images=images)
     except Error:

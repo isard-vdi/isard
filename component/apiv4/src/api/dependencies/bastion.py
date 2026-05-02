@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 import traceback
 
 from api.dependencies.jwt_token import has_token
@@ -32,7 +33,12 @@ from isardvdi_common.models.targets import Targets
 
 
 async def can_use_bastion(payload: str = Depends(has_token)):
-    if not Helpers.can_use_bastion(payload):
+    # ``Helpers.can_use_bastion`` walks ``Caches.get_document`` and
+    # ``Alloweds.is_allowed``; both are sync and cache-backed but the
+    # first call per process and any cache eviction reach rdb. Offload
+    # to a worker thread so the asyncio loop stays free while the cold
+    # path resolves.
+    if not await asyncio.to_thread(Helpers.can_use_bastion, payload):
         raise Error(
             "forbidden",
             "User can not use bastion",
@@ -44,8 +50,8 @@ async def can_use_bastion_individual_domains(
     payload: str = Depends(has_token),
     _can_use_bastion: None = Depends(can_use_bastion),
 ):
-    bastion_allowed = Caches.get_document("config", 1, ["bastion"]).get(
-        "individual_domains"
+    bastion_allowed = await asyncio.to_thread(
+        lambda: Caches.get_document("config", 1, ["bastion"]).get("individual_domains")
     )
     if bastion_allowed is None:
         raise Error(
@@ -54,7 +60,9 @@ async def can_use_bastion_individual_domains(
             traceback.format_exc(),
         )
 
-    return Alloweds.is_allowed(payload, bastion_allowed, "config", True)
+    return await asyncio.to_thread(
+        Alloweds.is_allowed, payload, bastion_allowed, "config", True
+    )
 
 
 def bastion_domain_verification_required() -> bool:

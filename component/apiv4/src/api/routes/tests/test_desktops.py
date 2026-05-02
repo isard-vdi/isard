@@ -939,3 +939,127 @@ def test_verify_bastion_domain(monkeypatch, test_client):
     )
     assert response.status_code == 200
     assert response.json() == {"verified": True}
+
+
+# ────────────────────────────────────────────────────────────────────
+# Bug 41 — async offload of GET /items/desktops/get-images
+# ────────────────────────────────────────────────────────────────────
+
+
+def test_get_desktop_images_offloads_card_calls(monkeypatch, test_client):
+    """``CardService.get_stock_cards`` and ``get_user_cards`` are
+    sync ReQL helpers. Pin that the route routes them through
+    ``asyncio.to_thread`` (and ``asyncio.gather`` for the both-kinds
+    branch) so the asyncio event loop stays free under load.
+
+    Catches a regression to the pre-fix shape where the lambda
+    dispatch ran the helpers synchronously and serialised concurrent
+    requests behind the rdb round-trip (rev-13 staircase
+    32 → 48 → 62 → 72 → 84 → 97 → 105 → 122 ms for 8 concurrent
+    callers in the both-kinds branch).
+    """
+    import asyncio as _asyncio
+
+    from api.services.cards import CardService
+
+    monkeypatch.setattr(
+        CardService,
+        "get_stock_cards",
+        staticmethod(lambda: [{"id": "stock-1", "url": "u-s", "type": "stock"}]),
+    )
+    monkeypatch.setattr(
+        CardService,
+        "get_user_cards",
+        staticmethod(
+            lambda user_id, desktop_id: [{"id": "user-1", "url": "u-u", "type": "user"}]
+        ),
+    )
+
+    scheduled = []
+    real_to_thread = _asyncio.to_thread
+
+    async def recording_to_thread(fn, *args, **kwargs):
+        scheduled.append((fn, args))
+        return await real_to_thread(fn, *args, **kwargs)
+
+    monkeypatch.setattr(
+        "api.routes.domains.desktops.asyncio.to_thread", recording_to_thread
+    )
+
+    jwt = MockJWT()
+
+    # both-kinds branch — should dispatch both helpers via to_thread.
+    response = test_client(
+        url="/items/desktops/get-images?desktop_id=desktop-1",
+        method="GET",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert {img["id"] for img in body["images"]} == {"stock-1", "user-1"}
+
+    fns_dispatched = {fn for fn, _args in scheduled}
+    assert CardService.get_stock_cards in fns_dispatched, (
+        "get_stock_cards must be dispatched via asyncio.to_thread "
+        "(Bug 41 — sync rdb in async handler blocks event loop)"
+    )
+    assert CardService.get_user_cards in fns_dispatched, (
+        "get_user_cards must be dispatched via asyncio.to_thread "
+        "(Bug 41 — sync rdb in async handler blocks event loop)"
+    )
+
+
+def test_get_desktop_images_stock_only_offloads(monkeypatch, test_client):
+    """``image_type=stock`` branch must also offload the helper —
+    independent path through the if/elif/else."""
+    import asyncio as _asyncio
+
+    from api.services.cards import CardService
+
+    monkeypatch.setattr(
+        CardService,
+        "get_stock_cards",
+        staticmethod(lambda: [{"id": "stock-1", "url": "u", "type": "stock"}]),
+    )
+
+    scheduled = []
+    real_to_thread = _asyncio.to_thread
+
+    async def recording_to_thread(fn, *args, **kwargs):
+        scheduled.append(fn)
+        return await real_to_thread(fn, *args, **kwargs)
+
+    monkeypatch.setattr(
+        "api.routes.domains.desktops.asyncio.to_thread", recording_to_thread
+    )
+
+    response = test_client(
+        url="/items/desktops/get-images?image_type=stock",
+        method="GET",
+        jwt=MockJWT(),
+    )
+
+    assert response.status_code == 200
+    assert CardService.get_stock_cards in scheduled
+
+
+def test_get_desktop_images_user_branch_rejected_at_schema_boundary(
+    monkeypatch, test_client
+):
+    """``image_type=user`` is currently rejected at the Pydantic
+    boundary (``DesktopImageType`` enum only includes ``stock`` —
+    the ``user`` value is intentionally commented out in the schema).
+
+    Pin that the boundary rejection still happens with a 4xx, so a
+    future schema change that adds ``user`` doesn't accidentally
+    introduce a path where the offload is bypassed.
+    """
+    response = test_client(
+        url="/items/desktops/get-images?image_type=user&desktop_id=d-1",
+        method="GET",
+        jwt=MockJWT(),
+    )
+    # FastAPI's custom error handler converts the Pydantic enum
+    # rejection to 400.
+    assert response.status_code == 400

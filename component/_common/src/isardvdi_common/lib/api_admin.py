@@ -1,3 +1,4 @@
+import threading
 import traceback
 
 from isardvdi_common.connections.rethink_connection_factory import (
@@ -7,6 +8,15 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
 from rethinkdb import r
+
+# Process-wide cache for ``ApiAdmin.system_tables()``. The set of rdb
+# tables only changes during schema migrations (a process restart event),
+# so a single cached read per process is the correct cardinality.
+# Without this cache, every admin-table HTTP request fires an extra
+# ``r.table_list()`` round-trip — surfaced as a hot path by P2.1
+# slow-query telemetry under load (90 calls / 21 s in the rev-13 sweep).
+_system_tables_cache: list[str] | None = None
+_system_tables_lock = threading.Lock()
 
 
 class ApiAdmin(RethinkSharedConnection):
@@ -79,10 +89,38 @@ class ApiAdmin(RethinkSharedConnection):
 
     @classmethod
     def system_tables(cls):
-        """_Replaces app.system_tables_"""
-        # TODO(move-api_admin-to-common): Add a cache for this, it should never change
-        with cls._rdb_context():
-            return r.table_list().run(cls._rdb_connection)
+        """Return the rdb table list, cached for the process lifetime.
+
+        Schema migrations (the only event that changes which tables
+        exist) imply a process restart. Within one process the result
+        is invariant — call once, reuse forever. Use
+        ``clear_system_tables_cache()`` after an explicit
+        ``r.table_create``/``r.table_drop`` if a caller ever needs to
+        invalidate without restarting.
+        """
+        global _system_tables_cache
+        cached = _system_tables_cache
+        if cached is not None:
+            return cached
+        with _system_tables_lock:
+            if _system_tables_cache is None:
+                with cls._rdb_context():
+                    _system_tables_cache = r.table_list().run(cls._rdb_connection)
+            return _system_tables_cache
+
+    @classmethod
+    def clear_system_tables_cache(cls) -> None:
+        """Drop the cached table list.
+
+        Call this after an explicit ``r.table_create`` /
+        ``r.table_drop`` so the next ``system_tables()`` reads the
+        fresh state. Production code rarely needs this — schema
+        changes happen at process startup via the populate / upgrade
+        scripts.
+        """
+        global _system_tables_cache
+        with _system_tables_lock:
+            _system_tables_cache = None
 
     @classmethod
     def _validate_table(cls, table):

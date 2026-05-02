@@ -148,3 +148,93 @@ class TestDeleteTableItem:
         with pytest.raises(Error) as exc:
             stub_rdb["ApiAdmin"].delete_table_item("interfaces", "x")
         assert exc.value.error.get("error") == "internal_server"
+
+
+# ---- system_tables() process-wide cache --------------------------------
+
+
+class TestSystemTablesCache:
+    """Pin the process-wide cache for ``ApiAdmin.system_tables()``.
+
+    Surfaced as a hot path by the rev-13 slow-query attribution: the
+    method fired 90× in 21 s on admin-table scenarios because every
+    ``_validate_table`` call re-queries ``r.table_list()``. Caching
+    the result drops the rdb round-trip count to one per process.
+    """
+
+    @pytest.fixture
+    def stub_pool_table_list(self, monkeypatch):
+        """Stub ``_rdb_context`` + ``r.table_list().run(...)`` and
+        clear the process-wide cache so each test starts fresh."""
+        from isardvdi_common.lib import api_admin as mod
+
+        mod.ApiAdmin.clear_system_tables_cache()
+
+        class _Ctx:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(
+            mod.ApiAdmin, "_rdb_context", classmethod(lambda cls: _Ctx())
+        )
+        monkeypatch.setattr(
+            type(mod.ApiAdmin),
+            "_rdb_connection",
+            property(lambda self: MagicMock(name="conn")),
+        )
+
+        run = MagicMock(return_value=["users", "domains", "config"])
+        table_list = MagicMock()
+        table_list.run = run
+        monkeypatch.setattr(mod.r, "table_list", lambda: table_list)
+        yield {"run": run, "ApiAdmin": mod.ApiAdmin, "mod": mod}
+        mod.ApiAdmin.clear_system_tables_cache()
+
+    def test_first_call_hits_rdb(self, stub_pool_table_list):
+        """Cold cache: first call must read rdb."""
+        ApiAdmin = stub_pool_table_list["ApiAdmin"]
+        result = ApiAdmin.system_tables()
+        assert result == ["users", "domains", "config"]
+        assert stub_pool_table_list["run"].call_count == 1
+
+    def test_repeated_calls_reuse_cache(self, stub_pool_table_list):
+        """Warm cache: every subsequent call must skip rdb. This is
+        the whole point — 90 calls / 21 s drops to 1."""
+        ApiAdmin = stub_pool_table_list["ApiAdmin"]
+        ApiAdmin.system_tables()
+        ApiAdmin.system_tables()
+        ApiAdmin.system_tables()
+        assert stub_pool_table_list["run"].call_count == 1, (
+            "system_tables() must hit rdb only on the first call; "
+            "see Bug 38/rev-13 attribution"
+        )
+
+    def test_clear_cache_re_reads(self, stub_pool_table_list):
+        """The explicit invalidator must drop the cache so the next
+        call re-reads. Production rarely uses this, but tests rely on
+        it for isolation between cases."""
+        ApiAdmin = stub_pool_table_list["ApiAdmin"]
+
+        ApiAdmin.system_tables()
+        assert stub_pool_table_list["run"].call_count == 1
+
+        ApiAdmin.clear_system_tables_cache()
+        ApiAdmin.system_tables()
+        assert stub_pool_table_list["run"].call_count == 2
+
+    def test_validate_table_uses_cache(self, stub_pool_table_list):
+        """Pin the actual hot caller: ``_validate_table`` must NOT
+        re-query rdb on every call. This is what made the system
+        slow under load."""
+        ApiAdmin = stub_pool_table_list["ApiAdmin"]
+
+        for _ in range(50):
+            ApiAdmin._validate_table("users")
+
+        assert stub_pool_table_list["run"].call_count == 1, (
+            "_validate_table must reuse the cached table list; if it "
+            "re-queries every time the rev-13 perf regression returns"
+        )

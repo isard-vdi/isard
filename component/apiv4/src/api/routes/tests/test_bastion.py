@@ -586,3 +586,59 @@ def test_verify_bastion_domain_empty_rejected(
 
     # FastAPI custom error handler converts Pydantic validation errors to 400
     assert response.status_code == 400
+
+
+# ────────────────────────────────────────────────────────────────────
+# Bug 40 — async offload of GET /items/bastions
+# ────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.setup_clear_cache
+def test_get_bastion_targets_offloads_to_worker_thread(
+    monkeypatch, test_client, bastion_db_factory
+):
+    """``Targets.get_user_targets`` must run on a worker thread, not
+    on the asyncio event loop. Pinning this catches a regression to
+    the pre-fix shape where the sync rdb call blocked the loop and
+    serialised concurrent requests under load (rev-13 bastions_list
+    p95 = 3947 ms).
+
+    Strategy: patch ``asyncio.to_thread`` to record every call and
+    confirm the route routes ``Targets.get_user_targets`` through it.
+    """
+    import asyncio as _asyncio
+
+    monkeypatch.setenv("BASTION_ENABLED", "true")
+
+    jwt = MockJWT()
+
+    from isardvdi_common.models.targets import Targets
+
+    scheduled = []
+
+    real_to_thread = _asyncio.to_thread
+
+    async def recording_to_thread(fn, *args, **kwargs):
+        scheduled.append((fn, args))
+        return await real_to_thread(fn, *args, **kwargs)
+
+    monkeypatch.setattr("api.routes.bastion.asyncio.to_thread", recording_to_thread)
+
+    response = test_client(
+        db_tables_data=bastion_db_factory(jwt),
+        method="GET",
+        url="/api/v4/items/bastions",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    # ``Targets.get_user_targets`` is a classmethod — accessing it
+    # produces a fresh bound-method per lookup, so identity (``is``)
+    # comparison won't work. Match by the underlying ``__func__`` /
+    # qualname instead.
+    expected = Targets.get_user_targets.__func__
+    assert any(getattr(fn, "__func__", fn) is expected for fn, _args in scheduled), (
+        "Targets.get_user_targets must be dispatched through "
+        "asyncio.to_thread — see Bug 40 in load-testing markdown. "
+        f"Saw: {[getattr(fn, '__qualname__', repr(fn)) for fn, _ in scheduled]}"
+    )

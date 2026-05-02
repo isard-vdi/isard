@@ -56,7 +56,9 @@ tag = "bastion"
 async def get_bastion_targets(
     request: Request, can_use_bastion=Depends(can_use_bastion)
 ):
-    targets = Targets.get_user_targets(request.token_payload["user_id"])
+    targets = await asyncio.to_thread(
+        Targets.get_user_targets, request.token_payload["user_id"]
+    )
     return [BastionResponse(**target) for target in targets]
 
 
