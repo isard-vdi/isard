@@ -18,6 +18,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
+
 from isardvdi_common.models.deployment import Deployment
 
 from .base import BaseHandler, json_dumps
@@ -25,7 +27,7 @@ from .base import BaseHandler, json_dumps
 
 class DeploymentsHandler(BaseHandler):
     async def on_insert(self, new_val):
-        deployment = Deployment.get(new_val.id)
+        deployment = await asyncio.to_thread(Deployment.get, new_val.id)
         await self.emit(
             "deployment_add",
             json_dumps(deployment),

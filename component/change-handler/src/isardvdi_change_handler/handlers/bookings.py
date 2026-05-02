@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import asyncio
 from datetime import datetime
 
 from isardvdi_common.lib.deployments.deployments import DeploymentsProcessed
@@ -111,7 +112,9 @@ class BookingsHandler(BaseHandler):
         """
 
         if booking.item_type == "deployment":
-            deployment = DeploymentsProcessed.get_deployment(booking.item_id)
+            deployment = await asyncio.to_thread(
+                DeploymentsProcessed.get_deployment, booking.item_id
+            )
             await self.emit(
                 "deployment_update",
                 json_dumps(deployment),
@@ -126,11 +129,15 @@ class BookingsHandler(BaseHandler):
                     room=desktop["user"],
                 )
         elif booking.item_type == "desktop":
+            # ``Domain.get`` reads the row and ``_parse_desktop`` enriches via
+            # ``Caches.get_document`` (DB on cache miss). Bundle both in a
+            # single ``to_thread`` so the loop only pays one thread hop.
+            desktop = await asyncio.to_thread(
+                lambda: DesktopsProcessed._parse_desktop(Domain.get(booking.item_id))
+            )
             await self.emit(
                 "desktop_update",
-                json_dumps(
-                    DesktopsProcessed._parse_desktop(Domain.get(booking.item_id))
-                ),
+                json_dumps(desktop),
                 namespace="/userspace",
                 room=booking.user_id,
             )

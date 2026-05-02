@@ -70,17 +70,27 @@ class TableChangefeed(RethinkSharedConnection):
         delay = 2
         while True:
             try:
-                with self._rdb_context():
-                    existing = set(r.table_list().run(self._rdb_connection))
-                    missing = required - existing
-                    if not missing:
-                        log.info("All required tables exist, starting changefeed")
-                        return
-                    log.info("Waiting for %d tables: %s", len(missing), missing)
+                existing = await asyncio.to_thread(self._fetch_table_list)
+                missing = required - existing
+                if not missing:
+                    log.info("All required tables exist, starting changefeed")
+                    return
+                log.info("Waiting for %d tables: %s", len(missing), missing)
             except Exception:
                 log.exception("DB readiness check failed")
             await asyncio.sleep(delay)
             delay = min(delay * 2, 30)
+
+    def _fetch_table_list(self):
+        """Sync helper run on a worker thread by ``_wait_for_tables``.
+
+        Bound to ``self`` (not ``cls``) so the existing
+        ``TestWaitForTables`` fixtures, which mock
+        ``cf._rdb_context`` / ``cf._rdb_connection`` instance-side, keep
+        working.
+        """
+        with self._rdb_context():
+            return set(r.table_list().run(self._rdb_connection))
 
     async def run(self):
         while True:
