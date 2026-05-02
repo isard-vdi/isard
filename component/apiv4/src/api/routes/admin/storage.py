@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import asyncio
 import traceback
 from typing import Optional
 
@@ -54,7 +55,9 @@ tag = "admin_storage"
 )
 async def admin_storage_status(request: Request) -> list[AdminStorageStatusCount]:
     try:
-        result = AdminStorageService.get_storage_status(request.token_payload)
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storage_status, request.token_payload
+        )
         return [AdminStorageStatusCount(**row) for row in (result or [])]
     except Error:
         raise
@@ -82,7 +85,9 @@ async def admin_storage_status(request: Request) -> list[AdminStorageStatusCount
 )
 async def admin_storage_list(request: Request) -> list[AdminStorageItem]:
     try:
-        result = AdminStorageService.get_storages(request.token_payload)
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storages, request.token_payload
+        )
         return [AdminStorageItem(**row) for row in (result or [])]
     except Error:
         raise
@@ -109,7 +114,8 @@ async def admin_storage_list_filtered(
     data: AdminStorageFilterRequest,
 ) -> list[AdminStorageItem]:
     try:
-        result = AdminStorageService.get_storages(
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storages,
             request.token_payload,
             categories=data.categories,
         )
@@ -139,7 +145,9 @@ async def admin_storage_by_status(
     status: str = Path(..., description="Storage status to filter by"),
 ) -> list[AdminStorageItem]:
     try:
-        result = AdminStorageService.get_storages(request.token_payload, status=status)
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storages, request.token_payload, status=status
+        )
         return [AdminStorageItem(**row) for row in (result or [])]
     except Error:
         raise
@@ -166,7 +174,8 @@ async def admin_storage_by_status_filtered(
     status: str = Path(..., description="Storage status to filter by"),
 ) -> list[AdminStorageItem]:
     try:
-        result = AdminStorageService.get_storages(
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storages,
             request.token_payload,
             status=status,
             categories=data.categories,
@@ -205,8 +214,8 @@ async def admin_storage_domains(
     storage_id: str = Path(..., description="Storage ID"),
 ) -> list[AdminStorageDomain]:
     try:
-        result = AdminStorageService.get_storage_domains(
-            request.token_payload, storage_id
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storage_domains, request.token_payload, storage_id
         )
         return [AdminStorageDomain(**row) for row in (result or [])]
     except Error:
@@ -237,8 +246,8 @@ async def admin_media_domains(
     storage_id: str = Path(..., description="Media ID"),
 ) -> list[AdminStorageDomain]:
     try:
-        result = AdminStorageService.get_media_domains(
-            request.token_payload, storage_id
+        result = await asyncio.to_thread(
+            AdminStorageService.get_media_domains, request.token_payload, storage_id
         )
         return [AdminStorageDomain(**row) for row in (result or [])]
     except Error:
@@ -273,7 +282,7 @@ async def admin_storage_delete(
     storage_id: str = Path(..., description="Storage ID to delete"),
 ):
     try:
-        AdminStorageService.delete_storage(storage_id)
+        await asyncio.to_thread(AdminStorageService.delete_storage, storage_id)
         return EmptyResponse()
     except Error:
         raise
@@ -303,7 +312,9 @@ async def admin_storage_info(
     storage_id: str = Path(..., description="Storage ID"),
 ) -> AdminStorageInfo:
     try:
-        result = AdminStorageService.get_storage_info(request.token_payload, storage_id)
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storage_info, request.token_payload, storage_id
+        )
         return AdminStorageInfo(**(result or {}))
     except Error:
         raise
@@ -333,8 +344,10 @@ async def admin_storage_search_info(
     storage_id: str = Path(..., description="Storage ID"),
 ) -> AdminStorageInfo:
     try:
-        result = AdminStorageService.get_storage_search_info(
-            request.token_payload, storage_id
+        result = await asyncio.to_thread(
+            AdminStorageService.get_storage_search_info,
+            request.token_payload,
+            storage_id,
         )
         return AdminStorageInfo(**(result or {}))
     except Error:
@@ -369,7 +382,7 @@ async def admin_storage_by_role(
     role: str = Path(..., description="User role to filter by"),
 ) -> list[AdminStorageItem]:
     try:
-        result = AdminStorageService.get_storages_by_role(role)
+        result = await asyncio.to_thread(AdminStorageService.get_storages_by_role, role)
         return [AdminStorageItem(**row) for row in (result or [])]
     except Error:
         raise

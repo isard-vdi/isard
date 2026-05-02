@@ -46,6 +46,17 @@ class SocketIO(RethinkSharedConnection):
             return await result
         return result
 
+    def _desktop_exists(self, desktop_id: str) -> bool:
+        """Sync helper: return True iff a row exists in ``domains`` for
+        the given id. Runs on a worker thread via
+        :func:`asyncio.to_thread` from :meth:`users_connect` — kept
+        sync because the rdb driver is sync and ``_rdb_context()``
+        is the standard way every other ``isardvdi_common`` consumer
+        opens a pool slot.
+        """
+        with self._rdb_context():
+            return bool(r.table("domains").get(desktop_id).run(self._rdb_connection))
+
     async def users_connect(self, auth, namespace):
         print(sc.green(namespace, "reverse"))
         if auth == None:
@@ -57,14 +68,17 @@ class SocketIO(RethinkSharedConnection):
             return False
 
         if payload.get("desktop_id"):
-            with self._rdb_context():
-                if (
-                    not r.table("domains")
-                    .get(payload.get("desktop_id"))
-                    .run(self._rdb_connection)
-                ):
-                    await self.quit_users_rooms(auth.get("jwt"), namespace)
-                    return False
+            # The rdb check is sync (blocking driver). Running it
+            # directly inside ``async def users_connect`` froze the
+            # asyncio event loop on every WebSocket connect — a
+            # connect storm (mass reconnects after a network blip,
+            # or a burst of direct-viewer launches) would serialise
+            # behind one rdb round-trip per event. Offload to a
+            # worker thread so other coroutines on the same loop
+            # keep getting scheduled.
+            if not await asyncio.to_thread(self._desktop_exists, payload["desktop_id"]):
+                await self.quit_users_rooms(auth.get("jwt"), namespace)
+                return False
             await self.action_room(
                 "enter", self.sid, payload.get("desktop_id"), namespace=namespace
             )

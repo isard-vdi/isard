@@ -145,8 +145,16 @@ class DesktopDomainHandler:
         await self.socketio_server.emit(event, payload, namespace=namespace, room=room)
 
     async def on_insert(self, new_val):
-        desktop = DesktopsProcessed._parse_desktop(
-            new_val.model_dump(exclude_none=True)
+        # Each ``_common`` helper called below issues blocking
+        # rethinkdb queries through ``_rdb_context()``. Running them on
+        # the loop thread freezes every other coroutine in the process
+        # for the duration of the query (tens to hundreds of ms under
+        # load). ``asyncio.to_thread`` offloads each call to a worker
+        # thread; the pool already serves distinct connections per
+        # thread so concurrency is preserved.
+        desktop = await asyncio.to_thread(
+            DesktopsProcessed._parse_desktop,
+            new_val.model_dump(exclude_none=True),
         )
         await self.emit(
             "desktop_add",
@@ -180,19 +188,21 @@ class DesktopDomainHandler:
             # handler is racing a cascading delete; in that case the
             # deployment-delete event already fired upstream and there
             # is nothing left to update.
-            deployment = DeploymentsProcessed.get_deployment_or_none(new_val.tag)
+            deployment = await asyncio.to_thread(
+                DeploymentsProcessed.get_deployment_or_none, new_val.tag
+            )
             if deployment is None:
                 return
             deployment_owners = (deployment.get("co_owners") or []) + [
                 deployment["user"]
             ]
+            deployment_desktop = await asyncio.to_thread(
+                DeploymentDesktopsProcessed._parse_deployment_desktop,
+                new_val.model_dump(exclude_none=True),
+            )
             await self.emit(
                 "deploymentdesktop_add",
-                json_dumps(
-                    DeploymentDesktopsProcessed._parse_deployment_desktop(
-                        new_val.model_dump(exclude_none=True)
-                    )
-                ),
+                json_dumps(deployment_desktop),
                 namespace="/userspace",
                 room=deployment_owners,
             )
@@ -214,7 +224,9 @@ class DesktopDomainHandler:
         """
         old_progress = (old_val.additional_properties or {}).get("progress")
         new_progress = (new_val.additional_properties or {}).get("progress")
-        extra = DesktopsProcessed.get_domain_group_and_category_name(new_val.id)
+        extra = await asyncio.to_thread(
+            DesktopsProcessed.get_domain_group_and_category_name, new_val.id
+        )
 
         ap = dict(new_val.additional_properties or {})
         if old_progress and new_progress and old_progress == new_progress:
@@ -281,8 +293,9 @@ class DesktopDomainHandler:
             Caches.invalidate_cached_domain_wg_mac(new_val.id)
 
         # Parse the desktop to return only the necessary fields in the emitted event
-        desktop = DesktopsProcessed._parse_desktop(
-            new_val.model_dump(exclude_none=True)
+        desktop = await asyncio.to_thread(
+            DesktopsProcessed._parse_desktop,
+            new_val.model_dump(exclude_none=True),
         )
         if start_logs_id:
             if old_val.status != new_val.status:
@@ -386,13 +399,13 @@ class DesktopDomainHandler:
         if new_val.tag:
             # If it's a visibility change is the equivalent to an insert
             if not old_val.tag_visible and new_val.tag_visible:
+                visible_desktop = await asyncio.to_thread(
+                    DesktopsProcessed._parse_desktop,
+                    new_val.model_dump(exclude_none=True),
+                )
                 await self.emit(
                     "desktop_add",
-                    json_dumps(
-                        DesktopsProcessed._parse_desktop(
-                            new_val.model_dump(exclude_none=True)
-                        )
-                    ),
+                    json_dumps(visible_desktop),
                     "/userspace",
                     room=new_val.user,
                 )
@@ -406,19 +419,21 @@ class DesktopDomainHandler:
                     room=old_val.user,
                 )
 
-            deployment = DeploymentsProcessed.get_deployment_or_none(new_val.tag)
+            deployment = await asyncio.to_thread(
+                DeploymentsProcessed.get_deployment_or_none, new_val.tag
+            )
             if deployment is None:
                 return
             deployment_owners = (deployment.get("co_owners") or []) + [
                 deployment["user"]
             ]
+            deployment_desktop = await asyncio.to_thread(
+                DeploymentDesktopsProcessed._parse_deployment_desktop,
+                new_val.model_dump(exclude_none=True),
+            )
             await self.emit(
                 "deploymentdesktop_update",
-                json_dumps(
-                    DeploymentDesktopsProcessed._parse_deployment_desktop(
-                        new_val.model_dump(exclude_none=True)
-                    )
-                ),
+                json_dumps(deployment_desktop),
                 namespace="/userspace",
                 room=deployment_owners,
             )
@@ -469,7 +484,9 @@ class DesktopDomainHandler:
         )
 
         if old_val.tag:
-            deployment = DeploymentsProcessed.get_deployment_or_none(old_val.tag)
+            deployment = await asyncio.to_thread(
+                DeploymentsProcessed.get_deployment_or_none, old_val.tag
+            )
             if deployment is None:
                 return
             deployment_owners = (deployment.get("co_owners") or []) + [
