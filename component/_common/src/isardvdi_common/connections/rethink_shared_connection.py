@@ -259,6 +259,66 @@ def _set_pool_for_tests(pool: Optional[ThreadSafeConnectionPool]) -> None:
     _pool = pool
 
 
+def warm_pool(min_connections: Optional[int] = None) -> int:
+    """Eagerly open ``min_connections`` connections at startup so the
+    first burst of traffic doesn't pay an acquire-timeout penalty
+    while the pool grows on demand.
+
+    rev-19 (k6 load-test) showed that a fresh apiv4 container, hit by
+    35 concurrent scenarios within 8 s of startup, produces 53
+    spurious 503s during the cold-start window because
+    ``Context.__enter__`` races against pool growth and trips
+    ``acquire(timeout=…)`` before the pool can spin up. Pre-warming
+    half the pool at lifespan startup eliminates that window — the
+    first traffic finds a fully ready pool.
+
+    ``min_connections`` defaults to ``RETHINKDB_POOL_SIZE / 2``
+    (rounded up, minimum 2) — enough to absorb a burst without
+    pinning all sockets at idle. Each connection is acquired from
+    and immediately released back to the pool, so the count is
+    reflected in the pool's idle-list, not pinned to any thread.
+
+    Returns the number of connections actually opened. Errors during
+    warmup are logged at ``warning`` and best-effort: if rdb is slow
+    or briefly unavailable the lifespan startup should not abort —
+    the pool will simply grow on demand later, which is the behaviour
+    we had before this helper.
+    """
+    pool = _get_pool()
+    if min_connections is None:
+        min_connections = max(2, (pool.max_size + 1) // 2)
+    min_connections = min(min_connections, pool.max_size)
+    opened = []
+    try:
+        for _ in range(min_connections):
+            opened.append(pool.acquire(timeout=_ACQUIRE_TIMEOUT_S))
+    except Exception as exc:
+        _query_log.warning(
+            "rdb_pool_warm_partial",
+            extra={
+                "requested": min_connections,
+                "opened": len(opened),
+                "error_type": type(exc).__name__,
+                "error_msg": str(exc)[:200],
+            },
+        )
+    finally:
+        for conn in opened:
+            try:
+                pool.release(conn)
+            except Exception:
+                pass
+    _query_log.info(
+        "rdb_pool_warm",
+        extra={
+            "requested": min_connections,
+            "opened": len(opened),
+            "max_size": pool.max_size,
+        },
+    )
+    return len(opened)
+
+
 class Context:
     """Acquire one connection from the shared pool for the duration of
     a ``with`` block and release it back on exit.

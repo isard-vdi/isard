@@ -150,7 +150,7 @@ class ResourceItemsGpus(RethinkSharedConnection):
         for item in items:
             if item.get("active_profile"):
                 with cls._rdb_context():
-                    available_units = list(
+                    matching_profiles = list(
                         r.table("gpu_profiles")
                         .get_all(
                             [item["brand"], item["model"]],
@@ -159,11 +159,32 @@ class ResourceItemsGpus(RethinkSharedConnection):
                         .concat_map(lambda doc: doc["profiles"])
                         .filter(lambda p: p["profile"] == item["active_profile"])
                         .run(cls._rdb_connection)
-                    )[0]
-                item["available_units"] = available_units["units"]
-                item["active_profile"] = cls.get_subitem(
-                    item["id"], available_units["id"]
-                )["profile"]
+                    )
+                # Data-invariant guard: ``main`` relies on ``ensure_gpu_profiles``
+                # (api_hypervisors.py) to keep every brand/model entry's
+                # ``profiles`` list complete (including ``passthrough``).
+                # apiv4-integration does not yet port that helper, so when an
+                # active vgpu profile (e.g. ``passthrough``) is not present in
+                # ``gpu_profiles`` for the GPU's brand/model, this lookup
+                # legitimately returns []. Without this guard the bare ``[0]``
+                # used to raise ``IndexError`` and the whole listing 500'd.
+                # Behaviour on healthy data is unchanged.
+                if not matching_profiles:
+                    log.warning(
+                        "gpu_profiles[%s/%s] missing active_profile %r; "
+                        "falling back to defaults (data invariant — "
+                        "ensure_gpu_profiles equivalent not yet ported)",
+                        item["brand"],
+                        item["model"],
+                        item["active_profile"],
+                    )
+                    item["available_units"] = 0
+                else:
+                    available_units = matching_profiles[0]
+                    item["available_units"] = available_units["units"]
+                    item["active_profile"] = cls.get_subitem(
+                        item["id"], available_units["id"]
+                    )["profile"]
             # Attach gpu_warnings for this GPU's hypervisor
             phys = item.get("physical_device") or ""
             # physical_device format: "hyper_id-pci_XXXX_XX_XX_X"

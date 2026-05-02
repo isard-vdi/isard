@@ -61,6 +61,20 @@ async def lifespan(app: FastAPI):
     Maintenance.initialization()
     Cards.seed_stock_cards()
     Cards.cleanup_missing()
+
+    # Eagerly open RETHINKDB_POOL_SIZE/2 connections so the first burst
+    # of traffic doesn't race acquire(timeout=…) while the pool grows
+    # on demand. Without this the cold-start window produces a flurry
+    # of 503s when load hits before the pool has a chance to fill.
+    # Best-effort: any failure is logged and the service still starts
+    # (the pool will grow on demand later).
+    try:
+        from isardvdi_common.connections.rethink_shared_connection import warm_pool
+
+        await asyncio.to_thread(warm_pool)
+    except Exception:
+        log.warning("Pool warm-up at lifespan startup failed (continuing)")
+
     try:
         _sync_haproxy_maps()
     except Exception:
