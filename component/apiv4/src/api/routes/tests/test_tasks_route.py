@@ -245,7 +245,7 @@ def test_get_admin_tasks_admin_sees_all(monkeypatch, test_client):
     ]
     monkeypatch.setattr(
         "api.services.tasks.TaskService.get_admin_tasks",
-        staticmethod(lambda user_id, role_id, category_id: expected),
+        staticmethod(lambda user_id, role_id, category_id, limit, offset: expected),
     )
     jwt = MockJWT(role_id="admin")
     response = test_client(url="/admin/tasks", jwt=jwt)
@@ -260,10 +260,12 @@ def test_get_admin_tasks_forwards_role_and_category(monkeypatch, test_client):
     caller's role_id + category_id so that scoping can happen."""
     captured = {}
 
-    def fake(user_id, role_id, category_id):
+    def fake(user_id, role_id, category_id, limit, offset):
         captured["user_id"] = user_id
         captured["role_id"] = role_id
         captured["category_id"] = category_id
+        captured["limit"] = limit
+        captured["offset"] = offset
         return []
 
     monkeypatch.setattr(
@@ -285,7 +287,46 @@ def test_get_admin_tasks_forwards_role_and_category(monkeypatch, test_client):
         "user_id": "mgr-1",
         "role_id": "manager",
         "category_id": "cat-a",
+        # Bug 38 hardening: route defaults to a bounded page so the
+        # response is never the full RQ history.
+        "limit": 200,
+        "offset": 0,
     }
+
+
+def test_get_admin_tasks_pagination_query_params(monkeypatch, test_client):
+    """Bug 38: the route accepts ``limit`` + ``offset`` query params
+    and forwards them to the service. Pin the wiring so a future
+    refactor doesn't drop the pagination contract."""
+    captured = {}
+
+    def fake(user_id, role_id, category_id, limit, offset):
+        captured["limit"] = limit
+        captured["offset"] = offset
+        return []
+
+    monkeypatch.setattr(
+        "api.services.tasks.TaskService.get_admin_tasks",
+        staticmethod(fake),
+    )
+
+    response = test_client(
+        url="/admin/tasks?limit=50&offset=100",
+        jwt=MockJWT(role_id="admin"),
+    )
+    assert response.status_code == 200
+    assert captured == {"limit": 50, "offset": 100}
+
+
+def test_get_admin_tasks_rejects_oversize_limit(test_client):
+    """Bug 38: the upper bound on ``limit`` (10000) is enforced at the
+    boundary so a typo can't request the unbounded payload that was
+    the original 12 MB / 32 s problem."""
+    response = test_client(
+        url="/admin/tasks?limit=999999",
+        jwt=MockJWT(role_id="admin"),
+    )
+    assert response.status_code == 400
 
 
 def test_get_admin_tasks_rejects_advanced_role(test_client):

@@ -311,16 +311,24 @@ class AdminUserStorage(BaseModel):
 
 
 class AdminUser(BaseModel):
+    # ``id`` is the only field every row in the ``users`` table must
+    # carry — every other field can land as ``None`` or be missing for
+    # half-deleted rows, partial-sync SSO users, and historical seeds
+    # that pre-dated newer schemas. The admin UI lists those rows so
+    # an operator can clean them up; making the response model strict
+    # here would 500 the entire list on the first such row, hiding the
+    # bad rows from the only flow that surfaces them. Same pattern as
+    # the ``email_verified`` relaxation tracked in Bug 37.
     id: str
-    name: str
-    provider: str
-    category: str
-    uid: str
-    username: str
-    role: str
-    group: str
-    active: bool = True
-    secondary_groups: list[str] = []
+    name: Optional[str] = None
+    provider: Optional[str] = None
+    category: Optional[str] = None
+    uid: Optional[str] = None
+    username: Optional[str] = None
+    role: Optional[str] = None
+    group: Optional[str] = None
+    active: Optional[bool] = True
+    secondary_groups: Optional[list[str]] = []
     email: Optional[str] = None
     accessed: Optional[float] = None
     # ``email_verified`` is ``False`` for never-verified, ``True`` for

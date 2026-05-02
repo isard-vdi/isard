@@ -49,8 +49,23 @@ class TaskService:
         return [task.to_dict() for task in Task.get_by_user(user_id)]
 
     @staticmethod
-    def get_admin_tasks(user_id: str, role_id: str, category_id: str = None) -> list:
-        """Get all tasks (admin) or category tasks (manager)."""
+    def get_admin_tasks(
+        user_id: str,
+        role_id: str,
+        category_id: str = None,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> list:
+        """Get all tasks (admin) or category tasks (manager).
+
+        Pagination: ``Task.get_all()`` materialises one ``Task`` object
+        per RQ job in every queue + every status registry, then
+        ``to_dict()`` issues a Redis fetch per job. Without bounds,
+        the response was ~12 MB / 32 s on a populated dev DB
+        (Bug 38 in load-testing markdown). Default page size ``200``
+        keeps the response under ~200 KB; callers can opt in to the
+        full history via ``limit=10000``.
+        """
         tasks = []
         for task in Task.get_all():
             if task.user_id:
@@ -60,7 +75,12 @@ class TaskService:
                     # Managers can only see tasks from their category
                     # For now, include all tasks with user_id set
                     tasks.append(task)
-        return [task.to_dict() for task in tasks]
+        # Slice before ``to_dict``: that's the per-task Redis-fetch
+        # path. Slicing the materialised Task list is cheap; the
+        # filter above had to walk every task to evaluate ``user_id``,
+        # so the only cost we save is the per-row dict serialisation.
+        page = tasks[offset : offset + limit]
+        return [task.to_dict() for task in page]
 
     @staticmethod
     def retry_task(task_id: str) -> dict:

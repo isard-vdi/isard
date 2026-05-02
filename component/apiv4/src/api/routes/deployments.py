@@ -425,10 +425,16 @@ async def edit_deployment(
     except Error:
         raise
     except Exception as e:
+        # Bug 24 diagnosis aid: include the underlying exception type
+        # in the description so the next probe identifies the real
+        # blocker (KeyError on a missing field, TypeError on a None
+        # cache miss, etc.) instead of stopping at "Failed to update
+        # deployment". The full traceback still goes to the structured
+        # log via the ``traceback.format_exc()`` argument below.
         raise await Error.create(
             request,
             "internal_server",
-            f"Failed to update deployment {deployment_id}",
+            f"Failed to update deployment {deployment_id}: {type(e).__name__}: {e}",
             traceback.format_exc(),
         )
 
@@ -504,10 +510,15 @@ async def recreate_deployment(
     except Error:
         raise
     except Exception as e:
+        # Bug 23 diagnosis aid: surface the exception type so probes
+        # can identify whether the failure is in the validate-recreate
+        # preflight, the desktop-delete iteration, or the
+        # ``CommonDeployments.recreate`` rebuild. The full traceback
+        # still lands in the structured log.
         raise await Error.create(
             request,
             "internal_server",
-            f"Failed to recreate deployment",
+            f"Failed to recreate deployment: {type(e).__name__}: {e}",
             traceback.format_exc(),
         )
 

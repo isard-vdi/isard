@@ -11,7 +11,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.schemas.tasks import TaskResponse
 from api.services.error import Error
 from api.services.tasks import TaskService
-from fastapi import Request
+from fastapi import Query, Request
 from fastapi.responses import JSONResponse
 
 tag = "tasks"
@@ -120,16 +120,34 @@ async def get_user_tasks(request: Request) -> list[TaskResponse]:
     tags=[tag],
     response_model=list[TaskResponse],
     summary="Get all tasks (admin/manager)",
-    description="Returns all tasks. Admins see all tasks, managers see their category tasks.",
+    description=(
+        "Returns admin tasks. Defaults to the most recent ``limit`` "
+        "tasks; bump to a higher value to paginate through history. "
+        "Bug 38 hardening — unbounded responses were ~12 MB / 32 s "
+        "and timed out k6's HTTP client."
+    ),
     responses={500: {"model": ErrorResponse}},
 )
-async def get_admin_tasks(request: Request) -> list[TaskResponse]:
+async def get_admin_tasks(
+    request: Request,
+    limit: int = Query(
+        200,
+        ge=1,
+        le=10000,
+        description="Page size (max 10000 to bound payload).",
+    ),
+    offset: int = Query(
+        0, ge=0, description="Skip the first ``offset`` matching tasks."
+    ),
+) -> list[TaskResponse]:
     try:
         tasks = await asyncio.to_thread(
             TaskService.get_admin_tasks,
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
             request.token_payload.get("category_id"),
+            limit,
+            offset,
         )
         return [TaskResponse(**t) for t in (tasks or [])]
     except Error:
