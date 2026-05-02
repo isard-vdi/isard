@@ -29,6 +29,7 @@ classmethod calls without a layer hop.
 """
 
 import ast
+import logging
 from datetime import datetime
 
 from cachetools import TTLCache, cached
@@ -37,6 +38,8 @@ from isardvdi_common.connections.rethink_shared_connection import (
 )
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
+
+log = logging.getLogger(__name__)
 
 # Named caches so writers can invalidate them after mutations.
 _group_name_cache: TTLCache = TTLCache(maxsize=1000, ttl=240)
@@ -106,6 +109,16 @@ class UsageProcessed(RethinkSharedConnection):
         The owner_info dict contains user/group/category id+name. Used
         by every consolidator's ``get_owner_info`` lookup. Cached for
         4 minutes to keep batch consolidations fast.
+
+        Defensive against orphan user rows: a row that lacks ``name``,
+        ``group``, or ``category`` (manually inserted, abandoned
+        migration, etc.) historically crashed the whole consolidate
+        pass with ``KeyError: 'name'``. Now each missing field falls
+        back to an ``[ORPHAN]`` placeholder and emits a single warning
+        log so the bad row stays visible without taking down the
+        admin "consolidate consumption" trigger. Same defensive-guard
+        shape as the gpu-profiles fix in
+        ``isardvdi_common.lib.bookings.reservables``.
         """
         with cls._rdb_context():
             users = list(
@@ -113,17 +126,30 @@ class UsageProcessed(RethinkSharedConnection):
                 .pluck("id", "name", "group", "category")
                 .run(cls._rdb_connection)
             )
-        return {
-            user["id"]: {
+        info = {}
+        for user in users:
+            missing = [k for k in ("name", "group", "category") if k not in user]
+            if missing:
+                log.warning(
+                    "usage: orphan user row %s missing %s; using [ORPHAN] placeholder",
+                    user.get("id", "<no id>"),
+                    missing,
+                )
+            group_id = user.get("group")
+            category_id = user.get("category")
+            info[user["id"]] = {
                 "owner_user_id": user["id"],
-                "owner_user_name": user["name"],
-                "owner_group_id": user["group"],
-                "owner_group_name": cls.get_group_name(user["group"]),
-                "owner_category_id": user["category"],
-                "owner_category_name": cls.get_category_name(user["category"]),
+                "owner_user_name": user.get("name", "[ORPHAN]"),
+                "owner_group_id": group_id or "[ORPHAN]",
+                "owner_group_name": (
+                    cls.get_group_name(group_id) if group_id else "[ORPHAN]"
+                ),
+                "owner_category_id": category_id or "[ORPHAN]",
+                "owner_category_name": (
+                    cls.get_category_name(category_id) if category_id else "[ORPHAN]"
+                ),
             }
-            for user in users
-        }
+        return info
 
     @classmethod
     def clear_get_owners_info_cache(cls) -> None:

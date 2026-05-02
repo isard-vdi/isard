@@ -140,6 +140,56 @@ class TestGetOwnersInfo:
         assert result["u1"]["owner_group_name"] == "g1-name"
         assert result["u2"]["owner_category_name"] == "c2-name"
 
+    def test_tolerates_orphan_user_row_without_name_group_category(
+        self, stub_rdb, monkeypatch, caplog
+    ):
+        """Bug 47: an orphan user row (only ``id`` + ``vpn``, no
+        ``name``/``group``/``category``) used to crash the entire
+        consolidate pass with ``KeyError: 'name'``. The defensive
+        guard must substitute ``[ORPHAN]`` placeholders, log a single
+        warning, and let the consolidator process every other user."""
+        import logging
+
+        users = [
+            {"id": "u1", "name": "alice", "group": "g1", "category": "c1"},
+            # Orphan: only id present (real bad row had only id + vpn).
+            {"id": "5eb2fa16-orphan"},
+            {"id": "u3", "name": "carol", "group": "g2", "category": "c1"},
+        ]
+        stub_rdb["mock_table"].return_value.pluck.return_value.run.return_value = users
+        monkeypatch.setattr(
+            stub_rdb["Processed"],
+            "get_group_name",
+            classmethod(lambda cls, gid: f"{gid}-name"),
+        )
+        monkeypatch.setattr(
+            stub_rdb["Processed"],
+            "get_category_name",
+            classmethod(lambda cls, cid: f"{cid}-name"),
+        )
+
+        # Clear the cache so this test sees its own monkey-patched data.
+        stub_rdb["mod"]._owners_info_cache.clear()
+
+        with caplog.at_level(logging.WARNING, logger=stub_rdb["mod"].log.name):
+            result = stub_rdb["Processed"].get_owners_info()
+
+        # Healthy users still resolve correctly.
+        assert result["u1"]["owner_user_name"] == "alice"
+        assert result["u3"]["owner_group_name"] == "g2-name"
+        # Orphan row gets every placeholder field.
+        orphan = result["5eb2fa16-orphan"]
+        assert orphan["owner_user_id"] == "5eb2fa16-orphan"
+        assert orphan["owner_user_name"] == "[ORPHAN]"
+        assert orphan["owner_group_id"] == "[ORPHAN]"
+        assert orphan["owner_group_name"] == "[ORPHAN]"
+        assert orphan["owner_category_id"] == "[ORPHAN]"
+        assert orphan["owner_category_name"] == "[ORPHAN]"
+        # Single warning emitted, naming the bad row's id and the
+        # missing fields — the operator can grep Loki for the orphan.
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("5eb2fa16-orphan" in w.getMessage() for w in warnings)
+
 
 class TestGetAbsConsumptions:
     def test_runs_aggregation(self, stub_rdb):
