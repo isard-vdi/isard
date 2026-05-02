@@ -221,6 +221,20 @@ class AdminLimitsUpdateData(BaseModel):
     propagate: Optional[bool] = False
 
 
+class AdminRoleUpdateData(BaseModel):
+    """Request body for updating a role.
+
+    The route forces ``id`` from the URL path, so any ``id`` on the
+    body is ignored — declared optional so callers that include it for
+    symmetry don't 4xx, and the service receives the URL-derived id.
+    """
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    sortorder: Optional[int] = None
+
+
 # ── Delete Checks ────────────────────────────────────────────────────────
 
 

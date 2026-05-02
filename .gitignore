@@ -32,6 +32,15 @@ engine/.idea/
 .pytest_cache
 __pycache__
 .coverage
+# Per-component test-runner outputs (`make ci-test-*` writes these at
+# the repo root and per-component src/). Keep them out of git so they
+# don't pile up across runs.
+coverage.xml
+coverage.out
+report.xml
+
+# Crash artifacts (e.g. chromium coredumps from Playwright runs).
+testing/e2e/core
 
 #ipython
 .ipython

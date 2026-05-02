@@ -19,7 +19,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
-import json
 import traceback
 from typing import Literal, Optional
 
@@ -42,6 +41,7 @@ from api.schemas.admin.users import (
     AdminLimitsUpdateData,
     AdminPasswordResetData,
     AdminQuotaUpdateData,
+    AdminRoleUpdateData,
     AdminSecondaryGroupsData,
     AdminSecretCreateData,
     AdminTemplateItem,
@@ -1030,7 +1030,7 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
 @manager_router.put(
     "/admin/group/{group_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update group",
     description="Updates a group.",
     responses={
@@ -1038,16 +1038,17 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_group(request: Request, group_id: str) -> dict:
+async def admin_update_group(
+    request: Request, group_id: str, data: AdminGroupUpdateData
+) -> EmptyResponse:
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
         await asyncio.to_thread(
-            AdminUsersService.update_group, request.token_payload, group_id, data
+            AdminUsersService.update_group,
+            request.token_payload,
+            group_id,
+            data.model_dump(exclude_none=True),
         )
-        return data if isinstance(data, dict) else {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -1299,7 +1300,7 @@ async def admin_create_category(
 @admin_router.put(
     "/admin/category/{category_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update category",
     description="Updates a category.",
     responses={
@@ -1307,16 +1308,17 @@ async def admin_create_category(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_category(request: Request, category_id: str) -> dict:
+async def admin_update_category(
+    request: Request, category_id: str, data: AdminCategoryUpdateData
+) -> EmptyResponse:
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
         await asyncio.to_thread(
-            AdminUsersService.update_category, request.token_payload, category_id, data
+            AdminUsersService.update_category,
+            request.token_payload,
+            category_id,
+            data.model_dump(exclude_none=True),
         )
-        return data if isinstance(data, dict) else {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -1452,7 +1454,7 @@ async def admin_get_group_by_name_category(
 @manager_router.put(
     "/admin/quota/group/{group_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update group quota",
     description="Updates quota for a group.",
     responses={
@@ -1460,16 +1462,17 @@ async def admin_get_group_by_name_category(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_group_quota(request: Request, group_id: str) -> dict:
+async def admin_update_group_quota(
+    request: Request, group_id: str, data: AdminQuotaUpdateData
+) -> EmptyResponse:
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
         await asyncio.to_thread(
-            AdminUsersService.update_group_quota, request.token_payload, group_id, data
+            AdminUsersService.update_group_quota,
+            request.token_payload,
+            group_id,
+            data.model_dump(exclude_none=True),
         )
-        return data if isinstance(data, dict) else {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -1484,7 +1487,7 @@ async def admin_update_group_quota(request: Request, group_id: str) -> dict:
 @admin_router.put(
     "/admin/quota/category/{category_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update category quota",
     description="Updates quota for a category.",
     responses={
@@ -1492,19 +1495,17 @@ async def admin_update_group_quota(request: Request, group_id: str) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_category_quota(request: Request, category_id: str) -> dict:
+async def admin_update_category_quota(
+    request: Request, category_id: str, data: AdminQuotaUpdateData
+) -> EmptyResponse:
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
         await asyncio.to_thread(
             AdminUsersService.update_category_quota,
             request.token_payload,
             category_id,
-            data,
+            data.model_dump(exclude_none=True),
         )
-        return data if isinstance(data, dict) else {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -1519,7 +1520,7 @@ async def admin_update_category_quota(request: Request, category_id: str) -> dic
 @manager_router.put(
     "/admin/limits/group/{group_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update group limits",
     description="Updates limits for a group.",
     responses={
@@ -1527,16 +1528,17 @@ async def admin_update_category_quota(request: Request, category_id: str) -> dic
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_group_limits(request: Request, group_id: str) -> dict:
+async def admin_update_group_limits(
+    request: Request, group_id: str, data: AdminLimitsUpdateData
+) -> EmptyResponse:
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
         await asyncio.to_thread(
-            AdminUsersService.update_group_limits, request.token_payload, group_id, data
+            AdminUsersService.update_group_limits,
+            request.token_payload,
+            group_id,
+            data.model_dump(exclude_none=True),
         )
-        return data if isinstance(data, dict) else {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -1551,7 +1553,7 @@ async def admin_update_group_limits(request: Request, group_id: str) -> dict:
 @admin_router.put(
     "/admin/limits/category/{category_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update category limits",
     description="Updates limits for a category.",
     responses={
@@ -1559,19 +1561,17 @@ async def admin_update_group_limits(request: Request, group_id: str) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_category_limits(request: Request, category_id: str) -> dict:
+async def admin_update_category_limits(
+    request: Request, category_id: str, data: AdminLimitsUpdateData
+) -> EmptyResponse:
     try:
-        try:
-            data = await request.json()
-        except json.JSONDecodeError:
-            raise Error("bad_request", "Request body must be JSON")
         await asyncio.to_thread(
             AdminUsersService.update_category_limits,
             request.token_payload,
             category_id,
-            data,
+            data.model_dump(exclude_none=True),
         )
-        return data if isinstance(data, dict) else {}
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
@@ -1828,7 +1828,7 @@ async def admin_get_roles(request: Request) -> list[dict]:
 @admin_router.put(
     "/admin/role/{role_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update role",
     description="Updates a role.",
     responses={
@@ -1836,27 +1836,17 @@ async def admin_get_roles(request: Request) -> list[dict]:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_update_role(request: Request, role_id: str) -> dict:
+async def admin_update_role(
+    request: Request, role_id: str, data: AdminRoleUpdateData
+) -> EmptyResponse:
     try:
-        try:
-            try:
-                data = await request.json()
-            except json.JSONDecodeError:
-                raise Error("bad_request", "Request body must be JSON")
-        except Exception:
-            raise await Error.create(
-                request, "bad_request", "Request body must be JSON"
-            )
-        if not isinstance(data, dict):
-            raise await Error.create(
-                request, "bad_request", "Request body must be a JSON object"
-            )
         # The id must come from the URL — accepting it from the body
         # would let an admin rename a role and overwrite a different
-        # one. Force the URL id and let any body id be ignored.
-        data["id"] = role_id
-        await asyncio.to_thread(AdminUsersService.update_role, data)
-        return data if isinstance(data, dict) else {}
+        # one. Force the URL id and ignore any body id.
+        body = data.model_dump(exclude_none=True)
+        body["id"] = role_id
+        await asyncio.to_thread(AdminUsersService.update_role, body)
+        return EmptyResponse()
     except Error:
         raise
     except Exception as e:
