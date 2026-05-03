@@ -963,6 +963,12 @@ test = [
 name = "isardvdi-db"
 version = "0.0.0"
 source = { editable = "docker/db" }
+dependencies = [
+    { name = "rethinkdb" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "rethinkdb", url = "https://github.com/isard-vdi/rethinkdb-python/archive/c8e870dcb3ba161189c682c1f20b8d439e381fdd.tar.gz" }]
 
 [[package]]
 name = "isardvdi-engine"
