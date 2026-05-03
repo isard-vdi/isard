@@ -23,6 +23,15 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.151
+    # Bumped from default ~1024 so the rdb pool (default 128 conns)
+    # plus inbound websocket / SSE connections + healthcheck sockets
+    # have ample headroom under VU>=200 load. See user memory
+    # `reference_apiv4_hang_pool_starvation` for the failure mode the
+    # 128/128 default protects against.
+    ulimits:
+      nofile:
+        soft: 16384
+        hard: 16384
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--proxy-headers", "--forwarded-allow-ips=*"]
     healthcheck:
       test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5000)); s.close()"]
@@ -51,14 +60,16 @@ services:
       RETHINKDB_HOST:
       RETHINKDB_PORT:
       RETHINKDB_DB:
-      # apiv4 fans out N concurrent ``asyncio.to_thread`` worker
-      # threads (default executor sizes at min(32, cpu+4)). With
-      # every route handler now offloading rdb work to the pool,
-      # 10 slots is too tight under concurrent load. 20 is a
-      # conservative bump; tune higher only if RETHINKDB_SLOW_QUERY_*
-      # telemetry shows pool acquire-time saturation.
-      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-20}
+      # The asyncio-default executor and the rdb pool MUST be sized
+      # together (`executor <= pool`) — see lifespan log line at apiv4
+      # startup. Default 128/128 absorbs VU>=200 k6 bursts without
+      # PoolExhaustedError. Tune the pair higher (e.g. 256/256) if
+      # `apiv4 pool peak in_use` (logged at lifespan shutdown) hits
+      # max. Lower only if rdb-server fd budget tightens.
+      APIV4_EXECUTOR_MAX_WORKERS: ${APIV4_EXECUTOR_MAX_WORKERS:-128}
+      RETHINKDB_POOL_SIZE: ${RETHINKDB_POOL_SIZE:-128}
       RETHINKDB_SLOW_QUERY_MS: ${RETHINKDB_SLOW_QUERY_MS:-500}
+      APIV4_POOL_SAMPLE_INTERVAL_S: ${APIV4_POOL_SAMPLE_INTERVAL_S:-1.0}
       API_ISARDVDI_SECRET:
       API_HYPERVISORS_SECRET:
       BACKUP_RETENTION: ${BACKUP_RETENTION:-30}

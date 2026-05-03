@@ -1,4 +1,4 @@
-# Isard main config v2.35.5
+# Isard main config v2.35.6
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -552,6 +552,23 @@ HAPROXY_LOGGING=.
 #RETHINKDB_HOST=isard-db
 #RETHINKDB_PORT=28015
 #RETHINKDB_DB=isard
+
+# ------ apiv4 thread / pool sizing ------------------------------------------
+## apiv4 fans out concurrent rdb queries via asyncio.to_thread; the executor
+## thread count and the rdb connection pool MUST be sized together (the
+## invariant is `executor <= pool`). Default 128/128 absorbs ~200 simultaneous
+## inbound connections without PoolExhaustedError. Tune the pair higher if
+## the lifespan-shutdown log line `apiv4 pool peak in_use=N / max=128` shows
+## peak ~ max under your load.
+#APIV4_EXECUTOR_MAX_WORKERS=128
+#RETHINKDB_POOL_SIZE=128
+## Slow-query observer threshold (ms). Each rdb query slower than this
+## emits an `rdb_query_slow` log line with pool stats — primary signal for
+## identifying helpers that should migrate to async-native (W2).
+#RETHINKDB_SLOW_QUERY_MS=500
+## How often (seconds) the lifespan sampler polls pool_in_use to track the
+## peak. Lower = more accurate peak; higher = less overhead.
+#APIV4_POOL_SAMPLE_INTERVAL_S=1.0
 
 # ------ Authentication host -------------------------------------------------
 

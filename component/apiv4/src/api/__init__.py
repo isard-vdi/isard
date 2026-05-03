@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import asyncio
+import concurrent.futures
 import logging as log
 import os
 from contextlib import asynccontextmanager
@@ -62,6 +63,36 @@ async def lifespan(app: FastAPI):
     Cards.seed_stock_cards()
     Cards.cleanup_missing()
 
+    # Default-executor sizing must match RETHINKDB_POOL_SIZE: each
+    # `await asyncio.to_thread(...)` parks a thread that then calls
+    # `with cls._rdb_context()`. If the executor is wider than the
+    # pool, threads 21..N block in `acquire(timeout=30s)` and trip
+    # `PoolExhaustedError` → 503 (the documented +50-connection hang
+    # in user memory `reference_apiv4_hang_pool_starvation`). The
+    # invariant is `executor <= pool`; we default both to 128 and
+    # warn if env overrides break it.
+    pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "128"))
+    workers = int(os.environ.get("APIV4_EXECUTOR_MAX_WORKERS", str(pool_size)))
+    if workers > pool_size:
+        log.warning(
+            "APIV4_EXECUTOR_MAX_WORKERS=%d > RETHINKDB_POOL_SIZE=%d — "
+            "threads will block on pool.acquire under load and trip "
+            "PoolExhaustedError. Lower the executor or raise the pool.",
+            workers,
+            pool_size,
+        )
+    asyncio.get_running_loop().set_default_executor(
+        concurrent.futures.ThreadPoolExecutor(
+            max_workers=workers, thread_name_prefix="apiv4-rdb"
+        )
+    )
+    log.info(
+        "apiv4 executor=%d pool=%d (sized for ~%d simultaneous rdb queries)",
+        workers,
+        pool_size,
+        min(workers, pool_size),
+    )
+
     # Eagerly open RETHINKDB_POOL_SIZE/2 connections so the first burst
     # of traffic doesn't race acquire(timeout=…) while the pool grows
     # on demand. Without this the cold-start window produces a flurry
@@ -74,6 +105,33 @@ async def lifespan(app: FastAPI):
         await asyncio.to_thread(warm_pool)
     except Exception:
         log.warning("Pool warm-up at lifespan startup failed (continuing)")
+
+    # Background pool-headroom sampler. Polls _pool_stats_extra() every
+    # POOL_SAMPLE_INTERVAL_S seconds and tracks the peak in_use seen.
+    # At shutdown we emit a single summary line so a load-test pass
+    # produces a one-shot "headroom = pool_max_size - peak_in_use"
+    # number for tuning the executor/pool pair without tailing Loki.
+    pool_peak_state = {"peak_in_use": 0, "samples": 0}
+    pool_sampler_task = None
+    try:
+        from isardvdi_common.connections.rethink_shared_connection import (
+            _pool_stats_extra,
+        )
+
+        sample_interval_s = float(os.environ.get("APIV4_POOL_SAMPLE_INTERVAL_S", "1.0"))
+
+        async def _sample_pool_headroom():
+            while True:
+                stats = _pool_stats_extra()
+                in_use = stats.get("pool_in_use", 0) or 0
+                if in_use > pool_peak_state["peak_in_use"]:
+                    pool_peak_state["peak_in_use"] = in_use
+                pool_peak_state["samples"] += 1
+                await asyncio.sleep(sample_interval_s)
+
+        pool_sampler_task = asyncio.create_task(_sample_pool_headroom())
+    except Exception:
+        log.warning("Pool-headroom sampler failed to start (telemetry only, non-fatal)")
 
     try:
         _sync_haproxy_maps()
@@ -108,6 +166,20 @@ async def lifespan(app: FastAPI):
     # Shutdown
     if health_task:
         health_task.cancel()
+    if pool_sampler_task:
+        pool_sampler_task.cancel()
+        try:
+            await pool_sampler_task
+        except (asyncio.CancelledError, Exception):
+            pass
+    headroom = pool_size - pool_peak_state["peak_in_use"]
+    log.info(
+        "apiv4 pool peak in_use=%d / max=%d (headroom=%d, samples=%d)",
+        pool_peak_state["peak_in_use"],
+        pool_size,
+        headroom,
+        pool_peak_state["samples"],
+    )
     await recycle_bin_queue.stop()
 
 
