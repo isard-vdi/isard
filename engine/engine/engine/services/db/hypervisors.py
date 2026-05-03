@@ -1046,6 +1046,42 @@ def update_db_hyp_info(id, hyp_info):
     close_rethink_connection(r_conn)
 
 
+def get_gpu_card_models(hyper_id):
+    """Return the canonical card-bound model for each auto-discovered GPU.
+
+    Reads ``gpus.model`` for every auto card belonging to ``hyper_id``
+    (rows with ``id`` matching ``auto-{hyper_id}-pci_*``).  The model is
+    bound on the card by the apiv4 hypervisor-registration flow at first
+    sight and treated as immutable, so any caller that needs the canonical
+    model name for a given PCI slot should consult this rather than the
+    freshly-discovered ``nvidia_gpus`` payload.
+
+    Returns a dict keyed by libvirt-style PCI name (``pci_0000_41_00_0``)
+    mapping to the card's stored model string.  Cards without a model are
+    skipped.
+    """
+    r_conn = new_rethink_connection()
+    prefix = f"auto-{hyper_id}-"
+    try:
+        rows = list(
+            r.table("gpus")
+            .filter(lambda gpu: gpu["id"].match(f"^{prefix}"))
+            .pluck("id", "model")
+            .run(r_conn)
+        )
+    finally:
+        close_rethink_connection(r_conn)
+
+    result = {}
+    for row in rows:
+        model = row.get("model")
+        if not model:
+            continue
+        pci_name = row["id"][len(prefix) :]
+        result[pci_name] = model
+    return result
+
+
 def get_vgpu_model_profile_change(vgpu_id):
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
@@ -1244,15 +1280,13 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
             .run(r_conn)
         )
         if len(already_assigned) > 0:
-            # Update stale model if it differs
-            if already_assigned[0].get("model") != d["model"]:
-                r.table("gpus").get(already_assigned[0]["id"]).update(
-                    {"model": d["model"]}
-                ).run(r_conn)
-                logs.workers.info(
-                    f"GPU card '{already_assigned[0]['id']}' model "
-                    f"updated to '{d['model']}'"
-                )
+            # Card already bound to this device — leave it alone.  The
+            # card's model is immutable once set by the apiv4 hypervisor
+            # registration flow at first sight; never overwrite from
+            # engine-side fresh discovery, otherwise gpu_profiles and
+            # reservables_vgpus drift away from existing desktops on
+            # driver updates or normalization-rule changes.
+            pass
         else:
             # No card has this device yet — find an unassigned one
             gpus = list(
