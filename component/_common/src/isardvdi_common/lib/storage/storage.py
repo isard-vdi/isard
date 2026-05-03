@@ -389,6 +389,7 @@ class StorageProcessed(RethinkSharedConnection):
                 )
             )
             .reduce(lambda acc, arr: acc.union(arr))
+            .default([])
         )
 
         if status:
@@ -425,6 +426,7 @@ class StorageProcessed(RethinkSharedConnection):
                 )
             )
             .reduce(lambda acc, arr: acc.union(arr))
+            .default([])
         )
 
         query = (
