@@ -38,7 +38,7 @@ while not ok:
         with build_client("isard-hypervisor", role="hypervisor") as client:
             resp = admin_hypervisor_vpn.sync_detailed(client=client, hyper_id=hyper_id)
             raise_for_status(resp)
-            peer = resp.parsed
+            peer = resp.parsed.to_dict() if resp.parsed else {}
         if not peer:
             print("Api unable to connect to this host:port through ssh-keyscan.")
             time.sleep(1)
@@ -51,13 +51,14 @@ while not ok:
         else:
             print("Can not get hypervisor wg VPNc config from api. Retrying...")
             time.sleep(4)
-    except ApiV4Error:
+    except ApiV4Error as e:
         peer = False
-        print("Could not contact api to get wg VPNc config. Retrying...")
+        print(f"ApiV4Error fetching wg VPNc config: {e}. Retrying...")
         time.sleep(1)
-    except Exception:
+    except Exception as e:
         peer = False
-        print("Could not contact api to get wg VPNc config. Retrying...")
+        print(f"Failed to fetch wg VPNc config: {type(e).__name__}: {e}. Retrying...")
+        traceback.print_exc()
         time.sleep(1)
 
 print(check_output(("/usr/bin/wg", "show"), text=True).strip())
