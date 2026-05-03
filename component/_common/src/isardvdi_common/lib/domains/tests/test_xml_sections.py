@@ -63,6 +63,8 @@ class TestUpdateDomainXmlAndProtected:
             "mock_table"
         ].return_value.get.return_value.update.call_args_list[-1]
         payload = update_call.args[0]
+        # Below the 512-byte threshold — compress_xml returns the
+        # original str unchanged.
         assert payload["xml"] == "<domain/>"
         # The list is wrapped in r.literal(...) — our stub returns a
         # ("LITERAL", value) tuple so we can assert the wrapping.
@@ -70,6 +72,21 @@ class TestUpdateDomainXmlAndProtected:
             "LITERAL",
             ["memory", "vcpus"],
         )
+
+    def test_compresses_xml_above_threshold(self, stub_rdb):
+        big_xml = "<domain>" + ("<disk dev='vda'/>" * 200) + "</domain>"
+        stub_rdb["Processed"].update_domain_xml_and_protected("d-1", big_xml, [])
+        update_call = stub_rdb[
+            "mock_table"
+        ].return_value.get.return_value.update.call_args_list[-1]
+        payload = update_call.args[0]
+        # Above threshold — must be the r.binary ReQL term, not str.
+        assert not isinstance(payload["xml"], str)
+        # The Binary term carries base64-encoded zstd bytes.
+        import base64
+
+        raw = base64.b64decode(payload["xml"].base64_data)
+        assert raw[:4] == b"\x28\xb5\x2f\xfd"  # zstd magic
 
 
 class TestGetDomainCapabilities:
@@ -107,6 +124,20 @@ class TestGetDomain:
             "mock_table"
         ].return_value.get.return_value.default.return_value.run.return_value = None
         assert stub_rdb["Processed"].get_domain("missing") is None
+
+    def test_decompresses_compressed_xml(self, stub_rdb):
+        import zstandard as zstd
+
+        original = "<domain>" + ("<disk/>" * 100) + "</domain>"
+        compressed = zstd.ZstdCompressor(level=3).compress(original.encode())
+        stub_rdb[
+            "mock_table"
+        ].return_value.get.return_value.default.return_value.run.return_value = {
+            "id": "d-1",
+            "xml": compressed,
+        }
+        result = stub_rdb["Processed"].get_domain("d-1")
+        assert result["xml"] == original
 
 
 class TestGetVirtInstall:

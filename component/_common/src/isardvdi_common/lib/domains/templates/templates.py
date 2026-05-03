@@ -29,6 +29,7 @@ from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
@@ -326,7 +327,7 @@ class TemplatesProcessed(RethinkSharedConnection):
             # written by the engine when the domain first starts. Make
             # the template inherit whatever the desktop has, or leave
             # empty so the engine regenerates on first start.
-            "xml": desktop.get("xml", ""),
+            "xml": decompress_xml(desktop.get("xml")) or "",
             "icon": desktop.get("icon", ""),
             "image": Cards.get_domain_stock_card(template_id),
             "os": desktop.get("os", ""),
@@ -362,6 +363,8 @@ class TemplatesProcessed(RethinkSharedConnection):
                 description_code="invalid_template_data",
             )
 
+        if "xml" in valid_template:
+            valid_template["xml"] = compress_xml(valid_template["xml"])
         new_desktop_parents = (desktop.get("parents") or []) + [template_id]
         with cls._rdb_context():
             r.table("domains").insert(valid_template).run(cls._rdb_connection)
@@ -471,6 +474,8 @@ class TemplatesProcessed(RethinkSharedConnection):
                 description_code="not_found",
             )
         if template and template["kind"] == "template":
+            if "xml" in data:
+                data["xml"] = compress_xml(data["xml"])
             with cls._rdb_context():
                 r.table("domains").get(template_id).update(data).run(
                     cls._rdb_connection

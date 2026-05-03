@@ -128,6 +128,19 @@ class TestGetXml:
             stub_rdb["Processed"].get_xml("missing")
         assert exc.value.error.get("error") == "not_found"
 
+    def test_decompresses_compressed_xml(self, stub_rdb):
+        import zstandard as zstd
+
+        original = "<domain>" + ("<disk/>" * 100) + "</domain>"
+        compressed = zstd.ZstdCompressor(level=3).compress(original.encode())
+        stub_rdb[
+            "mock_table"
+        ].return_value.get.return_value.default.return_value.run.return_value = {
+            "id": "d-1",
+            "xml": compressed,
+        }
+        assert stub_rdb["Processed"].get_xml("d-1") == original
+
 
 class TestUpdateXml:
     def test_stamps_status_and_id(self, stub_rdb):
@@ -168,6 +181,31 @@ class TestUpdateXml:
             stub_rdb["Processed"].update_xml("missing", {"xml": "<x/>"})
         assert exc.value.error.get("error") == "not_found"
 
+    def test_compresses_big_xml_in_payload(self, stub_rdb):
+        big_xml = "<domain>" + ("<disk/>" * 200) + "</domain>"
+        stub_rdb[
+            "mock_table"
+        ].return_value.get.return_value.default.return_value.run.return_value = {
+            "id": "d-1"
+        }
+        stub_rdb[
+            "mock_table"
+        ].return_value.get.return_value.update.return_value.run.return_value = {
+            "replaced": 1
+        }
+        stub_rdb[
+            "mock_table"
+        ].return_value.get.return_value.pluck.return_value.run.return_value = {
+            "xml": "<post/>"
+        }
+        stub_rdb["Processed"].update_xml("d-1", {"xml": big_xml})
+        update_call = stub_rdb[
+            "mock_table"
+        ].return_value.get.return_value.update.call_args_list[-1]
+        payload = update_call.args[0]
+        # Above threshold — must be the r.binary ReQL term.
+        assert not isinstance(payload["xml"], str)
+
 
 class TestGetXmlAndProtected:
     def test_returns_dict(self, stub_rdb):
@@ -189,6 +227,21 @@ class TestGetXmlAndProtected:
         }
         result = stub_rdb["Processed"].get_xml_and_protected("d-1")
         assert result["protected"] == []
+
+    def test_decompresses_compressed_xml(self, stub_rdb):
+        import zstandard as zstd
+
+        original = "<domain>" + ("<disk/>" * 100) + "</domain>"
+        compressed = zstd.ZstdCompressor(level=3).compress(original.encode())
+        stub_rdb[
+            "mock_table"
+        ].return_value.get.return_value.pluck.return_value.default.return_value.run.return_value = {
+            "xml": compressed,
+            "create_dict": {"xml_protected_sections": ["memory"]},
+        }
+        result = stub_rdb["Processed"].get_xml_and_protected("d-1")
+        assert result["xml"] == original
+        assert result["protected"] == ["memory"]
 
     def test_raises_not_found(self, stub_rdb):
         from isardvdi_common.helpers.error_factory import Error

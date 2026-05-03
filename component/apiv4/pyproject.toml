@@ -28,6 +28,7 @@ dependencies = [
   "uvicorn==0.34.2",
   "watchfiles==1.0.4",
   "websockets==15.0.1",
+  "zstandard==0.25.0",
 ]
 
 [dependency-groups]

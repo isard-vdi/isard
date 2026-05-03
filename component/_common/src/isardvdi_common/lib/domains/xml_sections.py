@@ -19,6 +19,7 @@ Tables touched:
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from rethinkdb import r
 
 
@@ -43,7 +44,7 @@ class XmlSectionsProcessed(RethinkSharedConnection):
         with cls._rdb_context():
             r.table("domains").get(domain_id).update(
                 {
-                    "xml": xml,
+                    "xml": compress_xml(xml),
                     "create_dict": {
                         "xml_protected_sections": r.literal(protected_sections)
                     },
@@ -82,9 +83,12 @@ class XmlSectionsProcessed(RethinkSharedConnection):
         domain's xml as the merge base.
         """
         with cls._rdb_context():
-            return (
+            row = (
                 r.table("domains").get(domain_id).default(None).run(cls._rdb_connection)
             )
+        if row is not None and "xml" in row:
+            row["xml"] = decompress_xml(row.get("xml"))
+        return row
 
     @classmethod
     def get_virt_install(cls, virt_id: str) -> dict | None:

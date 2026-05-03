@@ -20,6 +20,10 @@ from pprint import pprint
 
 import xmltodict
 from cachetools import TTLCache, cached
+from isardvdi_common.helpers.xml_compression import (
+    decompress_xml,
+    lazy_compress_in_place,
+)
 from lxml import etree
 from schema import And, Optional, Schema, Use
 from yattag import indent
@@ -32,6 +36,7 @@ from engine.services.db import (
     get_interface,
     get_qos_disk_iotune,
     remove_fieds_when_stopped,
+    rethink_conn,
     update_domain_status,
     update_domain_viewer_passwd,
     update_table_field,
@@ -1692,7 +1697,15 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         )
         return False
 
-    xml = dict_domain["xml"]
+    raw_xml = dict_domain.get("xml")
+    xml = decompress_xml(raw_xml)
+    # One-shot lazy migration: if the row is still legacy plain str,
+    # compress it in place. Atomic via r.branch in the helper, so
+    # concurrent writers (offline script, parallel start, editor merge)
+    # turn this into a no-op.
+    if isinstance(raw_xml, str) and xml:
+        with rethink_conn() as _conn:
+            lazy_compress_in_place(id_domain, xml, conn=_conn)
     x = DomainXML(xml, id_domain=id_domain)
     if x.parser is False:
         # error when parsing xml

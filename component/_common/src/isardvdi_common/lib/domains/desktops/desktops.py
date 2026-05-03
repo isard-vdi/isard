@@ -47,6 +47,7 @@ from isardvdi_common.helpers.logging import Logging
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.rules import get_unused_item_timeout
+from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
     ReservablesPlannerCompute,
@@ -751,12 +752,14 @@ class DesktopsProcessed(RethinkSharedConnection):
                         "server_autostart": new_data.get("server_autostart"),
                     },
                 }
-            if "xml" in new_data and new_data.get("xml") != domain.get("xml"):
+            if "xml" in new_data and new_data.get("xml") != decompress_xml(
+                domain.get("xml")
+            ):
                 new_domain = {
                     **new_domain,
                     **{
                         "status": DesktopStatusEnum.updating.value,
-                        "xml": new_data["xml"],
+                        "xml": compress_xml(new_data["xml"]),
                     },
                 }
 

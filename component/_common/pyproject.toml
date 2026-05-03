@@ -25,6 +25,7 @@ dependencies = [
   "rq==2.3.2",
   "simple-colors==0.1.5",
   "specktre==0.3.0",
+  "zstandard==0.25.0",
 ]
 
 [dependency-groups]

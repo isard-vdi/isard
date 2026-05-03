@@ -32,6 +32,7 @@ from api.services.admin.tables import AdminTablesService
 from api.services.cards import CardService
 from cachetools import TTLCache, cached
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.xml_compression import decompress_xml
 from isardvdi_common.lib.downloads.downloads import DownloadsProcessed
 from isardvdi_common.models.config import Config
 
@@ -549,7 +550,9 @@ class AdminDownloadsService:
         for d in data:
             # Upstream registry carries disk bus in the sibling "hardware" field, not in create_dict. Capture before _get_domain_if_already_downloaded drops it.
             registry_disks = (d.get("hardware") or {}).get("disks") or []
-            hints = AdminDownloadsService._parse_xml_protection_hints(d.get("xml", ""))
+            hints = AdminDownloadsService._parse_xml_protection_hints(
+                decompress_xml(d.get("xml")) or ""
+            )
             d = AdminDownloadsService._get_domain_if_already_downloaded(d, user_id)
             d["progress"] = {}
             d["status"] = "DownloadStarting"

@@ -5,6 +5,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
+from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from rethinkdb import r
 
 from ...helpers.alloweds import Alloweds
@@ -116,7 +117,7 @@ class DomainsProcessed(RethinkSharedConnection):
             )
         if domain is None:
             raise Error("not_found", f"Domain {domain_id} not found")
-        return domain.get("xml")
+        return decompress_xml(domain.get("xml"))
 
     @classmethod
     def update_xml(cls, domain_id: str, data: dict) -> str | None:
@@ -137,12 +138,14 @@ class DomainsProcessed(RethinkSharedConnection):
             raise Error("not_found", f"Domain {domain_id} not found")
         data["status"] = "Updating"
         data["id"] = domain_id
+        if "xml" in data:
+            data["xml"] = compress_xml(data["xml"])
         with cls._rdb_context():
             r.table("domains").get(domain_id).update(data).run(cls._rdb_connection)
             result = (
                 r.table("domains").get(domain_id).pluck("xml").run(cls._rdb_connection)
             )
-        return result.get("xml")
+        return decompress_xml(result.get("xml"))
 
     @classmethod
     def get_xml_and_protected(cls, domain_id: str) -> dict:
@@ -165,7 +168,7 @@ class DomainsProcessed(RethinkSharedConnection):
         if domain is None:
             raise Error("not_found", "Domain not found")
         return {
-            "xml": domain.get("xml"),
+            "xml": decompress_xml(domain.get("xml")),
             "protected": domain.get("create_dict", {}).get(
                 "xml_protected_sections", []
             ),

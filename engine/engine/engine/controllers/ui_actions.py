@@ -9,7 +9,9 @@ from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
 from cachetools import TTLCache, cached
+from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.models.domain import Domain
+from rethinkdb import r
 
 from engine.models.domain_xml import (
     BUS_TYPES,
@@ -30,6 +32,7 @@ from engine.services.db import (
     get_table_field,
     get_table_fields,
     insert_domain,
+    rethink_conn,
     update_domain_status,
     update_table_field,
     update_vgpu_info_if_stopped,
@@ -1004,7 +1007,7 @@ class UiActions(object):
                     detail=f"Can't create domain from template {id_template}, template not found. Was deleted during domain creation?",
                 )
                 return False
-            xml_from = template["xml"]
+            xml_from = decompress_xml(template.get("xml"))
             # Ancestor chain: template's chain plus the template itself
             # as the immediate parent. apiv4 already writes this at insert
             # time, so the ``update_table_field`` below is idempotent —
@@ -1025,7 +1028,13 @@ class UiActions(object):
         else:
             return False
 
-        update_table_field("domains", id_domain, "xml", xml_from)
+        # Direct write so we keep ``compress_xml`` at the call site —
+        # ``update_table_field`` is a generic helper used for many
+        # other fields and must remain compression-agnostic.
+        with rethink_conn() as _conn:
+            r.table("domains").get(id_domain).update(
+                {"xml": compress_xml(xml_from)}
+            ).run(_conn)
 
         update_domain_status(
             "CreatingDomain",
