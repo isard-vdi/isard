@@ -1,6 +1,8 @@
+import copy
 import threading
 import traceback
 
+from cachetools import TTLCache
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -17,6 +19,34 @@ from rethinkdb import r
 # slow-query telemetry under load (90 calls / 21 s in the rev-13 sweep).
 _system_tables_cache: list[str] | None = None
 _system_tables_lock = threading.Lock()
+
+# Process-wide TTL cache for unfiltered ``ApiAdmin.admin_table_list()``
+# results. The dominant load-test slow query (rev-22 k6 VU=200 sweep)
+# was ``r.table('users').without('password', 'password_history',
+# 'api_key', 'photo', {'vpn': {'wireguard': 'keys'}})`` at 239 hits
+# (47% of all rdb_query_slow lines): a 1711-row full-table scan
+# repeated under burst by every concurrent admin-page request.
+# Caching the unfiltered listing for 5 s collapses concurrent reads of
+# the same query into a single rdb round-trip + cache hits, with no
+# caller change and no async migration. Single-row reads (``id``
+# provided) and caller-supplied merge callables (which may capture
+# state) bypass — single-row reads are already cached by
+# ``Caches.get_cached``. Writers (insert/update/delete) call
+# ``clear_admin_table_list_cache(table)`` so the next listing returns
+# fresh data without waiting for the TTL to expire.
+_admin_table_list_cache: "TTLCache" = TTLCache(maxsize=64, ttl=5)
+
+
+def _admin_table_list_cache_seq_key(seq):
+    """Render pluck/without args (list/tuple/dict/None) as a stable key.
+
+    cachetools requires hashable keys; lists and dicts are not. The args
+    are short (typically ≤ 20 field names), so ``repr()`` is the cheap
+    safe default — identical-shape args produce identical keys.
+    """
+    if seq is None:
+        return None
+    return repr(seq)
 
 
 class ApiAdmin(RethinkSharedConnection):
@@ -147,6 +177,23 @@ class ApiAdmin(RethinkSharedConnection):
             return r.table(table).get(item_id).run(cls._rdb_connection)
 
     @classmethod
+    def clear_admin_table_list_cache(cls, table: str | None = None) -> None:
+        """Drop cached ``admin_table_list`` results.
+
+        Called by table-write entry points (``insert_table_item`` /
+        ``update_table_item`` / ``delete_table_item``) so a follow-up
+        admin listing returns fresh data without waiting for the 5 s
+        TTL to expire. Pass ``table=None`` to clear all entries; pass
+        a table name to drop only that table's cache lines.
+        """
+        if table is None:
+            _admin_table_list_cache.clear()
+            return
+        keys_to_drop = [k for k in list(_admin_table_list_cache) if k[0] == table]
+        for k in keys_to_drop:
+            _admin_table_list_cache.pop(k, None)
+
+    @classmethod
     def insert_table_item(cls, table: str, data: dict) -> None:
         """Insert a row into ``table``.
 
@@ -172,6 +219,7 @@ class ApiAdmin(RethinkSharedConnection):
                     "Insert into " + table + " returned inserted=0",
                     traceback.format_exc(),
                 )
+        cls.clear_admin_table_list_cache(table)
 
     @classmethod
     def update_table_item(cls, table: str, data: dict) -> None:
@@ -184,6 +232,7 @@ class ApiAdmin(RethinkSharedConnection):
         cls._validate_table(table)
         with cls._rdb_context():
             r.table(table).get(data["id"]).update(data).run(cls._rdb_connection)
+        cls.clear_admin_table_list_cache(table)
 
     @classmethod
     def delete_table_item(cls, table: str, item_id: str) -> None:
@@ -213,6 +262,7 @@ class ApiAdmin(RethinkSharedConnection):
                     traceback.format_exc(),
                     description_code="generic_error",
                 )
+        cls.clear_admin_table_list_cache(table)
 
     @classmethod
     def admin_table_list(
@@ -234,6 +284,26 @@ class ApiAdmin(RethinkSharedConnection):
         # Check if table exists
 
         cls._validate_table(table)
+
+        # 5 s TTL cache for unfiltered + no-merge calls. Single-row
+        # reads (``id`` provided) bypass — they are already covered by
+        # ``Caches.get_cached``. Caller-supplied merge callables bypass
+        # because the lambda may capture call-site state we can't
+        # safely hash. ``copy.deepcopy`` on hit + miss prevents callers
+        # from mutating the cached value (the legacy admin code is not
+        # consistently read-only on the returned list).
+        cache_key = None
+        if id is None and merge is None:
+            cache_key = (
+                table,
+                order_by,
+                _admin_table_list_cache_seq_key(pluck),
+                _admin_table_list_cache_seq_key(without),
+                index,
+            )
+            cached_val = _admin_table_list_cache.get(cache_key)
+            if cached_val is not None:
+                return copy.deepcopy(cached_val)
 
         query = r.table(table)
 
@@ -329,10 +399,13 @@ class ApiAdmin(RethinkSharedConnection):
 
         if id and not index:
             with cls._rdb_context():
+                # Single-row read; bypasses the cache (id is set)
                 return query.run(cls._rdb_connection)
-        else:
-            with cls._rdb_context():
-                return list(query.run(cls._rdb_connection))
+        with cls._rdb_context():
+            result = list(query.run(cls._rdb_connection))
+        if cache_key is not None:
+            _admin_table_list_cache[cache_key] = copy.deepcopy(result)
+        return result
 
     @staticmethod
     def check_category_allowed_table(table):
