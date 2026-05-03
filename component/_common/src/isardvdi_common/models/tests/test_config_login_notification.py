@@ -109,3 +109,33 @@ class TestEnableLoginNotification:
     def test_clears_cache(self, stub_rdb):
         stub_rdb["mod"].Config.enable_login_notification("form", False)
         assert stub_rdb["cleared"]["count"] == 1
+
+    def test_payload_is_deep_nested_not_flat_replacement(self, stub_rdb):
+        """Pin the deep-nested update shape that lets RethinkDB preserve siblings.
+
+        Apiv3 commit `c8d1ffeb5` documented a bug where toggling
+        ``enabled`` wiped sibling fields (title, description, icon,
+        button, extra_styles) on ``notification_cover`` /
+        ``notification_form``. The cause on apiv3 was a flat-shape write
+        where the whole sub-dict got replaced. Apiv4-integration writes a
+        deep-nested ``{"login": {"notification_<type>": {"enabled": X}}}``
+        and relies on RethinkDB's default recursive object-merge to leave
+        the other keys alone, so the apiv3 bug structurally cannot occur.
+
+        This test pins that shape: the update payload's
+        ``notification_<type>`` value must be ``{"enabled": ...}``
+        — exactly one key, never a full ``{"enabled": ..., "title": ...,
+        ...}`` replacement that would imply a flat write.
+        """
+        for kind in ("cover", "form"):
+            stub_rdb["mod"].Config.enable_login_notification(kind, False)
+            payload = (
+                stub_rdb["mock_table"]
+                .return_value.get.return_value.update.call_args_list[-1]
+                .args[0]
+            )
+            sub = payload["login"][f"notification_{kind}"]
+            assert sub == {"enabled": False}, (
+                "enable_login_notification must write only the `enabled` key "
+                "so RethinkDB's recursive merge preserves sibling fields"
+            )
