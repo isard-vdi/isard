@@ -197,7 +197,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 			return
 		}
 		for _, u := range []apiv4.StatsKindUser(*v) {
-			users = append(users, userMetric{id: u.ID, role: u.Role, category: u.Category, group: u.Group})
+			users = append(users, userMetric{id: u.ID, role: u.Role.Or(""), category: u.Category.Or(""), group: u.Group.Or("")})
 		}
 	})
 
