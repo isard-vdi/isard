@@ -172,12 +172,20 @@ def SetupHypervisor():
                 print("Api does not answer OK... retrying...")
                 sleep(2)
                 continue
-        except ApiV4Error:
-            print("Could not contact api to register me... retrying...")
+        except ApiV4Error as e:
+            # Log the typed apiv4 error: status code + body. Surfaces
+            # 4xx/5xx from /admin/hypervisor (e.g. KeyError on partial
+            # rows, schema validation 422, ssh-keyscan 500) instead of
+            # the misleading "Could not contact api" — which only used
+            # to be true when the apiv4 socket itself was unreachable.
+            print(f"Failed to register hypervisor (apiv4 error): {e}. Retrying...")
             sleep(2)
             continue
-        except Exception:
-            print("Could not contact api to register me... retrying...")
+        except Exception as e:
+            print(
+                f"Failed to register hypervisor: {type(e).__name__}: {e}. Retrying..."
+            )
+            traceback.print_exc()
             sleep(2)
             continue
         if not data["certs"]["ca-cert.pem"]:

@@ -360,8 +360,16 @@ class HypervisorsProcessed(RethinkSharedConnection):
             elif not cls.check(result, "inserted"):
                 raise Error("not_found", "Unable to add hypervisor")
         else:
+            # Re-registration path. ``enabled`` may be missing (partial
+            # row written by another writer mid-flight, or row restored
+            # from a dump that predates v189) AND it may be stored as
+            # ``None`` from such a partial write. ``dict.get(k, default)``
+            # only defaults on a missing key, NOT on a stored ``None``,
+            # so wrap the read in ``bool(...)`` to collapse both cases
+            # to False before this value is fed back into the model.
+            previous_enabled = bool(hypervisor.get("enabled"))
             # Second time will try to enable itself
-            if hypervisor.get("enabled"):
+            if previous_enabled:
                 with cls._rdb_context():
                     r.table("hypervisors").get(hyper_id).update({"enabled": False}).run(
                         cls._rdb_connection
@@ -372,7 +380,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 port=port,
                 cap_disk=cap_disk,
                 cap_hyper=cap_hyper,
-                enabled=hypervisor["enabled"],
+                enabled=previous_enabled,
                 browser_port=str(browser_port),
                 spice_port=str(spice_port),
                 isard_static_url=isard_static_url,
@@ -398,7 +406,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
-            if result["unchanged"] or result["replaced"] or not hypervisor["enabled"]:
+            if result["unchanged"] or result["replaced"] or not previous_enabled:
                 pass
             else:
                 return {

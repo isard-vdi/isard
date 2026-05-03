@@ -19,10 +19,10 @@ import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
 
-import jwt
-import requests
+import httpx
+from isardvdi_apiv4_client.api.role_admin import admin_hypervisor_delete
+from isardvdi_apiv4_client_auth import build_client, raise_for_status
 
 log = logging.getLogger("hypervisor.shutdown")
 if not log.handlers:
@@ -36,55 +36,50 @@ API_DELETE_TIMEOUT = float(os.environ.get("HYPER_API_DELETE_TIMEOUT", "4"))
 DESTROY_MAX_WORKERS = 16
 
 
-def _api_base_url():
-    api_domain = os.environ.get("API_DOMAIN", False)
-    if api_domain and api_domain != "isard-api":
-        return "https://" + api_domain + "/api/v3/"
-    return "http://isard-api:5000/api/v3/"
-
-
-def _api_auth_header():
-    token = jwt.encode(
-        {
-            "exp": datetime.utcnow() + timedelta(seconds=90),
-            "kid": "isardvdi-hypervisors",
-            "session_id": "isardvdi-service",
-            "data": {"role_id": "hypervisor", "category_id": "default"},
-        },
-        os.environ["API_HYPERVISORS_SECRET"],
-        algorithm="HS256",
-    )
-    return {"Authorization": "Bearer " + token}
-
-
 def api_unregister():
-    """Fire DELETE /hypervisor/<id> with a short timeout. Best effort.
+    """Fire DELETE /api/v4/admin/hypervisor/<id> with a short timeout. Best effort.
 
     The API handler writes the important DB flags (enabled=False,
     status=Deleting, forced_hyp=True, all-domain stop) in the first few
     hundred milliseconds and then polls up to ~10s waiting for the engine
     orchestrator to reap the row. We do NOT need to wait for that poll —
     the engine picks up from the DB on its own.
+
+    Uses the typed apiv4 client (mirrors ``setup.py:DeleteHypervisor``).
+    The previous version of this function targeted ``/api/v3/hypervisor/{id}``
+    on host ``isard-api``, which doesn't exist on apiv4-integration —
+    every shutdown silently lost the deregister and the row stayed in
+    rdb.
     """
     hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
-    url = _api_base_url() + "hypervisor/" + hyper_id
     try:
-        resp = requests.delete(
-            url,
-            headers=_api_auth_header(),
-            verify=False,
-            timeout=API_DELETE_TIMEOUT,
-        )
-        log.info("api DELETE %s -> %s", hyper_id, resp.status_code)
-    except requests.exceptions.Timeout:
+        with build_client("isard-hypervisor", role="hypervisor") as client:
+            # Bound the request to API_DELETE_TIMEOUT — shutdown must
+            # not wait indefinitely on an unhealthy apiv4.
+            client = client.with_timeout(httpx.Timeout(API_DELETE_TIMEOUT))
+            resp = admin_hypervisor_delete.sync_detailed(
+                client=client, hyper_id=hyper_id
+            )
+            raise_for_status(resp)
+            log.info("api DELETE %s -> %s", hyper_id, resp.status_code)
+    except httpx.TimeoutException:
+        # Operationally fine: the apiv4 handler does its critical
+        # writes (enabled=False, status=Deleting, forced_hyp=True,
+        # all-domain stop) in the first few hundred ms and only then
+        # polls up to ~10s waiting for the engine to reap the row.
+        # We time out on the poll, not on the writes — the engine
+        # still picks up from the DB on its own.
         log.warning(
             "api DELETE %s timed out after %.1fs (early DB writes "
             "should already have landed)",
             hyper_id,
             API_DELETE_TIMEOUT,
         )
-    except Exception as e:
-        log.warning("api DELETE %s failed: %s", hyper_id, e)
+    except Exception as e:  # noqa: BLE001 - best-effort
+        # Log type+message so future failures aren't silent the way
+        # the dead apiv3 URL was. Shutdown must always exit cleanly
+        # so we don't re-raise.
+        log.warning("api DELETE %s failed: %s: %s", hyper_id, type(e).__name__, e)
 
 
 def _libvirt_connect():
