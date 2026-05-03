@@ -18,6 +18,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import re
+
+from api.libv2.api_users import sync_category_branding_domains
 from api.libv2.validators import _validate_item
 from api.views.decorators import check_permissions
 from flask import jsonify, request
@@ -25,6 +28,18 @@ from isardvdi_common.api_exceptions import Error
 from isardvdi_common.category import Category
 
 from api import app
+
+_ACME_DETAIL_RE = re.compile(r'"detail"\s*:\s*"((?:[^"\\]|\\.)*)"', re.DOTALL)
+
+
+def _readable_sync_error(raw):
+    # HAProxy sync wraps the raw acme.sh stdout/stderr. When ACME rejects a
+    # certificate it embeds a JSON payload with a human-friendly "detail"
+    # field — surface that instead of the full shell log dump.
+    match = _ACME_DETAIL_RE.search(raw)
+    if match:
+        return match.group(1).encode("utf-8").decode("unicode_escape")
+    return raw
 
 
 @app.route("/api/v3/admin/category/<category_id>/branding", methods=["GET"])
@@ -62,5 +77,26 @@ def _api_category_branding_put(payload, category_id):
         )
     except ValueError as exception:
         raise Error(error="conflict", description=exception)
+
+    try:
+        sync_result = sync_category_branding_domains()
+    except Exception as exception:
+        raise Error(error="internal_server", description=str(exception))
+
+    updated_domain = Category(category_id).branding.get("domain", {}) or {}
+    if updated_domain.get("enabled") and updated_domain.get("name"):
+        target = updated_domain["name"]
+        relevant_failures = [
+            f for f in sync_result.failed_domains if f.domain == target
+        ]
+        if relevant_failures:
+            failures = ", ".join(
+                f"{f.domain}: {_readable_sync_error(f.error)}"
+                for f in relevant_failures
+            )
+            raise Error(
+                error="internal_server",
+                description=f"HAProxy domain sync reported failures: {failures}",
+            )
 
     return jsonify({"success": True})
