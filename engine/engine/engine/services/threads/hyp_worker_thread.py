@@ -39,13 +39,13 @@ from engine.services.db import (
     update_vgpu_uuid_domain_action,
 )
 from engine.services.db.hypervisors import (
+    get_hypervisor,
     update_hyp_degraded_status,
     update_hyp_libvirt_warning,
     update_hyp_thread_status,
 )
 from engine.services.lib.functions import (
     SSHTimeoutError,
-    exec_remote_list_of_cmds_dict,
     execute_commands,
     get_tid,
     is_libvirt_connection_error,
@@ -185,13 +185,23 @@ class HypWorkerThread(threading.Thread):
         port = int(port)
         self.hostname = host
 
-        # Connect to hypervisor
+        # Connect to hypervisor (libvirt qemu+ssh handshake also validates SSH)
         if not self._establish_connection(host, port, user, nvidia_enabled):
             return
 
-        # Test SSH connectivity
-        if not self._test_ssh_connection(host, port, user):
-            return
+        # Post-connect setup: kill stale curl reconnect loops on the hypervisor,
+        # reconcile domain state, mark the worker thread Started, and start
+        # receiving libvirt events.
+        launch_killall_curl(self.hostname, user, port)
+        self.h.update_domain_coherence_in_db()
+        update_hyp_thread_status("worker", self.hyp_id, "Started")
+        self.q_event_register.put(
+            {
+                "type": "add_hyp_to_receive_events",
+                "hyp_id": self.hyp_id,
+                "worker": self,
+            }
+        )
 
         # Get hypervisor info
         if not self._initialize_hypervisor_info(nvidia_enabled, init_vgpu_profiles):
@@ -247,47 +257,6 @@ class HypWorkerThread(threading.Thread):
         except Exception as e:
             logs.exception_id.debug("0059")
             self._set_error(f"Exception during hypervisor connection: {e}")
-            return False
-
-    def _test_ssh_connection(self, host, port, user):
-        """Test SSH connection to the hypervisor"""
-        logs.workers.info(f"[{self.hyp_id}] Testing SSH connection to {host}:{port}...")
-        cmds = [{"cmd": "uname -a"}]
-        try:
-            array_out_err = exec_remote_list_of_cmds_dict(
-                host, cmds, username=user, port=port, timeout=30
-            )
-            output = array_out_err[0]["out"]
-            logs.main.debug(f"Command: {cmds[0]}, output: {output}")
-
-            if not output:
-                self._set_error("SSH command output is empty, SSH action failed")
-                return False
-
-            logs.workers.info(f"[{self.hyp_id}] SSH test passed")
-
-            # SSH test passed
-            launch_killall_curl(self.hostname, user, port)
-            self.h.update_domain_coherence_in_db()
-            update_hyp_thread_status("worker", self.hyp_id, "Started")
-
-            # Register for events
-            self.q_event_register.put(
-                {
-                    "type": "add_hyp_to_receive_events",
-                    "hyp_id": self.hyp_id,
-                    "worker": self,
-                }
-            )
-            return True
-
-        except SSHTimeoutError as e:
-            logs.workers.error(f"[{self.hyp_id}] SSH connection test timed out: {e}")
-            self._set_error(f"SSH connection test timed out: {e}")
-            return False
-        except Exception as e:
-            logs.exception_id.debug("0058")
-            self._set_error(f"Testing SSH connection failed: {e}")
             return False
 
     def _initialize_hypervisor_info(self, nvidia_enabled, init_vgpu_profiles):
@@ -1903,7 +1872,12 @@ class HypWorkerThread(threading.Thread):
         """Handle hyp_info action"""
         try:
             t = time.time()
-            self.h.get_kvm_mod()
+            # KVM module type is hypervisor-self-reported at registration; just
+            # refresh from the DB row (no SSH).
+            hyper_record = get_hypervisor(self.hyp_id)
+            self.h.info["kvm_module"] = (
+                hyper_record.get("kvm_module") if hyper_record else False
+            )
             intervals.append({"get_kvm_mod": round(time.time() - t, 3)})
 
             t = time.time()

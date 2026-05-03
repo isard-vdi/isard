@@ -50,6 +50,9 @@ class AdminHypervisorCreateData(BaseModel):
     virt_pools: Optional[str] = None
     buffering_hyper: bool = False
     gpu_only: bool = False
+    # Self-reported KVM capability (replaces engine SSH probes for the same)
+    kvm_module: Optional[str] = None
+    nested: Optional[bool] = None
 
 
 class AdminHypervisorEnableData(BaseModel):
@@ -210,6 +213,8 @@ class AdminHypervisor(BaseModel):
     buffering_hyper: bool
     gpu_only: bool
     isard_hyper_vpn_host: str
+    kvm_module: Optional[str] = None
+    nested: Optional[bool] = None
     status: str = "Offline"
     user: str = ""
     enabled: bool = False

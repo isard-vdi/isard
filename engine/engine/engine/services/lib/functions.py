@@ -60,14 +60,6 @@ def check_tables_populated():
             sleep(1)
 
 
-def backing_chain_cmd(path_disk, json_format=True):
-    if json_format is True:
-        cmd = 'qemu-img info -U --output json --backing-chain "{}"'.format(path_disk)
-    else:
-        cmd = 'qemu-img info -U --backing-chain "{}"'.format(path_disk)
-    return cmd
-
-
 def get_threads_running():
     e = threading.enumerate()
     return e
@@ -154,27 +146,6 @@ def try_socket(hostname, port, timeout):
         log.error(e)
         log.error("not resolves ip from hostname: {}".format(hostname))
         return False
-
-
-def try_ssh_command(host, user, port):
-    # TRY IF SSH COMMAND RUN:
-    cmds = [{"cmd": "uname -a"}]
-    try:
-        array_out_err = exec_remote_list_of_cmds_dict(
-            host, cmds, username=user, port=port
-        )
-        output = array_out_err[0]["out"]
-        logs.main.debug(f"cmd: {cmds[0]}, output: {output}")
-        if len(output) > 0:
-            # TEST OK
-            return True, "test cmd ssh ok"
-        else:
-            error = "output from command uname -a is empty, ssh action failed"
-            return False, error
-    except Exception as e:
-        logs.exception_id.debug("0048")
-        error = f"testing ssh connection failed. Host: {host}, cmds: {cmds}, username={user}, port: {port}. Exception: {e}"
-        return False, error
 
 
 def test_hypervisor_conn(uri):

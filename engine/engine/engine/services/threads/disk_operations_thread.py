@@ -5,7 +5,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from engine.services.db.hypervisors import update_hyp_thread_status
-from engine.services.lib.functions import get_tid, try_ssh_command
+from engine.services.lib.functions import get_tid
 from engine.services.log import log, logs
 from engine.services.threads.threads import TIMEOUT_QUEUES, launch_delete_disk_action
 
@@ -64,16 +64,7 @@ class DiskOperationsThread(threading.Thread):
             f"Thread to launch disk operations in host {host} with TID: {self.tid}..."
         )
 
-        test_ssh, detail = try_ssh_command(self.hostname, self.user, self.port)
-        if not test_ssh:
-            log.error(
-                f"test ssh in disk operations thread in hypervisor {self.hyp_id} fail. Thread stopped. Reason: {detail}"
-            )
-            self.stop = True
-            self.error = detail
-
-        if not self.stop:
-            update_hyp_thread_status("disk_operations", self.hyp_id, "Started")
+        update_hyp_thread_status("disk_operations", self.hyp_id, "Started")
         while not self.stop:
             try:
                 action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)

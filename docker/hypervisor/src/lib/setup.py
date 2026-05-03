@@ -71,6 +71,44 @@ if str(flavour) == "hypervisor-standalone":
 isard_hyper_vpn_host = os.environ.get("VPN_DOMAIN", "isard-vpn")
 
 
+def _detect_kvm_module():
+    """Read /proc/modules to identify the loaded KVM module.
+
+    Returns "intel" / "amd" when kvm_intel or kvm_amd is loaded,
+    "bios_disabled" when only the generic kvm module is present (BIOS has
+    virtualisation extensions disabled), and "false" otherwise. Engine
+    uses this string verbatim as the gate that decides whether the
+    hypervisor can come Online.
+    """
+    try:
+        with open("/proc/modules") as fh:
+            modules = {line.split(" ", 1)[0] for line in fh if line.strip()}
+    except OSError:
+        return "false"
+    if "kvm_intel" in modules:
+        return "intel"
+    if "kvm_amd" in modules:
+        return "amd"
+    if "kvm" in modules:
+        return "bios_disabled"
+    return "false"
+
+
+def _detect_nested_virtualization():
+    """Read kvm_intel / kvm_amd nested parameter from sysfs."""
+    for path in (
+        "/sys/module/kvm_intel/parameters/nested",
+        "/sys/module/kvm_amd/parameters/nested",
+    ):
+        try:
+            with open(path) as fh:
+                value = fh.read().strip()
+        except OSError:
+            continue
+        return value[:1] in ("1", "Y")
+    return False
+
+
 def SetupHypervisor():
     ensure_sriov_vfs()
 
@@ -82,6 +120,8 @@ def SetupHypervisor():
         "cap_hyper": bool(strtobool(os.environ.get("CAPABILITIES_HYPER", "true"))),
         "enabled": False,
         "description": "Added through api",
+        "kvm_module": _detect_kvm_module(),
+        "nested": _detect_nested_virtualization(),
         "browser_port": (
             os.environ["VIEWER_BROWSER"]
             if os.environ.get("VIEWER_BROWSER", False)

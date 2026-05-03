@@ -48,9 +48,11 @@ class HypervisorModel(BaseModel):
     id: str
     info: Dict[str, Any] = {}
     isard_hyper_vpn_host: str
+    kvm_module: Optional[str] = None
     min_free_gpu_mem_gb: int
     min_free_mem_gb: int
     mountpoints: List[MountPoint] = []
+    nested: Optional[bool] = None
     nvidia_enabled: bool
     only_forced: bool
     port: str

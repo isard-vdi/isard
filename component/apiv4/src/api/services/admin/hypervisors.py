@@ -95,6 +95,8 @@ class AdminHypervisorsService:
             buffering_hyper=data.get("buffering_hyper", False),
             gpu_only=data.get("gpu_only", False),
             hugepages_info=data.get("hugepages_info"),
+            kvm_module=data.get("kvm_module"),
+            nested=data.get("nested"),
         )
         if not result["status"]:
             raise Error("internal_server", "Failed hypervisor: " + result["msg"])

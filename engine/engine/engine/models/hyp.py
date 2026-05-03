@@ -17,7 +17,6 @@ from copy import deepcopy
 from io import StringIO
 
 import libvirt
-import paramiko
 import xmltodict
 from libpci import LibPCI
 from lxml import etree
@@ -58,7 +57,6 @@ from engine.services.lib.functions import (
     get_tid,
     hostname_to_uri,
     test_hypervisor_conn,
-    try_socket,
 )
 from engine.services.lib.libvirt_dicts import virDomainState
 from engine.services.lib.status import get_hypervisor_video_status
@@ -195,7 +193,6 @@ class hyp(object):
         port=22,
         nvidia_enabled=False,
         capture_events=False,
-        try_ssh_autologin=False,
     ):
         # dictionary of domains
         # self.id = 0
@@ -226,11 +223,9 @@ class hyp(object):
         else:
             self.port = 22
         # log.info('El port es: '+str(self.port))
-        self.try_ssh_autologin = try_ssh_autologin
         self.user = user
         self.hostname = address
         self.connected = False
-        self.ssh_autologin_fail = False
         self.fail_connected_reason = ""
         self.eventLoopThread = None
         self.info = {}
@@ -257,159 +252,63 @@ class hyp(object):
             if self.capture_events:
                 self.launch_events()
 
-    def try_ssh(self):
-        # try socket
-        timeout = float(CONFIG_DICT["TIMEOUTS"]["ssh_paramiko_hyp_test_connection"])
-        if try_socket(self.hostname, self.port, timeout):
-            # ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh = paramiko.SSHClient()
-            # ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            # INFO TO DEVELOPER: OJO, load_system_host_keys debería ir pero el problema está en que hay ciertos algoritmos de firma
-            # que la librería actual de paramiko da error. Seguramente haciendo un update de la librearía en un futuro
-            # esto se arreglará espero: si solo existe el hash ecdsa-sha2-nistp256
-            # ssh -o "HostKeyAlgorithms ssh-rsa" root@ajenti.escoladeltreball.org
-
-            ssh.load_system_host_keys()
-            # ssh.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
-            # time.sleep(1)
-            try:
-                # timelimit(3,test_hypervisor_conn,self.hostname,
-                #             username=self.user,
-                #             port= self.port,
-                #             timeout=CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
-                ssh.connect(
-                    self.hostname,
-                    username=self.user,
-                    port=self.port,
-                    timeout=timeout,
-                    banner_timeout=timeout,
-                )
-
-                log.debug(
-                    "host {} with ip {} TEST CONNECTION OK, ssh connect without password".format(
-                        self.hostname, self.ip
-                    )
-                )
-                ssh.close()
-            except paramiko.SSHException as e:
-                log.error(
-                    "host {} with ip {} can't connect with ssh without password. Paramiko except Reason: {}".format(
-                        self.hostname, self.ip, e
-                    )
-                )
-                log.error("")
-                # message when host not found or key format not supported: not found in known_hosts
-                self.fail_connected_reason = (
-                    "ssh authentication fail when connect: {}".format(e)
-                )
-                self.ssh_autologin_fail = True
-            except Exception as e:
-                logs.exception_id.debug("0026")
-                log.error(
-                    "host {} with ip {} can't connect with ssh without password. Reasons? timeout, ssh authentication with keys is needed, port is correct?".format(
-                        self.hostname, self.ip
-                    )
-                )
-                log.error("reason: {}".format(e))
-                self.fail_connected_reason = (
-                    "ssh authentication fail when connect: {}".format(e)
-                )
-                self.ssh_autologin_fail = True
-
-        else:
-            self.ssh_autologin_fail = True
-            self.fail_connected_reason = (
-                "socket error in ssh port, sshd disabled or firewall"
-            )
-            log.error(
-                "socket error, try if ssh is listen in hostname {} with ip address {} and port {}".format(
-                    self.hostname, self.ip, self.port
-                )
-            )
-
     def connect_to_hyp(self):
         try:
             self.ip = socket.gethostbyname(self.hostname)
 
-            if self.try_ssh_autologin == True:
-                self.try_ssh()
-
-            if self.ssh_autologin_fail is False:
-                try:
-                    self.uri = hostname_to_uri(
-                        self.hostname, user=self.user, port=self.port
-                    )
-                    if self.id_hyp_rethink is None:
-                        try:
-                            self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
-                        except Exception as e:
-                            logs.exception_id.debug("0027")
-                            log.error(
-                                "error when hypervisor have not rethink id. {}".format(
-                                    e
-                                )
-                            )
-                    # timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
-                    # self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
-                    self.conn = test_hypervisor_conn(self.uri)
-
-                    # timeout = float(CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
-
-                    if self.conn != False:
-                        self.connected = True
-                        # prueba de alberto para que indique cuando ha caído y para que mantenga alive la conexión
-
-                        # OJO INFO TO DEVELOPER
-                        # self.startEvent()
-
-                        # Enable keepalive: connection closed after interval*(count+1) seconds
-                        # of no response (5*4=20 seconds with these settings)
-                        self.conn.setKeepAlive(5, 3)
-                        log.debug("connected to hypervisor: %s" % self.hostname)
-                        self.set_status(HYP_STATUS_CONNECTED)
-                        self.fail_connected_reason = ""
-                        # para que le de tiempo a los eventos a quedarse registrados hay que esperar un poquillo, ya
-                        # que se arranca otro thread
-                        # self.get_hyp_info()
-                        return True
-                    else:
+            try:
+                self.uri = hostname_to_uri(
+                    self.hostname, user=self.user, port=self.port
+                )
+                if self.id_hyp_rethink is None:
+                    try:
+                        self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
+                    except Exception as e:
+                        logs.exception_id.debug("0027")
                         log.error(
-                            "libvirt can't connect to hypervisor {}".format(
-                                self.hostname
-                            )
+                            "error when hypervisor have not rethink id. {}".format(e)
                         )
-                        log.info(
-                            """connection to hypervisor fail, try policykit or permissions,
-                              or try in the hypervisor if libvirtd service is started
-                              (in Fedora/Centos: systemctl status libvirtd )
-                              or if the port 22 is open"""
-                        )
-                        self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
-                        self.fail_connected_reason = "Hypervisor policykit or permissions or libvirtd has not started"
+                self.conn = test_hypervisor_conn(self.uri)
 
-                        return False
-
-                # except TimeLimitExpired:
-                #     log.error("""Time Limit Expired connecting to hypervisor""")
-                #     self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT_TIMELIMIT)
-                #     self.fail_connected_reason = 'Time Limit Expired connecting to hypervisor'
-                #     return False
-
-                except Exception as e:
-                    logs.exception_id.debug("0028")
+                if self.conn != False:
+                    self.connected = True
+                    # Enable keepalive: connection closed after interval*(count+1) seconds
+                    # of no response (5*4=20 seconds with these settings)
+                    self.conn.setKeepAlive(5, 3)
+                    log.debug("connected to hypervisor: %s" % self.hostname)
+                    self.set_status(HYP_STATUS_CONNECTED)
+                    self.fail_connected_reason = ""
+                    return True
+                else:
                     log.error(
-                        "connection to hypervisor {} fail with unexpected error: {}".format(
-                            self.hostname, e
-                        )
+                        "libvirt can't connect to hypervisor {}".format(self.hostname)
                     )
-                    log.error("libvirt uri: {}".format(self.uri))
+                    log.info(
+                        """connection to hypervisor fail, try policykit or permissions,
+                          or try in the hypervisor if libvirtd service is started
+                          (in Fedora/Centos: systemctl status libvirtd )
+                          or if the port 22 is open"""
+                    )
                     self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
-                    self.fail_connected_reason = (
-                        "connection to hypervisor {} fail with unexpected error".format(
-                            self.hostname
-                        )
-                    )
+                    self.fail_connected_reason = "Hypervisor policykit or permissions or libvirtd has not started"
+
                     return False
+
+            except Exception as e:
+                logs.exception_id.debug("0028")
+                log.error(
+                    "connection to hypervisor {} fail with unexpected error: {}".format(
+                        self.hostname, e
+                    )
+                )
+                log.error("libvirt uri: {}".format(self.uri))
+                self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
+                self.fail_connected_reason = (
+                    "connection to hypervisor {} fail with unexpected error".format(
+                        self.hostname
+                    )
+                )
+                return False
 
         except socket.error as e:
             log.error(e)
@@ -528,7 +427,34 @@ class hyp(object):
                 f"[{self.id_hyp_rethink}] Scanning hypervisor capabilities..."
             )
             self.info = {}
-            self.get_kvm_mod()
+            # KVM module type is reported by the hypervisor container at
+            # registration (admin_hypervisor_create) — see
+            # docker/hypervisor/src/lib/setup.py:_detect_kvm_module. Hypervisors
+            # registered before this field existed surface as None here, which
+            # fails the kvm_module gate in hyp_worker_thread and forces the
+            # operator to restart the hypervisor container so it re-registers.
+            kvm_module = hyper_record.get("kvm_module") if hyper_record else None
+            if kvm_module is None:
+                log.error(
+                    f"hypervisor {self.id_hyp_rethink} did not self-report "
+                    "kvm_module at registration; restart the hypervisor "
+                    "container so it re-registers with the new field"
+                )
+                self.info["kvm_module"] = False
+            else:
+                self.info["kvm_module"] = kvm_module
+                if kvm_module == "bios_disabled":
+                    log.error(
+                        "Hardware acceleration is supported, but disabled "
+                        "in BIOS settings on hypervisor "
+                        f"{self.id_hyp_rethink}"
+                    )
+                elif kvm_module == "false":
+                    log.error(
+                        "No kvm module loaded on hypervisor "
+                        f"{self.id_hyp_rethink}; check qemu-kvm install "
+                        "and CPU virtualization support"
+                    )
 
             if use_db_gpu_detection:
                 # New path: use hypervisor-discovered GPU data
@@ -1629,103 +1555,6 @@ class hyp(object):
             f"[{self.id_hyp_rethink}] NVIDIA initialization completed in {time.time() - start_time:.2f}s"
         )
 
-    def get_kvm_mod(self):
-        for i in range(MAX_GET_KVM_RETRIES):
-            try:
-                d = exec_remote_cmd(
-                    "lsmod |grep kvm", self.hostname, username=self.user, port=self.port
-                )
-                if len(d["err"]) > 0:
-                    log.error(
-                        "error {} returned from command: lsmod |grep kvm".format(
-                            d["err"].decode("utf-8")
-                        )
-                    )
-                else:
-                    s = d["out"].decode("utf-8")
-                    if s.find("kvm_intel") >= 0:
-                        self.info["kvm_module"] = "intel"
-                    elif s.find("kvm_amd") >= 0:
-                        self.info["kvm_module"] = "amd"
-                    elif s.find("kvm") >= 0:
-                        self.info["kvm_module"] = "bios_disabled"
-                        log.error(
-                            "No kvm module kvm_amd or kvm_intel activated. You must review your BIOS"
-                        )
-                        log.error(
-                            "Hardware acceleration is supported, but disabled in the BIOS settings"
-                        )
-                    else:
-                        self.info["kvm_module"] = False
-                        log.error(
-                            "No kvm module installed. You must review if qemu-kvm is installed and CPU capabilities"
-                        )
-                return True
-
-            except Exception as e:
-                logs.exception_id.debug("0030")
-                log.error(
-                    "Exception while executing remote command in hypervisor to list kvm modules: {}".format(
-                        e
-                    )
-                )
-                log.error(
-                    f"Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second."
-                )
-            time.sleep(1)
-
-        self.info["kvm_module"] = False
-        log.error(
-            f"remote ssh command in hypervisor {self.hostname} fail with {MAX_GET_KVM_RETRIES} retries"
-        )
-        return False
-
-    def get_nested(self):
-        for i in range(MAX_GET_KVM_RETRIES):
-            try:
-                d = exec_remote_cmd(
-                    "cat /sys/module/kvm_intel/parameters/nested",
-                    self.hostname,
-                    username=self.user,
-                    port=self.port,
-                )
-                if len(d["err"]) > 0:
-                    d = exec_remote_cmd(
-                        "cat /sys/module/kvm_amd/parameters/nested",
-                        self.hostname,
-                        username=self.user,
-                        port=self.port,
-                    )
-                    if len(d["err"]) > 0:
-                        log.warning(
-                            f"Nested virtualization NOT enabled for hypervisor {self.hostname}"
-                        )
-                        return False
-                s = d["out"].decode("utf-8")
-                if s.find("1") == 0 or s.find("Y") == 0:
-                    log.info(
-                        f"Nested virtualization enabled for hypervisor {self.hostname}"
-                    )
-                    return True
-                return False
-
-            except Exception as e:
-                logs.exception_id.debug("0036")
-                log.error(
-                    "Exception while executing remote command in hypervisor to check nested virtualization: {}".format(
-                        e
-                    )
-                )
-                log.error(
-                    f"Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second."
-                )
-            time.sleep(1)
-
-        log.error(
-            f"remote ssh command in hypervisor {self.hostname} fail with {MAX_GET_KVM_RETRIES} retries"
-        )
-        return False
-
     def get_storage_used(self):
         for i in range(MAX_GET_KVM_RETRIES):
             try:
@@ -1866,8 +1695,16 @@ class hyp(object):
         if nvidia_enabled:
             self.get_nvidia_capabilities()
 
-        # nested virtualization
-        self.info["nested"] = self.get_nested()
+        # Nested virtualization is reported by the hypervisor container at
+        # registration (admin_hypervisor_create) — see
+        # docker/hypervisor/src/lib/setup.py:_detect_nested_virtualization.
+        # Re-fetch the row here so a hypervisor that toggled the kvm_*.nested
+        # module parameter and re-registered shows up correctly without
+        # restarting the engine worker.
+        hyper_record = get_hypervisor(self.id_hyp_rethink)
+        self.info["nested"] = bool(
+            hyper_record.get("nested") if hyper_record else False
+        )
 
     def get_hyp_video_status(self):
         return get_hypervisor_video_status(

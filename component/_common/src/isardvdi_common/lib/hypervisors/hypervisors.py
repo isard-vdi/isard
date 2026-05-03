@@ -315,6 +315,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
         buffering_hyper=False,
         gpu_only=False,
         hugepages_info=None,
+        kvm_module=None,
+        nested=None,
     ):
         data = {}
 
@@ -350,6 +352,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
+                kvm_module=kvm_module,
+                nested=nested,
             )
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
@@ -388,6 +392,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
+                kvm_module=kvm_module,
+                nested=nested,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
@@ -447,6 +453,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
         enabled_virt_pools=[],
         buffering_hyper=False,
         gpu_only=False,
+        kvm_module=None,
+        nested=None,
     ):
         # If we can't connect why we should add it? Just return False!
         if not cls.update_fingerprint(hostname, port):
@@ -488,6 +496,13 @@ class HypervisorsProcessed(RethinkSharedConnection):
             "buffering_hyper": buffering_hyper,
             "gpu_only": gpu_only,
         }
+        # Hypervisor-self-reported KVM capability. Only persisted when the
+        # hypervisor actually sends a value; engine reads these from the row
+        # instead of SSH-probing /proc/modules and /sys/module/kvm_*.
+        if kvm_module is not None:
+            hypervisor["kvm_module"] = kvm_module
+        if nested is not None:
+            hypervisor["nested"] = nested
 
         # exclude_unset prevents the model's defaults (vpn=None,
         # cap_status={...}, info={}, mountpoints=[], prev_status=[],

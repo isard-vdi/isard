@@ -3,7 +3,6 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-import json
 import shlex
 import string
 from os.path import dirname as extract_dir_path
@@ -16,17 +15,8 @@ from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.services.db import get_hyp_hostname_user_port_from_id
 from engine.services.db.db import get_pool, get_pools_from_hyp
 from engine.services.db.storage_pool import get_category_storage_pool
-from engine.services.lib.functions import (
-    backing_chain_cmd,
-    exec_remote_cmd,
-    execute_commands,
-    size_format,
-)
+from engine.services.lib.functions import execute_commands, size_format
 from engine.services.log import *
-
-VDESKTOP_DISK_OPERATINOS = CONFIG_DICT["REMOTEOPERATIONS"][
-    "host_remote_disk_operatinos"
-]
 
 QCOW2_CLUSTER_SIZE = os.environ.get("QCOW2_CLUSTER_SIZE", "4k")
 QCOW2_EXTENDED_L2 = os.environ.get("QCOW2_EXTENDED_L2", "off")
@@ -65,55 +55,6 @@ def create_cmds_delete_disk(path_disk, mv_to_extension_deleted=False):
     cmds.append(cmd)
 
     return cmds
-
-
-def extract_list_backing_chain(out_cmd_qemu_img, json_format=True):
-    out = out_cmd_qemu_img
-
-    if json_format is True:
-        if type(out) is not str:
-            out = out.decode("utf-8")
-        try:
-            out = json.loads(out)
-        except Exception as e:
-            logs.exception_id.debug("0052")
-            log.info("error reading backing chain, disk is created??")
-            log.info(e)
-            return []
-        return out
-    else:
-        return backing_chain_parse_list(out)
-
-
-def backing_chain_parse_list(out_cmd):
-    l = [t.split("\n")[0] for t in out_cmd.split("image: ")[1:]]
-    return l
-
-
-def backing_chain(path_disk, disk_operations_hostname, json_format=True):
-    """
-    return list of backing chain: list[0] is the most newer,
-    and list[-1] the last qcow in backing chain
-    """
-    path_disk = shlex.quote(path_disk)
-    cmd = backing_chain_cmd(path_disk)
-
-    d = exec_remote_cmd(cmd, disk_operations_hostname)
-    if len(d["err"]) == 0:
-        output = extract_list_backing_chain(d["out"], json_format=json_format)
-        if len(output) == 0:
-            log.info(
-                "backing_chain info for disk {} fail when executing in host {} and command is {}".format(
-                    path_disk, VDESKTOP_DISK_OPERATINOS, cmd
-                )
-            )
-        return output
-    else:
-        log.error(
-            "backing_chain info for disk {} fail when executing in host {} and command is {}".format(
-                path_disk, VDESKTOP_DISK_OPERATINOS, cmd
-            )
-        )
 
 
 def get_path_to_disk(
