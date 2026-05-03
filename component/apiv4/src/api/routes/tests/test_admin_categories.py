@@ -3,6 +3,7 @@
 """Tests for per-category branding, authentication, and login notification endpoints."""
 
 import copy
+from unittest.mock import MagicMock
 
 import pytest
 from api.routes.tests.factories import make_category, make_config
@@ -151,6 +152,98 @@ class TestUpdateCategoryBranding:
             db_tables_data=_db(manager_permissions={"branding": False}),
         )
         assert response.status_code == 403
+
+    def _db_with_branding_on_default(self):
+        """`Category.branding` setter validates domain uniqueness via a
+        rethinkdb lambda that reads ``cat["branding"]["domain"]["name"]`` on
+        every category row. The default ``make_category()`` row lacks a
+        ``branding`` field, which crashes the lambda under rethinkdb_mock
+        when ``enabled=True`` triggers the uniqueness check. Give every
+        category a non-empty branding dict to keep the lambda evaluable.
+        """
+        return {
+            "config": [make_config()],
+            "categories": [
+                make_category(branding=copy.deepcopy(_DEFAULT_BRANDING)),
+                _make_test_category(),
+            ],
+        }
+
+    def test_surfaces_acme_failure_for_updated_domain(self, test_client, monkeypatch):
+        """If haproxy-sync reports an ACME failure on the just-saved domain,
+        the response must be 500 carrying the ACME ``detail`` text — silent
+        success used to hide DNS-01 / TLS-ALPN misconfigurations from the
+        admin (apiv3 commit ``2a2fe04c0``)."""
+        from isardvdi_common.helpers import bastion as bastion_mod
+
+        sync_response = MagicMock(name="DomainSyncResponse")
+        failure = MagicMock(name="DomainSyncError")
+        failure.domain = "custom.example.com"
+        failure.error = (
+            'acme.sh stderr: {"type":"urn:ietf:params:acme:error:dns",'
+            '"detail":"DNS-01 challenge failed for custom.example.com",'
+            '"status":400}'
+        )
+        sync_response.failed_domains = [failure]
+        monkeypatch.setattr(
+            bastion_mod.Bastion,
+            "sync_category_branding_domains",
+            classmethod(lambda cls: sync_response),
+        )
+
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/category/test-cat/branding",
+            method="PUT",
+            jwt=jwt,
+            body={
+                "domain": {
+                    "enabled": True,
+                    "name": "custom.example.com",
+                    "certificate_source": "acme",
+                }
+            },
+            db_tables_data=self._db_with_branding_on_default(),
+        )
+        assert response.status_code == 500
+        body = response.json()
+        # ErrorResponse.description carries the human-readable detail.
+        # The route's ``Failed to update category branding`` umbrella message
+        # may wrap the inner Error; assert on the substring either way.
+        haystack = " ".join(str(v) for v in body.values() if isinstance(v, str))
+        assert "DNS-01 challenge failed for custom.example.com" in haystack, body
+
+    def test_ignores_acme_failures_on_other_categories(self, test_client, monkeypatch):
+        """Failures on a *different* category's domain are not this caller's
+        responsibility — the PUT for ``test-cat`` must still succeed."""
+        from isardvdi_common.helpers import bastion as bastion_mod
+
+        sync_response = MagicMock(name="DomainSyncResponse")
+        unrelated = MagicMock(name="DomainSyncError")
+        unrelated.domain = "other.example.com"
+        unrelated.error = '{"detail":"unrelated failure"}'
+        sync_response.failed_domains = [unrelated]
+        monkeypatch.setattr(
+            bastion_mod.Bastion,
+            "sync_category_branding_domains",
+            classmethod(lambda cls: sync_response),
+        )
+
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/category/test-cat/branding",
+            method="PUT",
+            jwt=jwt,
+            body={
+                "domain": {
+                    "enabled": True,
+                    "name": "test.example.com",
+                    "certificate_source": "acme",
+                }
+            },
+            db_tables_data=self._db_with_branding_on_default(),
+        )
+        assert response.status_code == 200, response.text
 
 
 # ══════════════════════════════════════════════════════════════════════════

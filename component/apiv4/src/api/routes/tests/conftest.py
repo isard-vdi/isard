@@ -46,13 +46,18 @@ def _mock_bastion_grpc(monkeypatch):
 
     `Bastion._call_grpc_with_infinite_retry` waits up to 30s on
     `wait_for_ready=True` when the service is unreachable (no container in
-    the test env). Callers (sync_category_branding_domains, update map path)
-    ignore the return value, so a no-op MagicMock is sufficient.
+    the test env). Returns a MagicMock that mimics a successful
+    DomainSyncResponse (``failed_domains=[]``); the branding update path
+    inspects this attribute, so a plain ``None`` would AttributeError.
+    Tests that need to simulate sync failures override this fixture or
+    patch ``Bastion.sync_category_branding_domains`` directly.
     """
+    success_response = MagicMock(name="DomainSyncResponse")
+    success_response.failed_domains = []
     monkeypatch.setattr(
         Bastion,
         "_call_grpc_with_infinite_retry",
-        staticmethod(MagicMock(return_value=None)),
+        staticmethod(MagicMock(return_value=success_response)),
     )
 
 

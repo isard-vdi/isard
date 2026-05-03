@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import html
+import traceback
 
 from api.services.error import Error
 from api.services.login_config_cache import clear_login_config_cache, clear_logo_cache
@@ -64,7 +65,18 @@ class AdminCategoryService:
 
     @staticmethod
     def update_branding(payload: dict, category_id: str, data: dict) -> None:
-        """Update category branding. Category class handles logo save and domain validation."""
+        """Update category branding and surface relevant HAProxy sync failures.
+
+        Persists the new branding via :class:`Category` (handles logo save +
+        domain uniqueness validation), then triggers
+        :meth:`Bastion.sync_category_branding_domains` and inspects the gRPC
+        response. ACME failures matching the just-updated domain are raised
+        as ``internal_server`` so the caller learns why their custom domain
+        is not serving (silent swallow used to hide DNS-01 / TLS-ALPN
+        misconfigurations behind a 200 OK). Failures on *other* categories'
+        domains are logged but not surfaced — they're not this caller's
+        responsibility.
+        """
         AdminCategoryService._check_owns_and_permission(
             payload, category_id, "branding"
         )
@@ -72,14 +84,35 @@ class AdminCategoryService:
             Category(category_id).branding = data
         except ValueError as e:
             raise Error("bad_request", str(e), description_code="branding_invalid")
-        try:
-            Bastion.sync_category_branding_domains()
-        except Exception:
-            import logging
 
-            logging.getLogger(__name__).warning(
-                "Failed to sync branding domains to HAProxy after update"
+        try:
+            sync_result = Bastion.sync_category_branding_domains()
+        except Error:
+            raise
+        except Exception as exc:
+            raise Error(
+                "internal_server",
+                f"HAProxy domain sync failed: {exc}",
+                traceback.format_exc(),
+                description_code="branding_sync_failed",
             )
+
+        updated_domain = (Category(category_id).branding or {}).get("domain") or {}
+        if updated_domain.get("enabled") and updated_domain.get("name"):
+            target = updated_domain["name"]
+            relevant = [
+                f for f in (sync_result.failed_domains or []) if f.domain == target
+            ]
+            if relevant:
+                details = ", ".join(
+                    f"{f.domain}: {Bastion.readable_sync_error(f.error)}"
+                    for f in relevant
+                )
+                raise Error(
+                    "internal_server",
+                    f"HAProxy domain sync reported failures: {details}",
+                    description_code="branding_sync_failed",
+                )
 
         clear_logo_cache()
 

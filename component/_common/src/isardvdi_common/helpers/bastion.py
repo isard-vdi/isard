@@ -21,6 +21,7 @@
 
 import logging as log
 import os
+import re
 import threading
 import time
 import traceback
@@ -47,6 +48,12 @@ except Exception:
     # The haproxy-sync sidecar in the isard-portal container listens there.
     # Port 1313 is HTTP for authentication / vpn / bastion-ssh — wrong target.
     haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1312)
+
+
+# haproxy-sync wraps the raw acme.sh stdout/stderr in DomainSyncError.error.
+# When ACME rejects a certificate the payload embeds a JSON object with a
+# human-friendly "detail" field — see Bastion.readable_sync_error.
+_ACME_DETAIL_RE = re.compile(r'"detail"\s*:\s*"((?:[^"\\]|\\.)*)"', re.DOTALL)
 
 
 class Bastion(RethinkSharedConnection):
@@ -226,6 +233,11 @@ class Bastion(RethinkSharedConnection):
         Collects all categories with branding.domain.enabled == True and pushes
         them to the haproxy-sync service. Custom certificates are forwarded when
         certificate_source is "custom".
+
+        Returns the gRPC ``DomainSyncResponse`` so callers can inspect
+        ``failed_domains`` (each entry has ``domain`` + raw ``error`` strings).
+        Use :meth:`readable_sync_error` to extract ACME's human-readable
+        ``"detail"`` field from the wrapped error string.
         """
         with cls._rdb_context():
             categories = list(
@@ -270,10 +282,28 @@ class Bastion(RethinkSharedConnection):
                 haproxy_sync_pb2.DomainSyncDomain(name=name, certificate=certificate)
             )
 
-        cls._call_grpc_with_infinite_retry(
+        return cls._call_grpc_with_infinite_retry(
             haproxy_bastion_client.DomainSync,
             haproxy_sync_pb2.DomainSyncRequest(domains=domains),
         )
+
+    @staticmethod
+    def readable_sync_error(raw: str) -> str:
+        """Extract ACME's human-readable ``detail`` from a wrapped sync error.
+
+        haproxy-sync returns the raw acme.sh stdout/stderr in
+        ``DomainSyncError.error``. When ACME rejects a certificate the
+        payload embeds a JSON object with a ``"detail"`` field (e.g.
+        ``"DNS-01 challenge failed for example.com"``) — surface that
+        instead of the full shell log dump. Falls back to the raw string
+        when the regex doesn't match.
+        """
+        if not raw:
+            return ""
+        match = _ACME_DETAIL_RE.search(raw)
+        if match:
+            return match.group(1).encode("utf-8").decode("unicode_escape")
+        return raw
 
     @classmethod
     def bastion_domain_verification_required(cls) -> bool:
