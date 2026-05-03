@@ -110,6 +110,14 @@ class UsersProcessed(RethinkSharedConnection):
 
     @classmethod
     def get_user_role_group_and_category_name(cls, user_id):
+        # Defensive ``.default(...)`` on each bracket access so a user
+        # row that references a category / group / role that has already
+        # been deleted (race between user-create and category-delete in
+        # bulk flows like k6 load tests) does not crash the whole change-
+        # handler with ``ReqlNonExistenceError: Cannot perform bracket
+        # on a non-object non-sequence ``null```.  Missing referenced
+        # rows surface as ``None`` in the returned dict; consumers
+        # already tolerate that shape.
         with cls._rdb_context():
             group_and_category_names = (
                 r.table(cls._rdb_table)
@@ -117,11 +125,15 @@ class UsersProcessed(RethinkSharedConnection):
                 .pluck("role", "group", "category", "secondary_groups")
                 .merge(
                     lambda user: {
-                        "role_name": r.table("roles").get(user["role"])["name"],
-                        "group_name": r.table("groups").get(user["group"])["name"],
-                        "category_name": r.table("categories").get(user["category"])[
-                            "name"
-                        ],
+                        "role_name": r.table("roles")
+                        .get(user["role"])
+                        .default({"name": None})["name"],
+                        "group_name": r.table("groups")
+                        .get(user["group"])
+                        .default({"name": None})["name"],
+                        "category_name": r.table("categories")
+                        .get(user["category"])
+                        .default({"name": None})["name"],
                         "secondary_groups_data": r.table("groups")
                         .get_all(r.args(user["secondary_groups"]))
                         .pluck("id", "name")
