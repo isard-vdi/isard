@@ -33,7 +33,7 @@ RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     conntrack-tools dnsmasq guacamole-server guacamole-server-dev \
     guacamole-server-rdp iptables iptables-legacy libffi openssh openssl \
-    openvswitch wireguard-tools
+    openvswitch@community wireguard-tools
 
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
