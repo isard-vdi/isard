@@ -18,6 +18,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
+import os
 from datetime import datetime, timedelta
 
 import pytz
@@ -32,6 +34,13 @@ from isardvdi_common.lib.usage.groupings import GroupingsUsageProcessed
 from isardvdi_common.lib.usage.limits import LimitsUsageProcessed, validate_usage_limits
 from isardvdi_common.lib.usage.parameters import ParametersUsageProcessed
 from isardvdi_common.lib.usage.reset_dates import ResetDatesUsageProcessed
+from isardvdi_common.lib.usage.retention import Tier, bucket_for, classify_tier
+from isardvdi_common.lib.usage.retention import load_config as load_retention_config
+from isardvdi_common.lib.usage.retention import save_config as save_retention_config
+from isardvdi_common.lib.usage.rollup import BackupWriter, empty_stats, run_incremental
+from isardvdi_common.schemas.usage import UsageRetentionConfig
+
+log = logging.getLogger(__name__)
 
 
 def _parse_iso_date(value, field_name="date"):
@@ -75,11 +84,33 @@ class AdminUsageService:
 
         data = []
         reset_dates = AdminUsageService.get_reset_dates(start_date, end_date)
-        for day_offset in range(0, (end_date - start_date).days + 1):
+        # When old daily rows have been rolled up into weekly /
+        # monthly buckets, ``get_item_date_consumption`` returns the
+        # bucket's aggregated value for any day that falls inside the
+        # bucket. Iterating per-day would emit 7 identical rows for a
+        # weekly bucket and inflate totals 7x; the chart would also
+        # render 7 duplicate points. Walk the date range bucket-by-
+        # bucket instead, emitting one row per (item, bucket_date).
+        with UsageProcessed._rdb_context():
+            retention = load_retention_config(UsageProcessed._rdb_connection)
+        seen_buckets: set = set()
+        day_offset = 0
+        while True:
             current_day = start_date + timedelta(days=day_offset)
+            if current_day > end_date:
+                break
+            tier = classify_tier(current_day, retention)
+            if tier in (Tier.WEEKLY, Tier.MONTHLY):
+                emit_date = bucket_for(current_day, tier)
+            else:
+                emit_date = current_day
+            day_offset += 1
+            if (None, emit_date) in seen_buckets:
+                continue
+            seen_buckets.add((None, emit_date))
             for item in items:
                 item_data = ConsumptionUsageProcessed.get_item_date_consumption(
-                    current_day,
+                    emit_date,
                     item["item_id"],
                     item_type,
                     item["item_name"],
@@ -88,7 +119,7 @@ class AdminUsageService:
                 abs_val = item_data["abs"]
                 if item_type in ["desktop", "user"] and len(reset_dates):
                     for date in reset_dates:
-                        if current_day >= date:
+                        if emit_date >= date:
                             abs_reset_data = (
                                 ConsumptionUsageProcessed.get_item_date_consumption(
                                     date,
@@ -103,10 +134,11 @@ class AdminUsageService:
                 data.append(
                     {
                         "name": item["item_name"],
-                        "date": current_day,
+                        "date": emit_date,
                         "inc": item_data["inc"],
                         "abs": abs_val,
                         "item_id": item["item_id"],
+                        "granularity": item_data.get("granularity"),
                     }
                 )
         return data
@@ -283,6 +315,41 @@ class AdminUsageService:
                 + " not valid for consumption calculation",
             )
 
+        # Tier the day's freshly-landed rows into weekly / monthly
+        # buckets so the table doesn't grow unbounded. The 7-day
+        # safety margin inside ``run_incremental`` keeps it clear of
+        # the rows the consolidator just wrote, so a partial / re-run
+        # consolidation never collides with the rollup's
+        # delete-then-insert. Failure is logged but does not unwind
+        # the consolidation — daily rows remain available, just
+        # un-bucketed until the next run picks them up.
+        #
+        # Source rows are streamed to a gzipped JSONL backup before
+        # deletion when ``USAGE_ROLLUP_BACKUP_DIR`` env var is set.
+        # Recommended in production; the daily incremental backup is
+        # tiny (only the rows crossing tier boundaries on that day).
+        try:
+            backup_dir = os.environ.get("USAGE_ROLLUP_BACKUP_DIR")
+            with UsageProcessed._rdb_context():
+                conn = UsageProcessed._rdb_connection
+                retention = load_retention_config(conn)
+                stats = empty_stats()
+                if backup_dir:
+                    with BackupWriter(backup_dir, "incremental") as backup:
+                        run_incremental(conn, retention, stats=stats, backup=backup)
+                else:
+                    run_incremental(conn, retention, stats=stats)
+            log.info(
+                "usage rollup chain done aggregated=%d replaced=%d "
+                "backed_up=%d errors=%d",
+                stats["aggregated"],
+                stats["replaced_sources"],
+                stats["backed_up"],
+                stats["errors"],
+            )
+        except Exception:
+            log.exception("usage rollup chain failed; continuing")
+
     # =========================================================================
     # PARAMETERS
     # =========================================================================
@@ -429,3 +496,33 @@ class AdminUsageService:
     @staticmethod
     def check_item_ownership(payload, filters):
         UsageProcessed.check_item_ownership(payload, filters)
+
+    # =========================================================================
+    # RETENTION
+    # =========================================================================
+
+    @staticmethod
+    def get_retention_config() -> UsageRetentionConfig:
+        """Read the live ``usage_retention`` policy from ``config.id=1``."""
+        with UsageProcessed._rdb_context():
+            return load_retention_config(UsageProcessed._rdb_connection)
+
+    @staticmethod
+    def update_retention_config(data: UsageRetentionConfig) -> UsageRetentionConfig:
+        """Persist the validated ``data`` to ``config.id=1.usage_retention``.
+
+        Pydantic has already enforced per-field bounds at the route
+        boundary; the cross-field tier-ordering invariant is enforced
+        here so a ``ValueError`` becomes a typed 400.
+        """
+        try:
+            data.assert_tier_ordering()
+        except ValueError as exc:
+            raise Error(
+                "bad_request",
+                str(exc),
+                description_code="invalid_retention_policy",
+            )
+        with UsageProcessed._rdb_context():
+            save_retention_config(UsageProcessed._rdb_connection, data)
+            return load_retention_config(UsageProcessed._rdb_connection)

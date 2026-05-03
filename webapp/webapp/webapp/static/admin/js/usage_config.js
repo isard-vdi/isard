@@ -28,6 +28,8 @@ $(document).ready(function () {
   render_table_limits();
   render_table_parameters();
   render_table_groupings();
+  load_retention_policy();
+  bind_retention_form();
 
   // CREDIT
   creditFilters = [
@@ -1148,6 +1150,80 @@ function deleteAllUsageConsumption() {
       icon: 'fa fa-error',
       opacity: 1,
       type: 'error'
+    });
+  });
+}
+
+// RETENTION
+
+function load_retention_policy() {
+  $.ajax({
+    type: 'GET',
+    url: '/api/v4/admin/usage/retention',
+    contentType: 'application/json',
+    success: function (cfg) {
+      $('#retention_daily_months').val(cfg.daily_months);
+      $('#retention_weekly_months').val(cfg.weekly_months);
+      $('#retention_total_months').val(cfg.total_months || '');
+    },
+    error: function (xhr) {
+      $('#retention-save-msg').text(
+        (xhr.responseJSON && xhr.responseJSON.description) ||
+        'Failed to load retention policy'
+      ).css('color', '#a94442');
+    },
+  });
+}
+
+function bind_retention_form() {
+  $('#form-retention').off('submit').on('submit', function (ev) {
+    ev.preventDefault();
+    var daily = parseInt($('#retention_daily_months').val(), 10);
+    var weekly = parseInt($('#retention_weekly_months').val(), 10);
+    var totalRaw = $('#retention_total_months').val();
+    var payload = {
+      daily_months: daily,
+      weekly_months: weekly,
+    };
+    if (totalRaw !== '' && !isNaN(parseInt(totalRaw, 10))) {
+      payload.total_months = parseInt(totalRaw, 10);
+    }
+    $('#retention-save-msg').text('Saving...').css('color', '#888');
+    $.ajax({
+      type: 'PUT',
+      url: '/api/v4/admin/usage/retention',
+      contentType: 'application/json',
+      data: JSON.stringify(payload),
+      success: function (cfg) {
+        $('#retention_daily_months').val(cfg.daily_months);
+        $('#retention_weekly_months').val(cfg.weekly_months);
+        $('#retention_total_months').val(cfg.total_months || '');
+        $('#retention-save-msg').text('Saved').css('color', '#3c763d');
+        new PNotify({
+          title: 'Retention policy updated',
+          text: 'Next incremental rollup will use the new thresholds.',
+          hide: true,
+          delay: 2000,
+          icon: 'fa fa-success',
+          opacity: 1,
+          type: 'success',
+        });
+      },
+      error: function (xhr) {
+        var msg =
+          (xhr.responseJSON && xhr.responseJSON.description) ||
+          'Failed to save retention policy';
+        $('#retention-save-msg').text(msg).css('color', '#a94442');
+        new PNotify({
+          title: 'ERROR saving retention',
+          text: msg,
+          hide: true,
+          delay: 2000,
+          icon: 'fa fa-error',
+          opacity: 1,
+          type: 'error',
+        });
+      },
     });
   });
 }

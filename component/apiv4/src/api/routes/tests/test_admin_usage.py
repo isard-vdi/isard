@@ -737,3 +737,99 @@ class TestMisc:
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 400
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  GET / PUT /admin/usage/retention — UsageRetentionConfig
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestUsageRetention:
+    URL = "/admin/usage/retention"
+
+    def test_get_returns_current_policy(self, monkeypatch, test_client):
+        from isardvdi_common.schemas.usage import UsageRetentionConfig
+
+        monkeypatch.setattr(
+            "api.routes.admin.usage.AdminUsageService.get_retention_config",
+            staticmethod(
+                lambda: UsageRetentionConfig(
+                    daily_months=2, weekly_months=8, total_months=24
+                )
+            ),
+        )
+        response = test_client(url=self.URL, method="GET", jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        body = response.json()
+        assert body["daily_months"] == 2
+        assert body["weekly_months"] == 8
+        assert body["total_months"] == 24
+
+    def test_get_admin_only(self, monkeypatch, test_client):
+        from isardvdi_common.schemas.usage import UsageRetentionConfig
+
+        monkeypatch.setattr(
+            "api.routes.admin.usage.AdminUsageService.get_retention_config",
+            staticmethod(lambda: UsageRetentionConfig()),
+        )
+        response = test_client(
+            url=self.URL, method="GET", jwt=MockJWT(role_id="manager")
+        )
+        assert response.status_code == 403
+
+    def test_put_persists_validated_payload(self, monkeypatch, test_client):
+        from isardvdi_common.schemas.usage import UsageRetentionConfig
+
+        captured = {}
+
+        def fake_update(data: UsageRetentionConfig) -> UsageRetentionConfig:
+            captured["data"] = data.model_dump()
+            return data
+
+        monkeypatch.setattr(
+            "api.routes.admin.usage.AdminUsageService.update_retention_config",
+            staticmethod(fake_update),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={"daily_months": 1, "weekly_months": 4, "total_months": 18},
+        )
+        assert response.status_code == 200
+        assert captured["data"] == {
+            "daily_months": 1,
+            "weekly_months": 4,
+            "total_months": 18,
+        }
+
+    def test_put_rejects_inverted_tier_ordering(self, monkeypatch, test_client):
+        # Cross-field validation (weekly_months > daily_months) is
+        # enforced at the service via ``assert_tier_ordering`` so the
+        # response_model validator's body parse stays inside Pydantic's
+        # JSON-serialisable error universe. The service raises
+        # ``Error("bad_request")`` which the route re-raises and the
+        # global handler renders as 400.
+        from isardvdi_common.schemas.usage import UsageRetentionConfig
+
+        # Use the real service so its Error-raising path is exercised;
+        # only stub away the rdb-write helper so the test stays unit-
+        # level. ``save_retention_config`` is the chokepoint for the
+        # rdb update — if validation succeeded incorrectly, this stub
+        # would be reached.
+        monkeypatch.setattr(
+            "api.services.admin.usage.save_retention_config",
+            lambda conn, cfg: pytest_fail("db write attempted on invalid policy"),
+        )
+        response = test_client(
+            url=self.URL,
+            method="PUT",
+            jwt=MockJWT(role_id="admin"),
+            body={"daily_months": 6, "weekly_months": 3},
+        )
+        assert response.status_code == 400
+        body = response.json()
+        # Project's typed-error handler emits a JSON object describing
+        # the failure. Pin the typed error name so future renames break
+        # this test instead of silently shipping the wrong status code.
+        assert "weekly_months" in (body.get("description") or body.get("error", ""))

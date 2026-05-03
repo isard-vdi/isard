@@ -54,6 +54,14 @@ def stub_rdb(monkeypatch):
 
     monkeypatch.setattr(mod.r, "row", _RowExpr())
     monkeypatch.setattr(mod.r, "branch", lambda *a: None)
+
+    # ``get_item_date_consumption`` calls ``retention.load_config`` to
+    # bucket old dates; default the stub to "no rollup yet" so the
+    # legacy DAILY-only assertions in this file still hold. Tests that
+    # need a custom retention can override this monkeypatch.
+    from isardvdi_common.schemas.usage import UsageRetentionConfig
+
+    monkeypatch.setattr(mod, "load_config", lambda conn: UsageRetentionConfig())
     yield {
         "mock_table": mock_table,
         "Processed": mod.ConsumptionUsageProcessed,
@@ -148,6 +156,78 @@ class TestGetItemDateConsumption:
             datetime(2026, 1, 1, tzinfo=timezone.utc), "i1", "desktop", "n1"
         )
         assert result["item_id"] == "i1"
+
+    def test_recent_date_keeps_daily_granularity(self, monkeypatch, stub_rdb):
+        from isardvdi_common.lib.usage import consumption as mod
+
+        captured: dict = {}
+
+        def _capture_filter(expr):
+            captured["filter"] = True
+            chain.get_all.return_value.pluck.return_value.filter.return_value = (
+                chain.get_all.return_value.pluck.return_value.filter.return_value
+            )
+            return chain.get_all.return_value.pluck.return_value.filter.return_value
+
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.run.return_value = [{"id": "p1"}]
+        chain.get_all.return_value.pluck.return_value.filter.return_value.order_by.return_value.nth.return_value.default.return_value.run.return_value = {
+            "name": "n",
+            "date": datetime(2026, 5, 1, tzinfo=timezone.utc),
+            "abs": {"p1": 0},
+            "inc": {"p1": 0},
+            "item_id": "i1",
+            "item_type": "desktop",
+        }
+        chain.get_all.return_value.pluck.return_value.filter.return_value.nth.return_value.default.return_value.__getitem__.return_value.run.return_value = {
+            "p1": 7
+        }
+
+        # Today as the request date — DAILY tier under default retention.
+        from datetime import datetime as _dt
+
+        monkeypatch.setattr(mod, "datetime", _dt)  # not strictly needed but explicit
+        result = stub_rdb["Processed"].get_item_date_consumption(
+            datetime.now(timezone.utc), "i1", "desktop", "n"
+        )
+        assert result["granularity"] == "daily"
+
+    def test_old_date_resolves_to_monthly_bucket(self, monkeypatch, stub_rdb):
+        from isardvdi_common.lib.usage import consumption as mod
+        from isardvdi_common.schemas.usage import UsageRetentionConfig
+
+        # Force the request date into the MONTHLY tier by passing a
+        # short retention; the function should look for the row whose
+        # date == first-of-month, not the exact day.
+        monkeypatch.setattr(
+            mod,
+            "load_config",
+            lambda conn: UsageRetentionConfig(
+                daily_months=1, weekly_months=2, total_months=None
+            ),
+        )
+
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.run.return_value = [{"id": "p1"}]
+        chain.get_all.return_value.pluck.return_value.filter.return_value.order_by.return_value.nth.return_value.default.return_value.run.return_value = {
+            "name": "n",
+            "date": datetime(2025, 9, 1, tzinfo=timezone.utc),
+            "abs": {"p1": 100},
+            "inc": {"p1": 0},
+            "item_id": "i1",
+            "item_type": "desktop",
+        }
+        chain.get_all.return_value.pluck.return_value.filter.return_value.nth.return_value.default.return_value.__getitem__.return_value.run.return_value = {
+            "p1": 42
+        }
+        result = stub_rdb["Processed"].get_item_date_consumption(
+            datetime(2025, 9, 17, 14, 30, tzinfo=timezone.utc),
+            "i1",
+            "desktop",
+            "n",
+        )
+        assert result["granularity"] == "monthly"
+        assert result["inc"] == {"p1": 42}
 
 
 class TestGetCategoryDescription:

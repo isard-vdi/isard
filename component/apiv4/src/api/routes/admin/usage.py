@@ -36,6 +36,7 @@ from api.schemas.admin.usage import (
     UsageParameterIdsRequest,
     UsageParameterUpdateRequest,
     UsageResetDatesRequest,
+    UsageRetentionConfig,
     UsageStartEndRequest,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
@@ -312,6 +313,69 @@ async def admin_usage_consolidate_item(
             request,
             "internal_server",
             f"Failed to consolidate consumption: {type(e).__name__}: {e}",
+            traceback.format_exc(),
+        )
+
+
+# =============================================================================
+# RETENTION
+# =============================================================================
+
+
+@admin_router.get(
+    "/admin/usage/retention",
+    tags=[tag],
+    response_model=UsageRetentionConfig,
+    summary="Get usage retention policy",
+    description=(
+        "Returns the tiered rollup policy applied to ``usage_consumption``: "
+        "how many months of recent daily granularity to keep, when rows "
+        "collapse to weekly buckets, and the optional hard delete cap."
+    ),
+    responses={500: {"model": ErrorResponse}},
+)
+async def admin_usage_retention_get(request: Request) -> UsageRetentionConfig:
+    try:
+        return await asyncio.to_thread(AdminUsageService.get_retention_config)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to read usage retention policy",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/admin/usage/retention",
+    tags=[tag],
+    response_model=UsageRetentionConfig,
+    summary="Update usage retention policy",
+    description=(
+        "Persists the tiered rollup policy. The next incremental rollup "
+        "(chained after the daily consolidator) will honour the new "
+        "thresholds; running ``rollup_usage_consumption.py --mode=backfill`` "
+        "applies them to the historical tail."
+    ),
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def admin_usage_retention_update(
+    request: Request, data: UsageRetentionConfig
+) -> UsageRetentionConfig:
+    try:
+        return await asyncio.to_thread(AdminUsageService.update_retention_config, data)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to update usage retention policy",
             traceback.format_exc(),
         )
 

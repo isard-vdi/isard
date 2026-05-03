@@ -35,7 +35,8 @@ from .log import *
 """
 Update to new database release version when new code version release
 """
-release_version = 191
+release_version = 192
+# release 192: Add config.usage_retention defaults (daily_months=3, weekly_months=6, total_months=None)
 # release 191: Add domains.kind_user_accessed compound index for apiv4 pagination
 # release 190: Add allow_insecure_tls field to LDAP and SAML provider configs
 # release 189: Move hypervisor thread_status from DB to engine RAM; drop the field
@@ -1151,6 +1152,22 @@ password:s:%s"""
                     "auth": {
                         "ldap": {"ldap_config": {"allow_insecure_tls": False}},
                         "saml": {"saml_config": {"allow_insecure_tls": False}},
+                    }
+                }
+            ).run(self.conn)
+
+        if version == 192:
+            # Tiered retention for usage_consumption rows. Older daily
+            # rows are aggregated into weekly / monthly buckets so the
+            # table doesn't grow unbounded (it was already 3.8 GB / 63%
+            # of the database with 8 months of daily granularity on a
+            # ~5k-item install).
+            r.table(table).update(
+                {
+                    "usage_retention": {
+                        "daily_months": 3,
+                        "weekly_months": 6,
+                        "total_months": None,
                     }
                 }
             ).run(self.conn)
@@ -3551,8 +3568,9 @@ password:s:%s"""
                 print(e)
 
         if version == 184:
+            # Build tag → tag_desktop_id mapping in Python from the
+            # (small) deployments table.
             try:
-                # Set tag_desktop_id on domains with a tag by looking up their deployment
                 deployments = list(
                     r.table("deployments").pluck("id", "create_dict").run(self.conn)
                 )
@@ -3566,41 +3584,44 @@ password:s:%s"""
                             "create_dict"
                         ][0].get("tag_desktop_id", False)
 
-                # Update domains with a tag
-                tagged_domains = list(
-                    r.table(table)
-                    .filter(lambda d: d["tag"] != False)
-                    .pluck("id", "tag")
-                    .run(self.conn)
-                )
-                for domain in tagged_domains:
-                    tag_desktop_id = deployment_tag_desktop_ids.get(
-                        domain["tag"], False
-                    )
-                    r.table(table).get(domain["id"]).update(
-                        {"tag_desktop_id": tag_desktop_id}
-                    ).run(self.conn)
-
-                # Set tag_desktop_id = False on domains without a tag
-                r.table(table).filter(
-                    lambda d: d.has_fields("tag_desktop_id").not_()
-                ).update({"tag_desktop_id": False}).run(self.conn)
-
+                # One server-side update over the whole domains table:
+                # for each row, look up tag_desktop_id from the
+                # deployment mapping if the row has a tag, else False.
+                # Replaces a Python loop that issued one round-trip per
+                # tagged row + a separate full-table fallback update —
+                # ~14 minutes on a 77k-row prod-shape dataset.
+                deployment_map = r.expr(deployment_tag_desktop_ids)
+                r.table(table).update(
+                    lambda d: {
+                        "tag_desktop_id": r.branch(
+                            d["tag"].default(False).ne(False),
+                            deployment_map[d["tag"]].default(False),
+                            False,
+                        )
+                    }
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 
+            # Build both indexes concurrently. RethinkDB builds indexes
+            # in the background; sequencing two ``index_wait`` calls
+            # serialises the wallclock. A single combined ``index_wait``
+            # blocks until both are ready.
             try:
                 r.table(table).index_create("tag_desktop_id").run(self.conn)
-                r.table(table).index_wait("tag_desktop_id").run(self.conn)
             except Exception as e:
                 print(e)
-
             try:
                 r.table(table).index_create(
                     "tag_tag_desktop_id",
                     [r.row["tag"], r.row["tag_desktop_id"]],
                 ).run(self.conn)
-                r.table(table).index_wait("tag_tag_desktop_id").run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_wait("tag_desktop_id", "tag_tag_desktop_id").run(
+                    self.conn
+                )
             except Exception as e:
                 print(e)
 

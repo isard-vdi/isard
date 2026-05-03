@@ -22,6 +22,12 @@ from datetime import datetime
 from isardvdi_common.connections.rethink_shared_connection import (
     RethinkSharedConnection,
 )
+from isardvdi_common.lib.usage.retention import (
+    Tier,
+    bucket_for,
+    classify_tier,
+    load_config,
+)
 from rethinkdb import r
 
 
@@ -178,16 +184,34 @@ class ConsumptionUsageProcessed(RethinkSharedConnection):
                 )
                 .run(cls._rdb_connection)
             )
+        # When old daily rows have been rolled up into weekly /
+        # monthly buckets, the requested ``date`` no longer matches a
+        # row's stored date. Resolve the date to its bucket boundary
+        # for the same age before the equality check, so the lookup
+        # finds the aggregate row instead of falling through to the
+        # zero default.
+        with cls._rdb_context():
+            retention = load_config(cls._rdb_connection)
+        tier = classify_tier(date, retention)
+        bucketed_date = (
+            bucket_for(date, tier) if tier in (Tier.WEEKLY, Tier.MONTHLY) else date
+        )
         with cls._rdb_context():
             data["inc"] = (
                 r.table("usage_consumption")
                 .get_all(item_id, index="item_id")
                 .pluck(pluck)
-                .filter((r.row["date"] == date) & (r.row["item_type"] == item_type))
+                .filter(
+                    (r.row["date"] == bucketed_date) & (r.row["item_type"] == item_type)
+                )
                 .nth(0)
                 .default({"inc": default_consumption})["inc"]
                 .run(cls._rdb_connection)
             )
+        # Surface the granularity so the UI can label aggregated
+        # points (e.g. "September 2025: monthly aggregate"). Daily
+        # rows behave identically to the pre-rollup contract.
+        data["granularity"] = tier.value
         return data
 
     @classmethod

@@ -20,6 +20,7 @@
 
 from typing import Any, Dict, List, Optional
 
+from isardvdi_common.schemas.usage import UsageRetentionConfig  # noqa: F401
 from pydantic import BaseModel, Field
 
 # =============================================================================
@@ -205,3 +206,10 @@ class UsageResetDatesRequest(BaseModel):
     """Request body for adding reset dates."""
 
     date_list: List[str] = Field(description="List of dates in MM/DD/YYYY format")
+
+
+# =============================================================================
+# RETENTION — schema lives in _common.schemas.usage so the offline
+# rollup script (engine/scripts/rollup_usage_consumption.py) can
+# validate the same contract without depending on apiv4.
+# =============================================================================
