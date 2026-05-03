@@ -9,7 +9,13 @@ services:
         max-file: "5"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     volumes:
-      - /opt/isard/backups:/src/backups:rw
+      # /src/backups was the legacy apiv3 ApiBackups dump path; no
+      # code under component/_common, scheduler, apiv4 or the engine
+      # references it anymore (verified via rg). Removed so the
+      # orphan host dir doesn't grow new state. New destructive
+      # cleanups (logs_desktops/users retention) write to
+      # /opt/isard-local/backup via apiv4 instead — see apiv4.yml's
+      # LOGS_DELETE_BACKUP_DIR mount.
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - ${BUILD_ROOT_PATH}/old-frontend/src/locales:/src/scheduler/locales:ro

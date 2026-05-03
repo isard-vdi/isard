@@ -20,6 +20,7 @@
 
 import json
 import logging as log
+import os
 import traceback
 from typing import Any, Optional
 
@@ -29,6 +30,7 @@ from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from fastapi import BackgroundTasks
 from isardvdi_common.helpers.api_notify import notify_admin, notify_admins
+from isardvdi_common.helpers.backup_writer import BackupWriter
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.helpers import Helpers
@@ -395,19 +397,33 @@ class AdminDomainsService:
         background_tasks: BackgroundTasks,
         max_time_arg: Optional[int] = None,
     ) -> int:
-        """Delete old logs asynchronously (shared logic)."""
+        """Delete old logs asynchronously (shared logic).
+
+        When ``LOGS_DELETE_BACKUP_DIR`` env var is set, every row that
+        is about to be deleted is first streamed to a gzipped JSONL
+        file at ``<dir>/<table>_delete_<UTC-ts>.jsonl.gz``. Restoring
+        the dump into the same table is a one-line ``rethinkdb-cli``
+        ``insert`` so the destructive cron is recoverable.
+        """
         args = [table]
         if max_time_arg is not None:
             args.append(max_time_arg)
         old_logs = ApiAdmin.get_older_than_old_entry_max_time(*args)
+        backup_dir = os.environ.get("LOGS_DELETE_BACKUP_DIR")
 
         def delete_old_logs_process() -> None:
             try:
-                LogsProcessed.delete_batch(table, old_logs)
-                notify_admins(
-                    event_name,
-                    {"action": "delete_all", "status": "completed"},
-                )
+                backup_path: Optional[str] = None
+                if backup_dir and old_logs:
+                    with BackupWriter(backup_dir, f"{table}_delete") as backup:
+                        LogsProcessed.delete_batch(table, old_logs, backup=backup)
+                        backup_path = backup.path
+                else:
+                    LogsProcessed.delete_batch(table, old_logs)
+                payload = {"action": "delete_all", "status": "completed"}
+                if backup_path is not None:
+                    payload["backup_path"] = backup_path
+                notify_admins(event_name, payload)
             except Error as e:
                 log.error(traceback.format_exc())
                 error_message = str(e)

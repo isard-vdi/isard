@@ -47,6 +47,18 @@ services:
       - /opt/isard/frontend/custom/categories:/opt/isard/frontend/custom/categories:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+      # Destination for the gzipped JSONL dumps written before
+      # logs_desktops / logs_users retention deletes (and any future
+      # opt-in destructive rewrites that flow through BackupWriter).
+      # The cfg variable controls the HOST path only; the container
+      # path is fixed at /backups so application code never has to
+      # learn where the host stores files. The default reuses
+      # /opt/isard/backups, the host directory previously bind-
+      # mounted into isard-scheduler that no code references
+      # anymore. Deliberately NOT under /opt/isard-local/backup
+      # (backupninja's tree) so backupninja doesn't re-include
+      # these files in its own tarballs.
+      - ${LOGS_DELETE_BACKUP_DIR-/opt/isard/backups}:/backups:rw
     environment:
       PYTHONUNBUFFERED: 1
       GRPC_VERBOSITY: ERROR
@@ -73,6 +85,13 @@ services:
       API_ISARDVDI_SECRET:
       API_HYPERVISORS_SECRET:
       BACKUP_RETENTION: ${BACKUP_RETENTION:-30}
+      # Container-side path the apiv4 background task reads. Always
+      # /backups - the bind-mount above is what makes the cfg
+      # variable LOGS_DELETE_BACKUP_DIR (a HOST path) reach this
+      # fixed in-container location. The same name is reused on
+      # purpose: operators set it once in isardvdi.cfg and the
+      # bind-mount + container env both pick it up.
+      LOGS_DELETE_BACKUP_DIR: /backups
       WG_USERS_PORT:
       WG_HYPERS_NET:
       WG_GUESTS_NETS:

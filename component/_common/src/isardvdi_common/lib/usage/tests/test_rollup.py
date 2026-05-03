@@ -236,49 +236,13 @@ class TestProcessGroups:
         assert stats["aggregated"] == 0
 
 
-class TestBackupWriter:
-    def test_writes_jsonl_gz_with_streaming(self, tmp_path):
-        import gzip
-        import json
-        from datetime import datetime, timezone
-
-        rows = [
-            {
-                "pk": "p1",
-                "date": datetime(2025, 9, 1, tzinfo=timezone.utc),
-                "item_id": "i1",
-                "inc": {"x": 1.5},
-            },
-            {
-                "pk": "p2",
-                "date": datetime(2025, 9, 2, tzinfo=timezone.utc),
-                "item_id": "i2",
-                "inc": {"x": 2},
-            },
-        ]
-        with mod.BackupWriter(str(tmp_path), "incremental") as backup:
-            backup.write_rows(rows)
-            assert backup.rows_written == 2
-        # File created and gzip-readable.
-        files = list(tmp_path.iterdir())
-        assert len(files) == 1
-        assert files[0].name.endswith(".jsonl.gz")
-        assert "incremental" in files[0].name
-        with gzip.open(files[0], "rt", encoding="utf-8") as fh:
-            lines = fh.read().strip().split("\n")
-        assert len(lines) == 2
-        first = json.loads(lines[0])
-        assert first["pk"] == "p1"
-        # datetimes are ISO-string serialised so the backup is replay-safe.
-        assert first["date"] == "2025-09-01T00:00:00+00:00"
-
-    def test_no_file_written_when_no_rows(self, tmp_path):
-        with mod.BackupWriter(str(tmp_path), "backfill") as backup:
-            assert backup.rows_written == 0
-        # Empty .jsonl.gz exists but is small (just gzip header).
-        files = list(tmp_path.iterdir())
-        assert len(files) == 1
-        assert files[0].stat().st_size < 100  # gzip header only
+class TestBackupHookedIntoProcessGroups:
+    """The file-I/O contract for ``BackupWriter`` is pinned in
+    ``helpers/tests/test_backup_writer.py``. The only thing that
+    matters here is that ``_process_groups`` actually calls
+    ``write_rows`` for the source rows it's about to delete-and-
+    replace, and increments the ``backed_up`` stat in step.
+    """
 
     def test_backup_passed_to_process_groups_writes_sources(self, stub_r, tmp_path):
         from datetime import datetime, timezone
@@ -310,7 +274,7 @@ class TestBackupWriter:
             daily_months=1, weekly_months=2, total_months=None
         )
         stats = mod.empty_stats()
-        with mod.BackupWriter(str(tmp_path), "backfill") as backup:
+        with mod.BackupWriter(str(tmp_path), "rollup_backfill") as backup:
             mod._process_groups(
                 MagicMock(),
                 groups,

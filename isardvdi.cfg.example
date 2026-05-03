@@ -1,4 +1,4 @@
-# Isard main config v2.35.6
+# Isard main config v2.35.7
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -376,6 +376,20 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 #BACKUP_DISKS_TEMPLATES_ENABLED=false
 #BACKUP_DISKS_GROUPS_ENABLED=false
 #BACKUP_DISKS_MEDIA_ENABLED=false
+
+## Host directory for the gzipped JSONL dumps written by apiv4
+## before the daily logs_desktops / logs_users retention cron
+## deletes their rows. This is a separate path from backupninja's
+## ``BACKUP_DIR`` above (which holds DB / redis / disks dumps);
+## these app-level operational dumps must NOT live under
+## backupninja's tree, or backupninja would re-include them in its
+## own tarballs. The default reuses /opt/isard/backups, the host
+## directory previously bind-mounted into isard-scheduler that no
+## code references anymore. Container path is fixed at /backups
+## and is not configurable. Comment out (or set empty) to disable
+## backups entirely; the cron will then delete with no recovery
+## path.
+#LOGS_DELETE_BACKUP_DIR=/opt/isard/backups
 
 ##################################################################
 ##################################################################

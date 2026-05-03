@@ -114,7 +114,7 @@ def main(argv=None) -> int:
     started = time.monotonic()
     runner = run_backfill if args.mode == "backfill" else run_incremental
     backup_cm = (
-        BackupWriter(args.backup_dir, args.mode)
+        BackupWriter(args.backup_dir, f"usage_consumption_rollup_{args.mode}")
         if args.backup_dir and not args.dry_run
         else None
     )

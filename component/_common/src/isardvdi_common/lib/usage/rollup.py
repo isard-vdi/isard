@@ -20,15 +20,13 @@ never collide with the day-N or day-N-1 consolidation that may still
 be running with ``conflict='update'``.
 """
 
-import gzip
-import json
 import logging
-import os
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Optional, TextIO
+from typing import Optional
 
+from isardvdi_common.helpers.backup_writer import BackupWriter
 from isardvdi_common.lib.usage.retention import (
     Tier,
     bucket_for,
@@ -38,71 +36,21 @@ from isardvdi_common.lib.usage.retention import (
 from isardvdi_common.schemas.usage import UsageRetentionConfig
 from rethinkdb import r
 
+# Re-export so callers that imported from rollup.py keep working.
+__all__ = [
+    "BackupWriter",
+    "TokenBucket",
+    "empty_stats",
+    "run_backfill",
+    "run_incremental",
+    "SAFETY_MARGIN_DAYS",
+    "INCREMENTAL_WINDOW_DAYS",
+]
+
 log = logging.getLogger(__name__)
 
 SAFETY_MARGIN_DAYS = 7
 INCREMENTAL_WINDOW_DAYS = 7  # ± around each tier boundary
-
-
-def _json_default(value):
-    """JSON serializer for ``datetime`` (and any other awkward types)."""
-    if isinstance(value, datetime):
-        return value.isoformat()
-    return str(value)
-
-
-class BackupWriter:
-    """Streams source rows to a gzipped JSONL file before deletion.
-
-    One file per rollup run, keyed by ISO timestamp + mode. Gzip is
-    streaming so memory stays bounded regardless of total volume.
-    A single ``.jsonl.gz`` file is the cleanest container for a single
-    output stream — tar.gz only buys anything when there are many
-    files, and we deliberately stay one-file-per-run.
-
-    The writer is a context manager so the caller can guarantee the
-    file is closed (and gzip footer flushed) on the way out.
-    """
-
-    def __init__(self, backup_dir: str, mode: str):
-        self.backup_dir = backup_dir
-        os.makedirs(backup_dir, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        self.path = os.path.join(
-            backup_dir, f"usage_consumption_rollup_{ts}_{mode}.jsonl.gz"
-        )
-        self._fh: Optional[TextIO] = None
-        self.rows_written = 0
-        self.bytes_written = 0
-
-    def __enter__(self) -> "BackupWriter":
-        self._fh = gzip.open(self.path, "wt", encoding="utf-8")
-        log.info("rollup backup → %s", self.path)
-        return self
-
-    def __exit__(self, *exc):
-        if self._fh is not None:
-            self._fh.close()
-            self._fh = None
-        if self.rows_written:
-            try:
-                self.bytes_written = os.path.getsize(self.path)
-            except OSError:
-                self.bytes_written = -1
-            log.info(
-                "rollup backup closed: %d rows, %.1f KB compressed",
-                self.rows_written,
-                self.bytes_written / 1024,
-            )
-        return False
-
-    def write_rows(self, rows) -> None:
-        if self._fh is None:
-            return
-        for row in rows:
-            line = json.dumps(row, default=_json_default, ensure_ascii=False)
-            self._fh.write(line + "\n")
-            self.rows_written += 1
 
 
 def empty_stats() -> dict:

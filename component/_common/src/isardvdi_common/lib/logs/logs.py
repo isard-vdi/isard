@@ -16,10 +16,15 @@ Tables touched:
 * ``categories`` — read id+name map for ``category_grouping`` view.
 """
 
+from typing import TYPE_CHECKING, Optional
+
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from rethinkdb import r
+
+if TYPE_CHECKING:
+    from isardvdi_common.helpers.backup_writer import BackupWriter
 
 
 class LogsProcessed(RethinkSharedConnection):
@@ -391,16 +396,39 @@ class LogsProcessed(RethinkSharedConnection):
             return list(query.run(cls._rdb_connection))
 
     @classmethod
-    def delete_batch(cls, table: str, ids: list[str], batch_size: int = 50000) -> None:
+    def delete_batch(
+        cls,
+        table: str,
+        ids: list[str],
+        batch_size: int = 50000,
+        *,
+        backup: "Optional[BackupWriter]" = None,
+    ) -> None:
         """Delete a batch of log rows from ``table``.
 
         Splits ``ids`` into ``batch_size`` chunks so very large
         deletions don't blow rdb's array_limit. Used by the async
         ``delete_old_*_logs`` endpoints.
+
+        When ``backup`` is provided, each chunk is fetched in full
+        and streamed to the writer BEFORE the delete fires, so an
+        admin always has a recoverable JSONL.gz dump of every row
+        that disappeared from ``logs_desktops`` / ``logs_users``.
+        Both reads and writes use the same outer ``_rdb_context``,
+        so the fetch + delete are sequential on a single
+        connection — no risk of the row vanishing between the two
+        statements.
         """
         with cls._rdb_context():
             for i in range(0, len(ids), batch_size):
                 batch_ids = ids[i : i + batch_size]
+                if backup is not None:
+                    rows = list(
+                        r.table(table)
+                        .get_all(r.args(batch_ids))
+                        .run(cls._rdb_connection)
+                    )
+                    backup.write_rows(rows)
                 r.table(table).get_all(r.args(batch_ids)).delete().run(
                     cls._rdb_connection
                 )

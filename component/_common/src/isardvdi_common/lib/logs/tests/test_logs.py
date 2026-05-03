@@ -154,3 +154,98 @@ class TestDeleteBatch:
             ].return_value.get_all.return_value.delete.return_value.run.call_count
             == 0
         )
+
+    def test_backup_writes_rows_before_delete(self, stub_rdb):
+        """Pin the order: fetch → write to backup → delete. If the
+        delete fired before the fetch the backup would be empty;
+        if it fired before the write the backup would miss rows.
+        """
+        # Two distinct .run() chains (fetch is on get_all().run(),
+        # delete is on get_all().delete().run()) so the test can pin
+        # both. The fetch returns the row dicts.
+        fetched_rows = [
+            {"id": "a", "started_time": 1, "stopped_time": 2},
+            {"id": "b", "started_time": 3, "stopped_time": 4},
+        ]
+        stub_rdb["mock_table"].return_value.get_all.return_value.run.return_value = (
+            fetched_rows
+        )
+        stub_rdb[
+            "mock_table"
+        ].return_value.get_all.return_value.delete.return_value.run.return_value = {
+            "deleted": 2
+        }
+
+        # MagicMock-style writer with a write_rows method we can inspect.
+        backup = MagicMock(name="BackupWriter")
+
+        stub_rdb["Processed"].delete_batch(
+            "logs_desktops",
+            ["a", "b"],
+            batch_size=10,
+            backup=backup,
+        )
+
+        # write_rows received the fetched rows, exactly once.
+        backup.write_rows.assert_called_once_with(fetched_rows)
+        # delete still runs.
+        assert (
+            stub_rdb[
+                "mock_table"
+            ].return_value.get_all.return_value.delete.return_value.run.call_count
+            == 1
+        )
+
+    def test_backup_chunks_per_batch(self, stub_rdb):
+        """A single backup writer collects rows from every chunk."""
+        # Each fetch.run() returns a different chunk of rows.
+        fetch_chain = stub_rdb["mock_table"].return_value.get_all.return_value
+        fetch_chain.run = MagicMock(
+            side_effect=[
+                [{"id": "a"}, {"id": "b"}],
+                [{"id": "c"}, {"id": "d"}],
+                [{"id": "e"}],
+            ]
+        )
+        stub_rdb[
+            "mock_table"
+        ].return_value.get_all.return_value.delete.return_value.run.return_value = {
+            "deleted": 2
+        }
+        backup = MagicMock(name="BackupWriter")
+
+        stub_rdb["Processed"].delete_batch(
+            "logs_desktops",
+            ["a", "b", "c", "d", "e"],
+            batch_size=2,
+            backup=backup,
+        )
+
+        # Three chunks → three write_rows calls → all rows backed up.
+        assert backup.write_rows.call_count == 3
+        all_written = []
+        for call in backup.write_rows.call_args_list:
+            all_written.extend(call.args[0])
+        assert [row["id"] for row in all_written] == ["a", "b", "c", "d", "e"]
+
+    def test_no_backup_skips_extra_fetch(self, stub_rdb):
+        """Without a backup writer, the extra fetch must not happen
+        — pin so future refactors don't add a needless rdb round-
+        trip on the hot delete path."""
+        # The fetch chain run() should NEVER be called when backup
+        # is None.
+        fetch_chain = stub_rdb["mock_table"].return_value.get_all.return_value
+        fetch_chain.run = MagicMock(side_effect=AssertionError("fetch called"))
+        # delete still runs, normally.
+        stub_rdb[
+            "mock_table"
+        ].return_value.get_all.return_value.delete.return_value.run.return_value = {
+            "deleted": 2
+        }
+
+        stub_rdb["Processed"].delete_batch(
+            "logs_desktops",
+            ["a", "b"],
+            batch_size=10,
+            backup=None,
+        )

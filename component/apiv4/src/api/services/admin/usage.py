@@ -335,7 +335,9 @@ class AdminUsageService:
                 retention = load_retention_config(conn)
                 stats = empty_stats()
                 if backup_dir:
-                    with BackupWriter(backup_dir, "incremental") as backup:
+                    with BackupWriter(
+                        backup_dir, "usage_consumption_rollup_incremental"
+                    ) as backup:
                         run_incremental(conn, retention, stats=stats, backup=backup)
                 else:
                     run_incremental(conn, retention, stats=stats)
