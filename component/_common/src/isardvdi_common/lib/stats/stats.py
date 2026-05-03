@@ -351,13 +351,16 @@ class StatsProcessed(RethinkSharedConnection):
                     result[category]["users"]["total"]
                     - result[category]["users"]["status"]["enabled"]
                 )
-                result[category]["users"]["roles"] = (
+                roles_raw = (
                     r.table("users")
                     .get_all(category, index="category")
                     .group("role")
                     .count()
                     .run(cls._rdb_connection)
                 )
+                result[category]["users"]["roles"] = {
+                    role: cnt for role, cnt in roles_raw.items() if role
+                }
 
         with cls._rdb_context():
             for category in categories:

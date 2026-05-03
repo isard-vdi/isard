@@ -1752,6 +1752,8 @@ class UsersProcessed(RethinkSharedConnection):
             )
         if user["provider"] != "local":
             return False
+        if not user.get("category") or not user.get("role"):
+            return False
         policy = UserPolicies.get_user_policy(
             "password", user["category"], user["role"], user["provider"]
         )

@@ -239,6 +239,25 @@ class TestGetGroupByCategories:
         assert result["cat-a"]["desktops"]["total"] == 1
         assert result["cat-a"]["templates"]["total"] == 1
 
+    def test_drops_none_role_keys(self, stub_rdb):
+        # A user with role=None produces a None key from .group("role")
+        # which Pydantic's strict StatsCategoriesResponse rejects with
+        # `Input should be a valid string`. Reproducer for bug 55: the
+        # aggregation dict must not contain None keys.
+        chain = stub_rdb["mock_table"].return_value
+        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
+        chain.get_all.return_value.count.return_value.run.return_value = 2
+        chain.get_all.return_value.filter.return_value.count.return_value.run.return_value = (
+            1
+        )
+        chain.get_all.return_value.group.return_value.count.return_value.run.return_value = {
+            "admin": 1,
+            None: 1,
+        }
+        result = stub_rdb["Processed"].get_group_by_categories()
+        assert result["cat-a"]["users"]["roles"] == {"admin": 1}
+        assert None not in result["cat-a"]["users"]["roles"]
+
 
 class TestGetCategoriesKindState:
     def test_desktop_no_state_returns_full_breakdown(self, stub_rdb):
