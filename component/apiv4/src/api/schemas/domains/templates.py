@@ -63,7 +63,16 @@ class UserTemplate(BaseModel):
         description="Image of the template. May be None for templates without a custom image assigned.",
     )
     enabled: bool = Field(
-        description="Whether the template is visible to other users",
+        default=True,
+        description=(
+            "Whether the template is visible to other users. Defaults to "
+            "True so legacy template rows (and seeded fixtures) without "
+            "the field don't fail Pydantic validation when listed via "
+            "``GET /items/templates``. Templates created via the apiv4 "
+            "endpoints always set this explicitly. Matches the default "
+            "used by the sibling ``enabled`` fields on ``Template`` / "
+            "``AdminTemplate`` schemas in this file."
+        ),
     )
     status: Optional[str] = Field(
         default=None,
