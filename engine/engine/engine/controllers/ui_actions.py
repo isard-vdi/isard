@@ -179,6 +179,20 @@ class UiActions(object):
             "cpu_host_model", DEFAULT_HOST_MODE
         )
 
+        # GPU desktops cannot use the paused-start flow: start_domain_from_xml
+        # drops force_gpus/reservables when action == "start_paused_domain"
+        # (see start_paused_domain_from_xml), which leaves the XML without the
+        # <hostdev> GPU and clashes with virtiofs hugepages backing on the QXL.
+        if starting_paused and (
+            domain.get("force_gpus")
+            or (domain.get("create_dict", {}).get("reservables") or {}).get("vgpus")
+        ):
+            log.info(
+                f"Domain {id_domain} has GPU configured; using normal start "
+                f"flow instead of paused-start"
+            )
+            starting_paused = False
+
         try:
             xml, viewer_passwd = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
         except Exception as e:
