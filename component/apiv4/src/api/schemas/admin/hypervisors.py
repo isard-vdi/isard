@@ -20,7 +20,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ── Hypervisor CRUD ──────────────────────────────────────────────────────
 
@@ -156,6 +156,17 @@ class OrchestratorHypervisor(BaseModel):
     desktops_started: int = 0
     bookings_end_time: Optional[str] = None
     gpus: list[OrchestratorHypervisorGPU] = []
+
+    @field_validator("stats", mode="before")
+    @classmethod
+    def _empty_stats_to_none(cls, v):
+        # rdb seeds new hypervisor records with ``stats: {}`` until the
+        # engine pushes the first sample; the empty dict would otherwise
+        # fail the required cpu_*/mem_stats_* sub-field validation and
+        # 500 the whole listing. Treat empty dict as "no stats yet".
+        if isinstance(v, dict) and not v:
+            return None
+        return v
 
 
 class OrchestratorManagedHypervisor(BaseModel):
