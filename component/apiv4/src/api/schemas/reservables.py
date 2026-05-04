@@ -18,9 +18,25 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from datetime import datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+def _ensure_aware_utc(value: datetime) -> datetime:
+    """Coerce naive datetimes to UTC.
+
+    Old-frontend's date pickers occasionally serialise without a
+    timezone suffix; the downstream
+    ``ReservablesPlannerProccess.ceil_dt`` arithmetic
+    (``datetime.min.replace(tzinfo=pytz.UTC) - dt``) raises
+    ``TypeError`` when ``dt`` is naive. Snap any naive value to UTC at
+    the schema boundary so the planner stays naive-free.
+    """
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 class ReservablesListResponse(BaseModel):
@@ -133,15 +149,21 @@ class CreatePlanRequest(BaseModel):
     item_type: str
     item_id: str
     subitem_id: str
-    start: str
-    end: str
+    start: datetime
+    end: datetime
+
+    _coerce_start = field_validator("start")(lambda cls, v: _ensure_aware_utc(v))
+    _coerce_end = field_validator("end")(lambda cls, v: _ensure_aware_utc(v))
 
 
 class UpdatePlanRequest(BaseModel):
     """Request model for updating a plan"""
 
-    start: str
-    end: str
+    start: datetime
+    end: datetime
+
+    _coerce_start = field_validator("start")(lambda cls, v: _ensure_aware_utc(v))
+    _coerce_end = field_validator("end")(lambda cls, v: _ensure_aware_utc(v))
 
 
 class BookingProvisioningRequest(BaseModel):
