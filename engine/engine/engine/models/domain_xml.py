@@ -15,6 +15,7 @@ import string
 import traceback
 import uuid
 from collections import OrderedDict
+from copy import deepcopy
 from io import StringIO
 from pprint import pprint
 
@@ -1412,7 +1413,10 @@ class DomainXML(object):
             self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath(
                 "driver"
             )[0].set("type", type_disk)
-            self.set_disk_driver_cache()
+            # Cache attribute is applied at the top of recreate_xml_to_start
+            # under the `disk_cache not in protected` guard. Calling it here
+            # would bypass that guard whenever the disk path changes (Redmine
+            # #15065 audit finding) and silently override an admin lock.
             path = (
                 self.tree.xpath('/domain/devices/disk[@device="disk"]')[index]
                 .xpath("source")[0]
@@ -1450,11 +1454,14 @@ class DomainXML(object):
                 xml_iotune += s
                 add_iotune = True
         xml_iotune += "  </iotune>"
-        element_iotune = etree.parse(StringIO(xml_iotune)).getroot()
+        template_iotune = etree.parse(StringIO(xml_iotune)).getroot()
 
         if add_iotune is True:
+            # deepcopy per disk: lxml's `.addnext` *moves* the element if it
+            # already has a parent, so reusing one element across the loop made
+            # only the last disk in a multi-disk domain receive iotune.
             for tree_disk in self.tree.xpath('/domain/devices/disk[@device="disk"]'):
-                tree_disk[-1].addnext(element_iotune)
+                tree_disk[-1].addnext(deepcopy(template_iotune))
                 log.debug(etree.tostring(tree_disk, pretty_print=True).decode())
 
     def set_cdrom(self, new_path_cdrom, index=0):
