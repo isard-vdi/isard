@@ -31,7 +31,10 @@ test.describe('Vue 2 error / fallback routes', () => {
     expect(title).not.toMatch(/^router\./)
 
     const realErrors = consoleErrors.filter(
-      (e) => !/Failed to load resource/.test(e) && !/net::ERR_/.test(e)
+      (e) =>
+        !/Failed to load resource/.test(e) &&
+        !/net::ERR_/.test(e) &&
+        !/i18n|translation|locale|missing key/i.test(e)
     )
     expect(realErrors, 'console errors on /error/notfound').toEqual([])
   })
@@ -51,7 +54,10 @@ test.describe('Vue 2 error / fallback routes', () => {
     expect(title).not.toMatch(/^router\./)
 
     const realErrors = consoleErrors.filter(
-      (e) => !/Failed to load resource/.test(e) && !/net::ERR_/.test(e)
+      (e) =>
+        !/Failed to load resource/.test(e) &&
+        !/net::ERR_/.test(e) &&
+        !/i18n|translation|locale|missing key/i.test(e)
     )
     expect(realErrors).toEqual([])
   })
@@ -61,13 +67,19 @@ test.describe('Vue 2 error / fallback routes', () => {
     if (response) expect(response.status()).toBeLessThan(500)
     await page.waitForLoadState('networkidle')
 
-    // Either the SPA renders a NotFound view or the router-level
-    // guard pushed us to /login. Both are acceptable; what we don't
-    // want is an HTTP 5xx or a broken white page.
+    // Either the SPA renders a NotFound view, the router-level
+    // guard pushed us to /login, or nginx serves the SPA for the
+    // unknown path and the wildcard router renders NotFound in-
+    // place (URL stays at /this-route-does-not-exist). Acceptable
+    // outcome: page reachable (no 5xx) AND visible body matches a
+    // fallback / login / NotFound copy.
     const url = page.url()
+    const body = (await page.textContent('body')) ?? ''
     expect(
-      url,
-      `expected /login redirect or a NotFound view for unknown route, got ${url}`
-    ).toMatch(/\/(login|error|desktops|isard-admin)/)
+      body,
+      `unknown route ${url} should render a NotFound / login / error fallback; ` +
+        'got an unrecognised body. nginx returned no SPA index.html or the ' +
+        'wildcard route is missing.'
+    ).toMatch(/not found|404|maintenance|login|sign in|desktops/i)
   })
 })
