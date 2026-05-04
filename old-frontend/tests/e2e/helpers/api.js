@@ -1,5 +1,13 @@
 // @ts-check
 
+// Stack ships a self-signed certificate; the playwright config's
+// ``ignoreHTTPSErrors: true`` only applies to the page context, not
+// to global ``fetch``. Disable TLS verification at the Node level
+// before any fetch happens.
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
+const fetchInsecure = (url, init = {}) => fetch(url, init)
+
 /**
  * API helper for creating test data via IsardVDI REST API.
  * Used by Playwright tests to set up categories, groups, users,
@@ -43,7 +51,7 @@ export class ApiHelper {
     form.append('password', password)
 
     const url = `${this.baseURL}/authentication/login?${qs}`
-    const res = await fetch(url, { method: 'POST', body: form })
+    const res = await fetchInsecure(url, { method: 'POST', body: form })
     if (!res.ok) {
       const text = await res.text()
       throw new Error(`authentication /login failed (${res.status}): ${text}`)
@@ -279,7 +287,7 @@ export class ApiHelper {
     }
     if (body) opts.body = JSON.stringify(body)
 
-    const res = await fetch(url, opts)
+    const res = await fetchInsecure(url, opts)
     if (!res.ok) {
       const text = await res.text()
       throw new Error(`API ${method} ${path} failed (${res.status}): ${text}`)
@@ -300,7 +308,7 @@ export class ApiHelper {
     }
     if (body) opts.body = JSON.stringify(body)
 
-    const res = await fetch(url, opts)
+    const res = await fetchInsecure(url, opts)
     if (!res.ok) {
       const text = await res.text()
       throw new Error(`API ${method} ${path} failed (${res.status}): ${text}`)
