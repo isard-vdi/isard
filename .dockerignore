@@ -1,5 +1,6 @@
 component/frontend/node_modules
 old-frontend/node_modules
+**/.ruff_cache
 .git
 .github
 .gitlab
