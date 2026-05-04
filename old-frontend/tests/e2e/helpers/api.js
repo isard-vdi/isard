@@ -208,7 +208,7 @@ export class ApiHelper {
 
   // --- Deployments ---
 
-  async createDeployment (name, templateId, allowed) {
+  async createDeployment (name, templateId, allowed, coOwners = []) {
     return this._authFetch('POST', '/api/v4/item/deployment', {
       name,
       template_id: templateId,
@@ -220,7 +220,29 @@ export class ApiHelper {
         categories: false,
         groups: false,
         users: false
-      }
+      },
+      // ``co_owners`` lets additional users see the deployment as
+      // owner-equivalent for read/start/stop, but ONLY the original
+      // owner can edit the co-owners list itself. The Bug #47
+      // regression spec uses this to seed a deployment whose modal
+      // is opened by a co-owner (not the owner) and assert the
+      // "Update co-owners" footer button stays hidden.
+      co_owners: coOwners
+    })
+  }
+
+  async deleteDeployment (deploymentId) {
+    return this._authFetch(
+      'DELETE',
+      `/api/v4/item/deployment/${deploymentId}?permanent=true`
+    )
+  }
+
+  async deleteUser (userId) {
+    // ``DELETE /admin/user`` body: AdminUserDeleteData = {user: list[str], delete_user: bool}.
+    return this._authFetch('DELETE', '/api/v4/admin/user', {
+      user: [userId],
+      delete_user: true
     })
   }
 
