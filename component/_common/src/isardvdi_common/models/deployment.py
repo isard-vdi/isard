@@ -228,7 +228,13 @@ class Deployment(RethinkCustomBase):
                 "Could not find deployment",
                 description_code="not_found",
             )
-        return users_permissions
+        # Caches.get_document returns the plucked row dict
+        # (``{"user_permissions": [...]}`` or ``{}`` when the field
+        # is absent on a legacy row). The route's contract is a list,
+        # which is what the edit form sends back round-trip — return
+        # the unwrapped list so old-frontend's permissions store is
+        # always an array (``state.permissions.push`` is a list op).
+        return users_permissions.get("user_permissions") or []
 
     def get_deployment_details_hardware(self):
         with self._rdb_context():

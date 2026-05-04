@@ -212,7 +212,11 @@ def test_update_deployment_co_owners(monkeypatch, test_client):
 
 def test_get_deployment_permissions(monkeypatch, test_client):
     jwt = MockJWT(role_id="advanced")
-    stub = {"viewable_by": "all", "editable_by": "owner"}
+    # Service returns list[DeploymentPermissions] enum string values.
+    # Old-frontend stores this verbatim and re-sends as
+    # ``user_permissions: <list>`` on the edit-form PUT — the GET and
+    # PUT contracts must agree on shape.
+    stub = ["recreate"]
     monkeypatch.setattr(
         "api.services.deployments.DeploymentService.get_permissions",
         staticmethod(lambda deployment_id: stub),
@@ -223,6 +227,23 @@ def test_get_deployment_permissions(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert response.json() == stub
+
+
+def test_get_deployment_permissions_empty_list(monkeypatch, test_client):
+    """A legacy deployment row missing ``user_permissions`` must surface
+    as ``[]`` — old-frontend's edit form re-sends the response verbatim
+    and the PUT body schema rejects ``{}`` with a 422."""
+    jwt = MockJWT(role_id="advanced")
+    monkeypatch.setattr(
+        "api.services.deployments.DeploymentService.get_permissions",
+        staticmethod(lambda deployment_id: []),
+    )
+    _bypass_owns_deployment_id(monkeypatch)
+
+    response = test_client(url="/item/deployment/dep-1/permissions", jwt=jwt)
+
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 def test_get_user_deployments_with_data(monkeypatch, test_client):

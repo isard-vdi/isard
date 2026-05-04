@@ -431,7 +431,7 @@ class DeploymentService:
         CommonDeployments.change_owner_deployment(payload, deployment_id, user_id)
 
     @staticmethod
-    def get_permissions(deployment_id: str) -> dict:
+    def get_permissions(deployment_id: str) -> list[str]:
         if not RethinkDeployment.exists(deployment_id):
             raise Error(
                 "not_found",

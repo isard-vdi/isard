@@ -52,6 +52,7 @@ from api.schemas.deployments import (
     DeploymentEditData,
     DeploymentEditRequest,
     DeploymentEditUsersRequest,
+    DeploymentPermissions,
     DeploymentResponse,
     OwnedDeploymentsResponse,
     SharedDeploymentsResponse,
@@ -1023,9 +1024,14 @@ async def change_deployment_owner(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/permissions",
     tags=[tag],
-    response_model=dict,
+    response_model=list[DeploymentPermissions],
     summary="Get deployment permissions",
-    description="Returns the permissions configured for a deployment.",
+    description=(
+        "Returns the permissions list configured for the deployment owner. "
+        "The shape mirrors the ``user_permissions`` field accepted by "
+        "``PUT /item/deployment/{deployment_id}/edit`` so the old-frontend "
+        "edit form can round-trip the value without reshaping."
+    ),
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -1035,12 +1041,12 @@ async def change_deployment_owner(
 async def get_deployment_permissions(
     deployment_id: str,
     request: Request,
-) -> dict:
+) -> list[DeploymentPermissions]:
     try:
         result = await asyncio.to_thread(
             DeploymentService.get_permissions, deployment_id
         )
-        return result if isinstance(result, dict) else {}
+        return result if isinstance(result, list) else []
     except Error:
         raise
     except Exception as e:
