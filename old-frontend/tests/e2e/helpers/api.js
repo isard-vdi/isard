@@ -216,19 +216,39 @@ export class ApiHelper {
 
   // --- Deployments ---
 
+  // CreateDeploymentRequest now requires a ``desktops`` array
+  // (one entry per desktop type) and ``allowed`` only has
+  // ``users``/``groups`` — the legacy ``roles``/``categories``
+  // keys are ignored. Wrap legacy callers transparently:
+  //   * If allowed lacks both users and groups, default
+  //     allowed.users to the current admin's user id (the
+  //     deployment must be reachable by SOMEONE).
+  //   * Synthesize a single CreateDesktopRequest from the
+  //     legacy ``template_id`` + ``desktop_name`` arguments.
   async createDeployment (name, templateId, allowed, coOwners = []) {
+    const adminFallback = ['local-default-admin-admin']
+    const safeAllowed = {
+      users: allowed?.users || adminFallback,
+      groups: allowed?.groups ?? false
+    }
     return this._authFetch('POST', '/api/v4/item/deployment', {
       name,
-      template_id: templateId,
       description: `Test deployment ${name}`,
-      desktop_name: `deploy-${name}`,
       visible: true,
-      allowed: allowed || {
-        roles: false,
-        categories: false,
-        groups: false,
-        users: false
-      },
+      allowed: safeAllowed,
+      desktops: [
+        {
+          template_id: templateId,
+          name: `deploy-${name}`,
+          description: `Test deployment desktop ${name}`,
+          persistent: true,
+          // Most templates ship with ``file_rdpgw`` viewers; the
+          // create-deployment endpoint refuses RDP viewers unless a
+          // wireguard interface is declared. Force-include it for
+          // test-seeded deployments.
+          hardware: { interfaces: ['wireguard'] }
+        }
+      ],
       // ``co_owners`` lets additional users see the deployment as
       // owner-equivalent for read/start/stop, but ONLY the original
       // owner can edit the co-owners list itself. The Bug #47
