@@ -6,24 +6,48 @@ import { PageLogin } from './login-page'
 
 const test = base.extend({ ...fixtureUsers })
 
-// Probe ``/authentication/providers`` to discover which providers
-// are configured on the running stack. The dev (USAGE=build) cfg
-// has only ``form``; USAGE=test brings up
-// ``isard-authentication-test-ldap`` and ``isard-authentication-test-saml``
-// so the LDAP/SAML specs can actually run.
+// Probe ``/authentication/providers`` and the per-provider
+// metadata endpoints to discover which providers are FULLY
+// configured (not just listed). The dev (USAGE=build) cfg may
+// list ``saml`` because the apiv4 middleware loads, but the
+// test IdP container (kristophjunge/test-saml-idp) is absent
+// so the actual flow 5xxs. USAGE=test brings the IdP up.
 let availableProviders = null
 const fetchProviders = async () => {
   if (availableProviders) return availableProviders
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
   const baseURL =
     process.env.E2E_BASE_URL ?? (process.env.DOCKER ? 'https://host.docker.internal' : 'https://localhost')
+  /** @type {string[]} */
+  let listed = []
   try {
     const res = await fetch(`${baseURL}/authentication/providers?category_id=default`)
     const data = await res.json()
-    availableProviders = Array.isArray(data?.providers) ? data.providers : []
-  } catch (e) {
-    availableProviders = []
+    listed = Array.isArray(data?.providers) ? data.providers : []
+  } catch (e) { /* skip everything */ }
+
+  const usable = []
+  for (const p of listed) {
+    if (p === 'form' || p === 'local') {
+      usable.push(p)
+      continue
+    }
+    if (p === 'saml') {
+      try {
+        const r = await fetch(`${baseURL}/authentication/saml/metadata`)
+        if (r.ok) usable.push('saml')
+      } catch (e) { /* skip */ }
+      continue
+    }
+    if (p === 'ldap') {
+      // The Go service won't expose ldap unless it can reach
+      // the LDAP server, so listing is sufficient.
+      usable.push('ldap')
+      continue
+    }
+    usable.push(p)
   }
+  availableProviders = usable
   return availableProviders
 }
 
