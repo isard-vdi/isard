@@ -43,20 +43,64 @@ export class ApiHelper {
    * endpoint returns the raw JWT in a text/plain body (not JSON) and
    * expects the credentials as multipart/form-data with the provider
    * and category_id as query parameters.
+   *
+   * Newly-created users get a ``disclaimer-acknowledgement-required``
+   * JWT on first login; that token can't reach /api/v4/. Detect the
+   * type, POST /authentication/acknowledge-disclaimer with it, then
+   * re-login to get a real session JWT.
    */
   async _loginAuth (username, password, category) {
     const qs = `provider=form&category_id=${encodeURIComponent(category)}`
-    const form = new FormData()
-    form.append('username', username)
-    form.append('password', password)
-
     const url = `${this.baseURL}/authentication/login?${qs}`
-    const res = await fetchInsecure(url, { method: 'POST', body: form })
-    if (!res.ok) {
-      const text = await res.text()
-      throw new Error(`authentication /login failed (${res.status}): ${text}`)
+
+    const buildForm = () => {
+      const form = new FormData()
+      form.append('username', username)
+      form.append('password', password)
+      return form
     }
-    return (await res.text()).trim()
+
+    const doLogin = async () => {
+      const res = await fetchInsecure(url, { method: 'POST', body: buildForm() })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`authentication /login failed (${res.status}): ${text}`)
+      }
+      return (await res.text()).trim()
+    }
+
+    let token = await doLogin()
+
+    // Decode the JWT payload to detect the disclaimer-required state.
+    const decodePayload = (jwt) => {
+      try {
+        const seg = jwt.split('.')[1]
+        const padded = seg + '='.repeat((4 - (seg.length % 4)) % 4)
+        return JSON.parse(Buffer.from(padded, 'base64').toString('utf-8'))
+      } catch (e) {
+        return {}
+      }
+    }
+    const payload = decodePayload(token)
+    if (payload.type === 'disclaimer-acknowledgement-required') {
+      const ackRes = await fetchInsecure(
+        `${this.baseURL}/authentication/acknowledge-disclaimer`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: '{}'
+        }
+      )
+      if (!ackRes.ok) {
+        const text = await ackRes.text()
+        throw new Error(`authentication /acknowledge-disclaimer failed (${ackRes.status}): ${text}`)
+      }
+      token = await doLogin()
+    }
+    return token
   }
 
   // --- Categories ---
@@ -85,7 +129,7 @@ export class ApiHelper {
   // --- Users ---
 
   async createUser (username, categoryId, groupId, role = 'user', password = 'test1234') {
-    return this._authFetch('POST', '/api/v4/admin/user', {
+    const user = await this._authFetch('POST', '/api/v4/admin/user', {
       username,
       uid: username,
       name: username,
@@ -95,6 +139,22 @@ export class ApiHelper {
       group: groupId,
       role
     })
+    // Pre-acknowledge the disclaimer for the synthetic user.
+    // Without this, every subsequent login by ``username``
+    // produces a disclaimer-required JWT that can't reach
+    // /api/v4/, so role-based UI tests for newly-created users
+    // get 403 on every protected endpoint until they manually
+    // walk through /disclaimer.
+    try {
+      await this._loginAuth(username, password, categoryId)
+    } catch (e) {
+      // Best-effort — disclaimer ack is the user's first login;
+      // _loginAuth already does it inline. If login fails for
+      // another reason (e.g. password policy), surface the user
+      // anyway and let the calling test fail explicitly.
+      console.warn(`createUser: post-create ack-disclaimer login failed: ${e.message}`)
+    }
+    return user
   }
 
   async setSecondaryGroups (userIds, groupIds) {
