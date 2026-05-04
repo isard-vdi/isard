@@ -249,3 +249,143 @@ def test_recreate_xml_if_gpu_preserves_channel():
 
     # filesystem preserved
     assert len(tree.xpath("//filesystem")) == 1
+
+
+# ---- engine bug fixes surfaced during the Redmine #15065 audit -------------
+
+
+def _two_disk_domain_xml():
+    return (
+        '<domain type="kvm">'
+        "<devices>"
+        "<emulator>/usr/bin/qemu-kvm</emulator>"
+        '<disk type="file" device="disk">'
+        '  <driver name="qemu" type="qcow2"/>'
+        '  <source file="/var/isard/a.qcow2"/>'
+        '  <target dev="vda" bus="virtio"/>'
+        "</disk>"
+        '<disk type="file" device="disk">'
+        '  <driver name="qemu" type="qcow2"/>'
+        '  <source file="/var/isard/b.qcow2"/>'
+        '  <target dev="vdb" bus="virtio"/>'
+        "</disk>"
+        "</devices>"
+        "</domain>"
+    )
+
+
+def test_set_qos_disk_inserts_iotune_in_every_disk(monkeypatch):
+    """set_qos_disk on a multi-disk domain must add <iotune> to every <disk>,
+    not just the last. The previous code reused a single lxml element across
+    the loop and `.addnext` *moves* a parented element, so disk 0 silently
+    lost its iotune as soon as disk 1 was processed."""
+    # ``engine.services.log`` is stubbed by ``engine/engine/conftest.py`` so
+    # ``from engine.services.log import *`` doesn't bring ``log`` into
+    # ``domain_xml``'s namespace under pytest. Inject a real logger only for
+    # the duration of this test so the production ``log.debug(...)`` line
+    # exercises without NameError.
+    import logging
+
+    from engine.models import domain_xml as _dx
+
+    monkeypatch.setattr(_dx, "log", logging.getLogger(__name__), raising=False)
+    x = DomainXML(_two_disk_domain_xml())
+    x.set_qos_disk(
+        {
+            "read_bytes_sec": 1048576,
+            "write_iops_sec": 200,
+        }
+    )
+    tree = _parse(x.return_xml())
+    iotunes = tree.xpath('//disk[@device="disk"]/iotune')
+    assert (
+        len(iotunes) == 2
+    ), f"expected one <iotune> per disk on a 2-disk domain; got {len(iotunes)}"
+    for io in iotunes:
+        assert io.find("read_bytes_sec") is not None
+        assert io.find("read_bytes_sec").text == "1048576"
+        assert io.find("write_iops_sec") is not None
+        assert io.find("write_iops_sec").text == "200"
+
+
+def test_set_qos_disk_skips_zero_and_non_int_values():
+    """No <iotune> is added if every value is 0 / non-int — the iotune element
+    would be empty and libvirt rejects empty <iotune>."""
+    x = DomainXML(_two_disk_domain_xml())
+    x.set_qos_disk({"read_bytes_sec": 0, "write_iops_sec": "ignore-strings"})
+    tree = _parse(x.return_xml())
+    assert tree.xpath('//disk[@device="disk"]/iotune') == []
+
+
+def test_set_vdisk_does_not_apply_cache_attribute(monkeypatch):
+    """set_vdisk used to call self.set_disk_driver_cache() inline, which
+    bypassed the top-level `disk_cache not in protected` guard in
+    recreate_xml_to_start. Removing the inline call means changing a disk
+    path no longer silently overrides an admin's locked cache setting."""
+    monkeypatch.setenv("ENGINE_GUESTS_DISK_DRIVER_CACHE", "writeback")
+    xml = (
+        '<domain type="kvm">'
+        "<devices>"
+        "<emulator>/usr/bin/qemu-kvm</emulator>"
+        '<disk type="file" device="disk">'
+        '  <driver name="qemu" type="qcow2"/>'
+        '  <source file="/var/isard/old.qcow2"/>'
+        '  <target dev="vda" bus="virtio"/>'
+        "</disk>"
+        "</devices>"
+        "</domain>"
+    )
+    x = DomainXML(xml)
+    x.set_vdisk("/var/isard/new.qcow2", index=0, type_disk="qcow2")
+    tree = _parse(x.return_xml())
+    driver = tree.xpath('//disk[@device="disk"]/driver')[0]
+    # cache must not have been silently set by set_vdisk's side effect.
+    assert driver.get("cache") is None, (
+        "set_vdisk silently set cache attribute; admin disk_cache lock would "
+        "be bypassed on path migration"
+    )
+    # path/type changes still apply
+    assert (
+        tree.xpath('//disk[@device="disk"]/source')[0].get("file")
+        == "/var/isard/new.qcow2"
+    )
+    assert driver.get("type") == "qcow2"
+
+
+def test_set_disk_driver_cache_top_level_still_applies():
+    """Top-level set_disk_driver_cache (the legitimate apply path used by
+    recreate_xml_to_start when disk_cache is NOT protected) still mutates
+    every disk's <driver cache=…/> as before — the set_vdisk-inline-call
+    removal must not have broken the canonical path."""
+    xml = (
+        '<domain type="kvm">'
+        "<devices>"
+        '<disk type="file" device="disk">'
+        '  <driver name="qemu" type="qcow2"/>'
+        '  <source file="/a.qcow2"/>'
+        '  <target dev="vda" bus="virtio"/>'
+        "</disk>"
+        '<disk type="file" device="disk">'
+        '  <driver name="qemu" type="qcow2"/>'
+        '  <source file="/b.qcow2"/>'
+        '  <target dev="vdb" bus="virtio"/>'
+        "</disk>"
+        "</devices>"
+        "</domain>"
+    )
+    import os
+
+    prev = os.environ.get("ENGINE_GUESTS_DISK_DRIVER_CACHE")
+    os.environ["ENGINE_GUESTS_DISK_DRIVER_CACHE"] = "writeback"
+    try:
+        x = DomainXML(xml)
+        x.set_disk_driver_cache()
+        tree = _parse(x.return_xml())
+        drivers = tree.xpath('//disk[@device="disk"]/driver')
+        assert len(drivers) == 2
+        assert all(d.get("cache") == "writeback" for d in drivers)
+    finally:
+        if prev is None:
+            del os.environ["ENGINE_GUESTS_DISK_DRIVER_CACHE"]
+        else:
+            os.environ["ENGINE_GUESTS_DISK_DRIVER_CACHE"] = prev
