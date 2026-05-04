@@ -29,4 +29,4 @@ bypass-selection = true
 
 [tool.isardvdi.system-deps]
 apk-build = ["autoconf", "automake", "build-base", "git", "iptables-dev", "libffi-dev", "libmnl-dev", "libnftnl-dev", "libtool", "linux-headers", "musl-dev", "openssl-dev", "python3-dev"]
-apk-runtime = ["conntrack-tools", "dnsmasq", "guacamole-server", "guacamole-server-dev", "guacamole-server-rdp", "iptables", "iptables-legacy", "libffi", "openssh", "openssl", "openvswitch", "wireguard-tools"]
+apk-runtime = ["conntrack-tools", "dnsmasq", "guacamole-server", "guacamole-server-dev", "guacamole-server-rdp", "iptables", "iptables-legacy", "libffi", "openssh", "openssl", "openvswitch@community", "wireguard-tools"]
