@@ -218,7 +218,10 @@ export default {
           .replace('data:', '')
           .replace(/^.+,/, '')
 
-        const data = `{"image": {"type": "user","file": {"data": "${decodeURIComponent(base64String)}", "filename": "${payload.filename}"}}}`
+        // ``id`` is required by the apiv4 ``DomainImage`` schema even on
+        // upload — the backend assigns the persistent id server-side.
+        // Vue 3's ChangeImageModal sends the same empty-string sentinel.
+        const data = `{"image": {"id": "","type": "user","file": {"data": "${decodeURIComponent(base64String)}", "filename": "${payload.filename}"}}}`
 
         axios.put(`${apiV3Segment}/item/${itemKind}/${itemId}/edit`, JSON.stringify(JSON.parse(data)), { headers: { 'Content-Type': 'application/json' } }).then(response => {
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.image-uploaded'), '', true, 1000)
