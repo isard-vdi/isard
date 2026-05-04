@@ -252,12 +252,12 @@ def get_user_trigger_notifications(payload, trigger, display):
             ) and ignore_after < datetime.now().astimezone(pytz.UTC):
                 continue
             if notification["order"] == order:
-                if notification["item_type"] not in ordered_notifications[order]:
-                    ordered_notifications[order][notification["item_type"]] = {}
-                # Add the notification to the ordered_notifications
-                ordered_notifications[order][notification["item_type"]] = {
+                # Slot per rule: item_type alone is not unique within an order.
+                slot_key = notification["id"]
+                ordered_notifications[order][slot_key] = {
                     "display": notification["display"],
                     "action_id": notification["action_id"],
+                    "item_type": notification["item_type"],
                     "template_id": notification["template_id"],
                     "force_accept": notification["force_accept"],
                     "notifications": [],
@@ -275,7 +275,7 @@ def get_user_trigger_notifications(payload, trigger, display):
                             notification_template_user["default"]
                         ],
                     )
-                    ordered_notifications[order][notification["item_type"]][
+                    ordered_notifications[order][slot_key][
                         "template"
                     ] = notification_template_user_lang
                 # If the notification is a custom notification then compute the notification
@@ -285,10 +285,8 @@ def get_user_trigger_notifications(payload, trigger, display):
                         payload["user_id"], "notified", notification["id"]
                     )
                     if notifications_data:
-                        if not ordered_notifications[order][notification["item_type"]][
-                            "notifications"
-                        ]:
-                            del ordered_notifications[order][notification["item_type"]]
+                        if not ordered_notifications[order][slot_key]["notifications"]:
+                            del ordered_notifications[order][slot_key]
                         continue
                     # Generate the notification data entry for the user
                     add_notification_data(
@@ -305,9 +303,7 @@ def get_user_trigger_notifications(payload, trigger, display):
                             "ignore_after": notification["ignore_after"],
                         }
                     )
-                    ordered_notifications[order][notification["item_type"]][
-                        "notifications"
-                    ].append(
+                    ordered_notifications[order][slot_key]["notifications"].append(
                         {
                             "id": "0000-000",
                             "vars": {
@@ -330,7 +326,7 @@ def get_user_trigger_notifications(payload, trigger, display):
                             continue
                         computed_notifications = func(payload, notification, user_lang)
                         # Add the computed notifications to the array that object that will be returned
-                        ordered_notifications[order][notification["item_type"]][
+                        ordered_notifications[order][slot_key][
                             "notifications"
                         ] += computed_notifications
                     else:
@@ -350,7 +346,7 @@ def get_user_trigger_notifications(payload, trigger, display):
                                     except ValueError:
                                         pass
 
-                            ordered_notifications[order][notification["item_type"]][
+                            ordered_notifications[order][slot_key][
                                 "notifications"
                             ].append(
                                 {
@@ -371,10 +367,8 @@ def get_user_trigger_notifications(payload, trigger, display):
                             )
 
                 # If the notification has no notifications_data then remove it from the list
-                if not ordered_notifications[order][notification["item_type"]][
-                    "notifications"
-                ]:
-                    del ordered_notifications[order][notification["item_type"]]
+                if not ordered_notifications[order][slot_key]["notifications"]:
+                    del ordered_notifications[order][slot_key]
         # Remove the order if it is empty
         if not ordered_notifications[order]:
             del ordered_notifications[order]

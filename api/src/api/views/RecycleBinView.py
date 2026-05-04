@@ -4,10 +4,19 @@ from datetime import datetime, timedelta
 
 import gevent
 import pytz
-from api.libv2.api_desktop_events import deployment_delete, desktop_delete
+from api.libv2.api_desktop_events import (
+    deployment_delete,
+    deployment_delete_desktops,
+    desktop_delete,
+)
 from api.libv2.api_desktops_persistent import get_unused_desktops
 from api.libv2.api_notify import notify_admins
-from api.libv2.deployments.api_deployments import get_unused_deployments
+from api.libv2.api_users import get_user
+from api.libv2.caches import get_document
+from api.libv2.deployments.api_deployments import (
+    get_unused_deployment_desktops,
+    get_unused_deployments,
+)
 from api.libv2.notifications.notifications import get_notifications_by_action_id
 from api.libv2.notifications.notifications_action import get_notification_action
 from api.libv2.notifications.notifications_data import add_notification_data
@@ -675,6 +684,109 @@ def recycle_bin_add_unused_items(payload):
             notification_data.append({**common_data, "user_id": deployment["user"]})
             for co_owner in deployment["co_owners"]:
                 notification_data.append({**common_data, "user_id": co_owner})
+
+    if notification_data:
+        add_notification_data(notification_data)
+
+    # Send unused deployment-spawned desktops to recycle bin
+    # (keeps the parent deployment alive even when all its desktops are reaped)
+    deployment_desktop_groups = get_unused_deployment_desktops()
+
+    owner_notification = get_notifications_by_action_id(
+        "unused_deployment_desktops_owner"
+    )
+    user_notification = get_notifications_by_action_id(
+        "unused_deployment_desktops_user"
+    )
+    owner_notification = (
+        owner_notification[0]
+        if owner_notification and owner_notification[0]["trigger"]
+        else None
+    )
+    user_notification = (
+        user_notification[0]
+        if user_notification and user_notification[0]["trigger"]
+        else None
+    )
+    if owner_notification or user_notification:
+        recycle_bin_cutoff_time = get_recycle_bin_cuttoff_time()
+
+    user_name_cache = {}
+
+    def _resolve_user_name(user_id):
+        if user_id not in user_name_cache:
+            user_doc = get_user(user_id)
+            user_name_cache[user_id] = (
+                user_doc.get("name", user_id) if user_doc else user_id
+            )
+        return user_name_cache[user_id]
+
+    notification_data = []
+    reaped = 0
+    for group in deployment_desktop_groups:
+        desktop_ids = [d["id"] for d in group["desktops"]]
+        deployment_doc = get_document("deployments", group["deployment_id"])
+        deployment_name = (
+            deployment_doc.get("name", group["deployment_id"])
+            if deployment_doc
+            else group["deployment_id"]
+        )
+        deployment_delete_desktops(
+            "isard-scheduler",
+            desktop_ids,
+            owner_id=group["creator"],
+            name=deployment_name,
+        )
+        reaped += len(desktop_ids)
+        if reaped // 50 > (reaped - len(desktop_ids)) // 50:
+            gevent.sleep(0.5)
+
+        if not (owner_notification or user_notification):
+            continue
+
+        deployment_owner_name = _resolve_user_name(group["creator"])
+
+        for desktop in group["desktops"]:
+            desktop_owner_name = _resolve_user_name(desktop["user"])
+            common_data = {
+                "item_id": desktop["id"],
+                "item_type": "desktop",
+                "status": "pending",
+                "created_at": datetime.now().astimezone(pytz.UTC),
+                "notified_at": None,
+                "accepted_at": None,
+                "ignore_after": (
+                    datetime.now() + timedelta(hours=int(recycle_bin_cutoff_time))
+                ).astimezone(pytz.UTC),
+            }
+            if owner_notification:
+                notification_data.append(
+                    {
+                        **common_data,
+                        "user_id": group["creator"],
+                        "notification_id": owner_notification["id"],
+                        "vars": {
+                            "desktop_name": desktop["name"],
+                            "desktop_owner": desktop_owner_name,
+                            "deployment_name": deployment_name,
+                            "accessed": desktop["accessed"],
+                        },
+                    }
+                )
+            if user_notification:
+                notification_data.append(
+                    {
+                        **common_data,
+                        "user_id": desktop["user"],
+                        "notification_id": user_notification["id"],
+                        "vars": {
+                            "desktop_name": desktop["name"],
+                            "deployment_name": deployment_name,
+                            "deployment_owner": deployment_owner_name,
+                            "accessed": desktop["accessed"],
+                        },
+                    }
+                )
 
     if notification_data:
         add_notification_data(notification_data)

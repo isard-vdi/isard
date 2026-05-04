@@ -1101,3 +1101,109 @@ def get_unused_deployments():
     )
 
     return deployments
+
+
+def get_unused_deployment_desktops():
+    """
+    Retrieve cold desktops belonging to deployments, grouped by deployment.
+
+    Unlike `get_unused_deployments`, this does NOT delete the parent
+    deployment: only individual desktops whose `accessed` is older than
+    the matching rule's cutoff are returned. The deployment row stays
+    alive even if every one of its desktops is reaped.
+
+    Rule resolution is keyed on the deployment **creator** (consistent
+    with `send_unused_deployments_to_recycle_bin`), using the op
+    `send_unused_deployment_desktops_to_recycle_bin`. Only desktops
+    in `Stopped`, `Maintenance` or `Failed` are eligible (mirrors
+    `get_unused_desktops`).
+
+    :return: List of dicts ``{"creator": <user_id>, "deployment_id": <id>,
+             "desktops": [{"id", "user", "name", "accessed"}, ...]}``,
+             one entry per deployment with at least one cold desktop.
+    :rtype: list
+    """
+    result = []
+    absolute_start = time.time()
+
+    with app.app_context():
+        users_with_deployments = list(
+            r.table("deployments").pluck("user").distinct()["user"].run(db.conn)
+        )
+
+    for user in users_with_deployments:
+        start = time.time()
+        try:
+            payload = gen_payload_from_user(user)
+            user_timeout_rule = get_unused_item_timeout(
+                payload, "send_unused_deployment_desktops_to_recycle_bin"
+            )
+        except TypeError:
+            log.error(
+                "api_deployments get unused deployment desktops: Could not generate payload for user %s",
+                user,
+            )
+            continue
+
+        if user_timeout_rule is False or user_timeout_rule["cutoff_time"] is None:
+            continue
+
+        cutoff_time = timedelta(days=user_timeout_rule["cutoff_time"] * 30)
+        cutoff_timestamp = (datetime.now() - cutoff_time).timestamp()
+
+        with app.app_context():
+            deployment_ids = list(
+                r.table("deployments").get_all(user, index="user")["id"].run(db.conn)
+            )
+            if not deployment_ids:
+                continue
+            tag_status_keys = [
+                [d_id, status]
+                for d_id in deployment_ids
+                for status in ("Stopped", "Maintenance", "Failed")
+            ]
+            cold_desktops = list(
+                r.table("domains")
+                .get_all(r.args(tag_status_keys), index="tag_status")
+                .filter(
+                    (r.row["kind"] == "desktop")
+                    & (r.row["accessed"] < cutoff_timestamp)
+                )
+                .pluck("id", "user", "name", "accessed", "tag")
+                .run(db.conn)
+            )
+
+        if not cold_desktops:
+            continue
+
+        by_deployment = {}
+        for desk in cold_desktops:
+            by_deployment.setdefault(desk["tag"], []).append(
+                {
+                    "id": desk["id"],
+                    "user": desk["user"],
+                    "name": desk["name"],
+                    "accessed": desk["accessed"],
+                }
+            )
+        for deployment_id, desktops in by_deployment.items():
+            result.append(
+                {
+                    "creator": user,
+                    "deployment_id": deployment_id,
+                    "desktops": desktops,
+                }
+            )
+
+        log.debug(
+            "api_deployments get unused deployment desktops: User %s rule applied in %s seconds",
+            user,
+            time.time() - start,
+        )
+
+    log.debug(
+        "api_deployments get unused deployment desktops: Total in %s seconds",
+        time.time() - absolute_start,
+    )
+
+    return result
