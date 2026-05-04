@@ -148,6 +148,9 @@ $(document).ready(function () {
           rowData.active_profile = data.vgpu_profile;
           rowData.changing_to_profile = data.changing_to_profile;
           rowData.desktops_started = data.desktops_started;
+          if (typeof data.available_units !== 'undefined') {
+            rowData.available_units = data.available_units;
+          }
           this.data(rowData).invalidate();
           gpus_table.draw(false);
         }

@@ -576,19 +576,23 @@ class ApiHypervisors:
     def _resolve_gpu_models(self, hyper_id, nvidia_gpus):
         """Resolve stable model names for discovered GPUs.
 
-        For each GPU, checks if an auto-created card already exists in the
-        database (by deterministic PCI-based card_id).  If so, reuses the
-        existing card's model name to prevent flipping between vGPU-derived
-        and nvidia-smi-derived names across restarts.  Once a card has a
-        model bound, that name is treated as immutable: subsequent fresh
-        derivations are ignored downstream so gpu_profiles and
-        reservables_vgpus never end up with duplicate entries for the same
-        physical card.
+        Card identity is anchored on ``gpu_uuid`` (immutable BIOS asset id
+        from nvidia-smi) so the persisted model survives any driver flip
+        (vfio-pci ↔ nvidia) or naming-convention change in
+        ``normalize_gpu_model``. Same card seen again (uuid match, regardless
+        of slot) keeps its operator-curated catalog (gpu_profiles,
+        reservables_vgpus, profiles_enabled). Card swap (slot reused with a
+        different uuid) is detected explicitly and logged before resetting
+        the model — operator can audit and re-curate.
 
-        Modifies each GPU dict in-place, setting ``_resolved_model``.  When
-        a card exists but has no model yet (legacy entries), the freshly
-        derived model is persisted back to gpus[card_id] so all later
-        registration steps see a consistent value.
+        Resolution order:
+          1. uuid match against any existing card -> reuse persisted model;
+             backfill the card's pci slot if it moved.
+          2. PCI-anchored card row exists with a persisted model -> trust it
+             (legacy rows that pre-date uuid tracking).
+          3. Otherwise derive fresh from discovery and persist.
+
+        Modifies each GPU dict in-place, setting ``_resolved_model``.
         """
         for gpu in nvidia_gpus:
             pci_bus_id = gpu["pci_bus_id"]
@@ -597,25 +601,96 @@ class ApiHypervisors:
                 normalized = "0000:" + normalized.split(":", 1)[1]
             pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
             card_id = f"auto-{hyper_id}-{pci_name}"
+            new_uuid = gpu.get("gpu_uuid")
 
             with app.app_context():
                 existing_card = r.table("gpus").get(card_id).run(db.conn)
 
-            if existing_card and existing_card.get("model"):
-                gpu["_resolved_model"] = existing_card["model"]
-            else:
-                resolved = gpu.get("model") or self._normalize_gpu_model(
-                    gpu["name"], gpu.get("vgpu_profiles")
-                )
-                gpu["_resolved_model"] = resolved
-                if existing_card:
+            # 1) uuid match wins, even across slot moves: same physical card,
+            # keep its catalog. Skip lookup when discovery did not report a
+            # uuid (older nvidia-smi or a card under vfio-pci with no uuid in
+            # sysfs) — fall through to PCI-anchored matching.
+            uuid_match = None
+            if new_uuid:
+                with app.app_context():
+                    uuid_match = (
+                        r.table("gpus")
+                        .filter({"gpu_uuid": new_uuid})
+                        .limit(1)
+                        .run(db.conn)
+                    )
+                    uuid_match = list(uuid_match)
+                uuid_match = uuid_match[0] if uuid_match else None
+
+            if uuid_match and uuid_match.get("model"):
+                gpu["_resolved_model"] = uuid_match["model"]
+                # Slot move: same uuid, different card_id. Migrate the row id
+                # so PCI-keyed lookups elsewhere keep finding the card.
+                if uuid_match["id"] != card_id:
+                    log.warning(
+                        f"GPU {new_uuid!r} moved slot: "
+                        f"{uuid_match['id']!r} -> {card_id!r}; "
+                        f"migrating row, model={uuid_match['model']!r}"
+                    )
                     with app.app_context():
-                        r.table("gpus").get(card_id).update({"model": resolved}).run(
+                        new_row = dict(uuid_match)
+                        new_row["id"] = card_id
+                        r.table("gpus").insert(new_row).run(db.conn)
+                        r.table("gpus").get(uuid_match["id"]).delete().run(db.conn)
+                continue
+
+            # 2) PCI-anchored card with a persisted model: legacy row (no uuid
+            # tracked yet) OR same slot, same uuid. Either way the model is
+            # the source of truth; do not re-derive.
+            if existing_card and existing_card.get("model"):
+                persisted_uuid = existing_card.get("gpu_uuid")
+                if new_uuid and persisted_uuid and persisted_uuid != new_uuid:
+                    # 2b) Card swap: same slot, different physical card.
+                    # Reset model to the fresh derivation so the catalog
+                    # tracks the new hardware. Operator must re-curate
+                    # gpu_profiles / reservables_vgpus / profiles_enabled —
+                    # those are not auto-migrated because the previous card's
+                    # bookings should not silently bind to a different card.
+                    fresh = gpu.get("model") or self._normalize_gpu_model(
+                        gpu["name"], gpu.get("vgpu_profiles")
+                    )
+                    log.warning(
+                        f"GPU card {card_id!r}: physical card swapped "
+                        f"(uuid {persisted_uuid!r} -> {new_uuid!r}); "
+                        f"resetting model {existing_card['model']!r} -> "
+                        f"{fresh!r}. Operator must re-curate gpu_profiles, "
+                        f"reservables_vgpus, and profiles_enabled."
+                    )
+                    gpu["_resolved_model"] = fresh
+                    with app.app_context():
+                        r.table("gpus").get(card_id).update(
+                            {"model": fresh, "gpu_uuid": new_uuid}
+                        ).run(db.conn)
+                    continue
+
+                gpu["_resolved_model"] = existing_card["model"]
+                # Backfill uuid on legacy rows so future discoveries can use
+                # path (1).
+                if new_uuid and not persisted_uuid:
+                    with app.app_context():
+                        r.table("gpus").get(card_id).update({"gpu_uuid": new_uuid}).run(
                             db.conn
                         )
-                    log.info(
-                        f"GPU card '{card_id}' bound model='{resolved}' " f"(was empty)"
-                    )
+                    log.info(f"GPU card {card_id!r}: backfilled gpu_uuid={new_uuid!r}")
+                continue
+
+            # 3) First sight (no row, or row with no model): derive and persist.
+            resolved = gpu.get("model") or self._normalize_gpu_model(
+                gpu["name"], gpu.get("vgpu_profiles")
+            )
+            gpu["_resolved_model"] = resolved
+            if existing_card:
+                update_fields = {"model": resolved}
+                if new_uuid:
+                    update_fields["gpu_uuid"] = new_uuid
+                with app.app_context():
+                    r.table("gpus").get(card_id).update(update_fields).run(db.conn)
+                log.info(f"GPU card {card_id!r} bound model={resolved!r} (was empty)")
 
     def _diff_pci_devices(self, old_map, new_map):
         """Log PCI device changes between two hypervisor registrations.
@@ -1257,6 +1332,16 @@ class ApiHypervisors:
         return False
 
     def assign_gpus(self):
+        """Wire each vgpu (engine-discovered physical device) to its gpus
+        card row.
+
+        Resolution order per vgpu:
+          1. Auto-id direct hit ``auto-<hyp_id>-pci_<bdf>``: deterministic,
+             survives any (brand, model) drift between vgpus.info.model and
+             gpus.model.
+          2. Manually-created card with matching (brand, model) and no
+             physical_device: legacy path for operator-curated cards.
+        """
         with app.app_context():
             hypers = [
                 h["id"]
@@ -1277,6 +1362,24 @@ class ApiHypervisors:
             "Matching hypers with cards found by engine: " + str(physical_devices)
         )
         for pd in physical_devices:
+            vgpu_id = pd["id"]
+            # vgpu id format is "<hyp_id>-pci_<bdf>"; the auto card id mirrors
+            # that as "auto-<hyp_id>-pci_<bdf>". Direct lookup avoids the
+            # (brand, model) join entirely so a model rename can't strand the
+            # card.
+            auto_id = f"auto-{vgpu_id}"
+            with app.app_context():
+                auto_card = r.table("gpus").get(auto_id).run(db.conn)
+            if auto_card:
+                with app.app_context():
+                    r.table("gpus").get(auto_id).update(
+                        {"physical_device": vgpu_id}
+                    ).run(db.conn)
+                continue
+
+            # Fallback: legacy / manually-created card matched by (brand,
+            # vgpus.info.model). Kept for backwards compat with admin-added
+            # rows that have no auto-PCI id.
             with app.app_context():
                 gpus = list(
                     r.table("gpus")
@@ -1287,8 +1390,15 @@ class ApiHypervisors:
             if len(gpus):
                 with app.app_context():
                     r.table("gpus").get(gpus[0]["id"]).update(
-                        {"physical_device": pd["id"]}
+                        {"physical_device": vgpu_id}
                     ).run(db.conn)
+            else:
+                log.warning(
+                    f"assign_gpus: no card row for vgpu {vgpu_id!r} "
+                    f"(brand={pd.get('brand')!r}, "
+                    f"info.model={pd.get('info', {}).get('model')!r}); "
+                    f"_resolve_gpu_models must run before this."
+                )
 
     def get_hyper_status(self, hyper_id):
         with app.app_context():

@@ -556,13 +556,14 @@ class HypervisorsThread(threading.Thread):
                                     new_val = c["new_val"]
                                     active_profile = new_val.get("vgpu_profile")
                                     desktops_started = []
+                                    available_units = 0
                                     if (
                                         active_profile
                                         and active_profile in new_val.get("mdevs", {})
                                     ):
-                                        for mdev_data in new_val["mdevs"][
-                                            active_profile
-                                        ].values():
+                                        active_pool = new_val["mdevs"][active_profile]
+                                        available_units = len(active_pool)
+                                        for mdev_data in active_pool.values():
                                             if (
                                                 mdev_data.get("domain_started")
                                                 and mdev_data["domain_started"]
@@ -581,6 +582,14 @@ class HypervisorsThread(threading.Thread):
                                                     "changing_to_profile", False
                                                 ),
                                                 "desktops_started": desktops_started,
+                                                # Pool size of the new active
+                                                # profile. Without this, the
+                                                # webapp's "started/total"
+                                                # progress bar keeps the
+                                                # previous profile's max as
+                                                # the denominator after a
+                                                # profile change.
+                                                "available_units": available_units,
                                             }
                                         ),
                                         namespace="/administrators",
