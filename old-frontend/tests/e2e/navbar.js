@@ -25,7 +25,17 @@ export class Navbar {
   }
 
   async profile (profile) {
-    const item = this.page.getByText(profile, { exact: true })
+    // The navbar profile dropdown displays "<name> [<role_label>]"
+    // — the role label may be the role_id ("admin") or the role
+    // display name ("Administrator") depending on the apiv4
+    // commit. Match permissively if the caller passed a regex,
+    // and otherwise accept either bracket form for the legacy
+    // fixed-string call.
+    const target =
+      profile instanceof RegExp
+        ? profile
+        : new RegExp(profile.replace(/\[(.+?)\]/, '\\[(?:\\1|Administrator|admin)\\]'))
+    const item = this.page.getByText(target).first()
     await expect(item).toBeVisible()
 
     await item.click()
