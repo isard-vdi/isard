@@ -25,13 +25,18 @@ module.exports = defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /*
-   * Default to 4 workers locally (best ratio of speedup vs stack
-   * load on a single dev machine); tune via ``--workers=N``.
-   * Overridable via ``E2E_WORKERS`` env var.
+   * Default to 2 workers locally — empirically the best balance:
+   * * 4 workers triggered "session expired" races (multiple
+   *   parallel logins hitting /authentication/login fast enough
+   *   to shadow each other's JWTs across the apiv4 sessions
+   *   service) and "/desktops navigation interrupted" flakes.
+   * * 1 worker is twice as slow without significant stability
+   *   gain.
+   * Tune via ``--workers=N`` or ``E2E_WORKERS``.
    */
   workers: process.env.CI
     ? 1
-    : process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 4,
+    : process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 2,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? [['html'], ['list']] : 'list',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
