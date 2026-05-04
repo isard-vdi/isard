@@ -268,7 +268,7 @@
   </b-modal>
 </template>
 <script>
-import { computed, ref } from '@vue/composition-api'
+import { computed, ref, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
 import DeploymentCoOwnersForm from './DeploymentCoOwnersForm.vue'
 
@@ -328,10 +328,25 @@ export default {
       })
     }
 
-    const isOwner = () => {
-      $store.dispatch('fetchCoOwners', modal.value.item.id)
-      return $store.getters.getUser.user_id === $store.getters.getCoOwners.owner.id
-    }
+    // ``isOwner`` MUST be a computed, not a plain function — Vue
+    // evaluates ``v-if="isOwner"`` against the function reference
+    // when it isn't called with ``()``, which is *always* truthy and
+    // makes the "Update co-owners" footer button visible to every
+    // viewer (including co-owners who are not the owner). Loading
+    // ``fetchCoOwners`` lives in a watcher that fires when the
+    // co-owners modal opens, so the side effect doesn't ride on the
+    // render.
+    watch(
+      () => modal.value.type === 'coOwners' ? modal.value.item.id : null,
+      (id) => { if (id) $store.dispatch('fetchCoOwners', id) },
+      { immediate: true }
+    )
+
+    const isOwner = computed(() => {
+      const owner = $store.getters.getCoOwners?.owner
+      if (!owner || !owner.id) return false
+      return $store.getters.getUser?.user_id === owner.id
+    })
 
     const updateCoOwners = () => {
       const selectedUsers = computed(() => $store.getters.getSelectedUsers)
