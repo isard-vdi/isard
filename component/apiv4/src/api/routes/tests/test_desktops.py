@@ -732,6 +732,68 @@ def test_edit_desktop_propagates_forced_hyp_for_admin(monkeypatch, test_client):
     assert captured["data"] == {"forced_hyp": ["hyp-a", "hyp-b"]}
 
 
+def test_edit_desktop_accepts_image_upload_payload(monkeypatch, test_client):
+    """Regression for round-2 Bug #41 — old-frontend's image-upload payload.
+
+    The old-frontend ``uploadImageFile`` builds a body like
+    ``{"image": {"id": "", "type": "user", "file": {"data": "...", "filename": "..."}}}``
+    (Vue 3's ChangeImageModal sends the same empty-string ``id``
+    sentinel; the backend assigns the persistent id server-side).
+
+    Before the fix, old-frontend was omitting ``id`` entirely and
+    apiv4 422'd with ``body.image.id Field required``. The fix
+    landed on the *frontend* side — old-frontend now sends ``id: ""``.
+    Pin the apiv4 contract so a future ``DomainImage`` schema tweak
+    (e.g. making ``id`` non-empty-string) can't silently break the
+    upload flow without this test failing first.
+    """
+    jwt = MockJWT(role_id="user")
+    captured = {}
+
+    def fake_edit_desktop(desktop_id, data, payload):
+        captured["desktop_id"] = desktop_id
+        captured["data"] = data
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.edit_desktop",
+        staticmethod(fake_edit_desktop),
+    )
+    _bypass_owns_domain_id(monkeypatch)
+
+    class _FakeDomain:
+        def __init__(self, _id):
+            self.kind = "desktop"
+
+    monkeypatch.setattr("api.dependencies.domains.Domain", _FakeDomain)
+
+    response = test_client(
+        url="/item/desktop/desktop-1/edit",
+        method="PUT",
+        body={
+            "image": {
+                "id": "",
+                "type": "user",
+                "file": {
+                    "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAeImBZsAAAAASUVORK5CYII=",
+                    "filename": "uploaded.png",
+                },
+            }
+        },
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.json()
+    # ``DesktopEditRequest.image.file`` is declared with ``exclude=True``
+    # so the dumped payload reaching the service does NOT carry the
+    # base64 blob in any echo path. ``model_dump(exclude_unset=True)``
+    # in the route preserves only the fields the client sent.
+    assert "image" in captured["data"]
+    assert captured["data"]["image"]["id"] == ""
+    assert captured["data"]["image"]["type"] == "user"
+    # ``file`` field is write-only — exclude=True on dump.
+    assert captured["data"]["image"].get("file") is None
+
+
 def test_change_desktop_owner(monkeypatch, test_client):
     """PUT /item/desktop/{id}/change-owner/{user_id} — webapp calls
     this to reassign a persistent desktop to a different user. v3
