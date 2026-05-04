@@ -3,38 +3,39 @@
 set -e
 
 openapi_go() {
-	# $1 = api name (also package + target dir under pkg/gen/oas/)
-	# $2 = path to OpenAPI JSON spec
-	# $3 = optional path to ogen config file
 	mkdir -p "pkg/gen/oas/$1"
 	if [ -n "$3" ]; then
-		ogen --target "./pkg/gen/oas/$1" -package "$1" --clean --config "$3" "$2"
+		run_quietly ogen --target "./pkg/gen/oas/$1" -package "$1" --clean --config "$3" "$2"
 	else
-		ogen --target "./pkg/gen/oas/$1" -package "$1" --clean "$2"
-	fi
+		run_quietly ogen --target "./pkg/gen/oas/$1" -package "$1" --clean "$2"
+	fi && echo "  generated Go client: $1"
 }
 
 openapi_ts() {
-	ln -s /deps/package.json .
-	ln -s /deps/node_modules .
-
-	CODEGEN="$1" npx --no @hey-api/openapi-ts
-
-	rm package.json
-	rm node_modules
+	CODEGEN="$1" run_quietly openapi-ts \
+		&& echo "  generated TypeScript client: $1"
 }
 
 openapi_python() {
-	# $1 = client package dir name (e.g. isardvdi_apiv4_client)
-	# $2 = path to OpenAPI JSON spec
-	# openapi-python-client lives in the unified workspace venv (/venv ->
-	# /workspace/.venv) installed via docker/codegen/pyproject.toml deps.
-	openapi-python-client generate \
+	run_quietly openapi-python-client generate \
 		--path "$2" \
 		--output-path "component/_common/$1/src/$1" \
 		--overwrite \
 		--config "component/_common/$1/openapi-python-client.yml" \
-		--meta=none
+		--meta=none \
+		&& echo "  generated Python client: $1"
+}
+
+run_quietly() {
+	log=$(mktemp)
+	if "$@" >"$log" 2>&1; then
+		rm -f "$log"
+	else
+		rc=$?
+		cat "$log" >&2
+		rm -f "$log"
+		return "$rc"
+	fi
 }
 
 rm -rf pkg/gen/proto/go
@@ -52,131 +53,148 @@ rm -rf component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client
 rm -rf component/_common/isardvdi_scheduler_client/src/isardvdi_scheduler_client
 rm -f ./*/**/testing_*_mock.go
 
-mkdir -p /tmp/go /tmp/go-cache
+mkdir -p "$GOPATH" "$GOCACHE"
 export HOME=/tmp
-export GOPATH=/tmp/go
-export GOCACHE=/tmp/go-cache
 
-# Silence noise from transitive deps of @asyncapi/cli:
-#   - node-config "No configurations found" warning (env var)
-#   - node-config strict-mode warning (NODE_ENV=production with no matching
-#     file). _warnOrThrow has no env escape, so we point NODE_CONFIG_DIR at a
-#     scratch dir holding empty production.json + development.json instead.
-#   - punycode is a Node stdlib deprecation surfaced by an asyncapi sub-dep
-#   - CI=true makes the asyncapi CLI skip analytics + the tracking notice in a
-#     single env var, with no config file to write (see base.js recorderFromEnv)
-export SUPPRESS_NO_CONFIG_WARNING=true
-export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--no-deprecation"
-export CI=true
-export NODE_CONFIG_DIR=/tmp/node-config-shim
-mkdir -p "$NODE_CONFIG_DIR"
-echo '{}' > "$NODE_CONFIG_DIR/production.json"
-echo '{}' > "$NODE_CONFIG_DIR/development.json"
+# Symlinks needed by openapi-ts; created once at the top so they don't race
+# when multiple jobs run in parallel.
+ln -sf /deps/package.json .
+ln -sf /deps/node_modules .
 
-# Protobuf
-source /venv/bin/activate
-if [ -n "${BUF_TOKEN:+x}" ] && [ -n "$BUF_TOKEN" ]; then
-  echo "Found buf token, authenticating with buf.build to avoid rate limits"
-  export BUF_TOKEN
-else
-  echo "No buf token found, we may hit rate limits"
-  unset BUF_TOKEN
-fi
-# Retry buf generate on transient BSR failures (deadline_exceeded,
-# resource_exhausted). Backoff is long because anonymous BSR rate-limits
-# reset on the order of a minute, not seconds.
-buf_attempts=0
-buf_backoff=30
-until buf generate; do
-  buf_attempts=$((buf_attempts + 1))
-  if [ "$buf_attempts" -ge 3 ]; then
-    echo "buf generate failed after $buf_attempts attempts (consider setting BUF_TOKEN)" >&2
-    exit 1
-  fi
-  echo "buf generate failed (attempt $buf_attempts/3), retrying in ${buf_backoff}s..." >&2
-  sleep "$buf_backoff"
-  buf_backoff=$((buf_backoff * 2))
-done
+# Resolve modelina + parser for the changefeed-models script.
+export NODE_PATH=/deps/node_modules
 
-# Mark isardvdi_protobuf as a package so the src-layout wheel can import it.
-touch pkg/gen/proto/python/src/isardvdi_protobuf/__init__.py
+. /venv/bin/activate
 
-# Rewrite bare sibling imports in generated grpcio *_pb2_grpc.py files to use
-# the isardvdi_protobuf. package prefix, so they resolve after src-layout packaging.
-python3 -c "
+# POSIX-sh helper to track parallel jobs (no arrays in busybox sh).
+JOB_PIDS=""
+wait_jobs() {
+	rc=0
+	for pid in $JOB_PIDS; do
+		wait "$pid" || rc=$?
+	done
+	JOB_PIDS=""
+	if [ "$rc" -ne 0 ]; then
+		exit "$rc"
+	fi
+}
+
+echo "==> Phase 1: protobuf + service clients (notifier, scheduler, authentication) (parallel)"
+
+(
+	set -e
+	run_quietly buf generate
+	# Mark isardvdi_protobuf as a package so the src-layout wheel can import it.
+	touch pkg/gen/proto/python/src/isardvdi_protobuf/__init__.py
+	# Rewrite bare sibling imports in generated grpcio *_pb2_grpc.py files to
+	# use the isardvdi_protobuf. package prefix.
+	python3 -c "
 import re, pathlib
 grpc_dir = pathlib.Path('pkg/gen/proto/python/src/isardvdi_protobuf')
 for f in grpc_dir.rglob('*_pb2_grpc.py'):
     text = f.read_text()
-    # Replace: from <pkg>.v1 import <pkg>_pb2  ->  from isardvdi_protobuf.<pkg>.v1 import <pkg>_pb2
     new_text = re.sub(r'^(from )([a-z_]+)(\.v\d+ import \S+)', r'\1isardvdi_protobuf.\2\3', text, flags=re.MULTILINE)
     if new_text != text:
         f.write_text(new_text)
-        print(f'  rewritten: {f}')
 "
+	echo "  generated protobuf bindings (Go + Python + docs + JS)"
+) &
+JOB_PIDS="$JOB_PIDS $!"
 
-# Notifier
-openapi_go notifier pkg/oas/notifier/notifier.json
-openapi_python isardvdi_notifier_client pkg/oas/notifier/notifier.json
+(
+	set -e
+	openapi_go notifier pkg/oas/notifier/notifier.json
+	openapi_python isardvdi_notifier_client pkg/oas/notifier/notifier.json
+) &
+JOB_PIDS="$JOB_PIDS $!"
 
-# Scheduler
-openapi_go scheduler pkg/oas/scheduler/scheduler.json pkg/oas/scheduler/ogen.yml
-openapi_python isardvdi_scheduler_client pkg/oas/scheduler/scheduler.json
+(
+	set -e
+	openapi_go scheduler pkg/oas/scheduler/scheduler.json pkg/oas/scheduler/ogen.yml
+	openapi_python isardvdi_scheduler_client pkg/oas/scheduler/scheduler.json
+) &
+JOB_PIDS="$JOB_PIDS $!"
 
-# Authentication (Python client must exist before gen_openapi.py runs,
-# since apiv4's services/migrations.py imports isardvdi_authentication_client
+# Authentication: Python client must exist before gen_openapi.py runs in
+# Phase 2 (apiv4's services/migrations.py imports isardvdi_authentication_client
 # at module level).
-openapi_go authentication pkg/oas/authentication/authentication.json
-openapi_ts authentication || echo "WARNING: openapi_ts authentication failed"
-openapi_python isardvdi_authentication_client pkg/oas/authentication/authentication.json
+(
+	set -e
+	openapi_go authentication pkg/oas/authentication/authentication.json
+	openapi_ts authentication || echo "WARNING: openapi_ts authentication failed"
+	openapi_python isardvdi_authentication_client pkg/oas/authentication/authentication.json
+) &
+JOB_PIDS="$JOB_PIDS $!"
 
-# APIv4 OAS
-source /apiv4-venv/bin/activate
-# Workspace install at image build time only saw the stub __init__.py for the
-# four generated clients (chicken-and-egg: codegen output is gitignored). Add
-# the freshly generated src/ dirs to PYTHONPATH so they take precedence over
-# the empty stubs installed in the venv.
-export PYTHONPATH=/build/component/_common/isardvdi_authentication_client/src:/build/component/_common/isardvdi_notifier_client/src:/build/component/_common/isardvdi_scheduler_client/src:/build/pkg/gen/proto/python/src${PYTHONPATH:+:$PYTHONPATH}
+wait_jobs
+
+# The image only ships codegen tools in the venv; apiv4 + its workspace
+# deps (now with real Phase-1 source) install here against the offline uv
+# cache shipped in the image.
+run_quietly uv sync --frozen --no-dev \
+	--package isardvdi-codegen \
+	--package isardvdi-apiv4 \
+	--no-editable \
+	&& echo "  installed apiv4 + workspace packages"
+
+echo "==> Phase 2: APIv4 OpenAPI spec + changefeed (parallel)"
+
+# Changefeed AsyncAPI: input is tables.json, independent of APIv4 OAS.
+# Runs in parallel with gen_openapi.py.
+(
+	set -e
+	mkdir -p pkg/gen/asyncapi/changefeed
+	run_quietly python /gen_changefeed_asyncapi.py \
+		--tables component/changefeed/src/isardvdi_changefeed/tables.json \
+		--output pkg/gen/asyncapi/changefeed/changefeed.yaml \
+		&& echo "  generated changefeed AsyncAPI spec"
+	# Generate into a directory matching --packageName so that
+	# ``from changefeed_models.domains_change import DomainsChange`` works
+	# once ``pkg/gen/asyncapi/changefeed`` is on PYTHONPATH.
+	run_quietly bun run /gen_changefeed_models.js \
+		pkg/gen/asyncapi/changefeed/changefeed.yaml \
+		pkg/gen/asyncapi/changefeed/changefeed_models \
+		changefeed_models \
+		&& echo "  generated changefeed Python models"
+	touch pkg/gen/asyncapi/changefeed/changefeed_models/__init__.py
+	# Per-table subscriber classes (type-safe wrappers around generated models).
+	run_quietly python /gen_changefeed_subscribers.py \
+		--tables component/changefeed/src/isardvdi_changefeed/tables.json \
+		--output-dir pkg/gen/asyncapi/changefeed/changefeed_subscribers \
+		&& echo "  generated changefeed Python subscribers"
+) &
+JOB_PIDS="$JOB_PIDS $!"
+
 mkdir -p pkg/oas/apiv4
-python ./component/apiv4/src/gen_openapi.py --output pkg/oas/apiv4/apiv4.json
+run_quietly python ./component/apiv4/src/gen_openapi.py --output pkg/oas/apiv4/apiv4.json \
+	&& echo "  generated apiv4 OpenAPI spec"
 
-# APIv4
-openapi_go apiv4 pkg/oas/apiv4/apiv4.json pkg/oas/apiv4/ogen.yml
-openapi_ts apiv4 || echo "WARNING: openapi_ts apiv4 failed"
-openapi_python isardvdi_apiv4_client pkg/oas/apiv4/apiv4.json
+wait_jobs
 
-# Changefeed AsyncAPI (spec + Pydantic models)
-source /apiv4-venv/bin/activate
-mkdir -p pkg/gen/asyncapi/changefeed
-python /gen_changefeed_asyncapi.py \
-	--tables component/changefeed/src/isardvdi_changefeed/tables.json \
-	--output pkg/gen/asyncapi/changefeed/changefeed.yaml
+echo "==> Phase 3: APIv4 clients (Go + TypeScript + Python in parallel)"
 
-# oclif (used by the asyncapi CLI) falls back to os.userInfo() when $SHELL is
-# unset, which calls getpwuid() and fails under an arbitrary runtime UID with
-# no /etc/passwd entry. $HOME is already exported at the top of this script,
-# so os.homedir() is also safe.
-export SHELL=/bin/sh
+(
+	set -e
+	openapi_go apiv4 pkg/oas/apiv4/apiv4.json pkg/oas/apiv4/ogen.yml
+) &
+JOB_PIDS="$JOB_PIDS $!"
 
-ln -sf /deps/package.json .
-ln -sf /deps/node_modules .
-npx --no asyncapi validate pkg/gen/asyncapi/changefeed/changefeed.yaml
-# Generate into a directory matching --packageName so that
-# ``from changefeed_models.domains_change import DomainsChange`` works
-# once ``pkg/gen/asyncapi/changefeed`` is on PYTHONPATH.
-npx --no asyncapi generate models python \
-	pkg/gen/asyncapi/changefeed/changefeed.yaml \
-	-o pkg/gen/asyncapi/changefeed/changefeed_models \
-	--packageName=changefeed_models \
-	--pyDantic
-touch pkg/gen/asyncapi/changefeed/changefeed_models/__init__.py
+(
+	set -e
+	openapi_ts apiv4 || echo "WARNING: openapi_ts apiv4 failed"
+) &
+JOB_PIDS="$JOB_PIDS $!"
+
+(
+	set -e
+	openapi_python isardvdi_apiv4_client pkg/oas/apiv4/apiv4.json
+) &
+JOB_PIDS="$JOB_PIDS $!"
+
+wait_jobs
+
 rm package.json
 rm node_modules
 
-# Per-table subscriber classes (type-safe wrappers around generated models)
-python /gen_changefeed_subscribers.py \
-	--tables component/changefeed/src/isardvdi_changefeed/tables.json \
-	--output-dir pkg/gen/asyncapi/changefeed/changefeed_subscribers
-
-# Go mocks
-mockery
+echo "==> Phase 4: Go mocks"
+run_quietly mockery && echo "  generated Go mocks"
