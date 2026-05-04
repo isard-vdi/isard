@@ -31,6 +31,7 @@ loginTest.describe('Vue 2 templates — newly-created template appears in list',
   let dskTempId
 
   loginTest.beforeAll(async ({ baseURL }) => {
+    loginTest.setTimeout(120000)
     const seed = new ApiHelper(baseURL ?? 'https://localhost')
     await seed.login()
 

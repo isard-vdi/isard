@@ -44,7 +44,9 @@ export class Navbar {
     await expect(profileItem).toBeVisible()
     await profileItem.click()
 
-    await expect(this.page).toHaveURL('/profile/')
+    // Vue 2 router has historically rendered ``/profile`` and
+    // ``/profile/`` interchangeably; accept either.
+    await expect(this.page).toHaveURL(/\/profile\/?$/)
   }
 }
 

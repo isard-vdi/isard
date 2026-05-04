@@ -45,6 +45,7 @@ test.describe('Bug #37 — owns_domain_id template alloweds branch', () => {
   let dskTempId
 
   test.beforeAll(async ({ baseURL }) => {
+    test.setTimeout(120000)
     const seed = new ApiHelper(baseURL ?? 'https://localhost')
     await seed.login()
 

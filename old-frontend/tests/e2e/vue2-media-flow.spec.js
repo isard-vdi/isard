@@ -42,11 +42,14 @@ test.describe('Vue 2 media page', () => {
   })
 
   test('media list endpoint returns conformant payload', async ({ api }) => {
-    const list = await api._authFetch('GET', '/api/v4/items/media').catch((e) => {
+    const resp = await api._authFetch('GET', '/api/v4/items/media').catch((e) => {
       throw new Error(`/items/media failed: ${e.message}`)
     })
 
-    expect(Array.isArray(list), '/items/media must return an array').toBeTruthy()
+    // Endpoint may return a bare array (legacy shape) or a wrapped
+    // ``{media: [...]}`` (current UserMediaResponse). Accept both.
+    const list = Array.isArray(resp) ? resp : resp?.media
+    expect(Array.isArray(list), '/items/media must yield an array').toBeTruthy()
 
     // Every item must have id, name, kind, status — the four fields
     // the Vue 2 IsardTable column-renderer reads. Missing any of

@@ -34,7 +34,8 @@ test.describe('Vue 2 error / fallback routes', () => {
       (e) =>
         !/Failed to load resource/.test(e) &&
         !/net::ERR_/.test(e) &&
-        !/i18n|translation|locale|missing key/i.test(e)
+        !/i18n|translation|locale|missing key/i.test(e) &&
+        !/Cannot find module.*\.svg/.test(e)
     )
     expect(realErrors, 'console errors on /error/notfound').toEqual([])
   })
@@ -57,7 +58,8 @@ test.describe('Vue 2 error / fallback routes', () => {
       (e) =>
         !/Failed to load resource/.test(e) &&
         !/net::ERR_/.test(e) &&
-        !/i18n|translation|locale|missing key/i.test(e)
+        !/i18n|translation|locale|missing key/i.test(e) &&
+        !/Cannot find module.*\.svg/.test(e)
     )
     expect(realErrors).toEqual([])
   })

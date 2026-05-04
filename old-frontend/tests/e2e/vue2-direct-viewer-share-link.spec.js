@@ -90,11 +90,15 @@ test.describe('Bug #2/#5/#31/#35 — direct-viewer share-link plumbing', () => {
     expect(typeof getRes.link).toBe('string')
     expect(getRes.link.length).toBeGreaterThan(0)
 
-    // 3. Extract the token from the share link. The link format is
-    //    ``<base>/direct-viewer/<token>`` per ``Helpers.share_link``.
-    const match = getRes.link.match(/[/?&=]([A-Za-z0-9_-]{30,})/)
+    // 3. Extract the token from the share link. The link is
+    //    either a full URL (``<base>/direct-viewer/<token>``) or
+    //    just the bare token, depending on the apiv4 commit.
+    //    Try the URL match first, then fall back to bare token.
+    const urlMatch = getRes.link.match(/[/?&=]([A-Za-z0-9_-]{30,})/)
+    const bareMatch = getRes.link.match(/^[A-Za-z0-9_-]{30,}$/)
+    const match = urlMatch || bareMatch
     expect(match, `expected token in share link: ${getRes.link}`).toBeTruthy()
-    const token = match[1]
+    const token = urlMatch ? urlMatch[1] : getRes.link
 
     // 4. Anonymous fetch (no Authorization header) to the viewer
     //    endpoint. The Bug #2 / #31 / #35 surface: the route MUST

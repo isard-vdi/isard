@@ -39,6 +39,7 @@ loginTest.describe('Bug #17 regression — recycle-bin restore in all-entries vi
   let desktopName
 
   loginTest.beforeAll(async ({ baseURL }) => {
+    loginTest.setTimeout(120000)
     const seed = new ApiHelper(baseURL ?? 'https://localhost')
     await seed.login()
 

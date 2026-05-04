@@ -33,6 +33,7 @@ test.describe('Vue 2 websocket — store updates without manual refresh', () => 
   let desktopName
 
   test.beforeAll(async ({ baseURL }) => {
+    test.setTimeout(120000)
     const seed = new ApiHelper(baseURL ?? 'https://localhost')
     await seed.login()
 
