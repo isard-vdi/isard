@@ -323,22 +323,42 @@ test-e2e-stack-down:
 #     ``/opt/load-testing/scripts/seed-fixtures.py``.
 # Specs that need template fixtures will ``test.skip(...)`` cleanly
 # rather than fail when the stack is empty.
+# Reproducible regression gate (default mode).
+# * 1 worker — eliminates parallel races on a single-instance stack.
+# * 2 retries — flakes classified as "flaky", true regressions
+#   surface as a real failure.
+# * Auto-seeded admin pool isolates sessions across runs.
+#
 # Usage:
-#   make test-e2e-old-frontend                  # Playwright auto-picks worker count
-#   make test-e2e-old-frontend E2E_WORKERS=8    # 8 parallel workers
-#   make test-e2e-old-frontend E2E_WORKERS=1    # serial
+#   make test-e2e-old-frontend                  # serial, retries on
 #   make test-e2e-old-frontend E2E_ARGS='--grep="Bug #47"'
 #
-# A pool of admin users is seeded once at suite start (one per
-# worker) and removed after. The pool keeps each worker's session
-# isolated in isard-sessions, so any worker count is safe.
+# For parallel iteration mode, use the ``-parallel`` target below.
 .PHONY: test-e2e-old-frontend
 test-e2e-old-frontend:
 	cd ${ISARDVDI_SRC}old-frontend && bun install --frozen-lockfile
 	cd ${ISARDVDI_SRC}old-frontend && \
 		E2E_ADMIN_USERNAME=$${E2E_ADMIN_USERNAME:-admin} \
 		E2E_ADMIN_PASSWORD=$${E2E_ADMIN_PASSWORD:-IsardVDI} \
-		E2E_WORKERS=$${E2E_WORKERS:-} \
+		E2E_WORKERS=1 \
+		E2E_RETRIES=$${E2E_RETRIES:-2} \
+		bun run test:e2e $(E2E_ARGS)
+
+# Fast parallel mode — opt-in. Useful for "did my fix touch these
+# specific tests" iteration, NOT for regression gating: parallel
+# may flake transiently on this dev stack.
+#
+# Usage:
+#   make test-e2e-old-frontend-parallel                  # auto worker count
+#   make test-e2e-old-frontend-parallel E2E_WORKERS=8    # explicit
+.PHONY: test-e2e-old-frontend-parallel
+test-e2e-old-frontend-parallel:
+	cd ${ISARDVDI_SRC}old-frontend && bun install --frozen-lockfile
+	cd ${ISARDVDI_SRC}old-frontend && \
+		E2E_ADMIN_USERNAME=$${E2E_ADMIN_USERNAME:-admin} \
+		E2E_ADMIN_PASSWORD=$${E2E_ADMIN_PASSWORD:-IsardVDI} \
+		E2E_WORKERS=$${E2E_WORKERS:-4} \
+		E2E_RETRIES=$${E2E_RETRIES:-2} \
 		bun run test:e2e $(E2E_ARGS)
 
 # Single-spec convenience: ``make test-e2e-old-frontend-spec

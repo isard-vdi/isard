@@ -22,27 +22,39 @@ module.exports = defineConfig({
    * same time and raced on shared apiv4 state.
    */
   fullyParallel: false,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* Always fail on test.only to keep the suite reproducible. */
+  forbidOnly: true,
   /*
-   * With per-worker admin pool (``global-setup.js`` +
-   * ``api-fixture.js``), each worker holds its own session — no
-   * JWT shadowing across siblings. Parallelism is now bound only
-   * by hardware (CPU + RAM for chromium-headless-shell processes
-   * and the local IsardVDI stack).
-   *
-   * Default to ``undefined`` so Playwright picks
-   * ``Math.ceil(os.cpus().length / 2)``; tune via
-   * ``--workers=N`` or ``E2E_WORKERS``. Beefy CI runners can set
-   * E2E_WORKERS=8+.
+   * 2 retries by default. With the per-worker admin pool the
+   * remaining flakes are stack-state timing (engine slow to
+   * materialise a desktop, sessions service rate-limit, etc.)
+   * — retrying classifies these as "flaky" in the html report
+   * instead of failures, while a test that fails on every retry
+   * is a real regression. Override with ``E2E_RETRIES=0`` to see
+   * raw first-run results.
    */
-  workers: process.env.CI
-    ? Number(process.env.E2E_WORKERS ?? 2)
-    : process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI ? [['html'], ['list']] : 'list',
+  retries: Number(process.env.E2E_RETRIES ?? 2),
+  /*
+   * Default to 1 worker (serial) for reproducibility. This is
+   * the only mode where the IsardVDI stack (single engine, single
+   * apiv4, one rethinkdb writer) is fully deterministic across
+   * runs.
+   *
+   * Opt into parallel mode for fast iteration via ``E2E_WORKERS=N``
+   * — global-setup.js auto-sizes the admin pool to match. Pre-merge
+   * regression gating should always run with E2E_WORKERS=1 and
+   * E2E_RETRIES=0 so flakes can't mask real failures.
+   */
+  workers: Number(process.env.E2E_WORKERS ?? 1),
+  /*
+   * Reporters: ``list`` for live progress, ``html`` for the
+   * post-run drill-in (flake/failure traces, screenshots,
+   * timeline), ``junit`` for CI/regression-tracking systems.
+   * The combination makes "what regressed" cheap to answer.
+   */
+  reporter: process.env.CI
+    ? [['list'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }]]
+    : [['list'], ['html', { open: 'never' }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
