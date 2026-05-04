@@ -30,6 +30,47 @@ def _safe_fromstring(xml_str: str) -> ET.Element:
     return ET.fromstring(stripped)
 
 
+# Canonical libvirt direct-children-of-<domain> order. Used to compute the
+# correct insertion index when a section is empty in the base XML and the user
+# adds it via the editor. See `_libvirt_toplevel_insert_index`.
+# Reference: https://libvirt.org/formatdomain.html
+LIBVIRT_DOMAIN_ORDER = [
+    "name",
+    "uuid",
+    "genid",
+    "title",
+    "description",
+    "metadata",
+    "maxMemory",
+    "memory",
+    "currentMemory",
+    "memoryBacking",
+    "memtune",
+    "vcpu",
+    "vcpus",
+    "iothreads",
+    "iothreadids",
+    "cputune",
+    "numatune",
+    "resource",
+    "sysinfo",
+    "bootloader",
+    "os",
+    "features",
+    "cpu",
+    "clock",
+    "on_poweroff",
+    "on_reboot",
+    "on_crash",
+    "pm",
+    "perf",
+    "idmap",
+    "devices",
+    "seclabel",
+    "keywrap",
+]
+
+
 # Section definitions: key -> (label, group, xpaths, protectable)
 # "group" is used by the frontend to build the grouped nav menu.
 # xpaths is a list of XPath expressions to extract from the XML.
@@ -43,6 +84,13 @@ SECTION_DEFS = [
         "xpaths": ["./name", "./uuid"],
         "protectable": False,
     },
+    {
+        "key": "description",
+        "label": "Title / Description",
+        "group": "System",
+        "xpaths": ["./title", "./description"],
+        "protectable": True,
+    },
     # --- Compute ---
     {
         "key": "memory",
@@ -52,10 +100,45 @@ SECTION_DEFS = [
         "protectable": True,
     },
     {
+        "key": "max_memory",
+        "label": "Max Memory (hot-plug)",
+        "group": "Compute",
+        "xpaths": ["./maxMemory"],
+        "protectable": True,
+    },
+    {
+        "key": "memory_backing",
+        "label": "Memory Backing",
+        "group": "Compute",
+        "xpaths": ["./memoryBacking"],
+        "protectable": True,
+    },
+    {
         "key": "vcpus",
         "label": "vCPUs",
         "group": "Compute",
         "xpaths": ["./vcpu"],
+        "protectable": True,
+    },
+    {
+        "key": "iothreads",
+        "label": "IO Threads",
+        "group": "Compute",
+        "xpaths": ["./iothreads", "./iothreadids"],
+        "protectable": True,
+    },
+    {
+        "key": "cputune",
+        "label": "CPU Tuning",
+        "group": "Compute",
+        "xpaths": ["./cputune"],
+        "protectable": True,
+    },
+    {
+        "key": "numatune",
+        "label": "NUMA Tuning",
+        "group": "Compute",
+        "xpaths": ["./numatune"],
         "protectable": True,
     },
     {
@@ -74,6 +157,20 @@ SECTION_DEFS = [
         "protectable": True,
     },
     {
+        "key": "sysinfo",
+        "label": "SMBIOS / sysinfo",
+        "group": "Boot & System",
+        "xpaths": ["./sysinfo"],
+        "protectable": True,
+    },
+    {
+        "key": "resource",
+        "label": "Resource Partition",
+        "group": "Boot & System",
+        "xpaths": ["./resource"],
+        "protectable": True,
+    },
+    {
         "key": "features",
         "label": "Features",
         "group": "Boot & System",
@@ -85,6 +182,13 @@ SECTION_DEFS = [
         "label": "Clock & Timers",
         "group": "Boot & System",
         "xpaths": ["./clock"],
+        "protectable": True,
+    },
+    {
+        "key": "lifecycle",
+        "label": "Lifecycle (poweroff/reboot/crash)",
+        "group": "Boot & System",
+        "xpaths": ["./on_poweroff", "./on_reboot", "./on_crash"],
         "protectable": True,
     },
     {
@@ -244,6 +348,15 @@ SECTION_DEFS = [
         "protectable": True,
         "multi": True,
     },
+    # --- Security ---
+    {
+        "key": "seclabel",
+        "label": "Security Label",
+        "group": "Security",
+        "xpaths": ["./seclabel"],
+        "protectable": True,
+        "multi": True,
+    },
     # --- System ---
     {
         "key": "domain_type",
@@ -285,6 +398,87 @@ SECTION_DEFS = [
 def _elem_to_str(elem: ET.Element) -> str:
     """Convert an XML element to an indented string."""
     return ET.tostring(elem, encoding="unicode").strip()
+
+
+def _section_allowed_tags(sdef: dict) -> set[str] | None:
+    """Return the set of tag names a snippet for this section may contain.
+
+    Derived from the section's xpaths: the last path segment (with predicates
+    stripped) is the expected tag. Trailing `/..` is followed up one level so
+    qemu_guest_agent (xpath ends in `target[...]/..`) yields `channel`.
+    Sections without explicit xpath tags (or with an `extra_attrs` directive
+    that targets `<domain>` itself) accept any tag and return ``None``.
+    """
+    tags: set[str] = set()
+    for xp in sdef["xpaths"]:
+        segs = xp.split("/")
+        while segs and segs[-1] == "..":
+            segs.pop()
+            if segs:
+                segs.pop()
+        if not segs:
+            continue
+        last = re.sub(r"\[[^\]]*\]", "", segs[-1]).strip()
+        if last and last != ".":
+            tags.add(last)
+    return tags or None
+
+
+def _libvirt_toplevel_insert_index(parent: ET.Element, new_tag: str) -> int:
+    """Return the index at which to insert <new_tag> as a direct child of
+    <domain> so that the canonical libvirt element order is preserved.
+
+    Walks the existing children left-to-right and returns the index of the
+    first child whose canonical position is greater than ``new_tag``'s. Falls
+    back to appending at the end if ``new_tag`` is unknown or all existing
+    children come before it. Required because appending top-level elements at
+    the end of <domain> places them after </devices>, which libvirt rejects
+    for elements like <memoryBacking>, <on_poweroff>, etc.
+    """
+    if new_tag not in LIBVIRT_DOMAIN_ORDER:
+        return len(list(parent))
+    target_idx = LIBVIRT_DOMAIN_ORDER.index(new_tag)
+    for i, child in enumerate(parent):
+        if child.tag in LIBVIRT_DOMAIN_ORDER:
+            if LIBVIRT_DOMAIN_ORDER.index(child.tag) > target_idx:
+                return i
+    return len(list(parent))
+
+
+def _normalize_toplevel_order(root: ET.Element) -> None:
+    """Stable-sort the direct children of <domain> into canonical libvirt
+    order.
+
+    Older versions of the editor's merge logic appended top-level elements
+    past </devices>, leaving an invalid document that libvirt rejects on
+    start. The XML is already persisted in that broken shape on existing
+    installations, so preventing future corruption is not enough — every save
+    must also re-sort into canonical order so a no-op save heals the
+    document. Tags not present in LIBVIRT_DOMAIN_ORDER keep their relative
+    order and land after the last known tag.
+    """
+    children = list(root)
+    if not children:
+        return
+
+    n = len(LIBVIRT_DOMAIN_ORDER)
+
+    def sort_key(idx_child: tuple[int, ET.Element]) -> tuple[int, int, int]:
+        idx, child = idx_child
+        if child.tag in LIBVIRT_DOMAIN_ORDER:
+            return (LIBVIRT_DOMAIN_ORDER.index(child.tag), 0, idx)
+        return (n, 1, idx)
+
+    sorted_pairs = sorted(enumerate(children), key=sort_key)
+    sorted_children = [c for _, c in sorted_pairs]
+
+    if sorted_children == children:
+        return
+
+    for c in children:
+        root.remove(c)
+    for c in sorted_children:
+        root.append(c)
 
 
 def split_xml_sections(xml_str: str, protected_sections: list[str]) -> list[dict]:
@@ -416,6 +610,23 @@ def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
                 traceback.format_exc(),
             )
 
+        # Hard validation: reject snippets whose root tag does not belong to
+        # this section (e.g. pasting <hostdev> into the redirdev section).
+        # Surfaces a clear bad_request instead of silently relocating the
+        # element to a different section's xpath on the next split.
+        allowed_tags = _section_allowed_tags(sdef)
+        if allowed_tags is not None:
+            mismatched = sorted({e.tag for e in new_elems if e.tag not in allowed_tags})
+            if mismatched:
+                expected = sorted(allowed_tags)
+                raise Error(
+                    "bad_request",
+                    f"Section '{sdef.get('label', key)}' only accepts "
+                    f"{expected} elements; got {mismatched}. "
+                    f"The pasted XML belongs in a different section.",
+                    traceback.format_exc(),
+                )
+
         # Remove ALL old elements matching ANY xpath in this section
         first_parent = None
         first_idx = None
@@ -437,12 +648,25 @@ def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
             first_parent = root.find(parent_path) if parent_path else root
             if first_parent is None:
                 first_parent = root
-            first_idx = len(list(first_parent))
+            # When inserting at the root <domain>, place the new element at the
+            # canonical libvirt position rather than at the end (which would
+            # land after </devices> and libvirt would reject the document).
+            if first_parent is root:
+                first_idx = _libvirt_toplevel_insert_index(
+                    first_parent, new_elems[0].tag
+                )
+            else:
+                first_idx = len(list(first_parent))
 
         # Insert new elements at the position of the first removed element
         if first_parent is not None:
             for i, new_elem in enumerate(new_elems):
                 first_parent.insert(first_idx + i, new_elem)
+
+    # Stable-sort top-level <domain> children into canonical libvirt order.
+    # Heals XMLs already corrupted by an older editor on the next save and
+    # guarantees the merged document passes libvirt's element-order checks.
+    _normalize_toplevel_order(root)
 
     # Validate the final XML
     merged_xml = ET.tostring(root, encoding="unicode")
