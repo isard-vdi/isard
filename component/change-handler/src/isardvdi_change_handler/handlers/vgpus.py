@@ -33,8 +33,11 @@ class VgpusHandler(BaseHandler):
         props = val.additional_properties or {}
         active_profile = props.get("vgpu_profile")
         desktops_started = []
+        available_units = 0
         if active_profile and active_profile in props.get("mdevs", {}):
-            for mdev_data in props["mdevs"][active_profile].values():
+            active_pool = props["mdevs"][active_profile]
+            available_units = len(active_pool)
+            for mdev_data in active_pool.values():
                 if (
                     mdev_data.get("domain_started")
                     and mdev_data["domain_started"] is not False
@@ -48,6 +51,10 @@ class VgpusHandler(BaseHandler):
                     "vgpu_profile": active_profile,
                     "changing_to_profile": props.get("changing_to_profile", False),
                     "desktops_started": desktops_started,
+                    # Pool size of the new active profile. Without this, the
+                    # webapp's "started/total" progress bar keeps the previous
+                    # profile's max as the denominator after a profile change.
+                    "available_units": available_units,
                 }
             ),
             "/administrators",

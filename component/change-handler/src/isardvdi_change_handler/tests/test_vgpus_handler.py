@@ -154,3 +154,89 @@ class TestVgpusHandler:
         room = call[0][3] if len(call[0]) > 3 else call.kwargs.get("room")
         assert namespace == "/administrators"
         assert room == "admins"
+
+    # ------------------------------------------------------------------
+    # available_units — pool size of the active profile (origin/main 31e88b859)
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_available_units_matches_active_pool_size(self, handler):
+        """available_units must be the number of mdev slots in the active
+        profile pool, regardless of how many are actually started."""
+        row = FakeRow(
+            additional_properties={
+                "id": "gpu0",
+                "vgpu_profile": "nvidia-35",
+                "mdevs": {
+                    "nvidia-35": {
+                        "m0": {"domain_started": "desk-1"},
+                        "m1": {"domain_started": False},
+                        "m2": {"domain_started": False},
+                        "m3": {"domain_started": False},
+                    }
+                },
+            },
+        )
+        await handler.on_insert(row)
+
+        payload = json.loads(handler.socketio_server.emit.call_args[0][1])
+        assert payload["available_units"] == 4
+        assert payload["desktops_started"] == ["desk-1"]
+
+    @pytest.mark.asyncio
+    async def test_available_units_zero_when_no_active_profile(self, handler):
+        """No active profile → empty pool → available_units = 0 (not None,
+        not absent). Pin so the webapp's `typeof !== 'undefined'` guard
+        always sees a number."""
+        row = FakeRow(additional_properties={"id": "gpu0"})
+        await handler.on_insert(row)
+
+        payload = json.loads(handler.socketio_server.emit.call_args[0][1])
+        assert payload["available_units"] == 0
+
+    @pytest.mark.asyncio
+    async def test_available_units_zero_when_profile_not_in_mdevs(self, handler):
+        row = FakeRow(
+            additional_properties={
+                "id": "gpu0",
+                "vgpu_profile": "nvidia-35",
+                "mdevs": {"nvidia-40": {"m0": {"domain_started": False}}},
+            },
+        )
+        await handler.on_insert(row)
+
+        payload = json.loads(handler.socketio_server.emit.call_args[0][1])
+        assert payload["available_units"] == 0
+
+    @pytest.mark.asyncio
+    async def test_available_units_updates_on_profile_transition(self, handler):
+        """Profile change A (size 2) → B (size 6) emits available_units = 6
+        so the webapp progress bar's denominator follows the new pool."""
+        old = FakeRow(
+            additional_properties={
+                "id": "gpu1",
+                "vgpu_profile": "small",
+                "mdevs": {"small": {"m0": {}, "m1": {}}},
+            },
+        )
+        new = FakeRow(
+            additional_properties={
+                "id": "gpu1",
+                "vgpu_profile": "big",
+                "changing_to_profile": "big",
+                "mdevs": {
+                    "big": {
+                        "m0": {"domain_started": False},
+                        "m1": {"domain_started": False},
+                        "m2": {"domain_started": False},
+                        "m3": {"domain_started": False},
+                        "m4": {"domain_started": False},
+                        "m5": {"domain_started": False},
+                    },
+                },
+            },
+        )
+        await handler.on_update(old, new)
+
+        payload = json.loads(handler.socketio_server.emit.call_args[0][1])
+        assert payload["available_units"] == 6
