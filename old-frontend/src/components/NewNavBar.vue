@@ -20,7 +20,16 @@
           target="nav-collapse"
         />
 
+        <!--
+          ``v-if="getUser"`` gates the whole collapse on a populated
+          user. ``logout`` runs ``resetStore`` which sets
+          ``state.auth.user = null``; without this gate, every
+          ``getUser.role_id`` / ``getUser.name`` access in the
+          children below dereferenced ``null`` and pushed two
+          TypeErrors per logout into the JS console.
+        -->
         <b-collapse
+          v-if="getUser"
           id="nav-collapse"
           is-nav
         >
