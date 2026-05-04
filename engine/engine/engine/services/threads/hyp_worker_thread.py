@@ -1487,6 +1487,9 @@ class HypWorkerThread(threading.Thread):
                 "Failed",
             )
 
+            # Clear stale vgpu_info so next retry can reallocate a fresh mdev
+            update_vgpu_info_if_stopped(action["id_domain"])
+
             # Handle lost connection
             if "internal error: client socket is closed" in error_str:
                 update_hyp_status(self.hyp_id, "Error", detail=error_str)
@@ -1513,6 +1516,8 @@ class HypWorkerThread(threading.Thread):
                 domain_id=action["id_domain"],
                 profile=action["profile"],
             )
+        # Clear stale vgpu_info so next retry can reallocate a fresh mdev
+        update_vgpu_info_if_stopped(action["id_domain"])
         log_action(
             self.hyp_id,
             action["id_domain"],
