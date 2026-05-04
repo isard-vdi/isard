@@ -1514,8 +1514,19 @@ class DesktopsProcessed(RethinkSharedConnection):
             # (forced_hyp/name/description/...), and the engine then
             # crashed in ``resolve_hardware_from_create_dict`` with
             # ``argument of type 'NoneType' is not iterable``.
+            #
+            # Merge into any ``create_dict`` that
+            # ``parse_domain_update`` already populated (it writes
+            # ``create_dict.reservables`` when the user changed vgpus),
+            # otherwise the bare assignment below clobbered it and the
+            # vgpu change was silently dropped on hardware+reservables
+            # edits.
             if "hardware" in desktop:
-                update_payload["create_dict"] = {"hardware": desktop["hardware"]}
+                existing_cd = update_payload.get("create_dict") or {}
+                update_payload["create_dict"] = {
+                    **existing_cd,
+                    "hardware": desktop["hardware"],
+                }
 
             with cls._rdb_context():
                 r.table("domains").get(d).update(update_payload).run(
