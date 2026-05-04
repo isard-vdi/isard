@@ -230,7 +230,6 @@ SECTION_DEFS = [
         "xpaths": [".//devices/disk/driver"],
         "protectable": True,
         "multi": True,
-        "readonly_display": True,
     },
     {
         "key": "qos_disk",
@@ -445,6 +444,67 @@ def _libvirt_toplevel_insert_index(parent: ET.Element, new_tag: str) -> int:
     return len(list(parent))
 
 
+def _xpath_steps(xp: str) -> list[str]:
+    """Normalize an xpath into a list of element-name steps for structural
+    ancestor/descendant comparison.
+
+    Predicates (`[@x="y"]`) are stripped, the leading `./` or `.//` anchor is
+    dropped, and a trailing `/..` is resolved by popping its preceding step.
+    Tags only — attribute filters intentionally don't participate, so e.g.
+    `disks` (`.//devices/disk[@device="disk"]`) and `isos`
+    (`.//devices/disk[@device="cdrom"]`) compare as equal here and neither
+    becomes a descendant of the other.
+    """
+    cleaned = re.sub(r"\[[^\]]*\]", "", xp)
+    cleaned = re.sub(r"^\./?/?", "", cleaned).strip("/")
+    if not cleaned:
+        return []
+    steps: list[str] = []
+    for p in cleaned.split("/"):
+        if p == "..":
+            if steps:
+                steps.pop()
+        elif p and p != ".":
+            steps.append(p)
+    return steps
+
+
+def _compute_derived_keys() -> set[str]:
+    """Return the set of section keys whose xpath targets a strict descendant
+    of another section's xpath target.
+
+    These sections are *derived informational views* of the parent section's
+    XML — for example, ``disk_cache`` (``.//devices/disk/driver``) sits inside
+    the ``<disk>`` elements owned by ``disks`` / ``isos`` / ``floppies``. The
+    parent is the single source of truth on save; the derived view's textarea
+    contents are ignored by ``merge_xml_sections`` (and rendered read-only in
+    the UI).
+    """
+    derived: set[str] = set()
+    for sdef in SECTION_DEFS:
+        own = [_xpath_steps(xp) for xp in sdef["xpaths"]]
+        for other in SECTION_DEFS:
+            if other is sdef:
+                continue
+            others = [_xpath_steps(xp) for xp in other["xpaths"]]
+            for child_steps in own:
+                if not child_steps:
+                    continue
+                for parent_steps in others:
+                    if (
+                        parent_steps
+                        and len(child_steps) > len(parent_steps)
+                        and child_steps[: len(parent_steps)] == parent_steps
+                    ):
+                        derived.add(sdef["key"])
+                        break
+                if sdef["key"] in derived:
+                    break
+            if sdef["key"] in derived:
+                break
+    return derived
+
+
 def _normalize_toplevel_order(root: ET.Element) -> None:
     """Stable-sort the direct children of <domain> into canonical libvirt
     order.
@@ -484,7 +544,11 @@ def _normalize_toplevel_order(root: ET.Element) -> None:
 def split_xml_sections(xml_str: str, protected_sections: list[str]) -> list[dict]:
     """Split a domain XML string into labeled sections.
 
-    Returns a list of dicts with keys: key, label, xml, protected, protectable.
+    Returns a list of dicts with keys: key, label, xml, protected, protectable,
+    derived. ``derived`` flags sections whose xpath targets a descendant of
+    another section's xpath (e.g. ``disk_cache`` inside ``disks``); the
+    frontend renders those panels read-only and omits them from save payloads
+    so a stale view does not silently overwrite a parent-section edit.
     """
     try:
         root = _safe_fromstring(xml_str)
@@ -492,6 +556,13 @@ def split_xml_sections(xml_str: str, protected_sections: list[str]) -> list[dict
         raise Error(
             "bad_request",
             f"Invalid XML: {e}",
+            traceback.format_exc(),
+        )
+
+    if root.tag != "domain":
+        raise Error(
+            "bad_request",
+            f"Uploaded XML must be a libvirt <domain> document; got <{root.tag}>",
             traceback.format_exc(),
         )
 
@@ -528,17 +599,31 @@ def split_xml_sections(xml_str: str, protected_sections: list[str]) -> list[dict
                 "xml": xml_snippet,
                 "protected": sdef["key"] in protected_set,
                 "protectable": sdef["protectable"],
+                "derived": sdef["key"] in _DERIVED_KEYS,
             }
         )
 
     return sections
 
 
+# Computed at module load — keys whose xpath is a strict descendant of another
+# section's xpath. Their snippets are informational views of the parent and
+# are skipped by ``merge_xml_sections``.
+_DERIVED_KEYS = _compute_derived_keys()
+
+
 def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
     """Merge edited XML snippets back into the base XML.
 
     edited_sections is a dict: {section_key: xml_snippet_string, ...}
-    Only protectable sections can be edited. Non-protectable sections are ignored.
+    Only protectable sections can be edited. Non-protectable sections are
+    ignored.
+
+    Sections in ``_DERIVED_KEYS`` (xpaths that target descendants of another
+    section's xpath, e.g. ``disk_cache`` and ``qos_disk`` inside ``<disk>``)
+    are informational views of the parent section. Their snippets here are
+    ignored so a stale view does not silently overwrite an edit made via the
+    parent section's snippet.
 
     Returns the merged full XML string.
     """
@@ -578,6 +663,12 @@ def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
                 f"Section '{key}' exceeds maximum size ({MAX_SNIPPET_SIZE} bytes)",
                 traceback.format_exc(),
             )
+
+        # Derived sections are informational views of a parent section. The
+        # frontend may still post their textarea on save — skip silently so a
+        # stale snapshot does not overwrite the parent-section edit.
+        if key in _DERIVED_KEYS:
+            continue
 
         sdef = next((s for s in SECTION_DEFS if s["key"] == key), None)
         if not sdef:

@@ -13,11 +13,14 @@ from xml.etree import ElementTree as ET
 import pytest
 from api.services.error import Error
 from api.services.xml_sections import (
+    _DERIVED_KEYS,
     LIBVIRT_DOMAIN_ORDER,
     SECTION_DEFS,
+    _compute_derived_keys,
     _libvirt_toplevel_insert_index,
     _normalize_toplevel_order,
     _section_allowed_tags,
+    _xpath_steps,
     merge_xml_sections,
     split_xml_sections,
 )
@@ -283,3 +286,112 @@ def test_split_includes_new_keys_with_correct_xml():
     desc_xml = sections["description"]["xml"]
     assert "<title>" in desc_xml
     assert "<description>" in desc_xml
+
+
+# ---------------------------------------------------------------------------
+# db8492ab2 — silent-edit-loss in XML sections editor
+# ---------------------------------------------------------------------------
+
+
+def test_xpath_steps_strips_predicates_and_anchor():
+    assert _xpath_steps('.//devices/disk[@device="disk"]') == ["devices", "disk"]
+    assert _xpath_steps("./os") == ["os"]
+    # Trailing /.. resolves by popping the previous step.
+    assert _xpath_steps('.//devices/channel[@type="unix"]/target[@name="ga"]/..') == [
+        "devices",
+        "channel",
+    ]
+
+
+def test_compute_derived_keys_resolves_disk_cache_and_qos_disk():
+    """`disk_cache` and `qos_disk` xpaths sit inside `<disk>` elements owned by
+    the `disks` / `isos` / `floppies` sections. They must be flagged derived."""
+    derived = _compute_derived_keys()
+    assert "disk_cache" in derived
+    assert "qos_disk" in derived
+
+
+def test_compute_derived_keys_does_not_flag_independent_sections():
+    """`disks` / `isos` / `network` / `seclabel` etc. are NOT children of
+    other sections — they must NOT be in the derived set."""
+    derived = _compute_derived_keys()
+    for key in ("disks", "isos", "network", "memory", "seclabel"):
+        assert key not in derived
+
+
+def test_split_marks_disk_cache_section_as_derived():
+    base = _domain()
+    sections = {s["key"]: s for s in split_xml_sections(base, [])}
+    assert sections["disk_cache"]["derived"] is True
+    assert sections["qos_disk"]["derived"] is True
+    assert sections["disks"]["derived"] is False
+    assert sections["seclabel"]["derived"] is False
+
+
+def test_split_rejects_non_domain_root():
+    """Uploading <foo>... is a partial fragment, not a libvirt domain. Without
+    this guard the editor would silently render every section empty and the
+    next save would wipe the textareas."""
+    with pytest.raises(Error) as exc:
+        split_xml_sections("<foo><bar/></foo>", [])
+    assert exc.value.status_code == 400
+
+
+def test_merge_ignores_stale_disk_cache_snippet_when_parent_edited():
+    """Frontend posts every textarea on save. A stale `disk_cache` view sent
+    alongside an edited `disks` parent must not silently revert the freshly
+    merged <driver cache=...> back to the stale value."""
+    base = _domain()
+    edited_disks_xml = (
+        '<disk type="file" device="disk">'
+        '<driver name="qemu" type="qcow2" cache="writeback"/>'
+        '<source file="/a"/>'
+        '<target dev="vda" bus="virtio"/>'
+        "</disk>"
+    )
+    stale_disk_cache = (
+        '<driver name="qemu" type="qcow2"/>'  # no cache attr — stale view
+    )
+    merged = merge_xml_sections(
+        base,
+        {"disks": edited_disks_xml, "disk_cache": stale_disk_cache},
+    )
+    root = ET.fromstring(merged)
+    drivers = root.findall(".//devices/disk/driver")
+    assert len(drivers) == 1
+    # The parent-section edit (cache=writeback) wins; the stale derived view
+    # is ignored.
+    assert drivers[0].get("cache") == "writeback"
+
+
+def test_merge_ignores_stale_qos_disk_snippet_when_parent_edited():
+    """Same contract as disk_cache: editing the parent disks section must
+    win over a stale qos_disk derived view."""
+    base = _domain()
+    edited_disks_xml = (
+        '<disk type="file" device="disk">'
+        '<driver name="qemu" type="qcow2"/>'
+        '<source file="/a"/>'
+        '<target dev="vda" bus="virtio"/>'
+        "<iotune><read_bytes_sec>2097152</read_bytes_sec></iotune>"
+        "</disk>"
+    )
+    # Stale view with a different value — must not overwrite.
+    stale_qos_disk = "<iotune><read_bytes_sec>1048576</read_bytes_sec></iotune>"
+    merged = merge_xml_sections(
+        base,
+        {"disks": edited_disks_xml, "qos_disk": stale_qos_disk},
+    )
+    root = ET.fromstring(merged)
+    iotune_vals = root.findall(".//devices/disk/iotune/read_bytes_sec")
+    assert len(iotune_vals) == 1
+    # The parent-section value wins.
+    assert iotune_vals[0].text == "2097152"
+
+
+def test_disk_cache_section_def_no_longer_carries_readonly_display():
+    """The `readonly_display: True` flag on the `disk_cache` section was an
+    unwired stub that 60ad2b047 / db8492ab2 replaced with the structural
+    `_DERIVED_KEYS` computation. Make sure no contributor re-added it."""
+    sdef = next(s for s in SECTION_DEFS if s["key"] == "disk_cache")
+    assert "readonly_display" not in sdef
