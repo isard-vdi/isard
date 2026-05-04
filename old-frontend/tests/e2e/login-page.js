@@ -64,15 +64,29 @@ export class PageLogin {
   }
 }
 
+// Each worker uses the admin from the pool created in
+// ``global-setup.js`` so concurrent UI logins don't shadow each
+// other's sessions. Falls back to the bootstrap admin when the
+// pool isn't seeded (single-spec invocations).
+const POOL_PASSWORD = process.env.E2E_ADMIN_POOL_PASSWORD ?? 'e2e_admin_pw'
+
 export const fixture = {
-  login: async ({ page }, use) => {
+  login: async ({ page }, use, testInfo) => {
     const login = new PageLogin(page)
     await login.goto()
-    await login.form(
-      process.env.E2E_ADMIN_USERNAME ?? 'admin',
-      process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI'
-    )
-    await login.finished()
+    const poolUser = `e2e_admin_${testInfo.workerIndex}`
+    try {
+      await login.form(poolUser, POOL_PASSWORD)
+      await login.finished()
+    } catch (e) {
+      // Re-arm: load /login afresh and try the bootstrap admin.
+      await login.goto()
+      await login.form(
+        process.env.E2E_ADMIN_USERNAME ?? 'admin',
+        process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI'
+      )
+      await login.finished()
+    }
 
     await use(login)
   },

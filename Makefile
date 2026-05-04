@@ -323,12 +323,22 @@ test-e2e-stack-down:
 #     ``/opt/load-testing/scripts/seed-fixtures.py``.
 # Specs that need template fixtures will ``test.skip(...)`` cleanly
 # rather than fail when the stack is empty.
+# Usage:
+#   make test-e2e-old-frontend                  # Playwright auto-picks worker count
+#   make test-e2e-old-frontend E2E_WORKERS=8    # 8 parallel workers
+#   make test-e2e-old-frontend E2E_WORKERS=1    # serial
+#   make test-e2e-old-frontend E2E_ARGS='--grep="Bug #47"'
+#
+# A pool of admin users is seeded once at suite start (one per
+# worker) and removed after. The pool keeps each worker's session
+# isolated in isard-sessions, so any worker count is safe.
 .PHONY: test-e2e-old-frontend
 test-e2e-old-frontend:
 	cd ${ISARDVDI_SRC}old-frontend && bun install --frozen-lockfile
 	cd ${ISARDVDI_SRC}old-frontend && \
 		E2E_ADMIN_USERNAME=$${E2E_ADMIN_USERNAME:-admin} \
 		E2E_ADMIN_PASSWORD=$${E2E_ADMIN_PASSWORD:-IsardVDI} \
+		E2E_WORKERS=$${E2E_WORKERS:-} \
 		bun run test:e2e $(E2E_ARGS)
 
 # Single-spec convenience: ``make test-e2e-old-frontend-spec
