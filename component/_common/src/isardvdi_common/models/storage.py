@@ -23,6 +23,7 @@ from uuid import uuid4
 
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.models.storage_pool import StoragePool
 from isardvdi_common.models.user import User
 from pydantic import BaseModel, Field
@@ -421,9 +422,13 @@ class Storage(RethinkCustomBase):
             and Task.exists(self.task)
             and Task(self.task).pending
         ):
-            raise Exception(
+            # Typed ``Error`` so the apiv4 route layer maps this to
+            # 428 Precondition Required instead of swallowing the
+            # raw ``Exception`` as a 500 Internal Server Error.
+            raise Error(
                 "precondition_required",
-                f"Storage {self.id} have the pending task {self.task}",
+                f"Storage {self.id} has the pending task {self.task}",
+                description_code="storage_pending_task",
             )
         try:
             self.task = Task(*args, **kwargs).id

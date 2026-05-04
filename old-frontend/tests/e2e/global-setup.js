@@ -26,19 +26,38 @@ const ADMIN_PASSWORD = process.env.E2E_ADMIN_POOL_PASSWORD ?? 'e2e_admin_pw'
 // that covers up to ~64 workers in <10 s.
 const SETUP_CONCURRENCY = Number(process.env.E2E_ADMIN_POOL_CONCURRENCY ?? 4)
 
-const seedOne = async (bootstrap, index) => {
-  const username = `e2e_admin_${index}`
-  // Best-effort cleanup of stale pool entries from prior aborted
-  // runs. If the user doesn't exist, the GET 404s and we skip.
+// Pre-fetch the existing admin pool by listing /admin/users once
+// instead of probing per-username (the /admin/user/{id}/raw
+// endpoint requires the UUID, not the username — stale lookups
+// always 404'd, leaving the leftover users behind and causing
+// 409 Conflict on re-create).
+const fetchExistingPool = async (bootstrap) => {
+  const map = {}
   try {
-    const existing = await bootstrap._authFetch('GET', `/api/v4/admin/user/${username}/raw`)
-    if (existing?.id) {
+    const list = await bootstrap._authFetch('GET', '/api/v4/admin/users')
+    const items = Array.isArray(list) ? list : list?.users ?? []
+    for (const u of items) {
+      if (u?.username && u.username.startsWith('e2e_admin_')) {
+        map[u.username] = u.id
+      }
+    }
+  } catch (e) { /* ignore — we'll create fresh */ }
+  return map
+}
+
+const seedOne = async (bootstrap, index, existingMap) => {
+  const username = `e2e_admin_${index}`
+
+  // If a leftover from a prior aborted run is in the existing
+  // map, delete it first.
+  if (existingMap[username]) {
+    try {
       await bootstrap._authFetch('DELETE', '/api/v4/admin/user', {
-        user: [existing.id],
+        user: [existingMap[username]],
         delete_user: true
       })
-    }
-  } catch (e) { /* user did not exist */ }
+    } catch (e) { /* ignore */ }
+  }
 
   try {
     const user = await bootstrap.createUser(
@@ -72,6 +91,12 @@ export default async function globalSetup (config) {
     process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI'
   )
 
+  // Single user list scan — saves N round-trips of stale-entry
+  // probes, and importantly uses the right endpoint
+  // (/admin/users not /admin/user/{name}/raw which expects a
+  // UUID, not a username, and always 404'd).
+  const existingMap = await fetchExistingPool(bootstrap)
+
   const indices = Array.from({ length: poolSize }, (_, i) => i)
   const created = []
 
@@ -80,7 +105,7 @@ export default async function globalSetup (config) {
   // bootstrap-admin calls.
   for (let i = 0; i < indices.length; i += SETUP_CONCURRENCY) {
     const batch = indices.slice(i, i + SETUP_CONCURRENCY)
-    const ids = await Promise.all(batch.map((idx) => seedOne(bootstrap, idx)))
+    const ids = await Promise.all(batch.map((idx) => seedOne(bootstrap, idx, existingMap)))
     for (const id of ids) {
       if (id) created.push(id)
     }

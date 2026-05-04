@@ -101,26 +101,31 @@ loginTest.describe('Vue 2 templates — duplicate + enable/disable toggle', () =
     })
     cleanupIds.push(dup.id)
 
-    // Disable via API.
-    await api._authFetch('PUT', `/api/v4/item/template/${dup.id}/disable`)
-
-    // Re-fetch — the row's enabled flag should be false.
+    // Disable via API. Endpoint is the single PUT
+    // ``/item/template/{id}/set-enabled`` taking ``{enabled:
+    // bool}``. ``/items/templates/allowed/all`` only lists
+    // ENABLED templates — checking for membership is the
+    // simplest signal that ``set-enabled`` worked. /get-info
+    // doesn't include the ``enabled`` field.
+    await api._authFetch('PUT', `/api/v4/item/template/${dup.id}/set-enabled`, { enabled: false })
     const afterDisable = await api._authFetch('GET', '/api/v4/items/templates/allowed/all')
-    const found = (Array.isArray(afterDisable) ? afterDisable : []).find(
+    const stillListedAfterDisable = (Array.isArray(afterDisable) ? afterDisable : []).some(
       (t) => t.id === dup.id
     )
     expect(
-      found,
-      `Duplicate template ${dup.id} should still appear in /allowed/all after disable`
-    ).toBeTruthy()
-    expect(found.enabled, 'enabled flag should be false after disable').toBeFalsy()
+      stillListedAfterDisable,
+      `Disabled template ${dup.id} should NOT appear in /allowed/all (which is enabled-only)`
+    ).toBeFalsy()
 
     // Re-enable.
-    await api._authFetch('PUT', `/api/v4/item/template/${dup.id}/enable`)
+    await api._authFetch('PUT', `/api/v4/item/template/${dup.id}/set-enabled`, { enabled: true })
     const afterEnable = await api._authFetch('GET', '/api/v4/items/templates/allowed/all')
-    const found2 = (Array.isArray(afterEnable) ? afterEnable : []).find(
+    const listedAfterEnable = (Array.isArray(afterEnable) ? afterEnable : []).some(
       (t) => t.id === dup.id
     )
-    expect(found2.enabled, 'enabled flag should be true after enable').toBeTruthy()
+    expect(
+      listedAfterEnable,
+      `Re-enabled template ${dup.id} should reappear in /allowed/all`
+    ).toBeTruthy()
   })
 })

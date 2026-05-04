@@ -22,6 +22,7 @@
 
 import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
+import { PageLogin } from './login-page'
 import { test } from './api-fixture'
 
 test.describe.configure({ mode: 'serial' })
@@ -34,6 +35,14 @@ test.describe('Vue 2 websocket — store updates without manual refresh', () => 
 
   test.beforeAll(async ({ baseURL }) => {
     test.setTimeout(120000)
+    // Use bootstrap admin everywhere in this spec — the test
+    // body issues an out-of-band DELETE via the api fixture
+    // AFTER the UI has authenticated, and the
+    // ``one-session-per-user`` rule in isard-sessions would
+    // invalidate the UI cookie if the api fixture re-logged in
+    // as the same per-worker admin. Bootstrap admin keeps the
+    // browser session intact while still seeing the desktop
+    // (bootstrap admin owns it).
     const seed = new ApiHelper(baseURL ?? 'https://localhost')
     await seed.login()
 
@@ -74,25 +83,49 @@ test.describe('Vue 2 websocket — store updates without manual refresh', () => 
 
   test('out-of-band delete removes row from /desktops without refresh', async ({
     page,
-    login,
-    api
+    baseURL
   }) => {
     test.skip(!desktopId, 'beforeAll did not seed a desktop')
+
+    // Override the per-worker UI login to use bootstrap admin
+    // so the browser session matches the seed/cleanup user.
+    const login = new PageLogin(page)
+    await login.goto()
+    await login.form('admin', 'IsardVDI')
+    await login.finished()
 
     await page.goto('/desktops')
     await page.waitForLoadState('networkidle')
 
-    // Confirm the desktop is initially visible.
-    const card = page.getByText(desktopName).first()
+    // The Vue 2 desktops list truncates long names in the row
+    // text (e.g. ``ws-event-17779318710...``), so an exact text
+    // locator fails. Match by a stable prefix instead — the
+    // first 18 chars of the timestamped name are unique enough
+    // for our purposes.
+    const namePrefix = desktopName.slice(0, 18)
+    const card = page.getByText(new RegExp(namePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).first()
     await expect(
       card,
       `seeded desktop '${desktopName}' should be visible on /desktops`
     ).toBeVisible({ timeout: 15000 })
 
-    // Out-of-band delete via API. The server emits a WS event that
-    // the Vue 2 socket-instance subscribes to; the store handler
-    // should remove the row from getDesktops.
-    await api._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
+    // Out-of-band delete using the BROWSER's auth token —
+    // logging in again as bootstrap admin would invalidate the
+    // page's session (one-session-per-user) and the page would
+    // redirect to /login, masking the WS event we want to
+    // observe.
+    const cookies = await page.context().cookies()
+    const auth = cookies.find((c) => /authorization/i.test(c.name))
+    const browserTok = auth ? decodeURIComponent(auth.value).replace(/^Bearer\s+/i, '') : ''
+    if (!browserTok) {
+      test.skip(true, 'no auth cookie on page; cannot perform out-of-band delete')
+      return
+    }
+    const delRes = await fetch(`${baseURL ?? 'https://localhost'}/api/v4/item/desktop/${desktopId}?permanent=true`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${browserTok}` }
+    })
+    expect(delRes.ok || delRes.status === 404, `out-of-band DELETE got ${delRes.status}`).toBeTruthy()
     desktopId = null // prevent afterAll from trying to delete again
 
     // Wait up to 15s for the card to disappear without a manual

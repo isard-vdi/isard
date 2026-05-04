@@ -56,14 +56,20 @@ loginTest.describe('Vue 2 templates — newly-created template appears in list',
       return
     }
 
-    templateName = `tpl-create-${ts}`
-    const tpl = await seed.createTemplate(templateName, dsk.id, {
+    const requestedName = `tpl-create-${ts}`
+    const tpl = await seed.createTemplate(requestedName, dsk.id, {
       roles: ['admin'],
       categories: false,
       groups: false,
       users: false
     })
     templateId = tpl.id
+    // The helper may add a suffix on retry (storage-pending-task);
+    // pull the actual stored name back from /allowed/all rather
+    // than asserting on the requested name.
+    const list = await seed._authFetch('GET', '/api/v4/items/templates/allowed/all')
+    const found = (Array.isArray(list) ? list : []).find((t) => t.id === templateId)
+    templateName = found?.name ?? requestedName
   })
 
   loginTest.afterAll(async ({ baseURL }) => {

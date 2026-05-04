@@ -219,13 +219,20 @@ export class ApiHelper {
   }
 
   /**
-   * Create a template from a stopped desktop
+   * Create a template from a stopped desktop.
+   *
+   * The desktop's underlying storage may still have a pending
+   * task (qcow2 chain creation) even after the desktop reaches
+   * Stopped — apiv4 returns 428 ``storage_pending_task`` if you
+   * try to create a template while that pending task is alive.
+   * Retry a few times with backoff so callers don't have to
+   * thread the storage state machine into every test.
    */
   async createTemplate (name, desktopId, allowed = false) {
-    return this._authFetch('POST', '/api/v4/item/template', {
-      name,
+    const buildBody = (n) => ({
+      name: n,
       desktop_id: desktopId,
-      description: `Test template ${name}`,
+      description: `Test template ${n}`,
       enabled: true,
       allowed: allowed || {
         roles: false,
@@ -234,6 +241,38 @@ export class ApiHelper {
         users: false
       }
     })
+    const deadline = Date.now() + 30000
+    let attempt = 0
+    let lastErr = null
+    while (Date.now() < deadline) {
+      // apiv4 inserts the template row BEFORE enqueueing the
+      // storage task, so a 428 on the second step leaves the row
+      // behind. Subsequent attempts hit 409 ``name_exists``. Bump
+      // the name suffix per retry so the row insert succeeds and
+      // we eventually pick up the storage when it's free.
+      const attemptName = attempt === 0 ? name : `${name}-r${attempt}`
+      try {
+        return await this._authFetch('POST', '/api/v4/item/template', buildBody(attemptName))
+      } catch (e) {
+        lastErr = e
+        // Both apiv4 preconditions are timing-related and clear
+        // on their own:
+        // * ``storage_pending_task`` — qcow2 chain still being
+        //   built.
+        // * ``status desktop must be Stopped`` — engine flips the
+        //   desktop into Updating right after Stopped while
+        //   reservables / hardware metadata is materialised.
+        // Both clear within seconds; retry until the deadline.
+        const retriable =
+          /storage_pending_task|precondition_required.*pending task/i.test(e.message) ||
+          /must be Stopped/i.test(e.message) ||
+          /new_template_name_exists/.test(e.message)
+        if (!retriable) throw e
+        attempt += 1
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+      }
+    }
+    throw lastErr ?? new Error('createTemplate timed out')
   }
 
   /**
