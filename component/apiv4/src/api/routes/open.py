@@ -129,10 +129,19 @@ _LOGO_MIME_TYPES = {
 @open_router.get(
     "/logo",
     tags=["categories"],
+    response_class=Response,
     summary="Get logo",
     description="Returns the logo for the requesting domain. Falls back to the default logo.",
     responses={
-        200: {"description": "Logo image file"},
+        200: {
+            "description": "Logo image file",
+            "content": {
+                "image/png": {},
+                "image/jpeg": {},
+                "image/svg+xml": {},
+                "image/*": {},
+            },
+        },
         404: {"model": ErrorResponse},
     },
 )
@@ -191,7 +200,7 @@ async def get_logo(request: Request):
 
 if os.environ.get("USAGE", "production") != "production":
 
-    @token_router.get("/test/payload")
+    @token_router.get("/test/payload", response_model=dict)
     async def test_payload(request: Request):
         """Debug endpoint: returns decoded JWT payload (devel only)"""
         return request.token_payload

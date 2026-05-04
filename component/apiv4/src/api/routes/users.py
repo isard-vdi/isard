@@ -188,10 +188,17 @@ async def get_user_password_policy(request: Request):
 @token_router.get(
     "/item/user/get-vpn",
     tags=[tag],
+    response_class=StreamingResponse,
     summary="Get the user vpn",
     description="Returns the VPN for the user.",
     operation_id="get_user_vpn",
-    responses={500: {"description": "Failed to retrieve the user VPN"}},
+    responses={
+        200: {
+            "description": "VPN configuration file (text/plain or download)",
+            "content": {"text/plain": {}, "application/octet-stream": {}},
+        },
+        500: {"description": "Failed to retrieve the user VPN"},
+    },
 )
 async def get_user_vpn(request: Request):
     try:
@@ -224,6 +231,8 @@ async def get_user_vpn(request: Request):
 @token_router.put(
     "/item/user/reset-vpn",
     tags=[tag],
+    status_code=204,
+    response_class=Response,
     summary="Reset the user vpn",
     description="Resets the VPN keys for the user.",
     responses={

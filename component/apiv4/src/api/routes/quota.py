@@ -93,6 +93,8 @@ async def admin_get_quota_by_kind_item(
 @advanced_router.get(
     "/quota/media/new",
     tags=[tag, "media"],
+    status_code=204,
+    response_class=Response,
     summary="Check media quota",
     description="Checks if adding new media would exceed the user's quota. Raises an error if the quota is exceeded.",
     responses={
@@ -111,6 +113,8 @@ async def check_quota_new_media():
 @token_router.get(
     "/quota/desktop/new",
     tags=[tag, "desktops"],
+    status_code=204,
+    response_class=Response,
     summary="Check desktops quota",
     description="Checks if creating a new desktop would exceed the user's quota.",
     responses={
@@ -129,6 +133,8 @@ async def check_quota_new_desktop():
 @advanced_router.get(
     "/quota/template/new",
     tags=[tag, "templates"],
+    status_code=204,
+    response_class=Response,
     summary="Check templates quota",
     description="Checks if creating a new template would exceed the user's quota.",
     responses={
@@ -147,6 +153,8 @@ async def check_quota_new_template():
 @advanced_router.get(
     "/quota/deployment/new",
     tags=[tag, "deployments"],
+    status_code=204,
+    response_class=Response,
     summary="Check deployments quota",
     description="Checks if creating a new deployment would exceed the user's quota.",
     responses={

@@ -46,6 +46,8 @@ tag = "storage_pools"
 @token_router.get(
     "/storage_pools/check-create-availability",
     tags=[tag],
+    status_code=204,
+    response_class=Response,
     summary="Check storage pool creation availability",
     description="Checks if there's any storage pool category available for creating a new domain",
     responses={

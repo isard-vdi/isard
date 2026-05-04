@@ -284,6 +284,8 @@ async def create_deployment(
 @advanced_router.put(
     "/item/deployment/{deployment_id}/stop",
     tags=[tag],
+    status_code=204,
+    response_class=Response,
     summary="Stop all desktops from a deployment",
     description="Stop all started desktops from a deployment.",
     responses={
@@ -316,6 +318,8 @@ async def stop_all_desktops_in_deployment(
 @advanced_router.put(
     "/item/deployment/{deployment_id}/user/{user_id}/stop",
     tags=[tag],
+    status_code=204,
+    response_class=Response,
     summary="Stop all desktops from a user in a deployment",
     description="Stop all started desktops from a user in a deployment.",
     responses={
@@ -443,9 +447,14 @@ async def edit_deployment(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/download-csv",
     tags=[tag],
+    response_class=Response,
     summary="Export direct viewer URLs as CSV",
     description="Generates a CSV file with direct viewer URLs for all desktops in the deployment",
     responses={
+        200: {
+            "description": "CSV file with direct-viewer URLs",
+            "content": {"text/csv": {}},
+        },
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
@@ -722,6 +731,8 @@ async def bulk_delete_deployments(
 @advanced_router.put(
     "/item/deployment/{deployment_id}/start",
     tags=[tag],
+    status_code=204,
+    response_class=Response,
     summary="Start all desktops in a deployment",
     description="Start all stopped desktops in a deployment.",
     responses={
