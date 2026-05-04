@@ -21,22 +21,21 @@
 // form would send. Catches drift on auth / CORS / rate-limit /
 // the deployed apiv4 image vs. what the contract test exercised.
 
-import { test, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
+import { test } from './api-fixture'
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Bug #41 — image upload payload accepts empty id sentinel', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let desktopId
 
   test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -46,21 +45,23 @@ test.describe('Bug #41 — image upload payload accepts empty id sentinel', () =
     }
 
     const ts = Date.now()
-    const dsk = await api.createDesktop(`upload-bug41-${ts}`, tpl.id)
+    const dsk = await seed.createDesktop(`upload-bug41-${ts}`, tpl.id)
     desktopId = dsk.id
   })
 
-  test.afterAll(async () => {
+  test.afterAll(async ({ baseURL }) => {
     if (desktopId) {
       try {
-        await api._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
+        const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+        await cleanup.login()
+        await cleanup._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
       } catch (e) {
         console.warn(`afterAll: deleteDesktop failed: ${e.message}`)
       }
     }
   })
 
-  test('PUT /edit with {image:{id:"",type:"user",file:{data,filename}}} returns 200', async () => {
+  test('PUT /edit with {image:{id:"",type:"user",file:{data,filename}}} returns 200', async ({ api }) => {
     test.skip(!desktopId, 'beforeAll did not seed a desktop')
 
     // 1×1 transparent PNG, base64-encoded. Tiny payload — keeps the
@@ -94,7 +95,7 @@ test.describe('Bug #41 — image upload payload accepts empty id sentinel', () =
     expect(res, 'edit response body should be present').toBeTruthy()
   })
 
-  test('PUT /edit WITHOUT id (the pre-fix shape) is rejected with 422', async () => {
+  test('PUT /edit WITHOUT id (the pre-fix shape) is rejected with 422', async ({ api }) => {
     test.skip(!desktopId, 'beforeAll did not seed a desktop')
 
     // This is the exact payload old-frontend used to send before

@@ -15,23 +15,21 @@
 
 import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
-import { test as loginTest } from './login-page'
+import { test as loginTest } from './api-fixture'
 
 loginTest.describe.configure({ mode: 'serial' })
 
 loginTest.describe('Vue 2 templates — duplicate + enable/disable toggle', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let baseTemplateId
   /** @type {string[]} */
   const cleanupIds = []
 
   loginTest.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -42,17 +40,21 @@ loginTest.describe('Vue 2 templates — duplicate + enable/disable toggle', () =
     baseTemplateId = tpl.id
   })
 
-  loginTest.afterAll(async () => {
+  loginTest.afterAll(async ({ baseURL }) => {
+    if (cleanupIds.length === 0) return
+    const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+    await cleanup.login()
     for (const id of cleanupIds) {
       try {
-        await api._authFetch('DELETE', `/api/v4/item/template/${id}?permanent=true`)
+        await cleanup._authFetch('DELETE', `/api/v4/item/template/${id}?permanent=true`)
       } catch (e) { /* ignored */ }
     }
   })
 
   loginTest('duplicate via API — new template appears in /templates list', async ({
     page,
-    login
+    login,
+    api
   }) => {
     loginTest.skip(!baseTemplateId, 'no base template seeded')
 
@@ -77,7 +79,8 @@ loginTest.describe('Vue 2 templates — duplicate + enable/disable toggle', () =
 
   loginTest('toggle enable/disable via API — UI reflects the new state', async ({
     page,
-    login
+    login,
+    api
   }) => {
     loginTest.skip(!baseTemplateId, 'no base template seeded')
 

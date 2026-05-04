@@ -26,13 +26,11 @@
 
 import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
-import { test as loginTest } from './login-page'
+import { test as loginTest } from './api-fixture'
 
 loginTest.describe.configure({ mode: 'serial' })
 
 loginTest.describe('Bug #17 regression — recycle-bin restore in all-entries view', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let desktopId
   /** @type {string} */
@@ -41,10 +39,10 @@ loginTest.describe('Bug #17 regression — recycle-bin restore in all-entries vi
   let desktopName
 
   loginTest.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -55,40 +53,43 @@ loginTest.describe('Bug #17 regression — recycle-bin restore in all-entries vi
 
     const ts = Date.now()
     desktopName = `bug17-${ts}`
-    const dsk = await api.createDesktop(desktopName, tpl.id)
+    const dsk = await seed.createDesktop(desktopName, tpl.id)
     desktopId = dsk.id
 
     // Wait for the desktop to reach Stopped before we delete it —
     // some delete flows reject Creating-state rows.
     try {
-      await api.waitForDomainStatus(desktopId, 'Stopped', 60000)
+      await seed.waitForDomainStatus(desktopId, 'Stopped', 60000)
     } catch (e) {
       console.warn(`desktop ${desktopId} did not reach Stopped: ${e.message}`)
     }
 
     // Send to recycle bin via non-permanent DELETE.
-    await api._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}`)
+    await seed._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}`)
 
     // Find the recycle-bin entry id matching our desktop. The
     // listing endpoint depends on user role; admin sees all.
-    const entries = await api._authFetch('GET', '/api/v4/items/recycle-bin/all')
+    const entries = await seed._authFetch('GET', '/api/v4/items/recycle-bin/all')
     const entry = (Array.isArray(entries) ? entries : []).find((e) =>
       JSON.stringify(e).includes(desktopName)
     )
     if (entry) recycleBinId = entry.id
   })
 
-  loginTest.afterAll(async () => {
+  loginTest.afterAll(async ({ baseURL }) => {
+    if (!recycleBinId && !desktopId) return
+    const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+    await cleanup.login()
     if (recycleBinId) {
       // Best-effort: empty the recycle bin entry permanently to
       // clean up.
       try {
-        await api._authFetch('DELETE', `/api/v4/item/recycle-bin/${recycleBinId}`)
+        await cleanup._authFetch('DELETE', `/api/v4/item/recycle-bin/${recycleBinId}`)
       } catch (e) { /* already gone */ }
     }
     if (desktopId) {
       try {
-        await api._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
+        await cleanup._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
       } catch (e) { /* already gone */ }
     }
   })

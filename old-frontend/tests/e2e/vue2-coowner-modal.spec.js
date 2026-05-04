@@ -20,9 +20,10 @@
 // whose ``co_owners`` list contains that user. UI logs in as the
 // co-owner and exercises the modal.
 
-import { test, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
 import { PageLogin } from './login-page'
+import { test } from './api-fixture'
 
 // One serial describe block — the seeded user + deployment are
 // shared across the test (and only assertion). Parallel runs would
@@ -30,8 +31,6 @@ import { PageLogin } from './login-page'
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Bug #47 regression — co-owner cannot click Update co-owners', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let coownerUserId
   /** @type {string} */
@@ -43,13 +42,13 @@ test.describe('Bug #47 regression — co-owner cannot click Update co-owners', (
   let deploymentName
 
   test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
     // Find a Stopped+enabled template the deployment can be built
     // from. Bail out cleanly if the test stack hasn't seeded any —
     // the spec is a regression guard, not a stack-bring-up smoke.
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -63,7 +62,7 @@ test.describe('Bug #47 regression — co-owner cannot click Update co-owners', (
     // CI runs don't collide on the unique-username constraint.
     const ts = Date.now()
     coownerUsername = `coown_e2e_${ts}`
-    const userResp = await api.createUser(
+    const userResp = await seed.createUser(
       coownerUsername,
       'default',
       'default-default',
@@ -77,7 +76,7 @@ test.describe('Bug #47 regression — co-owner cannot click Update co-owners', (
     // deployment row itself; without it /deployments wouldn't list
     // it for them.
     deploymentName = `coown-bug47-${ts}`
-    const depResp = await api.createDeployment(
+    const depResp = await seed.createDeployment(
       deploymentName,
       tpl.id,
       {
@@ -91,10 +90,13 @@ test.describe('Bug #47 regression — co-owner cannot click Update co-owners', (
     deploymentId = depResp.id
   })
 
-  test.afterAll(async () => {
+  test.afterAll(async ({ baseURL }) => {
+    if (!deploymentId && !coownerUserId) return
+    const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+    await cleanup.login()
     if (deploymentId) {
       try {
-        await api.deleteDeployment(deploymentId)
+        await cleanup.deleteDeployment(deploymentId)
       } catch (e) {
         // Best-effort cleanup; the deployment may already be in the
         // recycle bin if a prior run trashed it.
@@ -103,7 +105,7 @@ test.describe('Bug #47 regression — co-owner cannot click Update co-owners', (
     }
     if (coownerUserId) {
       try {
-        await api.deleteUser(coownerUserId)
+        await cleanup.deleteUser(coownerUserId)
       } catch (e) {
         console.warn(`afterAll: deleteUser failed: ${e.message}`)
       }

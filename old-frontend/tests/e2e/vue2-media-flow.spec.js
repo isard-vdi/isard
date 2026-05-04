@@ -7,8 +7,7 @@
 // item lacks a status field (apiv4 strict response_model).
 
 import { expect } from '@playwright/test'
-import { ApiHelper } from './helpers/api'
-import { test } from './login-page'
+import { test } from './api-fixture'
 
 test.describe('Vue 2 media page', () => {
   test('/media loads without 500 and renders both tabs', async ({ page, login }) => {
@@ -42,10 +41,7 @@ test.describe('Vue 2 media page', () => {
     expect(body, 'media page must render *some* tab content').toMatch(/Media|Shared/i)
   })
 
-  test('media list endpoint returns conformant payload', async ({ baseURL }) => {
-    const api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
-
+  test('media list endpoint returns conformant payload', async ({ api }) => {
     const list = await api._authFetch('GET', '/api/v4/items/media').catch((e) => {
       throw new Error(`/items/media failed: ${e.message}`)
     })

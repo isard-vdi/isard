@@ -26,15 +26,14 @@
 //      with the user's token; asserts 200 (was 403 before fix).
 //   5. afterAll deletes template + user.
 
-import { test, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
 import { PageLogin } from './login-page'
+import { test } from './api-fixture'
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Bug #37 — owns_domain_id template alloweds branch', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let userId
   /** @type {string} */
@@ -46,14 +45,14 @@ test.describe('Bug #37 — owns_domain_id template alloweds branch', () => {
   let dskTempId
 
   test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
     // Find a stock template to derive from. We need to make a
     // *new* template (via createDesktop + createTemplate) so we
     // control its ``allowed`` field — direct duplication of an
     // upstream template doesn't carry over the allowed list cleanly.
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const baseTpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -64,7 +63,7 @@ test.describe('Bug #37 — owns_domain_id template alloweds branch', () => {
 
     const ts = Date.now()
     userUsername = `bug37_${ts}`
-    const userResp = await api.createUser(
+    const userResp = await seed.createUser(
       userUsername,
       'default',
       'default-default',
@@ -75,15 +74,15 @@ test.describe('Bug #37 — owns_domain_id template alloweds branch', () => {
 
     // Create a Stopped desktop, then a template FROM it with the
     // ``allowed`` block scoped to the new user.
-    const dsk = await api.createDesktop(`bug37-dsk-${ts}`, baseTpl.id)
+    const dsk = await seed.createDesktop(`bug37-dsk-${ts}`, baseTpl.id)
     dskTempId = dsk.id
     try {
-      await api.waitForDomainStatus(dsk.id, 'Stopped', 60000)
+      await seed.waitForDomainStatus(dsk.id, 'Stopped', 60000)
     } catch (e) {
       console.warn(`desktop ${dsk.id} did not reach Stopped within 60s: ${e.message}`)
     }
 
-    const tplResp = await api.createTemplate(
+    const tplResp = await seed.createTemplate(
       `bug37-tpl-${ts}`,
       dsk.id,
       {
@@ -96,24 +95,27 @@ test.describe('Bug #37 — owns_domain_id template alloweds branch', () => {
     templateId = tplResp.id
   })
 
-  test.afterAll(async () => {
+  test.afterAll(async ({ baseURL }) => {
+    if (!templateId && !dskTempId && !userId) return
+    const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+    await cleanup.login()
     if (templateId) {
       try {
-        await api._authFetch('DELETE', `/api/v4/item/template/${templateId}?permanent=true`)
+        await cleanup._authFetch('DELETE', `/api/v4/item/template/${templateId}?permanent=true`)
       } catch (e) {
         console.warn(`afterAll: deleteTemplate failed: ${e.message}`)
       }
     }
     if (dskTempId) {
       try {
-        await api._authFetch('DELETE', `/api/v4/item/desktop/${dskTempId}?permanent=true`)
+        await cleanup._authFetch('DELETE', `/api/v4/item/desktop/${dskTempId}?permanent=true`)
       } catch (e) {
         // Likely already gone — createTemplate consumed it.
       }
     }
     if (userId) {
       try {
-        await api.deleteUser(userId)
+        await cleanup.deleteUser(userId)
       } catch (e) {
         console.warn(`afterAll: deleteUser failed: ${e.message}`)
       }

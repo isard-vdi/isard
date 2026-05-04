@@ -16,72 +16,23 @@
 //   5. Re-open the edit form; assert the new values are visible.
 //   6. afterAll: delete the deployment.
 
-import { test, expect } from '@playwright/test'
-import { ApiHelper } from './helpers/api'
-import { test as loginTest } from './login-page'
-
-test.describe.configure({ mode: 'serial' })
-
-test.describe('Vue 2 deployment edit — form persists changes', () => {
-  /** @type {ApiHelper} */
-  let api
-  /** @type {string} */
-  let deploymentId
-  /** @type {string} */
-  let originalName
-
-  test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
-
-    const templates = await api.getTemplates()
-    const tpl = (templates || []).find(
-      (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
-    )
-    if (!tpl) {
-      test.skip(true, 'no Stopped+enabled template seeded; run seed-fixtures.py first')
-      return
-    }
-
-    const ts = Date.now()
-    originalName = `edit-bug-${ts}`
-    const resp = await api.createDeployment(originalName, tpl.id, {
-      roles: ['admin'],
-      categories: false,
-      groups: false,
-      users: false
-    })
-    deploymentId = resp.id
-  })
-
-  test.afterAll(async () => {
-    if (deploymentId) {
-      try {
-        await api.deleteDeployment(deploymentId)
-      } catch (e) {
-        console.warn(`afterAll: deleteDeployment failed: ${e.message}`)
-      }
-    }
-  })
-})
+import { expect } from '@playwright/test'
+import { test as loginTest } from './api-fixture'
 
 // Use the admin login fixture for the actual UI test.
 loginTest.describe('Vue 2 deployment edit — form round-trip', () => {
   loginTest('rename + change description, re-open form shows new values', async ({
     page,
-    login
+    login,
+    api
   }) => {
-    // Reuse the deployment seeded in the sibling describe-block via a
-    // shared module-level handle would be cleaner, but Playwright runs
-    // describes independently; create one here too. Cheap because
-    // ``createDeployment`` is a single POST.
-    const api = new ApiHelper(test.info().project.use?.baseURL ?? 'https://localhost')
-    await api.login()
+    // Each test gets a fresh logged-in ``api`` via the api-fixture;
+    // no risk of stale JWT mid-suite.
     const templates = await api.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
-    test.skip(!tpl, 'no Stopped+enabled template seeded')
+    loginTest.skip(!tpl, 'no Stopped+enabled template seeded')
 
     const ts = Date.now()
     const originalName = `edit-rt-${ts}`

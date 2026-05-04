@@ -26,24 +26,23 @@
 //     orphans. Tolerates +/- 1 because the engine may still have
 //     in-flight rows when we sample.
 
-import { test, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
+import { test } from './api-fixture'
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Bug #15/#33/#43 — recreate deployment round-trip', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let deploymentId
   /** @type {number} */
   let storageCountBefore
 
   test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -53,7 +52,7 @@ test.describe('Bug #15/#33/#43 — recreate deployment round-trip', () => {
     }
 
     const ts = Date.now()
-    const resp = await api.createDeployment(`recreate-${ts}`, tpl.id, {
+    const resp = await seed.createDeployment(`recreate-${ts}`, tpl.id, {
       roles: ['admin'],
       categories: false,
       groups: false,
@@ -66,7 +65,7 @@ test.describe('Bug #15/#33/#43 — recreate deployment round-trip', () => {
     // unbounded grow signals storage rows are leaking on each
     // recreate.
     try {
-      const storage = await api._authFetch(
+      const storage = await seed._authFetch(
         'POST',
         '/api/v4/admin/table/storage',
         {}
@@ -78,17 +77,18 @@ test.describe('Bug #15/#33/#43 — recreate deployment round-trip', () => {
     }
   })
 
-  test.afterAll(async () => {
-    if (deploymentId) {
-      try {
-        await api.deleteDeployment(deploymentId)
-      } catch (e) {
-        console.warn(`afterAll: deleteDeployment failed: ${e.message}`)
-      }
+  test.afterAll(async ({ baseURL }) => {
+    if (!deploymentId) return
+    try {
+      const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+      await cleanup.login()
+      await cleanup.deleteDeployment(deploymentId)
+    } catch (e) {
+      console.warn(`afterAll: deleteDeployment failed: ${e.message}`)
     }
   })
 
-  test('recreate succeeds and final desktop count matches original', async () => {
+  test('recreate succeeds and final desktop count matches original', async ({ api }) => {
     test.skip(!deploymentId, 'beforeAll did not seed a deployment')
 
     // 1. Capture original desktop count from /item/deployment/{id}

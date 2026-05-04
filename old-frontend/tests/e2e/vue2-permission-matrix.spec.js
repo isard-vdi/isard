@@ -19,15 +19,14 @@
 // Catches regressions where ``getUser.role_id`` resolution drifts
 // or a v-if comparison breaks (e.g. typo'd role string).
 
-import { test, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
 import { PageLogin } from './login-page'
+import { test } from './api-fixture'
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Vue 2 permission matrix — non-admin role views', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let advancedUserId
   /** @type {string} */
@@ -37,26 +36,29 @@ test.describe('Vue 2 permission matrix — non-admin role views', () => {
   const password = 'rolematrix1234'
 
   test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const advResp = await api.createUser(
+    const advResp = await seed.createUser(
       advancedUsername, 'default', 'default-default', 'advanced', password
     )
     advancedUserId = advResp.id
 
-    const userResp = await api.createUser(
+    const userResp = await seed.createUser(
       basicUsername, 'default', 'default-default', 'user', password
     )
     basicUserId = userResp.id
   })
 
-  test.afterAll(async () => {
+  test.afterAll(async ({ baseURL }) => {
+    if (!advancedUserId && !basicUserId) return
+    const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+    await cleanup.login()
     if (advancedUserId) {
-      try { await api.deleteUser(advancedUserId) } catch (e) { /* ignored */ }
+      try { await cleanup.deleteUser(advancedUserId) } catch (e) { /* ignored */ }
     }
     if (basicUserId) {
-      try { await api.deleteUser(basicUserId) } catch (e) { /* ignored */ }
+      try { await cleanup.deleteUser(basicUserId) } catch (e) { /* ignored */ }
     }
   })
 

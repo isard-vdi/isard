@@ -16,18 +16,16 @@ import { test } from './login-page'
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Vue 2 deployment detail', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let deploymentId
   /** @type {string} */
   let deploymentName
 
   test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -38,7 +36,7 @@ test.describe('Vue 2 deployment detail', () => {
 
     const ts = Date.now()
     deploymentName = `dep-detail-${ts}`
-    const dep = await api.createDeployment(deploymentName, tpl.id, {
+    const dep = await seed.createDeployment(deploymentName, tpl.id, {
       roles: ['admin'],
       categories: false,
       groups: false,
@@ -47,10 +45,13 @@ test.describe('Vue 2 deployment detail', () => {
     deploymentId = dep.id
   })
 
-  test.afterAll(async () => {
-    if (deploymentId) {
-      try { await api.deleteDeployment(deploymentId) } catch (e) { /* ignored */ }
-    }
+  test.afterAll(async ({ baseURL }) => {
+    if (!deploymentId) return
+    try {
+      const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+      await cleanup.login()
+      await cleanup.deleteDeployment(deploymentId)
+    } catch (e) { /* ignored */ }
   })
 
   test('/deployment/:id renders detail page with deployment name', async ({

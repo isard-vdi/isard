@@ -22,23 +22,21 @@
 
 import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
-import { test } from './login-page'
+import { test } from './api-fixture'
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Vue 2 websocket — store updates without manual refresh', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let desktopId
   /** @type {string} */
   let desktopName
 
   test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -49,27 +47,29 @@ test.describe('Vue 2 websocket — store updates without manual refresh', () => 
 
     const ts = Date.now()
     desktopName = `ws-event-${ts}`
-    const dsk = await api.createDesktop(desktopName, tpl.id)
+    const dsk = await seed.createDesktop(desktopName, tpl.id)
     desktopId = dsk.id
 
     try {
-      await api.waitForDomainStatus(desktopId, 'Stopped', 60000)
+      await seed.waitForDomainStatus(desktopId, 'Stopped', 60000)
     } catch (e) {
       console.warn(`desktop did not reach Stopped: ${e.message}`)
     }
   })
 
-  test.afterAll(async () => {
-    if (desktopId) {
-      try {
-        await api._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
-      } catch (e) { /* already gone */ }
-    }
+  test.afterAll(async ({ baseURL }) => {
+    if (!desktopId) return
+    try {
+      const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+      await cleanup.login()
+      await cleanup._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
+    } catch (e) { /* already gone */ }
   })
 
   test('out-of-band delete removes row from /desktops without refresh', async ({
     page,
-    login
+    login,
+    api
   }) => {
     test.skip(!desktopId, 'beforeAll did not seed a desktop')
 

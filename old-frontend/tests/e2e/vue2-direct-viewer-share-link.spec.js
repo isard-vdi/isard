@@ -28,22 +28,21 @@
 // test layer would be the right place to pin specific viewer
 // payload shapes.
 
-import { test, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
+import { test } from './api-fixture'
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Bug #2/#5/#31/#35 — direct-viewer share-link plumbing', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let desktopId
 
   test.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const tpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -53,24 +52,25 @@ test.describe('Bug #2/#5/#31/#35 — direct-viewer share-link plumbing', () => {
     }
 
     const ts = Date.now()
-    const dsk = await api.createDesktop(`share-link-${ts}`, tpl.id)
+    const dsk = await seed.createDesktop(`share-link-${ts}`, tpl.id)
     desktopId = dsk.id
     // Don't wait for Started — the share-link toggle works on a
     // Stopped desktop too; the anonymous viewer endpoint will 404
     // rather than serve, which is the expected non-5xx behaviour.
   })
 
-  test.afterAll(async () => {
-    if (desktopId) {
-      try {
-        await api._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
-      } catch (e) {
-        console.warn(`afterAll: deleteDesktop failed: ${e.message}`)
-      }
+  test.afterAll(async ({ baseURL }) => {
+    if (!desktopId) return
+    try {
+      const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+      await cleanup.login()
+      await cleanup._authFetch('DELETE', `/api/v4/item/desktop/${desktopId}?permanent=true`)
+    } catch (e) {
+      console.warn(`afterAll: deleteDesktop failed: ${e.message}`)
     }
   })
 
-  test('share-link toggle + read + anonymous fetch never 5xx', async () => {
+  test('share-link toggle + read + anonymous fetch never 5xx', async ({ api }) => {
     test.skip(!desktopId, 'beforeAll did not seed a desktop')
 
     // 1. Enable sharing — PUT update-share-link.
@@ -121,7 +121,7 @@ test.describe('Bug #2/#5/#31/#35 — direct-viewer share-link plumbing', () => {
     ).toBeLessThan(500)
   })
 
-  test('share-link toggle off — disabled state', async () => {
+  test('share-link toggle off — disabled state', async ({ api }) => {
     test.skip(!desktopId, 'beforeAll did not seed a desktop')
 
     const updateRes = await api._authFetch(

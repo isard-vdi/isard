@@ -18,13 +18,11 @@
 
 import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
-import { test as loginTest } from './login-page'
+import { test as loginTest } from './api-fixture'
 
 loginTest.describe.configure({ mode: 'serial' })
 
 loginTest.describe('Vue 2 templates — newly-created template appears in list', () => {
-  /** @type {ApiHelper} */
-  let api
   /** @type {string} */
   let templateId
   /** @type {string} */
@@ -33,10 +31,10 @@ loginTest.describe('Vue 2 templates — newly-created template appears in list',
   let dskTempId
 
   loginTest.beforeAll(async ({ baseURL }) => {
-    api = new ApiHelper(baseURL ?? 'https://localhost')
-    await api.login()
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
 
-    const templates = await api.getTemplates()
+    const templates = await seed.getTemplates()
     const baseTpl = (templates || []).find(
       (t) => t.kind === 'template' && t.status === 'Stopped' && t.enabled
     )
@@ -46,17 +44,17 @@ loginTest.describe('Vue 2 templates — newly-created template appears in list',
     }
 
     const ts = Date.now()
-    const dsk = await api.createDesktop(`tpl-create-dsk-${ts}`, baseTpl.id)
+    const dsk = await seed.createDesktop(`tpl-create-dsk-${ts}`, baseTpl.id)
     dskTempId = dsk.id
 
     try {
-      await api.waitForDomainStatus(dsk.id, 'Stopped', 60000)
+      await seed.waitForDomainStatus(dsk.id, 'Stopped', 60000)
     } catch (e) {
       console.warn(`desktop ${dsk.id} did not reach Stopped: ${e.message}`)
     }
 
     templateName = `tpl-create-${ts}`
-    const tpl = await api.createTemplate(templateName, dsk.id, {
+    const tpl = await seed.createTemplate(templateName, dsk.id, {
       roles: ['admin'],
       categories: false,
       groups: false,
@@ -65,15 +63,18 @@ loginTest.describe('Vue 2 templates — newly-created template appears in list',
     templateId = tpl.id
   })
 
-  loginTest.afterAll(async () => {
+  loginTest.afterAll(async ({ baseURL }) => {
+    if (!templateId && !dskTempId) return
+    const cleanup = new ApiHelper(baseURL ?? 'https://localhost')
+    await cleanup.login()
     if (templateId) {
       try {
-        await api._authFetch('DELETE', `/api/v4/item/template/${templateId}?permanent=true`)
+        await cleanup._authFetch('DELETE', `/api/v4/item/template/${templateId}?permanent=true`)
       } catch (e) { /* already gone */ }
     }
     if (dskTempId) {
       try {
-        await api._authFetch('DELETE', `/api/v4/item/desktop/${dskTempId}?permanent=true`)
+        await cleanup._authFetch('DELETE', `/api/v4/item/desktop/${dskTempId}?permanent=true`)
       } catch (e) { /* createTemplate may have consumed it */ }
     }
   })
