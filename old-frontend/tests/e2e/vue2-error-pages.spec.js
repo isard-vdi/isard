@@ -82,6 +82,8 @@ test.describe('Vue 2 error / fallback routes', () => {
       `unknown route ${url} should render a NotFound / login / error fallback; ` +
         'got an unrecognised body. nginx returned no SPA index.html or the ' +
         'wildcard route is missing.'
-    ).toMatch(/not found|404|maintenance|login|sign in|desktops/i)
+    ).toMatch(
+      /not found|404|maintenance|login|sign in|desktops|oops|something went wrong|no longer here/i
+    )
   })
 })

@@ -70,7 +70,7 @@ loginTest.describe('Bug #17 regression — recycle-bin restore in all-entries vi
 
     // Find the recycle-bin entry id matching our desktop. The
     // listing endpoint depends on user role; admin sees all.
-    const entries = await seed._authFetch('GET', '/api/v4/items/recycle-bin/all')
+    const entries = await seed._authFetch('GET', '/api/v4/items/recycle-bin')
     const entry = (Array.isArray(entries) ? entries : []).find((e) =>
       JSON.stringify(e).includes(desktopName)
     )
