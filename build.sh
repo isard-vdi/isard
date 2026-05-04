@@ -657,7 +657,11 @@ generate_code(){
 	# steal stdin from the outer `echo "$CONFIG_FILES" | while read`
 	# loop — without it, only the first cfg gets processed when more
 	# than one isardvdi*.cfg exists in cwd.
-	docker run --rm -u "$(id -u)" -e HOME=/tmp -e GOPATH=/tmp/go -e GOCACHE=/tmp/go-cache -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$DOCKER_IMAGE" </dev/null
+	docker run --rm -u "$(id -u)" \
+		-e HOME=/tmp \
+		-v "$(pwd):/build" \
+		-v /tmp/isardvdi-codegen-cache:/cache \
+		"$DOCKER_IMAGE" </dev/null
 	echo "Generated the code successfully"
 }
 

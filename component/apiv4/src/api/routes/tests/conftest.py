@@ -63,21 +63,26 @@ def _mock_bastion_grpc(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _mock_log_user(monkeypatch):
-    """Prevent ``Token.log_user`` from opening a real TCP connection to
+    """Prevent ``log_user`` from opening a real TCP connection to
     ``isard-db:28015`` on every authenticated request.
 
     ``LogsUsers.__init__`` calls ``r.connect(host="isard-db", ...)`` —
     the actual rethinkdb driver, *not* the mock. When the host is
     unreachable (no container in the test env) the connect blocks for
-    ~5 s before ``Token.log_user``'s try/except swallows the failure.
-    Multiplied by ~1.8k authenticated tests this is hours per CI run,
-    and it caused ``test_update_branding_does_not_block_on_grpc`` to
-    fail at its 2 s ceiling for reasons unrelated to gRPC.
+    ~5 s before the swallow-and-warn try/except returns. Multiplied by
+    ~1.8k authenticated tests this is hours per CI run, and it caused
+    ``test_update_branding_does_not_block_on_grpc`` to fail at its 2 s
+    ceiling for reasons unrelated to gRPC.
+
+    apiv4 routes resolve to ``TokenFastAPI.log_user`` (an override that
+    schedules ``LogsUsers`` via ``asyncio.to_thread``); patching only the
+    base ``Token.log_user`` does not intercept the subclass, so the
+    rethinkdb connect still fires from the worker thread. Patch the
+    subclass directly.
     """
-    monkeypatch.setattr(
-        "isardvdi_common.helpers.token.Token.log_user",
-        classmethod(lambda cls, payload: None),
-    )
+    noop = classmethod(lambda cls, payload: None)
+    monkeypatch.setattr("isardvdi_common.helpers.token.Token.log_user", noop)
+    monkeypatch.setattr("api.dependencies.jwt_token.TokenFastAPI.log_user", noop)
 
 
 @pytest.fixture()
