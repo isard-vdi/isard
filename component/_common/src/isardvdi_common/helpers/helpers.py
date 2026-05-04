@@ -1308,6 +1308,17 @@ class Helpers(RethinkSharedConnection):
                 if payload.get("category_id", "") == domain["category"]:
                     return True
 
+            # Templates shared with this user via the alloweds mechanism.
+            # The new-desktop form calls /item/desktop/{id}/get-info for
+            # templates too (the URL says "desktop" but the same handler
+            # serves both kinds), and a non-owner user must be able to
+            # read the template they were granted access to in order to
+            # build a desktop from it.
+            if domain.get("kind") == "template" and Alloweds.is_allowed(
+                payload, domain, "domains"
+            ):
+                return True
+
         except Error:
             pass
 
