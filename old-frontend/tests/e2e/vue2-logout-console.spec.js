@@ -42,12 +42,14 @@ test.describe('Bug #39 regression — logout JS console clean', () => {
     })
 
     // Click the navbar dropdown that hosts the logout link. The
-    // dropdown is button-content slot rendered as a span carrying the
-    // user's name; with the b-collapse v-if=getUser fix it stays
-    // mounted while the user is logged in.
+    // dropdown's button-content slot renders as
+    // ``<span>{{ getUser.name }} [{{ getUser.role_name }}]</span>``
+    // — role_name is the *display* label, not role_id (e.g. for the
+    // admin user it shows "Administrator [Administrator]"), so match
+    // any bracketed suffix rather than hard-coding role_id values.
     const userDropdown = page
-      .getByRole('button')
-      .filter({ hasText: /\[admin\]|\[manager\]|\[user\]/ })
+      .locator('a.dropdown-toggle')
+      .filter({ hasText: /\[[^\]]+\]/ })
       .first()
     await userDropdown.click()
 
