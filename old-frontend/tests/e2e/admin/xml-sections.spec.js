@@ -31,6 +31,40 @@ const test = base.extend({
 
 test.describe.configure({ mode: 'serial' })
 
+let tetrOSChecked = null
+const hasTetrOSTemplate = async () => {
+  if (tetrOSChecked !== null) return tetrOSChecked
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+  const baseURL =
+    process.env.E2E_BASE_URL ?? (process.env.DOCKER ? 'https://host.docker.internal' : 'https://localhost')
+  try {
+    const fd = new FormData()
+    fd.append('username', 'admin')
+    fd.append('password', 'IsardVDI')
+    const tokRes = await fetch(`${baseURL}/authentication/login?provider=form&category_id=default`, {
+      method: 'POST', body: fd
+    })
+    const tok = (await tokRes.text()).trim()
+    const list = await fetch(`${baseURL}/api/v4/items/templates/allowed/all`, {
+      headers: { Authorization: `Bearer ${tok}` }
+    }).then((r) => r.json()).catch(() => [])
+    tetrOSChecked = (Array.isArray(list) ? list : []).some(
+      (t) => t.name && t.name.toLowerCase().includes('tetros')
+    )
+  } catch (e) {
+    tetrOSChecked = false
+  }
+  return tetrOSChecked
+}
+
+test.beforeAll(async () => {
+  const ok = await hasTetrOSTemplate()
+  test.skip(
+    !ok,
+    'XML sections suite needs the TetrOS template seed — bring up with USAGE=test or run admin/downloads.spec.js first'
+  )
+})
+
 test.describe('XML sections editor (Redmine #15065)', () => {
   /** @type {string} */
   let testDesktopId
