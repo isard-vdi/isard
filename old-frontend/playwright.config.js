@@ -12,6 +12,8 @@ const { defineConfig, devices } = require('@playwright/test')
  */
 module.exports = defineConfig({
   testDir: './tests/e2e',
+  globalSetup: require.resolve('./tests/e2e/global-setup.js'),
+  globalTeardown: require.resolve('./tests/e2e/global-teardown.js'),
   /*
    * Tests inside the same file stay serial (most specs share
    * seed-state via module-level variables); different files run
@@ -25,18 +27,20 @@ module.exports = defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /*
-   * Default to 2 workers locally — empirically the best balance:
-   * * 4 workers triggered "session expired" races (multiple
-   *   parallel logins hitting /authentication/login fast enough
-   *   to shadow each other's JWTs across the apiv4 sessions
-   *   service) and "/desktops navigation interrupted" flakes.
-   * * 1 worker is twice as slow without significant stability
-   *   gain.
-   * Tune via ``--workers=N`` or ``E2E_WORKERS``.
+   * With per-worker admin pool (``global-setup.js`` +
+   * ``api-fixture.js``), each worker holds its own session — no
+   * JWT shadowing across siblings. Parallelism is now bound only
+   * by hardware (CPU + RAM for chromium-headless-shell processes
+   * and the local IsardVDI stack).
+   *
+   * Default to ``undefined`` so Playwright picks
+   * ``Math.ceil(os.cpus().length / 2)``; tune via
+   * ``--workers=N`` or ``E2E_WORKERS``. Beefy CI runners can set
+   * E2E_WORKERS=8+.
    */
   workers: process.env.CI
-    ? 1
-    : process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 2,
+    ? Number(process.env.E2E_WORKERS ?? 2)
+    : process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? [['html'], ['list']] : 'list',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
