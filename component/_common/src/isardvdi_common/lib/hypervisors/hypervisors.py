@@ -303,6 +303,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
         nvidia_enabled=False,
+        nvidia_gpus=None,
         force_get_hyp_info=False,
         user="root",
         only_forced=False,
@@ -428,6 +429,23 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 r.table("hypervisors").get(hyper_id).update(
                     {"hugepages_info": hugepages_info}
                 ).run(cls._rdb_connection)
+
+        # Auto-populate gpu_profiles and gpu cards from scanned GPU data.
+        # Each step is best-effort and isolated: a failure here must not
+        # prevent the hypervisor from registering. Mirrors apiv3 main.
+        if nvidia_gpus:
+            try:
+                cls.resolve_gpu_models(hyper_id, nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to resolve GPU models: {e}")
+            try:
+                cls.ensure_gpu_profiles(nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to auto-populate gpu_profiles: {e}")
+            try:
+                cls.ensure_gpu_cards(hyper_id, nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to auto-create gpu cards: {e}")
 
         data["certs"] = cls.get_hypervisors_certs()
 
@@ -565,6 +583,390 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 .replace("-", "")
             )
         return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+
+    @staticmethod
+    def _gpu_pci_name(pci_bus_id):
+        """Convert a discovery ``pci_bus_id`` (``0000:3b:00.0`` or
+        ``3b:00.0``) into the libvirt-style ``pci_0000_3b_00_0`` token used
+        as the suffix for ``card_id`` and ``vgpu_id``."""
+        normalized = pci_bus_id.lower()
+        if len(normalized.split(":")[0]) > 4:
+            normalized = "0000:" + normalized.split(":", 1)[1]
+        return "pci_" + normalized.replace(":", "_").replace(".", "_")
+
+    @classmethod
+    def resolve_gpu_models(cls, hyper_id, nvidia_gpus):
+        """Resolve stable model names for discovered GPUs.
+
+        Card identity is anchored on ``gpu_uuid`` (immutable BIOS asset id
+        from nvidia-smi) so the persisted model survives any driver flip
+        (vfio-pci ↔ nvidia) or naming-convention change in
+        ``_normalize_gpu_model``. Same card seen again (uuid match,
+        regardless of slot) keeps its operator-curated catalog
+        (``gpu_profiles``, ``reservables_vgpus``, ``profiles_enabled``).
+        Card swap (slot reused with a different uuid) is detected
+        explicitly and logged before resetting the model — operator can
+        audit and re-curate.
+
+        Resolution order:
+          1. uuid match against any existing card → reuse persisted model;
+             backfill the card's pci slot if it moved.
+          2. PCI-anchored card row exists with a persisted model → trust
+             it (legacy rows that pre-date uuid tracking).
+          3. Otherwise derive fresh from discovery and persist.
+
+        Modifies each GPU dict in-place, setting ``_resolved_model``.
+        """
+        for gpu in nvidia_gpus:
+            pci_name = cls._gpu_pci_name(gpu["pci_bus_id"])
+            card_id = f"auto-{hyper_id}-{pci_name}"
+            new_uuid = gpu.get("gpu_uuid")
+
+            with cls._rdb_context():
+                existing_card = r.table("gpus").get(card_id).run(cls._rdb_connection)
+
+            # 1) uuid match wins, even across slot moves: same physical card,
+            # keep its catalog. Skip lookup when discovery did not report a
+            # uuid (older nvidia-smi or a card under vfio-pci with no uuid in
+            # sysfs) — fall through to PCI-anchored matching.
+            uuid_match = None
+            if new_uuid:
+                with cls._rdb_context():
+                    uuid_match = list(
+                        r.table("gpus")
+                        .filter({"gpu_uuid": new_uuid})
+                        .limit(1)
+                        .run(cls._rdb_connection)
+                    )
+                uuid_match = uuid_match[0] if uuid_match else None
+
+            if uuid_match and uuid_match.get("model"):
+                gpu["_resolved_model"] = uuid_match["model"]
+                # Slot move: same uuid, different card_id. Migrate the row
+                # id so PCI-keyed lookups elsewhere keep finding the card.
+                if uuid_match["id"] != card_id:
+                    log.warning(
+                        f"GPU {new_uuid!r} moved slot: "
+                        f"{uuid_match['id']!r} -> {card_id!r}; "
+                        f"migrating row, model={uuid_match['model']!r}"
+                    )
+                    new_row = dict(uuid_match)
+                    new_row["id"] = card_id
+                    with cls._rdb_context():
+                        r.table("gpus").insert(new_row).run(cls._rdb_connection)
+                    with cls._rdb_context():
+                        r.table("gpus").get(uuid_match["id"]).delete().run(
+                            cls._rdb_connection
+                        )
+                continue
+
+            # 2) PCI-anchored card with a persisted model: legacy row (no
+            # uuid tracked yet) OR same slot, same uuid. Either way the
+            # model is the source of truth; do not re-derive.
+            if existing_card and existing_card.get("model"):
+                persisted_uuid = existing_card.get("gpu_uuid")
+                if new_uuid and persisted_uuid and persisted_uuid != new_uuid:
+                    # 2b) Card swap: same slot, different physical card.
+                    # Reset model to the fresh derivation so the catalog
+                    # tracks the new hardware. Operator must re-curate
+                    # ``gpu_profiles`` / ``reservables_vgpus`` /
+                    # ``profiles_enabled`` — those are not auto-migrated
+                    # because the previous card's bookings should not
+                    # silently bind to a different card.
+                    fresh = gpu.get("model") or cls._normalize_gpu_model(
+                        gpu["name"], gpu.get("vgpu_profiles")
+                    )
+                    log.warning(
+                        f"GPU card {card_id!r}: physical card swapped "
+                        f"(uuid {persisted_uuid!r} -> {new_uuid!r}); "
+                        f"resetting model {existing_card['model']!r} -> "
+                        f"{fresh!r}. Operator must re-curate gpu_profiles, "
+                        f"reservables_vgpus, and profiles_enabled."
+                    )
+                    gpu["_resolved_model"] = fresh
+                    with cls._rdb_context():
+                        r.table("gpus").get(card_id).update(
+                            {"model": fresh, "gpu_uuid": new_uuid}
+                        ).run(cls._rdb_connection)
+                    continue
+
+                gpu["_resolved_model"] = existing_card["model"]
+                # Backfill uuid on legacy rows so future discoveries can
+                # use path (1).
+                if new_uuid and not persisted_uuid:
+                    with cls._rdb_context():
+                        r.table("gpus").get(card_id).update({"gpu_uuid": new_uuid}).run(
+                            cls._rdb_connection
+                        )
+                    log.info(f"GPU card {card_id!r}: backfilled gpu_uuid={new_uuid!r}")
+                continue
+
+            # 3) First sight (no row, or row with no model): derive and
+            # persist.
+            resolved = gpu.get("model") or cls._normalize_gpu_model(
+                gpu["name"], gpu.get("vgpu_profiles")
+            )
+            gpu["_resolved_model"] = resolved
+            if existing_card:
+                update_fields = {"model": resolved}
+                if new_uuid:
+                    update_fields["gpu_uuid"] = new_uuid
+                with cls._rdb_context():
+                    r.table("gpus").get(card_id).update(update_fields).run(
+                        cls._rdb_connection
+                    )
+                log.info(f"GPU card {card_id!r} bound model={resolved!r} (was empty)")
+
+    @classmethod
+    def ensure_gpu_profiles(cls, nvidia_gpus):
+        """Create or update ``gpu_profiles`` entries from hypervisor-scanned
+        GPU data.
+
+        Every discovered GPU gets a ``gpu_profiles`` entry, even without
+        vGPU driver. All entries include a ``passthrough`` profile (whole
+        GPU, 1 unit). ``resolve_gpu_models`` MUST run first so each gpu
+        dict carries ``_resolved_model``.
+        """
+        if not nvidia_gpus:
+            return
+
+        # Group by GPU model
+        models = {}
+        for gpu in nvidia_gpus:
+            vgpu_profiles = gpu.get("vgpu_profiles", [])
+
+            model = gpu.get("_resolved_model")
+            if not model:
+                raise RuntimeError(
+                    f"ensure_gpu_profiles: missing _resolved_model on GPU "
+                    f"{gpu.get('pci_bus_id')!r}; resolve_gpu_models must "
+                    f"run first"
+                )
+
+            if model not in models:
+                models[model] = {"gpu": gpu, "profiles": []}
+
+            # Add passthrough profile (always, 1 per model)
+            if not any(
+                p["profile"] == "passthrough" for p in models[model]["profiles"]
+            ):
+                models[model]["profiles"].append(
+                    {
+                        "id": f"NVIDIA-{model}-passthrough",
+                        "name": f"NVIDIA {model} passthrough",
+                        "profile": "passthrough",
+                        "mode": "passthrough",
+                        "memory": gpu["memory_total_mb"],
+                        "units": 1,
+                        "description": "Whole GPU passthrough",
+                    }
+                )
+
+            # Add vGPU profiles (deduplicated across multiple physical cards)
+            existing_suffixes = {p["profile"] for p in models[model]["profiles"]}
+            for prof in vgpu_profiles:
+                suffix = prof["name"].split("-", 1)[1]
+                if suffix not in existing_suffixes:
+                    models[model]["profiles"].append(
+                        {
+                            "id": f"NVIDIA-{model}-{suffix}",
+                            "name": f"NVIDIA {model} {suffix}",
+                            "profile": suffix,
+                            "mode": "vgpu",
+                            "memory": prof.get("framebuffer_mb", 0),
+                            "units": prof.get("max_instances", 0)
+                            or prof.get("available_instances", 0),
+                            "description": "",
+                        }
+                    )
+                    existing_suffixes.add(suffix)
+
+            # Add MIG profiles (deduplicated across multiple physical cards)
+            for mig_prof in gpu.get("mig_profiles", []):
+                suffix = mig_prof["name"]
+                if suffix not in existing_suffixes:
+                    models[model]["profiles"].append(
+                        {
+                            "id": f"NVIDIA-{model}-{suffix}",
+                            "name": f"NVIDIA {model} MIG {suffix}",
+                            "profile": suffix,
+                            "mode": "mig",
+                            "mig_profile_id": mig_prof["profile_id"],
+                            "memory": int(mig_prof["memory_gib"] * 1024),
+                            "units": mig_prof["max_instances"],
+                            "description": (
+                                f"MIG GPU Instance " f"({mig_prof['max_instances']}x)"
+                            ),
+                        }
+                    )
+                    existing_suffixes.add(suffix)
+
+        # Upsert each model into ``gpu_profiles``
+        for model, data in models.items():
+            gpu = data["gpu"]
+            gpu_profile_id = f"NVIDIA-{model}"
+            memory_gb = gpu["memory_total_mb"] // 1024
+            memory_str = f"{memory_gb} GB"
+
+            new_entry = {
+                "id": gpu_profile_id,
+                "brand": "NVIDIA",
+                "name": f"NVIDIA {model}",
+                "model": model,
+                "architecture": "",
+                "description": f"Auto-discovered from {gpu['name']}",
+                "memory": memory_str,
+                "profiles": data["profiles"],
+            }
+
+            with cls._rdb_context():
+                existing = (
+                    r.table("gpu_profiles").get(gpu_profile_id).run(cls._rdb_connection)
+                )
+
+            if existing:
+                # Merge profiles: keep existing, add/update from scanned data
+                existing_by_id = {p["id"]: p for p in existing.get("profiles", [])}
+                for p in data["profiles"]:
+                    existing_by_id[p["id"]] = p
+                new_entry["profiles"] = list(existing_by_id.values())
+                if existing.get("architecture"):
+                    new_entry["architecture"] = existing["architecture"]
+                if existing.get("description") and not existing[
+                    "description"
+                ].startswith("Auto-discovered"):
+                    new_entry["description"] = existing["description"]
+
+            with cls._rdb_context():
+                r.table("gpu_profiles").insert(new_entry, conflict="update").run(
+                    cls._rdb_connection
+                )
+
+            log.info(
+                f"GPU profile '{gpu_profile_id}' "
+                f"{'updated' if existing else 'created'} "
+                f"with {len(new_entry['profiles'])} profiles"
+            )
+
+    @classmethod
+    def ensure_gpu_cards(cls, hyper_id, nvidia_gpus):
+        """Auto-create ``gpus`` table entries for discovered GPUs.
+
+        Each physical GPU gets a deterministic card ID so re-discovery is
+        idempotent. Only ``profiles_enabled`` (left empty) and
+        ``physical_device`` are managed. ``resolve_gpu_models`` MUST run
+        first so each gpu dict carries ``_resolved_model``.
+        """
+        if not nvidia_gpus:
+            return
+
+        for gpu in nvidia_gpus:
+            model = gpu.get("_resolved_model")
+            if not model:
+                raise RuntimeError(
+                    f"ensure_gpu_cards: missing _resolved_model on GPU "
+                    f"{gpu.get('pci_bus_id')!r}; resolve_gpu_models must "
+                    f"run first"
+                )
+
+            pci_name = cls._gpu_pci_name(gpu["pci_bus_id"])
+            card_id = f"auto-{hyper_id}-{pci_name}"
+            vgpu_id = f"{hyper_id}-{pci_name}"
+            gpu_profile_id = f"NVIDIA-{model}"
+
+            # Check if any card already has this physical_device assigned
+            with cls._rdb_context():
+                already_assigned = list(
+                    r.table("gpus")
+                    .filter({"physical_device": vgpu_id})
+                    .pluck("id")
+                    .run(cls._rdb_connection)
+                )
+
+            if already_assigned:
+                log.info(
+                    f"GPU physical_device {vgpu_id} already assigned to "
+                    f"card '{already_assigned[0]['id']}', skipping"
+                )
+                continue
+
+            with cls._rdb_context():
+                existing_card = r.table("gpus").get(card_id).run(cls._rdb_connection)
+
+            if existing_card:
+                # Update physical_device only.  The model is bound by
+                # resolve_gpu_models on first sight and treated as
+                # immutable thereafter — we never overwrite it here, so a
+                # future change in _normalize_gpu_model output (driver
+                # upgrade, code change) cannot drift the catalog away from
+                # desktops that already reference the card's reservables.
+                update_fields = {"physical_device": vgpu_id}
+                gpu_uuid = gpu.get("gpu_uuid")
+                if gpu_uuid and existing_card.get("gpu_uuid") != gpu_uuid:
+                    update_fields["gpu_uuid"] = gpu_uuid
+                with cls._rdb_context():
+                    r.table("gpus").get(card_id).update(update_fields).run(
+                        cls._rdb_connection
+                    )
+                log.info(
+                    f"GPU card '{card_id}' updated physical_device -> " f"{vgpu_id}"
+                )
+                continue
+
+            # Look for an existing unassigned card with matching brand/model
+            with cls._rdb_context():
+                unassigned = list(
+                    r.table("gpus")
+                    .filter(
+                        {
+                            "brand": "NVIDIA",
+                            "model": model,
+                            "physical_device": None,
+                        }
+                    )
+                    .pluck("id")
+                    .run(cls._rdb_connection)
+                )
+
+            if unassigned:
+                with cls._rdb_context():
+                    r.table("gpus").get(unassigned[0]["id"]).update(
+                        {"physical_device": vgpu_id}
+                    ).run(cls._rdb_connection)
+                log.info(
+                    f"GPU card '{unassigned[0]['id']}' assigned "
+                    f"physical_device -> {vgpu_id}"
+                )
+                continue
+
+            # No existing card found — create a new auto-discovered one
+            with cls._rdb_context():
+                gpu_profile = (
+                    r.table("gpu_profiles").get(gpu_profile_id).run(cls._rdb_connection)
+                )
+
+            memory_gb = gpu["memory_total_mb"] // 1024
+            new_card = {
+                "id": card_id,
+                "name": f"NVIDIA {model} ({pci_name})",
+                "brand": "NVIDIA",
+                "model": model,
+                "memory": f"{memory_gb} GB",
+                "description": f"Auto-discovered from {gpu['name']}",
+                "architecture": (
+                    gpu_profile.get("architecture", "") if gpu_profile else ""
+                ),
+                "profiles_enabled": [],
+                "physical_device": vgpu_id,
+                "gpu_uuid": gpu.get("gpu_uuid"),
+            }
+
+            with cls._rdb_context():
+                r.table("gpus").insert(new_card).run(cls._rdb_connection)
+            log.info(
+                f"GPU card '{card_id}' created for {gpu['name']} "
+                f"with physical_device={vgpu_id}"
+            )
 
     @classmethod
     def enable_hyper(cls, hyper_id, enable=True):
@@ -940,6 +1342,16 @@ class HypervisorsProcessed(RethinkSharedConnection):
 
     @classmethod
     def assign_gpus(cls):
+        """Wire each vgpu (engine-discovered physical device) to its gpus
+        card row.
+
+        Resolution order per vgpu:
+          1. Auto-id direct hit ``auto-<hyp_id>-pci_<bdf>``: deterministic,
+             survives any (brand, model) drift between vgpus.info.model and
+             gpus.model.
+          2. Manually-created card with matching (brand, model) and no
+             physical_device: legacy path for operator-curated cards.
+        """
         with cls._rdb_context():
             hypers = [
                 h["id"]
@@ -960,6 +1372,24 @@ class HypervisorsProcessed(RethinkSharedConnection):
             "Matching hypers with cards found by engine: " + str(physical_devices)
         )
         for pd in physical_devices:
+            vgpu_id = pd["id"]
+            # vgpu id format is "<hyp_id>-pci_<bdf>"; the auto card id
+            # mirrors that as "auto-<hyp_id>-pci_<bdf>". Direct lookup
+            # avoids the (brand, model) join entirely so a model rename
+            # can't strand the card.
+            auto_id = f"auto-{vgpu_id}"
+            with cls._rdb_context():
+                auto_card = r.table("gpus").get(auto_id).run(cls._rdb_connection)
+            if auto_card:
+                with cls._rdb_context():
+                    r.table("gpus").get(auto_id).update(
+                        {"physical_device": vgpu_id}
+                    ).run(cls._rdb_connection)
+                continue
+
+            # Fallback: legacy / manually-created card matched by (brand,
+            # vgpus.info.model). Kept for backwards compat with
+            # admin-added rows that have no auto-PCI id.
             with cls._rdb_context():
                 gpus = list(
                     r.table("gpus")
@@ -970,8 +1400,15 @@ class HypervisorsProcessed(RethinkSharedConnection):
             if len(gpus):
                 with cls._rdb_context():
                     r.table("gpus").get(gpus[0]["id"]).update(
-                        {"physical_device": pd["id"]}
+                        {"physical_device": vgpu_id}
                     ).run(cls._rdb_connection)
+            else:
+                log.warning(
+                    f"assign_gpus: no card row for vgpu {vgpu_id!r} "
+                    f"(brand={pd.get('brand')!r}, "
+                    f"info.model={pd.get('info', {}).get('model')!r}); "
+                    f"resolve_gpu_models must run before this."
+                )
 
     @classmethod
     def get_hyper_status(cls, hyper_id):

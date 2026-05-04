@@ -112,6 +112,16 @@ def _detect_nested_virtualization():
 def SetupHypervisor():
     ensure_sriov_vfs()
 
+    nvidia_enabled = os.environ.get("GPU_NVIDIA_SCAN") == "true"
+    nvidia_gpus = None
+    if nvidia_enabled:
+        try:
+            nvidia_gpus = discover_gpus()
+        except Exception as exc:
+            print(f"discover_gpus failed: {type(exc).__name__}: {exc}")
+            traceback.print_exc()
+            nvidia_gpus = None
+
     HYPERVISOR = {
         "hyper_id": os.environ.get("HYPER_ID", "isard-hypervisor"),
         "hostname": hostname,
@@ -137,9 +147,8 @@ def SetupHypervisor():
         "isard_proxy_hyper_url": proxy_hyper_url,
         "isard_hyper_vpn_host": isard_hyper_vpn_host,
         "only_forced": json.loads(os.environ.get("ONLY_FORCED_HYP", "false").lower()),
-        "nvidia_enabled": (
-            True if os.environ.get("GPU_NVIDIA_SCAN") == "true" else False
-        ),
+        "nvidia_enabled": nvidia_enabled,
+        "nvidia_gpus": nvidia_gpus,
         "force_get_hyp_info": (
             True if os.environ.get("GPU_NVIDIA_RESCAN") == "true" else False
         ),

@@ -44,6 +44,15 @@ class AdminHypervisorCreateData(BaseModel):
     description: str = "Added via api"
     only_forced: bool = False
     nvidia_enabled: bool = False
+    # Hypervisor-side discovery payload. Each list element is a dict with
+    # the shape produced by ``docker/hypervisor/src/lib/gpu_discovery.py::
+    # discover_gpus`` (pci_bus_id, name, gpu_uuid, memory_total_mb,
+    # vgpu_profiles, mig_profiles, ...). When present, the api auto-
+    # populates ``gpu_profiles`` and ``gpus`` rows via
+    # ``HypervisorsProcessed.{resolve_gpu_models, ensure_gpu_profiles,
+    # ensure_gpu_cards}`` so newly discovered hardware appears in the
+    # admin GPU catalog without manual curation.
+    nvidia_gpus: Optional[List[Dict[str, Any]]] = None
     force_get_hyp_info: bool = False
     min_free_mem_gb: int = 0
     storage_pools: Optional[str] = None

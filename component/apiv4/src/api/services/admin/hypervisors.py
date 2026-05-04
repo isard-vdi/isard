@@ -83,6 +83,7 @@ class AdminHypervisorsService:
             isard_hyper_vpn_host=data.get("isard_hyper_vpn_host")
             or os.environ.get("DOMAIN", ""),
             nvidia_enabled=data.get("nvidia_enabled", False),
+            nvidia_gpus=data.get("nvidia_gpus"),
             force_get_hyp_info=data.get("force_get_hyp_info", False),
             description=data.get("description", "Added via api"),
             user=data.get("user", "root"),

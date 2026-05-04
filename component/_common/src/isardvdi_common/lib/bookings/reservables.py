@@ -160,20 +160,19 @@ class ResourceItemsGpus(RethinkSharedConnection):
                         .filter(lambda p: p["profile"] == item["active_profile"])
                         .run(cls._rdb_connection)
                     )
-                # Data-invariant guard: ``main`` relies on ``ensure_gpu_profiles``
-                # (api_hypervisors.py) to keep every brand/model entry's
-                # ``profiles`` list complete (including ``passthrough``).
-                # apiv4-integration does not yet port that helper, so when an
-                # active vgpu profile (e.g. ``passthrough``) is not present in
-                # ``gpu_profiles`` for the GPU's brand/model, this lookup
-                # legitimately returns []. Without this guard the bare ``[0]``
-                # used to raise ``IndexError`` and the whole listing 500'd.
-                # Behaviour on healthy data is unchanged.
+                # ``HypervisorsProcessed.ensure_gpu_profiles`` seeds every
+                # discovered (brand, model) pair on hypervisor registration
+                # with the full profile catalog (passthrough + vgpu + mig).
+                # A missing entry here therefore signals stale data: a GPU
+                # model that was renamed by ``_normalize_gpu_model``, or a
+                # legacy desktop bound to a card whose hypervisor has never
+                # re-registered. Fall back to ``available_units = 0``
+                # instead of 500'ing the whole admin listing.
                 if not matching_profiles:
                     log.warning(
                         "gpu_profiles[%s/%s] missing active_profile %r; "
-                        "falling back to defaults (data invariant — "
-                        "ensure_gpu_profiles equivalent not yet ported)",
+                        "stale catalog — re-register the hypervisor to "
+                        "rebuild the entry",
                         item["brand"],
                         item["model"],
                         item["active_profile"],
