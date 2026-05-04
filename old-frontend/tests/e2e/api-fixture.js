@@ -18,13 +18,21 @@ import { ApiHelper } from './helpers/api'
 
 const POOL_PASSWORD = process.env.E2E_ADMIN_POOL_PASSWORD ?? 'e2e_admin_pw'
 
+// Worker-scoped fixtures cannot depend on the test-scoped
+// ``baseURL`` fixture, so resolve it directly from env / known
+// defaults. Default mirrors playwright.config.js's ``use.baseURL``.
+const resolveBaseURL = () =>
+  process.env.E2E_BASE_URL ??
+  (process.env.DOCKER ? 'https://host.docker.internal' : 'https://localhost')
+
 export const apiFixture = {
-  api: [async ({ baseURL }, use, testInfo) => {
-    const api = new ApiHelper(baseURL ?? 'https://localhost')
+  // eslint-disable-next-line no-empty-pattern
+  api: [async ({}, use, workerInfo) => {
+    const api = new ApiHelper(resolveBaseURL())
     // workerIndex is 0..N-1; map onto the pre-seeded admin pool.
     // Falls back to bootstrap admin if the pool wasn't created
     // (e.g. running specs without globalSetup via single-spec CLI).
-    const username = `e2e_admin_${testInfo.workerIndex}`
+    const username = `e2e_admin_${workerInfo.workerIndex}`
     try {
       await api.login(username, POOL_PASSWORD, 'default')
     } catch (e) {
