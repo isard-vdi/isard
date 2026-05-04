@@ -307,9 +307,24 @@ def set_gpu_profile(payload, gpu_id):
     hyp_id = gpu_id[: gpu_id.rfind("-")]
 
     h = app.m.t_workers[hyp_id].h
-    # old_profile = h.info_nvidia.get(pci_id,{}).get('vgpu_profile',None)
-    h.change_vgpu_profile(gpu_id, profile)
-    h.info_nvidia[pci_id]["model"]
+    result = h.change_vgpu_profile(gpu_id, profile)
+    # change_vgpu_profile returns False on every failure path it reports to
+    # the operator and None on the success path (or early-return when the
+    # profile is already active). Treat False as a hard failure so the
+    # webapp surfaces the real outcome instead of always showing success.
+    if result is False:
+        return (
+            jsonify(
+                {
+                    "error": "profile_change_failed",
+                    "description": (
+                        f"Could not switch {gpu_id} to profile {profile!r}. "
+                        f"Check engine logs for the underlying error."
+                    ),
+                }
+            ),
+            500,
+        )
     return jsonify(True)
 
 

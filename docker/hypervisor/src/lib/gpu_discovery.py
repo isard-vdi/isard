@@ -1312,6 +1312,111 @@ def discover_numa_topology(probe_libvirt=False):
     return {"libvirt_numa_ok": ok, "reason": reason, "nodes": nodes}
 
 
+def _vfio_group_in_use(dev_path):
+    """True if any process holds /dev/vfio/<group> for this PCI device.
+
+    Walks /proc/*/fd to detect open handles. Conservative — on read errors,
+    returns True so we never rebind a device a live qemu is using.
+    """
+    iommu_link = os.path.join(dev_path, "iommu_group")
+    try:
+        group = os.path.basename(os.path.realpath(iommu_link))
+    except OSError:
+        return True
+    vfio_dev = f"/dev/vfio/{group}"
+    if not os.path.exists(vfio_dev):
+        return False
+    try:
+        target = os.path.realpath(vfio_dev)
+    except OSError:
+        return True
+    try:
+        pids = os.listdir("/proc")
+    except OSError:
+        return True
+    for pid in pids:
+        if not pid.isdigit():
+            continue
+        fd_dir = f"/proc/{pid}/fd"
+        try:
+            fds = os.listdir(fd_dir)
+        except OSError:
+            continue
+        for fd in fds:
+            try:
+                if os.path.realpath(os.path.join(fd_dir, fd)) == target:
+                    return True
+            except OSError:
+                pass
+    return False
+
+
+def _rebind_vfio_to_nvidia_if_idle(dev_path):
+    """If a GPU PF is leaked on vfio-pci with no live consumer, rebind to nvidia.
+
+    Libvirt's `<hostdev managed="yes">` attaches vfio-pci on domain start and
+    detaches on stop. If a domain start fails before qemu spawns (e.g. invalid
+    XML), or the host is killed mid-flight, the vfio-pci binding can leak —
+    the PF stays bound to vfio-pci with `driver_override=vfio-pci`,
+    `sriov_numvfs=0`, and no `mdev_supported_types/`. NVIDIA's `sriov-manage`
+    then silently fails because its unbind/rebind dance assumes the source
+    driver is `nvidia`.
+
+    Returns True if the device ends bound to nvidia (or was already), False if
+    rebind was unsafe (live VFIO consumer) or failed.
+    """
+    bdf = os.path.basename(dev_path.rstrip("/"))
+    driver_link = os.path.join(dev_path, "driver")
+    try:
+        cur_driver = (
+            os.path.basename(os.path.realpath(driver_link))
+            if os.path.islink(driver_link)
+            else None
+        )
+    except OSError:
+        cur_driver = None
+    if cur_driver == "nvidia":
+        return True
+    if cur_driver != "vfio-pci":
+        return False
+
+    if _vfio_group_in_use(dev_path):
+        log.info(
+            "GPU %s: bound to vfio-pci with live VFIO consumer; not rebinding",
+            bdf,
+        )
+        return False
+
+    log.warning(
+        "GPU %s: bound to vfio-pci with no live consumer; rebinding to nvidia",
+        bdf,
+    )
+    try:
+        with open(os.path.join(dev_path, "driver_override"), "w") as f:
+            f.write("\n")
+        with open("/sys/bus/pci/drivers/vfio-pci/unbind", "w") as f:
+            f.write(bdf)
+        with open("/sys/bus/pci/drivers/nvidia/bind", "w") as f:
+            f.write(bdf)
+    except OSError as e:
+        log.warning("GPU %s: rebind to nvidia failed: %s", bdf, e)
+        return False
+
+    try:
+        new_driver = os.path.basename(os.path.realpath(driver_link))
+    except OSError:
+        new_driver = None
+    if new_driver != "nvidia":
+        log.warning(
+            "GPU %s: post-rebind driver is %r (expected 'nvidia')",
+            bdf,
+            new_driver,
+        )
+        return False
+    log.info("GPU %s: rebound to nvidia", bdf)
+    return True
+
+
 def ensure_sriov_vfs():
     """Enable SR-IOV virtual functions on GPUs that need them for vGPU.
 
@@ -1325,6 +1430,10 @@ def ensure_sriov_vfs():
 
         unbind nvidia → bind pci-pf-stub → write sriov_numvfs → unbind
         pci-pf-stub → rebind nvidia
+
+    GPUs leaked on vfio-pci (e.g. after a failed managed-mode passthrough
+    start) are rebound to nvidia first when no live VFIO consumer holds the
+    IOMMU group, so the same flow can run.
 
     Must be called before discover_gpus().
     """
@@ -1361,11 +1470,21 @@ def ensure_sriov_vfs():
                     continue
         except (OSError, ValueError):
             continue
+        # Heal a leaked vfio-pci binding before sriov-manage would silently
+        # fail on it. If unsafe (live consumer) or failed, skip this device.
+        if not _rebind_vfio_to_nvidia_if_idle(dev_path):
+            driver_link = os.path.join(dev_path, "driver")
+            try:
+                cur = os.path.basename(os.path.realpath(driver_link))
+            except OSError:
+                cur = None
+            if cur != "nvidia":
+                continue
         # Already has mdev types on PF (legacy vGPU, not Blackwell)
         if os.path.isdir(os.path.join(dev_path, "mdev_supported_types")):
             continue
 
-        print(f"Enabling SR-IOV VFs on {dev} (totalvfs={totalvfs})...")
+        log.info("Enabling SR-IOV VFs on %s (totalvfs=%d)", dev, totalvfs)
         _enable_sriov_for_gpu(dev)
 
 
@@ -1379,26 +1498,39 @@ def _enable_sriov_for_gpu(pci_bdf):
             timeout=60,
         )
         if r.returncode != 0:
-            print(
-                f"  FAILED: sriov-manage -e {pci_bdf}: "
-                f"{(r.stderr or r.stdout).strip()[:200]}"
+            log.error(
+                "GPU %s: sriov-manage -e failed: %s",
+                pci_bdf,
+                (r.stderr or r.stdout).strip()[:200],
             )
             return
     except (OSError, subprocess.TimeoutExpired) as e:
-        print(f"  FAILED: sriov-manage error: {e}")
+        log.error("GPU %s: sriov-manage error: %s", pci_bdf, e)
         return
 
-    # Verify VFs created
+    # Verify VFs created. sriov-manage exits 0 even when the underlying
+    # numvfs write is rejected (e.g. PF still bound to vfio-pci, IOMMU
+    # disabled), so the post-check is the real gate.
+    driver_link = f"/sys/bus/pci/devices/{pci_bdf}/driver"
+    try:
+        bound = os.path.basename(os.path.realpath(driver_link))
+    except OSError:
+        bound = None
     try:
         with open(f"/sys/bus/pci/devices/{pci_bdf}/sriov_numvfs") as f:
             actual = int(f.read().strip())
         if actual > 0:
-            print(f"  Enabled {actual} VFs on {pci_bdf}")
+            log.info("GPU %s: enabled %d VFs", pci_bdf, actual)
         else:
-            print(f"  WARNING: sriov_numvfs still 0 after enablement for {pci_bdf}")
+            log.error(
+                "GPU %s: sriov_numvfs still 0 after sriov-manage -e (PF "
+                "driver=%s); VF discovery will not find vGPU profiles",
+                pci_bdf,
+                bound,
+            )
             return
     except (OSError, ValueError) as e:
-        print(f"  WARNING: could not verify VFs for {pci_bdf}: {e}")
+        log.error("GPU %s: could not verify VFs: %s", pci_bdf, e)
         return
 
     # Verify at least one VF bound to nvidia (required for mdev creation)
@@ -1409,15 +1541,18 @@ def _enable_sriov_for_gpu(pci_bdf):
         if os.path.exists(driver_link):
             driver = os.path.basename(os.path.realpath(driver_link))
             if driver != "nvidia":
-                print(
-                    f"  WARNING: VF {vf_bdf} bound to '{driver}' instead of "
-                    f"'nvidia' — mdev creation will fail. "
-                    f"Check IOMMU is enabled in BIOS and kernel (iommu=pt)."
+                log.warning(
+                    "VF %s bound to %r instead of 'nvidia' — mdev creation "
+                    "will fail. Check IOMMU is enabled in BIOS and kernel "
+                    "(iommu=pt).",
+                    vf_bdf,
+                    driver,
                 )
         else:
-            print(
-                f"  WARNING: VF {vf_bdf} has no driver — mdev creation will "
-                f"fail. Check IOMMU is enabled in BIOS and kernel (iommu=pt)."
+            log.warning(
+                "VF %s has no driver — mdev creation will fail. Check IOMMU "
+                "is enabled in BIOS and kernel (iommu=pt).",
+                vf_bdf,
             )
 
 

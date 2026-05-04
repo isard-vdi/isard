@@ -682,12 +682,51 @@ class hyp(object):
                     f"Created lazy passthrough mdevs entry for {gpu_id} with uuid {pt_uuid}"
                 )
             else:
-                logs.main.error(
-                    f"Cannot change to profile {new_profile} for {gpu_id}: "
-                    f"mdevs data not found. GPU may need re-initialization."
-                )
-                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
-                return False
+                # Lazy-init pool for any profile defined in info.types — covers
+                # MIG profiles (where create_uuids only seeds them on a fresh
+                # discovery branch and a cached load skips it) and any vGPU
+                # profile that was missed because discovery saw only the
+                # subset offered by the then-bound driver. Without this, every
+                # PT→MIG switch fails with "mdevs data not found" until the
+                # operator forces a rediscovery.
+                pci_info = self.info_nvidia.get(pci_id, {})
+                d_type = (pci_info.get("types") or {}).get(new_profile)
+                if d_type:
+                    seed_info = {
+                        "types": {new_profile: d_type},
+                        "path": pci_info.get(
+                            "path", f"/sys/bus/pci/devices/{pci_id.replace('_', ':')}"
+                        ),
+                        "sub_paths": pci_info.get("sub_paths", False),
+                    }
+                    seeded = self.create_uuids(seed_info)
+                    new_pool = seeded.get(new_profile, {})
+                    if new_pool:
+                        pci_mdevs[new_profile] = new_pool
+                        self.mdevs[pci_id] = pci_mdevs
+                        update_vgpu_uuids(gpu_id, pci_mdevs)
+                        logs.main.info(
+                            f"Lazy-seeded mdevs pool for {gpu_id} profile "
+                            f"{new_profile!r} ({len(new_pool)} uuids, "
+                            f"mig={d_type.get('mig', False)})"
+                        )
+                    else:
+                        logs.main.error(
+                            f"Cannot change to profile {new_profile} for {gpu_id}: "
+                            f"create_uuids returned no pool for type {d_type!r}"
+                        )
+                        update_table_field(
+                            "vgpus", gpu_id, "changing_to_profile", False
+                        )
+                        return False
+                else:
+                    logs.main.error(
+                        f"Cannot change to profile {new_profile} for {gpu_id}: "
+                        f"profile not in info.types. GPU may need "
+                        f"re-initialization or rediscovery."
+                    )
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    return False
 
         pci_info = self.info_nvidia.get(pci_id, {})
         if not pci_info.get("path"):

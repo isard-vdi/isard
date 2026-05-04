@@ -1,0 +1,132 @@
+# Copyright 2017 the Isard-vdi project authors:
+#      Josep Maria Viñolas Auquer
+# License: AGPLv3
+
+"""Pin the lazy-init paths in hyp.change_vgpu_profile.
+
+The original code only seeded ``self.mdevs[pci_id][new_profile]`` for the
+``passthrough`` profile. Switching to a MIG (or first-time vGPU) target
+returned ``False`` with "mdevs data not found" because ``create_uuids`` only
+populates the pool on the fresh-discovery branch and a cached load skips it.
+Mirrors origin/main ``3369e30c5``.
+"""
+
+import logging
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from engine.models import hyp as hyp_mod
+from engine.models.hyp import hyp
+
+
+@pytest.fixture(autouse=True)
+def _logs(monkeypatch):
+    """``engine.services.log`` is stubbed by ``engine/engine/conftest.py``,
+    so the module-level ``logs`` symbol pulled in via star-import is missing
+    under pytest. Inject a real logger only for the duration of each test so
+    the production ``logs.main.info(...)`` / ``logs.main.error(...)`` lines
+    exercise without NameError."""
+    fake_logs = MagicMock()
+    fake_logs.main = logging.getLogger(__name__)
+    monkeypatch.setattr(hyp_mod, "logs", fake_logs, raising=False)
+
+
+def _build_hyp():
+    """Construct a hyp instance bypassing the heavy __init__ (libvirt + ssh
+    + threads). The test only exercises change_vgpu_profile against the
+    populated dicts we set explicitly."""
+    h = hyp.__new__(hyp)
+    h.mdevs = {}
+    h.info_nvidia = {}
+    return h
+
+
+@patch("engine.models.hyp.update_vgpu_uuids")
+@patch("engine.models.hyp.update_table_field")
+def test_change_vgpu_profile_lazy_seeds_mig_pool(mock_update_field, mock_update_uuids):
+    """Switching to a MIG profile that exists in info.types but not yet in
+    self.mdevs must lazy-init the pool via create_uuids and persist it."""
+    h = _build_hyp()
+    pci_id = "0000_3b_00_0"
+    gpu_id = "hyp-test-" + pci_id
+    h.info_nvidia[pci_id] = {
+        "path": "/sys/bus/pci/devices/0000:3b:00.0",
+        "sub_paths": False,
+        "types": {
+            "nvidia-mig-1g": {
+                "mig": True,
+                "max_instances": 7,
+            }
+        },
+    }
+    h.mdevs[pci_id] = {}
+    seeded_uuids = {
+        "uuid-a": {"type_id": "nvidia-mig-1g", "domain_started": False},
+        "uuid-b": {"type_id": "nvidia-mig-1g", "domain_started": False},
+    }
+    h.create_uuids = MagicMock(return_value={"nvidia-mig-1g": seeded_uuids})
+
+    # The downstream path-dependent flow (libvirt MIG flip, ssh) raises
+    # because the hyp instance doesn't have id_hyp_rethink/conn/etc. — we
+    # don't care, we only assert the lazy-init pool was persisted before
+    # control reached the path-dependent block.
+    try:
+        h.change_vgpu_profile(gpu_id, "nvidia-mig-1g")
+    except Exception:
+        pass
+
+    # Pool was seeded from create_uuids' return value.
+    assert h.mdevs[pci_id]["nvidia-mig-1g"] == seeded_uuids
+    h.create_uuids.assert_called_once()
+    seed_arg = h.create_uuids.call_args[0][0]
+    assert seed_arg["types"] == {
+        "nvidia-mig-1g": h.info_nvidia[pci_id]["types"]["nvidia-mig-1g"]
+    }
+    # update_vgpu_uuids was invoked to persist the freshly seeded pool.
+    mock_update_uuids.assert_called_once_with(gpu_id, h.mdevs[pci_id])
+
+
+@patch("engine.models.hyp.update_vgpu_uuids")
+@patch("engine.models.hyp.update_table_field")
+def test_change_vgpu_profile_returns_false_when_profile_not_in_types(
+    mock_update_field, mock_update_uuids
+):
+    """If the requested profile is neither already seeded nor present in
+    info.types, change_vgpu_profile must return False (the operator needs
+    a rediscovery, not a half-baked pool)."""
+    h = _build_hyp()
+    pci_id = "0000_3b_00_0"
+    gpu_id = "hyp-test-" + pci_id
+    h.info_nvidia[pci_id] = {"types": {}}
+    h.mdevs[pci_id] = {}
+    h.create_uuids = MagicMock()
+
+    result = h.change_vgpu_profile(gpu_id, "nvidia-vgpu-unknown")
+
+    assert result is False
+    h.create_uuids.assert_not_called()
+    mock_update_uuids.assert_not_called()
+
+
+@patch("engine.models.hyp.update_vgpu_uuids")
+@patch("engine.models.hyp.update_table_field")
+def test_change_vgpu_profile_returns_false_when_create_uuids_returns_empty(
+    mock_update_field, mock_update_uuids
+):
+    """create_uuids may legitimately return an empty pool (e.g. when the
+    sysfs path is missing). Surface that as False instead of leaving an empty
+    pool that downstream code would treat as success."""
+    h = _build_hyp()
+    pci_id = "0000_3b_00_0"
+    gpu_id = "hyp-test-" + pci_id
+    h.info_nvidia[pci_id] = {
+        "types": {"nvidia-mig-1g": {"mig": True, "max_instances": 7}},
+    }
+    h.mdevs[pci_id] = {}
+    h.create_uuids = MagicMock(return_value={})
+
+    result = h.change_vgpu_profile(gpu_id, "nvidia-mig-1g")
+
+    assert result is False
+    mock_update_uuids.assert_not_called()
