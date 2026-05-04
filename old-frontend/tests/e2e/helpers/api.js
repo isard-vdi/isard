@@ -351,18 +351,31 @@ export class ApiHelper {
   }
 
   /**
-   * Wait for a domain to reach a given status
+   * Wait for a domain to reach a given status.
+   *
+   * The ``/item/desktop/{id}/get-info`` response intentionally
+   * omits ``status`` (it returns the editable shape). Status is
+   * exposed via the listing endpoint ``/items/desktops``, which
+   * is what the Vue 2 dashboard uses too. Poll every 1 s — engine
+   * typically transitions Creating → Stopped in <10 s on a healthy
+   * stack.
    */
-  async waitForDomainStatus (domainId, status, timeoutMs = 120000) {
+  async waitForDomainStatus (domainId, status, timeoutMs = 60000) {
     const start = Date.now()
     while (Date.now() - start < timeoutMs) {
       try {
-        const domain = await this.getDomain(domainId)
-        if (domain.status === status) return domain
+        const resp = await this._authFetch('GET', '/api/v4/items/desktops')
+        const list = Array.isArray(resp) ? resp : resp?.desktops ?? []
+        const found = list.find((d) => d.id === domainId)
+        if (found?.status === status) return found
+        if (found?.status === 'Failed') {
+          throw new Error(`Domain ${domainId} reached Failed instead of ${status}`)
+        }
       } catch (e) {
-        // Domain might not exist yet
+        if (/reached Failed/.test(e.message)) throw e
+        // Listing may transiently 5xx during heavy churn; keep polling.
       }
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 1000))
     }
     throw new Error(`Domain ${domainId} did not reach status ${status} within ${timeoutMs}ms`)
   }
