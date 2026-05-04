@@ -365,5 +365,110 @@ def test_new_protectable_section_keys_present():
         assert k in keys, f"new section {k!r} not protectable"
 
 
+# ---- derived-section tests (Redmine #15065 / journal #89529) ----------------
+
+
+def test_disks_cache_edit_persists_through_roundtrip():
+    """Editing the cache attribute inside the parent <disk> snippet persists
+    across merge_xml_sections — i.e. the stale disk_cache snippet does NOT
+    silently revert it. This is the asymmetry the reporter hit when "edit
+    cache in Disk Cache works, edit cache in Disks doesn't"."""
+    sections = m.split_xml_sections(SAMPLE_DOMAIN_XML, [])
+    edited = {s["key"]: s["xml"] for s in sections if s.get("protectable")}
+    edited["disks"] = (
+        '<disk type="file" device="disk">\n'
+        '  <driver name="qemu" type="qcow2" cache="writeback"/>\n'
+        '  <source file="/isard/templates/x.qcow2"/>\n'
+        '  <target dev="vda" bus="virtio"/>\n'
+        "</disk>"
+    )
+    merged = m.merge_xml_sections(SAMPLE_DOMAIN_XML, edited)
+    root = ET.fromstring(merged)
+    drivers = root.findall('.//devices/disk[@device="disk"]/driver')
+    assert len(drivers) == 1
+    assert (
+        drivers[0].get("cache") == "writeback"
+    ), "cache edit via disks snippet was not preserved after merge"
+
+
+def test_stale_disk_cache_snippet_does_not_clobber_disks_edit():
+    """Frontend sends every textarea on save, including unchanged disk_cache.
+    With disk_cache in _DERIVED_KEYS the unchanged child snippet must be
+    ignored so the parent's cache edit wins, not the stale child."""
+    edited = {
+        "disks": (
+            '<disk type="file" device="disk">'
+            '<driver name="qemu" type="qcow2" cache="writeback"/>'
+            '<source file="/isard/templates/x.qcow2"/>'
+            '<target dev="vda" bus="virtio"/>'
+            "</disk>"
+        ),
+        # The stale disk_cache snippet the frontend would send (untouched
+        # by the user) — it carries the OLD <driver> with no cache attribute.
+        "disk_cache": '<driver name="qemu" type="qcow2"/>',
+    }
+    merged = m.merge_xml_sections(SAMPLE_DOMAIN_XML, edited)
+    root = ET.fromstring(merged)
+    drivers = root.findall('.//devices/disk[@device="disk"]/driver')
+    assert len(drivers) == 1
+    assert drivers[0].get("cache") == "writeback"
+
+
+def test_stale_qos_disk_snippet_does_not_clobber_disks_iotune_edit():
+    """Same protection for qos_disk: an iotune block added inside the disks
+    snippet must survive merge even if a stale qos_disk snippet is also sent."""
+    edited = {
+        "disks": (
+            '<disk type="file" device="disk">'
+            '<driver name="qemu" type="qcow2"/>'
+            '<source file="/isard/templates/x.qcow2"/>'
+            '<target dev="vda" bus="virtio"/>'
+            "<iotune><read_bytes_sec>1048576</read_bytes_sec></iotune>"
+            "</disk>"
+        ),
+        # Stale (empty) qos_disk snippet — the textarea was untouched.
+        "qos_disk": "",
+    }
+    merged = m.merge_xml_sections(SAMPLE_DOMAIN_XML, edited)
+    root = ET.fromstring(merged)
+    iotunes = root.findall('.//devices/disk[@device="disk"]/iotune')
+    assert len(iotunes) == 1, "iotune added inside disks snippet was lost"
+    assert iotunes[0].find("read_bytes_sec") is not None
+    assert iotunes[0].find("read_bytes_sec").text == "1048576"
+
+
+def test_split_marks_derived_views():
+    """split_xml_sections must expose `derived: True` for child-overlap
+    sections (disk_cache, qos_disk) and False for stand-alone sections."""
+    sections = m.split_xml_sections(SAMPLE_DOMAIN_XML, [])
+    by_key = {s["key"]: s for s in sections}
+    assert by_key["disk_cache"]["derived"] is True
+    assert by_key["qos_disk"]["derived"] is True
+    for k in ("disks", "isos", "floppies", "hostdev", "network", "vcpus", "cpu"):
+        assert (
+            by_key[k]["derived"] is False
+        ), f"section {k!r} unexpectedly marked derived"
+
+
+def test_split_rejects_non_domain_root():
+    """Uploaded XML must be a libvirt <domain> document. Earlier code accepted
+    any well-formed root and returned every section empty, which the JS then
+    reported as a successful load — silently wiping the form."""
+    fragment = (
+        '<disk type="file" device="disk">'
+        '<driver name="qemu" type="qcow2"/>'
+        '<source file="/x.qcow2"/>'
+        '<target dev="vda" bus="virtio"/>'
+        "</disk>"
+    )
+    try:
+        m.split_xml_sections(fragment, [])
+    except m.Error as e:
+        assert "domain" in str(e).lower()
+        assert "disk" in str(e), "error should name the actual root tag"
+        return
+    raise AssertionError("split accepted a non-<domain> root")
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

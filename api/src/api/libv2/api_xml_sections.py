@@ -241,7 +241,6 @@ SECTION_DEFS = [
         "xpaths": [".//devices/disk/driver"],
         "protectable": True,
         "multi": True,
-        "readonly_display": True,
     },
     {
         "key": "qos_disk",
@@ -647,6 +646,13 @@ def split_xml_sections(xml_str, protected_sections):
             traceback.format_exc(),
         )
 
+    if root.tag != "domain":
+        raise Error(
+            "bad_request",
+            f"Uploaded XML must be a libvirt <domain> document; got <{root.tag}>",
+            traceback.format_exc(),
+        )
+
     protected_set = set(protected_sections)
     claimed = _collect_claimed_elements(root)
     sections = []
@@ -680,6 +686,7 @@ def split_xml_sections(xml_str, protected_sections):
                 "xml": xml_snippet,
                 "protected": sdef["key"] in protected_set,
                 "protectable": sdef["protectable"],
+                "derived": sdef["key"] in _DERIVED_KEYS,
             }
         )
 
@@ -690,11 +697,82 @@ def split_xml_sections(xml_str, protected_sections):
 _SDEF_BY_KEY = {s["key"]: s for s in SECTION_DEFS}
 
 
+def _xpath_steps(xp):
+    """Normalize an xpath into a list of element-name steps for structural
+    ancestor/descendant comparison.
+
+    Predicates (`[@x="y"]`) are stripped, the leading `./` or `.//` anchor is
+    dropped, and a trailing `/..` is resolved by popping its preceding step.
+    Tags only — attribute filters intentionally don't participate, so e.g.
+    `disks` (`.//devices/disk[@device="disk"]`) and `isos`
+    (`.//devices/disk[@device="cdrom"]`) compare as equal here and neither
+    becomes a descendant of the other.
+    """
+    cleaned = re.sub(r"\[[^\]]*\]", "", xp)
+    cleaned = re.sub(r"^\./?/?", "", cleaned).strip("/")
+    if not cleaned:
+        return []
+    steps = []
+    for p in cleaned.split("/"):
+        if p == "..":
+            if steps:
+                steps.pop()
+        elif p and p != ".":
+            steps.append(p)
+    return steps
+
+
+def _compute_derived_keys():
+    """Return the set of section keys whose xpath targets a strict descendant
+    of another section's xpath target.
+
+    These sections are *derived informational views* of the parent section's
+    XML — for example, `disk_cache` (`.//devices/disk/driver`) sits inside the
+    `<disk>` elements owned by `disks` / `isos` / `floppies`. The parent is the
+    single source of truth on save; the derived view's textarea contents are
+    ignored by `merge_xml_sections` (and rendered read-only in the UI).
+    """
+    derived = set()
+    for sdef in SECTION_DEFS:
+        if sdef.get("catchall"):
+            continue
+        own = [_xpath_steps(xp) for xp in sdef["xpaths"]]
+        for other in SECTION_DEFS:
+            if other is sdef or other.get("catchall"):
+                continue
+            others = [_xpath_steps(xp) for xp in other["xpaths"]]
+            for child_steps in own:
+                if not child_steps:
+                    continue
+                for parent_steps in others:
+                    if (
+                        parent_steps
+                        and len(child_steps) > len(parent_steps)
+                        and child_steps[: len(parent_steps)] == parent_steps
+                    ):
+                        derived.add(sdef["key"])
+                        break
+                if sdef["key"] in derived:
+                    break
+            if sdef["key"] in derived:
+                break
+    return derived
+
+
+_DERIVED_KEYS = _compute_derived_keys()
+
+
 def merge_xml_sections(base_xml_str, edited_sections):
     """Merge edited XML snippets back into the base XML.
 
     edited_sections is a dict: {section_key: xml_snippet_string, ...}
     Only protectable sections can be edited. Non-protectable sections are ignored.
+
+    Sections in `_DERIVED_KEYS` (xpaths that target descendants of another
+    section's xpath, e.g. `disk_cache` and `qos_disk` inside `<disk>`) are
+    informational views of the parent section. Their snippets here are ignored
+    so a stale view does not silently overwrite an edit made via the parent
+    section's snippet.
 
     Returns the merged full XML string.
     """
@@ -739,6 +817,9 @@ def merge_xml_sections(base_xml_str, edited_sections):
 
         sdef = _SDEF_BY_KEY.get(key)
         if not sdef:
+            continue
+
+        if key in _DERIVED_KEYS:
             continue
 
         if sdef.get("catchall"):
