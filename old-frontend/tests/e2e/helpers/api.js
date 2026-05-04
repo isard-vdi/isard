@@ -28,6 +28,11 @@ export class ApiHelper {
   async login (username = 'admin', password = 'IsardVDI', category = 'default') {
     const token = await this._loginAuth(username, password, category)
     this.token = token
+    // Stash credentials so ``_authFetch`` can re-login on 401
+    // ``Session expired`` (cross-worker session shadowing).
+    this._lastUsername = username
+    this._lastPassword = password
+    this._lastCategory = category
     return { token }
   }
 
@@ -35,7 +40,12 @@ export class ApiHelper {
    * Login as a specific user with their category
    */
   async loginAs (username, password, category = 'default') {
-    return this._loginAuth(username, password, category)
+    const token = await this._loginAuth(username, password, category)
+    this.token = token
+    this._lastUsername = username
+    this._lastPassword = password
+    this._lastCategory = category
+    return token
   }
 
   /**
@@ -379,16 +389,40 @@ export class ApiHelper {
     if (!this.token) throw new Error('Not logged in - call login() first')
 
     const url = `${this.baseURL}${path}`
-    const opts = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.token}`
+    const buildOpts = () => {
+      const o = {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.token}`
+        }
+      }
+      if (body) o.body = JSON.stringify(body)
+      return o
+    }
+
+    let res = await fetchInsecure(url, buildOpts())
+
+    // Cross-worker session shadowing: when two workers log in as
+    // the same user back-to-back, the sessions service may
+    // invalidate the older session, so a previously-valid JWT
+    // returns 401 ``Session expired``. Retry once after a fresh
+    // login — the new session covers this worker's remaining
+    // calls until the next shadow event.
+    if (res.status === 401 && this._lastUsername) {
+      try {
+        const newToken = await this._loginAuth(
+          this._lastUsername,
+          this._lastPassword,
+          this._lastCategory
+        )
+        this.token = newToken
+        res = await fetchInsecure(url, buildOpts())
+      } catch (e) {
+        // Fall through to the original error.
       }
     }
-    if (body) opts.body = JSON.stringify(body)
 
-    const res = await fetchInsecure(url, opts)
     if (!res.ok) {
       const text = await res.text()
       throw new Error(`API ${method} ${path} failed (${res.status}): ${text}`)
