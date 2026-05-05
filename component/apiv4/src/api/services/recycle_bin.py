@@ -19,11 +19,22 @@
 
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 
 from api.services.error import Error
+from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.recycle_bin import RecycleBin as CommonRecycleBin
 from isardvdi_common.helpers.recycle_bin import RecycleBinDeleteQueue
+from isardvdi_common.lib.deployments.deployments import DeploymentsProcessed
+from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
+from isardvdi_common.lib.notifications.notifications import NotificationsProcessed
+from isardvdi_common.lib.notifications.notifications_action import (
+    NotificationsActionProcessed,
+)
+from isardvdi_common.lib.notifications.notifications_data import (
+    NotificationsDataProcessed,
+)
 from isardvdi_common.models.category import Category as RethinkCategory
 from isardvdi_common.models.recycle_bin import RecycleBin as RethinkRecycleBin
 from isardvdi_common.models.user import User as RethinkUser
@@ -168,6 +179,99 @@ class RecycleBinService:
                 log.error("Delete cutoff surpassed failed: %s", e)
 
         asyncio.create_task(_process())
+
+    @staticmethod
+    def recycle_unused_items() -> None:
+        # Apiv3 parity: ``recycle_bin_add_unused_items`` from
+        # ``api/src/api/views/RecycleBinView.py`` (main). Each unused
+        # desktop/deployment is moved to the recycle bin under the
+        # ``isard-scheduler`` agent, and a ``notification_data`` row is
+        # written so the user gets a heads-up before the cutoff fires.
+        cutoff_hours = RecycleBinHelpers.get_recycle_bin_cuttoff_time()
+
+        desktops = DesktopsProcessed.get_unused_desktops()
+        desktop_notification = NotificationsProcessed.get_notifications_by_action_id(
+            "unused_desktops"
+        )
+        desktop_notification = (
+            desktop_notification[0]
+            if desktop_notification and desktop_notification[0].get("trigger")
+            else None
+        )
+        desktop_action = (
+            NotificationsActionProcessed.get_notification_action(
+                desktop_notification["action_id"]
+            )
+            if desktop_notification
+            else None
+        )
+
+        notification_data: list[dict] = []
+        for desktop in desktops:
+            DesktopEvents.desktop_delete(desktop["id"], "isard-scheduler")
+            if desktop_notification and desktop_action:
+                notification_data.append(
+                    {
+                        "item_id": desktop["id"],
+                        "item_type": "desktop",
+                        "status": "pending",
+                        "user_id": desktop["user"],
+                        "created_at": datetime.now(timezone.utc),
+                        "notified_at": None,
+                        "accepted_at": None,
+                        "notification_id": desktop_notification["id"],
+                        "vars": {
+                            var: desktop[var]
+                            for var in desktop_action.get("kwargs", [])
+                        },
+                        "ignore_after": datetime.now(timezone.utc)
+                        + timedelta(hours=int(cutoff_hours)),
+                    }
+                )
+        if notification_data:
+            NotificationsDataProcessed.add_notification_data(notification_data)
+
+        deployments = DeploymentsProcessed.get_unused_deployments()
+        deployment_notification = NotificationsProcessed.get_notifications_by_action_id(
+            "unused_deployments"
+        )
+        deployment_notification = (
+            deployment_notification[0]
+            if deployment_notification and deployment_notification[0].get("trigger")
+            else None
+        )
+        deployment_action = (
+            NotificationsActionProcessed.get_notification_action(
+                deployment_notification["action_id"]
+            )
+            if deployment_notification
+            else None
+        )
+
+        notification_data = []
+        for deployment in deployments:
+            DesktopEvents.deployment_delete(deployment["id"], "isard-scheduler")
+            if deployment_notification and deployment_action:
+                common_data = {
+                    "item_id": deployment["id"],
+                    "item_type": "deployment",
+                    "status": "pending",
+                    "created_at": datetime.now(timezone.utc),
+                    "notified_at": None,
+                    "accepted_at": None,
+                    "notification_id": deployment_notification["id"],
+                    "vars": {
+                        var: deployment[var]
+                        for var in deployment_action.get("kwargs", [])
+                    },
+                    "ignore_after": datetime.now(timezone.utc)
+                    + timedelta(hours=int(cutoff_hours)),
+                }
+                notification_data.append({**common_data, "user_id": deployment["user"]})
+                for co_owner in deployment.get("co_owners") or []:
+                    notification_data.append({**common_data, "user_id": co_owner})
+        if notification_data:
+            NotificationsDataProcessed.add_notification_data(notification_data)
 
     @staticmethod
     def get_system_cutoff_time(category_id: str | None = None) -> int:

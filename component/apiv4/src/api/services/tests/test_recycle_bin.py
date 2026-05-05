@@ -124,3 +124,206 @@ class TestDeleteRecycleBinEntry:
     async def test_raises_not_found_for_missing_user(self, _rb, _user):
         with pytest.raises(Error):
             await RecycleBinService.delete_recycle_bin_entry("rb1", "ghost")
+
+
+class TestRecycleUnusedItems:
+    """Pin the scheduler-driven entry point for the nightly
+    ``recycle_bin_add_unused_items`` job. Apiv3 parity:
+    ``main:api/src/api/views/RecycleBinView.py:599-672``. Pre-fix this
+    method did not exist on ``RecycleBinService`` and the route swallowed
+    the resulting ``AttributeError``, so the job had been a silent no-op
+    for the entire apiv4-integration cutover."""
+
+    @patch("api.services.recycle_bin.NotificationsDataProcessed.add_notification_data")
+    @patch(
+        "api.services.recycle_bin.NotificationsActionProcessed.get_notification_action",
+        return_value={"kwargs": ["name"]},
+    )
+    @patch(
+        "api.services.recycle_bin.NotificationsProcessed.get_notifications_by_action_id",
+        return_value=[{"id": "n1", "trigger": True, "action_id": "a1"}],
+    )
+    @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
+        return_value=[],
+    )
+    @patch(
+        "api.services.recycle_bin.DesktopsProcessed.get_unused_desktops",
+        return_value=[
+            {"id": "d-1", "user": "u-1", "name": "alpha"},
+            {"id": "d-2", "user": "u-2", "name": "beta"},
+            {"id": "d-3", "user": "u-1", "name": "gamma"},
+        ],
+    )
+    @patch(
+        "api.services.recycle_bin.RecycleBinHelpers.get_recycle_bin_cuttoff_time",
+        return_value=24,
+    )
+    @patch("api.services.recycle_bin.DesktopEvents.desktop_delete")
+    @patch("api.services.recycle_bin.DesktopEvents.deployment_delete")
+    def test_recycles_each_unused_desktop(
+        self,
+        mock_deployment_delete,
+        mock_desktop_delete,
+        _cutoff,
+        _desktops,
+        _deployments,
+        _notif_lookup,
+        _action_lookup,
+        mock_add_notification_data,
+    ):
+        RecycleBinService.recycle_unused_items()
+        # Pre-fix the route swallowed AttributeError so this was 0; pin
+        # at exactly len(unused_desktops).
+        assert mock_desktop_delete.call_count == 3
+        for call in mock_desktop_delete.call_args_list:
+            assert call.args[1] == "isard-scheduler"
+        # No deployments returned, so deployment_delete must NOT be called.
+        assert mock_deployment_delete.call_count == 0
+        # Notifications written exactly once with the desktop batch.
+        mock_add_notification_data.assert_called_once()
+        notification_data = mock_add_notification_data.call_args.args[0]
+        assert len(notification_data) == 3
+        assert {n["item_id"] for n in notification_data} == {"d-1", "d-2", "d-3"}
+        assert all(n["item_type"] == "desktop" for n in notification_data)
+        assert all(n["notification_id"] == "n1" for n in notification_data)
+        # ``vars`` extracts only the keys named in ``action.kwargs`` from
+        # the desktop row. With ``kwargs=["name"]`` and per-desktop
+        # ``name`` fields ``alpha`` / ``beta`` / ``gamma`` we expect
+        # exact-shape matches.
+        names_by_id = {"d-1": "alpha", "d-2": "beta", "d-3": "gamma"}
+        for n in notification_data:
+            assert n["vars"] == {"name": names_by_id[n["item_id"]]}
+
+    @patch("api.services.recycle_bin.NotificationsDataProcessed.add_notification_data")
+    @patch(
+        "api.services.recycle_bin.NotificationsActionProcessed.get_notification_action",
+        return_value={"kwargs": ["name"]},
+    )
+    @patch(
+        "api.services.recycle_bin.NotificationsProcessed.get_notifications_by_action_id",
+        side_effect=[
+            [],  # no unused_desktops notification
+            [{"id": "n2", "trigger": True, "action_id": "a2"}],
+        ],
+    )
+    @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
+        return_value=[
+            {"id": "dep-1", "user": "u-1", "co_owners": ["u-2"], "name": "delta"},
+            {"id": "dep-2", "user": "u-3", "co_owners": [], "name": "epsilon"},
+        ],
+    )
+    @patch(
+        "api.services.recycle_bin.DesktopsProcessed.get_unused_desktops",
+        return_value=[],
+    )
+    @patch(
+        "api.services.recycle_bin.RecycleBinHelpers.get_recycle_bin_cuttoff_time",
+        return_value=12,
+    )
+    @patch("api.services.recycle_bin.DesktopEvents.desktop_delete")
+    @patch("api.services.recycle_bin.DesktopEvents.deployment_delete")
+    def test_recycles_each_unused_deployment_and_notifies_co_owners(
+        self,
+        mock_deployment_delete,
+        mock_desktop_delete,
+        _cutoff,
+        _desktops,
+        _deployments,
+        _notif_lookup,
+        _action_lookup,
+        mock_add_notification_data,
+    ):
+        RecycleBinService.recycle_unused_items()
+        assert mock_desktop_delete.call_count == 0
+        # Pre-fix the route had no deployments branch at all; pin per-id call.
+        assert mock_deployment_delete.call_count == 2
+        for call in mock_deployment_delete.call_args_list:
+            assert call.args[1] == "isard-scheduler"
+        # Notifications: dep-1 owner + 1 co_owner (2 rows), dep-2 owner only (1 row).
+        mock_add_notification_data.assert_called_once()
+        notification_data = mock_add_notification_data.call_args.args[0]
+        assert len(notification_data) == 3
+        users = sorted(n["user_id"] for n in notification_data)
+        assert users == ["u-1", "u-2", "u-3"]
+        assert all(n["item_type"] == "deployment" for n in notification_data)
+
+    @patch("api.services.recycle_bin.NotificationsDataProcessed.add_notification_data")
+    @patch(
+        "api.services.recycle_bin.NotificationsActionProcessed.get_notification_action",
+    )
+    @patch(
+        "api.services.recycle_bin.NotificationsProcessed.get_notifications_by_action_id",
+        return_value=[],
+    )
+    @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
+        return_value=[],
+    )
+    @patch(
+        "api.services.recycle_bin.DesktopsProcessed.get_unused_desktops",
+        return_value=[{"id": "d-1", "user": "u-1"}],
+    )
+    @patch(
+        "api.services.recycle_bin.RecycleBinHelpers.get_recycle_bin_cuttoff_time",
+        return_value=24,
+    )
+    @patch("api.services.recycle_bin.DesktopEvents.desktop_delete")
+    @patch("api.services.recycle_bin.DesktopEvents.deployment_delete")
+    def test_no_notifications_when_action_disabled(
+        self,
+        mock_deployment_delete,
+        mock_desktop_delete,
+        _cutoff,
+        _desktops,
+        _deployments,
+        _notif_lookup,
+        _action_lookup,
+        mock_add_notification_data,
+    ):
+        # Apiv3 contract: when no notification is configured for the
+        # action, recycle still happens but no notification rows are
+        # written. Pin so a future refactor that requires a notification
+        # to recycle doesn't silently break the cron.
+        RecycleBinService.recycle_unused_items()
+        assert mock_desktop_delete.call_count == 1
+        mock_add_notification_data.assert_not_called()
+        _action_lookup.assert_not_called()
+
+    @patch("api.services.recycle_bin.NotificationsDataProcessed.add_notification_data")
+    @patch(
+        "api.services.recycle_bin.NotificationsActionProcessed.get_notification_action",
+    )
+    @patch(
+        "api.services.recycle_bin.NotificationsProcessed.get_notifications_by_action_id",
+        return_value=[{"id": "n1", "trigger": False, "action_id": "a1"}],
+    )
+    @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
+        return_value=[],
+    )
+    @patch(
+        "api.services.recycle_bin.DesktopsProcessed.get_unused_desktops",
+        return_value=[{"id": "d-1", "user": "u-1"}],
+    )
+    @patch(
+        "api.services.recycle_bin.RecycleBinHelpers.get_recycle_bin_cuttoff_time",
+        return_value=24,
+    )
+    @patch("api.services.recycle_bin.DesktopEvents.desktop_delete")
+    @patch("api.services.recycle_bin.DesktopEvents.deployment_delete")
+    def test_no_notifications_when_trigger_false(
+        self,
+        mock_deployment_delete,
+        mock_desktop_delete,
+        _cutoff,
+        _desktops,
+        _deployments,
+        _notif_lookup,
+        _action_lookup,
+        mock_add_notification_data,
+    ):
+        RecycleBinService.recycle_unused_items()
+        assert mock_desktop_delete.call_count == 1
+        mock_add_notification_data.assert_not_called()

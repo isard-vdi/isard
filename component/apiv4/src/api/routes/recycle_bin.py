@@ -831,18 +831,7 @@ async def delete_unused_item_timeout_rule(request: Request, rule_id: str):
 )
 async def recycle_bin_add_unused_items(request: Request):
     try:
-        from isardvdi_common.lib.domains.desktops.desktops import Desktops
-
-        unused = Desktops.get_unused_desktops()
-        for desktop in unused:
-            try:
-                await asyncio.to_thread(
-                    RecycleBinService.delete_item, desktop["id"], "isard-scheduler"
-                )
-            except Error:
-                raise
-            except Exception:
-                pass  # best-effort
+        await asyncio.to_thread(RecycleBinService.recycle_unused_items)
         return EmptyResponse()
     except Error:
         raise

@@ -432,3 +432,51 @@ def test_get_admin_recycle_bin_entries_filtered_by_status(monkeypatch, test_clie
 
     assert response.status_code == 200
     assert captured == {"category_id": None, "status": "deleted"}
+
+
+def test_recycle_bin_add_unused_items_invokes_service(monkeypatch, test_client):
+    """Pre-fix the route called the non-existent
+    ``RecycleBinService.delete_item`` and swallowed the
+    ``AttributeError`` via ``except Exception: pass``. The endpoint
+    returned 200 every night and the bin stayed empty.
+
+    Pin that the route now invokes ``RecycleBinService.recycle_unused_items``
+    via ``asyncio.to_thread`` and surfaces failures as 500 (no silent
+    swallow). Mirror of apiv3
+    ``main:api/src/api/views/RecycleBinView.py:599-672``.
+    """
+    jwt = MockJWT(role_id="admin")
+    calls = {"count": 0}
+
+    def fake_recycle_unused_items():
+        calls["count"] += 1
+
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.recycle_unused_items",
+        staticmethod(fake_recycle_unused_items),
+    )
+
+    response = test_client(url="/recycle-bin/unused-items", method="POST", jwt=jwt)
+
+    assert response.status_code == 200
+    assert calls == {"count": 1}
+
+
+def test_recycle_bin_add_unused_items_surfaces_errors(monkeypatch, test_client):
+    """The pre-fix route had ``except Exception: pass`` inside the
+    per-desktop loop. Pin that errors propagating out of the service
+    layer now surface as 500 — the scheduler MUST see them so admins
+    notice when the cron is broken."""
+    jwt = MockJWT(role_id="admin")
+
+    def fake_recycle_unused_items():
+        raise RuntimeError("rdb unreachable")
+
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.recycle_unused_items",
+        staticmethod(fake_recycle_unused_items),
+    )
+
+    response = test_client(url="/recycle-bin/unused-items", method="POST", jwt=jwt)
+
+    assert response.status_code == 500
