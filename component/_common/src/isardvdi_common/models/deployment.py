@@ -217,24 +217,22 @@ class Deployment(RethinkCustomBase):
             )
 
     def get_deployment_permissions(self):
-        from isardvdi_common.helpers.error_factory import Error
-
+        # ``Caches.get_document(..., keys=[<single>])`` returns the
+        # *unwrapped* value of that single field directly, not a
+        # row dict (cf. caches.py: ``return copy.deepcopy(data.get(
+        # keys[0], None))``). So ``users_permissions`` is the list
+        # itself (or None) — never ``{"user_permissions": [...]}``.
+        #
+        # The previous ``users_permissions.get(...)`` call therefore
+        # crashed with AttributeError as soon as the field actually
+        # contained a list. None means either the deployment doesn't
+        # exist OR the field is missing on a legacy row; both cases
+        # collapse to an empty list for the edit form, which is the
+        # contract the old-frontend permissions store expects.
         users_permissions = Caches.get_document(
             "deployments", self.id, ["user_permissions"]
         )
-        if users_permissions is None:
-            raise Error(
-                "not_found",
-                "Could not find deployment",
-                description_code="not_found",
-            )
-        # Caches.get_document returns the plucked row dict
-        # (``{"user_permissions": [...]}`` or ``{}`` when the field
-        # is absent on a legacy row). The route's contract is a list,
-        # which is what the edit form sends back round-trip — return
-        # the unwrapped list so old-frontend's permissions store is
-        # always an array (``state.permissions.push`` is a list op).
-        return users_permissions.get("user_permissions") or []
+        return users_permissions or []
 
     def get_deployment_details_hardware(self):
         with self._rdb_context():

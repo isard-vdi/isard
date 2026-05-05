@@ -3,16 +3,23 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Unit tests for ``Deployment.get_deployment_permissions`` —
-unwrap the cached ``{"user_permissions": [...]}`` document and return the
-inner list (or ``[]`` for legacy rows missing the field).
+"""Unit tests for ``Deployment.get_deployment_permissions``.
 
-Why: the apiv4 GET ``/item/deployment/{id}/permissions`` endpoint and
-the PUT ``/item/deployment/{id}/edit`` body both speak the same shape —
-``list[DeploymentPermissions]``. The model previously returned the raw
-plucked dict, so a legacy deployment row without a ``user_permissions``
-field surfaced as ``{}`` on GET; old-frontend stored that and re-sent it
-on the edit-form PUT, which then 422'd because ``{}`` is not a list.
+The model calls ``Caches.get_document(table, id, ["user_permissions"])``.
+``Caches.get_document`` with a single ``keys`` element returns the
+*unwrapped* field value directly (cf. ``caches.py``::
+
+    if len(keys) == 1:
+        return copy.deepcopy(data.get(keys[0], None))
+
+) — NOT a row dict. The earlier implementation tried
+``users_permissions.get("user_permissions")`` and crashed with
+``AttributeError`` on every production row that actually had a list
+(Naomi #15178/#50).
+
+The current contract is: the method returns ``[]`` whenever the cache
+returns None, an empty list, or any falsy value, and returns the list
+itself when the cache returns a list of permission entries.
 """
 
 from types import SimpleNamespace
@@ -46,8 +53,10 @@ def _bound(mod, deployment_id):
 
 
 class TestGetDeploymentPermissions:
-    def test_returns_inner_list_when_field_present(self, patched_caches):
-        patched_caches["captured"]["return"] = {"user_permissions": ["recreate"]}
+    def test_returns_list_when_cache_returns_list(self, patched_caches):
+        # Real cache behaviour: with a single ``keys`` element it
+        # returns the unwrapped field value directly.
+        patched_caches["captured"]["return"] = ["recreate"]
 
         result = _bound(patched_caches["mod"], "dep-1")()
 
@@ -58,30 +67,19 @@ class TestGetDeploymentPermissions:
             ("user_permissions",),
         )
 
-    def test_returns_empty_list_when_field_absent(self, patched_caches):
-        # Legacy deployment row with no user_permissions field — pluck
-        # returns the empty dict; we must surface ``[]`` so the GET
-        # contract stays a list and old-frontend's edit-form round-trip
-        # passes the PUT body schema.
-        patched_caches["captured"]["return"] = {}
-
-        result = _bound(patched_caches["mod"], "dep-1")()
-
-        assert result == []
-
-    def test_returns_empty_list_when_field_explicitly_null(self, patched_caches):
-        """The field exists but stores ``None`` (defensive — has surfaced
-        on rows touched by half-finished migrations)."""
-        patched_caches["captured"]["return"] = {"user_permissions": None}
-
-        result = _bound(patched_caches["mod"], "dep-1")()
-
-        assert result == []
-
-    def test_raises_not_found_when_row_missing(self, patched_caches):
-        from isardvdi_common.helpers.error_factory import Error
-
+    def test_returns_empty_list_when_cache_returns_none(self, patched_caches):
+        # Cache returns None for either a row that doesn't exist or a
+        # row whose user_permissions field is missing/null. Both
+        # collapse to [].
         patched_caches["captured"]["return"] = None
 
-        with pytest.raises(Error):
-            _bound(patched_caches["mod"], "dep-1")()
+        result = _bound(patched_caches["mod"], "dep-1")()
+
+        assert result == []
+
+    def test_returns_empty_list_when_cache_returns_empty_list(self, patched_caches):
+        patched_caches["captured"]["return"] = []
+
+        result = _bound(patched_caches["mod"], "dep-1")()
+
+        assert result == []
