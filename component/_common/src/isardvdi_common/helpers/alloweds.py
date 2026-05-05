@@ -341,11 +341,27 @@ class Alloweds(RethinkCustomBase):
         query_merge=True,
         extra_ids_allowed=[],
         only_in_allowed=False,
+        exclude_owner_user_id=None,
+        require_enabled=False,
     ):
         try:
             query = r.table(table)
             if index_key and index_value:
                 query = query.get_all(index_value, index=index_key)
+            # Declarative shortcuts so apiv4 services don't need to
+            # import ``r`` directly (architectural pin —
+            # ``test_no_rethink_in_services``). Both compose with an
+            # explicit ``query_filter`` if the caller provides one.
+            if exclude_owner_user_id and require_enabled:
+                query = query.filter(
+                    lambda t: r.not_(t["user"] == exclude_owner_user_id) & t["enabled"]
+                )
+            elif exclude_owner_user_id:
+                query = query.filter(
+                    lambda t: r.not_(t["user"] == exclude_owner_user_id)
+                )
+            elif require_enabled:
+                query = query.filter({"enabled": True})
             if query_filter:
                 query = query.filter(query_filter)
             if query_merge:

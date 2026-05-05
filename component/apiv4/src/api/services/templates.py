@@ -135,14 +135,16 @@ class TemplateService:
                 f"User with ID {payload['user_id']} not found",
                 description_code="not_found",
             )
+        # Use the declarative ``exclude_owner_user_id`` /
+        # ``require_enabled`` kwargs on ``get_items_allowed`` —
+        # services delegate ReQL construction to ``_common`` (cf.
+        # ``test_no_rethink_in_services`` architectural pin). The
+        # "shared" filter is: enabled AND NOT owned by the caller.
+        kwargs = {"require_enabled": True}
+        only_in_allowed = False
         if kind == "shared":
-            query_filter = (
-                lambda t: r.not_(t["user"] == payload["user_id"]) & t["enabled"]
-            )
+            kwargs["exclude_owner_user_id"] = payload["user_id"]
             only_in_allowed = True
-        else:
-            query_filter = {"enabled": True}
-            only_in_allowed = False
         return Alloweds.get_items_allowed(
             payload,
             table="domains",
@@ -159,12 +161,12 @@ class TemplateService:
                 "status",
                 "enabled",
             ],
-            query_filter=query_filter,
             index_key="kind",
             index_value="template",
             order="name",
             query_merge=True,
             only_in_allowed=only_in_allowed,
+            **kwargs,
         )
 
     @staticmethod
