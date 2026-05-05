@@ -36,8 +36,15 @@ class LogsProcessed(RethinkSharedConnection):
     """
 
     @classmethod
-    def _build_query(cls, table: str, parsed: dict) -> tuple:
+    def _build_query(
+        cls, table: str, parsed: dict, scope_category_id: str | None = None
+    ) -> tuple:
         """Build the base rdb query for ``parsed`` DataTables payload.
+
+        ``scope_category_id`` restricts the query to rows whose
+        ``owner_category_id`` matches — used to scope managers to
+        their own category before any DataTables filter / order is
+        applied.
 
         Returns ``(query, table_indexes)``. Internal helper — held in
         the same connection scope as the count/data run that consumes
@@ -47,6 +54,8 @@ class LogsProcessed(RethinkSharedConnection):
             table_indexes = r.table(table).index_list().run(cls._rdb_connection)
 
         query = r.table(table)
+        if scope_category_id is not None:
+            query = query.filter({"owner_category_id": scope_category_id})
         skip_indexs = False
 
         # Add ordering
@@ -125,7 +134,13 @@ class LogsProcessed(RethinkSharedConnection):
         return query, table_indexes
 
     @classmethod
-    def query_paginated(cls, table: str, parsed: dict, view: str = "raw") -> dict:
+    def query_paginated(
+        cls,
+        table: str,
+        parsed: dict,
+        view: str = "raw",
+        scope_category_id: str | None = None,
+    ) -> dict:
         """Execute a DataTables logs query.
 
         ``view`` selects the result shape:
@@ -136,9 +151,16 @@ class LogsProcessed(RethinkSharedConnection):
           with count + last started_time.
         - ``"category_grouping"`` — distinct entity counts per category
           with totals.
+
+        ``scope_category_id`` restricts the result to rows belonging to
+        a single category — apiv4 routes pass it through for managers
+        so they only see their own category's logs (apiv3 used
+        ``@is_admin_or_manager`` with category-scoping inside the view).
         """
         if view == "raw":
-            query, table_indexes = cls._build_query(table, parsed)
+            query, table_indexes = cls._build_query(
+                table, parsed, scope_category_id=scope_category_id
+            )
             with cls._rdb_context():
                 total = r.table(table).count().run(cls._rdb_connection)
                 filtered = query.count().run(cls._rdb_connection)
@@ -155,8 +177,15 @@ class LogsProcessed(RethinkSharedConnection):
             }
 
         if view == "desktop_grouping" and table == "logs_desktops":
-            query, _ = cls._build_query(table, parsed)
-            group_query = r.table(table).group(index="desktop_id")
+            query, _ = cls._build_query(
+                table, parsed, scope_category_id=scope_category_id
+            )
+            group_query = r.table(table)
+            if scope_category_id is not None:
+                group_query = group_query.filter(
+                    {"owner_category_id": scope_category_id}
+                )
+            group_query = group_query.group(index="desktop_id")
             group_query = (
                 group_query.map(
                     lambda log_entry: {
@@ -204,8 +233,15 @@ class LogsProcessed(RethinkSharedConnection):
             }
 
         if view == "user_grouping" and table == "logs_users":
-            query, _ = cls._build_query(table, parsed)
-            group_query = r.table(table).group(index="owner_user_id")
+            query, _ = cls._build_query(
+                table, parsed, scope_category_id=scope_category_id
+            )
+            group_query = r.table(table)
+            if scope_category_id is not None:
+                group_query = group_query.filter(
+                    {"owner_category_id": scope_category_id}
+                )
+            group_query = group_query.group(index="owner_user_id")
             group_query = (
                 group_query.map(
                     lambda log_entry: {
@@ -258,7 +294,10 @@ class LogsProcessed(RethinkSharedConnection):
                 }
 
             pluck_field = "desktop_id" if table == "logs_desktops" else "owner_user_id"
-            cat_query = r.table(table).group(index="owner_category_id")
+            cat_query = r.table(table)
+            if scope_category_id is not None:
+                cat_query = cat_query.filter({"owner_category_id": scope_category_id})
+            cat_query = cat_query.group(index="owner_category_id")
 
             if parsed.get("range"):
                 s = parsed["range"]["start"]

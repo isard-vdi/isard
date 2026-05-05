@@ -698,13 +698,13 @@ async def admin_domain_search_info(request: Request, domain_id: str) -> dict:
 # ══════════════════════════════════════════════════════════════════════════
 
 
-@admin_router.post(
+@manager_router.post(
     "/admin/logs_desktops",
     tags=[tag],
     response_model=dict,
     summary="Query desktop logs (raw)",
     description="Query desktop logs with DataTables-style parameters. "
-    "Returns raw log data.",
+    "Returns raw log data. Managers see their own category only.",
     responses={
         200: {"description": "Desktop logs retrieved"},
         500: {"model": ErrorResponse},
@@ -715,7 +715,10 @@ async def admin_logs_desktops_raw(
 ) -> dict:
     try:
         result = await asyncio.to_thread(
-            AdminDomainsService.query_logs_desktops, form_data, view="raw"
+            AdminDomainsService.query_logs_desktops,
+            form_data,
+            view="raw",
+            payload=request.token_payload,
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -729,13 +732,14 @@ async def admin_logs_desktops_raw(
         )
 
 
-@admin_router.post(
+@manager_router.post(
     "/admin/logs_desktops/{view}",
     tags=[tag],
     response_model=dict,
     summary="Query desktop logs (grouped)",
     description="Query desktop logs with DataTables-style parameters. "
-    "Supports views: 'raw', 'desktop_grouping', 'category_grouping'.",
+    "Supports views: 'raw', 'desktop_grouping', 'category_grouping'. "
+    "Managers see their own category only.",
     responses={
         200: {"description": "Desktop logs retrieved"},
         500: {"model": ErrorResponse},
@@ -751,7 +755,10 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw") -> dict:
                 "Request body must be multipart form data",
             )
         result = await asyncio.to_thread(
-            AdminDomainsService.query_logs_desktops, form_data, view=view
+            AdminDomainsService.query_logs_desktops,
+            form_data,
+            view=view,
+            payload=request.token_payload,
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -770,13 +777,13 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw") -> dict:
 # ══════════════════════════════════════════════════════════════════════════
 
 
-@admin_router.post(
+@manager_router.post(
     "/admin/logs_users",
     tags=[tag],
     response_model=dict,
     summary="Query user logs (raw)",
     description="Query user logs with DataTables-style parameters. "
-    "Returns raw log data.",
+    "Returns raw log data. Managers see their own category only.",
     responses={
         200: {"description": "User logs retrieved"},
         500: {"model": ErrorResponse},
@@ -787,7 +794,10 @@ async def admin_logs_users_raw(
 ) -> dict:
     try:
         result = await asyncio.to_thread(
-            AdminDomainsService.query_logs_users, form_data, view="raw"
+            AdminDomainsService.query_logs_users,
+            form_data,
+            view="raw",
+            payload=request.token_payload,
         )
         return result if isinstance(result, dict) else {}
     except Error:
@@ -801,13 +811,14 @@ async def admin_logs_users_raw(
         )
 
 
-@admin_router.post(
+@manager_router.post(
     "/admin/logs_users/{view}",
     tags=[tag],
     response_model=dict,
     summary="Query user logs (grouped)",
     description="Query user logs with DataTables-style parameters. "
-    "Supports views: 'raw', 'user_grouping', 'category_grouping'.",
+    "Supports views: 'raw', 'user_grouping', 'category_grouping'. "
+    "Managers see their own category only.",
     responses={
         200: {"description": "User logs retrieved"},
         500: {"model": ErrorResponse},
@@ -823,7 +834,10 @@ async def admin_logs_users_view(request: Request, view: str = "raw") -> dict:
                 "Request body must be multipart form data",
             )
         result = await asyncio.to_thread(
-            AdminDomainsService.query_logs_users, form_data, view=view
+            AdminDomainsService.query_logs_users,
+            form_data,
+            view=view,
+            payload=request.token_payload,
         )
         return result if isinstance(result, dict) else {}
     except Error:

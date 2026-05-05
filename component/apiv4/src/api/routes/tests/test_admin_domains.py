@@ -359,3 +359,67 @@ def test_admin_multiple_actions_runs_bulk_action_after_response(
     assert response.status_code == 200, response.text
     # toggle with force=True (action == "toggle") MUST have run by now.
     assert toggle_args == [(("d-1", "d-2"), True)]
+
+
+# ─── Logs DataTables routes — manager scoping (LG3 fix) ─────────────────
+
+
+def test_admin_logs_desktops_allows_manager_with_category_scope(
+    monkeypatch, test_client
+):
+    """Apiv3 ``@is_admin_or_manager`` parity: managers must reach
+    ``POST /admin/logs_desktops`` and see only their category's rows.
+    Pre-fix the route was on ``@admin_router`` so managers got 403."""
+    jwt = MockJWT(role_id="manager", category_id="cat-manager")
+    captured = {}
+
+    def fake_query(form_data, view="raw", payload=None):
+        captured["view"] = view
+        captured["payload_role"] = payload.get("role_id") if payload else None
+        captured["payload_category"] = payload.get("category_id") if payload else None
+        return {"draw": 1, "recordsTotal": 0, "recordsFiltered": 0, "data": []}
+
+    monkeypatch.setattr(
+        "api.services.admin.domains.AdminDomainsService.query_logs_desktops",
+        staticmethod(fake_query),
+    )
+
+    response = test_client(
+        url="/admin/logs_desktops",
+        method="POST",
+        body={"draw": 1, "start": 0, "length": 25, "columns": []},
+        jwt=jwt,
+        db_tables_data={"categories": [{"id": "cat-manager", "maintenance": False}]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured["view"] == "raw"
+    assert captured["payload_role"] == "manager"
+    assert captured["payload_category"] == "cat-manager"
+
+
+def test_admin_logs_users_allows_manager_with_category_scope(monkeypatch, test_client):
+    """Same parity check for the user-logs DataTables route."""
+    jwt = MockJWT(role_id="manager", category_id="cat-manager")
+    captured = {}
+
+    def fake_query(form_data, view="raw", payload=None):
+        captured["view"] = view
+        captured["payload_role"] = payload.get("role_id") if payload else None
+        return {"draw": 1, "recordsTotal": 0, "recordsFiltered": 0, "data": []}
+
+    monkeypatch.setattr(
+        "api.services.admin.domains.AdminDomainsService.query_logs_users",
+        staticmethod(fake_query),
+    )
+
+    response = test_client(
+        url="/admin/logs_users",
+        method="POST",
+        body={"draw": 1, "start": 0, "length": 25, "columns": []},
+        jwt=jwt,
+        db_tables_data={"categories": [{"id": "cat-manager", "maintenance": False}]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured["payload_role"] == "manager"
