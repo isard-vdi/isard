@@ -199,6 +199,83 @@ def test_bulk_restore_recycle_bin(monkeypatch, test_client):
     }
 
 
+def test_bulk_restore_recycle_bin_forbidden_for_non_owner(monkeypatch, test_client):
+    """Pre-fix: any authenticated user could PUT a list of arbitrary
+    rb_ids and have them restored — apiv3 enforced
+    ``ownsRecycleBinId`` per id (``main:api/src/api/views/RecycleBinView.py:111-112``);
+    apiv4 dropped the loop. Pin that the route now raises 403 on the
+    first non-owned id BEFORE spawning the background task."""
+    from api.services.error import Error
+
+    jwt = MockJWT(role_id="user", user_id="local-default-bob-bob")
+    captured = {"called": False}
+
+    async def fake_bulk_restore(recycle_bin_ids, user_id):
+        captured["called"] = True
+        return recycle_bin_ids
+
+    def fake_owns(payload, rb_id):
+        # Caller is "bob" but the rb is owned by another user → forbidden.
+        raise Error(
+            "forbidden",
+            f"Not enough access rights for this user_id {payload['user_id']}",
+        )
+
+    monkeypatch.setattr(
+        "api.routes.recycle_bin.RecycleBinHelpers.owns_recycle_bin_id",
+        staticmethod(fake_owns),
+    )
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.bulk_restore",
+        staticmethod(fake_bulk_restore),
+    )
+
+    response = test_client(
+        url="/items/recycle-bin/restore",
+        method="PUT",
+        body={"recycle_bin_ids": ["rb-owned-by-alice"]},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 403
+    # The service MUST NOT run when the ownership check fails.
+    assert captured["called"] is False
+
+
+def test_bulk_delete_recycle_bin_forbidden_for_non_owner(monkeypatch, test_client):
+    """Same per-id ownership contract as bulk_restore."""
+    from api.services.error import Error
+
+    jwt = MockJWT(role_id="user", user_id="local-default-bob-bob")
+    captured = {"called": False}
+
+    async def fake_bulk_delete(recycle_bin_ids, user_id):
+        captured["called"] = True
+        return recycle_bin_ids
+
+    def fake_owns(payload, rb_id):
+        raise Error("forbidden", "nope")
+
+    monkeypatch.setattr(
+        "api.routes.recycle_bin.RecycleBinHelpers.owns_recycle_bin_id",
+        staticmethod(fake_owns),
+    )
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.bulk_delete",
+        staticmethod(fake_bulk_delete),
+    )
+
+    response = test_client(
+        url="/items/recycle-bin/delete",
+        method="PUT",
+        body={"recycle_bin_ids": ["rb-owned-by-alice"]},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 403
+    assert captured["called"] is False
+
+
 def test_bulk_delete_recycle_bin(monkeypatch, test_client):
     """Same RecycleBinBulkResponse shape mismatch as bulk_restore."""
     jwt = MockJWT()

@@ -51,6 +51,7 @@ from api.services.error import Error
 from api.services.recycle_bin import RecycleBinService
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse
+from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 
 tag = "recycle_bin"
 
@@ -260,6 +261,14 @@ async def restore_recycle_bin(request: Request, recycle_bin_id: str):
 )
 async def bulk_restore_recycle_bin(request: Request, data: RecycleBinBulkRequest):
     try:
+        # Apiv3 enforced ``ownsRecycleBinId`` per id BEFORE the worker
+        # spawn (``main:api/src/api/views/RecycleBinView.py:111-112``).
+        # The pre-fix apiv4 bulk routes had no per-id check, so any
+        # authenticated user could restore another user's bin entries.
+        # Raise 403 on the first non-owned id so the failure mode is
+        # synchronous and visible to the caller.
+        for rb_id in data.recycle_bin_ids:
+            RecycleBinHelpers.owns_recycle_bin_id(request.token_payload, rb_id)
         ids = await RecycleBinService.bulk_restore(
             recycle_bin_ids=data.recycle_bin_ids,
             user_id=request.token_payload["user_id"],
@@ -287,6 +296,9 @@ async def bulk_restore_recycle_bin(request: Request, data: RecycleBinBulkRequest
 )
 async def bulk_delete_recycle_bin(request: Request, data: RecycleBinBulkRequest):
     try:
+        # Per-id ownership check, see ``bulk_restore_recycle_bin``.
+        for rb_id in data.recycle_bin_ids:
+            RecycleBinHelpers.owns_recycle_bin_id(request.token_payload, rb_id)
         ids = await RecycleBinService.bulk_delete(
             recycle_bin_ids=data.recycle_bin_ids,
             user_id=request.token_payload["user_id"],
