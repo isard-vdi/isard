@@ -42,9 +42,9 @@ export class PageAdminResources {
 
     const result = {}
 
-    result.name = await interfaceRow.getByRole('gridcell').nth(1).textContent()
-    result.description = await interfaceRow.getByRole('gridcell').nth(2).textContent()
-    result.network = await interfaceRow.getByRole('gridcell').nth(3).textContent()
+    result.name = await interfaceRow.getByRole('cell').nth(1).textContent()
+    result.description = await interfaceRow.getByRole('cell').nth(2).textContent()
+    result.network = await interfaceRow.getByRole('cell').nth(3).textContent()
 
     return result
   }

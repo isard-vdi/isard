@@ -45,6 +45,20 @@ const fetchExistingPool = async (bootstrap) => {
   return map
 }
 
+// Look up an existing user by username via the listing endpoint —
+// /admin/user/{name}/raw expects a UUID (not a username), so we
+// can't use it for username-keyed lookups.
+const findUserIdByUsername = async (bootstrap, username) => {
+  try {
+    const list = await bootstrap._authFetch('GET', '/api/v4/admin/users')
+    const items = Array.isArray(list) ? list : list?.users ?? []
+    const match = items.find((u) => u?.username === username)
+    return match?.id ?? null
+  } catch (e) {
+    return null
+  }
+}
+
 const seedOne = async (bootstrap, index, existingMap) => {
   const username = `e2e_admin_${index}`
 
@@ -69,6 +83,33 @@ const seedOne = async (bootstrap, index, existingMap) => {
     )
     return user.id
   } catch (e) {
+    // 409 conflict can occur when the listing snapshot raced
+    // with another global-setup run, or when a record exists
+    // under a different ID that the initial fetch missed. Look
+    // up by username, delete, and retry once.
+    if (/\(409\)/.test(e.message) || /already exists/.test(e.message)) {
+      const stuckId = await findUserIdByUsername(bootstrap, username)
+      if (stuckId) {
+        try {
+          await bootstrap._authFetch('DELETE', '/api/v4/admin/user', {
+            user: [stuckId],
+            delete_user: true
+          })
+          // Retry the create.
+          const user = await bootstrap.createUser(
+            username,
+            'default',
+            'default-default',
+            'admin',
+            ADMIN_PASSWORD
+          )
+          return user.id
+        } catch (e2) {
+          console.warn(`global-setup: 409 cleanup-and-retry failed for ${username}: ${e2.message}`)
+          return null
+        }
+      }
+    }
     console.warn(`global-setup: failed to seed ${username}: ${e.message}`)
     return null
   }

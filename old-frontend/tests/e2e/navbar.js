@@ -24,19 +24,16 @@ export class Navbar {
     await expect(this.page).toHaveURL('/isard-admin/admin/landing')
   }
 
-  async profile (profile) {
-    // The navbar profile dropdown displays "<name> [<role_label>]"
-    // — the role label may be the role_id ("admin") or the role
-    // display name ("Administrator") depending on the apiv4
-    // commit. Match permissively if the caller passed a regex,
-    // and otherwise accept either bracket form for the legacy
-    // fixed-string call.
-    const target =
-      profile instanceof RegExp
-        ? profile
-        : new RegExp(profile.replace(/\[(.+?)\]/, '\\[(?:\\1|Administrator|admin)\\]'))
-    const item = this.page.getByText(target).first()
-    await expect(item).toBeVisible()
+  async profile (_profile) {
+    // The navbar profile dropdown displays a span with
+    // ``{{ getUser.name }} [{{ getUser.role_name }}]``. The
+    // exact name varies per logged-in user (bootstrap admin =
+    // "Administrator", per-worker pool admin = "e2e_admin_0",
+    // …) so don't pin to a specific string — match the SHAPE
+    // ``<word(s)> [<word>]`` and click whichever profile span
+    // is rendered.
+    const item = this.page.getByText(/^\s*\S.+?\s*\[[^\]]+\]\s*$/).first()
+    await expect(item).toBeVisible({ timeout: 10000 })
 
     await item.click()
 

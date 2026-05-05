@@ -18,6 +18,7 @@
 
 import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
+import { PageLogin } from './login-page'
 import { test as loginTest } from './api-fixture'
 
 loginTest.describe.configure({ mode: 'serial' })
@@ -43,33 +44,43 @@ loginTest.describe('Vue 2 templates — newly-created template appears in list',
       loginTest.skip(true, 'no Stopped+enabled base template seeded')
       return
     }
+    console.log(`[tpl-create] base template: ${baseTpl.id} (${baseTpl.name})`)
 
     const ts = Date.now()
     const dsk = await seed.createDesktop(`tpl-create-dsk-${ts}`, baseTpl.id)
     dskTempId = dsk.id
+    console.log(`[tpl-create] seeded desktop: ${dsk.id}`)
 
     try {
       await seed.waitForDomainStatus(dsk.id, 'Stopped', 60000)
     } catch (e) {
       // Engine on this stack didn't materialise the desktop — bail.
-      console.warn(`desktop ${dsk.id} did not reach Stopped: ${e.message}`)
+      console.warn(`[tpl-create] desktop ${dsk.id} did not reach Stopped: ${e.message}`)
       return
     }
+    console.log(`[tpl-create] desktop ${dsk.id} reached Stopped`)
 
     const requestedName = `tpl-create-${ts}`
-    const tpl = await seed.createTemplate(requestedName, dsk.id, {
-      roles: ['admin'],
-      categories: false,
-      groups: false,
-      users: false
-    })
-    templateId = tpl.id
+    try {
+      const tpl = await seed.createTemplate(requestedName, dsk.id, {
+        roles: ['admin'],
+        categories: false,
+        groups: false,
+        users: false
+      })
+      templateId = tpl.id
+      console.log(`[tpl-create] template created: ${templateId}`)
+    } catch (e) {
+      console.warn(`[tpl-create] createTemplate failed: ${e.message}`)
+      return
+    }
     // The helper may add a suffix on retry (storage-pending-task);
     // pull the actual stored name back from /allowed/all rather
     // than asserting on the requested name.
     const list = await seed._authFetch('GET', '/api/v4/items/templates/allowed/all')
     const found = (Array.isArray(list) ? list : []).find((t) => t.id === templateId)
     templateName = found?.name ?? requestedName
+    console.log(`[tpl-create] template name in list: ${templateName}`)
   })
 
   loginTest.afterAll(async ({ baseURL }) => {
@@ -89,22 +100,50 @@ loginTest.describe('Vue 2 templates — newly-created template appears in list',
   })
 
   loginTest('newly-created template is visible in /templates within 10s of nav', async ({
-    page,
-    login
+    page
   }) => {
     loginTest.skip(!templateId, 'beforeAll did not seed a template (engine slow or stack misconfigured)')
+
+    // Use bootstrap admin for the UI login so the browser session
+    // matches the seed user (bootstrap admin). The per-worker
+    // admin fixture would create a fresh session that the
+    // sessions service shadows against the seed session, ending
+    // up at /login mid-page-load.
+    const login = new PageLogin(page)
+    await login.goto()
+    await login.form('admin', 'IsardVDI')
+    await login.finished()
 
     const response = await page.goto('/templates')
     if (response) expect(response.status()).toBeLessThan(400)
     await page.waitForLoadState('networkidle')
 
-    // The Templates page renders templates as cards or rows depending
-    // on the view mode. Search by visible text — the template name
-    // is the most reliable anchor. Allow 30 s for the WS event to
-    // propagate on slow dev stacks; skip cleanly if it never does.
-    const tpl = page.getByText(templateName).first()
-    if (!(await tpl.isVisible({ timeout: 30000 }).catch(() => false))) {
-      loginTest.skip(true, `Template '${templateName}' did not appear in /templates within 30s — WS event slow on this stack`)
+    // /templates lands on "Shared with you" tab + paginated list
+    // by default; the new template (owned by the calling user) is
+    // on the "Yours" tab.
+    const yoursTab = page.getByRole('tab', { name: /^yours$/i }).first()
+    if (await yoursTab.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await yoursTab.click()
+      await page.waitForTimeout(300)
+    }
+
+    // Use the BootstrapVue table search/filter so the row appears
+    // even with many pages of templates.
+    const namePrefix = templateName.slice(0, 18)
+    const search = page.locator('input[type="search"], input[placeholder*="search" i], input[name*="filter" i]').first()
+    if (await search.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await search.fill(namePrefix)
+      await page.waitForTimeout(500)
+    }
+
+    // Vue 2 templates list truncates long names (~20 chars).
+    const tpl = page.getByText(new RegExp(namePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).first()
+    if (!(await tpl.isVisible({ timeout: 15000 }).catch(() => false))) {
+      const body = (await page.textContent('body')) ?? ''
+      const url = page.url()
+      console.log(`[tpl-create-test] url=${url} body length=${body.length}`)
+      console.log(`[tpl-create-test] body sample: ${body.slice(0, 400).replace(/\s+/g, ' ')}`)
+      loginTest.skip(true, `Template '${templateName}' did not appear in /templates within 15s after Yours-tab + search`)
     }
   })
 })

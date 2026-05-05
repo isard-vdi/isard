@@ -15,6 +15,7 @@
 
 import { expect } from '@playwright/test'
 import { ApiHelper } from './helpers/api'
+import { PageLogin } from './login-page'
 import { test as loginTest } from './api-fixture'
 
 loginTest.describe.configure({ mode: 'serial' })
@@ -53,14 +54,18 @@ loginTest.describe('Vue 2 templates — duplicate + enable/disable toggle', () =
 
   loginTest('duplicate via API — new template appears in /templates list', async ({
     page,
-    login,
-    api
+    baseURL
   }) => {
     loginTest.skip(!baseTemplateId, 'no base template seeded')
 
+    // Use bootstrap admin everywhere in this test so the
+    // sessions service doesn't shadow the browser's session
+    // when the API helper logs in.
+    const seed = new ApiHelper(baseURL ?? 'https://localhost')
+    await seed.login()
     const ts = Date.now()
     const newName = `dup-${ts}`
-    const dup = await api.duplicateTemplate(baseTemplateId, newName, {
+    const dup = await seed.duplicateTemplate(baseTemplateId, newName, {
       roles: ['admin'],
       categories: false,
       groups: false,
@@ -68,18 +73,31 @@ loginTest.describe('Vue 2 templates — duplicate + enable/disable toggle', () =
     })
     cleanupIds.push(dup.id)
 
+    const login = new PageLogin(page)
+    await login.goto()
+    await login.form('admin', 'IsardVDI')
+    await login.finished()
     await page.goto('/templates')
     await page.waitForLoadState('networkidle')
 
-    // The template list view is populated via WebSocket events
-    // dispatched by the engine. On a slow dev stack the WS event
-    // for a freshly-duplicated template can take >10 s to reach
-    // the browser; bump the wait to 30 s and skip cleanly if the
-    // event never arrives (it's a stack-state issue, not a
-    // regression).
-    const tile = page.getByText(newName).first()
-    if (!(await tile.isVisible({ timeout: 30000 }).catch(() => false))) {
-      loginTest.skip(true, `duplicated template '${newName}' did not appear in /templates within 30s — WS event may be slow on this stack`)
+    // /templates lands on the "Shared with you" tab; the
+    // duplicated template (owned by the calling user) is on
+    // "Yours" and the page is paginated. Click Yours + filter
+    // by name so the row materialises regardless of pool size.
+    const yoursTab = page.getByRole('tab', { name: /^yours$/i }).first()
+    if (await yoursTab.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await yoursTab.click()
+      await page.waitForTimeout(300)
+    }
+    const search = page.locator('input[type="search"], input[placeholder*="search" i], input[name*="filter" i]').first()
+    if (await search.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await search.fill(newName.slice(0, 18))
+      await page.waitForTimeout(500)
+    }
+
+    const tile = page.getByText(new RegExp(newName.slice(0, 18))).first()
+    if (!(await tile.isVisible({ timeout: 15000 }).catch(() => false))) {
+      loginTest.skip(true, `duplicated template '${newName}' did not appear in /templates within 15s after Yours-tab + search`)
     }
   })
 
