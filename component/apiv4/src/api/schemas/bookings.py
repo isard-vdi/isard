@@ -23,7 +23,15 @@ from datetime import datetime, timezone
 from typing import Annotated, Literal, Optional
 
 from isardvdi_common.schemas.domains import DomainKindEnum
-from pydantic import AwareDatetime, BaseModel, Field, RootModel, field_validator
+from pydantic import (
+    AliasChoices,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    field_validator,
+)
 
 
 def _ensure_aware_utc(value: datetime) -> datetime:
@@ -52,14 +60,24 @@ class BookingPriorityUser(BaseModel):
 
 
 class CreateBookingEventRequest(BaseModel):
-    """Request model for creating a booking event"""
+    """Request model for creating a booking event.
+
+    Vue 2 (``old-frontend``) historically posts ``element_id`` /
+    ``element_type`` while Vue 3 + new clients post ``item_id`` /
+    ``item_type``. ``populate_by_name=True`` plus ``AliasChoices``
+    accepts both wire shapes so the legacy form keeps working.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
 
     item_id: str = Field(
         description="ID of the reservable item (e.g., desktop ID or deployment ID)",
+        validation_alias=AliasChoices("item_id", "element_id"),
     )
     item_type: Literal[DomainKindEnum.desktop.value, "deployment"] = Field(
         description="Type of the reservable item (e.g., 'desktop', 'deployment')",
         default=DomainKindEnum.desktop.value,
+        validation_alias=AliasChoices("item_type", "element_type"),
     )
     start: datetime = Field(
         description="Start datetime for the booking event",
