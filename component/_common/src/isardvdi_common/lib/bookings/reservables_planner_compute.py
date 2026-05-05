@@ -662,13 +662,13 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
         if not priority:
             # Should we hardcode a default if the user removed it?
             return {
-                "priority": {subitem: 0},
+                "priority": 0,
                 "forbid_time": 0,
                 "max_time": None,
                 "max_items": None,
             }
         return {
-            "priority": {subitem: priority["priority"]},
+            "priority": priority["priority"],
             "forbid_time": priority["forbid_time"],
             "max_time": priority["max_time"],
             "max_items": priority["max_items"],
