@@ -6,6 +6,7 @@ import traceback
 from datetime import datetime, timedelta, timezone
 
 from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -821,6 +822,17 @@ class Helpers(RethinkSharedConnection):
         _get_count_cache.clear()
 
     @classmethod
+    def clear_get_count_for(cls, recycle_bin_id):
+        # Per-key invalidation. cachetools' ``@cached`` builds the key
+        # via ``hashkey(*args, **kwargs)`` from the *bound* call site —
+        # for a classmethod that means ``hashkey(cls, recycle_bin_id)``.
+        # Mirror that here so a single rcb update doesn't blow the
+        # cache for every other rcb (the change-handler pre-fix path
+        # called ``cache_clear()`` on every per-row event, leaving the
+        # 60s TTL effectively useless under any concurrency).
+        _get_count_cache.pop(hashkey(cls, recycle_bin_id), None)
+
+    @classmethod
     @cached(cache=_get_item_count_cache)
     def get_item_count(cls, user_id=None, category_id=None, status=None):
         query = r.table("recycle_bin")
@@ -890,6 +902,11 @@ class Helpers(RethinkSharedConnection):
     @classmethod
     def clear_get_user_amount_cache(cls):
         _get_user_amount_cache.clear()
+
+    @classmethod
+    def clear_get_user_amount_for(cls, user_id):
+        # Per-key invalidation; see ``clear_get_count_for``.
+        _get_user_amount_cache.pop(hashkey(cls, user_id), None)
 
     @classmethod
     @cached(cache=_get_old_entries_config_cache)

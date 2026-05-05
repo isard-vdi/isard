@@ -35,25 +35,18 @@ class RecycleBinHandler(BaseHandler):
         )
 
     def _build_add_payload(self, rb_id, owner_id):
-        # The cached counts in this process must be flushed before the read
-        # so the emit reflects the latest desktops/templates/storages arrays.
-        try:
-            RecycleBinHelpers.get_count.cache_clear()
-        except AttributeError:
-            pass
-        try:
-            RecycleBinHelpers.get_user_amount.cache_clear()
-        except AttributeError:
-            pass
+        # Per-key cache invalidation so a single rcb update doesn't blow
+        # the cache for every other rcb (the pre-fix path called
+        # ``cache_clear()`` on every per-row event, leaving the 60s TTL
+        # effectively useless under any concurrency).
+        RecycleBinHelpers.clear_get_count_for(rb_id)
+        RecycleBinHelpers.clear_get_user_amount_for(owner_id)
         payload = RecycleBinHelpers.get_count(rb_id)
         payload["items_in_bin"] = RecycleBinHelpers.get_user_amount(owner_id)
         return payload
 
     def _build_count_payload(self, rb_id):
-        try:
-            RecycleBinHelpers.get_count.cache_clear()
-        except AttributeError:
-            pass
+        RecycleBinHelpers.clear_get_count_for(rb_id)
         return RecycleBinHelpers.get_count(rb_id)
 
     def _prop(self, val, key, default=None):

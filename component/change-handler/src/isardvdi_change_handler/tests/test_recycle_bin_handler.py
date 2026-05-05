@@ -267,3 +267,68 @@ class TestRecycleBinHandlerNoneRoomRegression:
             if c.kwargs.get("room") is None or (len(c.args) >= 4 and c.args[3] is None)
         ]
         assert calls == []
+
+
+class TestPerKeyCacheInvalidation:
+    """RC5 fix: ``_build_count_payload`` and ``_build_add_payload``
+    used to call ``RecycleBinHelpers.get_count.cache_clear()`` which
+    wiped the entire ``_get_count_cache`` (TTLCache, maxsize=50,
+    ttl=60s). Under any concurrency the cache was permanently empty
+    because every per-row update event cleared it before the next
+    read. Pin per-key invalidation so concurrent reads for OTHER
+    rb_ids stay warm."""
+
+    @pytest.fixture
+    def handler(self):
+        from isardvdi_change_handler.handlers.recycle_bin import RecycleBinHandler
+
+        sio = AsyncMock()
+        return RecycleBinHandler(sio, "recycle_bin")
+
+    @pytest.mark.asyncio
+    async def test_build_count_payload_only_invalidates_target_key(self, handler):
+        # Preload the cache with five different rb_ids — only ``rb-target``
+        # should be evicted by the per-row update event for that id.
+        from cachetools.keys import hashkey
+        from isardvdi_common.helpers import recycle_bin as rcb_mod
+
+        cache = rcb_mod._get_count_cache
+        cache.clear()
+        for rb_id in ("rb-1", "rb-2", "rb-target", "rb-3", "rb-4"):
+            cache[hashkey(rcb_mod.Helpers, rb_id)] = {"id": rb_id, "desktops": 0}
+
+        with _patch_helpers():
+            handler._build_count_payload("rb-target")
+
+        assert hashkey(rcb_mod.Helpers, "rb-target") not in cache
+        # The other four keys MUST remain (pre-fix path called
+        # ``cache_clear()`` which wiped the lot).
+        for rb_id in ("rb-1", "rb-2", "rb-3", "rb-4"):
+            assert hashkey(rcb_mod.Helpers, rb_id) in cache
+
+    @pytest.mark.asyncio
+    async def test_build_add_payload_only_invalidates_target_keys(self, handler):
+        from cachetools.keys import hashkey
+        from isardvdi_common.helpers import recycle_bin as rcb_mod
+
+        count_cache = rcb_mod._get_count_cache
+        amount_cache = rcb_mod._get_user_amount_cache
+        count_cache.clear()
+        amount_cache.clear()
+
+        # Three rb_ids and three users; only ``rb-target`` and
+        # ``user-target`` should be evicted.
+        for rb_id in ("rb-1", "rb-target", "rb-2"):
+            count_cache[hashkey(rcb_mod.Helpers, rb_id)] = {"id": rb_id}
+        for user_id in ("user-1", "user-target", "user-2"):
+            amount_cache[hashkey(rcb_mod.Helpers, user_id)] = 5
+
+        with _patch_helpers():
+            handler._build_add_payload("rb-target", "user-target")
+
+        assert hashkey(rcb_mod.Helpers, "rb-target") not in count_cache
+        assert hashkey(rcb_mod.Helpers, "user-target") not in amount_cache
+        for rb_id in ("rb-1", "rb-2"):
+            assert hashkey(rcb_mod.Helpers, rb_id) in count_cache
+        for user_id in ("user-1", "user-2"):
+            assert hashkey(rcb_mod.Helpers, user_id) in amount_cache
