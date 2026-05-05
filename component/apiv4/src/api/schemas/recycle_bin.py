@@ -149,10 +149,18 @@ class RecycleBinBulkRequest(BaseModel):
 
 
 class RecycleBinBulkResponse(BaseModel):
-    """Response for bulk recycle bin operations."""
+    """Response for bulk recycle bin operations.
 
-    success: list[str] = []
-    failed: list[str] = []
+    The route handler is fire-and-forget — it schedules the per-id work
+    on a background task and returns the list of ids it accepted. The
+    pre-fix schema only had ``success`` / ``failed`` fields and the
+    route's ``RecycleBinBulkResponse(recycle_bin_ids=ids)`` call had
+    its kwarg silently dropped by Pydantic, so the wire response was
+    always ``{success: [], failed: []}`` regardless of input. Replace
+    with the canonical ``recycle_bin_ids`` echoing what was scheduled.
+    """
+
+    recycle_bin_ids: list[str] = []
 
 
 class RecycleBinStatusResponse(BaseModel):

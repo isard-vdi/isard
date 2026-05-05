@@ -166,11 +166,13 @@ def test_restore_recycle_bin(monkeypatch, test_client):
 
 
 def test_bulk_restore_recycle_bin(monkeypatch, test_client):
-    """RecycleBinBulkResponse has only ``success`` and ``failed`` fields —
-    the route passes ``recycle_bin_ids=ids`` but pydantic drops the
-    unknown key, so the wire response is ``{success: [], failed: []}``.
-    The test pins that shape so a future fix (renaming the schema field
-    to match the intended name) is flagged."""
+    """``RecycleBinBulkResponse`` now carries ``recycle_bin_ids``
+    matching what the service scheduled. Pre-fix the schema declared
+    ``success`` / ``failed`` and the route's
+    ``RecycleBinBulkResponse(recycle_bin_ids=ids)`` had its kwarg
+    silently dropped, so the wire response was always
+    ``{success: [], failed: []}``. Pin the real round-trip so the
+    OAS-generated vue3 client can correlate per-item outcomes."""
     jwt = MockJWT()
     captured = {}
 
@@ -192,7 +194,7 @@ def test_bulk_restore_recycle_bin(monkeypatch, test_client):
     )
 
     assert response.status_code == 200
-    assert response.json() == {"success": [], "failed": []}
+    assert response.json() == {"recycle_bin_ids": ["rb-1", "rb-2"]}
     assert captured == {
         "ids": ["rb-1", "rb-2"],
         "user_id": jwt.payload["user_id"],
@@ -277,7 +279,7 @@ def test_bulk_delete_recycle_bin_forbidden_for_non_owner(monkeypatch, test_clien
 
 
 def test_bulk_delete_recycle_bin(monkeypatch, test_client):
-    """Same RecycleBinBulkResponse shape mismatch as bulk_restore."""
+    """Same ``recycle_bin_ids`` round-trip contract as bulk_restore."""
     jwt = MockJWT()
 
     async def fake_bulk_delete(recycle_bin_ids, user_id):
@@ -296,7 +298,7 @@ def test_bulk_delete_recycle_bin(monkeypatch, test_client):
     )
 
     assert response.status_code == 200
-    assert response.json() == {"success": [], "failed": []}
+    assert response.json() == {"recycle_bin_ids": ["rb-1"]}
 
 
 def test_set_old_entries_max_time(monkeypatch, test_client):
