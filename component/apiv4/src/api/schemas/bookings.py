@@ -19,11 +19,26 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Literal, Optional
 
 from isardvdi_common.schemas.domains import DomainKindEnum
-from pydantic import AwareDatetime, BaseModel, Field, RootModel
+from pydantic import AwareDatetime, BaseModel, Field, RootModel, field_validator
+
+
+def _ensure_aware_utc(value: datetime) -> datetime:
+    """Coerce naive datetimes to UTC at the schema boundary.
+
+    The legacy Vue 2 frontend sometimes serialises booking dates without
+    a timezone suffix (`bookingUtils.formatAsUTC` quirk). The downstream
+    ``BookingsProcessed.add`` /``update`` use
+    ``datetime.strptime(..., "%Y-%m-%dT%H:%M%z")`` which rejects naive
+    values with a confusing ``ValueError``. Snap any naive value to UTC
+    here so the service layer always sees aware datetimes.
+    """
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 class BookingPriorityUser(BaseModel):
@@ -58,6 +73,11 @@ class CreateBookingEventRequest(BaseModel):
         description="If true, the booking starts now and the start field is ignored",
     )
 
+    @field_validator("start", "end")
+    @classmethod
+    def _coerce_naive_to_utc(cls, value: datetime) -> datetime:
+        return _ensure_aware_utc(value)
+
 
 class UpdateBookingEventRequest(BaseModel):
     """Request model for updating a booking event.
@@ -73,6 +93,11 @@ class UpdateBookingEventRequest(BaseModel):
         default=None,
         description="Deprecated: unused on the server side.",
     )
+
+    @field_validator("start", "end")
+    @classmethod
+    def _coerce_naive_to_utc(cls, value: datetime) -> datetime:
+        return _ensure_aware_utc(value)
 
 
 class BookingEventReservables(BaseModel):
