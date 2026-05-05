@@ -5,7 +5,7 @@
   "scripts": {
     "serve": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service serve",
     "build": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service build",
-    "test:e2e": "vue-cli-service test:e2e",
+    "test:e2e": "playwright test",
     "lint": "vue-cli-service lint",
     "i18n:report": "vue-cli-service i18n:report --src './src/**/*.?(js|vue)' --locales './src/locales/**/*.json'"
   },

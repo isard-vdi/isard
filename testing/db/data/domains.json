@@ -5,6 +5,7 @@
         "name": "Template Test Frontend",
         "description": "Test template used by deployment-test-001",
         "status": "Stopped",
+        "enabled": true,
         "category": "default",
         "group": "default-default",
         "user": "local-default-admin-admin",

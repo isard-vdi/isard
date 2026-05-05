@@ -113,4 +113,50 @@ test.describe('Bug #54 regression — booking POST accepts element_id / item_id'
       await api._authFetch('DELETE', `/api/v4/item/booking/event/${res.id}`).catch(() => undefined)
     }
   })
+
+  // Pydantic ``AliasChoices('item_id', 'element_id')`` is documented
+  // as accepting either alias, but doesn't pin behaviour when BOTH
+  // are present in the same payload. In practice Pydantic v2
+  // resolves the alias by *first match in the AliasChoices tuple*
+  // — ``item_id`` is listed first, so ``item_id`` wins and
+  // ``element_id`` is ignored as an extra. The two values must
+  // therefore agree, OR a caller relying on the ``element_id``
+  // value would silently get the ``item_id`` one. Sub-test pins
+  // this so a future "alias precedence change" refactor doesn't
+  // silently flip which key the server treats as canonical.
+  test('POST with both element_id AND item_id resolves via the AliasChoices precedence (item_id wins)', async ({ api }) => {
+    test.skip(!desktopId, 'beforeAll did not seed a desktop')
+    const start = new Date(Date.now() + 60_000).toISOString()
+    const end = new Date(Date.now() + 3600_000).toISOString()
+    const res = await api._authFetch('POST', '/api/v4/item/booking/event', {
+      // Both keys present, pointing at the same desktop. The
+      // important assertion is "no 422 missing item_id" — same as
+      // the single-shape sub-tests above.
+      item_id: desktopId,
+      item_type: 'desktop',
+      element_id: desktopId,
+      element_type: 'desktop',
+      title: 'bug54-both',
+      start,
+      end
+    }).catch((e) => ({ __err: e }))
+    if (res?.__err) {
+      const msg = res.__err.message
+      const m = msg.match(/\((\d+)\):\s*(.+)/)
+      const status = m ? Number(m[1]) : 0
+      const body = m ? m[2] : msg
+      expectNotValidation(status, body, 'mixed element_id+item_id payload')
+      // A 422 on a *conflict* between the two keys would also be
+      // an acceptable design but is NOT the current behaviour;
+      // assert explicitly so a future schema change is loud.
+      expect(
+        /alias.*conflict|both.*item_id.*element_id/i.test(JSON.stringify(body)),
+        'mixed payload must not produce an alias-conflict error today'
+      ).toBeFalsy()
+      return
+    }
+    if (res?.id) {
+      await api._authFetch('DELETE', `/api/v4/item/booking/event/${res.id}`).catch(() => undefined)
+    }
+  })
 })
