@@ -327,3 +327,60 @@ class TestRecycleUnusedItems:
         RecycleBinService.recycle_unused_items()
         assert mock_desktop_delete.call_count == 1
         mock_add_notification_data.assert_not_called()
+
+
+class TestCreateUnusedItemTimeoutRule:
+    """Apiv3 ``Cerberus`` set ``id`` via ``default_setter: genuuid`` and
+    ``allowed`` via ``default: {}``. The webapp form sends neither.
+    Pin the service-side defaults so the webapp create succeeds and the
+    response carries a usable id."""
+
+    @patch("api.services.recycle_bin.CommonRecycleBin.create_unused_item_timeout")
+    def test_generates_id_when_not_provided(self, mock_create):
+        result = RecycleBinService.create_unused_item_timeout_rule(
+            {
+                "name": "Old desktops",
+                "description": "",
+                "op": "send_unused_desktops_to_recycle_bin",
+                "cutoff_time": 720,
+                "priority": 10,
+            }
+        )
+        # Returned id MUST be a non-empty UUID (not the empty string the
+        # pre-fix path returned via ``data.get("id", "")``).
+        assert result
+        assert isinstance(result, str)
+        assert len(result) >= 32  # uuid4 string form is 36 chars
+        # Helper called with the same dict, now augmented with id+allowed.
+        mock_create.assert_called_once()
+        forwarded = mock_create.call_args.args[0]
+        assert forwarded["id"] == result
+        assert forwarded["allowed"] == {}
+
+    @patch("api.services.recycle_bin.CommonRecycleBin.create_unused_item_timeout")
+    def test_keeps_caller_supplied_id(self, mock_create):
+        result = RecycleBinService.create_unused_item_timeout_rule(
+            {"id": "rule-fixed", "name": "x", "op": "y", "priority": 0}
+        )
+        assert result == "rule-fixed"
+        mock_create.assert_called_once()
+        assert mock_create.call_args.args[0]["id"] == "rule-fixed"
+
+    @patch("api.services.recycle_bin.CommonRecycleBin.create_unused_item_timeout")
+    def test_keeps_caller_supplied_allowed(self, mock_create):
+        custom_allowed = {
+            "categories": ["cat-1"],
+            "groups": False,
+            "roles": False,
+            "users": False,
+        }
+        RecycleBinService.create_unused_item_timeout_rule(
+            {
+                "name": "x",
+                "op": "y",
+                "priority": 0,
+                "allowed": custom_allowed,
+            }
+        )
+        forwarded = mock_create.call_args.args[0]
+        assert forwarded["allowed"] == custom_allowed

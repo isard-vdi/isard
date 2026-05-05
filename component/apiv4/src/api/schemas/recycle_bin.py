@@ -22,7 +22,7 @@ from enum import Enum
 from typing import Optional
 
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .allowed import Allowed
 
@@ -196,31 +196,54 @@ class RecycleBinUpdateTaskRequest(BaseModel):
 
 
 class UnusedItemTimeoutRule(BaseModel):
-    """A single unused item timeout rule."""
+    """A single unused item timeout rule.
+
+    Mirrors apiv3 ``main:api/src/api/schemas/unused_item_timeout.yml``:
+    ``op`` selects which scheduler hook the rule applies to (e.g.
+    ``send_unused_desktops_to_recycle_bin``); ``cutoff_time`` is the
+    threshold in hours after which the action fires (nullable for
+    "never"); ``priority`` orders rules with overlapping allowed-sets;
+    ``allowed`` scopes the rule by users/groups/categories/roles.
+    """
 
     id: Optional[str] = None
     name: str = ""
     description: str = ""
-    timeout: int = 0
-    enabled: bool = True
+    op: str = ""
+    cutoff_time: Optional[int] = None
+    priority: int = 0
+    allowed: Allowed = Field(default_factory=Allowed)
 
 
 class UnusedItemTimeoutRuleCreateRequest(BaseModel):
-    """Request to create an unused item timeout rule."""
+    """Request to create an unused item timeout rule.
 
-    name: str
-    description: str = ""
-    timeout: int
-    enabled: bool = True
+    Field set matches the apiv3 ``Cerberus`` schema and the webapp
+    admin form (``recycle_bin_config.js``) which posts
+    ``{name, description, op, cutoff_time, priority}``.
+    """
+
+    name: str = Field(max_length=50)
+    description: str = Field(default="", max_length=255)
+    op: str
+    cutoff_time: Optional[int] = None
+    priority: int
+    allowed: Optional[Allowed] = None
 
 
 class UnusedItemTimeoutRuleUpdateRequest(BaseModel):
-    """Request to update an unused item timeout rule."""
+    """Request to update an unused item timeout rule.
 
-    name: Optional[str] = None
-    description: Optional[str] = None
-    timeout: Optional[int] = None
-    enabled: Optional[bool] = None
+    Webapp PUT sends the full set of editable fields with optional
+    ``cutoff_time`` (nullable) so the schema mirrors that.
+    """
+
+    name: Optional[str] = Field(default=None, max_length=50)
+    description: Optional[str] = Field(default=None, max_length=255)
+    op: Optional[str] = None
+    cutoff_time: Optional[int] = None
+    priority: Optional[int] = None
+    allowed: Optional[Allowed] = None
 
 
 class UnusedItemTimeoutRulesResponse(BaseModel):

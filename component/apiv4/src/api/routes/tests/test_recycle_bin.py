@@ -329,8 +329,15 @@ def test_get_all_unused_item_timeout_rules(monkeypatch, test_client):
             "id": "rule-1",
             "name": "Old desktops",
             "description": "",
-            "timeout": 30,
-            "enabled": True,
+            "op": "send_unused_desktops_to_recycle_bin",
+            "cutoff_time": 720,
+            "priority": 10,
+            "allowed": {
+                "categories": False,
+                "groups": False,
+                "roles": False,
+                "users": False,
+            },
         }
     ]
     monkeypatch.setattr(
@@ -344,13 +351,23 @@ def test_get_all_unused_item_timeout_rules(monkeypatch, test_client):
     assert response.json() == {"rules": stub}
 
 
-def test_create_unused_item_timeout_rule(monkeypatch, test_client):
+def test_create_unused_item_timeout_rule_accepts_webapp_payload(
+    monkeypatch, test_client
+):
+    """Apiv4 schema and the webapp admin form must agree on the field
+    set. Pre-fix the schema required ``timeout`` / ``enabled`` and
+    silently dropped ``op`` / ``cutoff_time`` / ``priority``, so every
+    submit from ``recycle_bin_config.js`` 422-ed.
+
+    Apiv3 reference: ``main:api/src/api/schemas/unused_item_timeout.yml``
+    requires ``name`` / ``op`` / ``cutoff_time`` / ``priority``;
+    ``cutoff_time`` is nullable. Pin the exact webapp payload shape so
+    the contract can't drift again."""
     jwt = MockJWT()
     captured = {}
 
     def fake_create(data):
-        captured["name"] = data["name"]
-        captured["timeout"] = data["timeout"]
+        captured.update(data)
         return "rule-new"
 
     monkeypatch.setattr(
@@ -363,16 +380,86 @@ def test_create_unused_item_timeout_rule(monkeypatch, test_client):
         method="POST",
         body={
             "name": "Old desktops",
-            "description": "",
-            "timeout": 30,
-            "enabled": True,
+            "description": "Older than 30 days",
+            "op": "send_unused_desktops_to_recycle_bin",
+            "cutoff_time": 720,
+            "priority": 10,
         },
         jwt=jwt,
     )
 
     assert response.status_code == 201
     assert response.json() == {"id": "rule-new"}
-    assert captured == {"name": "Old desktops", "timeout": 30}
+    assert captured["name"] == "Old desktops"
+    assert captured["op"] == "send_unused_desktops_to_recycle_bin"
+    assert captured["cutoff_time"] == 720
+    assert captured["priority"] == 10
+
+
+def test_create_unused_item_timeout_rule_accepts_null_cutoff(monkeypatch, test_client):
+    """``cutoff_time`` is nullable in apiv3 (``nullable: true``) and the
+    webapp sends ``null`` to mean "no automatic cutoff"."""
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_create(data):
+        captured.update(data)
+        return "rule-null"
+
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.create_unused_item_timeout_rule",
+        staticmethod(fake_create),
+    )
+
+    response = test_client(
+        url="/items/recycle-bin/unused-item-timeout-rules",
+        method="POST",
+        body={
+            "name": "Never expire",
+            "description": "",
+            "op": "send_unused_desktops_to_recycle_bin",
+            "cutoff_time": None,
+            "priority": 0,
+        },
+        jwt=jwt,
+    )
+
+    assert response.status_code == 201
+    assert captured["cutoff_time"] is None
+
+
+def test_update_unused_item_timeout_rule_persists_priority(monkeypatch, test_client):
+    """Webapp PUT sends the same payload shape as POST. Pin that
+    ``priority`` and ``cutoff_time`` reach the helper."""
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_update(rule_id, data):
+        captured["rule_id"] = rule_id
+        captured.update(data)
+
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.update_unused_item_timeout_rule",
+        staticmethod(fake_update),
+    )
+
+    response = test_client(
+        url="/item/recycle-bin/unused-item-timeout-rule/rule-1",
+        method="PUT",
+        body={
+            "name": "Old desktops v2",
+            "description": "Updated",
+            "op": "send_unused_desktops_to_recycle_bin",
+            "cutoff_time": 1440,
+            "priority": 20,
+        },
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured["rule_id"] == "rule-1"
+    assert captured["priority"] == 20
+    assert captured["cutoff_time"] == 1440
 
 
 def test_get_system_cutoff_time(monkeypatch, test_client):
