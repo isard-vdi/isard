@@ -56,22 +56,25 @@ def _sync_haproxy_maps():
     Bastion.sync_category_branding_domains()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    #
-    # Wire up the gRPC client providers in ``isardvdi_common`` before any
-    # business logic runs. The shared modules (``api_sessions``, ``bastion``,
-    # ``targets``) used to build their own gRPC channels at module-load
-    # time, which (a) opened a TCP channel for every importer of
-    # ``isardvdi_common`` regardless of whether they would call the
-    # functions and (b) ran a misconfigured ``grpc.experimental.gevent.init_gevent()``
-    # that SIGSEGV'd apiv4's worker under load (incidents 2026-05-01 and
-    # 2026-05-05). Both concerns are now apiv4's responsibility:
-    # ``api.connections.grpc_client`` owns the factories, and we register
-    # provider closures here so each shared module fetches the same
-    # long-lived stub on every call. One channel per uvicorn worker
-    # process; the closures memoize the stub created here.
+def _wire_grpc_providers():
+    """Register concrete gRPC stubs as providers for the shared
+    ``isardvdi_common`` modules.
+
+    Called once at lifespan startup before any request runs. The
+    shared modules (``api_sessions``, ``bastion``, ``targets``) used
+    to build their own gRPC channels at module-load time, which (a)
+    opened a TCP channel for every importer of ``isardvdi_common``
+    regardless of whether they would call the functions and (b) ran
+    a misconfigured ``grpc.experimental.gevent.init_gevent()`` that
+    SIGSEGV'd apiv4's worker under load (incidents 2026-05-01 and
+    2026-05-05). Both concerns are now apiv4's responsibility:
+    ``api.connections.grpc_client`` owns the factories, and the
+    closures here memoize one stub per uvicorn worker process.
+
+    Extracted from ``lifespan`` so it can be unit-tested in
+    isolation without standing up the full lifespan side-effect
+    surface (Maintenance.initialization, pool warm-up, etc.).
+    """
     from api.connections.grpc_client import (
         create_haproxy_bastion_client,
         create_sessions_client,
@@ -83,6 +86,19 @@ async def lifespan(app: FastAPI):
     _haproxy_bastion_stub = create_haproxy_bastion_client("isard-portal", 1312)
     _api_sessions.configure_sessions_client(lambda: _sessions_stub)
     _bastion.configure_haproxy_bastion_client(lambda: _haproxy_bastion_stub)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    #
+    # Wire up the gRPC client providers in ``isardvdi_common`` before any
+    # business logic runs. See ``_wire_grpc_providers`` docstring above
+    # for the full incident chain that motivated extracting this from
+    # the lifespan body — short version: we register closures so the
+    # shared modules fetch the same long-lived stub on every call,
+    # one channel per uvicorn worker process.
+    _wire_grpc_providers()
 
     Maintenance.initialization()
     Cards.seed_stock_cards()

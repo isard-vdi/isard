@@ -165,17 +165,21 @@ def test_configure_then_get_invokes_provider():
     assert len(provider_invocations) == 2
 
 
-def test_get_with_empty_session_id_raises_no_session_before_grpc():
-    """Empty session_id short-circuits — must not call the provider.
-    This preserves a pre-refactor optimisation (no grpc roundtrip
-    for the missing-cookie case) and matches the legacy behaviour
-    callers depend on.
+@pytest.mark.parametrize("falsy", ["", None, 0])
+def test_get_with_falsy_session_id_short_circuits(falsy):
+    """Any falsy session_id short-circuits to ``no_session`` without
+    calling the provider. Production guard at api_sessions.py
+    (``if not session_id: raise no_session``) is value-agnostic — it
+    triggers on ``""``, ``None``, ``0``, and any other falsy. Empty
+    string is the cookie-missing case the original optimisation
+    targeted; ``None`` covers callers that don't pre-validate; ``0``
+    is paranoia against accidental int-typed IDs.
     """
     provider_calls = []
     api_sessions.configure_sessions_client(lambda: provider_calls.append(None))
 
     with pytest.raises(type(api_sessions.no_session)):
-        api_sessions.get("", "10.0.0.1")
+        api_sessions.get(falsy, "10.0.0.1")
     assert provider_calls == []  # provider never invoked
 
 
@@ -205,6 +209,44 @@ def test_error_sentinels_are_module_level_and_unique():
         assert (
             hasattr(s, "type") or hasattr(s, "error_type") or hasattr(s, "args")
         ), f"{s!r} doesn't look like an Error"
+
+
+def test_sentinel_membership_uses_identity_not_equality():
+    """The actual call-site contract — ``revoke_user_session`` at
+    ``api_sessions.py:144`` does ``if e in [expired_session, invalid_user]``.
+    That ``in`` operator goes through ``__eq__``, not ``is``. The
+    sentinels must therefore satisfy ``e in [e]`` for the same
+    instance and ``e not in [other]`` for different instances —
+    otherwise revocation would either skip on unrelated errors or
+    fail to skip on the intended ones.
+
+    Independent of ``id()`` distinctness (covered above): two errors
+    could have different ids but compare equal via a custom
+    ``__eq__``, breaking the membership semantics callers rely on.
+    """
+    no, expired, invalid_s, invalid_u = (
+        api_sessions.no_session,
+        api_sessions.expired_session,
+        api_sessions.invalid_session,
+        api_sessions.invalid_user,
+    )
+
+    # Each sentinel is a member of a list containing itself.
+    assert no in [no]
+    assert expired in [expired]
+    assert invalid_s in [invalid_s]
+    assert invalid_u in [invalid_u]
+
+    # Cross-membership: each sentinel is NOT in a list of the others.
+    assert no not in [expired, invalid_s, invalid_u]
+    assert expired not in [no, invalid_s, invalid_u]
+    assert invalid_s not in [no, expired, invalid_u]
+    assert invalid_u not in [no, expired, invalid_s]
+
+    # The exact production usage from revoke_user_session.
+    assert expired in [expired, invalid_u]
+    assert invalid_u in [expired, invalid_u]
+    assert no not in [expired, invalid_u]
 
 
 def test_error_sentinels_carry_expected_metadata():

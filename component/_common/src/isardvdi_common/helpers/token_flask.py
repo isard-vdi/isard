@@ -30,6 +30,26 @@ from isardvdi_common.helpers.token import Token
 log = logging.getLogger(__name__)
 
 
+def _logsusers_thread_target(payload):
+    """Run ``LogsUsers(payload)`` and log any exception.
+
+    Without this wrapper, an exception raised inside ``LogsUsers``
+    (e.g., RethinkDB connection refused, schema drift, OOM during
+    row construction) dies in the daemon thread's default unhandled
+    exception path — surfaced only on stderr by Python's
+    ``threading.excepthook``, never landing in structured logs.
+    That's the same silent-audit-loss class the original
+    ``gevent.spawn`` path produced, just shifted from "never runs"
+    to "runs and crashes invisibly". A bare ``threading.Thread(target=LogsUsers)``
+    would have re-introduced the same observability hole that
+    motivated the migration.
+    """
+    try:
+        LogsUsers(payload)
+    except Exception:
+        log.warning("LogsUsers failed for payload=%r", payload, exc_info=True)
+
+
 class TokenFlask(Token):
 
     @staticmethod
@@ -87,12 +107,23 @@ class TokenFlask(Token):
         bounded module-level ``ThreadPoolExecutor`` rather than
         re-introducing gevent.
 
-        Best-effort by design: target exceptions surface via the
-        threading runtime's stderr handler. The outer try/except
-        only catches failures of ``Thread.start()`` itself (e.g.
-        thread-table exhaustion under DoS).
+        Two failure modes are caught and logged, never propagated to
+        the request handler:
+
+          - ``Thread.start()`` failure (e.g. thread-table exhaustion
+            under DoS) — caught here.
+          - ``LogsUsers`` raising once the thread is running (e.g.
+            ``isard-db`` connection refused) — caught inside
+            ``_logsusers_thread_target``.
+
+        Both produce a ``log.warning`` so missing audit rows are
+        observable, never silent.
         """
         try:
-            threading.Thread(target=LogsUsers, args=(payload,), daemon=True).start()
+            threading.Thread(
+                target=_logsusers_thread_target,
+                args=(payload,),
+                daemon=True,
+            ).start()
         except Exception:
             log.warning("Unable to schedule LogsUsers thread", exc_info=True)

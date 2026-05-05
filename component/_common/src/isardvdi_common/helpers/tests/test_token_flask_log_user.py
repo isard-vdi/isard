@@ -165,6 +165,61 @@ def test_log_user_swallows_thread_start_failures(token_flask_module, caplog):
     )
 
 
+def test_log_user_logs_target_exception_does_not_lose_audit_row(
+    token_flask_module, caplog
+):
+    """If ``LogsUsers`` itself raises after the daemon thread starts
+    (e.g., ``isard-db`` connection refused, schema drift), the
+    exception must be caught and logged — not die silently in the
+    thread's default ``threading.excepthook``.
+
+    Without ``_logsusers_thread_target``'s try/except, Python's
+    threading runtime would print the traceback to stderr only,
+    bypassing the structured logger that Loki / Grafana ingest
+    from. Result: audit rows missing AND no log line to triage,
+    same observability hole the original gevent fix was meant to
+    close.
+
+    The test patches ``LogsUsers`` to raise inside the thread,
+    waits for the thread to run AND the wrapper to log, then
+    asserts the structured logger captured the failure.
+    """
+    started = threading.Event()
+
+    def exploding_logsusers(payload):
+        started.set()
+        raise RuntimeError("rdb connection refused")
+
+    with patch.object(token_flask_module, "LogsUsers", side_effect=exploding_logsusers):
+        with caplog.at_level(logging.WARNING):
+            token_flask_module.TokenFlask.log_user({"user_id": "u-explode"})
+
+            # Thread runs the target which sets `started` then raises.
+            assert started.wait(timeout=2.0), (
+                "Target thread never started — log_user did not actually "
+                "spawn the wrapper"
+            )
+
+            # Wrapper logs *after* the target raises. Race-free wait:
+            # poll caplog up to 2 s for the warning to land. Direct
+            # join() isn't possible because log_user doesn't return
+            # the Thread handle (fire-and-forget contract).
+            deadline = time.monotonic() + 2.0
+            while time.monotonic() < deadline:
+                if "rdb connection refused" in caplog.text:
+                    break
+                time.sleep(0.02)
+
+    assert "rdb connection refused" in caplog.text, (
+        f"target raise was never logged — silent audit-row loss. "
+        f"captured: {caplog.text!r}"
+    )
+    assert "LogsUsers" in caplog.text, (
+        "log line should mention LogsUsers so failures are greppable. "
+        f"captured: {caplog.text!r}"
+    )
+
+
 def test_module_does_not_import_gevent(token_flask_module):
     """Regression guard for the actual fix: ``token_flask`` must not
     import ``gevent`` anywhere or call ``gevent.spawn``. The whole
