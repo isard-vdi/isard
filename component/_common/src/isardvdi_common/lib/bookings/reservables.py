@@ -179,6 +179,13 @@ class ResourceItemsGpus(RethinkSharedConnection):
                     )
                     item["available_units"] = 0
                 else:
+                    # ``available_units`` here is the CATALOG capacity for the
+                    # active profile (max vGPUs the card supports). The
+                    # change-handler ``vgpus`` event carries the same field
+                    # name but reports the LIVE mdev pool size — they
+                    # usually agree but transiently diverge during boot or
+                    # after a profile switch. Both frontends ignore the
+                    # divergence and accept whichever arrives last.
                     available_units = matching_profiles[0]
                     item["available_units"] = available_units["units"]
                     item["active_profile"] = cls.get_subitem(
