@@ -398,6 +398,7 @@ async def stop_desktop(
             DesktopService.stop_desktop,
             desktop_id,
             user_id=request.token_payload["user_id"],
+            request=request,
         )
         return SimpleResponse(id=desktop_id)
     except Error:
@@ -425,6 +426,7 @@ async def stop_desktops(desktops_stop_request: DesktopsStopRequest, request: Req
             DesktopService.stop_user_desktops,
             user_id=request.token_payload["user_id"],
             force=desktops_stop_request.force,
+            request=request,
         )
         return EmptyResponse()
     except Error:
@@ -688,6 +690,7 @@ async def force_stop_desktop(
             desktop_id,
             user_id=request.token_payload["user_id"],
             force=True,
+            request=request,
         )
         return SimpleResponse(id=desktop_id)
     except Error:

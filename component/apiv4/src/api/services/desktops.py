@@ -716,7 +716,10 @@ class DesktopService:
 
     @staticmethod
     def stop_desktop(
-        desktop_id: str, user_id: str, force: Optional[bool] = None
+        desktop_id: str,
+        user_id: str,
+        force: Optional[bool] = None,
+        request: Optional[Request] = None,
     ) -> str:
         if not RethinkDomain.exists(desktop_id):
             raise Error(
@@ -729,7 +732,7 @@ class DesktopService:
         # event with the unchanged status and the frontend's optimistic
         # `Stopping` reverts visibly before settling.
         DesktopEvents.desktop_stop(desktop_id=desktop_id, force=force)
-        Logging.logs_domain_stop_api(desktop_id, user_id)
+        Logging.logs_domain_stop_api(desktop_id, user_id, user_request=request)
         SchedulerHelper.remove_desktop_timeouts(desktop_id)
         return desktop_id
 
@@ -798,11 +801,15 @@ class DesktopService:
         return CommonDesktops.bulk_create_desktops(payload, data)
 
     @staticmethod
-    def stop_user_desktops(user_id: str, force: Optional[bool] = None) -> None:
+    def stop_user_desktops(
+        user_id: str,
+        force: Optional[bool] = None,
+        request: Optional[Request] = None,
+    ) -> None:
         stopped_desktops_ids = CommonDesktops.stop_user_desktops(user_id, force)
         for desktop_id in stopped_desktops_ids:
             SchedulerHelper.remove_desktop_timeouts(desktop_id)
-            Logging.logs_domain_stop_api(desktop_id, user_id)
+            Logging.logs_domain_stop_api(desktop_id, user_id, user_request=request)
 
     @staticmethod
     def start_desktop(

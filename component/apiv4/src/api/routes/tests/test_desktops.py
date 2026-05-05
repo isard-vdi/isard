@@ -283,8 +283,12 @@ def test_stop_desktop(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
 
-    def fake_stop(desktop_id, user_id, force=None):
-        calls.append((desktop_id, user_id, force))
+    # ``request`` is now passed through so ``Logging.logs_domain_stop_api``
+    # can record the caller's IP / user-agent in ``logs_desktops`` —
+    # apiv3 parity restored after the apiv4 port silently dropped the
+    # parameter.
+    def fake_stop(desktop_id, user_id, force=None, request=None):
+        calls.append((desktop_id, user_id, force, request is not None))
 
     monkeypatch.setattr(
         "api.services.desktops.DesktopService.stop_desktop",
@@ -300,7 +304,7 @@ def test_stop_desktop(monkeypatch, test_client):
 
     assert response.status_code == 200
     assert response.json() == {"id": "desktop-1"}
-    assert calls == [("desktop-1", jwt.payload["user_id"], None)]
+    assert calls == [("desktop-1", jwt.payload["user_id"], None, True)]
 
 
 # ─── Desktop share-link + direct viewer (T1/desktop shim replacements) ─

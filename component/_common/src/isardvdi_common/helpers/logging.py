@@ -303,11 +303,21 @@ class Logging(RethinkSharedConnection):
 
     # STOP DESKTOP
     @classmethod
-    def logs_domain_stop_api(cls, dom_id, action_user=None):
-        cls._logs_domain_stop_api(dom_id, action_user=action_user)
+    def logs_domain_stop_api(cls, dom_id, action_user=None, user_request=None):
+        # Apiv3 parity: ``main:api/src/api/libv2/api_logging.py:287-339``
+        # accepted ``user_request`` and recorded ``stopping_ip`` /
+        # ``stopping_agent_browser`` / ``stopping_agent_platform``. The
+        # apiv4 port silently dropped the parameter so every
+        # ``logs_desktops`` row written after the cutover lost the
+        # session-forensics fields. Restore the contract.
+        cls._logs_domain_stop_api(
+            dom_id,
+            action_user=action_user,
+            user_request=cls.parse_user_request(user_request),
+        )
 
     @classmethod
-    def _logs_domain_stop_api(cls, desktop_id, action_user):
+    def _logs_domain_stop_api(cls, desktop_id, action_user, user_request=None):
         domain = Caches.get_document(
             "domains", desktop_id, ["start_logs_id", "tag", "user"]
         )
@@ -326,14 +336,21 @@ class Logging(RethinkSharedConnection):
                 return
         else:
             action_by = cls.action_owner(action_user, domain["user"])
+        update = {
+            "stopping_time": r.epoch_time(time()),
+            "stopping_by": action_by,
+            "stopping_user": action_user,
+        }
+        if user_request:
+            update["stopping_ip"] = user_request.get("request_ip")
+            update["stopping_agent_browser"] = user_request.get("request_agent_browser")
+            update["stopping_agent_platform"] = user_request.get(
+                "request_agent_platform"
+            )
         try:
             with cls._rdb_context():
                 r.table("logs_desktops").get(domain.get("start_logs_id")).update(
-                    {
-                        "stopping_time": r.epoch_time(time()),
-                        "stopping_by": action_by,
-                        "stopping_user": action_user,
-                    },
+                    update,
                     durability="soft",
                 ).run(cls._rdb_connection)
         except Exception:
