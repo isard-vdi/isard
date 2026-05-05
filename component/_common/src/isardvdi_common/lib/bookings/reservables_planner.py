@@ -23,6 +23,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pprint import pformat
 
+import portion as P
 import pytz
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
@@ -46,6 +47,7 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
     MIN_AUTOBOOKING_TIME = 30
     MAX_BOOKING_TIME = 12 * 60  # 12h
     ROUND_MINUTES = 5
+    reservables = ReservablesProccess()
 
     @classmethod
     def ceil_dt(cls, dt):
@@ -485,23 +487,27 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
         return format_planning
 
     @classmethod
-    def existing_booking_update_fits(cls, payload, booking):
-        return (
-            False  # The booking_provisioning should send booking item_type and item_id
-        )
-        plans = booking_provisioning(
+    def existing_booking_update_fits(
+        cls, payload, booking, new_start=None, new_end=None
+    ):
+        # When new_start/new_end are passed, validate the new window;
+        # otherwise fall back to the booking's stored dates.
+        start = new_start if new_start is not None else booking["start"]
+        end = new_end if new_end is not None else booking["end"]
+
+        plans = ReservablesPlannerCompute.booking_provisioning(
             payload,
             booking["item_type"],
             booking["item_id"],
             booking["reservables"],
             booking["units"],
-            payload_priority(payload, booking["reservables"]),
-            booking["start"],
-            booking["end"],
+            ReservablesPlannerCompute.payload_priority(payload, booking["reservables"]),
+            start,
+            end,
             skip_booking_id=booking["id"],
         )
-        portion_plans = convert_plans_to_portions(plans)
-        new_booking = P.closed(booking["start"], booking["end"])
+        portion_plans = ReservablesPlannerCompute.convert_plans_to_portions(plans)
+        new_booking = P.closed(start, end)
         fits = [p for p in portion_plans if p.contains(new_booking)]
         if len(fits) == 1:
             return True

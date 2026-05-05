@@ -303,8 +303,16 @@ class BookingsProcessed(RethinkSharedConnection):
     ):
         with cls._rdb_context():
             booking = r.table("bookings").get(booking_id).run(cls._rdb_connection)
+        if booking is None:
+            raise Error(
+                "not_found",
+                "Booking not found",
+                description_code="not_found",
+            )
+        new_start = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+        new_end = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
         if not ReservablesPlannerProccess.existing_booking_update_fits(
-            payload, booking
+            payload, booking, new_start, new_end
         ):
             raise Error(
                 "conflict",
@@ -316,12 +324,8 @@ class BookingsProcessed(RethinkSharedConnection):
             r.table("bookings").get(booking_id).update(
                 {
                     "title": title,
-                    "start": datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
-                        pytz.UTC
-                    ),
-                    "end": datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(
-                        pytz.UTC
-                    ),
+                    "start": new_start,
+                    "end": new_end,
                 }
             ).run(cls._rdb_connection)
 

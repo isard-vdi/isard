@@ -22,7 +22,6 @@ from typing import List, Optional
 
 from api.schemas.planning import PlanningItem
 from api.services.error import Error
-from isardvdi_common.lib.bookings.reservables import Reservables as ReservablesProccess
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
 
 
@@ -107,8 +106,5 @@ class PlanningService:
         Returns:
             str: The created planning ID
         """
-        if not hasattr(ReservablesPlannerProccess, "reservables"):
-            ReservablesPlannerProccess.reservables = ReservablesProccess()
-
         plan_id = ReservablesPlannerProccess.add_plan(payload, planning_data)
         return plan_id
