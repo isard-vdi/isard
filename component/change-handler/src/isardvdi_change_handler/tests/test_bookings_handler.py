@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -9,13 +9,17 @@ from isardvdi_change_handler.tests.conftest import FakeRow
 
 
 def _booking(**overrides):
+    # Default to a future window so ``editable`` is True. Tests that need
+    # a past booking pass ``start=`` and ``end=`` explicitly.
+    future_start = datetime.now(timezone.utc) + timedelta(hours=2)
+    future_end = future_start + timedelta(hours=1)
     base = dict(
         id="b1",
         user_id="u1",
         item_id="i1",
         item_type=None,
-        start=datetime(2026, 1, 15, 9, 0, tzinfo=timezone.utc),
-        end=datetime(2026, 1, 15, 10, 0, tzinfo=timezone.utc),
+        start=future_start,
+        end=future_end,
     )
     base.update(overrides)
     return FakeRow(**base)
@@ -40,12 +44,61 @@ class TestBookingsHandler:
     async def test_insert_prepares_dates_and_adds_editable_and_event_type(
         self, handler
     ):
-        await handler.on_insert(_booking())
+        future = datetime.now(timezone.utc) + timedelta(hours=2)
+        await handler.on_insert(_booking(start=future, end=future + timedelta(hours=1)))
         payload = json.loads(handler.socketio_server.emit.call_args_list[0][0][1])
-        assert payload["start"].startswith("2026-01-15T09:00")
-        assert payload["end"].startswith("2026-01-15T10:00")
+        # ISO-8601 with offset, e.g. "2026-05-04T14:00+0000"
+        assert "T" in payload["start"]
+        assert "T" in payload["end"]
         assert payload["event_type"] == "event"
         assert payload["editable"] is True
+
+    @pytest.mark.asyncio
+    async def test_insert_marks_past_booking_not_editable(self, handler):
+        """Pin Bug 2 — apiv4-integration was hard-coding ``editable=True``
+        on every change-handler emission. Past bookings (start <= now)
+        must surface ``editable=False`` so the Vue 2 calendar hides
+        Edit/Delete buttons in real-time.
+        """
+        past = datetime.now(timezone.utc) - timedelta(hours=2)
+        await handler.on_insert(_booking(start=past, end=past + timedelta(hours=1)))
+        payload = json.loads(handler.socketio_server.emit.call_args_list[0][0][1])
+        assert payload["editable"] is False
+
+    @pytest.mark.asyncio
+    async def test_update_emits_editable_for_future_booking(self, handler):
+        future = datetime.now(timezone.utc) + timedelta(hours=2)
+        await handler.on_update(
+            _booking(),
+            _booking(start=future, end=future + timedelta(hours=1)),
+        )
+        payload = json.loads(handler.socketio_server.emit.call_args_list[0][0][1])
+        assert payload["editable"] is True
+
+    @pytest.mark.asyncio
+    async def test_update_marks_past_booking_not_editable(self, handler):
+        past = datetime.now(timezone.utc) - timedelta(hours=2)
+        await handler.on_update(
+            _booking(),
+            _booking(start=past, end=past + timedelta(hours=1)),
+        )
+        payload = json.loads(handler.socketio_server.emit.call_args_list[0][0][1])
+        assert payload["editable"] is False
+
+    @pytest.mark.asyncio
+    async def test_delete_event_payload_carries_editable_flag(self, handler):
+        """Delete emits both ``booking_delete`` (id-only) and
+        ``bookingitem_delete`` (full payload). The bookingitem payload
+        must still carry the editable flag so the calendar can hide UI
+        for the no-longer-extant booking.
+        """
+        past = datetime.now(timezone.utc) - timedelta(hours=2)
+        await handler.on_delete(_booking(start=past, end=past + timedelta(hours=1)))
+        # bookingitem_delete is the second emission
+        bookingitem_payload = json.loads(
+            handler.socketio_server.emit.call_args_list[1][0][1]
+        )
+        assert bookingitem_payload["editable"] is False
 
     @pytest.mark.asyncio
     async def test_update_emits_booking_and_bookingitem_update(self, handler):

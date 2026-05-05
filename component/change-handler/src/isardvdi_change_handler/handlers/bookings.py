@@ -19,7 +19,7 @@
 
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from isardvdi_common.lib.deployments.deployments import DeploymentsProcessed
 from isardvdi_common.lib.domains.desktops.desktops import DesktopsProcessed
@@ -34,27 +34,39 @@ class BookingsHandler(BaseHandler):
     def _prepare_booking(self, booking):
         """
         Prepare booking data for emission: format dates, add editable and
-        event_type flags.
+        event_type flags. ``editable`` mirrors apiv4's
+        ``BookingsHelper.is_future`` semantic — the booking is editable
+        only while its start is still in the future.
         """
-        start = booking.start
-        end = booking.end
-        if isinstance(start, datetime):
-            start = start.strftime("%Y-%m-%dT%H:%M%z")
-        if isinstance(end, datetime):
-            end = end.strftime("%Y-%m-%dT%H:%M%z")
+        raw_start = booking.start
+        raw_end = booking.end
+        formatted_start = (
+            raw_start.strftime("%Y-%m-%dT%H:%M%z")
+            if isinstance(raw_start, datetime)
+            else raw_start
+        )
+        formatted_end = (
+            raw_end.strftime("%Y-%m-%dT%H:%M%z")
+            if isinstance(raw_end, datetime)
+            else raw_end
+        )
 
-        prepared = booking.model_copy(update={"start": start, "end": end})
+        editable = isinstance(raw_start, datetime) and raw_start > datetime.now(
+            timezone.utc
+        )
+
+        prepared = booking.model_copy(
+            update={"start": formatted_start, "end": formatted_end}
+        )
         prepared.additional_properties = {
             **(booking.additional_properties or {}),
             "event_type": "event",
-            "editable": True,
+            "editable": editable,
         }
         return prepared
 
     async def on_insert(self, new_val):
-        booking = self._prepare_booking(
-            new_val
-        )  # TODO: Check the added booking is editable or not
+        booking = self._prepare_booking(new_val)
         await self.emit(
             "booking_add",
             json_dumps(booking),
@@ -70,9 +82,7 @@ class BookingsHandler(BaseHandler):
         await self.send_booking_item_event(booking)
 
     async def on_update(self, old_val, new_val):
-        booking = self._prepare_booking(
-            new_val
-        )  # TODO: Check the added booking is editable or not
+        booking = self._prepare_booking(new_val)
         await self.emit(
             "booking_update",
             json_dumps(booking),
@@ -88,9 +98,7 @@ class BookingsHandler(BaseHandler):
         await self.send_booking_item_event(booking)
 
     async def on_delete(self, old_val):
-        booking = self._prepare_booking(
-            old_val
-        )  # TODO: Check the added booking is editable or not
+        booking = self._prepare_booking(old_val)
         await self.emit(
             "booking_delete",
             json_dumps({"id": old_val.id}),
