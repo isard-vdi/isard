@@ -31,7 +31,6 @@ os.environ.setdefault("API_ISARDVDI_SECRET", "test-secret")
 
 import httpx
 import pytest
-from api import app
 from api.routes.tests.helpers import MockJWT, create_indexes
 from api.services.error import Error
 from cachetools import Cache
@@ -39,19 +38,53 @@ from fastapi.testclient import TestClient
 from isardvdi_common.helpers.bastion import Bastion
 from rethinkdb_mock import MockThink
 
+from api import app
+
 
 @pytest.fixture(autouse=True)
 def _mock_bastion_grpc(monkeypatch):
     """Prevent tests from hitting the real haproxy-sync gRPC service.
 
-    `Bastion._call_grpc_with_infinite_retry` waits up to 30s on
-    `wait_for_ready=True` when the service is unreachable (no container in
-    the test env). Returns a MagicMock that mimics a successful
-    DomainSyncResponse (``failed_domains=[]``); the branding update path
-    inspects this attribute, so a plain ``None`` would AttributeError.
-    Tests that need to simulate sync failures override this fixture or
-    patch ``Bastion.sync_category_branding_domains`` directly.
+    Two layers of isolation, matching the post-refactor architecture:
+
+    1. ``configure_haproxy_bastion_client(provider)`` — the apiv4
+       lifespan startup wires this in production. Tests don't run
+       lifespan, so without an explicit registration here every call
+       through ``Bastion.update_*`` or ``Targets.update`` would raise
+       ``RuntimeError("haproxy-sync (haproxy_bastion) client not
+       configured…")``. Register a MagicMock stub so the call sites
+       resolve cleanly.
+
+    2. ``Bastion._call_grpc_with_infinite_retry`` — the retry wrapper
+       still gets monkeypatched because some call sites (notably
+       ``sync_category_branding_domains``) inspect the response's
+       ``failed_domains`` attribute, and the path needs a deterministic
+       successful-sync shape. Without this the retry wrapper would
+       call the MagicMock stub from #1 (returning another MagicMock)
+       and the code path would behave semi-randomly.
+
+    Tests that need to simulate sync failures override either layer:
+    patch the provider for "stub failure" or patch
+    ``Bastion.sync_category_branding_domains`` directly.
     """
+    import isardvdi_common.connections.api_sessions as api_sessions
+    import isardvdi_common.helpers.bastion as bastion_module
+
+    # Layer 1: register a MagicMock provider. The provider is invoked
+    # on every call site (it's not memoized), so returning a single
+    # mock instance reuses the same MagicMock spec for all calls.
+    haproxy_bastion_stub = MagicMock(name="HaproxyBastionStub")
+    bastion_module.configure_haproxy_bastion_client(lambda: haproxy_bastion_stub)
+
+    # Mirror for sessions client — apiv4 routes hit it via the
+    # has_token dependency on every authenticated request. The
+    # MockJWT path uses ``session_id="isardvdi-service"`` which
+    # bypasses session validation, but other auth paths could still
+    # call into the gRPC stub.
+    sessions_stub = MagicMock(name="SessionsStub")
+    api_sessions.configure_sessions_client(lambda: sessions_stub)
+
+    # Layer 2: deterministic retry-wrapper response.
     success_response = MagicMock(name="DomainSyncResponse")
     success_response.failed_domains = []
     monkeypatch.setattr(
@@ -59,6 +92,15 @@ def _mock_bastion_grpc(monkeypatch):
         "_call_grpc_with_infinite_retry",
         staticmethod(MagicMock(return_value=success_response)),
     )
+
+    yield
+
+    # Reset providers between tests so leakage from one test's
+    # custom registration doesn't affect another. The configure
+    # functions take an arbitrary callable, so we restore "no
+    # provider" by setting the private slot back to None.
+    bastion_module._haproxy_bastion_client_provider = None
+    api_sessions._sessions_client_provider = None
 
 
 @pytest.fixture(autouse=True)

@@ -25,7 +25,7 @@ import re
 import threading
 import time
 import traceback
-from typing import Literal
+from typing import Callable, Literal, Optional
 
 import dns.resolver
 import grpc
@@ -37,17 +37,54 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2
 from rethinkdb import r
 
-try:
-    from api import app as _flask_api
+# Provider hook for the haproxy-sync (a.k.a. "haproxy_bastion") gRPC stub.
+# apiv4's lifespan startup registers a callable that returns a long-lived
+# stub (one channel per worker process). Other services that import this
+# module via the shared user / target helpers don't register and don't
+# call any of the methods below that exercise the stub, so the
+# unconfigured state is invisible to them.
+#
+# This replaces a module-load-time ``create_haproxy_bastion_client(...)``
+# call that opened a TCP channel for every importer of the ``_common``
+# package — including services (engine, change-handler, …) that never
+# need it. See ``apiv4.connections.grpc_client`` module docstring for
+# the full incident analysis (the prior code path also called
+# ``grpc.experimental.gevent.init_gevent()`` which SIGSEGV'd apiv4
+# under load).
+_haproxy_bastion_client_provider: Optional[Callable[[], object]] = None
 
-    haproxy_bastion_client = _flask_api.haproxy_bastion_client
-except Exception:
-    from isardvdi_common.connections.grpc_client import create_haproxy_bastion_client
 
-    # 1312 is the isardvdi gRPC default (pkg/cfg/cfg.go:131 SetGRPCDefaults).
-    # The haproxy-sync sidecar in the isard-portal container listens there.
-    # Port 1313 is HTTP for authentication / vpn / bastion-ssh — wrong target.
-    haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1312)
+def configure_haproxy_bastion_client(provider: Callable[[], object]) -> None:
+    """Register a factory returning the haproxy-sync gRPC stub.
+
+    Called once at service startup before any bastion / target
+    operation runs. The provider is invoked each time, so callers
+    typically memoize a single stub in the closure rather than
+    rebuilding the channel per call.
+
+    The same hook is consumed by ``isardvdi_common.models.targets``,
+    which delegates to this module so there is one source of truth
+    for the haproxy-sync channel.
+    """
+    global _haproxy_bastion_client_provider
+    _haproxy_bastion_client_provider = provider
+
+
+def _haproxy_bastion_client():
+    """Return the registered haproxy-sync gRPC stub.
+
+    Raises ``RuntimeError`` if no provider has been registered. This
+    only triggers in misconfigured services; the only documented
+    caller (apiv4) wires up the provider in its ``lifespan`` startup
+    before any request is served.
+    """
+    if _haproxy_bastion_client_provider is None:
+        raise RuntimeError(
+            "haproxy-sync (haproxy_bastion) client not configured: call "
+            "isardvdi_common.helpers.bastion.configure_haproxy_bastion_client(provider) "
+            "during service startup before invoking bastion/target operations."
+        )
+    return _haproxy_bastion_client_provider()
 
 
 # haproxy-sync wraps the raw acme.sh stdout/stderr in DomainSyncError.error.
@@ -132,11 +169,12 @@ class Bastion(RethinkSharedConnection):
                 .get("bastion")
             ).get("domain")
         if old_domain != domain:
+            client = _haproxy_bastion_client()
             if old_domain:
-                haproxy_bastion_client.BastionDeleteSubdomain(
+                client.BastionDeleteSubdomain(
                     haproxy_sync_pb2.BastionDeleteSubdomainRequest(domain=old_domain)
                 )
-            haproxy_bastion_client.BastionAddSubdomain(
+            client.BastionAddSubdomain(
                 haproxy_sync_pb2.BastionAddSubdomainRequest(domain=domain)
             )
 
@@ -177,11 +215,12 @@ class Bastion(RethinkSharedConnection):
             ).run(cls._rdb_connection)
         Caches.invalidate_cache("categories", category_id)
 
+        client = _haproxy_bastion_client()
         if old_domain:
-            haproxy_bastion_client.BastionDeleteSubdomain(
+            client.BastionDeleteSubdomain(
                 haproxy_sync_pb2.BastionDeleteSubdomainRequest(domain=old_domain)
             )
-        haproxy_bastion_client.BastionAddSubdomain(
+        client.BastionAddSubdomain(
             haproxy_sync_pb2.BastionAddSubdomainRequest(domain=domain)
         )
 
@@ -219,7 +258,7 @@ class Bastion(RethinkSharedConnection):
         ]
 
         cls._call_grpc_with_infinite_retry(
-            haproxy_bastion_client.BastionSyncMaps,
+            _haproxy_bastion_client().BastionSyncMaps,
             haproxy_sync_pb2.BastionSyncMapsRequest(
                 subdomains=subdomains,
                 individual_domains=individual_domains,
@@ -283,7 +322,7 @@ class Bastion(RethinkSharedConnection):
             )
 
         return cls._call_grpc_with_infinite_retry(
-            haproxy_bastion_client.DomainSync,
+            _haproxy_bastion_client().DomainSync,
             haproxy_sync_pb2.DomainSyncRequest(domains=domains),
         )
 

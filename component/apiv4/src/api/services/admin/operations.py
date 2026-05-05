@@ -171,7 +171,7 @@ _HYPERVISOR_STATE_MAP = {
 
 def _get_operations_client() -> "OperationsServiceStub":
     """Get or create operations gRPC client."""
-    from isardvdi_common.connections.grpc_client import create_operations_client
+    from api.connections.grpc_client import create_operations_client
 
     host = os.environ.get("OPERATIONS_HOST", "isard-operations")
     port = os.environ.get("OPERATIONS_PORT", "1312")

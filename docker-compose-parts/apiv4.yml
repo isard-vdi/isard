@@ -2,14 +2,26 @@ services:
   isard-apiv4:
     container_name: isard-apiv4
     image: ${DOCKER_IMAGE_PREFIX}apiv4:${DOCKER_IMAGE_TAG:-latest}
-    # SIGSEGV in gevent/libev/corecext under concurrent k6+e2e load
-    # took the container down for 43 min on 2026-05-01 (no auto-restart
-    # because the previous policy was "no"). See
-    # /opt/load-testing/APIV4_THREADING_INCIDENT_ANALYSIS.md for the
-    # full root-cause + remediation roadmap. unless-stopped restarts
-    # the container on any non-zero exit (including SIGSEGV signal-11)
-    # but respects an explicit `docker stop`, which is what the
-    # team's deploy pipeline issues.
+    # ``unless-stopped`` is required: the SIGSEGV class of failure that
+    # this branch's apiv4 has historically been vulnerable to crashes
+    # the worker process abruptly. The previous policy ``no`` left the
+    # container down for 43 min on 2026-05-01 (incident analysis at
+    # /opt/load-testing/APIV4_THREADING_INCIDENT_ANALYSIS.md). A second
+    # incident on 2026-05-05 (kernel-logged segfault in
+    # corecext.cpython-313-...so at 17:59:55) confirmed the SIGSEGV
+    # signature was rooted in gevent's libev native extension being
+    # driven from a process that never called ``monkey.patch_all()``.
+    # That root cause is now fixed in the apiv4 connections refactor:
+    # the gRPC client factories live in apiv4 (``api.connections.grpc_client``)
+    # rather than ``isardvdi_common``, the unconditional
+    # ``grpc.experimental.gevent.init_gevent()`` call is gone, and gevent
+    # is no longer loaded into the apiv4 worker at all.
+    #
+    # ``unless-stopped`` is kept as defence-in-depth — any future native
+    # crash (rethinkdb fork, novnc esbuild plugin, third-party C
+    # extension) still respawns the container automatically. Respects
+    # an explicit ``docker stop``, which is what the team's deploy
+    # pipeline issues.
     restart: unless-stopped
     logging:
       driver: "json-file"

@@ -19,11 +19,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
-import gevent
+import logging
+import threading
+
 from flask import request
 from isardvdi_common.helpers.api_exceptions_flask import Error
 from isardvdi_common.helpers.api_logs_users import LogsUsers
 from isardvdi_common.helpers.token import Token
+
+log = logging.getLogger(__name__)
 
 
 class TokenFlask(Token):
@@ -56,7 +60,39 @@ class TokenFlask(Token):
 
     @classmethod
     def log_user(cls, payload):
+        """Fire-and-forget write of an authenticated-request audit row.
+
+        Was ``gevent.spawn(LogsUsers, payload)`` — appended a callback
+        to the gevent libev Hub. That only fires when the running
+        greenlet yields, which requires ``gevent.monkey.patch_all()``
+        to have made stdlib I/O cooperative. Of the three Flask
+        services that import this class:
+
+          - ``scheduler``: calls ``monkey.patch_all()`` in
+            ``scheduler/src/start.py:23`` — Hub runs, greenlet fires.
+          - ``webapp``: runs on waitress (stdlib threads + select),
+            no monkey-patch — Hub never runs, greenlet enqueued
+            forever, ``logs_users`` row never written. Silent data
+            loss across every authenticated request.
+          - ``notifier``: same as webapp.
+
+        Replaced with a daemon ``threading.Thread`` — runs on a real
+        OS thread under all three runtimes, doesn't block process
+        exit, and matches ``isardvdi_common.helpers.user_storage._spawn_daemon``
+        which migrated the same anti-pattern in the user-storage path.
+
+        ``LogsUsers`` opens its own RethinkDB connection inside
+        ``__init__`` and writes one row, so a fresh thread per call
+        is fine. If this becomes a bottleneck, promote to a
+        bounded module-level ``ThreadPoolExecutor`` rather than
+        re-introducing gevent.
+
+        Best-effort by design: target exceptions surface via the
+        threading runtime's stderr handler. The outer try/except
+        only catches failures of ``Thread.start()`` itself (e.g.
+        thread-table exhaustion under DoS).
+        """
         try:
-            gevent.spawn(LogsUsers, payload)
-        except Exception as e:
-            log.warning("Unable to update user logs")
+            threading.Thread(target=LogsUsers, args=(payload,), daemon=True).start()
+        except Exception:
+            log.warning("Unable to schedule LogsUsers thread", exc_info=True)

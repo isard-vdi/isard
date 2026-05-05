@@ -26,7 +26,7 @@ from uuid import uuid4
 
 import grpc
 from isardvdi_common.connections.rethink_custom_base_factory import RethinkCustomBase
-from isardvdi_common.helpers.bastion import Bastion
+from isardvdi_common.helpers.bastion import Bastion, _haproxy_bastion_client
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_protobuf.haproxy_sync.v1 import haproxy_sync_pb2
@@ -36,18 +36,14 @@ from rethinkdb import r
 
 from ..schemas.targets import Http, Ssh
 
-try:
-    from api import app as _flask_api
-
-    haproxy_bastion_client = _flask_api.haproxy_bastion_client
-except (ImportError, AttributeError):
-    # Non-Flask context or Flask app not initialized yet — create a
-    # fresh gRPC client.
-    from isardvdi_common.connections.grpc_client import create_haproxy_bastion_client
-
-    # See helpers/bastion.py for rationale: 1312 is the gRPC default that
-    # haproxy-sync listens on; 1313 is the HTTP port used by other services.
-    haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1312)
+# The haproxy-sync gRPC stub is provided by the same hook that powers
+# ``Bastion`` — see ``isardvdi_common.helpers.bastion._haproxy_bastion_client``.
+# Deliberately importing the private getter rather than duplicating the
+# provider state here so there's a single registration point and one
+# source of truth for the haproxy-sync channel. apiv4's lifespan startup
+# calls ``configure_haproxy_bastion_client(provider)`` once on the
+# ``bastion`` module; this module picks up the same provider via the
+# shared getter.
 
 
 class TargetModel(BaseModel):
@@ -132,7 +128,7 @@ class Targets(RethinkCustomBase):
                 pass
             elif not data["domain"]:
                 if target.get("domain"):
-                    haproxy_bastion_client.BastionDeleteIndividualDomain(
+                    _haproxy_bastion_client().BastionDeleteIndividualDomain(
                         haproxy_sync_pb2.BastionDeleteIndividualDomainRequest(
                             domain=target["domain"]
                         )
@@ -155,7 +151,7 @@ class Targets(RethinkCustomBase):
                     )
 
                 if target.get("domain"):
-                    haproxy_bastion_client.BastionDeleteIndividualDomain(
+                    _haproxy_bastion_client().BastionDeleteIndividualDomain(
                         haproxy_sync_pb2.BastionDeleteIndividualDomainRequest(
                             domain=target["domain"]
                         )
@@ -163,7 +159,7 @@ class Targets(RethinkCustomBase):
 
                 target["domain"] = data["domain"]
 
-                haproxy_bastion_client.BastionAddIndividualDomain(
+                _haproxy_bastion_client().BastionAddIndividualDomain(
                     haproxy_sync_pb2.BastionAddIndividualDomainRequest(
                         domain=data["domain"]
                     )
@@ -202,11 +198,11 @@ class Targets(RethinkCustomBase):
             domains_to_remove = set(old_domains) - set(new_domains)
 
             for d in domains_to_remove:
-                haproxy_bastion_client.BastionDeleteIndividualDomain(
+                _haproxy_bastion_client().BastionDeleteIndividualDomain(
                     haproxy_sync_pb2.BastionDeleteIndividualDomainRequest(domain=d)
                 )
             for d in domains_to_add:
-                haproxy_bastion_client.BastionAddIndividualDomain(
+                _haproxy_bastion_client().BastionAddIndividualDomain(
                     haproxy_sync_pb2.BastionAddIndividualDomainRequest(domain=d)
                 )
 

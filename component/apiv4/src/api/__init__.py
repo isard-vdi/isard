@@ -59,6 +59,31 @@ def _sync_haproxy_maps():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    #
+    # Wire up the gRPC client providers in ``isardvdi_common`` before any
+    # business logic runs. The shared modules (``api_sessions``, ``bastion``,
+    # ``targets``) used to build their own gRPC channels at module-load
+    # time, which (a) opened a TCP channel for every importer of
+    # ``isardvdi_common`` regardless of whether they would call the
+    # functions and (b) ran a misconfigured ``grpc.experimental.gevent.init_gevent()``
+    # that SIGSEGV'd apiv4's worker under load (incidents 2026-05-01 and
+    # 2026-05-05). Both concerns are now apiv4's responsibility:
+    # ``api.connections.grpc_client`` owns the factories, and we register
+    # provider closures here so each shared module fetches the same
+    # long-lived stub on every call. One channel per uvicorn worker
+    # process; the closures memoize the stub created here.
+    from api.connections.grpc_client import (
+        create_haproxy_bastion_client,
+        create_sessions_client,
+    )
+    from isardvdi_common.connections import api_sessions as _api_sessions
+    from isardvdi_common.helpers import bastion as _bastion
+
+    _sessions_stub = create_sessions_client("isard-sessions", 1312)
+    _haproxy_bastion_stub = create_haproxy_bastion_client("isard-portal", 1312)
+    _api_sessions.configure_sessions_client(lambda: _sessions_stub)
+    _bastion.configure_haproxy_bastion_client(lambda: _haproxy_bastion_stub)
+
     Maintenance.initialization()
     Cards.seed_stock_cards()
     Cards.cleanup_missing()
@@ -141,7 +166,7 @@ async def lifespan(app: FastAPI):
     # Watch haproxy-sync health and resync on reconnection
     health_task = None
     try:
-        from isardvdi_common.connections.grpc_client import (
+        from api.connections.grpc_client import (
             async_watch_health_check,
             create_haproxy_sync_client,
         )
