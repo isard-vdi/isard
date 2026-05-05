@@ -23,6 +23,7 @@ import traceback
 from time import time
 from uuid import uuid4
 
+from cachetools import TTLCache
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -30,6 +31,12 @@ from isardvdi_common.helpers.caches import Caches
 from rethinkdb import r
 
 log = logging.getLogger(__name__)
+
+# Apiv3 parity: ``main:api/src/api/libv2/api_logging.py:437``. The
+# directviewer/proxy reconnect loop fires this path on every WebSocket
+# resume — without dedup the ``logs_desktops.events`` array balloons
+# with hundreds of duplicate rows per session. 60s TTL matches apiv3.
+_directviewer_event_cache: TTLCache = TTLCache(maxsize=1000, ttl=60)
 
 
 class Logging(RethinkSharedConnection):
@@ -468,6 +475,19 @@ class Logging(RethinkSharedConnection):
     async def _logs_domain_event_directviewer(
         cls, domain_id, action_user, viewer_type=None, user_request=None
     ):
+        # Dedup window: skip if we already wrote a directviewer event
+        # for the same (domain, viewer_type, ip) tuple within the last
+        # 60s. Apiv3 parity, see module-level
+        # ``_directviewer_event_cache``.
+        request_ip = ""
+        if user_request is not None:
+            parsed = cls.parse_user_request(user_request)
+            request_ip = parsed.get("request_ip") or ""
+        cache_key = f"{domain_id}:{viewer_type}:{request_ip}"
+        if cache_key in _directviewer_event_cache:
+            return
+        _directviewer_event_cache[cache_key] = True
+
         start_logs_id = Caches.get_document("domains", domain_id, ["start_logs_id"])
         if start_logs_id is None:
             log.warning(

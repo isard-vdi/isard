@@ -139,3 +139,86 @@ class TestLogsDomainStopApiParity:
         assert "stopping_time" in payload
         assert payload["stopping_by"] == "owner"
         assert payload["stopping_user"] == "user-1"
+
+
+class TestDirectviewerEventDedup:
+    """Apiv3 ``_directviewer_event_cache`` (``TTLCache(maxsize=1000,
+    ttl=60)``) skipped duplicate ``(domain_id, viewer_type, ip)``
+    events within a 60s window — the apiv4 port silently dropped it,
+    so reconnect storms (mobile network flap, NAT timeout, browser
+    visibility toggle) appended hundreds of duplicate rows to the
+    ``logs_desktops.events`` array per session.
+
+    Pin: 5 calls with the same key within 60s ⇒ exactly 1 underlying
+    ``_logs_domain_event`` invocation."""
+
+    @pytest.mark.asyncio
+    async def test_repeated_calls_dedupe_within_60s(self, monkeypatch):
+        from isardvdi_common.helpers import logging as mod
+
+        mod._directviewer_event_cache.clear()
+
+        invocations = {"count": 0}
+
+        async def fake_logs_domain_event(
+            start_logs_id, event, action_user=None, viewer_type="", user_request=None
+        ):
+            invocations["count"] += 1
+
+        monkeypatch.setattr(
+            mod.Logging,
+            "_logs_domain_event",
+            classmethod(lambda cls, *a, **kw: fake_logs_domain_event(*a, **kw)),
+        )
+        monkeypatch.setattr(
+            mod.Caches,
+            "get_document",
+            classmethod(lambda cls, *a, **kw: "log-1"),
+        )
+
+        request = _StubStarletteRequest(ip="203.0.113.7", user_agent="Mozilla/5.0")
+
+        for _ in range(5):
+            await mod.Logging._logs_domain_event_directviewer(
+                "desk-1",
+                action_user="user-1",
+                viewer_type="spice",
+                user_request=request,
+            )
+
+        assert invocations["count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_different_keys_do_not_dedupe(self, monkeypatch):
+        """The cache key is ``(domain_id, viewer_type, ip)``. A
+        different ip MUST trigger a fresh underlying call."""
+        from isardvdi_common.helpers import logging as mod
+
+        mod._directviewer_event_cache.clear()
+
+        invocations = {"count": 0}
+
+        async def fake_logs_domain_event(*a, **kw):
+            invocations["count"] += 1
+
+        monkeypatch.setattr(
+            mod.Logging,
+            "_logs_domain_event",
+            classmethod(lambda cls, *a, **kw: fake_logs_domain_event(*a, **kw)),
+        )
+        monkeypatch.setattr(
+            mod.Caches,
+            "get_document",
+            classmethod(lambda cls, *a, **kw: "log-1"),
+        )
+
+        # Same domain + viewer_type, different IP each time → 3 calls.
+        for ip in ("203.0.113.7", "203.0.113.8", "203.0.113.9"):
+            await mod.Logging._logs_domain_event_directviewer(
+                "desk-1",
+                action_user="user-1",
+                viewer_type="spice",
+                user_request=_StubStarletteRequest(ip=ip, user_agent="Mozilla/5.0"),
+            )
+
+        assert invocations["count"] == 3
