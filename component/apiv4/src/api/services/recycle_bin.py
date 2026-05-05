@@ -305,13 +305,11 @@ class RecycleBinService:
 
     @staticmethod
     def delete_old_entries() -> None:
-        rcbs = RecycleBinHelpers.get_item_count(status="deleted")
-        rcb_list = []
-        for rcb in rcbs:
-            if RecycleBinHelpers.check_older_than_old_entry_max_time(
-                rcb["last"]["time"]
-            ):
-                rcb_list.append(rcb["id"])
+        # Indexed range scan (one rdb roundtrip, IDs-only). The
+        # pre-fix path materialised every deleted-entry row via
+        # ``get_item_count(status="deleted")`` (full count merge) and
+        # Python-filtered them — pathological at scale.
+        rcb_list = RecycleBinHelpers.get_old_deleted_entry_ids()
         CommonRecycleBin.delete_old_entries(rcb_list)
 
     @staticmethod

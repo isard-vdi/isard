@@ -938,6 +938,32 @@ class Helpers(RethinkSharedConnection):
             )
 
     @classmethod
+    def get_old_deleted_entry_ids(cls):
+        # Apiv3 parity: ``main:api/src/api/libv2/recycle_bin.py:779``.
+        # Single indexed range scan returning only IDs, instead of
+        # the apiv4 path that materialised every deleted-entry row
+        # (with the full count merge) and Python-filtered them. Reads
+        # ``max_time`` from ``get_old_entries_config()`` and yields
+        # ids whose ``accessed`` timestamp is older than the cutoff.
+        max_time_config = cls.get_old_entries_config()["max_time"]
+        if max_time_config is None:
+            return []
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(hours=int(max_time_config))
+        ).timestamp()
+        with cls._rdb_context():
+            return list(
+                r.table("recycle_bin")
+                .between(
+                    ["deleted", r.minval],
+                    ["deleted", cutoff],
+                    index="status_accessed",
+                )
+                .pluck("id")["id"]
+                .run(cls._rdb_connection)
+            )
+
+    @classmethod
     @cached(cache=_get_default_delete_cache)
     def get_default_delete(cls):
         with cls._rdb_context():
