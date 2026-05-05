@@ -380,7 +380,12 @@ class LogsProcessed(RethinkSharedConnection):
         """
         query = r.table("logs_users")
         if category_id is not None:
-            query = query.filter({"category_id": category_id})
+            # Writer at ``api_logs_users.py:96`` stores the column as
+            # ``owner_category_id``; the apiv4 port had this filter
+            # using ``category_id`` so manager-scoped lists silently
+            # returned []. Match the writer schema and the sibling
+            # ``list_simple_desktop`` (line 350).
+            query = query.filter({"owner_category_id": category_id})
         if user_id:
             query = query.filter({"user_id": user_id})
         if group_id:

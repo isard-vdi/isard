@@ -113,7 +113,12 @@ class TestListSimpleUser:
         assert stub_rdb["Processed"].list_simple_user() == [{"id": "u-log-1"}]
         stub_rdb["mock_table"].assert_any_call("logs_users")
 
-    def test_manager_filters_by_category(self, stub_rdb):
+    def test_manager_filters_by_owner_category_id(self, stub_rdb):
+        # Writer at ``api_logs_users.py:96`` stores the column as
+        # ``owner_category_id``; the apiv4 port had this filter using
+        # ``category_id`` so manager-scoped lists silently returned [].
+        # Pin the corrected field name so the regression can't drift
+        # back.
         stub_rdb[
             "mock_table"
         ].return_value.filter.return_value.order_by.return_value.skip.return_value.limit.return_value.run.return_value = (
@@ -121,7 +126,7 @@ class TestListSimpleUser:
         )
         stub_rdb["Processed"].list_simple_user(category_id="cat-1")
         assert stub_rdb["mock_table"].return_value.filter.call_args_list[0].args[0] == {
-            "category_id": "cat-1"
+            "owner_category_id": "cat-1"
         }
 
 
