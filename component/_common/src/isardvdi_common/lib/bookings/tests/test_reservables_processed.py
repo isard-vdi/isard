@@ -152,3 +152,180 @@ class TestResourceItemsGpusAddItem:
         # profiles_enabled / physical_device default to neutral values.
         assert result["profiles_enabled"] == []
         assert result["physical_device"] is None
+
+
+class TestDeassignDeploymentsWithGpu:
+    """Bug 3 (audit) — when an admin disables a vGPU profile in use by
+    a deployment, ``ResourceItemsGpus.deassign_deployments_with_gpu``
+    must rewrite ``deployments.create_dict[*].reservables.vgpus`` so the
+    disabled subitem no longer appears. The shape of ``create_dict``
+    changed during the apiv4 port (now a list of dicts), so this test
+    pins the contract to catch any regression.
+    """
+
+    @pytest.fixture
+    def gpu_only_stub(self, monkeypatch):
+        from isardvdi_common.lib.bookings import reservables as mod
+
+        class _Ctx:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(
+            mod.ResourceItemsGpus, "_rdb_context", classmethod(lambda cls: _Ctx())
+        )
+        monkeypatch.setattr(
+            type(mod.ResourceItemsGpus),
+            "_rdb_connection",
+            property(lambda self: MagicMock(name="conn")),
+        )
+        mock_table = MagicMock(name="r.table")
+        monkeypatch.setattr(mod.r, "table", mock_table)
+        # ``r.args(...)`` is a top-level rdb operator; MagicMock doesn't
+        # intercept it, so we replace it with a sentinel for clean
+        # assertions.
+        monkeypatch.setattr(
+            mod.r, "args", lambda x: ("ARGS", tuple(x) if hasattr(x, "__iter__") else x)
+        )
+        return {"mock_table": mock_table, "Cls": mod.ResourceItemsGpus, "mod": mod}
+
+    def test_no_op_on_empty_deployments(self, gpu_only_stub):
+        gpu_only_stub["Cls"].deassign_deployments_with_gpu("NVIDIA-A40-1Q", [])
+        # No call to r.table for an empty list — the for-range never executes.
+        gpu_only_stub["mock_table"].assert_not_called()
+
+    def test_targets_deployments_table(self, gpu_only_stub):
+        gpu_only_stub[
+            "mock_table"
+        ].return_value.get_all.return_value.update.return_value.run.return_value = {
+            "replaced": 2
+        }
+        gpu_only_stub["Cls"].deassign_deployments_with_gpu(
+            "NVIDIA-A40-1Q", ["dep-1", "dep-2"]
+        )
+        gpu_only_stub["mock_table"].assert_any_call("deployments")
+
+    def test_passes_deployment_ids_to_get_all(self, gpu_only_stub):
+        gpu_only_stub[
+            "mock_table"
+        ].return_value.get_all.return_value.update.return_value.run.return_value = {
+            "replaced": 0
+        }
+        gpu_only_stub["Cls"].deassign_deployments_with_gpu(
+            "NVIDIA-A40-1Q", ["dep-1", "dep-2", "dep-3"]
+        )
+        gpu_only_stub["mock_table"].return_value.get_all.assert_called_once_with(
+            ("ARGS", ("dep-1", "dep-2", "dep-3"))
+        )
+
+    def test_batches_at_100_deployments(self, gpu_only_stub):
+        """The function processes up to 100 deployments per rdb call.
+        With 250 deployments we expect 3 batches.
+        """
+        gpu_only_stub[
+            "mock_table"
+        ].return_value.get_all.return_value.update.return_value.run.return_value = {
+            "replaced": 0
+        }
+        deployments = [f"dep-{i}" for i in range(250)]
+        gpu_only_stub["Cls"].deassign_deployments_with_gpu("NVIDIA-A40-1Q", deployments)
+        # Three rdb calls total
+        assert gpu_only_stub["mock_table"].return_value.get_all.call_count == 3
+        # Each batch contains the right slice
+        batch_sizes = [
+            len(call.args[0][1])  # ("ARGS", tuple) → tuple
+            for call in gpu_only_stub["mock_table"].return_value.get_all.call_args_list
+        ]
+        assert batch_sizes == [100, 100, 50]
+
+
+class TestDeassignDesktopsWithGpu:
+    """Companion to Bug 3 — the same flow on the ``domains`` table for
+    desktops. Pins the index choice (``vgpus`` when ``desktops=None``)
+    and the rewrite shape.
+    """
+
+    @pytest.fixture
+    def gpu_only_stub(self, monkeypatch):
+        from isardvdi_common.lib.bookings import reservables as mod
+
+        class _Ctx:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(
+            mod.ResourceItemsGpus, "_rdb_context", classmethod(lambda cls: _Ctx())
+        )
+        monkeypatch.setattr(
+            type(mod.ResourceItemsGpus),
+            "_rdb_connection",
+            property(lambda self: MagicMock(name="conn")),
+        )
+        mock_table = MagicMock(name="r.table")
+        monkeypatch.setattr(mod.r, "table", mock_table)
+
+        class _RowExpr:
+            def has_fields(self, *_a, **_k):
+                return self
+
+            def __getitem__(self, key):
+                return self
+
+            def __le__(self, other):
+                return self
+
+            def __lt__(self, other):
+                return self
+
+            def __ge__(self, other):
+                return self
+
+            def __gt__(self, other):
+                return self
+
+            def __eq__(self, other):
+                return self
+
+            def __and__(self, other):
+                return self
+
+            def __or__(self, other):
+                return self
+
+            def default(self, _):
+                return self
+
+        monkeypatch.setattr(mod.r, "row", _RowExpr())
+        monkeypatch.setattr(
+            mod.r, "args", lambda x: ("ARGS", tuple(x) if hasattr(x, "__iter__") else x)
+        )
+        return {"mock_table": mock_table, "Cls": mod.ResourceItemsGpus}
+
+    def test_uses_vgpus_index_when_no_desktop_list(self, gpu_only_stub):
+        gpu_only_stub[
+            "mock_table"
+        ].return_value.get_all.return_value.filter.return_value.update.return_value.run.return_value = {
+            "replaced": 0
+        }
+        gpu_only_stub["Cls"].deassign_desktops_with_gpu("NVIDIA-A40-1Q", None)
+        # called with index="vgpus"
+        gpu_only_stub["mock_table"].return_value.get_all.assert_called_with(
+            "NVIDIA-A40-1Q", index="vgpus"
+        )
+
+    def test_targets_specific_desktops_when_provided(self, gpu_only_stub):
+        gpu_only_stub[
+            "mock_table"
+        ].return_value.get_all.return_value.filter.return_value.update.return_value.run.return_value = {
+            "replaced": 0
+        }
+        gpu_only_stub["Cls"].deassign_desktops_with_gpu("NVIDIA-A40-1Q", ["d1", "d2"])
+        gpu_only_stub["mock_table"].return_value.get_all.assert_called_with(
+            ("ARGS", ("d1", "d2"))
+        )
