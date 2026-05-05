@@ -833,3 +833,136 @@ class TestUsageRetention:
         # the failure. Pin the typed error name so future renames break
         # this test instead of silently shipping the wrong status code.
         assert "weekly_months" in (body.get("description") or body.get("error", ""))
+
+
+# ─── Apiv3 TTLCache parity (US1 fix) ────────────────────────────────────
+
+
+class TestUsageTTLCacheParity:
+    """Apiv3 wrapped ``get_start_end_consumption``,
+    ``get_usage_distinct_items``, and ``get_usage_consumers`` in 60s
+    TTLCaches (``main:api/src/api/libv2/api_usage.py:185, 369, 414``).
+    The apiv4 port silently dropped the decorators so every poll the
+    admin usage page paid full cost — start_end took 30s+ on
+    multi-tenant installs and the route timed out as 500.
+
+    Pin that the second call within the cache window does NOT re-enter
+    the underlying ``ConsumptionUsageProcessed`` query path."""
+
+    def test_get_start_end_consumption_caches_within_ttl(self, monkeypatch):
+        from api.services.admin import usage as svc
+
+        # Reset the cache so this test runs deterministically regardless
+        # of test ordering.
+        svc._get_start_end_consumption_cache.clear()
+
+        calls = {"list_distinct_items": 0}
+
+        def fake_list(items_ids):
+            calls["list_distinct_items"] += 1
+            return []
+
+        monkeypatch.setattr(
+            svc.ConsumptionUsageProcessed,
+            "list_distinct_items",
+            staticmethod(fake_list),
+        )
+        monkeypatch.setattr(
+            svc.AdminUsageService,
+            "get_reset_dates",
+            staticmethod(lambda s, e: []),
+        )
+
+        for _ in range(2):
+            svc.AdminUsageService.get_start_end_consumption(
+                start_date="2026-01-01",
+                end_date="2026-01-31",
+                items_ids=["item-1"],
+                item_type="desktop",
+                grouping_params=[],
+            )
+        assert calls["list_distinct_items"] == 1
+
+    def test_get_usage_consumers_caches_within_ttl(self, monkeypatch):
+        from api.services.admin import usage as svc
+
+        svc._get_usage_consumers_cache.clear()
+
+        calls = {"list_consumers": 0}
+
+        def fake_list(item_type):
+            calls["list_consumers"] += 1
+            return [{"id": "c-1"}]
+
+        monkeypatch.setattr(
+            svc.UsageProcessed, "list_consumers", staticmethod(fake_list)
+        )
+
+        for _ in range(3):
+            svc.AdminUsageService.get_usage_consumers("desktop")
+        assert calls["list_consumers"] == 1
+
+    def test_get_usage_distinct_items_caches_within_ttl(self, monkeypatch):
+        from api.services.admin import usage as svc
+
+        svc._get_usage_distinct_items_cache.clear()
+
+        calls = {"list_distinct_consumer_items": 0}
+
+        def fake_list(item_consumer, item_category=None):
+            calls["list_distinct_consumer_items"] += 1
+            return [{"item_id": "i-1", "item_name": "n-1"}]
+
+        monkeypatch.setattr(
+            svc.ConsumptionUsageProcessed,
+            "list_distinct_consumer_items",
+            staticmethod(fake_list),
+        )
+
+        for _ in range(3):
+            svc.AdminUsageService.get_usage_distinct_items(
+                "category", "2026-01-01", "2026-01-31", item_category="cat-1"
+            )
+        assert calls["list_distinct_consumer_items"] == 1
+
+    def test_get_start_end_cache_keys_on_args(self, monkeypatch):
+        """Different argument tuples must miss the cache and trigger a
+        fresh underlying call. Pin so a refactor that ignores some args
+        in the cache key (e.g. drops ``items_ids``) doesn't silently
+        return stale data for a different filter."""
+        from api.services.admin import usage as svc
+
+        svc._get_start_end_consumption_cache.clear()
+
+        calls = {"list_distinct_items": 0}
+
+        def fake_list(items_ids):
+            calls["list_distinct_items"] += 1
+            return []
+
+        monkeypatch.setattr(
+            svc.ConsumptionUsageProcessed,
+            "list_distinct_items",
+            staticmethod(fake_list),
+        )
+        monkeypatch.setattr(
+            svc.AdminUsageService,
+            "get_reset_dates",
+            staticmethod(lambda s, e: []),
+        )
+
+        svc.AdminUsageService.get_start_end_consumption(
+            start_date="2026-01-01",
+            end_date="2026-01-31",
+            items_ids=["item-1"],
+            item_type="desktop",
+            grouping_params=[],
+        )
+        svc.AdminUsageService.get_start_end_consumption(
+            start_date="2026-01-01",
+            end_date="2026-01-31",
+            items_ids=["item-2"],
+            item_type="desktop",
+            grouping_params=[],
+        )
+        assert calls["list_distinct_items"] == 2

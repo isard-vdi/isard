@@ -23,6 +23,8 @@ import os
 from datetime import datetime, timedelta
 
 import pytz
+from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.usage.common import UsageProcessed
 from isardvdi_common.lib.usage.consumption import (
@@ -41,6 +43,42 @@ from isardvdi_common.lib.usage.rollup import BackupWriter, empty_stats, run_incr
 from isardvdi_common.schemas.usage import UsageRetentionConfig
 
 log = logging.getLogger(__name__)
+
+# Apiv3 wrapped these read paths in 60s TTLCaches (api_usage.py:185, 369,
+# 414). The apiv4 port silently dropped the decorators, so every poll
+# the admin usage page does pays full cost — start_end took 30s+ on
+# multi-tenant installs and the route timed out as 500. Reinstate the
+# caches with the same maxsize/ttl as apiv3.
+_get_start_end_consumption_cache: TTLCache = TTLCache(maxsize=200, ttl=60)
+_get_usage_distinct_items_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
+_get_usage_consumers_cache: TTLCache = TTLCache(maxsize=10, ttl=60)
+
+
+def _gsec_key(
+    start_date,
+    end_date,
+    items_ids=None,
+    item_type=None,
+    item_consumer=None,
+    grouping_params=None,
+    category_id=None,
+):
+    # Apiv3 ``GSEC_KEY`` (``main:api/src/api/libv2/api_usage.py:165``):
+    # cachetools cannot hash list args, so coerce ``items_ids`` and
+    # ``grouping_params`` to tuples before hashing.
+    return hashkey(
+        start_date,
+        end_date,
+        tuple(items_ids) if items_ids else None,
+        item_type,
+        item_consumer,
+        tuple(grouping_params) if grouping_params else None,
+        category_id,
+    )
+
+
+def _gudi_key(item_consumer, start_date, end_date, item_category=None):
+    return hashkey(item_consumer, start_date, end_date, item_category)
 
 
 def _parse_iso_date(value, field_name="date"):
@@ -144,6 +182,7 @@ class AdminUsageService:
         return data
 
     @staticmethod
+    @cached(cache=_get_start_end_consumption_cache, key=_gsec_key)
     def get_start_end_consumption(
         start_date,
         end_date,
@@ -252,6 +291,7 @@ class AdminUsageService:
         return data
 
     @staticmethod
+    @cached(cache=_get_usage_consumers_cache)
     def get_usage_consumers(item_type):
         return UsageProcessed.list_consumers(item_type)
 
@@ -260,6 +300,7 @@ class AdminUsageService:
         return UsageProcessed.count_consumption_rows()
 
     @staticmethod
+    @cached(cache=_get_usage_distinct_items_cache, key=_gudi_key)
     def get_usage_distinct_items(
         item_consumer, start_date, end_date, item_category=None
     ):
