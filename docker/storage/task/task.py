@@ -24,6 +24,7 @@ import shutil
 import signal
 import tempfile
 import threading
+import traceback
 from contextlib import contextmanager
 from functools import wraps
 from json import loads
@@ -1196,8 +1197,9 @@ def delete(path):
     :param path: Path to disk
     :type path: str
     """
-    if isfile(path):
-        remove(path)
+    if not isfile(path):
+        raise FileNotFoundError(path)
+    remove(path)
 
 
 @_publishes_result
@@ -1297,65 +1299,83 @@ def find(storage_id, storage_path, full_walk=False):
     """
     # Cancel intentionally not wired: admin-only filesystem walk; the
     # fast path is O(1) and the full walk has no user-facing waiter.
-    root_dir = "/isard"
-    matching_files = []
-    status = "deleted"
+    try:
+        root_dir = "/isard"
+        matching_files = []
+        status = "deleted"
 
-    # Fast path: check expected location directly (O(1) on NFS)
-    if not full_walk and isfile(storage_path):
-        try:
-            modified_time = getmtime(storage_path)
-        except OSError:
-            modified_time = None
-        if storage_path.endswith(".qcow2") and not basename(storage_path).startswith(
-            "."
-        ):
-            storage_data = qemu_img_info_backing_chain(storage_id, storage_path)
-        else:
-            storage_data = None
-        matching_files.append(
-            {
-                "path": storage_path,
-                "mtime": modified_time,
-                "storage_data": storage_data,
+        # Fast path: check expected location directly (O(1) on NFS)
+        if not full_walk and isfile(storage_path):
+            try:
+                modified_time = getmtime(storage_path)
+            except OSError:
+                modified_time = None
+            if storage_path.endswith(".qcow2") and not basename(
+                storage_path
+            ).startswith("."):
+                storage_data = qemu_img_info_backing_chain(storage_id, storage_path)
+            else:
+                storage_data = None
+            matching_files.append(
+                {
+                    "path": storage_path,
+                    "mtime": modified_time,
+                    "storage_data": storage_data,
+                }
+            )
+            if storage_data:
+                status = storage_data["status"]
+            return {
+                "id": storage_id,
+                "status": status,
+                "matching_files": matching_files,
             }
-        )
-        if storage_data:
-            status = storage_data["status"]
-        return {"id": storage_id, "status": status, "matching_files": matching_files}
 
-    # Full walk: file not at expected path, or full_walk explicitly requested.
-    # Heartbeat surfaces "still walking" while the recursive scan runs — on
-    # large /isard trees this can take minutes and otherwise looks identical
-    # to a stuck worker in the logs.
-    with task_heartbeat("find", storage_id=storage_id, full_walk=full_walk):
-        for root, _, files in walk(root_dir):
-            for filename in files:
-                if storage_id in filename:
-                    file_path = join(root, filename)
-                    try:
-                        modified_time = getmtime(file_path)
-                    except OSError:
-                        modified_time = None
-                    # Skip if the file is not a qcow2 file or it is a hidden file (starts with a dot)
-                    if not file_path.endswith(".qcow2") or basename(
-                        file_path
-                    ).startswith("."):
-                        storage_data = None
-                    else:
-                        storage_data = qemu_img_info_backing_chain(
-                            storage_id, file_path
+        # Full walk: file not at expected path, or full_walk explicitly requested.
+        # Heartbeat surfaces "still walking" while the recursive scan runs — on
+        # large /isard trees this can take minutes and otherwise looks identical
+        # to a stuck worker in the logs.
+        with task_heartbeat("find", storage_id=storage_id, full_walk=full_walk):
+            for root, _, files in walk(root_dir):
+                for filename in files:
+                    if storage_id in filename:
+                        file_path = join(root, filename)
+                        try:
+                            modified_time = getmtime(file_path)
+                        except OSError:
+                            modified_time = None
+                        # Skip if the file is not a qcow2 file or it is a hidden file (starts with a dot)
+                        if not file_path.endswith(".qcow2") or basename(
+                            file_path
+                        ).startswith("."):
+                            storage_data = None
+                        else:
+                            storage_data = qemu_img_info_backing_chain(
+                                storage_id, file_path
+                            )
+                        matching_files.append(
+                            {
+                                "path": file_path,
+                                "mtime": modified_time,
+                                "storage_data": storage_data,
+                            }
                         )
-                    matching_files.append(
-                        {
-                            "path": file_path,
-                            "mtime": modified_time,
-                            "storage_data": storage_data,
-                        }
-                    )
-                    if storage_path == file_path and storage_data:
-                        status = storage_data["status"]
-    return {"id": storage_id, "status": status, "matching_files": matching_files}
+                        if storage_path == file_path and storage_data:
+                            status = storage_data["status"]
+            return {
+                "id": storage_id,
+                "status": status,
+                "matching_files": matching_files,
+            }
+    except Exception:
+        log.error(
+            "task.find failed: storage_id=%s storage_path=%s full_walk=%s\n%s",
+            storage_id,
+            storage_path,
+            full_walk,
+            traceback.format_exc(),
+        )
+        raise
 
 
 @_publishes_result
