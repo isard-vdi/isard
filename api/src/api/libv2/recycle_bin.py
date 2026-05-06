@@ -2253,8 +2253,10 @@ class RecycleBinBulk(RecycleBin):
     def __init__(self, id=None, item_type="bulk", user_id=None):
         super().__init__(id, item_type=item_type, user_id=user_id)
 
-    def add(self, desktops_ids):
-        super()._add_owner(self.agent_id)
+    def add(self, desktops_ids, owner_id=None, name=None):
+        super()._add_owner(owner_id or self.agent_id)
+        if name:
+            super()._add_item_name(name)
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
         desktops = []
 

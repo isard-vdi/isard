@@ -1218,7 +1218,8 @@
         "desktop": "Escritorio '{name}' eliminado en fecha {date}",
         "template": "Plantilla '{name}' eliminada en fecha {date}",
         "bulk": "Varios escritorios eliminados en fecha {date}",
-        "user": "Usuario eliminado en fecha {date}"
+        "user": "Usuario eliminado en fecha {date}",
+        "deployment_users_delete": "Escritorios de despliegue eliminados en fecha {date}"
       },
       "desktops": {
         "title": "Escritorios",
@@ -1313,7 +1314,8 @@
         "deployment": "Despliegue",
         "template": "Plantilla",
         "bulk": "Múltiples eliminaciones",
-        "user": "Usuario"
+        "user": "Usuario",
+        "deployment_users_delete": "Escritorios de despliegue"
       }
     },
     "desktop": {
