@@ -350,30 +350,47 @@ def fetch_medias():
         log(f"WARNING: could not fetch media from API: {e}")
         return None
 
+    # Records whose status indicates the download never completed legitimately
+    # never have path_downloaded set — the field is only written on success.
+    # Treat them as informational, not bad.
+    expected_no_path_statuses = {"deleted", "DownloadFailed", "Downloading"}
+
     valid = []
     bad = []
+    info_never_downloaded = []
     for m in medias:
         if not m.get("path_downloaded"):
             entry = dict(m)
-            entry["_missing_fields"] = ["path_downloaded"]
-            bad.append(entry)
+            if m.get("status") in expected_no_path_statuses:
+                info_never_downloaded.append(entry)
+            else:
+                entry["_missing_fields"] = ["path_downloaded"]
+                bad.append(entry)
             continue
         valid.append(m)
 
     fetch_medias.last_bad_records = bad
+    fetch_medias.last_info_never_downloaded = info_never_downloaded
 
     elapsed = time.time() - start
+    parts = [f"Fetched {len(valid)} media records"]
+    extras = []
     if bad:
-        log(
-            f"Fetched {len(valid)} media records ({len(bad)} bad records"
-            f" with missing path_downloaded) in {elapsed:.1f}s"
+        extras.append(f"{len(bad)} bad records with missing path_downloaded")
+    if info_never_downloaded:
+        extras.append(
+            f"{len(info_never_downloaded)} never-downloaded"
+            f" (status in {sorted(expected_no_path_statuses)})"
         )
-    else:
-        log(f"Fetched {len(valid)} media records in {elapsed:.1f}s")
+    if extras:
+        parts.append("(" + ", ".join(extras) + ")")
+    parts.append(f"in {elapsed:.1f}s")
+    log(" ".join(parts))
     return valid
 
 
 fetch_medias.last_bad_records = []
+fetch_medias.last_info_never_downloaded = []
 
 
 def trigger_find(storage_id):

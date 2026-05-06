@@ -25,12 +25,20 @@ storage <subcommand> [options]
 | `repair-chains`   | **writes**         | **writes**     | Fix broken backing chains via `qemu-img rebase`                      |
 | `verify`          | **writes**         | reads          | DB-vs-disk consistency; can update DB paths and trigger `find`       |
 | `recover`         | **writes**         | **writes**     | Recreate missing incremental disks for failed desktops               |
-| `full-cleanup`    | **writes**         | **writes**     | One-shot: verify + repair + move unusable files                      |
+| `full-cleanup`    | **writes** §       | **writes** §   | One-shot: verify + repair + move unusable files                      |
+| `db-cleanup`      | **writes** ¶       | reads only     | Detect & (with `--apply`) remove malformed `storage` rows            |
+| `sparsify`        | reads/**writes**   | **writes**     | Thin wrapper over `/utils/sparsify`; flags forwarded verbatim         |
 
 † `cleanup` is read-only **without** `--move`. With `--move` it relocates
 deletable files to `/isard/volatile/to_delete/` (still no `rm`).
 ‡ `chains` is read-only **without** `--flatten-singles` / `--flatten-deep`,
 which call `qemu-img rebase`.
+§ `full-cleanup` is read-only **with** `--dry-run`. The dry-run still
+writes the file lists and a `dry_run_actions.jsonl` describing every
+rebase / sparsify / compress / move that would have run.
+¶ `db-cleanup` reports only by default; deletes only with `--apply`,
+after a y/N confirmation, and only rows that pass cross-table reference
+checks.
 
 ---
 
@@ -193,6 +201,70 @@ flattens leaves deeper than N (`--flatten-deep N`).
 One-shot maintenance: `verify --fix` + `repair-chains --apply` + move unusable
 files. Optionally `--sparsify` and `--compress`. **Highest blast radius** —
 read its `--help` and the produced report carefully before re-running.
+
+Use `--dry-run` to preview the entire pipeline without touching anything:
+
+```bash
+storage full-cleanup --dry-run
+```
+
+The dry-run produces the same `bad_*`/`ok_*` file lists as a real run,
+plus `dry_run_actions.jsonl` (one JSON object per planned action: rebase
+of broken chain, sparsify+compress of healthy file, move of unusable
+file) and `would_move.txt` listing every file that would have been moved
+to `/isard/volatile/to_delete/`. Review those before re-running without
+`--dry-run`.
+
+### `db-cleanup`
+
+Detect malformed `storage` rows in the database. Three classes are
+scanned, each driven by a real-world bug pattern observed in production:
+
+- **Zombie rows** — only `id`, no other fields. The residue of
+  `Storage(<unknown_id>)` calls hitting the insert-on-construct bug in
+  `RethinkBase.__init__` (see upstream branch `fix/storage-stub-rows-rethinkbase`).
+- **Path-shaped ids** — `id` is a `/isard/...qcow2` string instead of a
+  UUID. Same root cause, but the unknown id was a parent path.
+- **Path-shaped `parent` fields** — row is otherwise fine but its
+  `parent` field is a path string. The chain still works on disk, but
+  any DB-level join on `parent` fails. **Reported only**, never
+  auto-rewritten.
+
+Default mode is read-only: writes three JSONL reports under the
+timestamped output dir:
+
+- `db_cleanup_pending.jsonl` — rows safe to delete (not referenced by
+  any domain, recycle_bin entry, or `storage.parent`).
+- `db_cleanup_kept_referenced.jsonl` — rows still referenced; investigate
+  before any action.
+- `db_cleanup_path_parents_review.jsonl` — rows whose `parent` is a path.
+
+To actually delete the verified-safe rows:
+
+```bash
+storage db-cleanup --apply           # prompts y/N
+storage db-cleanup --apply --yes     # CI/automation, skip the prompt
+```
+
+Each deletion re-runs the reference check immediately before the delete
+and writes an audit line to `db_cleanup_deleted.jsonl`.
+
+### `sparsify`
+
+Thin wrapper around the standalone `/utils/sparsify` script. Forwards all
+flags verbatim:
+
+```bash
+storage sparsify --help                  # forwarded to /utils/sparsify -h
+storage sparsify /isard/groups -r        # sparsify recursively
+```
+
+The script creates `<file>.sparsify-backup` before each operation and
+arms an EXIT/INT/TERM trap that, on unexpected termination, validates
+the destination via `qemu-img check` and either removes the backup
+(dest valid) or restores it (dest broken). This prevents the
+`*.sparsify-backup` orphans that previously showed up in
+`storage cleanup`'s `bad_non_qcow2` list when a sparsify run was killed.
 
 ---
 
