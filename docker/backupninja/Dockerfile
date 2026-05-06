@@ -43,12 +43,14 @@ COPY docker/backupninja/borg_integrity_template.sh /usr/local/bin/
 COPY docker/backupninja/get_integrity_enabled.py /usr/local/bin/
 COPY docker/backupninja/session_preflight.sh /usr/local/bin/
 COPY docker/backupninja/detect_orphaned_session.sh /usr/local/bin/
+COPY docker/backupninja/self_heal.sh /etc/periodic/15min/backupninja-self-heal
 RUN chmod +x /usr/local/bin/backup_report.py
 RUN chmod +x /usr/local/bin/send_backup_report.sh
 RUN chmod +x /usr/local/bin/borg_integrity_template.sh
 RUN chmod +x /usr/local/bin/get_integrity_enabled.py
 RUN chmod +x /usr/local/bin/session_preflight.sh
 RUN chmod +x /usr/local/bin/detect_orphaned_session.sh
+RUN chmod +x /etc/periodic/15min/backupninja-self-heal
 COPY docker/backupninja/backup.d /usr/local/share/backup.d
 
 WORKDIR /
