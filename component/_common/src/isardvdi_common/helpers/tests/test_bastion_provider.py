@@ -459,3 +459,130 @@ def test_bastion_domain_verification_required_returns_false_when_disabled(monkey
         ),
     )
     assert bastion_module.Bastion.bastion_domain_verification_required() is False
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 7. ``check_duplicate_bastion_domains`` — input validation branches
+#
+# Called from desktop / deployment create + edit (apiv4 services).
+# Rejects malformed domain lists before any rdb / DNS work, so
+# bad UI input fails fast with an actionable error code instead
+# of cascading into a 500 deeper in the call chain.
+#
+# The rdb-collision branches (cross-category and cross-target
+# uniqueness) need a full rethinkdb_mock harness; they're covered
+# by the live e2e + integration suites. These tests pin the pure
+# input-validation branches that don't need rdb at all.
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def _validation_only_caches(monkeypatch):
+    """Mock ``Caches.get_document`` to return a config without a
+    bastion domain so the input-validation branches run before any
+    domain-comparison branch fires.
+    """
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(lambda cls, *a, **kw: {"enabled": True, "domain": None}),
+    )
+
+
+def test_check_duplicate_bastion_domains_empty_list_returns_silently(
+    _validation_only_caches,
+):
+    """Empty list -> no-op. Important for callers that always pass
+    the cleaned list even when no domains were submitted (e.g.
+    deployment edit with bastion-target removed).
+    """
+    # No raise; no rdb side-effects.
+    result = bastion_module.Bastion.check_duplicate_bastion_domains([])
+    assert result is None
+
+
+def test_check_duplicate_bastion_domains_none_returns_silently(
+    _validation_only_caches,
+):
+    """``None`` is a documented falsy alias for empty — pin the
+    short-circuit so a caller that passes ``payload.get("domains")``
+    (which yields None when missing) doesn't accidentally trip the
+    ``not isinstance(..., list)`` branch later.
+    """
+    result = bastion_module.Bastion.check_duplicate_bastion_domains(None)
+    assert result is None
+
+
+def test_check_duplicate_bastion_domains_non_list_raises(_validation_only_caches):
+    """A scalar / dict where a list was expected -> bad_request.
+    Distinct from the per-element validation so the caller knows
+    the entire payload shape was wrong, not just one entry.
+    """
+    with pytest.raises(Exception) as excinfo:
+        bastion_module.Bastion.check_duplicate_bastion_domains("foo.example.com")
+    assert "Domains must be a list" in excinfo.value.error["description"]
+
+
+def test_check_duplicate_bastion_domains_empty_string_entry_raises(
+    _validation_only_caches,
+):
+    """Empty / non-string entry inside the list -> bad_request.
+    Catches a JSON payload where one element is null or an empty
+    string (which the legacy v3 frontend sometimes produced).
+    """
+    # Empty string must be FIRST so the per-element check fires
+    # before any rdb collision lookup on a valid earlier entry.
+    with pytest.raises(Exception) as excinfo:
+        bastion_module.Bastion.check_duplicate_bastion_domains(
+            ["", "valid.example.com"]
+        )
+    assert "Empty or invalid" in excinfo.value.error["description"]
+
+
+def test_check_duplicate_bastion_domains_whitespace_only_raises(
+    _validation_only_caches,
+):
+    """``"   "`` is not actually an empty string but trims to
+    nothing -> reject with bad_request before the rdb collision
+    check (which would interpret the trimmed value as a different
+    domain than what was submitted, leading to confusing error
+    messages downstream).
+    """
+    with pytest.raises(Exception) as excinfo:
+        bastion_module.Bastion.check_duplicate_bastion_domains(["    "])
+    assert "Whitespace-only" in excinfo.value.error["description"]
+
+
+def test_check_duplicate_bastion_domains_rejects_system_domain(monkeypatch):
+    """The system DOMAIN env var is the IsardVDI public hostname.
+    Allowing a bastion target to claim it would shadow the entire
+    deployment's frontend.
+    """
+    monkeypatch.setenv("DOMAIN", "isardvdi.example.com")
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(lambda cls, *a, **kw: {"enabled": True, "domain": None}),
+    )
+    with pytest.raises(Exception) as excinfo:
+        bastion_module.Bastion.check_duplicate_bastion_domains(["isardvdi.example.com"])
+    assert "same as the default domain" in excinfo.value.error["description"]
+
+
+def test_check_duplicate_bastion_domains_rejects_default_bastion_domain(monkeypatch):
+    """The default bastion domain (``config[1].bastion.domain``) is
+    reserved for the global wildcard. Rejecting it on a per-target
+    request is the same protection as the system-domain branch
+    above, just for the bastion side.
+    """
+    monkeypatch.delenv("DOMAIN", raising=False)
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(
+            lambda cls, *a, **kw: {
+                "enabled": True,
+                "domain": "bastion.example.com",
+            }
+        ),
+    )
+    with pytest.raises(Exception) as excinfo:
+        bastion_module.Bastion.check_duplicate_bastion_domains(["bastion.example.com"])
+    assert "same as the default domain" in excinfo.value.error["description"]
