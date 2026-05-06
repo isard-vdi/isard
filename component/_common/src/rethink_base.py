@@ -42,6 +42,10 @@ class Context:
         pass
 
 
+class DocumentNotFound(Exception):
+    """Raised when constructing a RethinkBase by id only and the document does not exist."""
+
+
 class RethinkBase(ABC):
     """
     Manage Rethink Documents.
@@ -49,6 +53,22 @@ class RethinkBase(ABC):
     Use constructor with keyword arguments to create new Rethink Documents or
     update an existing one using id keyword. Use constructor with id as first
     argument to create an object representing an existing Rethink Document.
+
+    Two distinct call shapes are supported:
+
+    1. ``RethinkBase(id_str)`` or ``RethinkBase(id=id_str)`` — fetch handle to
+       an existing row. Raises ``DocumentNotFound`` if the row does not exist.
+       Previously this silently inserted a stub row containing only ``{"id":
+       id_str}``, which produced "zombie" rows in production whenever a caller
+       passed a stale or wrong-shape id (notably a filesystem path string
+       instead of a UUID); the silent insert path is retired.
+
+    2. ``RethinkBase(**kwargs)`` with kwargs beyond ``id`` — upsert (create or
+       update). Unchanged: still uses ``insert(..., conflict="update")``.
+
+    To preserve the old behaviour explicitly (insert-or-noop with only an id),
+    the caller has to opt in by passing ``allow_stub_create=True``; only the
+    cache initialiser uses this. New code should not.
     """
 
     _rdb_context = Context
@@ -64,8 +84,31 @@ class RethinkBase(ABC):
         pass
 
     def __init__(self, *args, **kwargs):
+        allow_stub_create = kwargs.pop("allow_stub_create", False)
         if args:
             kwargs["id"] = args[0]
+
+        # Fetch-only call shape: only `id` was passed. Verify the row exists
+        # and bind the id; never insert a stub.
+        if list(kwargs.keys()) == ["id"] and not allow_stub_create:
+            doc_id = kwargs["id"]
+            with self._rdb_context():
+                exists = (
+                    r.table(self._rdb_table)
+                    .get(doc_id)
+                    .ne(None)
+                    .default(False)
+                    .run(self._rdb_connection)
+                )
+            if not exists:
+                raise DocumentNotFound(
+                    f"{self.__class__.__name__}({doc_id!r}) not found in"
+                    f" table {self._rdb_table!r}"
+                )
+            self.__dict__["id"] = doc_id
+            return
+
+        # Upsert (create-or-update) call shape: any kwargs beyond `id`.
         with self._rdb_context():
             self.__dict__["id"] = (
                 r.table(self._rdb_table)
