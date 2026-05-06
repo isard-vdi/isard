@@ -2,6 +2,16 @@
 
 set -e
 
+# Serialize the setup block with the 15-min self-heal cron so a self-heal
+# tick cannot race the entrypoint (or a manual `run.sh setup`) on
+# /usr/local/etc/backup.d{.staging,}/. The lock is released explicitly
+# once setup finishes (see `exec 9>&-` below) so the entrypoint's
+# `tail -f` doesn't keep it for the container's lifetime.
+SETUP_LOCK="/var/lock/backupninja-setup.lock"
+mkdir -p /var/lock
+exec 9>"$SETUP_LOCK"
+flock -n 9 || { echo "Setup already in progress; exiting."; exit 0; }
+
 mount_nfs() {
     if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
         /usr/local/bin/nfs_mount.sh
@@ -72,9 +82,19 @@ mkdir -p /dbdump
 mkdir -p /redisdump
 mkdir -p /var/log/backupninja.queue
 
-rm -f /usr/local/etc/backup.d/*
+# Stage all generated job files into a separate directory and only swap
+# them into the live /usr/local/etc/backup.d/ at the end of setup. This
+# way a partial setup (e.g. NFS unreachable at container start) cannot
+# leave the live backup configuration empty: either the new staging set
+# fully replaces the old one, or the old one stays in place untouched.
+STAGING_DIR="/usr/local/etc/backup.d.staging"
+rm -rf "$STAGING_DIR"
+mkdir -p -m700 "$STAGING_DIR"
 
-# NFS
+# NFS (with retry/backoff in nfs_mount.sh). If this fails after all
+# retries the script aborts before touching /usr/local/etc/backup.d/ —
+# leaving any previous-good config in place for the cron daemon to keep
+# running once connectivity is restored.
 mount_nfs
 
 # Initialize backup repositories
@@ -110,14 +130,14 @@ if [ "$BACKUP_DB_ENABLED" = "true" ]; then
     static_jobs="25-db-borg-integrity.sh"
 
     for job in $template_jobs; do
-        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+        envsubst < "/usr/local/share/backup.d/$job" > "$STAGING_DIR/$job"
     done
 
     INTEGRITY_WHEN_DB="$(integrity_when_for "$BACKUP_DB_WHEN")"
     if [ "$INTEGRITY_WHEN_DB" != "disabled" ]; then
         for job in $static_jobs; do
-            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-            sed -i "1a\\when = $INTEGRITY_WHEN_DB" "/usr/local/etc/backup.d/$job"
+            cp "/usr/local/share/backup.d/$job" "$STAGING_DIR/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_DB" "$STAGING_DIR/$job"
         done
     fi
 fi
@@ -136,14 +156,14 @@ if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
     static_jobs="35-redis-borg-integrity.sh"
 
     for job in $template_jobs; do
-        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+        envsubst < "/usr/local/share/backup.d/$job" > "$STAGING_DIR/$job"
     done
 
     INTEGRITY_WHEN_REDIS="$(integrity_when_for "$BACKUP_REDIS_WHEN")"
     if [ "$INTEGRITY_WHEN_REDIS" != "disabled" ]; then
         for job in $static_jobs; do
-            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-            sed -i "1a\\when = $INTEGRITY_WHEN_REDIS" "/usr/local/etc/backup.d/$job"
+            cp "/usr/local/share/backup.d/$job" "$STAGING_DIR/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_REDIS" "$STAGING_DIR/$job"
         done
     fi
 fi
@@ -162,14 +182,14 @@ if [ "$BACKUP_STATS_ENABLED" = "true" ]; then
     static_jobs="45-stats-borg-integrity.sh"
 
     for job in $template_jobs; do
-        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+        envsubst < "/usr/local/share/backup.d/$job" > "$STAGING_DIR/$job"
     done
 
     INTEGRITY_WHEN_STATS="$(integrity_when_for "$BACKUP_STATS_WHEN")"
     if [ "$INTEGRITY_WHEN_STATS" != "disabled" ]; then
         for job in $static_jobs; do
-            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-            sed -i "1a\\when = $INTEGRITY_WHEN_STATS" "/usr/local/etc/backup.d/$job"
+            cp "/usr/local/share/backup.d/$job" "$STAGING_DIR/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_STATS" "$STAGING_DIR/$job"
         done
     fi
 fi
@@ -188,14 +208,14 @@ if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
     static_jobs="75-config-borg-integrity.sh"
 
     for job in $template_jobs; do
-        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+        envsubst < "/usr/local/share/backup.d/$job" > "$STAGING_DIR/$job"
     done
 
     INTEGRITY_WHEN_CONFIG="$(integrity_when_for "$BACKUP_CONFIG_WHEN")"
     if [ "$INTEGRITY_WHEN_CONFIG" != "disabled" ]; then
         for job in $static_jobs; do
-            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-            sed -i "1a\\when = $INTEGRITY_WHEN_CONFIG" "/usr/local/etc/backup.d/$job"
+            cp "/usr/local/share/backup.d/$job" "$STAGING_DIR/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_CONFIG" "$STAGING_DIR/$job"
         done
     fi
 fi
@@ -240,15 +260,18 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
 
     static_jobs="85-disks-borg-integrity.sh"
 
+    # Re-assert STAGING_DIR in case a concurrent self_heal-triggered
+    # `run.sh setup` removed it; install -D handles the same race for cp.
+    mkdir -p -m700 "$STAGING_DIR"
     for job in $template_jobs; do
-        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+        envsubst < "/usr/local/share/backup.d/$job" > "$STAGING_DIR/$job"
     done
 
     INTEGRITY_WHEN_DISKS="$(integrity_when_for "$BACKUP_DISKS_WHEN")"
     if [ "$INTEGRITY_WHEN_DISKS" != "disabled" ]; then
         for job in $static_jobs; do
-            cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
-            sed -i "1a\\when = $INTEGRITY_WHEN_DISKS" "/usr/local/etc/backup.d/$job"
+            install -D -m700 "/usr/local/share/backup.d/$job" "$STAGING_DIR/$job"
+            sed -i "1a\\when = $INTEGRITY_WHEN_DISKS" "$STAGING_DIR/$job"
         done
     fi
 fi
@@ -276,8 +299,13 @@ if [ -n "$UNIQUE_SCHEDULES" ]; then
 
         SCOPE=$(scope_for_schedule "$SCHEDULE")
 
+        # Re-assert STAGING_DIR in case it got wiped by a concurrent
+        # `run.sh setup`; the flock above usually serializes us, this
+        # is the belt-and-braces fallback.
+        mkdir -p -m700 "$STAGING_DIR"
+
         # Start marker script for this schedule
-        START_SCRIPT="/usr/local/etc/backup.d/10-session-start-$SCHEDULE_INDEX.sh"
+        START_SCRIPT="$STAGING_DIR/10-session-start-$SCHEDULE_INDEX.sh"
         cat >"$START_SCRIPT" <<EOF
 #!/bin/sh
 # Add backup session start marker for automated backups (ISO-8601 timestamp)
@@ -288,7 +316,7 @@ EOF
         sed -i "1a\\when = $SCHEDULE" "$START_SCRIPT"
 
         if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
-            NFS_MOUNT_SCRIPT="/usr/local/etc/backup.d/11-session-nfs-mount-$SCHEDULE_INDEX.sh"
+            NFS_MOUNT_SCRIPT="$STAGING_DIR/11-session-nfs-mount-$SCHEDULE_INDEX.sh"
             envsubst < "/usr/local/share/backup.d/05-session-nfs-mount.sh" > "$NFS_MOUNT_SCRIPT"
             chmod 700 "$NFS_MOUNT_SCRIPT"
             sed -i "1a\\when = $SCHEDULE" "$NFS_MOUNT_SCRIPT"
@@ -297,12 +325,12 @@ EOF
         # Preflight free-space check (runs after NFS mount so it sees the
         # real target). A FATAL here forces the eventual report to
         # CRITICAL even if no individual borg action fails.
-        PREFLIGHT_SCRIPT="/usr/local/etc/backup.d/15-session-preflight-$SCHEDULE_INDEX.sh"
-        cp /usr/local/bin/session_preflight.sh "$PREFLIGHT_SCRIPT"
+        PREFLIGHT_SCRIPT="$STAGING_DIR/15-session-preflight-$SCHEDULE_INDEX.sh"
+        install -D -m700 /usr/local/bin/session_preflight.sh "$PREFLIGHT_SCRIPT"
         chmod 700 "$PREFLIGHT_SCRIPT"
         sed -i "1a\\when = $SCHEDULE" "$PREFLIGHT_SCRIPT"
 
-        END_SCRIPT="/usr/local/etc/backup.d/90-session-report-$SCHEDULE_INDEX.sh"
+        END_SCRIPT="$STAGING_DIR/90-session-report-$SCHEDULE_INDEX.sh"
         cat >"$END_SCRIPT" <<EOF
 #!/bin/sh
 # Send backup report to API after automated backup completion
@@ -313,7 +341,7 @@ EOF
         sed -i "1a\\when = $SCHEDULE" "$END_SCRIPT"
 
         if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
-            NFS_UMOUNT_SCRIPT="/usr/local/etc/backup.d/91-session-nfs-umount-$SCHEDULE_INDEX.sh"
+            NFS_UMOUNT_SCRIPT="$STAGING_DIR/91-session-nfs-umount-$SCHEDULE_INDEX.sh"
             envsubst < "/usr/local/share/backup.d/95-session-nfs-umount.sh" > "$NFS_UMOUNT_SCRIPT"
             chmod 700 "$NFS_UMOUNT_SCRIPT"
             sed -i "1a\\when = $SCHEDULE" "$NFS_UMOUNT_SCRIPT"
@@ -325,8 +353,32 @@ EOF
 fi
 
 # Set correct permissions to the files
-chmod 600 /usr/local/etc/backup.d/* > /dev/null 2>&1
-chmod 700 /usr/local/etc/backup.d/*.sh > /dev/null 2>&1
+# Set correct permissions on the staged files before swapping in
+chmod 600 $STAGING_DIR/* > /dev/null 2>&1
+chmod 700 $STAGING_DIR/*.sh > /dev/null 2>&1
+
+# Refuse to swap an empty staging set in: that would re-create the bug
+# this whole atomic dance is meant to prevent. If for any reason no jobs
+# were generated, leave the live config untouched and exit non-zero so
+# the operator notices.
+if [ -z "$(ls -A "$STAGING_DIR" 2>/dev/null)" ]; then
+    echo "ERROR!!! No backup jobs generated in $STAGING_DIR; refusing to wipe live backup.d." >&2
+    rmdir "$STAGING_DIR" 2>/dev/null || true
+    exit 1
+fi
+
+# Atomic swap: only now do we wipe the live directory and replace it
+# with the freshly-generated set. If we crash before this point, the
+# live backup.d retains whatever it had before this run.
+rm -f /usr/local/etc/backup.d/*
+cp -a "$STAGING_DIR/." /usr/local/etc/backup.d/
+rm -rf "$STAGING_DIR"
+echo "BACKUPNINJA SETUP COMPLETE: $(ls -1 /usr/local/etc/backup.d/ | wc -l) job files installed"
+
+# Release the setup lock: the entrypoint case below ends in `tail -f`
+# which never exits, and we don't want to block subsequent `run.sh list`
+# / `info` / self_heal probes for the lifetime of the container.
+exec 9>&-
 
 backup_args() {
     case "$1" in
@@ -494,6 +546,14 @@ case "$1" in
     "check-nfs-mount")
         mount_nfs
         umount_nfs
+        ;;
+
+    "setup")
+        # Setup phase already ran above (every invocation goes through it).
+        # This command exists so the self-heal cron can re-run setup
+        # explicitly without also starting crond / launching backups.
+        # No-op past the setup block.
+        echo "Setup-only run finished."
         ;;
 
     "")
