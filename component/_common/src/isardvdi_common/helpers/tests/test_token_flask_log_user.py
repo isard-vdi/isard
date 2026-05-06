@@ -34,7 +34,15 @@ import time
 import types
 from unittest.mock import patch
 
+# Flask must be imported BEFORE the ``webapp`` stub is injected by
+# the fixture below — once a fake ``webapp`` module sits in
+# ``sys.modules`` with no ``__spec__``, downstream Flask import
+# resolution walks the module map and fails with
+# ``ValueError: webapp.__spec__ is None``. Importing Flask here
+# warms the module cache so the test-time ``Flask()`` references
+# below are pure attribute lookups, not new module imports.
 import pytest
+from flask import Flask
 
 
 @pytest.fixture
@@ -52,7 +60,15 @@ def token_flask_module():
     specific service container.
     """
     if "webapp" not in sys.modules:
+        import importlib.util
+
         webapp_stub = types.ModuleType("webapp")
+        # Without an explicit ``__spec__`` Python's import system
+        # raises ``ValueError: webapp.__spec__ is None`` when other
+        # modules walk ``sys.modules`` (e.g. Flask's own
+        # ``importlib.util.find_spec`` calls). Stub a loader-less
+        # spec so the stub passes that walk.
+        webapp_stub.__spec__ = importlib.util.spec_from_loader("webapp", loader=None)
         webapp_stub.app = types.SimpleNamespace(
             logger=logging.getLogger("test-stub"),
             errorhandler=lambda exc_type: (lambda fn: fn),
@@ -218,6 +234,80 @@ def test_log_user_logs_target_exception_does_not_lose_audit_row(
         "log line should mention LogsUsers so failures are greppable. "
         f"captured: {caplog.text!r}"
     )
+
+
+def test_get_token_header_returns_token_on_valid_bearer(token_flask_module):
+    """Happy path: ``Authorization: Bearer <token>`` -> returns
+    the token. Pin this so a future refactor that extracts a
+    different header section silently breaks the auth path.
+    """
+    app = Flask(__name__)
+    with app.test_request_context(headers={"Authorization": "Bearer abc.def.ghi"}):
+        token = token_flask_module.TokenFlask.get_token_header("Authorization")
+    assert token == "abc.def.ghi"
+
+
+def test_get_token_header_accepts_lowercase_bearer(token_flask_module):
+    """``parts[0].lower() == "bearer"`` — production accepts any
+    casing. Pin so a future refactor doesn't tighten to
+    case-sensitive (which would break clients that send
+    ``bearer`` / ``BEARER``).
+    """
+    app = Flask(__name__)
+    with app.test_request_context(headers={"Authorization": "bearer xyz"}):
+        token = token_flask_module.TokenFlask.get_token_header("Authorization")
+    assert token == "xyz"
+
+
+def test_get_token_header_missing_header_raises_unauthorized(token_flask_module):
+    """No header at all -> ``unauthorized`` Error. Distinct from a
+    malformed header so the frontend can show "please log in"
+    rather than "your token is invalid".
+    """
+    app = Flask(__name__)
+    with app.test_request_context(headers={}):
+        with pytest.raises(token_flask_module.Error) as excinfo:
+            token_flask_module.TokenFlask.get_token_header("Authorization")
+    # Error type reads .description for the message, .type for the kind.
+    assert "Authorization header is expected" in excinfo.value.error["description"]
+
+
+def test_get_token_header_non_bearer_scheme_raises(token_flask_module):
+    """``Authorization: Basic <creds>`` (or any non-Bearer scheme)
+    -> ``unauthorized`` because apiv4 / webapp only accept JWT
+    Bearer auth. The branch must trigger before any token parsing.
+    """
+    app = Flask(__name__)
+    with app.test_request_context(headers={"Authorization": "Basic dXNlcjpwYXNz"}):
+        with pytest.raises(token_flask_module.Error) as excinfo:
+            token_flask_module.TokenFlask.get_token_header("Authorization")
+    assert "must start with Bearer" in excinfo.value.error["description"]
+
+
+def test_get_token_header_bare_bearer_raises_bad_request(token_flask_module):
+    """``Authorization: Bearer`` (no token) -> ``bad_request``.
+    Distinguished from the missing-header / wrong-scheme cases —
+    the user clearly intended Bearer auth but produced a malformed
+    request.
+    """
+    app = Flask(__name__)
+    with app.test_request_context(headers={"Authorization": "Bearer"}):
+        with pytest.raises(token_flask_module.Error) as excinfo:
+            token_flask_module.TokenFlask.get_token_header("Authorization")
+    assert "Token not found" in excinfo.value.error["description"]
+
+
+def test_get_token_header_too_many_parts_raises(token_flask_module):
+    """``Authorization: Bearer foo bar`` (extra whitespace) ->
+    ``unauthorized`` because the JWT itself never contains
+    spaces. Pins the guard against header smuggling where a
+    client splits a credential across tokens.
+    """
+    app = Flask(__name__)
+    with app.test_request_context(headers={"Authorization": "Bearer foo bar baz"}):
+        with pytest.raises(token_flask_module.Error) as excinfo:
+            token_flask_module.TokenFlask.get_token_header("Authorization")
+    assert "must be Bearer token" in excinfo.value.error["description"]
 
 
 def test_module_does_not_import_gevent(token_flask_module):

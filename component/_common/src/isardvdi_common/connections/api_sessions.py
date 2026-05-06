@@ -148,9 +148,16 @@ def revoke_user_session(user_id):
         return _client().Revoke(sessions_pb2.RevokeRequest(id=session_id))
 
     except grpc.RpcError as rpc_error:
+        # Race: GetUserSession returned an id, but the session was
+        # deleted between Get and Revoke (another logout flow won
+        # the race). The desired post-state — no live session —
+        # already holds, so silently return rather than surfacing
+        # invalid_session and breaking the user-deletion / role-
+        # change flows in lib/users/users/user.py that have no
+        # try/except around this call.
         if rpc_error.code() in [
             grpc.StatusCode.NOT_FOUND,
         ]:
-            pass
+            return
 
         raise invalid_session
