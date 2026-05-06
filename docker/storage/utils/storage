@@ -68,6 +68,7 @@ from storage_lib.qcow import (
     diagnose_broken_chains,
     get_backing_chain,
     get_full_info,
+    qemu_img_check,
     qemu_img_info,
     rebase_file,
     sparsify_file,
@@ -465,7 +466,7 @@ def cmd_integrity(args):
 
     # Classify non-qcow2 and duplicate files
     dead_artifacts, unknown_non_qcow = _classify_non_qcow2_files(
-        non_qcow_storages, qcow_deps
+        non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
     )
     duplicate_uploads = _find_duplicate_uploads(qcow_storages, db_storage_lookup)
 
@@ -1060,7 +1061,7 @@ def cmd_cleanup(args):
     deletable = set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db
     volatile = get_volatile_storages()
     dead_non_qcow, unknown_non_qcow = _classify_non_qcow2_files(
-        non_qcow_storages, qcow_deps
+        non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
     )
     if medias is not None:
         media_classes = _classify_media_files(media_storages, medias)
@@ -1464,7 +1465,7 @@ def _classify_media_files(media_files, medias):
     }
 
 
-def _classify_non_qcow2_files(non_qcow_files, qcow_deps):
+def _classify_non_qcow2_files(non_qcow_files, qcow_deps, db_storage_lookup=None):
     """Classify non-qcow2 files into dead artifacts vs unknown.
 
     Dead artifacts: any non-.qcow2 file in storage directories that is not
@@ -1473,6 +1474,16 @@ def _classify_non_qcow2_files(non_qcow_files, qcow_deps):
     other non-qcow2 files that ended up in storage dirs.
 
     Files in any /media/ path are excluded (ISOs/FDs, including under storage_pools).
+
+    Special case: a `*.sparsify-backup` file is the recovery copy of its
+    sibling `*.qcow2`; the whole point of keeping it is to be able to
+    restore the canonical file if it ever turned out broken. We therefore
+    only mark such a backup as "dead" when ALL of:
+      - the canonical .qcow2 exists on disk
+      - qemu-img check on the canonical reports no errors
+      - the canonical's UUID is in the API storage table with status=ready
+        (or no API lookup was passed in, in which case we skip this check)
+    Otherwise we keep the backup as "unknown" so it survives any cleanup.
 
     Returns (dead_artifacts, unknown_files)
     """
@@ -1488,6 +1499,24 @@ def _classify_non_qcow2_files(non_qcow_files, qcow_deps):
         # Check if any qcow2 references this file as backing
         if f_str in reverse_map:
             unknown.append(f_str)
+            continue
+        # Sparsify backups: keep unless the canonical qcow2 is provably
+        # healthy. Without this guard, a corrupt canonical would be
+        # treated as an orphan and its only-good copy moved to to_delete.
+        if f_str.endswith(".qcow2.sparsify-backup"):
+            canonical = f_str[: -len(".sparsify-backup")]
+            if not Path(canonical).is_file():
+                unknown.append(f_str)
+                continue
+            if not qemu_img_check(canonical):
+                unknown.append(f_str)
+                continue
+            if db_storage_lookup is not None:
+                info = db_storage_lookup.get(canonical)
+                if not info or info.get("status") != "ready":
+                    unknown.append(f_str)
+                    continue
+            dead.append(f_str)
             continue
         dead.append(f_str)
 
@@ -2669,7 +2698,7 @@ def cmd_full_cleanup(args):
 
     # Classify non-qcow2 files (renamed artifacts, stale copies, etc.)
     dead_artifacts, unknown_non_qcow = _classify_non_qcow2_files(
-        non_qcow_storages, qcow_deps
+        non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
     )
 
     # Classify .iso/.fd media files against the API media table.

@@ -46,6 +46,33 @@ def qemu_img_info(file_path):
         return None
 
 
+def qemu_img_check(file_path):
+    """Run qemu-img check -U on a qcow2 file (non-invasive, no lock).
+
+    Returns True iff the file exists, qemu-img succeeded with returncode 0
+    AND its stdout reports "No errors were found on the image". Any other
+    outcome (file missing, returncode!=0, stderr error, leak warnings) is
+    treated as "not safely intact" and returns False.
+
+    Used as a pre-flight before classifying a `*.sparsify-backup` (or any
+    other recovery copy) as deletable: if the canonical qcow2 partner is
+    not provably clean, we must keep the backup.
+    """
+    try:
+        result = subprocess.run(
+            ["qemu-img", "check", "-U", str(file_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=60,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return False
+    if result.returncode != 0:
+        return False
+    return "No errors were found on the image" in (result.stdout or "")
+
+
 def qemu_img_chain_info(file_path):
     """Run qemu-img info -U --backing-chain --output=json on a file.
 
