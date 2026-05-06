@@ -262,3 +262,200 @@ def test_retry_raises_after_exhausting_max_retries_on_unavailable():
 
     assert excinfo.value.code() == grpc.StatusCode.UNAVAILABLE
     assert call_count["n"] == 3  # exactly max_retries attempts
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 5. ``readable_sync_error`` — pure regex extraction
+#
+# haproxy-sync wraps ACME's stdout/stderr in DomainSyncError.error.
+# When ACME rejects a certificate the payload embeds a JSON object
+# with a ``"detail"`` field. The helper surfaces that detail to
+# webapp/admin UIs so users see "DNS challenge failed" instead of
+# 50 lines of shell log dump.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_readable_sync_error_extracts_detail_from_acme_json():
+    """Typical ACME rejection — JSON object embedded in the raw
+    stdout/stderr. The regex pulls the ``"detail"`` value.
+    """
+    raw = (
+        "+ acme.sh --issue ...\n"
+        '{"type":"urn:acme:error:unauthorized",'
+        '"detail":"DNS-01 challenge failed for example.com",'
+        '"status":403}'
+    )
+    assert (
+        bastion_module.Bastion.readable_sync_error(raw)
+        == "DNS-01 challenge failed for example.com"
+    )
+
+
+def test_readable_sync_error_handles_escaped_quotes():
+    """ACME sometimes embeds escaped quotes in ``detail`` (e.g.
+    when the failing domain itself appears in the message). The
+    regex must accept ``\\"`` inside the quoted body.
+    """
+    raw = '{"detail":"Domain \\"foo.bar\\" is not authorized","status":403}'
+    # ``unicode_escape`` decode unwraps the escaped quotes.
+    result = bastion_module.Bastion.readable_sync_error(raw)
+    assert 'Domain "foo.bar" is not authorized' == result
+
+
+def test_readable_sync_error_returns_raw_when_no_detail_present():
+    """No JSON / no ``detail`` field — fall back to the raw string
+    so the caller still sees something rather than empty output.
+    Pin this so a future "make the regex stricter" refactor
+    doesn't silently drop unstructured errors.
+    """
+    raw = "Some plain stderr message that is not JSON"
+    assert bastion_module.Bastion.readable_sync_error(raw) == raw
+
+
+def test_readable_sync_error_empty_input_returns_empty():
+    """Defensive: empty / None input returns empty string so the
+    caller (typically webapp template rendering) doesn't print
+    ``None`` literally.
+    """
+    assert bastion_module.Bastion.readable_sync_error("") == ""
+    assert bastion_module.Bastion.readable_sync_error(None) == ""
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 6. Cache-backed read methods
+#
+# ``bastion_enabled_in_db``, ``get_bastion_domain``, and
+# ``bastion_domain_verification_required`` all read through
+# ``Caches.get_document``. They're invoked on the auth hot path
+# (every desktop with a bastion target needs the domain), so the
+# fallback / default behaviour matters.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_bastion_enabled_in_db_returns_cached_flag(monkeypatch):
+    """Reads ``config[1].bastion.enabled``. ``Caches.get_document``
+    with a single key returns the unwrapped *value* (the same
+    contract that the deployment-permissions bug-fix codified
+    in models/deployment.py); production code does ``.get("enabled")``
+    on the result, so the cached value is the dict, not the unwrapped
+    bool.
+    """
+    cached = {"enabled": True, "domain": "bastion.example.com"}
+    captured = []
+
+    def fake_get_document(table, item_id, keys=None, invalidate=False):
+        captured.append((table, item_id, tuple(keys or ())))
+        return cached
+
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(lambda cls, *a, **kw: fake_get_document(*a, **kw)),
+    )
+
+    assert bastion_module.Bastion.bastion_enabled_in_db() is True
+    # Verifies the read shape — config table, single row id 1, ["bastion"]
+    # selector. Locks the contract that callers / Caches both depend on.
+    assert captured == [("config", 1, ("bastion",))]
+
+
+def test_get_bastion_domain_returns_category_override_when_set(monkeypatch):
+    """When the category has its own bastion_domain, the helper
+    returns it without falling back to the global config.
+    """
+    calls = []
+
+    def fake_get_document(table, item_id, keys=None, invalidate=False):
+        calls.append((table, item_id))
+        if table == "categories":
+            return "tenant.example.com"
+        # Should not be reached when the category has a domain.
+        raise AssertionError(
+            "Should not query config when categories has its own domain"
+        )
+
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(lambda cls, *a, **kw: fake_get_document(*a, **kw)),
+    )
+
+    result = bastion_module.Bastion.get_bastion_domain("tenant-a")
+    assert result == "tenant.example.com"
+    assert calls == [("categories", "tenant-a")]
+
+
+def test_get_bastion_domain_falls_back_to_config_when_category_unset(monkeypatch):
+    """No per-category override -> read the global default from
+    ``config[1].bastion.domain``.
+    """
+    calls = []
+
+    def fake_get_document(table, item_id, keys=None, invalidate=False):
+        calls.append((table, item_id))
+        if table == "categories":
+            return None  # category has no bastion_domain
+        if table == "config":
+            return {"enabled": True, "domain": "bastion.global.example.com"}
+        raise AssertionError(f"unexpected table {table}")
+
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(lambda cls, *a, **kw: fake_get_document(*a, **kw)),
+    )
+
+    result = bastion_module.Bastion.get_bastion_domain("tenant-b")
+    assert result == "bastion.global.example.com"
+    # Both reads happened in the documented order: category first, then config.
+    assert calls == [("categories", "tenant-b"), ("config", 1)]
+
+
+def test_get_bastion_domain_no_category_id_uses_config_only(monkeypatch):
+    """Calling without a category_id skips the category read
+    entirely. Pins the optimization for global-config-only callers.
+    """
+    calls = []
+
+    def fake_get_document(table, item_id, keys=None, invalidate=False):
+        calls.append((table, item_id))
+        if table == "config":
+            return {"enabled": True, "domain": "bastion.example.com"}
+        raise AssertionError(f"unexpected table {table}")
+
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(lambda cls, *a, **kw: fake_get_document(*a, **kw)),
+    )
+
+    result = bastion_module.Bastion.get_bastion_domain()
+    assert result == "bastion.example.com"
+    assert calls == [("config", 1)]  # category never queried
+
+
+def test_bastion_domain_verification_required_defaults_true(monkeypatch):
+    """Cache returns a bastion config where ``domain_verification_required``
+    is unset -> default True. The default matters because new
+    installs that don't ship the field shouldn't accidentally
+    bypass DNS verification.
+    """
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(lambda cls, *a, **kw: {"enabled": True}),
+    )
+    assert bastion_module.Bastion.bastion_domain_verification_required() is True
+
+
+def test_bastion_domain_verification_required_returns_false_when_disabled(monkeypatch):
+    """Explicitly set False -> respect it, don't snap back to the
+    default. Pins both branches so a future refactor that swaps
+    ``.get("...", True)`` -> ``.get("...")`` (default None ->
+    treated as False elsewhere) breaks loud.
+    """
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.bastion.Caches.get_document",
+        classmethod(
+            lambda cls, *a, **kw: {
+                "enabled": True,
+                "domain_verification_required": False,
+            }
+        ),
+    )
+    assert bastion_module.Bastion.bastion_domain_verification_required() is False
