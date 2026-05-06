@@ -97,7 +97,10 @@ async def get_share_link(
         link = await asyncio.to_thread(
             DesktopService.get_desktop_share_link, desktop_id
         )
-        return DesktopShareLinkResponse(link=link)
+        return JSONResponse(
+            content=DesktopShareLinkResponse(link=link).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -131,7 +134,10 @@ async def update_share_link(
         link = await asyncio.to_thread(
             DesktopService.update_desktop_share_link, desktop_id, data.enabled
         )
-        return DesktopShareLinkResponse(link=link)
+        return JSONResponse(
+            content=DesktopShareLinkResponse(link=link).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -171,7 +177,10 @@ async def get_desktop_viewer(
         desktop = await asyncio.to_thread(
             DesktopService.get_desktop_direct_viewer_from_token, token, request
         )
-        return DesktopViewerResponse(**desktop)
+        return JSONResponse(
+            content=DesktopViewerResponse(**desktop).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -196,7 +205,12 @@ async def get_desktop_viewer(
 async def get_viewer_docs(request: Request):
     try:
         docs_link = await asyncio.to_thread(DesktopService.get_direct_viewer_docs)
-        return ViewersDocsResponse(viewers_documentation_url=docs_link)
+        return JSONResponse(
+            content=ViewersDocsResponse(viewers_documentation_url=docs_link).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -248,7 +262,10 @@ async def log_viewer_click(
             viewer_type=protocol,
             user_request=request,
         )
-        return SimpleResponse(id=desktop["id"])
+        return JSONResponse(
+            content=SimpleResponse(id=desktop["id"]).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -283,7 +300,10 @@ async def reset_desktop(
         desktop_id = await asyncio.to_thread(
             DesktopService.reset_desktop_from_token, token, request
         )
-        return SimpleResponse(id=desktop_id)
+        return JSONResponse(
+            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

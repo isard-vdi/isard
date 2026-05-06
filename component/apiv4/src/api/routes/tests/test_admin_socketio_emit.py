@@ -43,8 +43,7 @@ class TestEmitHappyPath:
             jwt=MockJWT(role_id="admin"),
             body=events,
         )
-        assert response.status_code == 200
-        assert response.json() == {}
+        assert response.status_code == 204
         # The service now receives typed ``SocketioEmitRequest`` models;
         # compare via ``model_dump`` to keep equality with the raw input.
         assert [e.model_dump(exclude_none=True) for e in captured["events"]] == events
@@ -70,7 +69,7 @@ class TestEmitHappyPath:
             jwt=MockJWT(role_id="admin"),
             body=events,
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert [e.model_dump(exclude_none=True) for e in captured["events"]] == events
 
 

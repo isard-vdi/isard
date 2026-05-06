@@ -55,7 +55,7 @@ class TestPolicyCreate:
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"]["category"] == "default"
         assert captured["data"]["type"] == "local"
         # exclude_none=True drops fields whose value is exactly None,
@@ -254,7 +254,7 @@ class TestPolicyEdit:
             jwt=MockJWT(role_id="admin"),
             body={"role": "manager"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["policy_id"] == "p-123"
         # exclude_none drops the unset Optional fields
         assert captured["data"] == {"role": "manager"}
@@ -289,7 +289,7 @@ class TestPolicyDelete:
         response = test_client(
             url=self.URL, method="DELETE", jwt=MockJWT(role_id="admin")
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["policy_id"] == "p-123"
 
     def test_default_policy_delete_returns_403(self, monkeypatch, test_client):
@@ -370,7 +370,7 @@ class TestForceValidate:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"policy_id": "p-1", "field": "email_verified"}
 
     def test_force_disclaimer(self, monkeypatch, test_client):
@@ -381,7 +381,7 @@ class TestForceValidate:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"policy_id": "p-2", "field": "disclaimer_acknowledged"}
 
     def test_force_password(self, monkeypatch, test_client):
@@ -392,7 +392,7 @@ class TestForceValidate:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"policy_id": "p-3", "field": "password_last_updated"}
 
     def test_user_forbidden(self, monkeypatch, test_client):
@@ -504,7 +504,7 @@ class TestProviderConfig:
             jwt=MockJWT(role_id="admin"),
             body={"migration": {"export": True}},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["provider"] == "google"
         assert captured["data"]["migration"]["export"] is True
 
@@ -576,7 +576,7 @@ class TestMigrationExceptions:
             jwt=MockJWT(role_id="admin"),
             body={"item_type": "categories", "item_ids": ["c1", "c2"]},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"] == {
             "item_type": "categories",
             "item_ids": ["c1", "c2"],
@@ -606,7 +606,7 @@ class TestMigrationExceptions:
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["exception_id"] == "e-99"
 
     def test_user_forbidden_on_delete(self, monkeypatch, test_client):

@@ -315,7 +315,7 @@ def test_set_old_entries_max_time(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["2592000"]
 
 
@@ -333,7 +333,7 @@ def test_set_old_entries_action(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["delete"]
 
 
@@ -378,7 +378,7 @@ def test_set_delete_action(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["permanent"]
 
 
@@ -397,7 +397,7 @@ def test_set_default_delete(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == [True]
 
 
@@ -535,7 +535,7 @@ def test_update_unused_item_timeout_rule_persists_priority(monkeypatch, test_cli
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured["rule_id"] == "rule-1"
     assert captured["priority"] == 20
     assert captured["cutoff_time"] == 1440
@@ -624,7 +624,7 @@ def test_recycle_bin_add_unused_items_invokes_service(monkeypatch, test_client):
 
     response = test_client(url="/recycle-bin/unused-items", method="POST", jwt=jwt)
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == {"count": 1}
 
 

@@ -34,7 +34,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.storage import AdminStorageService
 from api.services.error import Error
 from fastapi import Path, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_storage"
 
@@ -53,12 +53,18 @@ tag = "admin_storage"
     "Managers are scoped to their category.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_storage_status(request: Request) -> list[AdminStorageStatusCount]:
+async def admin_storage_status(request: Request):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_storage_status, request.token_payload
         )
-        return [AdminStorageStatusCount(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminStorageStatusCount(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -83,12 +89,18 @@ async def admin_storage_status(request: Request) -> list[AdminStorageStatusCount
     description="Get all storage items. Admins see all; managers are scoped to their category.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_storage_list(request: Request) -> list[AdminStorageItem]:
+async def admin_storage_list(request: Request):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_storages, request.token_payload
         )
-        return [AdminStorageItem(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminStorageItem(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -112,14 +124,20 @@ async def admin_storage_list(request: Request) -> list[AdminStorageItem]:
 async def admin_storage_list_filtered(
     request: Request,
     data: AdminStorageFilterRequest,
-) -> list[AdminStorageItem]:
+):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_storages,
             request.token_payload,
             categories=data.categories,
         )
-        return [AdminStorageItem(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminStorageItem(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -143,12 +161,18 @@ async def admin_storage_list_filtered(
 async def admin_storage_by_status(
     request: Request,
     status: str = Path(..., description="Storage status to filter by"),
-) -> list[AdminStorageItem]:
+):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_storages, request.token_payload, status=status
         )
-        return [AdminStorageItem(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminStorageItem(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -172,7 +196,7 @@ async def admin_storage_by_status_filtered(
     request: Request,
     data: AdminStorageFilterRequest,
     status: str = Path(..., description="Storage status to filter by"),
-) -> list[AdminStorageItem]:
+):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_storages,
@@ -180,7 +204,13 @@ async def admin_storage_by_status_filtered(
             status=status,
             categories=data.categories,
         )
-        return [AdminStorageItem(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminStorageItem(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -212,12 +242,18 @@ async def admin_storage_by_status_filtered(
 async def admin_storage_domains(
     request: Request,
     storage_id: str = Path(..., description="Storage ID"),
-) -> list[AdminStorageDomain]:
+):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_storage_domains, request.token_payload, storage_id
         )
-        return [AdminStorageDomain(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminStorageDomain(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -244,12 +280,18 @@ async def admin_storage_domains(
 async def admin_media_domains(
     request: Request,
     storage_id: str = Path(..., description="Media ID"),
-) -> list[AdminStorageDomain]:
+):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_media_domains, request.token_payload, storage_id
         )
-        return [AdminStorageDomain(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminStorageDomain(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -283,7 +325,7 @@ async def admin_storage_delete(
 ):
     try:
         await asyncio.to_thread(AdminStorageService.delete_storage, storage_id)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -310,12 +352,15 @@ async def admin_storage_delete(
 async def admin_storage_info(
     request: Request,
     storage_id: str = Path(..., description="Storage ID"),
-) -> AdminStorageInfo:
+):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_storage_info, request.token_payload, storage_id
         )
-        return AdminStorageInfo(**(result or {}))
+        return JSONResponse(
+            content=AdminStorageInfo(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -342,14 +387,17 @@ async def admin_storage_info(
 async def admin_storage_search_info(
     request: Request,
     storage_id: str = Path(..., description="Storage ID"),
-) -> AdminStorageInfo:
+):
     try:
         result = await asyncio.to_thread(
             AdminStorageService.get_storage_search_info,
             request.token_payload,
             storage_id,
         )
-        return AdminStorageInfo(**(result or {}))
+        return JSONResponse(
+            content=AdminStorageInfo(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -380,10 +428,16 @@ async def admin_storage_search_info(
 async def admin_storage_by_role(
     request: Request,
     role: str = Path(..., description="User role to filter by"),
-) -> list[AdminStorageItem]:
+):
     try:
         result = await asyncio.to_thread(AdminStorageService.get_storages_by_role, role)
-        return [AdminStorageItem(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminStorageItem(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

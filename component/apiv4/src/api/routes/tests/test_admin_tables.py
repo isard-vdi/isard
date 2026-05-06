@@ -223,7 +223,7 @@ class TestInsertTableItem:
             jwt=MockJWT(role_id="admin"),
             body={"id": "u-new", "name": "newuser"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {
             "table": "users",
             "data": {"id": "u-new", "name": "newuser"},
@@ -300,7 +300,7 @@ class TestUpdateTableItem:
             jwt=MockJWT(role_id="admin"),
             body={"id": "u-1", "name": "renamed"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"]["name"] == "renamed"
 
     def test_unknown_item_returns_404(self, monkeypatch, test_client):
@@ -355,7 +355,7 @@ class TestDeleteTableItem:
         response = test_client(
             url=self.URL, method="DELETE", jwt=MockJWT(role_id="admin")
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"table": "users", "item_id": "u-99"}
 
     def test_unknown_item_returns_404(self, monkeypatch, test_client):

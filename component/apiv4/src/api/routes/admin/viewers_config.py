@@ -28,7 +28,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.viewers_config import AdminViewersConfigService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin-viewers-config"
 
@@ -49,11 +49,11 @@ tag = "admin-viewers-config"
     " Webapp DataTables consumes the response root as the row array.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_viewers_config(request: Request) -> list[dict]:
+async def admin_viewers_config(request: Request):
     try:
-        return (
-            await asyncio.to_thread(AdminViewersConfigService.get_viewers_config) or []
-        )
+        result = await asyncio.to_thread(AdminViewersConfigService.get_viewers_config)
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -82,7 +82,7 @@ async def admin_viewers_config_update(
         await asyncio.to_thread(
             AdminViewersConfigService.update_viewers_config, viewer, data.custom
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -111,7 +111,7 @@ async def admin_viewers_config_reset(
 ):
     try:
         await asyncio.to_thread(AdminViewersConfigService.reset_viewers_config, viewer)
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

@@ -12,7 +12,7 @@ from api.schemas.tasks import TaskResponse
 from api.services.error import Error
 from api.services.tasks import TaskService
 from fastapi import Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "tasks"
 
@@ -33,7 +33,7 @@ tag = "tasks"
         500: {"model": ErrorResponse},
     },
 )
-async def get_task(request: Request, task_id: str) -> TaskResponse:
+async def get_task(request: Request, task_id: str):
     try:
         task = await asyncio.to_thread(
             TaskService.get_task_with_owner_check,
@@ -41,7 +41,10 @@ async def get_task(request: Request, task_id: str) -> TaskResponse:
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
         )
-        return TaskResponse(**task.to_dict())
+        return JSONResponse(
+            content=TaskResponse(**task.to_dict()).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -65,7 +68,7 @@ async def get_task(request: Request, task_id: str) -> TaskResponse:
         500: {"model": ErrorResponse},
     },
 )
-async def cancel_task(request: Request, task_id: str) -> EmptyResponse:
+async def cancel_task(request: Request, task_id: str):
     try:
         await asyncio.to_thread(
             TaskService.cancel_task,
@@ -73,7 +76,7 @@ async def cancel_task(request: Request, task_id: str) -> EmptyResponse:
             request.token_payload["user_id"],
             request.token_payload.get("role_id", "user"),
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -93,12 +96,15 @@ async def cancel_task(request: Request, task_id: str) -> EmptyResponse:
     description="Returns all tasks for the authenticated user.",
     responses={500: {"model": ErrorResponse}},
 )
-async def get_user_tasks(request: Request) -> list[TaskResponse]:
+async def get_user_tasks(request: Request):
     try:
         tasks = await asyncio.to_thread(
             TaskService.get_user_tasks, request.token_payload["user_id"]
         )
-        return [TaskResponse(**t) for t in (tasks or [])]
+        return JSONResponse(
+            content=[TaskResponse(**t).model_dump(mode="json") for t in (tasks or [])],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -139,7 +145,7 @@ async def get_admin_tasks(
     offset: int = Query(
         0, ge=0, description="Skip the first ``offset`` matching tasks."
     ),
-) -> list[TaskResponse]:
+):
     try:
         tasks = await asyncio.to_thread(
             TaskService.get_admin_tasks,
@@ -149,7 +155,10 @@ async def get_admin_tasks(
             limit,
             offset,
         )
-        return [TaskResponse(**t) for t in (tasks or [])]
+        return JSONResponse(
+            content=[TaskResponse(**t).model_dump(mode="json") for t in (tasks or [])],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -173,10 +182,10 @@ async def get_admin_tasks(
         500: {"model": ErrorResponse},
     },
 )
-async def retry_task(request: Request, task_id: str) -> EmptyResponse:
+async def retry_task(request: Request, task_id: str):
     try:
         await asyncio.to_thread(TaskService.retry_task, task_id)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -199,7 +208,8 @@ async def retry_task(request: Request, task_id: str) -> EmptyResponse:
 async def retry_all_failed_tasks(request: Request):
     try:
         result = await asyncio.to_thread(TaskService.retry_all_failed_tasks)
-        return result
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result, status_code=200)
     except Error:
         raise
     except Exception:

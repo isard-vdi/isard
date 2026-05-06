@@ -36,6 +36,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.analytics import AdminAnalyticsService
 from api.services.error import Error
 from fastapi import Request
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_analytics"
 
@@ -53,7 +54,7 @@ tag = "admin_analytics"
     description="Returns storage usage analytics, optionally filtered by categories.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest) -> dict:
+async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest):
     try:
         payload = request.token_payload
         categories = (
@@ -64,7 +65,10 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest) 
         result = await asyncio.to_thread(
             AdminAnalyticsService.storage_usage, categories
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -84,9 +88,7 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest) 
     description="Returns resource count analytics (desktops, templates, media, etc.), optionally filtered by categories.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_resource_count(
-    request: Request, data: AnalyticsCategoriesRequest
-) -> dict:
+async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRequest):
     try:
         payload = request.token_payload
         categories = (
@@ -97,7 +99,10 @@ async def analytics_resource_count(
         result = await asyncio.to_thread(
             AdminAnalyticsService.resource_count, categories
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -122,7 +127,7 @@ async def analytics_resource_count(
 )
 async def analytics_suggested_removals(
     request: Request, data: AnalyticsSuggestedRemovalsRequest
-) -> dict:
+):
     try:
         payload = request.token_payload
         categories = (
@@ -135,7 +140,10 @@ async def analytics_suggested_removals(
             categories,
             months_without_use=data.months_without_use,
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -160,10 +168,11 @@ async def analytics_suggested_removals(
     description="Returns all analytics graph configurations.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_graphs_conf_list(request: Request) -> list[dict]:
+async def analytics_graphs_conf_list(request: Request):
     try:
         result = await asyncio.to_thread(AdminAnalyticsService.get_usage_graphs_conf)
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -186,12 +195,15 @@ async def analytics_graphs_conf_list(request: Request) -> list[dict]:
         500: {"model": ErrorResponse},
     },
 )
-async def analytics_graph_conf_get(request: Request, conf_id: str) -> dict:
+async def analytics_graph_conf_get(request: Request, conf_id: str):
     try:
         result = await asyncio.to_thread(
             AdminAnalyticsService.get_usage_graph_conf, conf_id
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -214,15 +226,13 @@ async def analytics_graph_conf_get(request: Request, conf_id: str) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def analytics_graph_conf_add(
-    request: Request, data: AnalyticsGraphCreateRequest
-) -> EmptyResponse:
+async def analytics_graph_conf_add(request: Request, data: AnalyticsGraphCreateRequest):
     try:
         await asyncio.to_thread(
             AdminAnalyticsService.add_usage_graph_conf,
             data.model_dump(exclude_none=True),
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -247,14 +257,14 @@ async def analytics_graph_conf_add(
 )
 async def analytics_graph_conf_update(
     request: Request, conf_id: str, data: AnalyticsGraphUpdateRequest
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(
             AdminAnalyticsService.update_usage_graph_conf,
             conf_id,
             data.model_dump(exclude_none=True),
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -274,10 +284,10 @@ async def analytics_graph_conf_update(
     description="Deletes an analytics graph configuration by ID.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_graph_conf_delete(request: Request, conf_id: str) -> EmptyResponse:
+async def analytics_graph_conf_delete(request: Request, conf_id: str):
     try:
         await asyncio.to_thread(AdminAnalyticsService.delete_usage_graph_conf, conf_id)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -302,9 +312,7 @@ async def analytics_graph_conf_delete(request: Request, conf_id: str) -> EmptyRe
     description="Returns desktops that have been least used within the specified period.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_desktops_less_used(
-    request: Request, data: DesktopAnalyticsRequest
-) -> list[dict]:
+async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsRequest):
     try:
         result = await asyncio.to_thread(
             AdminAnalyticsService.get_desktops_less_used,
@@ -313,7 +321,8 @@ async def analytics_desktops_less_used(
             data.not_in_directory_path,
             data.status or False,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -335,7 +344,7 @@ async def analytics_desktops_less_used(
 )
 async def analytics_desktops_recently_used(
     request: Request, data: DesktopAnalyticsRequest
-) -> list[dict]:
+):
     try:
         result = await asyncio.to_thread(
             AdminAnalyticsService.get_desktops_recently_used,
@@ -344,7 +353,8 @@ async def analytics_desktops_recently_used(
             data.not_in_directory_path,
             data.status or False,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -364,9 +374,7 @@ async def analytics_desktops_recently_used(
     description="Returns desktops that have been most frequently started within the specified period.",
     responses={500: {"model": ErrorResponse}},
 )
-async def analytics_desktops_most_used(
-    request: Request, data: DesktopAnalyticsRequest
-) -> list[dict]:
+async def analytics_desktops_most_used(request: Request, data: DesktopAnalyticsRequest):
     try:
         result = await asyncio.to_thread(
             AdminAnalyticsService.get_desktops_most_used,
@@ -375,7 +383,8 @@ async def analytics_desktops_most_used(
             data.not_in_directory_path,
             data.status or False,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -405,12 +414,15 @@ async def analytics_desktops_most_used(
 async def admin_echart_daily_items(
     request: Request,
     data: EchartRequest,
-) -> EchartDailyItemsResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminAnalyticsService.get_daily_items, data.table, data.date_field
         )
-        return EchartDailyItemsResponse(**(result or {}))
+        return JSONResponse(
+            content=EchartDailyItemsResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -442,7 +454,7 @@ async def admin_echart(
         "nested_array_grouped_items",
     ],
     data: EchartRequest,
-) -> list[dict]:
+):
     try:
         if view == "grouped_items":
             result = await asyncio.to_thread(
@@ -462,7 +474,8 @@ async def admin_echart(
                 data.nested_array_field,
                 data.group_field,
             )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:

@@ -125,7 +125,7 @@ class TestConnTest:
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         # Sanity: the password actually reaches the service. Otherwise
         # a refactor that drops it from the call signature would silently
         # test against the empty string and report success.
@@ -251,7 +251,7 @@ class TestListGetDelete:
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["pid"] == "p-1"
 
     def test_user_forbidden_on_delete(self, monkeypatch, test_client):
@@ -284,7 +284,7 @@ class TestReset:
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["pid"] == "p-1"
 
     def test_reset_all(self, monkeypatch, test_client):
@@ -298,7 +298,7 @@ class TestReset:
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert called["yes"] is True
 
     def test_user_forbidden_on_reset_all(self, monkeypatch, test_client):
@@ -399,7 +399,7 @@ class TestSync:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"pid": "p-1", "item": "groups"}
 
     def test_admin_syncs_users(self, monkeypatch, test_client):
@@ -413,7 +413,7 @@ class TestSync:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["item"] == "users"
 
     def test_typed_error_propagates(self, monkeypatch, test_client):

@@ -228,7 +228,7 @@ async def update_maintenance_text(
 ):
     try:
         await asyncio.to_thread(MaintenanceService.update_text, text)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:

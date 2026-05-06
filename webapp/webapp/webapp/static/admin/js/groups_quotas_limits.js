@@ -229,7 +229,7 @@ function actionsGroupDetail(){
                         text: 'Quotas updated successfully',
                         hide: true,
                         delay: 1000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })
@@ -297,7 +297,7 @@ function actionsGroupDetail(){
                         text: 'Limits updated successfully',
                         hide: true,
                         delay: 1000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })

@@ -190,7 +190,7 @@ def test_admin_create_notification_template(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {"language": "en", "title": "Welcome"}
 
 
@@ -348,7 +348,7 @@ def test_admin_notify_desktop_queue_happy_path(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured["hyp_id"] == "hyper-1"
     items = captured["items"]
     assert len(items) == 2
@@ -386,7 +386,7 @@ def test_admin_notify_desktop_queue_empty_list(monkeypatch, client):
         json=[],
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured["data"] == []
     assert captured["hyp_id"] == "hyper-1"
 

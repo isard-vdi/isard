@@ -180,7 +180,7 @@ def test_stop_storage_desktops(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["stor-1"]
 
 
@@ -203,7 +203,7 @@ def test_delete_storage(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 202
+    assert response.status_code == 200
     body = response.json()
     assert body["message_code"] == "item.queued"
     assert captured == {"storage_id": "stor-1"}

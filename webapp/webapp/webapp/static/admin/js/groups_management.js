@@ -277,7 +277,7 @@ $(document).ready(function() {
                             text: 'Group created successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -417,7 +417,7 @@ function actionsGroupDetail(){
                             text: 'Group updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })

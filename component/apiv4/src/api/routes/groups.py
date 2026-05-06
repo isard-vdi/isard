@@ -61,7 +61,10 @@ async def get_users_in_group(
 ):
     try:
         users = await asyncio.to_thread(GroupsService.get_users_in_group, group_id)
-        return GroupUsersResponse(users=users)
+        return JSONResponse(
+            content=GroupUsersResponse(users=users).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:

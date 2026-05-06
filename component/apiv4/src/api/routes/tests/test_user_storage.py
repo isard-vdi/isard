@@ -61,7 +61,7 @@ def test_admin_user_storage_delete(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["prov-1"]
 
 
@@ -125,5 +125,5 @@ def test_admin_user_storage_reset(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["prov-1"]

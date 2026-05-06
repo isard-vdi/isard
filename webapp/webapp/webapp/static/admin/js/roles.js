@@ -110,7 +110,7 @@ function actionsRolDetail() {
                             text: 'Role updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })

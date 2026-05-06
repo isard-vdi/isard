@@ -232,7 +232,7 @@ $(document).ready(function() {
                             text: 'Media created successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -584,7 +584,7 @@ function showActions(table ,tr, row, button) {
                             text: 'Media status checked successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -921,7 +921,7 @@ function modal_add_install_datatables(){
                             text: 'Desktop created successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })

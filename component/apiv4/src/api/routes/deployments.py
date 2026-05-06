@@ -83,10 +83,13 @@ tag = "deployments"
 )
 async def get_all_deployments(request: Request):
     try:
-        return OwnedDeploymentsResponse(
-            deployments=await asyncio.to_thread(
-                DeploymentService.get_owned_deployments, request.token_payload
-            )
+        return JSONResponse(
+            content=OwnedDeploymentsResponse(
+                deployments=await asyncio.to_thread(
+                    DeploymentService.get_owned_deployments, request.token_payload
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -112,12 +115,12 @@ async def get_all_deployments(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def check_deployment_quota_get(request: Request) -> EmptyResponse:
+async def check_deployment_quota_get(request: Request):
     try:
         await asyncio.to_thread(
             DeploymentService.check_quota, request.token_payload["user_id"]
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -142,7 +145,7 @@ async def check_deployment_quota_get(request: Request) -> EmptyResponse:
 async def check_deployment_quota_post(
     request: Request,
     data: CheckQuotaRequest,
-) -> EmptyResponse:
+):
     try:
         users = []
         if data.allowed:
@@ -154,7 +157,7 @@ async def check_deployment_quota_post(
         await asyncio.to_thread(
             DeploymentService.check_quota, request.token_payload["user_id"], users
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -183,8 +186,13 @@ async def get_deployment(
     request: Request,
 ):
     try:
-        return DeploymentResponse(
-            **await asyncio.to_thread(DeploymentService.get_deployment, deployment_id)
+        return JSONResponse(
+            content=DeploymentResponse(
+                **await asyncio.to_thread(
+                    DeploymentService.get_deployment, deployment_id
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -230,14 +238,20 @@ async def delete_deployment(
             permanent=permanent,
         )
         if tasks is None:
-            return DeleteResponse(
-                message="Item sent to recycle bin", message_code="item.recycled"
+            return JSONResponse(
+                content=DeleteResponse(
+                    message="Item sent to recycle bin", message_code="item.recycled"
+                ).model_dump(mode="json"),
+                status_code=200,
             )
-        response.status_code = 202
-        return DeleteResponse(
-            message="Task queued to delete deployment",
-            message_code="item.queued",
-            tasks_ids=[t["id"] for t in tasks],
+
+        return JSONResponse(
+            content=DeleteResponse(
+                message="Task queued to delete deployment",
+                message_code="item.queued",
+                tasks_ids=[t["id"] for t in tasks],
+            ).model_dump(mode="json"),
+            status_code=202,
         )
 
     except Error:
@@ -272,12 +286,15 @@ async def create_deployment(
     request: Request,
     data: CreateDeploymentRequest,
 ):
-    return SimpleResponse(
-        id=await asyncio.to_thread(
-            DeploymentService.create_deployment,
-            data.model_dump(exclude_unset=True),
-            request.token_payload,
-        )
+    return JSONResponse(
+        content=SimpleResponse(
+            id=await asyncio.to_thread(
+                DeploymentService.create_deployment,
+                data.model_dump(exclude_unset=True),
+                request.token_payload,
+            )
+        ).model_dump(mode="json"),
+        status_code=201,
     )
 
 
@@ -374,7 +391,10 @@ async def toggle_deployment_visibility(
         await asyncio.to_thread(
             DeploymentService.toggle_visibility, deployment_id, stop_started_domains
         )
-        return SimpleResponse(id=deployment_id)
+        return JSONResponse(
+            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -426,7 +446,10 @@ async def edit_deployment(
             deployment_id=deployment_id,
             deployment_data=deployment_data.model_dump(mode="json", exclude_unset=True),
         )
-        return SimpleResponse(id=deployment_id)
+        return JSONResponse(
+            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -471,8 +494,10 @@ async def get_deployment_csv(
         DeploymentService.direct_viewer_csv, deployment_id, regenerate
     )
     try:
+        # TODO: probably should use FileResponse
         return Response(
             content=csv_content,
+            status_code=200,
             media_type="text/csv",
             headers={
                 "Content-Disposition": f"attachment; filename={deployment_id}_direct_viewer.csv"
@@ -516,7 +541,10 @@ async def recreate_deployment(
             request.token_payload,
             deployment_id,
         )
-        return SimpleResponse(id=deployment_id)
+        return JSONResponse(
+            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -546,10 +574,13 @@ async def recreate_deployment(
 )
 async def get_all_shared_deployments(request: Request):
     try:
-        return SharedDeploymentsResponse(
-            deployments=await asyncio.to_thread(
-                DeploymentService.get_shared_deployments, request.token_payload
-            )
+        return JSONResponse(
+            content=SharedDeploymentsResponse(
+                deployments=await asyncio.to_thread(
+                    DeploymentService.get_shared_deployments, request.token_payload
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -583,10 +614,15 @@ async def get_deployment_user_desktops(
     Get all desktops in a deployment for a specific user.
     """
     try:
-        return UserDeploymentResponse(
-            **await asyncio.to_thread(
-                DeploymentService.get_deployment_user_desktops, deployment_id, user_id
-            )
+        return JSONResponse(
+            content=UserDeploymentResponse(
+                **await asyncio.to_thread(
+                    DeploymentService.get_deployment_user_desktops,
+                    deployment_id,
+                    user_id,
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -618,14 +654,18 @@ async def get_deployment_user_desktops_detail(
     request: Request,
 ):
     try:
-        return [
-            DesktopDetailsResponse(**d)
-            for d in await asyncio.to_thread(
-                DeploymentService.get_deployment_user_desktops_detail,
-                deployment_id,
-                user_id,
-            )
-        ]
+        return JSONResponse(
+            content=[
+                DesktopDetailsResponse(**d).model_dump(mode="json")
+                for d in await asyncio.to_thread(
+                    DeploymentService.get_deployment_user_desktops_detail,
+                    deployment_id,
+                    user_id,
+                )
+            ],
+            status_code=200,
+        )
+
     except Error as e:
         raise e
     except Exception as e:
@@ -652,12 +692,16 @@ async def get_deployment_user_desktops_detail(
 async def get_deployment_videowall(
     deployment_id: str,
     request: Request,
-) -> dict:
+):
     try:
         result = await asyncio.to_thread(
             DeploymentService.get_deployment_videowall, deployment_id
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {},
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -716,7 +760,7 @@ async def bulk_delete_deployments(
             request.token_payload["user_id"],
             data.permanent,
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -779,7 +823,10 @@ async def toggle_domain_visibility(
 ):
     try:
         await asyncio.to_thread(DeploymentService.toggle_domain_visibility, domain_id)
-        return SimpleResponse(id=domain_id)
+        return JSONResponse(
+            content=SimpleResponse(id=domain_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -815,7 +862,10 @@ async def toggle_desktop_deployment_visibility(
 ):
     try:
         await asyncio.to_thread(DeploymentService.toggle_domain_visibility, desktop_id)
-        return SimpleResponse(id=desktop_id)
+        return JSONResponse(
+            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -842,12 +892,13 @@ async def toggle_desktop_deployment_visibility(
 async def get_deployment_hardware(
     deployment_id: str,
     request: Request,
-) -> dict:
+):
     try:
         result = await asyncio.to_thread(
             DeploymentService.get_deployment_hardware, deployment_id
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(result if isinstance(result, dict) else {}, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -874,12 +925,13 @@ async def get_deployment_hardware(
 async def get_deployment_info(
     deployment_id: str,
     request: Request,
-) -> dict:
+):
     try:
         result = await asyncio.to_thread(
             DeploymentService.get_deployment_info, deployment_id, request.token_payload
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(result if isinstance(result, dict) else {}, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -908,8 +960,13 @@ async def get_deployment_co_owners(
     request: Request,
 ):
     try:
-        return CoOwnersResponse(
-            **await asyncio.to_thread(DeploymentService.get_co_owners, deployment_id)
+        return JSONResponse(
+            content=CoOwnersResponse(
+                **await asyncio.to_thread(
+                    DeploymentService.get_co_owners, deployment_id
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -943,7 +1000,10 @@ async def update_deployment_co_owners(
         await asyncio.to_thread(
             DeploymentService.update_co_owners, deployment_id, data.co_owners
         )
-        return SimpleResponse(id=deployment_id)
+        return JSONResponse(
+            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -984,7 +1044,7 @@ async def edit_deployment_users(
             deployment_id,
             data.allowed,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -1020,7 +1080,10 @@ async def change_deployment_owner(
             deployment_id,
             user_id,
         )
-        return SimpleResponse(id=deployment_id)
+        return JSONResponse(
+            content=SimpleResponse(id=deployment_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -1052,12 +1115,16 @@ async def change_deployment_owner(
 async def get_deployment_permissions(
     deployment_id: str,
     request: Request,
-) -> list[DeploymentPermissions]:
+):
     try:
         result = await asyncio.to_thread(
             DeploymentService.get_permissions, deployment_id
         )
-        return result if isinstance(result, list) else []
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, list) else [],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:

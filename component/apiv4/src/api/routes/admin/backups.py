@@ -60,7 +60,7 @@ tag = "admin_backups"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_backups_list(request: Request) -> Union[BackupItem, list[BackupItem]]:
+async def admin_backups_list(request: Request):
     try:
         options = dict(request.query_params)
         if options.get("id"):
@@ -69,7 +69,10 @@ async def admin_backups_list(request: Request) -> Union[BackupItem, list[BackupI
                 options["id"],
                 pluck=options.get("pluck"),
             )
-            return BackupItem(**(result or {}))
+            return JSONResponse(
+                content=BackupItem(**(result or {})).model_dump(mode="json"),
+                status_code=200,
+            )
         else:
             limit = options.get("limit")
             try:
@@ -79,7 +82,12 @@ async def admin_backups_list(request: Request) -> Union[BackupItem, list[BackupI
             result = await asyncio.to_thread(
                 AdminBackupsService.list_backups, limit=limit
             )
-            return [BackupItem(**row) for row in (result or [])]
+            return JSONResponse(
+                content=[
+                    BackupItem(**row).model_dump(mode="json") for row in (result or [])
+                ],
+                status_code=200,
+            )
     except Error:
         raise
     except Exception:
@@ -107,12 +115,15 @@ async def admin_backups_list(request: Request) -> Union[BackupItem, list[BackupI
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_backup_integrity_get(request: Request) -> BackupIntegrityResponse:
+async def admin_backup_integrity_get(request: Request):
     try:
-        return BackupIntegrityResponse(
-            integrity_enabled=await asyncio.to_thread(
-                AdminBackupsService.get_integrity_enabled
-            )
+        return JSONResponse(
+            content=BackupIntegrityResponse(
+                integrity_enabled=await asyncio.to_thread(
+                    AdminBackupsService.get_integrity_enabled
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -142,12 +153,15 @@ async def admin_backup_integrity_get(request: Request) -> BackupIntegrityRespons
 async def admin_backup_integrity_set(
     request: Request,
     data: BackupIntegritySetRequest,
-) -> BackupIntegrityResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminBackupsService.set_integrity_enabled, data.integrity_enabled
         )
-        return BackupIntegrityResponse(**result)
+        return JSONResponse(
+            content=BackupIntegrityResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -169,10 +183,13 @@ async def admin_backup_integrity_set(
     description="Get backup configuration from environment variables.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_backup_config(request: Request) -> BackupConfigResponse:
+async def admin_backup_config(request: Request):
     try:
         result = await asyncio.to_thread(AdminBackupsService.get_backup_config)
-        return BackupConfigResponse(**result)
+        return JSONResponse(
+            content=BackupConfigResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -198,10 +215,13 @@ async def admin_backup_config(request: Request) -> BackupConfigResponse:
 async def admin_backup_get(
     request: Request,
     backup_id: str = Path(..., description="Backup ID"),
-) -> BackupItem:
+):
     try:
         result = await asyncio.to_thread(AdminBackupsService.get_backup, backup_id)
-        return BackupItem(**(result or {}))
+        return JSONResponse(
+            content=BackupItem(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -236,7 +256,7 @@ async def admin_backup_get(
 async def admin_backup_report(
     request: Request,
     data: BackupReportRequest,
-) -> BackupReportInsertResponse:
+):
     try:
         # Service-token gate: admin_router already filters role=admin, but
         # backup ingestion must be additionally restricted to internal
@@ -246,7 +266,10 @@ async def admin_backup_report(
         result = await asyncio.to_thread(
             AdminBackupsService.insert_backup, data.model_dump(exclude_none=True)
         )
-        return BackupReportInsertResponse(**result)
+        return JSONResponse(
+            content=BackupReportInsertResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

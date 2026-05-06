@@ -255,7 +255,7 @@ def test_admin_update_login_notification(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {"cover_enabled": True}
 
 
@@ -280,7 +280,7 @@ def test_admin_enable_cover_login_notification(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {"kind": "cover", "enabled": True}
 
 

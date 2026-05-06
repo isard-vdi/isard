@@ -64,12 +64,15 @@ async def search_users_in_category(
     search: str = Query(..., description="String to search for users"),
 ):
     try:
-        return CategoriesUsersSearchResponse(
-            users=await asyncio.to_thread(
-                CategoryService.search_users_in_category,
-                request.token_payload["category_id"],
-                search,
-            )
+        return JSONResponse(
+            content=CategoriesUsersSearchResponse(
+                users=await asyncio.to_thread(
+                    CategoryService.search_users_in_category,
+                    request.token_payload["category_id"],
+                    search,
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise

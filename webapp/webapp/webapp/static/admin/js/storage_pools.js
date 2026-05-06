@@ -351,7 +351,7 @@ $(document).ready(function () {
                 text: msg,
                 hide: true,
                 delay: 7000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: change == "enable" ? 'warning' : 'success'
               });
@@ -403,7 +403,7 @@ $(document).ready(function () {
                 text: '',
                 hide: true,
                 delay: 7000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: 'success'
               });
@@ -466,7 +466,7 @@ $(document).ready(function () {
                 text: 'Pool deleted successfully',
                 hide: true,
                 delay: 1000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: 'success'
               })
@@ -819,7 +819,7 @@ function updateStoragePool(data) {
         text: 'Pool updated successfully',
         hide: true,
         delay: 1000,
-        icon: 'fa fa-' + data.icon,
+        icon: 'fa fa-' + data?.icon,
         opacity: 1,
         type: 'success'
       })
@@ -859,7 +859,7 @@ function createStoragePool(data) {
         text: "Pool created successfully",
         hide: true,
         delay: 1000,
-        icon: "fa fa-" + data.icon,
+        icon: "fa fa-" + data?.icon,
         opacity: 1,
         type: "success",
       });

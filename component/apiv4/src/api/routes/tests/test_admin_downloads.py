@@ -75,7 +75,7 @@ def test_admin_downloads_register(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["register"]
 
 
@@ -101,7 +101,7 @@ def test_admin_downloads_action_for_all(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {
         "action": "download",
         "kind": "domains",
@@ -132,5 +132,5 @@ def test_admin_downloads_action_for_item(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {"action": "abort", "kind": "media", "id": "media-1"}

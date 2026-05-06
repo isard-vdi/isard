@@ -2190,7 +2190,7 @@ function stopAllDesktops(storageId) {
       title: 'Stopping desktops...',
       hide: true,
       delay: 2000,
-      icon: 'fa fa-' + data.icon,
+      icon: 'fa fa-' + data?.icon,
       opacity: 1,
       type: 'success'
     });
@@ -2225,7 +2225,7 @@ function scheduleUntilDesktopsAreStopped(storageId, action, kwargs) {
       text: ' Storages ' + action + ' scheduled successfully',
       hide: true,
       delay: 2000,
-      icon: 'fa fa-' + data.icon,
+      icon: 'fa fa-' + data?.icon,
       opacity: 1,
       type: 'success'
     });

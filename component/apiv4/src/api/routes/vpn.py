@@ -13,7 +13,7 @@ from api.schemas.vpn import AdminVpnConnectionsDisconnectRequest, VpnConnectionR
 from api.services.admin.vpn import AdminVpnService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "vpn"
 
@@ -49,7 +49,7 @@ async def vpn_connection_connect(
             data.remote_port,
             True,
         ):
-            return {}
+            return Response(status_code=204)
         raise await Error.create(
             request,
             "not_found",
@@ -92,7 +92,7 @@ async def vpn_connection_roam(
             data.remote_port,
             True,
         ):
-            return {}
+            return Response(status_code=204)
         raise await Error.create(
             request,
             "not_found",
@@ -122,10 +122,10 @@ async def vpn_connection_roam(
 )
 async def vpn_connection_disconnect(
     request: Request, kind: Literal["users", "hypers"], client_ip: str
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(AdminVpnService.active_client, kind, client_ip)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -151,7 +151,7 @@ async def vpn_connection_disconnect(
 async def vpn_connection_reset(request: Request, kind: Literal["all"]):
     try:
         await asyncio.to_thread(AdminVpnService.reset_connection_status, kind)
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -179,7 +179,7 @@ async def vpn_connections_disconnect(
         await asyncio.to_thread(
             AdminVpnService.reset_connections_list_status, data.root
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

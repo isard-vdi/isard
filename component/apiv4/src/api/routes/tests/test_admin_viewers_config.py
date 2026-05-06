@@ -87,7 +87,7 @@ class TestUpdateViewerConfig:
             jwt=MockJWT(role_id="admin"),
             body={"custom": "title=spice-updated"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"viewer": "file_spice", "custom": "title=spice-updated"}
 
     def test_admin_clears_custom_with_null(self, monkeypatch, test_client):
@@ -108,7 +108,7 @@ class TestUpdateViewerConfig:
             jwt=MockJWT(role_id="admin"),
             body={"custom": None},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["custom"] is None
 
     def test_manager_forbidden(self, monkeypatch, test_client):
@@ -175,7 +175,7 @@ class TestResetViewerConfig:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["viewer"] == "file_spice"
 
     def test_unknown_viewer_returns_400(self, monkeypatch, test_client):

@@ -41,10 +41,15 @@ tag = "admin_queues"
     description="Returns all queues with their job counts by status.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_queues_jobs(request: Request) -> list[QueueJobsResponse]:
+async def admin_queues_jobs(request: Request):
     try:
         data = await asyncio.to_thread(AdminQueuesService.get_queues)
-        return [QueueJobsResponse(**row) for row in (data or [])]
+        return JSONResponse(
+            content=[
+                QueueJobsResponse(**row).model_dump(mode="json") for row in (data or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -64,10 +69,16 @@ async def admin_queues_jobs(request: Request) -> list[QueueJobsResponse]:
     description="Returns all queue workers with their subscriber information.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_queues_consumers(request: Request) -> list[QueueConsumerResponse]:
+async def admin_queues_consumers(request: Request):
     try:
         data = await asyncio.to_thread(AdminQueuesService.get_consumers)
-        return [QueueConsumerResponse(**row) for row in (data or [])]
+        return JSONResponse(
+            content=[
+                QueueConsumerResponse(**row).model_dump(mode="json")
+                for row in (data or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -90,7 +101,10 @@ async def admin_queues_consumers(request: Request) -> list[QueueConsumerResponse
 async def admin_get_old_tasks_config(request: Request):
     try:
         result = await asyncio.to_thread(AdminQueuesService.get_auto_delete_config)
-        return result
+        return JSONResponse(
+            content=AutoDeleteConfigResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -113,9 +127,11 @@ async def admin_get_old_tasks_config(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_old_tasks(request: Request, older_than: int) -> list[str]:
+async def admin_get_old_tasks(request: Request, older_than: int):
     try:
-        return await asyncio.to_thread(AdminQueuesService.get_old_tasks, older_than)
+        result = await asyncio.to_thread(AdminQueuesService.get_old_tasks, older_than)
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -149,7 +165,10 @@ async def admin_delete_old_tasks(request: Request, data: DeleteOldTasksRequest):
         result = await asyncio.to_thread(
             AdminQueuesService.delete_old_tasks, data.older_than
         )
-        return result
+        return JSONResponse(
+            content=DeleteOldTasksResult(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -169,12 +188,13 @@ async def admin_delete_old_tasks(request: Request, data: DeleteOldTasksRequest):
     description="Sets the maximum time (in seconds, min 86400) for auto-deleting old tasks.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_set_old_tasks_max_time(
-    request: Request, max_time: int
-) -> AutoDeleteMaxTimeResponse:
+async def admin_set_old_tasks_max_time(request: Request, max_time: int):
     try:
         result = await asyncio.to_thread(AdminQueuesService.set_max_time, max_time)
-        return AutoDeleteMaxTimeResponse(**result)
+        return JSONResponse(
+            content=AutoDeleteMaxTimeResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -200,12 +220,15 @@ async def admin_set_old_tasks_max_time(
 async def admin_set_old_tasks_queue_registries(
     request: Request,
     data: QueueRegistriesRequest,
-) -> AutoDeleteQueueRegistriesResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminQueuesService.set_queue_registries, data.queue_registries or []
         )
-        return AutoDeleteQueueRegistriesResponse(**result)
+        return JSONResponse(
+            content=AutoDeleteQueueRegistriesResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -231,12 +254,15 @@ async def admin_set_old_tasks_queue_registries(
 async def admin_set_old_tasks_enabled(
     request: Request,
     data: AutoDeleteEnabledRequest,
-) -> AutoDeleteEnabledResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminQueuesService.set_auto_delete_enabled, data.enabled
         )
-        return AutoDeleteEnabledResponse(**result)
+        return JSONResponse(
+            content=AutoDeleteEnabledResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -262,7 +288,10 @@ async def admin_set_old_tasks_enabled(
 async def admin_delete_old_tasks_auto(request: Request):
     try:
         result = await asyncio.to_thread(AdminQueuesService.delete_old_tasks_auto)
-        return result
+        return JSONResponse(
+            content=DeleteOldTasksResult(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

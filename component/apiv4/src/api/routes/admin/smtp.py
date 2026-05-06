@@ -42,7 +42,7 @@ smtp_config_cache: TTLCache = TTLCache(maxsize=1, ttl=5)
 smtp_enabled_cache: TTLCache = TTLCache(maxsize=1, ttl=5)
 
 
-def clear_smtp_caches() -> None:
+def clear_smtp_caches():
     """Invalidate both SMTP read caches after admin_smtp_put."""
     smtp_config_cache.clear()
     smtp_enabled_cache.clear()
@@ -62,10 +62,13 @@ def clear_smtp_caches() -> None:
     description="Returns the current SMTP configuration.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_smtp_get(request: Request) -> SmtpConfigResponse:
+async def admin_smtp_get(request: Request):
     try:
         config = await asyncio.to_thread(AdminSmtpService.get_smtp_config)
-        return SmtpConfigResponse(**(config or {}))
+        return JSONResponse(
+            content=SmtpConfigResponse(**(config or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -88,14 +91,15 @@ async def admin_smtp_get(request: Request) -> SmtpConfigResponse:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_smtp_put(
-    request: Request, data: SmtpConfigRequest
-) -> SmtpConfigResponse:
+async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
     try:
         config = await asyncio.to_thread(
             AdminSmtpService.update_smtp_config, data.model_dump(exclude_none=True)
         )
-        return SmtpConfigResponse(**(config or {}))
+        return JSONResponse(
+            content=SmtpConfigResponse(**(config or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -116,9 +120,11 @@ async def admin_smtp_put(
     description="Returns whether SMTP is enabled.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_smtp_enabled_get(request: Request) -> bool:
+async def admin_smtp_enabled_get(request: Request):
     try:
-        return await asyncio.to_thread(AdminSmtpService.get_smtp_enabled)
+        result = await asyncio.to_thread(AdminSmtpService.get_smtp_enabled)
+        # TODO!: check result and create a response model
+        return JSONResponse(content=bool(result), status_code=200)
     except Error:
         raise
     except Exception:
@@ -143,7 +149,10 @@ async def admin_smtp_test_post(request: Request, data: SmtpConfigRequest):
         result = await asyncio.to_thread(
             AdminSmtpService.test_smtp, data.model_dump(exclude_none=True)
         )
-        return result
+        return JSONResponse(
+            content=SmtpTestResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

@@ -58,11 +58,14 @@ def clear_category_custom_url_cache() -> None:
 )
 async def api_version():
     try:
-        response = ApiVersion(
-            name="IsardVDI",
-            api_version="4.0-alpha1",
-            isardvdi_version="fastapi",
-            usage=os.environ["USAGE"],  # Raises KeyError if missing
+        response = JSONResponse(
+            content=ApiVersion(
+                name="IsardVDI",
+                api_version="4.0-alpha1",
+                isardvdi_version="fastapi",
+                usage=os.environ["USAGE"],  # Raises KeyError if missing
+            ).model_dump(mode="json"),
+            status_code=200,
         )
         return response
     except KeyError:
@@ -93,8 +96,12 @@ async def api_v4_category_custom_url(category_id: str, request: Request):
     # path. Webapp consumers that decode the raw bytes still work —
     # `"my-url"` strips back to `my-url` via `.strip('"')`.
     try:
-        return await asyncio.to_thread(
-            CategoryService.get_category_custom_login_url, category_id
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=await asyncio.to_thread(
+                CategoryService.get_category_custom_login_url, category_id
+            ),
+            status_code=200,
         )
     except Error:
         raise

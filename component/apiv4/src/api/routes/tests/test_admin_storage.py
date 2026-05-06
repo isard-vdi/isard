@@ -253,7 +253,7 @@ class TestDeleteStorage:
         response = test_client(
             url=self.URL, method="DELETE", jwt=MockJWT(role_id="admin")
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["sid"] == "s-99"
 
     def test_manager_allowed(self, monkeypatch, test_client):
@@ -270,7 +270,7 @@ class TestDeleteStorage:
         response = test_client(
             url=self.URL, method="DELETE", jwt=MockJWT(role_id="manager")
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert called["yes"] is True
 
     def test_user_forbidden(self, monkeypatch, test_client):

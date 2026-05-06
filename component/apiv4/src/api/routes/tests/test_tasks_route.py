@@ -180,8 +180,7 @@ def test_cancel_task_success(monkeypatch, test_client):
     )
     jwt = MockJWT(role_id="user")
     response = test_client(url="/task/task-1", method="DELETE", jwt=jwt)
-    assert response.status_code == 200
-    assert response.json() == {}
+    assert response.status_code == 204
     assert calls == ["task-1"]
 
 
@@ -360,8 +359,7 @@ def test_retry_task(monkeypatch, test_client):
     jwt = MockJWT()
     response = test_client(url="/admin/task/task-1/retry", method="PUT", jwt=jwt)
 
-    assert response.status_code == 200
-    assert response.json() == {}
+    assert response.status_code == 204
     assert calls == ["task-1"]
 
 

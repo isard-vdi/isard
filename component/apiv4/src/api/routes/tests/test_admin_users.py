@@ -195,7 +195,7 @@ def test_admin_update_user(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured["user_id"] == "user-1"
     # The route forwards the validated body via AdminUserUpdateData
     # (model_dump(exclude_none=True)). The previous "ids" injection
@@ -336,7 +336,7 @@ def test_admin_update_users_bulk_runs_after_response(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 204, response.text
     assert update_calls == [(("user-a", "user-b"), False)]
 
 
@@ -404,7 +404,7 @@ def test_admin_user_logout(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["user-1"]
 
 
@@ -530,7 +530,7 @@ def test_admin_delete_group(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["group-1"]
 
 

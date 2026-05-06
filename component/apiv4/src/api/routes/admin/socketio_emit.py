@@ -12,7 +12,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.socketio import AdminSocketioService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_socketio"
 
@@ -33,12 +33,10 @@ tag = "admin_socketio"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_emit_socketio(
-    request: Request, data: AdminSocketioEmitRequest
-) -> EmptyResponse:
+async def admin_emit_socketio(request: Request, data: AdminSocketioEmitRequest):
     try:
         await asyncio.to_thread(AdminSocketioService.emit_events, data.root)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

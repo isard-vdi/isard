@@ -174,7 +174,7 @@ class TestAlloweds_Update:
                 },
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"]["id"] == "m-1"
         assert captured["data"]["allowed"]["roles"] == ["user"]
 
@@ -216,7 +216,7 @@ class TestAlloweds_Update:
             jwt=MockJWT(role_id="manager"),
             body={"id": "m-1", "allowed": {}},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
     def test_cross_category_returns_403_from_service(self, monkeypatch, test_client):
         """The route doesn't gate on category — the service does. This

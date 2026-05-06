@@ -15,7 +15,7 @@ def test_register_vpn_connection(monkeypatch, test_client):
         body={"remote_ip": "192.168.1.1", "remote_port": 1194},
         jwt=jwt,
     )
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 def test_disconnect_vpn_client(monkeypatch, test_client):
@@ -29,7 +29,7 @@ def test_disconnect_vpn_client(monkeypatch, test_client):
         method="DELETE",
         jwt=jwt,
     )
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 def test_reset_vpn_connections(monkeypatch, test_client):
@@ -47,7 +47,7 @@ def test_reset_vpn_connections(monkeypatch, test_client):
         method="DELETE",
         jwt=jwt,
     )
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 def test_vpn_roam_connection(monkeypatch, test_client):
@@ -62,7 +62,7 @@ def test_vpn_roam_connection(monkeypatch, test_client):
         body={"remote_ip": "192.168.1.1", "remote_port": 1194},
         jwt=jwt,
     )
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 # ─── DELETE /admin/vpn_connections (Category A5) ─────────────────────────
@@ -94,7 +94,7 @@ def test_admin_vpn_connections_disconnect_happy_path(monkeypatch, client):
         ],
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     # Per-field assertions (not exact dict comparison) so adding a new
     # optional field to ``VpnDisconnectListItem`` does not require
     # updating this test in lockstep. Use ``_rejects_bad_item`` and
@@ -131,7 +131,7 @@ def test_admin_vpn_connections_disconnect_empty_list(monkeypatch, client):
         json=[],
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured["peers"] == []
 
 
