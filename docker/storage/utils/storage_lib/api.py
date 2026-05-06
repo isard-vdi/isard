@@ -31,12 +31,36 @@ def fetch_storages(status_filter=None):
         log(f"WARNING: could not fetch storage from API: {e}")
         return None
 
+    # Records missing directory_path / id / type can't have a file on disk.
+    # They're DB-side issues (stale rows, partial uploads, schema drift).
+    # Don't crash the run — separate them out so the caller can report them.
+    valid = []
+    bad = []
     for s in storages:
+        missing = [f for f in ("id", "type", "directory_path") if not s.get(f)]
+        if missing:
+            entry = dict(s)
+            entry["_missing_fields"] = missing
+            bad.append(entry)
+            continue
         s["path"] = f"{s['directory_path']}/{s['id']}.{s['type']}"
+        valid.append(s)
+
+    fetch_storages.last_bad_records = bad
 
     elapsed = time.time() - start
-    log(f"Fetched {len(storages)} storage records in {elapsed:.1f}s")
-    return storages
+    if bad:
+        log(
+            f"Fetched {len(valid)} storage records ({len(bad)} bad records"
+            f" with missing fields, see bad_db_storage_entries.jsonl) in"
+            f" {elapsed:.1f}s"
+        )
+    else:
+        log(f"Fetched {len(valid)} storage records in {elapsed:.1f}s")
+    return valid
+
+
+fetch_storages.last_bad_records = []
 
 
 def fetch_storage_lookup():
@@ -137,6 +161,141 @@ def fetch_domains_accessed():
     return lookup
 
 
+def fetch_users_roles():
+    """Fetch user → role mapping from API (POST /admin/table/users).
+
+    Returns {user_id: role}. Roles in IsardVDI: admin, manager, advanced, user.
+    """
+    log("Fetching user roles from API (POST /admin/table/users)...")
+    api = _get_api()
+    try:
+        users = api.post(
+            "/admin/table/users",
+            data={"pluck": ["id", "role"]},
+            timeout=60,
+        )
+    except Exception as e:
+        log(f"WARNING: could not fetch users: {e}")
+        return {}
+    return {u["id"]: u.get("role") for u in users if u.get("id")}
+
+
+def fetch_domain_deployments():
+    """Fetch domain → deployment mapping from API.
+
+    A desktop "belongs to a deployment" when the domain row has a non-null
+    `tag` field (the value is the deployment id; there is a `tag` secondary
+    index on the `domains` table). Non-deployment desktops have tag=None.
+
+    Returns a dict with:
+      - domains:        {domain_id: {"name", "kind", "user", "tag",
+                                     "storage_ids": [..]}}
+      - storage_to_domain:    {storage_id: domain_id}
+      - storage_to_deployment:{storage_id: deployment_id}
+      - deployments:    {deployment_id: [domain_id, ...]}
+    """
+    log("Fetching domain deployments from API (POST /admin/table/domains)...")
+    api = _get_api()
+    start = time.time()
+    try:
+        domains = api.post(
+            "/admin/table/domains",
+            data={
+                "pluck": [
+                    "id",
+                    "name",
+                    "kind",
+                    "user",
+                    "tag",
+                    {"create_dict": {"hardware": {"disks": True}}},
+                ]
+            },
+            timeout=120,
+        )
+    except Exception as e:
+        log(f"WARNING: could not fetch domains from API: {e}")
+        return {
+            "domains": {},
+            "storage_to_domain": {},
+            "storage_to_deployment": {},
+            "deployments": {},
+        }
+
+    user_roles = fetch_users_roles()
+
+    domains_idx = {}
+    storage_to_domain = {}
+    storage_to_deployment = {}
+    storage_to_role = {}
+    deployments = {}
+    for d in domains:
+        did = d.get("id")
+        if not did:
+            continue
+        tag = d.get("tag") or None
+        uid = d.get("user")
+        role = user_roles.get(uid)
+        disks = d.get("create_dict", {}).get("hardware", {}).get("disks", []) or []
+        sids = [disk.get("storage_id") for disk in disks if disk.get("storage_id")]
+        domains_idx[did] = {
+            "name": d.get("name"),
+            "kind": d.get("kind"),
+            "user": uid,
+            "role": role,
+            "tag": tag,
+            "storage_ids": sids,
+        }
+        for sid in sids:
+            storage_to_domain[sid] = did
+            if role:
+                storage_to_role[sid] = role
+            if tag:
+                storage_to_deployment[sid] = tag
+        if tag:
+            deployments.setdefault(tag, []).append(did)
+
+    elapsed = time.time() - start
+    log(
+        f"Fetched {len(domains)} domains; {len(deployments)} deployments;"
+        f" {len(storage_to_deployment)} storage→deployment links in {elapsed:.1f}s"
+    )
+    return {
+        "domains": domains_idx,
+        "storage_to_domain": storage_to_domain,
+        "storage_to_deployment": storage_to_deployment,
+        "storage_to_role": storage_to_role,
+        "deployments": deployments,
+    }
+
+
+def fetch_unused_item_timeouts():
+    """Fetch the recycle-bin auto-delete cutoffs.
+
+    Reads RethinkDB table `unused_item_timeout` (used by the daily
+    `system.send_unused_items_to_recycle_bin` cron). Returns
+    {op: cutoff_months_or_None}. Common keys:
+        send_unused_desktops_to_recycle_bin
+        send_unused_deployments_to_recycle_bin
+
+    `cutoff_time` is interpreted by the recycler as months
+    (timedelta(days=cutoff_time * 30)). A value of None disables the rule.
+    """
+    log(
+        "Fetching unused_item_timeout config (POST /admin/table/unused_item_timeout)..."
+    )
+    api = _get_api()
+    try:
+        rows = api.post(
+            "/admin/table/unused_item_timeout",
+            data={"pluck": ["id", "cutoff_time"]},
+            timeout=30,
+        )
+    except Exception as e:
+        log(f"WARNING: could not fetch unused_item_timeout: {e}")
+        return {}
+    return {r.get("id"): r.get("cutoff_time") for r in rows if r.get("id")}
+
+
 def fetch_storages_by_role(role):
     """Fetch storages for a given role.
 
@@ -166,6 +325,55 @@ def fetch_storages_by_role(role):
         )
         result.append(s)
     return result
+
+
+def fetch_medias():
+    """Fetch all medias from API (GET /admin/media).
+
+    Returns list of dicts with at least: id, status, path_downloaded,
+    kind ('iso' | 'floppy' | 'qcow2' | …), domains (count of VMs that
+    reference the media).
+
+    Records missing path_downloaded can't be matched against the
+    filesystem; they're split into fetch_medias.last_bad_records so
+    the caller can report them without crashing the run.
+
+    Returns None on API failure (caller should skip media classification
+    and keep going — qcow2 cleanup is still valuable).
+    """
+    log("Fetching media records from API (GET /admin/media)...")
+    api = _get_api()
+    start = time.time()
+    try:
+        medias = api.get("/admin/media", timeout=120)
+    except Exception as e:
+        log(f"WARNING: could not fetch media from API: {e}")
+        return None
+
+    valid = []
+    bad = []
+    for m in medias:
+        if not m.get("path_downloaded"):
+            entry = dict(m)
+            entry["_missing_fields"] = ["path_downloaded"]
+            bad.append(entry)
+            continue
+        valid.append(m)
+
+    fetch_medias.last_bad_records = bad
+
+    elapsed = time.time() - start
+    if bad:
+        log(
+            f"Fetched {len(valid)} media records ({len(bad)} bad records"
+            f" with missing path_downloaded) in {elapsed:.1f}s"
+        )
+    else:
+        log(f"Fetched {len(valid)} media records in {elapsed:.1f}s")
+    return valid
+
+
+fetch_medias.last_bad_records = []
 
 
 def trigger_find(storage_id):

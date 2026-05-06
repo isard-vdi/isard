@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -37,6 +38,39 @@ def qemu_img_info(file_path):
             timeout=30,
         )
         return json.loads(result.stdout)
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        json.JSONDecodeError,
+    ):
+        return None
+
+
+def qemu_img_chain_info(file_path):
+    """Run qemu-img info -U --backing-chain --output=json on a file.
+
+    Returns the parsed JSON list (head element is the queried file, followed
+    by each ancestor in chain order), or None if the chain cannot be fully
+    walked — i.e. any link is missing or unreadable.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "qemu-img",
+                "info",
+                "-U",
+                "--backing-chain",
+                "--output=json",
+                str(file_path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        data = json.loads(result.stdout)
+        return data if isinstance(data, list) else None
     except (
         subprocess.CalledProcessError,
         subprocess.TimeoutExpired,
@@ -166,6 +200,122 @@ def analyze_dependencies(qcow_files):
         "dependency_map": dependency_map,
         "reverse_map": reverse_map,
     }
+
+
+def analyze_integrity_and_dependencies(qcow_files, cache=None):
+    """Single-pass integrity + dependency analysis with optional cache.
+
+    Issues one `qemu-img info -U --backing-chain --output=json` per file
+    and derives both broken-chain detection and immediate-backing-file
+    mapping from the same result. For files whose chain cannot be walked,
+    falls back to a metadata-only `qemu-img info` to recover the immediate
+    backing reference, so the dependency graph stays accurate even when
+    upstream ancestors are broken.
+
+    When `cache` is provided (dict from storage_lib.cache.load_qcow_cache),
+    each file's (mtime, size) are stat'd and compared with the cached
+    entry. On a hit, the cached `broken` flag and `backing` path are
+    reused and the qemu-img subprocess is skipped. On a miss (or when
+    cache is None/empty), the subprocess runs as before.
+
+    Returns (broken, deps, fresh_entries):
+        broken         — list of files with broken backing chains
+        deps           — same dict shape as analyze_dependencies()
+        fresh_entries  — dict {path: {mtime, size, broken, backing}} for
+                         every file scanned this run, ready to be passed
+                         to storage_lib.cache.save_qcow_cache()
+    """
+    cache = cache or {}
+    broken = []
+    dependency_map = {}
+    reverse_map = {}
+    fresh_entries = {}
+    cache_hits = 0
+    total = len(qcow_files)
+    processed = 0
+    start_time = time()
+
+    for qcow in qcow_files:
+        try:
+            st = os.stat(qcow)
+            mtime = st.st_mtime
+            size = st.st_size
+        except OSError:
+            mtime = None
+            size = None
+
+        cached = cache.get(qcow)
+        use_cache = (
+            cached is not None
+            and mtime is not None
+            and cached.get("mtime") == mtime
+            and cached.get("size") == size
+        )
+
+        if use_cache:
+            is_broken = bool(cached.get("broken"))
+            backing_file = cached.get("backing")
+            cache_hits += 1
+        else:
+            chain = qemu_img_chain_info(qcow)
+            if chain is None:
+                is_broken = True
+                backing_file = get_backing_file(qcow)
+            else:
+                is_broken = False
+                head = chain[0] if chain else {}
+                backing_file = (
+                    head.get("full-backing-filename")
+                    or head.get("backing-filename")
+                    or None
+                )
+
+        if mtime is not None:
+            fresh_entries[qcow] = {
+                "mtime": mtime,
+                "size": size,
+                "broken": is_broken,
+                "backing": backing_file,
+            }
+
+        if is_broken:
+            broken.append(qcow)
+        dependency_map[qcow] = backing_file
+        if backing_file:
+            reverse_map.setdefault(backing_file, []).append(qcow)
+
+        processed += 1
+        if processed % 50 == 0 or processed == total:
+            elapsed = time() - start_time
+            if 0 < processed < total:
+                avg = elapsed / processed
+                remaining = avg * (total - processed)
+                pct = (processed / total) * 100
+                log(
+                    f"  Analyzing integrity + dependencies:"
+                    f" {processed}/{total} ({pct:.1f}%)"
+                    f" - Est. {format_time_remaining(remaining)} remaining"
+                )
+            elif processed == total:
+                log(
+                    f"  Analyzing integrity + dependencies:"
+                    f" {processed}/{total} (100.0%) - Done"
+                    f" (cache hits: {cache_hits}/{total})"
+                )
+
+    wo_backing = [f for f, b in dependency_map.items() if b is None]
+    wo_derivatives = [f for f in qcow_files if f not in reverse_map]
+
+    return (
+        broken,
+        {
+            "wo_backing": wo_backing,
+            "wo_derivatives": wo_derivatives,
+            "dependency_map": dependency_map,
+            "reverse_map": reverse_map,
+        },
+        fresh_entries,
+    )
 
 
 def _build_uuid_index(search_dirs):
