@@ -371,6 +371,28 @@ is_repairable_error() {
 }
 
 #-------------------------------------------------------------------------------
+# Function: _sparsify_recover_backup
+# Description: trap handler invoked if the script is killed mid-sparsify.
+#              Validates the destination file; if invalid, restores from
+#              backup. If the destination is fine, removes the backup. The
+#              normal success/failure paths run their own cleanup and disarm
+#              the trap, so this only fires on unexpected termination.
+# Arguments: $1 - destination file, $2 - backup file
+#-------------------------------------------------------------------------------
+_sparsify_recover_backup() {
+    local file="$1"
+    local backup_file="$2"
+    [ -f "$backup_file" ] || return 0
+    if [ -f "$file" ] && qemu-img check -q "$file" >/dev/null 2>&1; then
+        rm -f "$backup_file"
+        log_message INFO "Trap: removed leftover backup (dest qcow2 valid): $backup_file"
+    else
+        mv -f "$backup_file" "$file"
+        log_message WARN "Trap: restored backup over invalid/missing dest: $file"
+    fi
+}
+
+#-------------------------------------------------------------------------------
 # Function: attempt_sparsify
 # Description: Run virt-sparsify on a file, with optional auto-repair and retry.
 #              Sets caller variables: sparsify_success, retried, last_error_reason
@@ -603,6 +625,12 @@ process_file() {
             log_message WARN "Backup creation failed, proceeding without backup: $file"
         else
             log_message INFO "Backup created: $backup_file"
+            # Guard against the script being killed (OOM, container restart,
+            # SIGTERM) between backup creation and the success/failure cleanup
+            # branches below. Without this trap an interrupted run leaves
+            # `*.sparsify-backup` files behind that look like orphans to the
+            # storage cleanup CLI.
+            trap '_sparsify_recover_backup "$file" "$backup_file"' EXIT INT TERM
         fi
     fi
 
@@ -648,6 +676,7 @@ process_file() {
         # Remove backup on success if created
         if [ "$CREATE_BACKUP" = true ]; then
             rm -f "${file}.sparsify-backup"
+            trap - EXIT INT TERM
         fi
     else
         # Failure
@@ -671,6 +700,9 @@ process_file() {
         if [ "$CREATE_BACKUP" = true ] && [ -f "${file}.sparsify-backup" ]; then
             mv "${file}.sparsify-backup" "$file"
             log_message INFO "Restored from backup: $file"
+        fi
+        if [ "$CREATE_BACKUP" = true ]; then
+            trap - EXIT INT TERM
         fi
     fi
 
