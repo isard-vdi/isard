@@ -998,8 +998,12 @@ def cmd_cleanup(args):
             " Continuing without media classification."
         )
         bad_media_records = []
+        info_medias_never_downloaded = []
     else:
         bad_media_records = list(fetch_medias.last_bad_records)
+        info_medias_never_downloaded = list(
+            getattr(fetch_medias, "last_info_never_downloaded", [])
+        )
         log(f" - Got {len(medias)} medias from API in {time()-t:.2f} seconds")
 
     log("Analyzing storages...")
@@ -1106,6 +1110,16 @@ def cmd_cleanup(args):
         bad_media_path = output_dir / "bad_db_media_entries.jsonl"
         with open(bad_media_path, "w") as f:
             for entry in bad_media_records:
+                f.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
+
+    # Media rows whose status legitimately implies the download never
+    # finished (status in deleted/DownloadFailed/Downloading) — these
+    # never had path_downloaded set, so we file them as informational
+    # rather than as bad records.
+    if info_medias_never_downloaded:
+        info_media_path = output_dir / "info_medias_never_downloaded.jsonl"
+        with open(info_media_path, "w") as f:
+            for entry in info_medias_never_downloaded:
                 f.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
 
     # Count template files
@@ -2003,7 +2017,7 @@ def _interactive_cleanup(
     print("=" * 70)
 
 
-def _move_deletable_files(categories, output_dir, append=False):
+def _move_deletable_files(categories, output_dir, append=False, dry_run=False):
     """Move all deletable files to /isard/volatile/to_delete/, preserving path structure.
 
     Files are moved as: /isard/groups/abc.qcow2 -> /isard/volatile/to_delete/isard/groups/abc.qcow2
@@ -2012,6 +2026,9 @@ def _move_deletable_files(categories, output_dir, append=False):
     append=True the manifest and failures files are opened in append mode so
     multiple invocations (e.g. interactive cleanup steps) accumulate into a
     single record.
+
+    With dry_run=True the function only prints the summary table and writes
+    a `would_move.txt` manifest in `output_dir`; no files are moved.
     """
     # Deduplicate across categories
     seen = set()
@@ -2061,6 +2078,14 @@ def _move_deletable_files(categories, output_dir, append=False):
     print(f"  {'TOTAL':<50} {len(all_files):>6} files  {format_size(total_size):>10}")
     print("=" * 70)
     print()
+
+    if dry_run:
+        manifest_path = output_dir / "would_move.txt"
+        with open(manifest_path, "w") as mf:
+            for cat, f in all_files:
+                mf.write(f"{cat}\t{f}\n")
+        log(f"DRY RUN: {len(all_files)} files would be moved (see {manifest_path})")
+        return
 
     # Perform moves — manifest is written incrementally so it's always
     # consistent with what was actually moved, even if interrupted.
@@ -2463,9 +2488,14 @@ def cmd_repair_chains(args):
 def cmd_full_cleanup(args):
     """Full pipeline: verify, repair chains, classify, and move unusable files."""
     t = time()
+    dry_run = bool(getattr(args, "dry_run", False))
     log("=" * 60)
-    log("FULL STORAGE MAINTENANCE")
+    if dry_run:
+        log("FULL STORAGE MAINTENANCE  (DRY RUN — no changes will be made)")
+    else:
+        log("FULL STORAGE MAINTENANCE")
     log("=" * 60)
+    actions_planned = []
 
     # ── Step 1: Fetch API data ────────────────────────────────────────────
     log("\n[1/6] Fetching storage records from API...")
@@ -2566,14 +2596,30 @@ def cmd_full_cleanup(args):
                     )
 
             if to_fix:
-                log(f"  Repairing {len(to_fix)} broken chains...")
-                for r in to_fix:
-                    ok, err = rebase_file(r["broken_link"], r["found_at"])
-                    if ok:
-                        repaired_files.append(r["file"])
-                        log(f"    FIXED: {r['broken_link']}")
-                    else:
-                        log(f"    FAILED: {r['broken_link']} -> {err}")
+                if dry_run:
+                    log(
+                        f"  DRY RUN: would attempt to repair {len(to_fix)}"
+                        " broken chains via qemu-img rebase"
+                    )
+                    for r in to_fix:
+                        actions_planned.append(
+                            {
+                                "action": "rebase",
+                                "file": r["file"],
+                                "broken_link": r["broken_link"],
+                                "found_at": r["found_at"],
+                                "rebase_cmd": r["rebase_cmd"],
+                            }
+                        )
+                else:
+                    log(f"  Repairing {len(to_fix)} broken chains...")
+                    for r in to_fix:
+                        ok, err = rebase_file(r["broken_link"], r["found_at"])
+                        if ok:
+                            repaired_files.append(r["file"])
+                            log(f"    FIXED: {r['broken_link']}")
+                        else:
+                            log(f"    FAILED: {r['broken_link']} -> {err}")
 
         # Repaired files have new mtimes — invalidate their cache entries
         # so the re-analysis sees them as cache misses and re-runs qemu-img
@@ -2673,33 +2719,51 @@ def cmd_full_cleanup(args):
         if not args.include_templates:
             healthy_qcow = [f for f in healthy_qcow if "/isard/templates" not in f]
 
-        log(f"\n  Optimizing {len(healthy_qcow)} healthy qcow2 files...")
-
-        for i, f in enumerate(healthy_qcow, 1):
+        if dry_run:
+            ops = []
             if args.sparsify:
-                ok, saved, err = sparsify_file(f)
-                if ok:
-                    sparsified_count += 1
-                    total_saved += max(saved, 0)
-                elif err:
-                    log(f"    sparsify skip {Path(f).name}: {err}")
-
+                ops.append("sparsify")
             if args.compress:
-                ok, saved, err = compress_file(f)
-                if ok:
-                    compressed_count += 1
-                    total_saved += max(saved, 0)
-                elif err:
-                    log(f"    compress skip {Path(f).name}: {err}")
-
-            if i % 10 == 0 or i == len(healthy_qcow):
-                log(
-                    f"    Progress: {i}/{len(healthy_qcow)}"
-                    f" | saved so far: {format_size(total_saved)}"
+                ops.append("compress")
+            log(
+                f"\n  DRY RUN: would {'+'.join(ops)} {len(healthy_qcow)}"
+                " healthy qcow2 files"
+            )
+            for f in healthy_qcow:
+                actions_planned.append(
+                    {
+                        "action": "+".join(ops),
+                        "file": f,
+                    }
                 )
+        else:
+            log(f"\n  Optimizing {len(healthy_qcow)} healthy qcow2 files...")
 
-        log(f"  Sparsified: {sparsified_count}, Compressed: {compressed_count}")
-        log(f"  Total space reclaimed: {format_size(total_saved)}")
+            for i, f in enumerate(healthy_qcow, 1):
+                if args.sparsify:
+                    ok, saved, err = sparsify_file(f)
+                    if ok:
+                        sparsified_count += 1
+                        total_saved += max(saved, 0)
+                    elif err:
+                        log(f"    sparsify skip {Path(f).name}: {err}")
+
+                if args.compress:
+                    ok, saved, err = compress_file(f)
+                    if ok:
+                        compressed_count += 1
+                        total_saved += max(saved, 0)
+                    elif err:
+                        log(f"    compress skip {Path(f).name}: {err}")
+
+                if i % 10 == 0 or i == len(healthy_qcow):
+                    log(
+                        f"    Progress: {i}/{len(healthy_qcow)}"
+                        f" | saved so far: {format_size(total_saved)}"
+                    )
+
+            log(f"  Sparsified: {sparsified_count}, Compressed: {compressed_count}")
+            log(f"  Total space reclaimed: {format_size(total_saved)}")
 
     # ── Step 6: Export reports and move files ──────────────────────────────
     log("\n[6/6] Generating report and moving unusable files...")
@@ -2756,7 +2820,45 @@ def cmd_full_cleanup(args):
         orphan_medias=media_classes["orphan"],
         include_templates=args.include_templates,
     )
-    _move_deletable_files(movable, output_dir)
+    if dry_run:
+        log("\n  DRY RUN: skipping move-to-to_delete step.")
+        # Record planned moves for the actions report
+        for cat, files in movable.items():
+            for f in files:
+                actions_planned.append(
+                    {
+                        "action": "move",
+                        "category": cat,
+                        "file": str(f),
+                        "destination": f"{TO_DELETE_DIR}/{str(f).lstrip('/')}",
+                    }
+                )
+        # Still print the summary table so the operator can see the impact.
+        _move_deletable_files(movable, output_dir, dry_run=True)
+    else:
+        _move_deletable_files(movable, output_dir)
+
+    if dry_run:
+        actions_path = output_dir / "dry_run_actions.jsonl"
+        with open(actions_path, "w") as fh:
+            for entry in actions_planned:
+                fh.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
+        log(
+            f"\n  DRY RUN: {len(actions_planned)} planned actions written to"
+            f" {actions_path}"
+        )
+        # Generate a per-category summary of planned actions
+        from collections import Counter
+
+        by_action = Counter(a["action"] for a in actions_planned)
+        if by_action:
+            print()
+            print("=" * 60)
+            print("DRY RUN — PLANNED ACTIONS SUMMARY")
+            print("=" * 60)
+            for k, v in sorted(by_action.items()):
+                print(f"  {k:<20} {v:>6}")
+            print("=" * 60)
 
     # ── Summary ───────────────────────────────────────────────────────────
     print()
@@ -3841,6 +3943,181 @@ def cmd_age_report(args):
     render(f"OVERALL ({args.bucket})", overall)
 
 
+# ─── db-cleanup subcommand ───────────────────────────────────────────────────
+
+
+def cmd_db_cleanup(args):
+    """Detect and (with --apply) remove malformed `storage` rows.
+
+    Three classes of bad rows are scanned:
+      1. Zombie rows: only `id` field present, all other fields wiped. These
+         are the residue of a `Storage(<unknown_id>)` call hitting the
+         insert-on-construct bug in `RethinkBase.__init__`.
+      2. Path-shaped ids: `id` is a filesystem path string instead of a UUID.
+         Same root cause but the input was a parent path rather than a UUID.
+      3. Path-shaped parents (reported only): the row's `parent` field
+         points to a path string. Disk chains still work, but DB joins on
+         `parent` break.
+
+    A row is only deletable when no domain, no recycle_bin entry, and no
+    other storage row references it. Each candidate is dumped to
+    `db_cleanup_pending.jsonl` together with the result of the safety check.
+    With `--apply`, after an explicit y/N confirmation, the verified rows
+    are deleted from the storage table; the same JSONL serves as the audit
+    record. Path-shaped-parent rows are *never* auto-deleted.
+    """
+    from storage_lib.db import (
+        categorize_zombies,
+        delete_storage_row,
+        find_path_shaped_ids,
+        find_storages_with_path_parent,
+        find_zombie_storages,
+        get_conn,
+        is_storage_referenced,
+    )
+
+    output_dir = get_output_dir()
+    log("=" * 60)
+    log("DB CLEANUP — storage table malformed row scan")
+    log("=" * 60)
+
+    with get_conn() as conn:
+        zombies = find_zombie_storages(conn)
+        path_ids = find_path_shaped_ids(conn)
+        path_parents = find_storages_with_path_parent(conn)
+
+        # path-shaped ids and zombies overlap (a path-id row is also a zombie)
+        # so dedupe by id.
+        seen = set()
+        all_candidates = []
+        for row in zombies + path_ids:
+            rid = row.get("id")
+            if rid in seen:
+                continue
+            seen.add(rid)
+            all_candidates.append(row)
+
+        uuid_zombies, path_zombies, other = categorize_zombies(all_candidates)
+
+        log(f"  Zombie rows (UUID-shaped id, no other fields): {len(uuid_zombies)}")
+        log(f"  Path-shaped id rows:                           {len(path_zombies)}")
+        log(f"  Other malformed (no path/uuid id):             {len(other)}")
+        log(f"  Path-shaped `parent` field rows (REPORT-ONLY): {len(path_parents)}")
+
+        # Classify each candidate by safety
+        verified_safe = []
+        unsafe = []
+        for row in all_candidates:
+            refs = is_storage_referenced(conn, row["id"])
+            entry = dict(row)
+            entry["_references"] = refs
+            ref_total = (
+                len(refs["by_domains"])
+                + len(refs["by_recycle_bin"])
+                + len(refs["by_storage_parent"])
+            )
+            if ref_total == 0:
+                verified_safe.append(entry)
+            else:
+                unsafe.append(entry)
+
+        log(f"  → safe to delete (no references):              {len(verified_safe)}")
+        log(f"  → unsafe (still referenced — keep, investigate):{len(unsafe)}")
+
+        # Dump JSONL outputs
+        pending_path = output_dir / "db_cleanup_pending.jsonl"
+        kept_path = output_dir / "db_cleanup_kept_referenced.jsonl"
+        path_parent_path = output_dir / "db_cleanup_path_parents_review.jsonl"
+
+        with open(pending_path, "w") as f:
+            for e in verified_safe:
+                f.write(json.dumps(e, sort_keys=True, default=str) + "\n")
+        with open(kept_path, "w") as f:
+            for e in unsafe:
+                f.write(json.dumps(e, sort_keys=True, default=str) + "\n")
+        with open(path_parent_path, "w") as f:
+            for e in path_parents:
+                f.write(json.dumps(e, sort_keys=True, default=str) + "\n")
+
+        log(f"\n  Wrote: {pending_path}")
+        log(f"  Wrote: {kept_path}")
+        log(f"  Wrote: {path_parent_path}")
+
+        if not args.apply:
+            print()
+            print("Read-only mode. Re-run with --apply to delete the verified rows.")
+            print("Inspect the JSONL files above before running --apply.")
+            return
+
+        if not verified_safe:
+            log("\nNothing to delete.")
+            return
+
+        if not args.yes:
+            print()
+            print(f"About to DELETE {len(verified_safe)} storage rows from the DB.")
+            print(
+                "Type 'yes' (literally) to confirm," " anything else aborts: ",
+                end="",
+                flush=True,
+            )
+            answer = sys.stdin.readline().strip()
+            if answer != "yes":
+                print("Aborted.")
+                return
+
+        deleted = 0
+        delete_log_path = output_dir / "db_cleanup_deleted.jsonl"
+        with open(delete_log_path, "w") as f:
+            for entry in verified_safe:
+                rid = entry["id"]
+                # Re-verify references right before deletion (race-safety).
+                refs_now = is_storage_referenced(conn, rid)
+                if any(refs_now.values()):
+                    log(f"  SKIP (newly referenced): {rid}")
+                    continue
+                resp = delete_storage_row(conn, rid)
+                f.write(
+                    json.dumps(
+                        {**entry, "_delete_response": resp},
+                        sort_keys=True,
+                        default=str,
+                    )
+                    + "\n"
+                )
+                deleted += 1
+        log(f"\nDeleted {deleted} rows. Audit log: {delete_log_path}")
+
+
+# ─── sparsify subcommand ─────────────────────────────────────────────────────
+
+
+def cmd_sparsify(args):
+    """Thin wrapper that hands off to the standalone /utils/sparsify script.
+
+    Kept as a subcommand so operators have a single CLI surface (`storage
+    sparsify ...`) rather than remembering a separate util name. All flags
+    after `sparsify` are forwarded verbatim to the script. Use `storage
+    sparsify --help` (which forwards `-h`) to see the script's options.
+    """
+    import subprocess
+
+    script_path = "/utils/sparsify"
+    if not os.path.isfile(script_path):
+        # Fall back to the script next to this file (dev/test environments).
+        local = Path(__file__).resolve().parent / "sparsify"
+        if local.is_file():
+            script_path = str(local)
+        else:
+            log(f"ERROR: sparsify script not found at {script_path}")
+            sys.exit(1)
+
+    cmd = [script_path] + list(args.passthrough or [])
+    log(f"Invoking: {' '.join(cmd)}")
+    rc = subprocess.call(cmd)
+    sys.exit(rc)
+
+
 # ─── CLI argument parser ─────────────────────────────────────────────────────
 
 
@@ -4008,6 +4285,16 @@ def build_parser():
             " future runs. Default: read cache when available."
         ),
     )
+    p_full.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Do not modify anything: skip chain repairs, sparsify/compress,"
+            " and the move-to-to_delete step. Always writes the file lists"
+            " plus a dry_run_actions.md describing every action that would"
+            " be taken and why."
+        ),
+    )
     p_full.set_defaults(func=cmd_full_cleanup)
 
     # verify
@@ -4162,6 +4449,44 @@ def build_parser():
         help="Idle thresholds in months for the summary (default: 2,3,4,6,12,24)",
     )
     p_desk.set_defaults(func=cmd_desktops)
+
+    # db-cleanup
+    p_db = subparsers.add_parser(
+        "db-cleanup",
+        help=(
+            "Detect and (with --apply) remove malformed storage table rows"
+            " (zombie rows, path-shaped ids). Reports path-shaped `parent`"
+            " fields without modifying them."
+        ),
+    )
+    p_db.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually delete the verified-safe rows (default: report only).",
+    )
+    p_db.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Skip the confirmation prompt when --apply is set (CI use only).",
+    )
+    p_db.set_defaults(func=cmd_db_cleanup)
+
+    # sparsify (thin wrapper around the standalone /utils/sparsify script)
+    p_sparsify = subparsers.add_parser(
+        "sparsify",
+        help=(
+            "Sparsify qcow2 files in-place using virt-sparsify (forwards all"
+            " flags to the standalone /utils/sparsify script)."
+        ),
+        add_help=False,
+    )
+    p_sparsify.add_argument(
+        "passthrough",
+        nargs=argparse.REMAINDER,
+        help="Arguments forwarded verbatim to /utils/sparsify",
+    )
+    p_sparsify.set_defaults(func=cmd_sparsify)
 
     return parser
 
