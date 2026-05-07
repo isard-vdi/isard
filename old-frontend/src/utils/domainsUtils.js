@@ -1,5 +1,6 @@
 import { diskBus } from '../shared/constants'
 import { AllowedUtils } from './allowedUtils'
+import { ImageUtils } from './imageUtils'
 
 export class DomainsUtils {
   static parseDomain (item) {
@@ -36,7 +37,7 @@ export class DomainsUtils {
       reservables: {
         vgpus: reservables && reservables.vgpus && reservables.vgpus.length > 0 ? [reservables.vgpus[0]] : ['None']
       },
-      image
+      image: image ? ImageUtils.parseImage(image) : {}
     }
   }
 

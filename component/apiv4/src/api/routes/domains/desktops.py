@@ -1152,10 +1152,14 @@ async def edit_desktop(
                 )
 
     try:
+        payload = data.model_dump(exclude_unset=True)
+        if data.image is not None and getattr(data.image, 'file', None) is not None:
+            payload['image']['file'] = data.image.file.model_dump(exclude_unset=True)
+
         await asyncio.to_thread(
             DesktopService.edit_desktop,
             desktop_id,
-            data.model_dump(exclude_unset=True),
+            payload,
             request.token_payload,
         )
         return SimpleResponse(id=desktop_id)
