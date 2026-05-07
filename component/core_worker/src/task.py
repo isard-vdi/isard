@@ -202,6 +202,8 @@ def storage_update_parent(storage_id):
     """
     task = Task(get_current_job().id)
     if task.depending_status == "finished":
+        if not Storage.exists(storage_id):
+            return
         storage = Storage(storage_id)
         qemu_img_info = getattr(storage, "qemu-img-info")
         if qemu_img_info is None:
