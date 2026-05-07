@@ -89,10 +89,24 @@ def insert_storage(disk, perms=["r", "w"]):
         storage = get_dict_from_item_in_table("storage", storage_id)
         if not storage:
             return False
+        # storage.parent is a UUID after the create_storage normalisation,
+        # but downstream consumers (qcow.create_disk_from_base_cmd via
+        # ui_actions.py) feed disk["parent"] straight into qemu-img -b,
+        # which needs the parent's full filesystem path. Reconstruct it
+        # from the parent's storage row using the same _get_filename
+        # helper that builds the new disk's path, so the in-memory
+        # contract stays "disk['parent'] is a path" regardless of the
+        # DB-side shape.
+        parent_uuid = storage.get("parent")
+        parent_path = None
+        if parent_uuid:
+            parent_storage = get_dict_from_item_in_table("storage", parent_uuid)
+            if parent_storage:
+                parent_path = _get_filename(parent_storage)
         disk.update(
             {
                 "file": _get_filename(storage),
-                "parent": storage.get("parent"),
+                "parent": parent_path,
                 "path_selected": storage.get("directory_path"),
                 "perms": perms,
             }
