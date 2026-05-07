@@ -370,6 +370,18 @@ const router = createRouter({
         title: 'router.forgot-password.title',
         public: true
       }
+    },
+    {
+      path: '/error/:code',
+      name: 'error',
+      component: () => import('../views/ErrorView.vue'),
+      meta: { title: 'router.error.title', public: true }
+    },
+    {
+      // Catch-all route for unmatched URLs.
+      // Must remain the last route in the router configuration.
+      path: '/:pathMatch(.*)*',
+      redirect: { name: 'error', params: { code: '404' } }
     }
   ]
 })
@@ -429,8 +441,7 @@ router.beforeEach(async (to, from, next) => {
     allowedRoles &&
     (!user?.role_id || !allowedRoles.includes(user?.role_id))
   ) {
-    // TODO: Use a new error page
-    window.location.pathname = '/error/403'
+    return next({ name: 'error', params: { code: '403' } })
   }
 
   if (tokenType === TokenType.Login && to.path.startsWith('/frontend')) {
