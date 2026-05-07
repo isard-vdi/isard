@@ -22,6 +22,9 @@
     "verify-email": {
       "title": "Verificar correo"
     },
+    "forgot-password": {
+      "title": "¿Has olvidado tu contraseña?"
+    },
     "profile": {
       "title": "Perfil",
       "subtitle": "Gestiona tu perfil y preferencias"
@@ -885,6 +888,21 @@
         "description": "Tienes cambios sin guardar. Si sales se perderán.",
         "stay": "Quedarme",
         "leave": "Descartar cambios"
+      }
+    },
+    "forgot-password": {
+      "title": "Restablecer contraseña",
+      "invalid-email": "Introduce una dirección de correo válida",
+      "title-sent": "Correo enviado",
+      "description": "Introduce tu dirección de correo y te enviaremos un enlace para restablecerla.",
+      "email-label": "Correo",
+      "email-placeholder": "nombre{'@'}ejemplo.com",
+      "error-generic": "Se ha producido un error. Inténtalo de nuevo.",
+      "email-sent": "Si tu dirección de correo existe en nuestra base de datos, recibirás un enlace de recuperación de contraseña en breve.",
+      "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundos.",
+      "go-login": "Volver al inicio de sesión",
+      "buttons": {
+        "reset": "Enviar enlace de restablecimiento"
       }
     }
   },

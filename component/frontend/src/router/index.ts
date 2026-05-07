@@ -350,6 +350,15 @@ const router = createRouter({
         title: 'router.verify-email.title',
         allowedTokenTypes: ['email-verification-required', 'email-verification']
       }
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('../views/ForgotPasswordView.vue'),
+      meta: {
+        title: 'router.forgot-password.title',
+        public: true
+      }
     }
   ]
 })
@@ -380,7 +389,8 @@ async function getFrontendMode(): Promise<FrontendMode> {
 }
 
 router.beforeEach(async (to, from, next) => {
-  const isPublic = to.meta.public
+  const isPublic =
+    to.meta.public || (to.name === 'verify-email' && typeof to.query.token === 'string')
   if (isPublic) {
     return next()
   }

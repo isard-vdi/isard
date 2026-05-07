@@ -22,6 +22,9 @@
     "verify-email": {
       "title": "Verifica el correu"
     },
+    "forgot-password": {
+      "title": "Has oblidat la contrasenya?"
+    },
     "profile": {
       "title": "Perfil",
       "subtitle": "Gestiona el teu perfil i preferències"
@@ -885,6 +888,21 @@
         "description": "Tens canvis sense desar. Si surts els perdràs.",
         "stay": "Quedat",
         "leave": "Descarta els canvis"
+      }
+    },
+    "forgot-password": {
+      "title": "Restableix la contrasenya",
+      "invalid-email": "Introdueix una adreça de correu vàlida",
+      "title-sent": "Correu enviat",
+      "description": "Introdueix la teva adreça de correu i t'enviarem un enllaç per restablir-la.",
+      "email-label": "Correu",
+      "email-placeholder": "nom{'@'}exemple.com",
+      "error-generic": "S'ha produït un error. Torna-ho a provar.",
+      "email-sent": "Si la teva adreça de correu existeix a la nostra base de dades, rebràs un enllaç de recuperació de contrasenya en breus moments.",
+      "redirecting": "Redirigint a l'inici de sessió en {seconds} segons.",
+      "go-login": "Torna a l'inici de sessió",
+      "buttons": {
+        "reset": "Envia l'enllaç de restabliment"
       }
     }
   },
