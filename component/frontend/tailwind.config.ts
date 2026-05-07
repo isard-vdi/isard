@@ -307,7 +307,23 @@ export default {
         'gray-secondary': 'var(--ring-gray-secondary-color)',
         warning: 'var(--ring-warning-color)',
         error: 'var(--ring-error-color)'
-      }
+      },
+      screens: {
+        'img-xl': '2000px',
+        'tall': { 'raw': '(min-height: 1000px)' },
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        }
+      },
+      animation: {
+        float: 'float 3s ease-in-out infinite',
+      },
+      maxWidth: {
+        'hero-img': '2000px',
+      },
     }
   },
   plugins: [animate]

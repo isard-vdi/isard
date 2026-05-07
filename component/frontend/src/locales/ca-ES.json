@@ -109,6 +109,9 @@
     },
     "direct-viewer": {
       "title": "Visor directe"
+    },
+    "error": {
+      "title": "Error"
     }
   },
   "views": {
@@ -879,6 +882,28 @@
       "go-login": "Torna a l'inici de sessió",
       "buttons": {
         "reset": "Envia l'enllaç de restabliment"
+      }
+    },
+    "error": {
+      "400": {
+        "title": "Sol·licitud incorrecta",
+        "description": "La sol·licitud que has enviat no és vàlida. Revisa les dades i torna-ho a intentar."
+      },
+      "403": {
+        "title": "Accés denegat",
+        "description": "No tens permís per accedir a aquest recurs."
+      },
+      "404": {
+        "title": "Pàgina no trobada",
+        "description": "La pàgina que estàs buscant no existeix o ha estat eliminada."
+      },
+      "500": {
+        "title": "Error intern del servidor",
+        "description": "Estem treballant per solucionar el problema. Si us plau, torna-ho a intentar en uns minuts."
+      },
+      "actions": {
+        "go_back": "Tornar",
+        "go_to_login": "Ves a l'inici de sessió"
       }
     }
   },
