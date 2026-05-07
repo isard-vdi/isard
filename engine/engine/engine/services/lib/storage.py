@@ -55,6 +55,17 @@ def create_storage(disk, user, force_parent=False, perms=["r", "w"]):
     else:
         parent = force_parent
 
+    # Normalise parent to a UUID. Older callers (api_templates,
+    # api_desktops_*) historically wrote the parent's filesystem path
+    # into disk["parent"]; persisting that into storage.parent breaks
+    # every join on the parent column and produces "path-shaped parent"
+    # rows in the storage table. Fold any path back to its UUID stem
+    # (e.g. "/isard/templates/<uuid>.qcow2" -> "<uuid>") at the boundary
+    # so newly-created rows are always UUID-shaped, regardless of which
+    # caller flavour produced the disk dict.
+    if isinstance(parent, str) and parent.startswith("/"):
+        parent = PurePath(parent).stem
+
     insert_table_dict(
         "storage",
         {
