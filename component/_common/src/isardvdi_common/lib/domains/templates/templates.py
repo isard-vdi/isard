@@ -455,6 +455,7 @@ class TemplatesProcessed(RethinkSharedConnection):
                 "status",
                 "kind",
                 "user",
+                "category",
             ],
         )
         if template is None:
