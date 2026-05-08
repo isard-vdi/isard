@@ -18,9 +18,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import List, Literal, Optional
+from typing import Any, Generic, List, Literal, Optional, TypeVar, Union
 
-from pydantic import BaseModel, Field
+from api.schemas.bastion import BastionHttpConfig, BastionSshConfig
+from pydantic import BaseModel, Field, RootModel
 
 # ── List Domains ─────────────────────────────────────────────────────────
 
@@ -94,3 +95,578 @@ class AdminDomainXmlSectionsSaveResponse(BaseModel):
     """Response body for ``POST /admin/domains/xml_sections/{domain_id}``."""
 
     xml: str = Field(description="The rebuilt full domain XML")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Shared building blocks
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class AdminDomainBastionTarget(BaseModel):
+    """Subset of the ``targets`` row attached to a desktop list entry."""
+
+    id: str
+    domain: Optional[str] = None
+    http: Optional[BastionHttpConfig] = None
+    ssh: Optional[BastionSshConfig] = None
+
+
+class AdminDomainImage(BaseModel):
+    """Image url subset used by admin domain listings."""
+
+    url: Optional[str] = None
+
+
+class AdminDomainHardwareSummary(BaseModel):
+    """Subset of ``create_dict.hardware`` plucked for admin listings."""
+
+    vcpus: Optional[int] = None
+    memory: Optional[float] = None
+
+
+class AdminDomainCreateDictSummary(BaseModel):
+    """``create_dict`` slice plucked for admin listings."""
+
+    hardware: Optional[AdminDomainHardwareSummary] = None
+    reservables: Optional[dict] = None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Domain listings
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class AdminDomainListItem(BaseModel):
+    """Row returned by ``ApiAdmin.ListDesktops`` / ``ListTemplates`` /
+    ``DomainsProcessed.get_by_ids``.
+
+    Different sources populate slightly different subsets — every field
+    is therefore optional. The shape is the union of the three
+    branches in ``admin_list_domains``.
+    """
+
+    id: str
+    name: Optional[str] = None
+    kind: Optional[str] = None
+    status: Optional[str] = None
+    description: Optional[str] = None
+    detail: Optional[str] = None
+    icon: Optional[str] = None
+    image: Optional[AdminDomainImage] = None
+    enabled: Optional[bool] = None
+    accessed: Optional[float] = None
+    server: Optional[bool] = None
+    server_autostart: Optional[bool] = None
+    persistent: Optional[bool] = None
+    hyp_started: Optional[Union[str, bool]] = None
+    forced_hyp: Optional[Union[str, bool, list]] = None
+    favourite_hyp: Optional[Union[str, bool, list]] = None
+    booking_id: Optional[Union[str, bool]] = None
+    role: Optional[str] = None
+    current_action: Optional[str] = None
+    user: Optional[str] = None
+    user_name: Optional[str] = None
+    username: Optional[str] = None
+    category: Optional[str] = None
+    category_name: Optional[Union[str, bool]] = None
+    category_id: Optional[str] = None
+    group: Optional[str] = None
+    group_id: Optional[str] = None
+    group_name: Optional[Union[str, bool]] = None
+    create_dict: Optional[AdminDomainCreateDictSummary] = None
+    bastion: Optional[AdminDomainBastionTarget] = None
+    derivates: Optional[int] = None
+    tag: Optional[str] = None
+
+
+class AdminDomainStatusItem(BaseModel):
+    """Row returned by ``StorageProcessed.get_domains_delete_pending``
+    (admin/manager ``status == "delete_pending"``) plus the minimal
+    ``ApiAdmin.domains_status_minimal`` row used for other statuses.
+
+    Optional everywhere because the two sources do not overlap.
+    """
+
+    id: str
+    name: Optional[str] = None
+    accessed: Optional[float] = None
+    type: Optional[str] = None
+    status: Optional[str] = None
+    directory_path: Optional[str] = None
+    parent: Optional[str] = None
+    user_id: Optional[str] = None
+    status_logs: Optional[List[dict]] = None
+    last_domain_attached: Optional[dict] = None
+    user_name: Optional[str] = None
+    category_name: Optional[str] = None
+
+
+class AdminFindStoragesByStatusResponse(BaseModel):
+    """Response of ``find_storages_by_domain_status`` — one int counter."""
+
+    tasks_created: int
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Domain details / viewer / hardware
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class AdminDomainDetailsResponse(BaseModel):
+    """Response of ``DesktopDetailsData`` (``detail`` + ``description``)."""
+
+    detail: Optional[str] = None
+    description: Optional[str] = None
+
+
+class AdminDomainViewerCreateDictHardware(BaseModel):
+    """``create_dict.hardware`` slice in the viewer-data response."""
+
+    interfaces: List[str] = Field(default_factory=list)
+
+
+class AdminDomainViewerCreateDict(BaseModel):
+    """``create_dict`` slice in ``DesktopViewerData``.
+
+    Only ``hardware.interfaces`` is enforced; all the other
+    ``create_dict`` keys (origin, reservables, xml_protected_sections, …)
+    flow through unchanged via this dict-typed remainder.
+    """
+
+    hardware: AdminDomainViewerCreateDictHardware
+    origin: Optional[Any] = None
+    reservables: Optional[dict] = None
+    xml_protected_sections: Optional[List[str]] = None
+
+
+class AdminDomainViewerInfo(BaseModel):
+    """Subset of the ``viewer`` field exposed for the admin viewer page."""
+
+    guest_ip: Optional[str] = None
+
+
+class AdminDomainViewerDataResponse(BaseModel):
+    """Response of ``DesktopViewerData``."""
+
+    guest_properties: Optional[dict] = None
+    create_dict: AdminDomainViewerCreateDict
+    viewer: AdminDomainViewerInfo
+
+
+class AdminDeploymentViewerDataResponse(BaseModel):
+    """Response of ``DeploymentViewerData`` — only ``create_dict``."""
+
+    create_dict: Optional[dict] = None
+
+
+class AdminDomainHardwareInterface(BaseModel):
+    """Interface enriched with its ``name`` from the ``interfaces`` table."""
+
+    id: str
+    mac: Optional[str] = None
+    name: Optional[str] = None
+
+
+class AdminDomainHardwareIso(BaseModel):
+    """Iso entry returned by ``get_domain_details_hardware``."""
+
+    id: str
+    name: Optional[str] = None
+
+
+class AdminDomainHardwareDisk(BaseModel):
+    """Disk entry as persisted in ``create_dict.hardware.disks``."""
+
+    storage_id: Optional[str] = None
+    bus: Optional[Union[str, bool]] = None
+    extension: Optional[str] = None
+    parent: Optional[str] = None
+    file: Optional[str] = None
+
+
+class AdminDomainHardwareInner(BaseModel):
+    """Hardware payload returned by ``get_domain_details_hardware``.
+
+    Mirrors the persisted ``create_dict.hardware`` plus the ``*_name``
+    look-ups added by the service. ``memory`` is divided by 1048576 in
+    the service (MiB → GiB).
+    """
+
+    vcpus: Optional[int] = None
+    memory: Optional[float] = None
+    disk_bus: Optional[str] = None
+    boot_order: Optional[List[str]] = None
+    boot_name: Optional[List[str]] = None
+    videos: Optional[List[str]] = None
+    video_name: Optional[List[str]] = None
+    graphics: Optional[List[str]] = None
+    interfaces: Optional[List[AdminDomainHardwareInterface]] = None
+    isos: Optional[List[AdminDomainHardwareIso]] = None
+    floppies: Optional[List[AdminDomainHardwareIso]] = None
+    disks: Optional[List[AdminDomainHardwareDisk]] = None
+    virtualization_nested: Optional[bool] = None
+    qos_disk_id: Optional[Union[str, bool]] = None
+
+
+class AdminDomainHardwareResponse(BaseModel):
+    """Response of ``get_domain_hardware``.
+
+    ``hardware`` is the enriched hardware block; the other ``create_dict``
+    keys (origin, reservables, xml_protected_sections, reservable_name…)
+    flow through here.
+    """
+
+    hardware: AdminDomainHardwareInner
+    origin: Optional[Any] = None
+    reservables: Optional[dict] = None
+    reservable_name: Optional[Union[List[str], bool]] = None
+    xml_protected_sections: Optional[List[str]] = None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Domain storage / storage path
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class AdminDomainStorageItem(BaseModel):
+    """Row returned by ``ApiAdmin.get_domain_storage``.
+
+    ``actual_size`` / ``virtual_size`` are merged in by the service in GiB.
+    The remaining fields are whatever ``r.table('storage')`` carries.
+    """
+
+    id: Optional[str] = None
+    type: Optional[str] = None
+    status: Optional[str] = None
+    parent: Optional[str] = None
+    user_id: Optional[str] = None
+    directory_path: Optional[str] = None
+    actual_size: Optional[float] = None
+    virtual_size: Optional[float] = None
+
+
+class AdminDomainStoragePathResponse(BaseModel):
+    """Response of ``update_domain_storage_path``.
+
+    The service returns the freshly-updated full domain dict; only
+    ``id`` is reliably populated — everything else mirrors a ``domains``
+    row, so it travels through this thin model untouched.
+    """
+
+    id: str
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Template tree
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class AdminTemplateTreeNode(BaseModel):
+    """Recursive node in ``ApiAdmin.get_template_tree_list``."""
+
+    id: str
+    title: Optional[str] = None
+    parent: Optional[Union[str, bool]] = None
+    user: Optional[str] = None
+    category: Optional[str] = None
+    group: Optional[str] = None
+    kind: Optional[str] = None
+    duplicate_parent_template: Optional[Union[str, bool]] = None
+    expanded: Optional[bool] = None
+    selected: Optional[bool] = None
+    unselectable: Optional[bool] = None
+    children: Optional[List["AdminTemplateTreeNode"]] = None
+
+
+AdminTemplateTreeNode.model_rebuild()
+
+
+class AdminDomainTemplateTreeItem(BaseModel):
+    """Row returned by ``DomainsProcessed.domain_template_tree``."""
+
+    id: str
+    name: Optional[str] = None
+    user: Optional[str] = None
+    username: Optional[str] = None
+    category_name: Optional[str] = None
+    group_name: Optional[str] = None
+    parents_count: Optional[int] = None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Search info
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class AdminDomainSearchHardware(BaseModel):
+    disks: List[AdminDomainHardwareDisk] = Field(default_factory=list)
+
+
+class AdminDomainSearchCreateDict(BaseModel):
+    hardware: AdminDomainSearchHardware
+
+
+class AdminDomainSearchOwnerData(BaseModel):
+    """``Caches.get_cached_user_with_names`` payload (subset).
+
+    ``Caches`` re-uses the raw users-table row plus a handful of joined
+    name fields. All optional because the cache may return ``None``.
+    """
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    username: Optional[str] = None
+    role: Optional[str] = None
+    role_name: Optional[str] = None
+    category: Optional[str] = None
+    category_name: Optional[str] = None
+    group: Optional[str] = None
+    group_name: Optional[str] = None
+    user_name: Optional[str] = None
+    secondary_groups: Optional[List[str]] = None
+    secondary_groups_names: Optional[List[str]] = None
+    secondary_groups_data: Optional[List[dict]] = None
+
+
+class AdminDomainSearchInfoResponse(BaseModel):
+    """Response of ``get_domain_search_info`` (admin search panel)."""
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    status: Optional[str] = None
+    user: Optional[str] = None
+    kind: Optional[str] = None
+    create_dict: AdminDomainSearchCreateDict
+    owner_data: Optional[AdminDomainSearchOwnerData] = None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Domain XML get/update
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class AdminDomainXmlResponse(BaseModel):
+    """Response of ``get_domain_xml`` / ``update_domain_xml``.
+
+    The underlying ``DomainsProcessed.get_xml`` returns a raw string
+    (or ``None``); the route wraps it in a one-key dict to match v3.
+    Pydantic captures it explicitly here so non-string surprises 422.
+    """
+
+    xml: Optional[str] = None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Logs DataTables envelope (raw + grouped variants)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+RowT = TypeVar("RowT")
+
+
+class LogsDataTablesResponse(BaseModel, Generic[RowT]):
+    """DataTables-style envelope returned by ``LogsProcessed.query_paginated``.
+
+    Generic over the row type so we can reuse the same envelope for the
+    raw / desktop_grouping / user_grouping / category_grouping branches.
+    Counts default to ``0`` so the (rare) ``{}`` fall-through branch in
+    ``query_paginated`` for an unrecognised ``view`` still validates.
+    """
+
+    draw: int = 0
+    recordsTotal: int = 0
+    recordsFiltered: int = 0
+    data: List[RowT] = Field(default_factory=list)
+    indexs: List[Any] = Field(default_factory=list)
+
+
+class DesktopLogRow(BaseModel):
+    """Raw row from ``r.table('logs_desktops')``.
+
+    Fields are populated conditionally by ``Logging._logs_domain_start``
+    and the various stop/event updaters in
+    ``isardvdi_common.helpers.logging``, so most are optional.
+    """
+
+    id: str
+    starting_time: Optional[float] = None
+    starting_by: Optional[str] = None
+    starting_user: Optional[str] = None
+    started_time: Optional[float] = None
+    stopping_time: Optional[float] = None
+    stopping_by: Optional[str] = None
+    stopping_user: Optional[str] = None
+    stopping_ip: Optional[str] = None
+    stopping_agent_browser: Optional[str] = None
+    stopping_agent_platform: Optional[str] = None
+    stopped_time: Optional[float] = None
+    stopped_by: Optional[str] = None
+    stopped_status: Optional[str] = None
+    desktop_id: Optional[str] = None
+    desktop_name: Optional[str] = None
+    desktop_template_hierarchy: Optional[List[str]] = None
+    deployment_id: Optional[str] = None
+    deployment_name: Optional[str] = None
+    owner_user_id: Optional[str] = None
+    owner_user_name: Optional[str] = None
+    owner_category_id: Optional[str] = None
+    owner_category_name: Optional[str] = None
+    owner_group_id: Optional[str] = None
+    owner_group_name: Optional[str] = None
+    owner_role_id: Optional[str] = None
+    hyp_started: Optional[Union[str, bool]] = None
+    hyp_forced: Optional[str] = None
+    hyp_favourite: Optional[str] = None
+    hardware_vcpus: Optional[int] = None
+    hardware_memory: Optional[float] = None
+    hardware_bookables_vgpus: Optional[List[str]] = None
+    booking_id: Optional[Union[str, bool]] = None
+    booking_start: Optional[float] = None
+    booking_end: Optional[float] = None
+    events: Optional[List[dict]] = None
+    request_ip: Optional[str] = None
+    request_agent_browser: Optional[str] = None
+    request_agent_platform: Optional[str] = None
+
+
+class UserLogRow(BaseModel):
+    """Raw row from ``r.table('logs_users')`` (writer:
+    ``isardvdi_common.helpers.api_logs_users``)."""
+
+    id: str
+    started_time: Optional[float] = None
+    stopped_time: Optional[Union[float, bool]] = None
+    owner_user_id: Optional[str] = None
+    owner_user_name: Optional[str] = None
+    owner_role_id: Optional[str] = None
+    owner_category_id: Optional[str] = None
+    owner_category_name: Optional[str] = None
+    owner_group_id: Optional[str] = None
+    owner_group_name: Optional[str] = None
+
+
+class DesktopGroupingLogRow(BaseModel):
+    """Row in the ``desktop_grouping`` view of ``query_paginated``."""
+
+    count: int
+    desktop_name: Optional[str] = None
+    desktop_id: Optional[str] = None
+    owner_user_name: Optional[str] = None
+    owner_user_id: Optional[str] = None
+    owner_group_name: Optional[str] = None
+    owner_group_id: Optional[str] = None
+    owner_category_name: Optional[str] = None
+    owner_category_id: Optional[str] = None
+    starting_time: Optional[float] = None
+
+
+class UserGroupingLogRow(BaseModel):
+    """Row in the ``user_grouping`` view of ``query_paginated``."""
+
+    count: int
+    owner_user_name: Optional[str] = None
+    owner_user_id: Optional[str] = None
+    owner_group_name: Optional[str] = None
+    owner_group_id: Optional[str] = None
+    owner_category_name: Optional[str] = None
+    owner_category_id: Optional[str] = None
+    started_time: Optional[float] = None
+
+
+class CategoryGroupingLogRow(BaseModel):
+    """Row in the ``category_grouping`` view of ``query_paginated``."""
+
+    total: int
+    count: int
+    owner_category_name: Optional[str] = None
+    owner_category_id: Optional[str] = None
+
+
+# Per-route view union of all row shapes that ``view`` can produce.
+DesktopLogsViewRow = Union[DesktopLogRow, DesktopGroupingLogRow, CategoryGroupingLogRow]
+UserLogsViewRow = Union[UserLogRow, UserGroupingLogRow, CategoryGroupingLogRow]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Logs retention config
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class LogsRetentionConfigResponse(BaseModel):
+    """Response of ``get_logs_*_old_entries_config`` and the matching
+    ``set_logs_*_max_time`` / ``set_logs_*_action`` PUTs.
+
+    Both desktop-logs and user-logs retention endpoints share this shape
+    (see ``ApiAdmin.get_logs_desktops_old_entries_config`` /
+    ``get_logs_users_old_entries_config``).
+    """
+
+    max_time: Optional[int] = None
+    action: Optional[str] = None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  XML editor (capabilities, parse, virt_install)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class AdminDomainXmlSection(BaseModel):
+    """One entry in a parsed XML sections list (see ``split_xml_sections``)."""
+
+    key: str
+    label: str
+    group: Optional[str] = ""
+    xml: str
+    protected: bool
+    protectable: bool
+    derived: bool
+
+
+class AdminDomainXmlSectionsParseResponse(BaseModel):
+    """Response of ``POST /admin/domains/xml_sections/parse``."""
+
+    sections: List[AdminDomainXmlSection]
+
+
+class AdminDomainXmlSectionsGetResponse(BaseModel):
+    """Response of ``GET /admin/domains/xml_sections/{domain_id}`` and
+    ``GET /admin/virt_install/xml_sections/{virt_id}``."""
+
+    sections: List[AdminDomainXmlSection] = Field(default_factory=list)
+    xml_full: Optional[str] = None
+
+
+class AdminDomainXmlCapabilitiesResponse(RootModel[dict]):
+    """Response of ``GET /admin/domains/xml_capabilities``.
+
+    Libvirt domain capabilities are an arbitrary nested mapping (the
+    apiv4 helper just forwards the first non-empty hypervisor copy).
+    The wire shape is the raw mapping — the legacy webapp consumer
+    (``static/admin/js/xml_sections.js``) destructures it directly —
+    so we use a ``RootModel`` to keep the response model explicit
+    without changing the on-wire JSON.
+    """
+
+    root: dict = Field(default_factory=dict)
+
+
+class AdminVirtInstallSaveResponse(BaseModel):
+    """Response of ``POST /admin/domains/xml_sections/{domain_id}/save_virt_install``.
+
+    Only ``id`` and ``name`` are returned to the route layer (see the
+    route's ``record["id"], record["name"]`` slice).
+    """
+
+    id: str
+    name: str
+
+
+class AdminVirtInstallXmlSectionsSaveResponse(BaseModel):
+    """Response of ``POST /admin/virt_install/xml_sections/{virt_id}``.
+
+    Mirrors ``save_virt_install_xml_sections`` which returns
+    ``{xml: <merged>, valid: True}``.
+    """
+
+    xml: str
+    valid: bool

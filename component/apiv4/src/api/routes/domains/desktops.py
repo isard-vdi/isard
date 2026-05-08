@@ -694,8 +694,10 @@ async def bulk_create_persistent_desktops(
             request.token_payload,
             data.model_dump(),
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result, status_code=200)
+        return JSONResponse(
+            content=SimpleResponsePlural(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

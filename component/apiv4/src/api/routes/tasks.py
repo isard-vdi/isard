@@ -207,9 +207,8 @@ async def retry_task(request: Request, task_id: str):
 )
 async def retry_all_failed_tasks(request: Request):
     try:
-        result = await asyncio.to_thread(TaskService.retry_all_failed_tasks)
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result, status_code=200)
+        await asyncio.to_thread(TaskService.retry_all_failed_tasks)
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

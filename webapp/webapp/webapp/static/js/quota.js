@@ -37,7 +37,7 @@ function drawUserQuota(data){
     return
   }
 
-  if( "limits" in data ){
+  if( "limits" in data && data.limits ){
     if ( "dqp" in data.limits ){
       $('.manager-status').show()
       drawCategoryLimits(data.limits)

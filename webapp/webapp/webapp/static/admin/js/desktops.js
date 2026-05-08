@@ -109,7 +109,7 @@ columns = [
     },
     {
         "data": "hyp_started", "width": "100px", "render": function (data, type, full, meta) {
-            if ('hyp_started' in full && full.hyp_started != '') {
+            if ('hyp_started' in full && full.hyp_started != '' && full.hyp_started) {
                 return full.hyp_started;
             } else {
                 return '-'
@@ -119,7 +119,7 @@ columns = [
     },
     {
         "data": "favourite_hyp", "width": "100px", "render": function (data, type, full, meta) {
-            if ('favourite_hyp' in full && full.favourite_hyp != '') {
+            if ('favourite_hyp' in full && full.favourite_hyp != '' && full.favourite_hyp) {
                 return full.favourite_hyp.join(",");
             } else {
                 return '-'
@@ -128,7 +128,7 @@ columns = [
     },
     {
         "data": "forced_hyp", "width": "100px", "render": function (data, type, full, meta) {
-            if ('forced_hyp' in full && full.forced_hyp != '') {
+            if ('forced_hyp' in full && full.forced_hyp != '' && full.forced_hyp) {
                 return full.forced_hyp.join(",");
             } else {
                 return '-'

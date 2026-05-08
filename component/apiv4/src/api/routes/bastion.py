@@ -35,6 +35,7 @@ from api.schemas.bastion import (
     BastionDomainVerifyResponse,
     BastionRequest,
     BastionResponse,
+    DeleteBastionDisallowedTargetsResponse,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.bastion import BastionService
@@ -339,8 +340,12 @@ async def remove_disallowed_bastion_targets(request: Request):
         result = await asyncio.to_thread(
             BastionService.remove_disallowed_bastion_targets
         )
-        # TODO!: check result and create a response model
-        return result if isinstance(result, dict) else {}
+        return JSONResponse(
+            content=DeleteBastionDisallowedTargetsResponse(
+                removed_targets=result
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:

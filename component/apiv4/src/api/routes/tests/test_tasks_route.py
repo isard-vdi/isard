@@ -415,8 +415,8 @@ def test_retry_all_failed_tasks(monkeypatch, test_client):
     jwt = MockJWT()
     response = test_client(url="/admin/tasks/retry", method="PUT", jwt=jwt)
 
-    assert response.status_code == 200
-    assert response.json() == {}
+    # Route returns 204 (no body) like every other ``EmptyResponse`` route.
+    assert response.status_code == 204
     assert calls == ["retry"]
 
 

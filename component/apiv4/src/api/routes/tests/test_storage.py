@@ -16,13 +16,25 @@ def test_get_user_ready_storages(monkeypatch, test_client):
 
 def test_get_user_ready_storages_with_data(monkeypatch, test_client):
     jwt = MockJWT()
+    stub = [
+        {
+            "id": "stor-1",
+            "category": "cat-1",
+            "user_id": "user-1",
+            "user_name": "User 1",
+            "domains": [{"id": "desktop-1", "name": "Desktop 1"}],
+        }
+    ]
     monkeypatch.setattr(
         "api.services.storage.StorageService.get_user_ready_storages",
-        staticmethod(lambda user_id: [{"id": "stor-1", "status": "ready"}]),
+        staticmethod(lambda user_id: stub),
     )
     response = test_client(url="/items/storage/ready", jwt=jwt)
     assert response.status_code == 200
-    assert len(response.json()) == 1
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "stor-1"
+    assert body[0]["domains"][0]["id"] == "desktop-1"
 
 
 def test_get_storage_detail(monkeypatch, test_client):

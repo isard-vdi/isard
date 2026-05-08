@@ -138,7 +138,6 @@ async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
 async def admin_smtp_enabled_get(request: Request):
     try:
         result = await asyncio.to_thread(AdminSmtpService.get_smtp_enabled)
-        # TODO!: check result and create a response model
         return JSONResponse(content=bool(result), status_code=200)
     except Error:
         raise

@@ -20,7 +20,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, Union
 from uuid import uuid4
 
 from api.schemas.domains.desktops import CreateDesktopRequest, DesktopEditRequest
@@ -199,7 +199,6 @@ class DeploymentDesktopEditRequest(DesktopEditRequest):
 
 
 class DeploymentEditRequest(BaseModel):
-
     name: str = Field(description="Name of the deployment", default=None)
     description: str = Field(description="Description of the deployment", default=None)
     image: DomainImage | None = Field(
@@ -531,14 +530,63 @@ class UserDeploymentInfo(BaseModel):
 
 
 class UserDeploymentDesktop(BaseModel):
-    """User deployment desktop model"""
+    """User deployment desktop model.
+
+    The shape mirrors what ``DesktopsProcessed._parse_desktop`` (and the
+    deployment-desktop wrapper ``DeploymentDesktopsProcessed.
+    _parse_deployment_desktop``) returns: ``status`` is the canonical
+    field, ``state`` is the apiv3 alias the old Vue 2 frontend reads,
+    and ``viewers`` are emitted in hyphenated form (``browser-vnc``)
+    while the apiv4 enum uses underscores — the validator below
+    normalises both shapes back to the enum so old + new frontends
+    both validate.
+    """
 
     id: str = Field(description="ID of the desktop")
+    name: Optional[str] = None
     status: DesktopStatusEnum = Field(description="Status of the desktop")
+    state: Optional[DesktopStatusEnum] = Field(
+        default=None,
+        description="Vue 2 alias for ``status``; same value.",
+    )
+    type: Optional[str] = None
+    template: Optional[str] = None
     viewers: list[DomainViewerEnum] = Field(
         default=[],
         description="List of viewers that will be available to access the desktop.",
     )
+    viewer: Optional[Union[bool, dict]] = None
+    icon: Optional[str] = None
+    image: Optional[Image] = None
+    description: Optional[str] = None
+    ip: Optional[str] = None
+    progress: Optional[dict] = None
+    editable: Optional[bool] = None
+    scheduled: Optional[dict] = None
+    server: Optional[bool] = None
+    accessed: Optional[float] = None
+    tag: Optional[str] = None
+    visible: Optional[bool] = None
+    user: Optional[str] = None
+    user_name: Optional[str] = None
+    user_photo: Optional[str] = None
+    group: Optional[str] = None
+    group_name: Optional[str] = None
+    category: Optional[str] = None
+    category_name: Optional[str] = None
+    reservables: Optional[dict] = None
+    interfaces: Optional[list[dict]] = None
+    current_action: Optional[str] = None
+    storage: Optional[list[Optional[str]]] = None
+    permissions: list[str] = []
+    bastion_target: Optional[dict] = None
+
+    @field_validator("viewers", mode="before")
+    @classmethod
+    def _normalise_viewer_names(cls, value):
+        if not isinstance(value, list):
+            return value
+        return [v.replace("-", "_") if isinstance(v, str) else v for v in value]
 
 
 class UserDeploymentResponse(BaseModel):
@@ -610,3 +658,89 @@ class ToggleVisibilityRequest(BaseModel):
     """
 
     stop_started_domains: bool = True
+
+
+class DeploymentHardwareResponse(BaseModel):
+    """Response model for ``GET /item/deployment/{id}/hardware``.
+
+    The service returns ``deployment.create_dict[0]`` enriched with
+    computed ``video_name``/``boot_name``/``reservable_name`` arrays
+    and with ``hardware.interfaces``/``isos``/``floppies`` resolved to
+    ``{id, name}`` entries. ``Hardware`` already accepts both id-only
+    and id+name shapes, so it can model the resolved payload as-is.
+    """
+
+    guest_properties: GuestProperties
+    hardware: Hardware
+    image: Image
+    name: str
+    description: Optional[str] = None
+    reservables: dict
+    template: str
+    video_name: list[str] = Field(default_factory=list)
+    boot_name: list[str] = Field(default_factory=list)
+    reservable_name: list[str] | bool = False
+
+
+class DeploymentInfoResponse(BaseModel):
+    """Response model for ``GET /item/deployment/{id}/info``.
+
+    Combines the deployment's ``create_dict[0]`` with the deployment's
+    ``allowed``/``tag``/``tag_name``/``tag_visible`` fields and the
+    deployment ``id``. ``hardware`` arrays are resolved as in
+    ``DeploymentHardwareResponse`` and quotas are applied to the
+    hardware section before the response is built.
+    """
+
+    id: str
+    guest_properties: GuestProperties
+    hardware: Hardware
+    image: Image
+    name: str
+    description: Optional[str] = None
+    reservables: dict
+    template: str
+    allowed: Optional[Allowed] = None
+    tag: Optional[str] = None
+    tag_name: Optional[str] = None
+    tag_visible: Optional[bool] = None
+
+
+class DeploymentVideowallResponse(BaseModel):
+    allowed: Allowed
+    co_owners: list[str] = Field(
+        default=[],
+        description="List of user IDs that are co-owners of the deployment.",
+    )
+    description: str | None = Field(
+        default="", description="Description of the deployment"
+    )
+
+    id: str = Field(description="ID of the deployment")
+    name: str = Field(description="Name of the deployment")
+    image: Image | None = Field(
+        default=None,
+        description="Image associated with the deployment (may be missing on legacy rows)",
+    )
+    tag: str = Field(description="Tag of the deployment")
+    tag_visible: bool
+    user: str = Field(description="ID of the user that owns the deployment")
+    user_permissions: list[str] = Field(
+        default=[],
+        description="List of permissions the user has over the deployment.",
+    )
+    total_desktops: int = Field(alias="totalDesktops")
+    visible_desktops: int = Field(alias="visibleDesktops")
+    started_desktops: int = Field(alias="startedDesktops")
+    creating_desktops: int = Field(alias="creatingDesktops")
+    visible: bool
+    desktop_name: str  # TODO: remove
+    template: str  # TODO: remove
+    needs_booking: bool
+    next_booking_start: Optional[datetime]
+    next_booking_end: Optional[datetime]
+    booking_id: Optional[str | bool]
+    desktops: list[UserDeploymentDesktop]  # TODO
+    total_users: int
+    desktops_each_user: int
+    total_desktops: int

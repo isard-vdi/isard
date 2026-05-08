@@ -25,18 +25,23 @@ from typing import Literal
 from api import admin_router, manager_router
 from api.schemas.admin.analytics import (
     AnalyticsCategoriesRequest,
+    AnalyticsGraphConfigResponse,
     AnalyticsGraphCreateRequest,
     AnalyticsGraphUpdateRequest,
     AnalyticsSuggestedRemovalsRequest,
     DesktopAnalyticsRequest,
+    DesktopAnalyticsRow,
     EchartDailyItemsResponse,
     EchartRequest,
+    EchartViewResponseRow,
+    ResourceCountResponse,
+    StorageUsageResponse,
+    SuggestedRemovalsResponse,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.analytics import AdminAnalyticsService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response
 
 tag = "admin_analytics"
@@ -50,7 +55,7 @@ tag = "admin_analytics"
 @manager_router.post(
     "/analytics/storage",
     tags=[tag],
-    response_model=dict,
+    response_model=StorageUsageResponse,
     summary="Get storage usage analytics",
     description="Returns storage usage analytics, optionally filtered by categories.",
     responses={500: {"model": ErrorResponse}},
@@ -66,9 +71,11 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest):
         result = await asyncio.to_thread(
             AdminAnalyticsService.storage_usage, categories
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=StorageUsageResponse(
+                **(result if isinstance(result, dict) else {})
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -84,7 +91,7 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest):
 @manager_router.post(
     "/analytics/resources/count",
     tags=[tag],
-    response_model=dict,
+    response_model=ResourceCountResponse,
     summary="Get resource count analytics",
     description="Returns resource count analytics (desktops, templates, media, etc.), optionally filtered by categories.",
     responses={500: {"model": ErrorResponse}},
@@ -100,9 +107,11 @@ async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRe
         result = await asyncio.to_thread(
             AdminAnalyticsService.resource_count, categories
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=ResourceCountResponse(
+                **(result if isinstance(result, dict) else {})
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -118,7 +127,7 @@ async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRe
 @manager_router.post(
     "/analytics/suggested_removals",
     tags=[tag],
-    response_model=dict,
+    response_model=SuggestedRemovalsResponse,
     summary="Get suggested removals",
     description="Returns suggested resources for removal based on inactivity.",
     responses={
@@ -141,9 +150,11 @@ async def analytics_suggested_removals(
             categories,
             months_without_use=data.months_without_use,
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=SuggestedRemovalsResponse(
+                **(result if isinstance(result, dict) else {})
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -164,7 +175,7 @@ async def analytics_suggested_removals(
 @manager_router.get(
     "/analytics/graph",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[AnalyticsGraphConfigResponse],
     summary="Get all analytics graph configurations",
     description="Returns all analytics graph configurations.",
     responses={500: {"model": ErrorResponse}},
@@ -172,8 +183,13 @@ async def analytics_suggested_removals(
 async def analytics_graphs_conf_list(request: Request):
     try:
         result = await asyncio.to_thread(AdminAnalyticsService.get_usage_graphs_conf)
-        # TODO!: check result and create a response model
-        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
+        return JSONResponse(
+            content=[
+                AnalyticsGraphConfigResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -188,7 +204,7 @@ async def analytics_graphs_conf_list(request: Request):
 @admin_router.get(
     "/analytics/graph/{conf_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=AnalyticsGraphConfigResponse,
     summary="Get analytics graph configuration",
     description="Returns a specific analytics graph configuration by ID.",
     responses={
@@ -201,9 +217,11 @@ async def analytics_graph_conf_get(request: Request, conf_id: str):
         result = await asyncio.to_thread(
             AdminAnalyticsService.get_usage_graph_conf, conf_id
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=AnalyticsGraphConfigResponse(
+                **(result if isinstance(result, dict) else {})
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -308,7 +326,7 @@ async def analytics_graph_conf_delete(request: Request, conf_id: str):
 @admin_router.post(
     "/analytics/desktops/less_used",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[DesktopAnalyticsRow],
     summary="Get least used desktops",
     description="Returns desktops that have been least used within the specified period.",
     responses={500: {"model": ErrorResponse}},
@@ -322,8 +340,13 @@ async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsR
             data.not_in_directory_path,
             data.status or False,
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
+        return JSONResponse(
+            content=[
+                DesktopAnalyticsRow(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -338,7 +361,7 @@ async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsR
 @admin_router.post(
     "/analytics/desktops/recently_used",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[DesktopAnalyticsRow],
     summary="Get recently used desktops",
     description="Returns desktops that have been recently used within the specified period.",
     responses={500: {"model": ErrorResponse}},
@@ -354,8 +377,13 @@ async def analytics_desktops_recently_used(
             data.not_in_directory_path,
             data.status or False,
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
+        return JSONResponse(
+            content=[
+                DesktopAnalyticsRow(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -370,7 +398,7 @@ async def analytics_desktops_recently_used(
 @admin_router.post(
     "/analytics/desktops/most_used",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[DesktopAnalyticsRow],
     summary="Get most used desktops",
     description="Returns desktops that have been most frequently started within the specified period.",
     responses={500: {"model": ErrorResponse}},
@@ -384,8 +412,13 @@ async def analytics_desktops_most_used(request: Request, data: DesktopAnalyticsR
             data.not_in_directory_path,
             data.status or False,
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
+        return JSONResponse(
+            content=[
+                DesktopAnalyticsRow(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -438,7 +471,7 @@ async def admin_echart_daily_items(
 @admin_router.post(
     "/admin/echart/{view}",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[EchartViewResponseRow],
     summary="Get echart data",
     description="Returns chart data for the specified view type."
     " For ``daily_items`` see ``/admin/echart/daily_items``.",
@@ -475,8 +508,13 @@ async def admin_echart(
                 data.nested_array_field,
                 data.group_field,
             )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
+        return JSONResponse(
+            content=[
+                EchartViewResponseRow(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

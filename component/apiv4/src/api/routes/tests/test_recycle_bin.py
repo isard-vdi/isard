@@ -3,6 +3,49 @@
 from api.routes.tests.helpers import MockJWT
 
 
+def _recycle_bin_entry(**overrides):
+    """Build a full ``RecycleBinEntry`` row.
+
+    ``RecycleBinEntry`` declares every per-row scalar (agent/owner ids and
+    names, counts, sizes, status…) as required, so an admin-entries stub
+    cannot ship a sparse dict — the schema would 500 on validation.
+    """
+    row = {
+        "accessed": 1700000000.0,
+        "agent_category_id": "cat-agent",
+        "agent_category_name": "Agent Category",
+        "agent_group_id": "grp-agent",
+        "agent_group_name": "Agent Group",
+        "agent_id": "user-agent",
+        "agent_name": "Agent User",
+        "agent_role": "admin",
+        "agent_type": "user",
+        "categories": 0,
+        "deployments": 0,
+        "desktops": 2,
+        "groups": 0,
+        "id": "rb-1",
+        "item_name": "Recycled item",
+        "item_type": "desktop",
+        "last": None,
+        "owner_category_id": "cat-owner",
+        "owner_category_name": "Owner Category",
+        "owner_group_id": "grp-owner",
+        "owner_group_name": "Owner Group",
+        "owner_id": "user-owner",
+        "owner_name": "Owner User",
+        "owner_role": "user",
+        "size": 0,
+        "status": "recycled",
+        "storages": 1,
+        "targets": [],
+        "templates": 0,
+        "users": 0,
+    }
+    row.update(overrides)
+    return row
+
+
 def test_get_recycle_bin_default_delete_config(monkeypatch, test_client):
     jwt = MockJWT()
     monkeypatch.setattr(
@@ -80,16 +123,7 @@ def test_get_admin_recycle_bin_entries_manager_scoped(monkeypatch, test_client):
     # r.table("categories").get(category_id). Seed a matching row so the
     # mock DB returns the caller's category and not None.
     jwt = MockJWT(role_id="manager", category_id="cat-manager")
-    stub = [
-        {
-            "id": "rb-1",
-            "status": "recycled",
-            "desktops": 2,
-            "templates": 0,
-            "storages": 1,
-            "deployments": 0,
-        }
-    ]
+    stub = [_recycle_bin_entry(id="rb-1", status="recycled")]
     captured = {}
 
     def fake_get_item_count(category_id=None, status=None):
@@ -113,7 +147,10 @@ def test_get_admin_recycle_bin_entries_manager_scoped(monkeypatch, test_client):
     )
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "rb-1"
+    assert body[0]["status"] == "recycled"
     # Manager role → scoped to the manager's own category, no status filter
     assert captured == {"category_id": "cat-manager", "status": None}
 

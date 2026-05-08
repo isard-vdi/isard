@@ -258,10 +258,8 @@ admin_tag = "admin_migrations"
 async def get_migration_config(request: Request):
     try:
         config = await asyncio.to_thread(MigrationService.get_admin_migration_config)
-
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=config,
+            content=MigrationConfigResponse(**config).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
@@ -288,9 +286,8 @@ async def update_migration_config(request: Request, data: MigrationConfigUpdateR
             MigrationService.update_admin_migration_config,
             data.model_dump(exclude_none=True),
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result,
+            content=MigrationConfigResponse(**result).model_dump(mode="json"),
             status_code=200,
         )
     except Error:

@@ -226,9 +226,8 @@ async def get_storage_pool(request: Request, storage_pool_id: str):
         storage_pool = await asyncio.to_thread(
             StoragePoolService.get_storage_pool, storage_pool_id
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=storage_pool,
+            content=StoragePoolResponse(**storage_pool).model_dump(mode="json"),
             status_code=200,
         )
     except Error:

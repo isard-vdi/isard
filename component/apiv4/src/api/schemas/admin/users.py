@@ -400,3 +400,626 @@ class AdminTemplateItem(BaseModel):
     icon: Optional[str] = None
     user: Optional[str] = None
     category: Optional[str] = None
+
+
+# ── Per-endpoint focused response models ─────────────────────────────────
+
+
+class AdminUserImpersonateJwtResponse(BaseModel):
+    """Response for ``GET /admin/jwt/{user_id}`` — a single signed JWT."""
+
+    jwt: str
+
+
+class AdminSecondaryGroupRef(BaseModel):
+    """Lightweight ``{id, name}`` group reference used by the user-full-data
+    response. Same pluck as ``GroupsProcessed.get_secondary_groups_data``."""
+
+    id: str
+    name: Optional[str] = None
+
+
+class AdminUserFullDataResponse(AdminUser):
+    """Response for ``GET /admin/user/{user_id}`` and ``/raw``.
+
+    ``UsersProcessed.get_user_full_data`` enriches the cached user row with
+    ``category_name``, ``group_name`` and ``secondary_groups_data``. Inherits
+    every ``AdminUser`` field (so half-deleted rows still serialize) and
+    surfaces the two name lookups + the secondary-group expansion. The raw
+    variant goes through ``Caches.get_cached_user_with_names`` which already
+    merges the same name fields, so a single model covers both."""
+
+    category_name: Optional[str] = None
+    group_name: Optional[str] = None
+    secondary_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
+
+
+class AdminUserNavItem(BaseModel):
+    """Row shape for ``GET /admin/users/{nav}/users``.
+
+    ``UsersProcessed.admin_list_users`` plucks the ``AdminUser`` fields and,
+    depending on ``nav``, merges either the ``*_name`` lookups
+    (``management``) or quota usage counters (``quotas_limits``). Both nav
+    branches share the base id/name columns; the divergent fields are kept
+    optional so a single model covers both shapes."""
+
+    id: str
+    name: Optional[str] = None
+    username: Optional[str] = None
+    role: Optional[str] = None
+    category: Optional[str] = None
+    group: Optional[str] = None
+    active: Optional[bool] = None
+    provider: Optional[str] = None
+    uid: Optional[str] = None
+    secondary_groups: Optional[list[str]] = None
+    email: Optional[str] = None
+    accessed: Optional[float] = None
+    email_verified: bool | int | None = None
+    disclaimer_acknowledged: Optional[bool] = None
+    vpn: Optional[AdminUserVpn] = None
+    user_storage: Optional[AdminUserStorage] = None
+    # ``management`` nav merges
+    group_name: Optional[str] = None
+    role_name: Optional[str] = None
+    category_name: Optional[str] = None
+    secondary_groups_names: Optional[list[str]] = None
+    # ``quotas_limits`` nav merges
+    volatile: Optional[int] = None
+    desktops: Optional[int] = None
+    templates: Optional[int] = None
+    media_size: Optional[float] = None
+    domains_size: Optional[float] = None
+
+
+class AdminUserSearchItem(BaseModel):
+    """Row shape for ``POST /admin/users/search``.
+
+    ``Alloweds.get_table_term`` plucks ``id``/``name``/``uid`` for admins
+    and adds ``category`` for managers. Both fields kept optional so a
+    single model handles either pluck variant."""
+
+    id: str
+    name: Optional[str] = None
+    uid: Optional[str] = None
+    category: Optional[str] = None
+
+
+class AdminCSVValidateCreateResponse(BaseModel):
+    """Response for ``POST /admin/users/csv/validate`` — the bulk-create
+    pre-flight. Service returns the enriched row list under ``users`` and
+    a parallel ``errors`` list of human-readable strings for the rows that
+    were skipped. Rows are kept as ``list[dict]`` because each row mirrors
+    the permissive create-input shape (``UserFromCSV``); narrowing here
+    would 500 on edge fields the webapp tolerates."""
+
+    users: list[dict]
+    errors: list[str]
+
+
+class AdminCSVImportResponse(BaseModel):
+    """Response for ``POST /admin/users/csv`` and ``/admin/bulk/user``.
+
+    The route reshapes the service's ``{users, errors}`` into a count +
+    error list — keeping the shape so the OAS documents the same payload
+    the webapp consumes."""
+
+    created: int
+    errors: list[str]
+
+
+class AdminPasswordPolicyResponse(BaseModel):
+    """Response for ``GET /admin/user/password-policy/{user_id}``.
+
+    ``UserPolicies.get_user_policy(subtype="password", ...)`` returns the
+    policy dict (or ``False`` when no policy applies). The route only ever
+    calls it with ``subtype="password"``, so the shape is the password
+    policy. ``False`` is normalised to ``{}`` by the route's
+    ``isinstance(result, dict)`` guard so we don't have to model the
+    bool variant."""
+
+    length: Optional[int] = None
+    uppercase: Optional[int] = None
+    lowercase: Optional[int] = None
+    digits: Optional[int] = None
+    special_characters: Optional[int] = None
+    not_username: Optional[bool] = None
+    expiration: Optional[int] = None
+    old_passwords: Optional[int] = None
+    digits_last_password: Optional[int] = None
+
+
+class AdminGroupListItem(AdminGroup):
+    """Row shape for ``GET /admin/groups``.
+
+    ``GroupsProcessed.admin_get_groups`` returns the full ``groups`` row
+    merged with ``linked_groups_data`` (a denormalised array of
+    ``{id, name}`` pairs from the linked groups). Inherits ``AdminGroup``
+    so the canonical group fields stay strict and only the two extra
+    columns are added on top."""
+
+    linked_groups: Optional[list[str]] = None
+    linked_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
+    quota: Optional[bool | dict] = None
+    enrollment: Optional[dict] = None
+
+
+class AdminLinkedGroupNamed(BaseModel):
+    """``{id, name, category_name}`` lookup row used by the management nav
+    response for the ``linked_groups_data`` array."""
+
+    id: str
+    name: Optional[str] = None
+    category_name: Optional[str] = None
+
+
+class AdminGroupNavItem(BaseModel):
+    """Row shape for ``GET /admin/users/{nav}/groups``.
+
+    ``UsersProcessed.admin_list_groups`` returns the full groups row with
+    extra merges: ``management`` adds ``linked_groups_data``
+    (with ``category_name``) and ``parent_category_name``;
+    ``quotas_limits`` adds ``media_size`` / ``domains_size``. Fields kept
+    optional + the ``without`` strip on ``quotas_limits`` is reflected by
+    making ``enrollment``/``external_*``/``linked_groups`` optional here."""
+
+    id: str
+    uid: Optional[str] = None
+    name: str
+    parent_category: str
+    auto: Optional[bool] = None
+    description: Optional[str] = None
+    external_app_id: Optional[str] = None
+    external_gid: Optional[str] = None
+    linked_groups: Optional[list[str]] = None
+    linked_groups_data: Optional[list[AdminLinkedGroupNamed]] = None
+    parent_category_name: Optional[str] = None
+    enrollment: Optional[dict] = None
+    quota: Optional[bool | dict] = None
+    limits: Optional[bool | dict] = None
+    media_size: Optional[float] = None
+    domains_size: Optional[float] = None
+
+
+class AdminGroupFullDataResponse(AdminGroup):
+    """Response for ``GET /admin/group/{group_id}``.
+
+    ``GroupsProcessed.group_get_full_data`` returns the row merged with
+    ``linked_groups_data``. Inherits ``AdminGroup`` and adds the two
+    enrichment fields."""
+
+    linked_groups: Optional[list[str]] = None
+    linked_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
+    quota: Optional[bool | dict] = None
+    enrollment: Optional[dict] = None
+
+
+class AdminGroupUserItem(BaseModel):
+    """Row shape for ``GET /admin/group/{group_id}/users``.
+
+    ``GroupsProcessed.get_users_in_group`` plucks ``id``, ``name``,
+    ``username`` and ``photo`` only."""
+
+    id: str
+    name: Optional[str] = None
+    username: Optional[str] = None
+    photo: Optional[str] = None
+
+
+class AdminGroupEnrollmentResponse(BaseModel):
+    """Response for ``POST /admin/group/enrollment``.
+
+    ``UserEnrollment.enrollment_action`` returns either ``True`` (for
+    ``disable``) or a 6-char alphanumeric code. The route currently
+    funnels both through an ``isinstance(result, dict)`` guard that
+    coerces the scalar into ``{}`` — preserving that no-op response shape
+    here so the OAS documents the actual on-the-wire payload (an empty
+    object). The optional ``code`` field is reserved for the route
+    refactor that will surface the service value."""
+
+    code: Optional[str | bool] = None
+
+
+class AdminCategoryItem(BaseModel):
+    """Row shape for ``GET /admin/categories``.
+
+    ``UsersProcessed.categories_get`` plucks ``id``/``name``/``frontend``
+    only. Kept tight — the admin categories panel does not consume
+    additional fields from this endpoint."""
+
+    id: str
+    name: str
+    frontend: Optional[bool] = None
+
+
+class AdminCategoryFrontendItem(BaseModel):
+    """Row shape for ``GET /admin/categories/{frontend}``.
+
+    Mirrors ``CategoriesProcessed.get_categories_frontend`` — pluck of
+    ``id``, ``name``, ``custom_url_name`` (and ``frontend`` on the
+    branding-domain branch). ``custom_url_name`` is always returned but
+    may be empty."""
+
+    id: str
+    name: str
+    custom_url_name: Optional[str] = None
+    frontend: Optional[bool] = None
+
+
+class AdminCategoryNavItem(BaseModel):
+    """Row shape for ``GET /admin/users/{nav}/categories``.
+
+    ``UsersProcessed.admin_list_categories`` returns the categories row
+    (with ``quota``/``limits`` stripped on ``management``) and merges
+    ``media_size``/``domains_size`` on ``quotas_limits``. The trailing
+    fields stay optional so both nav variants serialise through the same
+    model."""
+
+    id: str
+    name: str
+    description: Optional[str] = None
+    frontend: Optional[bool] = None
+    custom_url_name: Optional[str] = None
+    uid: Optional[str] = None
+    photo: Optional[str] = None
+    authentication: Optional[dict] = None
+    quota: Optional[bool | dict] = None
+    limits: Optional[bool | dict] = None
+    media_size: Optional[float] = None
+    domains_size: Optional[float] = None
+
+
+class AdminCategoryDetailResponse(BaseModel):
+    """Response for ``GET /admin/category/{category_id}`` and the create
+    endpoint.
+
+    ``ApiAdmin.get_table_item("categories", ...)`` returns the full row;
+    the service then strips the authentication-secret fields and adds an
+    ``is_default`` flag. ``create_category`` returns the freshly built
+    document (id/name/description/frontend/custom_url_name/photo/uid +
+    the four-provider authentication shell). Kept permissive on quota /
+    limits / branding so legacy categories serialize cleanly."""
+
+    id: str
+    name: str
+    description: Optional[str] = None
+    frontend: Optional[bool] = None
+    custom_url_name: Optional[str] = None
+    uid: Optional[str] = None
+    photo: Optional[str] = None
+    authentication: Optional[dict] = None
+    is_default: Optional[bool] = None
+    quota: Optional[bool | dict] = None
+    limits: Optional[bool | dict] = None
+    branding: Optional[dict] = None
+
+
+class AdminCategoryUserItem(BaseModel):
+    """Row shape for ``GET /admin/category/{category_id}/users``.
+
+    ``UsersProcessed.list_by_category`` returns the user row enriched with
+    role/group/category names + a denormalised ``secondary_groups_data``
+    list — same shape as ``AdminUserFullDataResponse`` minus the
+    ``photo``/``api_key``/``vpn`` columns the admin list view does not
+    render."""
+
+    id: str
+    name: Optional[str] = None
+    username: Optional[str] = None
+    role: Optional[str] = None
+    role_name: Optional[str] = None
+    category: Optional[str] = None
+    category_name: Optional[str] = None
+    group: Optional[str] = None
+    group_name: Optional[str] = None
+    secondary_groups: Optional[list[str]] = None
+    secondary_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
+    email: Optional[str] = None
+    active: Optional[bool] = None
+    provider: Optional[str] = None
+    uid: Optional[str] = None
+    accessed: Optional[float] = None
+
+
+class AdminDeleteCheckUser(BaseModel):
+    id: str
+    name: Optional[str] = None
+    username: Optional[str] = None
+    provider: Optional[str] = None
+
+
+class AdminDeleteCheckGroup(BaseModel):
+    id: str
+    name: Optional[str] = None
+
+
+class AdminDeleteCheckDesktop(BaseModel):
+    """Row shape for the ``desktops`` array of every delete-check response.
+
+    ``UsersProcessed.user_delete_checks`` plucks ``id``/``name``/``kind``/
+    ``user``/``status``/``parents`` (+ ``persistent`` /
+    ``duplicate_parent_template`` on the user-table branch) and merges
+    ``username``/``user_name``. Optional everywhere because the merge
+    paths differ per kind."""
+
+    id: str
+    name: Optional[str] = None
+    kind: Optional[str] = None
+    user: Optional[str] = None
+    user_name: Optional[str] = None
+    username: Optional[str] = None
+    status: Optional[str] = None
+    parents: Optional[list[str]] = None
+    persistent: Optional[bool] = None
+    duplicate_parent_template: Optional[str] = None
+
+
+class AdminDeleteCheckTemplate(BaseModel):
+    id: str
+    name: Optional[str] = None
+    kind: Optional[str] = None
+    user: Optional[str] = None
+    user_name: Optional[str] = None
+    username: Optional[str] = None
+    category: Optional[str] = None
+    group: Optional[str] = None
+    duplicate_parent_template: Optional[str] = None
+
+
+class AdminDeleteCheckMedia(BaseModel):
+    id: str
+    name: Optional[str] = None
+    user: Optional[str] = None
+    user_name: Optional[str] = None
+    username: Optional[str] = None
+
+
+class AdminDeleteCheckDeployment(BaseModel):
+    id: str
+    name: Optional[str] = None
+    user: Optional[str] = None
+    user_name: Optional[str] = None
+    username: Optional[str] = None
+
+
+class AdminDeleteChecksResponse(BaseModel):
+    """Response for the three ``POST /admin/{user|group|category}/delete/check``
+    endpoints. Service helper ``UsersProcessed.user_delete_checks`` returns
+    six parallel arrays of cascaded items, plus ``storage_pools`` (count)
+    on the category branch."""
+
+    desktops: list[AdminDeleteCheckDesktop] = Field(default_factory=list)
+    templates: list[AdminDeleteCheckTemplate] = Field(default_factory=list)
+    deployments: list[AdminDeleteCheckDeployment] = Field(default_factory=list)
+    media: list[AdminDeleteCheckMedia] = Field(default_factory=list)
+    users: list[AdminDeleteCheckUser] = Field(default_factory=list)
+    groups: list[AdminDeleteCheckGroup] = Field(default_factory=list)
+    storage_pools: Optional[int] = None
+
+
+class AdminUserTemplateItem(BaseModel):
+    """Row shape for ``GET /admin/user/{user_id}/templates``.
+
+    The service builds each row as ``{id, name, icon, image,
+    description}`` from a ``DomainsProcessed.list_by_kind_user`` pluck.
+    ``image`` is hard-coded to ``""`` for now."""
+
+    id: str
+    name: str
+    icon: Optional[str] = None
+    image: Optional[str] = None
+    description: Optional[str] = None
+
+
+class AdminUserDesktopItem(BaseModel):
+    """Row shape for ``GET /admin/user/{user_id}/desktops``.
+
+    ``DomainsProcessed.list_by_kind_user("desktop", ...)`` plucks the
+    listed fields. ``status`` may be missing on freshly-created
+    desktops."""
+
+    id: str
+    name: Optional[str] = None
+    status: Optional[str] = None
+    icon: Optional[str] = None
+    image: Optional[str] = None
+    kind: Optional[str] = None
+
+
+class AdminRoleItem(BaseModel):
+    """Row shape for ``GET /admin/roles``.
+
+    ``UsersProcessed.get_roles`` plucks ``id``, ``name``,
+    ``description`` (and orders by ``sortorder``)."""
+
+    id: str
+    name: str
+    description: Optional[str] = None
+
+
+class AdminSecretItem(BaseModel):
+    """Row shape for ``GET /admin/secrets``.
+
+    Backed by ``ApiAdmin.admin_table_list("secrets", {})`` — the secrets
+    table carries the same fields the create-endpoint advertises
+    (``id``/``kid``, ``category_id``, ``secret``, ``description``,
+    ``role_id``)."""
+
+    id: Optional[str] = None
+    kid: Optional[str] = None
+    category_id: Optional[str] = None
+    secret: Optional[str] = None
+    description: Optional[str] = None
+    role_id: Optional[str] = None
+
+
+class AdminSecretCreateResponse(BaseModel):
+    """Response for ``POST /admin/secret``.
+
+    Service returns ``{secret: <raw>}`` only — the JWT-signing key is
+    surfaced once and never read back."""
+
+    secret: str
+
+
+class AdminUserVpnFileResponse(BaseModel):
+    """Response for the two VPN config/install endpoints.
+
+    ``IsardVpn.vpn_data`` returns ``{kind: "file", name, ext, mime,
+    content}`` for both ``config`` (wireguard ``.conf``) and ``install``
+    (a ``sh``/``vb`` setup script)."""
+
+    kind: Literal["file"]
+    name: str
+    ext: str
+    mime: str
+    content: str
+
+
+class AdminQuotaUserUsage(BaseModel):
+    """Per-user quota usage block from ``QuotasProcess.process_user_quota``.
+
+    All ``q``/``qp`` fields are emitted unconditionally — when the user
+    has no quota set the service writes ``9999`` / ``0`` placeholders,
+    so the int variant covers both cases."""
+
+    user: dict
+    d: int
+    dq: int
+    dqp: int
+    r: int
+    rq: int
+    rqp: int
+    t: int
+    tq: int
+    tqp: int
+    i: int
+    iq: int
+    iqp: int
+    v: int
+    vq: int
+    vqp: int
+    m: int
+    mq: int
+    mqp: int
+    deployments: int
+    deploymentsq: int
+    deploymentsqp: int
+    dktpDeployment: int
+    dktpDeploymentq: int
+    dktpDeploymentqp: int
+    startDeploymentDktp: int
+    startDeploymentDktpq: int
+    startDeploymentDktpqp: int
+
+
+class AdminQuotaCategoryLimits(BaseModel):
+    """Category- (or group-) scoped limits block returned by
+    ``QuotasProcess.process_category_limits`` /
+    ``get_manager_usage`` / ``get_admin_usage``.
+
+    The two ``process_*_limits`` paths emit the full ``q``/``qp`` set;
+    the manager/admin-usage paths return only the counters
+    (``d``/``r``/``t``/``i``/``v``/``m``/``u``/``deployments``). All
+    ``q``/``qp`` fields kept optional so the lighter shapes don't 500
+    here."""
+
+    category: Optional[dict] = None
+    group: Optional[dict] = None
+    d: int
+    r: int
+    t: int
+    i: int
+    v: int
+    m: int
+    u: Optional[int] = None
+    deployments: int
+    dq: Optional[int] = None
+    dqp: Optional[int] = None
+    rq: Optional[int] = None
+    rqp: Optional[int] = None
+    tq: Optional[int] = None
+    tqp: Optional[int] = None
+    iq: Optional[int] = None
+    iqp: Optional[int] = None
+    vq: Optional[int] = None
+    vqp: Optional[int] = None
+    mq: Optional[int] = None
+    mqp: Optional[int] = None
+    uq: Optional[int] = None
+    uqp: Optional[int] = None
+    deploymentsq: Optional[int] = None
+    deploymentsqp: Optional[int] = None
+
+
+class AdminQuotasResponse(BaseModel):
+    """Response for ``GET /admin/quotas``.
+
+    ``QuotasProcess.get`` always returns a ``user`` block and adds either
+    ``limits`` (managers) or ``global`` (admins)."""
+
+    user: AdminQuotaUserUsage
+    limits: Optional[AdminQuotaCategoryLimits] = None
+    global_: Optional[AdminQuotaCategoryLimits] = Field(default=None, alias="global")
+
+    model_config = {"populate_by_name": True}
+
+
+class AdminAppliedQuotaResponse(BaseModel):
+    """Response for ``GET /admin/user/appliedquota/{user_id}``.
+
+    ``Quotas.get_applied_quota`` returns ``{quota, restriction_applied}``
+    where ``quota`` is either ``False`` or the quota dict and
+    ``restriction_applied`` is one of ``user_quota`` / ``group_quota`` /
+    ``category_quota``."""
+
+    quota: bool | dict
+    restriction_applied: str
+
+
+class AdminUserIdResponse(BaseModel):
+    """Response for ``GET /admin/user/email-category/{email}/{category}``.
+
+    Returns ``{id: <user-id-or-None>}`` — service may return ``None`` when
+    no user matches."""
+
+    id: Optional[str] = None
+
+
+class AdminMigrationStartedResponse(BaseModel):
+    """Response for ``PUT /admin/user/migrate/{user_id}/{target_user_id}``.
+
+    On success the service returns ``({}, 200)``; on validation failure it
+    returns ``({"errors": [...]}, 428)``. Both shapes serialise through a
+    single optional-``errors`` model."""
+
+    errors: Optional[list] = None
+
+
+class AdminMigrationErrorsResponse(BaseModel):
+    """Response for ``GET /admin/user/migrate/check/{user_id}/{target_user_id}``.
+
+    Service returns the raw error list; the route wraps it as
+    ``{"errors": [...]}``."""
+
+    errors: list
+
+
+class AdminCheckMigratedResponse(BaseModel):
+    """Response for ``POST /admin/user/check/migrated``.
+
+    Service returns a single boolean; the route wraps it as
+    ``{"migrated": <bool>}``."""
+
+    migrated: bool
+
+
+class AdminBastionDomainResponse(BaseModel):
+    """Response for the two ``/admin/category/{category_id}/bastion_domain``
+    endpoints.
+
+    GET returns ``{bastion_domain: <str|False|None>}`` — string when set,
+    ``False`` when explicitly unset, ``None`` when missing. PUT echoes the
+    request body shape (same union)."""
+
+    bastion_domain: Union[str, bool, None] = None

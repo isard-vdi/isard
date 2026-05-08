@@ -35,6 +35,8 @@ from api.schemas.storage import (
     StorageCreateRequest,
     StorageCreateResponse,
     StorageDerivativesResponse,
+    StorageDetailResponse,
+    StorageItem,
     StorageMaintenanceRequest,
     StorageMoveByPathRequest,
     StoragePathRequest,
@@ -42,6 +44,7 @@ from api.schemas.storage import (
     StorageRecreateRequest,
     StorageRsyncToPathRequest,
     StorageRsyncToStoragePoolRequest,
+    StoragesWithUuidEntry,
     StorageVirtWinRegRequest,
     TaskIdResponse,
 )
@@ -191,7 +194,7 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
 @token_router.get(
     "/item/storage/{storage_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=StorageDetailResponse,
     summary="Get storage details",
     description="Returns details of a storage item.",
     responses={
@@ -204,9 +207,12 @@ async def get_storage(request: Request, storage_id: str):
         storage = await asyncio.to_thread(
             StorageService.get_storage_detail, request.token_payload, storage_id
         )
-        # TODO!: check result and create a response model
+        # TODO*: This endpoint calls a function that does not exsist
         return JSONResponse(
-            content=storage if isinstance(storage, dict) else {}, status_code=200
+            content=StorageDetailResponse(**(storage or {})).model_dump(
+                mode="json", by_alias=True
+            ),
+            status_code=200,
         )
     except Error:
         raise
@@ -222,7 +228,7 @@ async def get_storage(request: Request, storage_id: str):
 @token_router.get(
     "/items/storage/ready",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[StorageItem],
     summary="Get user's ready disks",
     description="Returns a list of ready storage items for the authenticated user.",
     responses={
@@ -230,12 +236,17 @@ async def get_storage(request: Request, storage_id: str):
     },
 )
 async def get_user_ready_storages(request: Request):
+    # DELETE: Duplicate of /items/storage/get-ready
     try:
         disks = await asyncio.to_thread(
             StorageService.get_user_ready_storages, request.token_payload["user_id"]
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=disks or [], status_code=200)
+        return JSONResponse(
+            content=[
+                StorageItem(**disk).model_dump(mode="json") for disk in (disks or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -977,9 +988,9 @@ async def delete_storage_path(
 @admin_router.get(
     "/item/storage/{storage_id}/find",
     tags=[tag],
-    response_model=dict,
+    response_model=TaskIdResponse,
     summary="Find a storage on disk",
-    description="Finds a storage item on disk and returns its information.",
+    description="Schedules a ``find`` task to locate a storage item on disk and returns the task ID.",
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -987,12 +998,12 @@ async def delete_storage_path(
 )
 async def find_storage(request: Request, storage_id: str):
     try:
-        result = await asyncio.to_thread(
+        task_id = await asyncio.to_thread(
             StorageService.find, request.token_payload, storage_id
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -1122,7 +1133,7 @@ async def increase_storage_size(
 @manager_router.get(
     "/item/storage/{storage_id}/storages_with_uuid",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[StoragesWithUuidEntry],
     summary="Get phantom storages registered against a single storage",
     description=(
         "Returns the ``storages_with_uuid`` field of a single storage. "
@@ -1140,8 +1151,13 @@ async def get_storage_storages_with_uuid(request: Request, storage_id: str):
             request.token_payload,
             storage_id,
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                StoragesWithUuidEntry(**entry).model_dump(mode="json")
+                for entry in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -1156,7 +1172,7 @@ async def get_storage_storages_with_uuid(request: Request, storage_id: str):
 @manager_router.get(
     "/items/storage/storages_with_uuid",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[StoragesWithUuidEntry],
     summary="List all storages_with_uuid entries",
     description=(
         "Returns the union of every ``storages_with_uuid`` row in the "
@@ -1170,8 +1186,13 @@ async def list_all_storages_with_uuid(request: Request):
         result = await asyncio.to_thread(
             StorageService.get_all_storages_with_uuid, request.token_payload
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                StoragesWithUuidEntry(**entry).model_dump(mode="json")
+                for entry in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -1186,7 +1207,7 @@ async def list_all_storages_with_uuid(request: Request):
 @manager_router.get(
     "/items/storage/storages_with_uuid/status",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[StoragesWithUuidEntry],
     summary="Get per-status counts of storages_with_uuid",
     description=(
         "Returns the per-status counts of phantom ``storages_with_uuid`` "
@@ -1199,8 +1220,13 @@ async def list_all_storages_with_uuid_status(request: Request):
         result = await asyncio.to_thread(
             StorageService.get_all_storages_with_uuid_status, request.token_payload
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                StoragesWithUuidEntry(**entry).model_dump(mode="json")
+                for entry in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -1215,7 +1241,7 @@ async def list_all_storages_with_uuid_status(request: Request):
 @manager_router.get(
     "/items/storage/storages_with_uuid/{status}",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[StoragesWithUuidEntry],
     summary="List storages_with_uuid filtered by status",
     description=(
         "Returns the ``storages_with_uuid`` rows matching the given ``status``."
@@ -1229,8 +1255,13 @@ async def list_all_storages_with_uuid_filtered(request: Request, status: str):
             request.token_payload,
             status=status,
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                StoragesWithUuidEntry(**entry).model_dump(mode="json")
+                for entry in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

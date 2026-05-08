@@ -25,19 +25,31 @@ from datetime import datetime
 import pytz
 from api import admin_router, manager_router
 from api.schemas.admin.usage import (
+    UsageConsumersCountResponse,
     UsageConsumptionRequest,
     UsageCreditCreateRequest,
+    UsageCreditIntervalResponse,
+    UsageCreditResponse,
     UsageCreditUpdateRequest,
+    UsageDistinctItemResponse,
     UsageGroupingCreateRequest,
+    UsageGroupingResponse,
+    UsageGroupingsDropdownResponse,
     UsageGroupingUpdateRequest,
+    UsageItemConsumption,
     UsageLimitCreateRequest,
+    UsageLimitResponse,
     UsageLimitUpdateRequest,
+    UsageOverlappingResponse,
     UsageParameterCreateRequest,
     UsageParameterIdsRequest,
+    UsageParameterResponse,
     UsageParameterUpdateRequest,
     UsageResetDatesRequest,
     UsageRetentionConfig,
+    UsageStartEndItemResponse,
     UsageStartEndRequest,
+    UsageUnifyItemNameResponse,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.usage import AdminUsageService
@@ -56,7 +68,7 @@ tag = "admin_usage"
 @manager_router.put(
     "/admin/usage",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[UsageItemConsumption],
     summary="Get usage consumption between dates",
     description="Returns usage consumption data between the specified dates with optional filtering.",
     responses={
@@ -79,8 +91,13 @@ async def admin_usage_consumption(request: Request, data: UsageConsumptionReques
             filters.get("item_type"),
             filters.get("grouping"),
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                UsageItemConsumption(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -95,7 +112,7 @@ async def admin_usage_consumption(request: Request, data: UsageConsumptionReques
 @manager_router.put(
     "/admin/usage/start_end",
     tags=[tag],
-    response_model=dict,
+    response_model=list[UsageStartEndItemResponse],
     summary="Get start/end consumption",
     description="Returns consumption data at start and end dates for comparison.",
     responses={
@@ -126,9 +143,12 @@ async def admin_usage_start_end(request: Request, data: UsageStartEndRequest):
             filters.get("grouping"),
             payload["category_id"] if payload["role_id"] == "manager" else None,
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=[
+                UsageStartEndItemResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
         )
     except Error:
         raise
@@ -158,7 +178,6 @@ async def admin_usage_consumers(request: Request, item_type: str):
         )
         if payload["role_id"] != "admin" and "hypervisor" in consumers:
             consumers.remove("hypervisor")
-        # TODO!: check result and create a response model
         return JSONResponse(content=consumers or [], status_code=200)
     except Error:
         raise
@@ -174,7 +193,7 @@ async def admin_usage_consumers(request: Request, item_type: str):
 @admin_router.get(
     "/admin/usage/consumers",
     tags=[tag],
-    response_model=dict,
+    response_model=UsageConsumersCountResponse,
     summary="Count usage consumers",
     description="Returns the total count of usage consumption records.",
     responses={500: {"model": ErrorResponse}},
@@ -182,9 +201,11 @@ async def admin_usage_consumers(request: Request, item_type: str):
 async def admin_usage_consumers_count(request: Request):
     try:
         result = await asyncio.to_thread(AdminUsageService.count_usage_consumers)
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=UsageConsumersCountResponse(
+                count=result if isinstance(result, int) else 0
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -200,7 +221,7 @@ async def admin_usage_consumers_count(request: Request):
 @manager_router.get(
     "/admin/usage/distinct_items/{item_consumer}/{start}/{end}",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[UsageDistinctItemResponse],
     summary="Get distinct usage items",
     description="Returns distinct items for a consumer type within a date range.",
     responses={
@@ -225,8 +246,13 @@ async def admin_usage_distinct_items(
             end,
             payload["category_id"] if payload["role_id"] == "manager" else None,
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                UsageDistinctItemResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -404,7 +430,7 @@ async def admin_usage_retention_update(request: Request, data: UsageRetentionCon
 @admin_router.get(
     "/admin/usage/parameters",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[UsageParameterResponse],
     summary="Get all usage parameters",
     description="Returns all usage parameters.",
     responses={500: {"model": ErrorResponse}},
@@ -412,8 +438,13 @@ async def admin_usage_retention_update(request: Request, data: UsageRetentionCon
 async def admin_usage_parameters_list(request: Request):
     try:
         result = await asyncio.to_thread(AdminUsageService.get_usage_parameters)
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                UsageParameterResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -428,7 +459,7 @@ async def admin_usage_parameters_list(request: Request):
 @manager_router.put(
     "/admin/usage/list_parameters",
     tags=[tag],
-    response_model=list[dict] | dict,
+    response_model=list[UsageParameterResponse] | dict,
     summary="Get usage parameters by IDs",
     description="Returns usage parameters filtered by a list of IDs.",
     responses={500: {"model": ErrorResponse}},
@@ -442,9 +473,13 @@ async def admin_usage_list_parameters(request: Request, data: UsageParameterIdsR
                 )
                 or []
             )
-            # TODO!: check result and create a response model
-            return JSONResponse(content=result, status_code=200)
-        # TODO!: check result and create a response model
+            return JSONResponse(
+                content=[
+                    UsageParameterResponse(**row).model_dump(mode="json")
+                    for row in result
+                ],
+                status_code=200,
+            )
         return JSONResponse(content={}, status_code=200)
     except Error:
         raise
@@ -460,7 +495,7 @@ async def admin_usage_list_parameters(request: Request, data: UsageParameterIdsR
 @admin_router.post(
     "/admin/usage/parameters",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Create usage parameter",
     description="Creates a new usage parameter.",
     responses={
@@ -472,13 +507,10 @@ async def admin_usage_parameters_add(
     request: Request, data: UsageParameterCreateRequest
 ):
     try:
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             AdminUsageService.add_usage_parameters, data.model_dump()
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -493,7 +525,7 @@ async def admin_usage_parameters_add(
 @admin_router.put(
     "/admin/usage/parameters/{parameter_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update usage parameter",
     description="Updates an existing usage parameter.",
     responses={
@@ -508,13 +540,10 @@ async def admin_usage_parameters_update(
     data: UsageParameterUpdateRequest,
 ):
     try:
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             AdminUsageService.update_usage_parameters, data.model_dump()
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -529,7 +558,7 @@ async def admin_usage_parameters_update(
 @admin_router.delete(
     "/admin/usage/parameters/{parameter_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Delete usage parameter",
     description="Deletes a usage parameter by ID.",
     responses={
@@ -542,13 +571,8 @@ async def admin_usage_parameters_delete(
     parameter_id: str = Path(..., description="Parameter ID"),
 ):
     try:
-        result = await asyncio.to_thread(
-            AdminUsageService.delete_usage_parameters, parameter_id
-        )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        await asyncio.to_thread(AdminUsageService.delete_usage_parameters, parameter_id)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -568,7 +592,7 @@ async def admin_usage_parameters_delete(
 @admin_router.get(
     "/admin/usage/limits",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[UsageLimitResponse],
     summary="Get all usage limits",
     description="Returns all usage limits.",
     responses={500: {"model": ErrorResponse}},
@@ -576,8 +600,13 @@ async def admin_usage_parameters_delete(
 async def admin_usage_limits_list(request: Request):
     try:
         result = await asyncio.to_thread(AdminUsageService.get_usage_limits)
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                UsageLimitResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -592,7 +621,7 @@ async def admin_usage_limits_list(request: Request):
 @admin_router.post(
     "/admin/usage/limits",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Create usage limit",
     description="Creates a new usage limit.",
     responses={
@@ -602,16 +631,13 @@ async def admin_usage_limits_list(request: Request):
 )
 async def admin_usage_limits_add(request: Request, data: UsageLimitCreateRequest):
     try:
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             AdminUsageService.add_usage_limits,
             data.name,
             data.desc,
             data.limits.model_dump(),
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -626,7 +652,7 @@ async def admin_usage_limits_add(request: Request, data: UsageLimitCreateRequest
 @admin_router.put(
     "/admin/usage/limits/{limit_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update usage limit",
     description="Updates an existing usage limit.",
     responses={
@@ -640,17 +666,14 @@ async def admin_usage_limits_update(
     data: UsageLimitUpdateRequest,
 ):
     try:
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             AdminUsageService.update_usage_limits,
             limit_id,
             data.name,
             data.desc,
             data.limits.model_dump(),
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -665,7 +688,7 @@ async def admin_usage_limits_update(
 @admin_router.delete(
     "/admin/usage/limits/{limit_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Delete usage limit",
     description="Deletes a usage limit by ID.",
     responses={
@@ -678,13 +701,8 @@ async def admin_usage_limits_delete(
     limit_id: str = Path(..., description="Limit ID"),
 ):
     try:
-        result = await asyncio.to_thread(
-            AdminUsageService.delete_usage_limits, limit_id
-        )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        await asyncio.to_thread(AdminUsageService.delete_usage_limits, limit_id)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -704,7 +722,7 @@ async def admin_usage_limits_delete(
 @admin_router.get(
     "/admin/usage/groupings",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[UsageGroupingResponse],
     summary="Get all usage groupings",
     description="Returns all usage groupings (system + custom).",
     responses={500: {"model": ErrorResponse}},
@@ -712,8 +730,13 @@ async def admin_usage_limits_delete(
 async def admin_usage_groupings_list(request: Request):
     try:
         result = await asyncio.to_thread(AdminUsageService.get_usage_groupings)
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                UsageGroupingResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -728,21 +751,21 @@ async def admin_usage_groupings_list(request: Request):
 @manager_router.get(
     "/admin/usage/groupings_dropdown",
     tags=[tag],
-    response_model=dict,
+    response_model=UsageGroupingsDropdownResponse,
     summary="Get usage groupings dropdown",
     description="Returns usage groupings structured for dropdown menus. "
     "Shape: ``{system: {desktop:[...], media:[...], storage:[...], "
-    "user:[...]}, custom: {...}}``. Declared as ``dict`` rather than a "
-    "nested model because the inner per-grouping rows carry free-form "
-    "``parameters`` lists that vary by grouping kind.",
+    "user:[...]}, custom: {...}}``.",
     responses={500: {"model": ErrorResponse}},
 )
 async def admin_usage_groupings_dropdown(request: Request):
     try:
         result = await asyncio.to_thread(AdminUsageService.get_usage_groupings_dropdown)
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=UsageGroupingsDropdownResponse(
+                **(result if isinstance(result, dict) else {})
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -758,7 +781,7 @@ async def admin_usage_groupings_dropdown(request: Request):
 @manager_router.get(
     "/admin/usage/grouping/{grouping_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=UsageGroupingResponse,
     summary="Get usage grouping by ID",
     description="Returns a specific usage grouping.",
     responses={
@@ -771,9 +794,9 @@ async def admin_usage_grouping_get(request: Request, grouping_id: str):
         result = await asyncio.to_thread(
             AdminUsageService.get_usage_grouping, grouping_id
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=UsageGroupingResponse(**result).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -789,7 +812,7 @@ async def admin_usage_grouping_get(request: Request, grouping_id: str):
 @admin_router.post(
     "/admin/usage/groupings",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Create usage grouping",
     description="Creates a new usage grouping.",
     responses={
@@ -799,13 +822,8 @@ async def admin_usage_grouping_get(request: Request, grouping_id: str):
 )
 async def admin_usage_groupings_add(request: Request, data: UsageGroupingCreateRequest):
     try:
-        result = await asyncio.to_thread(
-            AdminUsageService.add_usage_grouping, data.model_dump()
-        )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        await asyncio.to_thread(AdminUsageService.add_usage_grouping, data.model_dump())
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -820,7 +838,7 @@ async def admin_usage_groupings_add(request: Request, data: UsageGroupingCreateR
 @admin_router.put(
     "/admin/usage/groupings/{grouping_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update usage grouping",
     description="Updates an existing usage grouping.",
     responses={
@@ -834,13 +852,10 @@ async def admin_usage_groupings_update(
     data: UsageGroupingUpdateRequest,
 ):
     try:
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             AdminUsageService.update_usage_grouping, data.model_dump()
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -855,7 +870,7 @@ async def admin_usage_groupings_update(
 @admin_router.delete(
     "/admin/usage/groupings/{grouping_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Delete usage grouping",
     description="Deletes a usage grouping by ID.",
     responses={
@@ -868,13 +883,8 @@ async def admin_usage_groupings_delete(
     grouping_id: str = Path(..., description="Grouping ID"),
 ):
     try:
-        result = await asyncio.to_thread(
-            AdminUsageService.delete_usage_grouping, grouping_id
-        )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        await asyncio.to_thread(AdminUsageService.delete_usage_grouping, grouping_id)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -894,7 +904,7 @@ async def admin_usage_groupings_delete(
 @admin_router.get(
     "/admin/usage/category_credits",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[UsageCreditResponse],
     summary="Get all usage credits",
     description="Returns all usage credits with category names and grouping names.",
     responses={500: {"model": ErrorResponse}},
@@ -902,8 +912,13 @@ async def admin_usage_groupings_delete(
 async def admin_usage_all_credits(request: Request):
     try:
         result = await asyncio.to_thread(AdminUsageService.get_all_usage_credits)
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                UsageCreditResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -918,7 +933,7 @@ async def admin_usage_all_credits(request: Request):
 @admin_router.get(
     "/admin/usage/category_credits/{category_credit_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=UsageCreditResponse,
     summary="Get usage credit by ID",
     description="Returns a specific usage credit.",
     responses={
@@ -931,9 +946,9 @@ async def admin_usage_credits_by_id(request: Request, category_credit_id: str):
         result = await asyncio.to_thread(
             AdminUsageService.get_usage_credits_by_id, category_credit_id
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=UsageCreditResponse(**result).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -949,7 +964,7 @@ async def admin_usage_credits_by_id(request: Request, category_credit_id: str):
 @manager_router.get(
     "/admin/usage/credits/{consumer}/{item_type}/{item_id}/{grouping_id}/{start_date}/{end_date}",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[UsageCreditIntervalResponse],
     summary="Get usage credits for item",
     description="Returns usage credits for a specific item, type, grouping, and date range.",
     responses={
@@ -982,8 +997,13 @@ async def admin_usage_credits(
             start_date,
             end_date,
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                UsageCreditIntervalResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -998,7 +1018,7 @@ async def admin_usage_credits(
 @admin_router.post(
     "/admin/usage/credits",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Create usage credit",
     description="Creates usage credits for one or more items.",
     responses={
@@ -1009,13 +1029,8 @@ async def admin_usage_credits(
 )
 async def admin_usage_credits_add(request: Request, data: UsageCreditCreateRequest):
     try:
-        result = await asyncio.to_thread(
-            AdminUsageService.add_usage_credit, data.model_dump()
-        )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        await asyncio.to_thread(AdminUsageService.add_usage_credit, data.model_dump())
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -1030,7 +1045,7 @@ async def admin_usage_credits_add(request: Request, data: UsageCreditCreateReque
 @admin_router.put(
     "/admin/usage/credits/{credit_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Update usage credit",
     description="Updates an existing usage credit.",
     responses={
@@ -1045,15 +1060,12 @@ async def admin_usage_credits_update(
     data: UsageCreditUpdateRequest,
 ):
     try:
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             AdminUsageService.update_usage_credit,
             credit_id,
             data.model_dump(exclude_none=True),
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -1068,7 +1080,7 @@ async def admin_usage_credits_update(
 @admin_router.delete(
     "/admin/usage/credits/{credit_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=EmptyResponse,
     summary="Delete usage credit",
     description="Deletes a usage credit by ID.",
     responses={
@@ -1081,13 +1093,8 @@ async def admin_usage_credits_delete(
     credit_id: str = Path(..., description="Credit ID"),
 ):
     try:
-        result = await asyncio.to_thread(
-            AdminUsageService.delete_usage_credit, credit_id
-        )
-        # TODO!: check result and create a response model
-        return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
-        )
+        await asyncio.to_thread(AdminUsageService.delete_usage_credit, credit_id)
+        return JSONResponse(content={}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -1107,7 +1114,7 @@ async def admin_usage_credits_delete(
 @admin_router.put(
     "/admin/usage/unify/{item_id}/item_name",
     tags=[tag],
-    response_model=dict,
+    response_model=UsageUnifyItemNameResponse,
     summary="Unify item name in consumption records",
     description="Unifies the item name across all consumption records for the given item.",
     responses={500: {"model": ErrorResponse}},
@@ -1115,8 +1122,10 @@ async def admin_usage_credits_delete(
 async def admin_usage_unify_item_name(request: Request, item_id: str):
     try:
         name = await asyncio.to_thread(AdminUsageService.unify_item_name, item_id)
-        # TODO!: check result and create a response model
-        return JSONResponse(content={"name": name}, status_code=200)
+        return JSONResponse(
+            content=UsageUnifyItemNameResponse(name=name).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -1139,7 +1148,6 @@ async def admin_usage_unify_item_name(request: Request, item_id: str):
 async def admin_usage_reset_dates_all(request: Request):
     try:
         reset_dates = await asyncio.to_thread(AdminUsageService.get_reset_dates)
-        # TODO!: check result and create a response model
         return JSONResponse(
             content=[date.strftime("%m/%d/%Y") for date in reset_dates],
             status_code=200,
@@ -1183,7 +1191,6 @@ async def admin_usage_reset_dates_range(
         reset_dates = await asyncio.to_thread(
             AdminUsageService.get_reset_dates, start, end
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
             content=[date.strftime("%m/%d/%Y") for date in reset_dates],
             status_code=200,
@@ -1220,7 +1227,6 @@ async def admin_usage_reset_dates_add(request: Request, data: UsageResetDatesReq
         except Exception:
             parsed_dates = []
         await asyncio.to_thread(AdminUsageService.add_reset_dates, parsed_dates)
-        # TODO!: check result and create a response model
         return JSONResponse(content=data.date_list, status_code=200)
     except Error:
         raise
@@ -1262,7 +1268,7 @@ async def admin_usage_delete_consumption_data(request: Request):
 @admin_router.get(
     "/admin/usage/check/overlapping/{credit_id}/{start_date}/{end_date}",
     tags=[tag],
-    response_model=dict,
+    response_model=UsageOverlappingResponse,
     summary="Check overlapping credits",
     description="Checks if there are overlapping credit intervals for the given credit and date range.",
     responses={
@@ -1302,9 +1308,11 @@ async def admin_usage_check_overlapping(
             end,
             credit_id,
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=UsageOverlappingResponse(
+                **(result if isinstance(result, dict) else {})
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise

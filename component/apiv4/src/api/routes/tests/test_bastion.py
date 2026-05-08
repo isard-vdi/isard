@@ -349,12 +349,14 @@ def test_update_bastion_config(monkeypatch, test_client):
 
 def test_remove_disallowed_bastion_targets(monkeypatch, test_client):
     """DELETE /admin/bastion/disallowed — replaces v3
-    /admin/bastion/disallowed shim."""
+    /admin/bastion/disallowed shim. ``Alloweds.remove_disallowed_bastion_targets``
+    returns the list of deleted target ids; the route wraps it into
+    ``DeleteBastionDisallowedTargetsResponse(removed_targets=...)``."""
     jwt = MockJWT()
-    stub = {"removed": 3}
+    removed = ["t-1", "t-2", "t-3"]
     monkeypatch.setattr(
         "api.services.bastion.BastionService.remove_disallowed_bastion_targets",
-        staticmethod(lambda: stub),
+        staticmethod(lambda: removed),
     )
 
     response = test_client(
@@ -364,7 +366,7 @@ def test_remove_disallowed_bastion_targets(monkeypatch, test_client):
     )
 
     assert response.status_code == 200
-    assert response.json() == stub
+    assert response.json() == {"removed_targets": removed}
 
 
 # ─── User bastion target management ─────────────────────────────────────

@@ -370,3 +370,116 @@ class UserVpnData(BaseModel):
     name: Optional[str] = None
     ext: Optional[str] = None
     mime: Optional[str] = None
+
+
+class UserListItem(BaseModel):
+    """One row of the ``/items/users`` listing.
+
+    Mirrors the columns plucked by
+    ``CommonUsers.get_with_category`` (id / name / category /
+    category_name / photo / accessed). This is the shape the
+    deployments / lab forms read to populate the user multi-select.
+    """
+
+    id: str = Field(description="The ID of the user.")
+    name: str = Field(description="The full name of the user.")
+    category: str = Field(description="The category ID of the user.")
+    category_name: str = Field(description="The name of the user's category.")
+    photo: str = Field(default="", description="The URL of the user's photo.")
+    accessed: Optional[float] = Field(
+        default=None,
+        description="Timestamp of the user's last access.",
+    )
+
+
+class WebappDomainItem(BaseModel):
+    """Common shape returned by the legacy ``/item/user/webapp-desktops``
+    and ``/item/user/webapp-templates`` endpoints.
+
+    Both endpoints return raw rows from the ``domains`` table
+    (``DomainsProcessed.list_webapp_desktops_for_user`` /
+    ``list_webapp_templates_for_user``) with a few heavy fields
+    stripped (``xml``, ``history_domain``, ``allowed`` for desktops;
+    plus ``viewer`` for templates). Every field is ``Optional`` —
+    ``DomainModel`` itself only requires ``category``, ``group``,
+    ``kind``, ``name``, ``persistent``, ``status`` and ``id``, but
+    real rows from older schemas may have any of these missing.
+    """
+
+    id: str = Field(description="ID of the domain row.")
+    name: Optional[str] = None
+    kind: Optional[str] = Field(
+        default=None,
+        description="``desktop`` or ``template``.",
+    )
+    status: Optional[str] = None
+    description: Optional[str] = ""
+    detail: Optional[str] = ""
+    persistent: Optional[bool] = None
+    user: Optional[str] = None
+    username: Optional[str] = None
+    category: Optional[str] = None
+    group: Optional[str] = None
+    accessed: Optional[float] = None
+    icon: Optional[str] = None
+    image: Optional[dict] = None
+    os: Optional[str] = None
+    parents: Optional[list[str]] = None
+    create_dict: Optional[dict] = None
+    guest_properties: Optional[dict] = None
+    hardware: Optional[dict] = None
+    hardware_from_xml: Optional[dict] = None
+    options: Optional[dict] = None
+    booking_id: Union[str, bool, None] = False
+    server: Union[bool, str, None] = None
+    tag: Union[str, bool, None] = False
+    tag_desktop_id: Union[str, bool, None] = False
+    tag_visible: Optional[bool] = False
+    progress: Optional[dict] = None
+    viewer: Optional[dict] = Field(
+        default=None,
+        description=(
+            "Full viewer subdocument. Present on desktops; stripped "
+            "on the templates listing."
+        ),
+    )
+    forced_hyp: Union[bool, list[str], None] = False
+    favourite_hyp: Union[bool, list[str], None] = False
+    hyp_started: Union[bool, str, None] = False
+    hypervisors_pools: Optional[list[str]] = None
+    disks_info: Optional[list[dict]] = None
+    hw_stats: Optional[dict] = None
+    from_template: Optional[str] = None
+    current_action: Optional[str] = None
+    scheduled: Optional[dict] = None
+    enabled: Optional[bool] = None
+
+
+class UserHardwareKindAllowedResponse(BaseModel):
+    """Response for ``/item/user/hardware/{kind}/allowed``.
+
+    ``Quotas.get_hardware_kind_allowed`` returns a partial subset of
+    the full ``UserAllowedHardwareResponse`` shape: only the requested
+    ``kind`` key is populated (``isos`` populates both ``isos`` and
+    ``floppies``; ``quota`` populates ``quota`` and
+    ``restriction_applied`` from the applied quota lookup). Every
+    field is therefore declared ``Optional`` so a single strict model
+    covers all kinds without drift from the canonical
+    ``UserAllowedHardwareResponse``.
+    """
+
+    interfaces: Optional[list[HardwareItem]] = None
+    graphics: Optional[list[HardwareItem]] = None
+    videos: Optional[list[HardwareItem]] = None
+    boot_order: Optional[list[HardwareItem]] = None
+    qos_id: Optional[list[HardwareItem]] = None
+    isos: Optional[list[HardwareItem]] = None
+    floppies: Optional[list[HardwareItem]] = None
+    reservables: Optional[Reservables] = None
+    disk_bus: Optional[list[HardwareItem]] = None
+    forced_hyp: Optional[list[str]] = None
+    favourite_hyp: Optional[list[str]] = None
+    quota: Union[bool, dict, None] = None
+    restriction_applied: Optional[
+        Literal["user_quota", "role_quota", "group_quota", "category_quota"]
+    ] = None
