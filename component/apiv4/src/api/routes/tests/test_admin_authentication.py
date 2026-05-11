@@ -176,6 +176,32 @@ class TestPolicyList:
         response = test_client(url=self.URL, jwt=MockJWT(role_id="manager"))
         assert response.status_code == 403
 
+    def test_disclaimer_template_dict_passes_validation(self, monkeypatch, test_client):
+        # Persisted shape when disclaimer is enabled: ``{"template": <id>}``
+        # (see webapp/.../users_pwd_policies.js). The response schema must
+        # accept it without raising a 500 on Pydantic validation.
+        sample = [
+            {
+                "id": "p1",
+                "category": "all",
+                "role": "all",
+                "type": "local",
+                "disclaimer": {"template": "40d07b58-0f25-4137-b67a-749e48579ed7"},
+            },
+            {"id": "p2", "category": "default", "role": "user", "disclaimer": False},
+        ]
+        monkeypatch.setattr(
+            "api.routes.admin.authentication.AdminAuthenticationService.get_policies",
+            staticmethod(lambda: sample),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        body = response.json()
+        assert body[0]["disclaimer"] == {
+            "template": "40d07b58-0f25-4137-b67a-749e48579ed7"
+        }
+        assert body[1]["disclaimer"] is False
+
 
 class TestPolicyGet:
     URL = "/admin/authentication/policy/p-123"

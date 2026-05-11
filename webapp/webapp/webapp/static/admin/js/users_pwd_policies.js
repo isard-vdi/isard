@@ -559,7 +559,7 @@ function populateTextTemplateSelect(modal) {
         type: "GET"
     }).then(response => {
         $(modal + " #template-content p").hide();
-        $.each(response, function (key, template) {
+        $.each(response.templates, function (key, template) {
             if (!["password", "email", "deleted_gpu"].includes(template.kind)) {
                 $(modal + " .disclaimer-template").append(`
                         <option value="${template.id}">${template.name}</option>

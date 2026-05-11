@@ -282,7 +282,7 @@ function populateNotificationTemplate(modal) {
         url: "/api/v4/admin/notifications/templates",
         type: "GET"
     }).then(response => {
-        $.each(response, function (key, template) {
+        $.each(response.templates, function (key, template) {
             if (!["password", "email", "deleted_gpu"].includes(template.kind)) {
                 $(modal + " select#template").append(`
                    <option value="${template.id}">${template.name}</option>

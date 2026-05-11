@@ -19,7 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -32,7 +32,7 @@ class PolicyCreateRequest(BaseModel):
     category: str
     role: str
     type: str
-    disclaimer: Optional[bool] = None
+    disclaimer: Optional[Union[bool, Dict[str, Any]]] = None
     email_verification: Optional[bool] = False
     password: Optional[Dict[str, Any]] = None
 
@@ -43,7 +43,7 @@ class PolicyEditRequest(BaseModel):
     category: Optional[str] = None
     role: Optional[str] = None
     type: Optional[str] = None
-    disclaimer: Optional[Any] = None
+    disclaimer: Optional[Union[bool, Dict[str, Any]]] = None
     email_verification: Optional[bool] = None
     password: Optional[Dict[str, Any]] = None
 
@@ -81,7 +81,7 @@ class PolicyResponse(BaseModel):
     category: Optional[str] = None
     role: Optional[str] = None
     type: Optional[str] = None
-    disclaimer: Optional[Any] = None
+    disclaimer: Optional[Union[bool, Dict[str, Any]]] = None
     email_verification: Optional[bool] = None
     password: Optional[Dict[str, Any]] = None
 
