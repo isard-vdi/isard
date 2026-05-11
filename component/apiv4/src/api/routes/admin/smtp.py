@@ -53,20 +53,24 @@ def clear_smtp_caches():
 # ══════════════════════════════════════════════════════════════════════════
 
 
-@cached(cache=smtp_config_cache)
 @admin_router.get(
     "/smtp",
     tags=[tag],
     response_model=SmtpConfigResponse,
+    response_model_exclude_none=True,
+    response_model_by_alias=True,
     summary="Get SMTP configuration",
     description="Returns the current SMTP configuration.",
     responses={500: {"model": ErrorResponse}},
 )
 async def admin_smtp_get(request: Request):
     try:
-        config = await asyncio.to_thread(AdminSmtpService.get_smtp_config)
+        config = await asyncio.to_thread(AdminSmtpService.get_smtp_config) or {}
+        if request.token_payload.get("session_id") != "isardvdi-service":
+            # Admins must never see the password on read.
+            config = {k: v for k, v in config.items() if k != "password"}
         return JSONResponse(
-            content=SmtpConfigResponse(**(config or {})).model_dump(mode="json"),
+            content=SmtpConfigResponse(**(config)).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
@@ -84,6 +88,8 @@ async def admin_smtp_get(request: Request):
     "/smtp",
     tags=[tag],
     response_model=SmtpConfigResponse,
+    response_model_exclude_none=True,
+    response_model_by_alias=True,
     summary="Update SMTP configuration",
     description="Updates and saves the SMTP configuration.",
     responses={
@@ -93,11 +99,16 @@ async def admin_smtp_get(request: Request):
 )
 async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
     try:
-        config = await asyncio.to_thread(
-            AdminSmtpService.update_smtp_config, data.model_dump(exclude_none=True)
+        config = (
+            await asyncio.to_thread(
+                AdminSmtpService.update_smtp_config, data.model_dump(exclude_none=True)
+            )
+            or {}
         )
+        # Never echo the password back on write.
+        config = {k: v for k, v in config.items() if k != "password"}
         return JSONResponse(
-            content=SmtpConfigResponse(**(config or {})).model_dump(mode="json"),
+            content=SmtpConfigResponse(**(config)).model_dump(mode="json"),
             status_code=200,
         )
     except Error:

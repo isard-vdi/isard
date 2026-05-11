@@ -20,7 +20,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SmtpConfigRequest(BaseModel):
@@ -36,15 +36,20 @@ class SmtpConfigRequest(BaseModel):
 class SmtpConfigResponse(BaseModel):
     """Response shape for ``GET /smtp`` and ``PUT /smtp``.
 
-    Mirrors ``SmtpConfigRequest`` minus ``password`` — the password
-    is never echoed back to admins on read. ``response_model=`` will
-    drop the password key from the service blob automatically; the
-    route test pins this with ``"password" not in response.json()``.
+    ``password`` and ``from`` are only emitted to internal service callers
+    (notifier needs them to SMTP-AUTH); admin-UI sessions get the redacted
+    shape, enforced by the route stripping those keys before constructing
+    the model. ``response_model_exclude_none=True`` keeps the redacted
+    shape free of ``"password": null`` noise.
     """
+
+    model_config = ConfigDict(populate_by_name=True)
 
     host: Optional[str] = None
     port: Optional[int] = None
     username: Optional[str] = None
+    password: Optional[str] = None
+    from_: Optional[str] = Field(default=None, alias="from")
     enabled: Optional[bool] = None
 
 
