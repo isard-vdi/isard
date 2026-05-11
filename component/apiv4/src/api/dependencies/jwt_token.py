@@ -242,7 +242,8 @@ async def has_token_password_reset_login(
 ) -> TokenPayload:
     token = token.credentials
     payload: TokenPayload = TokenFastAPI.get_token_payload(token)
-    if payload.get("type", "") not in [
+    token_type = payload.get("type", "")
+    if token_type not in [
         "password-reset-required",
         "password-reset",
         "login",
@@ -253,6 +254,15 @@ async def has_token_password_reset_login(
             "Token not valid for this operation.",
             traceback.format_exc(),
         )
+
+    if token_type in ("login", ""):
+        jwt_payload = TokenFastAPI.get_jwt_payload(token)
+        session_id = jwt_payload.get("session_id", "")
+        if session_id != "isardvdi-service":
+            try:
+                api_sessions.get(session_id, get_remote_addr(request))
+            except Error as e:
+                raise e
 
     request.token_payload = payload
 
@@ -281,12 +291,22 @@ async def has_token_direct_viewer(
 ):
     token = token.credentials
     payload = TokenFastAPI.get_token_payload(token)
-    if payload.get("type", "") not in ["direct-viewer", "login", ""]:
+    token_type = payload.get("type", "")
+    if token_type not in ["direct-viewer", "login", ""]:
         raise Error(
             "forbidden",
             "Token not valid for direct viewer operation.",
             traceback.format_exc(),
         )
+
+    if token_type == "login":
+        jwt_payload = TokenFastAPI.get_jwt_payload(token)
+        session_id = jwt_payload.get("session_id", "")
+        if session_id != "isardvdi-service":
+            try:
+                api_sessions.get(session_id, get_remote_addr(request))
+            except Error as e:
+                raise e
 
     request.token_payload = payload
 
