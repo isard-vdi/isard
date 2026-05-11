@@ -400,8 +400,18 @@ def test_list_reservable_profiles(monkeypatch, test_client):
 
     def fake_list_profiles(reservable_type):
         return [
-            {"id": "NVIDIA-A16-1Q", "name": "1Q"},
-            {"id": "NVIDIA-A16-2Q", "name": "2Q"},
+            {
+                "id": "NVIDIA-A16",
+                "brand": "NVIDIA",
+                "model": "A16",
+                "description": "NVIDIA A16",
+                "memory": "16 GB",
+                "architecture": "",
+                "profiles": [
+                    {"id": "NVIDIA-A16-1Q", "name": "NVIDIA A16 1Q"},
+                    {"id": "NVIDIA-A16-2Q", "name": "NVIDIA A16 2Q"},
+                ],
+            },
         ]
 
     monkeypatch.setattr(
@@ -414,8 +424,9 @@ def test_list_reservable_profiles(monkeypatch, test_client):
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body, list)
-    assert body[0]["id"] == "NVIDIA-A16-1Q"
-    assert body[1]["id"] == "NVIDIA-A16-2Q"
+    assert body[0]["id"] == "NVIDIA-A16"
+    assert body[0]["profiles"][0]["id"] == "NVIDIA-A16-1Q"
+    assert body[0]["profiles"][1]["id"] == "NVIDIA-A16-2Q"
 
 
 def test_add_reservable_item(monkeypatch, test_client):

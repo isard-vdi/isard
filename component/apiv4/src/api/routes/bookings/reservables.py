@@ -27,7 +27,7 @@ from typing import Literal, Optional
 log = logging.getLogger("apiv4")
 
 from api import admin_router, token_router
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
 from api.schemas.reservables import (
     AddReservableItemRequest,
     AvailableReservablesResponse,
@@ -36,8 +36,10 @@ from api.schemas.reservables import (
     CreatePlanRequest,
     EnableReservableRequest,
     ReservableDetailResponse,
-    ReservableItemResponse,
+    ReservableProfileResponse,
     ReservablesListResponse,
+    ReservableSubitemResponse,
+    UpdateReservableItemRequest,
 )
 from api.services.error import Error
 from api.services.reservables import ReservableService
@@ -81,7 +83,7 @@ async def get_reservables(request: Request):
 @admin_router.get(
     "/items/reservables/profiles/{reservable_type}",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[ReservableProfileResponse],
     summary="List profiles for a reservable type",
     description=("Returns all profiles for a specific reservable type."),
     responses={
@@ -91,12 +93,13 @@ async def get_reservables(request: Request):
 async def list_profiles(
     request: Request,
     reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
-) -> list[dict]:
+) -> list[ReservableProfileResponse]:
     try:
-        return (
+        items = (
             await asyncio.to_thread(ReservableService.list_profiles, reservable_type)
             or []
         )
+        return [ReservableProfileResponse(**item) for item in items]
     except Error:
         raise
     except Exception as e:
@@ -147,38 +150,40 @@ async def get_reservable_items(
 
 @admin_router.get(
     "/items/reservables/{reservable_type}/{item_id}",
-    response_model=ReservableItemResponse,
     tags=[tag],
-    summary="Get specific reservable item",
-    description="Returns a list of subitems of a specific reservable item, (e.g., vGPU profiles).",
+    response_model=list[dict],
+    summary="List subitems of a reservable item",
+    description=(
+        "Returns the catalog of subitems (e.g., vGPU profiles) for a "
+        "specific reservable item. v3 parity for the admin Hypervisors "
+    ),
     responses={
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
-async def get_reservable_item(
+async def list_reservable_subitems(
     request: Request,
     reservable_type: str = Path(
         ..., description="The reservable type (e.g., 'gpus', 'usbs')"
     ),
-    item_id=str,
-):
-    """
-    Get detailed information for a specific reservable item.
-    """
+    item_id: str = Path(..., description="The reservable item ID"),
+) -> list[dict]:
     try:
-        item = await asyncio.to_thread(
-            ReservableService.get_reservable_item, reservable_type, item_id
+        return (
+            await asyncio.to_thread(
+                ReservableService.list_subitems, reservable_type, item_id
+            )
+            or []
         )
-        return ReservableItemResponse(**item)
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",
-            f"Failed to retrieve reservable item {item_id} of type {reservable_type}",
+            f"Failed to list subitems of {reservable_type}/{item_id}",
             traceback.format_exc(),
         )
 
@@ -212,7 +217,7 @@ async def get_booking_reservables_available(request: Request):
 @admin_router.post(
     "/item/reservable/{reservable_type}",
     tags=[tag],
-    response_model=dict,
+    response_model=SimpleResponse,
     summary="Add new reservable item",
     description="Creates a new reservable item of the specified type.",
     responses={
@@ -223,12 +228,12 @@ async def add_reservable_item(
     request: Request,
     reservable_type: str = Path(..., description="The reservable type (e.g., 'gpus')"),
     data: AddReservableItemRequest = ...,
-) -> dict:
+) -> SimpleResponse:
     try:
-        result = await asyncio.to_thread(
+        created = await asyncio.to_thread(
             ReservableService.add_item, reservable_type, data.model_dump()
         )
-        return result if isinstance(result, dict) else {}
+        return SimpleResponse(id=(created or {}).get("id", ""))
     except Error:
         raise
     except Exception as e:
@@ -243,7 +248,7 @@ async def add_reservable_item(
 @admin_router.put(
     "/item/reservable/enable/{reservable_type}/{item_id}/{subitem_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=SimpleResponse,
     summary="Enable or disable a reservable subitem",
     description=(
         "Enables or disables a specific reservable subitem (e.g., GPU "
@@ -268,9 +273,9 @@ async def enable_reservable_subitem(
             "subitem is disabled. Ignored when ``enabled`` is true."
         ),
     ),
-) -> dict:
+) -> SimpleResponse:
     try:
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             ReservableService.enable_subitem,
             reservable_type,
             item_id,
@@ -278,7 +283,7 @@ async def enable_reservable_subitem(
             data.enabled,
             notify_user=notify_user,
         )
-        return result if isinstance(result, dict) else {}
+        return SimpleResponse(id=item_id)
     except Error:
         raise
     except Exception as e:
@@ -436,7 +441,7 @@ async def delete_reservable_item(
 @admin_router.put(
     "/admin/reservables/{reservable_type}/{item_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    response_model=SimpleResponse,
     summary="Update reservable item",
     description="Update name and description of a reservable item (e.g., GPU).",
     responses={
@@ -449,13 +454,16 @@ async def update_reservable_item(
     request: Request,
     reservable_type: str = Path(..., description="The reservable type (e.g., gpus)"),
     item_id: str = Path(..., description="The item ID"),
-    data: dict = {},
-) -> EmptyResponse:
+    data: UpdateReservableItemRequest = ...,
+) -> SimpleResponse:
     try:
         await asyncio.to_thread(
-            ReservableService.update_item, reservable_type, item_id, data
+            ReservableService.update_item,
+            reservable_type,
+            item_id,
+            data.model_dump(exclude_none=True),
         )
-        return EmptyResponse()
+        return SimpleResponse(id=item_id)
     except Error:
         raise
     except Exception as e:

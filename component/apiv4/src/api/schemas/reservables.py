@@ -68,6 +68,9 @@ class ReservableItemResponse(BaseModel):
     physical_device: Optional[str] = None
     profiles_enabled: List[str]
     plans: ReservablePlans
+    desktops_started: List[str] = []
+    available_units: int = 0
+    gpu_warnings: List[str] = []
 
 
 class ReservableDetailResponse(BaseModel):
@@ -91,6 +94,18 @@ class AvailableReservablesResponse(BaseModel):
     reservables_available: Optional[list[AvailableReservable]]
 
 
+class ReservableSubitemResponse(BaseModel):
+    """Response model for a single reservable subitem (e.g., a vGPU
+    profile in the catalog of a GPU model)."""
+
+    id: str
+    name: str
+    description: str
+    profile: str
+    memory: int
+    units: int
+
+
 class ReservableProfileResponse(BaseModel):
     """Response model for reservable profiles"""
 
@@ -109,6 +124,13 @@ class AddReservableItemRequest(BaseModel):
     name: str
     bookable: str
     description: Optional[str] = ""
+
+
+class UpdateReservableItemRequest(BaseModel):
+    """Request model for updating a reservable item's name and description"""
+
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 
 class EnableReservableRequest(BaseModel):
