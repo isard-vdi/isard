@@ -78,9 +78,20 @@
       "invalid-email": "Sartu helbide elektroniko baliogarri bat",
       "error-generic": "Errore bat gertatu da. Saiatu berriro.",
       "success": "Egiaztapen mezu elektroniko bat bidali da. Egiaztatu zure sarrera-ontzia.",
+      "redirecting": "Saio-hasierara birbideratzen {seconds} s barru…",
+      "verifying": "Zure helbide elektronikoa egiaztatzen…",
+      "verified": {
+        "title": "Helbide elektronikoa egiaztatuta",
+        "description": "Zure helbide elektronikoa egiaztatu da."
+      },
+      "link-error": {
+        "title": "Egiaztapen-esteka ez da baliogarria",
+        "description": "Esteka iraungita dago edo dagoeneko erabili da. Hasi saioa eta eskatu egiaztapen-mezu berri bat."
+      },
       "buttons": {
         "verify": "Egiaztapen mezua bidali",
-        "logout": "Saioa itxi"
+        "logout": "Saioa itxi",
+        "login": "Saioa hastera joan"
       }
     },
     "login": {

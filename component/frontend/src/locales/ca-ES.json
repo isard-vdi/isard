@@ -19,6 +19,9 @@
     "maintenance": {
       "title": "Manteniment"
     },
+    "verify-email": {
+      "title": "Verifica el correu"
+    },
     "profile": {
       "title": "Perfil",
       "subtitle": "Gestiona el teu perfil i preferències"
@@ -110,6 +113,30 @@
     }
   },
   "views": {
+    "verify-email": {
+      "title": "L'adreça de correu ha de ser verificada per IsardVDI",
+      "description": "Introdueix la teva adreça de correu per rebre un enllaç de verificació.",
+      "email-label": "Correu electrònic",
+      "email-placeholder": "nom{'@'}exemple.com",
+      "invalid-email": "Introdueix una adreça de correu vàlida",
+      "error-generic": "S'ha produït un error. Torna-ho a provar.",
+      "success": "S'ha enviat un correu de verificació. Revisa la teva safata d'entrada.",
+      "redirecting": "Redirigint a l'inici de sessió en {seconds} s…",
+      "verifying": "Verificant el teu correu…",
+      "verified": {
+        "title": "Correu verificat",
+        "description": "La teva adreça de correu s'ha verificat."
+      },
+      "link-error": {
+        "title": "Enllaç de verificació no vàlid",
+        "description": "L'enllaç ha caducat o ja s'ha utilitzat. Inicia sessió i sol·licita un nou correu de verificació."
+      },
+      "buttons": {
+        "verify": "Envia el correu de verificació",
+        "logout": "Tancar sessió",
+        "login": "Ves a l'inici de sessió"
+      }
+    },
     "login": {
       "separator": "Altres accessos",
       "select-category": "Selecciona una categoria"

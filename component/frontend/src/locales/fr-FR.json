@@ -24,9 +24,20 @@
       "invalid-email": "Entrez une adresse e-mail valide",
       "error-generic": "Une erreur s'est produite. Veuillez réessayer.",
       "success": "Un e-mail de vérification a été envoyé. Veuillez vérifier votre boîte de réception.",
+      "redirecting": "Redirection vers la connexion dans {seconds} s…",
+      "verifying": "Vérification de votre adresse e-mail…",
+      "verified": {
+        "title": "Adresse e-mail vérifiée",
+        "description": "Votre adresse e-mail a été vérifiée."
+      },
+      "link-error": {
+        "title": "Lien de vérification non valide",
+        "description": "Le lien est expiré ou a déjà été utilisé. Connectez-vous et demandez un nouvel e-mail de vérification."
+      },
       "buttons": {
         "verify": "Envoyer l'e-mail de vérification",
-        "logout": "Se déconnecter"
+        "logout": "Se déconnecter",
+        "login": "Aller à la connexion"
       }
     },
     "login": {
