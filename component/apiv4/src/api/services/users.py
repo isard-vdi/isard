@@ -200,7 +200,9 @@ class UsersService:
                 "not_found",
                 f"User with ID '{user_id}' does not exist.",
             )
-        CommonUser.update_user(user_id, {"email": email}, revoke=False)
+        CommonUser.update_user(
+            user_id, {"email": email}, revoke=False, force_email_verification=True
+        )
 
     @staticmethod
     def set_user_language(user_id: str, lang: str) -> None:
