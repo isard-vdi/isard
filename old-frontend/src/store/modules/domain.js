@@ -211,6 +211,7 @@ export default {
     async uploadImageFile (context, payload) {
       const itemId = context.getters.getEditDomainId
       const itemKind = context.getters.getDomain.kind === 'template' ? 'template' : 'desktop'
+      const editEndpoint = `${apiV3Segment}/item/${itemKind}/${itemId}/edit`
 
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -223,10 +224,11 @@ export default {
         // Vue 3's ChangeImageModal sends the same empty-string sentinel.
         const data = `{"image": {"id": "","type": "user","file": {"data": "${decodeURIComponent(base64String)}", "filename": "${payload.filename}"}}}`
 
-        axios.put(`${apiV3Segment}/item/${itemKind}/${itemId}/edit`, JSON.stringify(JSON.parse(data)), { headers: { 'Content-Type': 'application/json' } }).then(response => {
+        axios.put(editEndpoint, JSON.stringify(JSON.parse(data)), { headers: { 'Content-Type': 'application/json' } }).then(() => {
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.image-uploaded'), '', true, 1000)
           context.dispatch('fetchDesktopImages')
-        }).catch(e => {
+          context.dispatch('fetchDomain', itemId)
+        }).catch((e) => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
       }

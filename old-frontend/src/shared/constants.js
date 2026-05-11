@@ -59,7 +59,7 @@ export const status = {
     variant: 'success'
   },
   failed: {
-    action: 'updating',
+    action: 'retry',
     icon: 'arrow-repeat'
   },
   'shutting-down': {
