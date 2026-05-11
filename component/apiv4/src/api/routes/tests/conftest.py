@@ -31,14 +31,13 @@ os.environ.setdefault("API_ISARDVDI_SECRET", "test-secret")
 
 import httpx
 import pytest
+from api import app
 from api.routes.tests.helpers import MockJWT, create_indexes
 from api.services.error import Error
 from cachetools import Cache
 from fastapi.testclient import TestClient
 from isardvdi_common.helpers.bastion import Bastion
 from rethinkdb_mock import MockThink
-
-from api import app
 
 
 @pytest.fixture(autouse=True)
