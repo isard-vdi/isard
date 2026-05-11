@@ -2034,6 +2034,9 @@
         "invalid_type": "Tipus de fitxer no vàlid. Tria un PNG, JPG o GIF.",
         "too_large": "El fitxer és massa gran. La mida màxima és 5 MB."
       }
+    },
+    "notification-modal": {
+      "title": "Notificacions"
     }
   },
   "authentication": {
