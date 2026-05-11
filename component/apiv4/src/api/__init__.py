@@ -25,6 +25,7 @@ import os
 from contextlib import asynccontextmanager
 
 from api.dependencies.jwt_token import (
+    has_email_verification_required_or_login_token,
     has_migration_required_or_login_token,
     has_token,
     has_token_direct_viewer,
@@ -394,6 +395,13 @@ migration_router = APIRouter(
     responses={401: {"model": ErrorResponse}},
 )
 
+email_verification_router = APIRouter(
+    tags=["email_verification"],
+    prefix="/api/v4",
+    dependencies=[Depends(has_email_verification_required_or_login_token)],
+    responses={401: {"model": ErrorResponse}},
+)
+
 from .routes import (
     bastion,
     cards,
@@ -456,6 +464,7 @@ app.include_router(password_reset_router)
 app.include_router(disclaimer_router)
 app.include_router(direct_viewer_router)
 app.include_router(migration_router)
+app.include_router(email_verification_router)
 
 
 @app.exception_handler(Error)

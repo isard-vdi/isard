@@ -319,3 +319,32 @@ async def has_migration_required_or_login_token(
     request.token_payload = payload
 
     return payload
+
+
+async def has_email_verification_required_or_login_token(
+    token: dict = Depends(HTTPBearer()), request: Request = None
+) -> TokenPayload:
+    token = token.credentials
+    payload: TokenPayload = TokenFastAPI.get_token_payload(token)
+    token_type = payload.get("type", "")
+    if token_type not in ["email-verification-required", "login", ""]:
+        raise Error(
+            "forbidden",
+            "Token not valid for this operation.",
+            traceback.format_exc(),
+        )
+
+    if token_type != "email-verification-required":
+        jwt_payload = TokenFastAPI.get_jwt_payload(token)
+        session_id = jwt_payload.get("session_id", "")
+        if session_id != "isardvdi-service":
+            try:
+                api_sessions.get(session_id, get_remote_addr(request))
+            except Error as e:
+                raise e
+
+    maintenance(payload.get("category_id"))
+
+    request.token_payload = payload
+
+    return payload

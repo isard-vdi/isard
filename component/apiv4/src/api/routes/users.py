@@ -26,6 +26,7 @@ from typing import Literal
 from api import (
     advanced_router,
     direct_viewer_router,
+    email_verification_router,
     open_router,
     password_reset_router,
     register_router,
@@ -563,7 +564,7 @@ async def set_user_language(request: Request, data: UserSetLangPutData):
         )
 
 
-@token_router.put(
+@email_verification_router.put(
     "/item/user/set-email",
     tags=[tag],
     summary="Set user email",
