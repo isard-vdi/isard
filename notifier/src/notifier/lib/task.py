@@ -31,7 +31,7 @@ def mail(address: list, subject: str, text: str, html: str):
     with build_client("isard-notifier") as client:
         resp = admin_smtp_get.sync_detailed(client=client)
         raise_for_status(resp)
-        smtp = resp.parsed
+        smtp = resp.parsed.to_dict()
     if not smtp.get("enabled"):
         raise Exception("SMTP not enabled")
     message = MIMEMultipart("alternative")
