@@ -1,0 +1,10 @@
+[
+    {
+        "id": "e2e-hyp-force-pci_0000_01_00_0",
+        "brand": "NVIDIA",
+        "model": "A40",
+        "vgpu_profile": "2Q",
+        "changing_to_profile": "",
+        "mdevs": {}
+    }
+]

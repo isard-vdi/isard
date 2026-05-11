@@ -1,4 +1,5 @@
 import { test as base } from '@playwright/test'
+import { bridgeAdminSession } from './common.js'
 
 // User data for testing, extracted from the testing database for e2e tests.
 // Admin credentials can be overridden via E2E_ADMIN_USERNAME / E2E_ADMIN_PASSWORD
@@ -179,24 +180,9 @@ const loginHelpers = {
   async login(page, user, categories, redirectPath = null) {
     const category = categories[user.category]
 
-    if (!category.frontend) {
-      await page.goto(`/login/all/${category.url}`)
-    } else {
-      await page.goto('/login')
-
-      // Only probe the dropdown if it's actually rendered — backend may expose
-      // a single category, in which case the selector is omitted entirely.
-      const categorySelector = page.locator('div[role="combobox"], button:has-text("Select a category")').first()
-      const selectorVisible = await categorySelector
-        .waitFor({ state: 'visible', timeout: 2000 })
-        .then(() => true)
-        .catch(() => false)
-      if (selectorVisible) {
-        await categorySelector.click()
-        await page.waitForTimeout(500)
-        await page.locator(`li:has-text("${category.name}"), div:has-text("${category.name}")`).first().click()
-      }
-    }
+    // Use the category URL so LoginView skips the dropdown entirely —
+    // dodges the under-load race where the cmdk option click didn't commit.
+    await page.goto(`/login/all/${category.url}`)
     await this.fillLoginForm(page, user)
 
     // The frontend submits the login POST, sets the auth cookie, then does
@@ -235,6 +221,14 @@ const loginHelpers = {
           `(urlSettled=${urlSettled}, currentURL=${page.url()}, cookies=[${lastCookieNames}])`,
       )
     }
+
+    // apiv4 wants Authorization: Bearer; cookie alone is not honoured by page.request.*.
+    const jwt = (await ctx.cookies()).find(
+      (c) => c.name === 'authorization' || c.name === 'isardvdi_session',
+    )
+    await ctx.setExtraHTTPHeaders({
+      Authorization: `Bearer ${jwt.value.replace(/^Bearer\s+/i, '')}`,
+    })
 
     if (redirectPath) {
       await page.goto(redirectPath)
@@ -280,6 +274,27 @@ export const test = base.extend({
     const idx = (testInfo.workerIndex % 15) + 1
     const key = `admin_e2e_${String(idx).padStart(2, '0')}`
     await use(users[key])
+  },
+
+  // Worker-scoped: log in once per worker as admin_e2e_NN, bridge the
+  // Flask session, and reuse the resulting context across every test
+  // that consumes `authenticatedPage`. Saves N×login per worker.
+  authenticatedContext: [async ({ browser }, use, workerInfo) => {
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await ctx.newPage()
+    const idx = (workerInfo.workerIndex % 15) + 1
+    const user = users[`admin_e2e_${String(idx).padStart(2, '0')}`]
+    await loginHelpers.login(page, user, categories)
+    await bridgeAdminSession(page)
+    await page.close()
+    await use(ctx)
+    await ctx.close()
+  }, { scope: 'worker' }],
+
+  authenticatedPage: async ({ authenticatedContext }, use) => {
+    const page = await authenticatedContext.newPage()
+    await use(page)
+    await page.close()
   },
 })
 
