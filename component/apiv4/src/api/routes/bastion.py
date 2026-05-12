@@ -40,7 +40,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.bastion import BastionService
 from api.services.error import Error
 from fastapi import Depends, Path, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from isardvdi_common.models.targets import Targets
 
 tag = "bastion"
@@ -59,7 +59,12 @@ async def get_bastion_targets(
     targets = await asyncio.to_thread(
         Targets.get_user_targets, request.token_payload["user_id"]
     )
-    return [BastionResponse(**target) for target in targets]
+    return JSONResponse(
+        content=[
+            BastionResponse(**target).model_dump(mode="json") for target in targets
+        ],
+        status_code=200,
+    )
 
 
 @token_router.get(
@@ -84,8 +89,14 @@ async def get_desktop_bastion(
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
     try:
-        target = await asyncio.to_thread(BastionService.get_desktop_bastion, desktop_id)
-        return BastionResponse(**target)
+        return JSONResponse(
+            content=BastionResponse(
+                **await asyncio.to_thread(
+                    BastionService.get_desktop_bastion, desktop_id
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -134,7 +145,7 @@ async def update_desktop_bastion(
             bastion_data,
             can_use_individual_domains,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -174,7 +185,7 @@ async def update_bastion_authorized_keys(
             desktop_id,
             data.authorized_keys,
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -221,7 +232,7 @@ async def update_bastion_domains(
             data.domains,
             request.token_payload["category_id"],
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -262,13 +273,17 @@ async def verify_bastion_domain(
                 "forbidden",
                 "User cannot use individual bastion domains",
             )
-        result = await asyncio.to_thread(
-            BastionService.verify_bastion_domain,
-            desktop_id,
-            data.domain,
-            request.token_payload["category_id"],
+        return JSONResponse(
+            content=BastionDomainVerifyResponse(
+                **await asyncio.to_thread(
+                    BastionService.verify_bastion_domain,
+                    desktop_id,
+                    data.domain,
+                    request.token_payload["category_id"],
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
-        return result
     except Error:
         raise
     except Exception:
@@ -292,8 +307,12 @@ async def verify_bastion_domain(
 )
 async def get_admin_bastion_config(request: Request):
     try:
-        config = await asyncio.to_thread(BastionService.get_admin_bastion_config)
-        return AdminBastionConfigResponse(**config)
+        return JSONResponse(
+            content=AdminBastionConfigResponse(
+                **await asyncio.to_thread(BastionService.get_admin_bastion_config)
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -315,11 +334,12 @@ async def get_admin_bastion_config(request: Request):
         500: {"model": ErrorResponse},
     },
 )
-async def remove_disallowed_bastion_targets(request: Request) -> dict:
+async def remove_disallowed_bastion_targets(request: Request):
     try:
         result = await asyncio.to_thread(
             BastionService.remove_disallowed_bastion_targets
         )
+        # TODO!: check result and create a response model
         return result if isinstance(result, dict) else {}
     except Error:
         raise
@@ -353,7 +373,7 @@ async def update_bastion_config(
             data.bastion_domain,
             data.domain_verification_required,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -380,7 +400,12 @@ async def get_bastion_domain_verification_config(request: Request):
         config = await asyncio.to_thread(
             BastionService.get_bastion_domain_verification_config
         )
-        return BastionDomainVerificationConfigResponse(**config)
+        return JSONResponse(
+            content=BastionDomainVerificationConfigResponse(**config).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:

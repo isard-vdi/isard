@@ -217,7 +217,7 @@ $(document).ready(function() {
                         text: 'User updated successfully',
                         hide: true,
                         delay: 2000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })

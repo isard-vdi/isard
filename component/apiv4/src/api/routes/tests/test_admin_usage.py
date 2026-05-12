@@ -326,7 +326,7 @@ class TestConsolidate:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert called["args"] == ()  # no args
 
     def test_consolidate_item_type(self, monkeypatch, test_client):
@@ -340,7 +340,7 @@ class TestConsolidate:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         # Defaults to 29 days when only item_type is given.
         assert captured == {"it": "desktop", "d": 29}
 
@@ -355,7 +355,7 @@ class TestConsolidate:
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"it": "desktop", "d": 7}
 
     def test_manager_forbidden(self, monkeypatch, test_client):

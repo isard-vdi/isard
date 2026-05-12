@@ -339,7 +339,7 @@ def test_update_bastion_config(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {
         "enabled": True,
         "bastion_domain": "bastion.example",
@@ -414,7 +414,7 @@ def test_update_bastion_authorized_keys(monkeypatch, test_client, bastion_db_fac
         db_tables_data=bastion_db_factory(jwt),
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured["desktop_id"] == "desktop-1"
     assert captured["authorized_keys"] == ["ssh-ed25519 AAAA... user@host"]
 
@@ -474,7 +474,7 @@ def test_update_bastion_domains(monkeypatch, test_client, bastion_db_factory):
         db_tables_data=bastion_db_factory(jwt),
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured["desktop_id"] == "desktop-1"
     assert captured["domains"] == ["app.example.com", "web.example.com"]
     assert captured["category_id"] == jwt.payload["category_id"]

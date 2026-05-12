@@ -73,10 +73,13 @@ async def check_storage_pool_creation_availability():
         500: {"model": ErrorResponse},
     },
 )
-async def get_default_storage_pool(request: Request) -> StoragePoolResponse:
+async def get_default_storage_pool(request: Request):
     try:
         result = await asyncio.to_thread(StoragePoolService.get_default_storage_pool)
-        return StoragePoolResponse(**(result or {}))
+        return JSONResponse(
+            content=StoragePoolResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -98,14 +101,15 @@ async def get_default_storage_pool(request: Request) -> StoragePoolResponse:
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_pool_by_path(
-    request: Request, data: StoragePoolByPathRequest
-) -> StoragePoolResponse:
+async def get_storage_pool_by_path(request: Request, data: StoragePoolByPathRequest):
     try:
         storage_pool = await asyncio.to_thread(
             StoragePoolService.get_storage_pool_by_path, data.path
         )
-        return StoragePoolResponse(**(storage_pool or {}))
+        return JSONResponse(
+            content=StoragePoolResponse(**(storage_pool or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -135,7 +139,7 @@ async def create_storage_pool(request: Request, data: StoragePoolCreateRequest):
         await asyncio.to_thread(
             StoragePoolService.add_storage_pool, data.model_dump(exclude_none=True)
         )
-        return EmptyResponse()
+        return Response(status_code=201)
     except Error:
         raise
     except Exception as e:
@@ -159,8 +163,13 @@ async def create_storage_pool(request: Request, data: StoragePoolCreateRequest):
 )
 async def list_storage_pools(request: Request):
     try:
-        return StoragePoolListResponse(
-            storage_pools=await asyncio.to_thread(StoragePoolService.get_storage_pools)
+        return JSONResponse(
+            content=StoragePoolListResponse(
+                storage_pools=await asyncio.to_thread(
+                    StoragePoolService.get_storage_pools
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -183,14 +192,19 @@ async def list_storage_pools(request: Request):
 )
 async def check_storage_pool_availability_compat(
     request: Request,
-) -> CheckCategoryAvailabilityResponse:
+):
     try:
         from api.dependencies.storage_pools import (
             check_create_storage_pool_availability,
         )
 
         await check_create_storage_pool_availability(request.token_payload)
-        return CheckCategoryAvailabilityResponse(available=True)
+        return JSONResponse(
+            content=CheckCategoryAvailabilityResponse(available=True).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -212,7 +226,11 @@ async def get_storage_pool(request: Request, storage_pool_id: str):
         storage_pool = await asyncio.to_thread(
             StoragePoolService.get_storage_pool, storage_pool_id
         )
-        return storage_pool
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=storage_pool,
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -243,7 +261,7 @@ async def update_storage_pool(
             storage_pool_id,
             data.model_dump(exclude_none=True),
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -268,7 +286,7 @@ async def update_storage_pool(
 async def delete_storage_pool(request: Request, storage_pool_id: str):
     try:
         await asyncio.to_thread(StoragePoolService.delete_storage_pool, storage_pool_id)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -299,7 +317,12 @@ async def check_category_storage_pool_availability(
             data.categories,
             data.storage_pool_id,
         )
-        return CheckCategoryAvailabilityResponse(available=available)
+        return JSONResponse(
+            content=CheckCategoryAvailabilityResponse(available=available).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:

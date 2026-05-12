@@ -356,7 +356,7 @@ def test_admin_multiple_actions_runs_bulk_action_after_response(
         jwt=jwt,
     )
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 204, response.text
     # toggle with force=True (action == "toggle") MUST have run by now.
     assert toggle_args == [(("d-1", "d-2"), True)]
 

@@ -38,7 +38,7 @@ tag = "admin_operations"
 )
 async def admin_operations_hypervisors(
     request: Request,
-) -> list[OperationsHypervisorResponse]:
+):
     try:
         if not await asyncio.to_thread(
             AdminOperationsService.is_operations_api_enabled
@@ -49,7 +49,13 @@ async def admin_operations_hypervisors(
                 "Operations API is not enabled",
             )
         result = await asyncio.to_thread(AdminOperationsService.list_hypervisors)
-        return [OperationsHypervisorResponse(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                OperationsHypervisorResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -72,9 +78,7 @@ async def admin_operations_hypervisors(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_operations_hypervisor_start(
-    request: Request, hypervisor_id: str
-) -> HypervisorActionResponse:
+async def admin_operations_hypervisor_start(request: Request, hypervisor_id: str):
     try:
         if not await asyncio.to_thread(
             AdminOperationsService.is_operations_api_enabled
@@ -87,7 +91,10 @@ async def admin_operations_hypervisor_start(
         result = await asyncio.to_thread(
             AdminOperationsService.start_hypervisor, hypervisor_id
         )
-        return HypervisorActionResponse(**(result or {}))
+        return JSONResponse(
+            content=HypervisorActionResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -110,9 +117,7 @@ async def admin_operations_hypervisor_start(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_operations_hypervisor_stop(
-    request: Request, hypervisor_id: str
-) -> HypervisorActionResponse:
+async def admin_operations_hypervisor_stop(request: Request, hypervisor_id: str):
     try:
         if not await asyncio.to_thread(
             AdminOperationsService.is_operations_api_enabled
@@ -125,7 +130,10 @@ async def admin_operations_hypervisor_stop(
         result = await asyncio.to_thread(
             AdminOperationsService.stop_hypervisor, hypervisor_id
         )
-        return HypervisorActionResponse(**(result or {}))
+        return JSONResponse(
+            content=HypervisorActionResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

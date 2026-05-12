@@ -37,13 +37,16 @@ async def get_desktop_images(
     desktop_id: Optional[str] = Query(
         None, description="Desktop ID to filter user cards"
     ),
-) -> list[CardResponse]:
+):
     try:
         stock = await asyncio.to_thread(CardService.get_stock_cards)
         user = await asyncio.to_thread(
             CardService.get_user_cards, request.token_payload["user_id"], desktop_id
         )
-        return [CardResponse(**c) for c in (stock + user)]
+        return JSONResponse(
+            content=[CardResponse(**c).model_dump(mode="json") for c in (stock + user)],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -72,7 +75,7 @@ async def get_desktop_images_by_type(
     desktop_id: Optional[str] = Query(
         None, description="Desktop ID to filter user cards"
     ),
-) -> list[CardResponse]:
+):
     try:
         if kind == "stock":
             images = await asyncio.to_thread(CardService.get_stock_cards)
@@ -80,7 +83,10 @@ async def get_desktop_images_by_type(
             images = await asyncio.to_thread(
                 CardService.get_user_cards, request.token_payload["user_id"], desktop_id
             )
-        return [CardResponse(**c) for c in (images or [])]
+        return JSONResponse(
+            content=[CardResponse(**c).model_dump(mode="json") for c in (images or [])],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -100,10 +106,13 @@ async def get_desktop_images_by_type(
     description="Returns the default stock card image for a specific domain.",
     responses={500: {"model": ErrorResponse}},
 )
-async def get_stock_default_card(request: Request, domain_id: str) -> CardResponse:
+async def get_stock_default_card(request: Request, domain_id: str):
     try:
         result = await asyncio.to_thread(CardService.get_domain_stock_card, domain_id)
-        return CardResponse(**(result or {}))
+        return JSONResponse(
+            content=CardResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -126,10 +135,13 @@ async def get_stock_default_card(request: Request, domain_id: str) -> CardRespon
         500: {"model": ErrorResponse},
     },
 )
-async def get_user_default_card(request: Request, domain_id: str) -> CardResponse:
+async def get_user_default_card(request: Request, domain_id: str):
     try:
         result = await asyncio.to_thread(CardService.get_domain_user_card, domain_id)
-        return CardResponse(**(result or {}))
+        return JSONResponse(
+            content=CardResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -149,14 +161,15 @@ async def get_user_default_card(request: Request, domain_id: str) -> CardRespons
     description="Generates a default card image for a domain. Admin only.",
     responses={500: {"model": ErrorResponse}},
 )
-async def generate_default_card(
-    request: Request, data: GenerateCardRequest
-) -> CardResponse:
+async def generate_default_card(request: Request, data: GenerateCardRequest):
     try:
         result = await asyncio.to_thread(
             CardService.generate_default_card, data.desktop_id, data.desktop_name
         )
-        return CardResponse(**(result or {}))
+        return JSONResponse(
+            content=CardResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

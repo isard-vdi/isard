@@ -66,10 +66,13 @@ tag = "admin_stats"
     response_model=StatsGenericResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_general(request: Request) -> StatsGenericResponse:
+async def stats_general(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_general_stats)
-        return StatsGenericResponse(**(result or {}))
+        return JSONResponse(
+            content=StatsGenericResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -89,7 +92,7 @@ async def stats_general(request: Request) -> StatsGenericResponse:
     response_model=StatsGenericResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_desktops_status(request: Request) -> StatsGenericResponse:
+async def stats_desktops_status(request: Request):
     try:
         # Service returns a single ``{"total": int, "status": {<status>: int}}``
         # dict, NOT a list of rows. The webapp consumer in
@@ -98,7 +101,10 @@ async def stats_desktops_status(request: Request) -> StatsGenericResponse:
         # over the dict's keys (``"total"``, ``"status"``) and called
         # ``StatsGenericResponse(**"total")`` → 500.
         result = await asyncio.to_thread(AdminStatsService.get_desktops_stats)
-        return StatsGenericResponse(**(result or {}))
+        return JSONResponse(
+            content=StatsGenericResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -121,7 +127,10 @@ async def stats_desktops_status(request: Request) -> StatsGenericResponse:
 async def stats_domains_status(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_domains_status)
-        return StatsDomainsStatusResponse(**result)
+        return JSONResponse(
+            content=StatsDomainsStatusResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -141,12 +150,15 @@ async def stats_domains_status(request: Request):
     response_model=StatsGenericResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_category_status(request: Request) -> StatsGenericResponse:
+async def stats_category_status(request: Request):
     try:
         result = {
             "categories": await asyncio.to_thread(AdminStatsService.get_category_status)
         }
-        return StatsGenericResponse(**result)
+        return JSONResponse(
+            content=StatsGenericResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -179,7 +191,10 @@ async def stats_categories(request: Request):
                 AdminStatsService.get_group_by_categories
             )
         }
-        return StatsCategoriesResponse(**result)
+        return JSONResponse(
+            content=StatsCategoriesResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -199,14 +214,17 @@ async def stats_categories(request: Request):
     response_model=StatsGenericResponse,
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_categories_limits(request: Request) -> StatsGenericResponse:
+async def stats_categories_limits(request: Request):
     try:
         result = {
             "category": await asyncio.to_thread(
                 AdminStatsService.get_categories_limits_hardware
             )
         }
-        return StatsGenericResponse(**result)
+        return JSONResponse(
+            content=StatsGenericResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -233,7 +251,12 @@ async def stats_categories_deployments(request: Request):
                 AdminStatsService.get_categories_deployments
             )
         }
-        return StatsCategoriesDeploymentsResponse(**result)
+        return JSONResponse(
+            content=StatsCategoriesDeploymentsResponse(**result).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -255,14 +278,17 @@ async def stats_categories_deployments(request: Request):
 )
 async def stats_categories_kind_state(
     request: Request, kind: Literal["desktop", "template"], state: str
-) -> StatsGenericResponse:
+):
     try:
         result = {
             "category": await asyncio.to_thread(
                 AdminStatsService.get_categories_kind_state, kind, state
             )
         }
-        return StatsGenericResponse(**result)
+        return JSONResponse(
+            content=StatsGenericResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -282,16 +308,17 @@ async def stats_categories_kind_state(
     description="Returns category statistics for a specific kind (desktop, template).",
     responses={500: {"model": ErrorResponse}},
 )
-async def stats_categories_kind(
-    request: Request, kind: Literal["desktop", "template"]
-) -> StatsGenericResponse:
+async def stats_categories_kind(request: Request, kind: Literal["desktop", "template"]):
     try:
         result = {
             "category": await asyncio.to_thread(
                 AdminStatsService.get_categories_kind_state, kind
             )
         }
-        return StatsGenericResponse(**result)
+        return JSONResponse(
+            content=StatsGenericResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -319,7 +346,10 @@ async def stats_categories_kind(
 async def stats_users(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "users")
-        return [StatsKindUser(**u) for u in result]
+        return JSONResponse(
+            content=[StatsKindUser(**u).model_dump(mode="json") for u in result],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -342,7 +372,10 @@ async def stats_users(request: Request):
 async def stats_desktops(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "desktops")
-        return [StatsKindDesktop(**d) for d in result]
+        return JSONResponse(
+            content=[StatsKindDesktop(**d).model_dump(mode="json") for d in result],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -365,7 +398,10 @@ async def stats_desktops(request: Request):
 async def stats_templates(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "templates")
-        return [StatsKindTemplate(**t) for t in result]
+        return JSONResponse(
+            content=[StatsKindTemplate(**t).model_dump(mode="json") for t in result],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -388,7 +424,10 @@ async def stats_templates(request: Request):
 async def stats_hypervisors(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "hypervisors")
-        return [StatsKindHypervisor(**h) for h in result]
+        return JSONResponse(
+            content=[StatsKindHypervisor(**h).model_dump(mode="json") for h in result],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -414,12 +453,18 @@ async def stats_hypervisors(request: Request):
 )
 async def admin_domains_started_count(
     request: Request,
-) -> list[StatsGenericResponse]:
+):
     try:
         result = await asyncio.to_thread(
             AdminStatsService.get_domains_by_category_count
         )
-        return [StatsGenericResponse(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                StatsGenericResponse(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

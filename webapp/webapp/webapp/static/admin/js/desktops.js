@@ -249,7 +249,7 @@ $(document).ready(function() {
                                 text: 'Desktops created successfully',
                                 hide: true,
                                 delay: 2000,
-                                icon: 'fa fa-' + data.icon,
+                                icon: 'fa fa-' + data?.icon,
                                 opacity: 1,
                                 type: 'success'
                             })
@@ -490,7 +490,7 @@ $(document).ready(function() {
                                 text: 'Template created successfully',
                                 hide: true,
                                 delay: 2000,
-                                icon: 'fa fa-' + data.icon,
+                                icon: 'fa fa-' + data?.icon,
                                 opacity: 1,
                                 type: 'success'
                             })
@@ -1802,7 +1802,7 @@ function actionsDomainDetail(){
                     text: 'Forced hypervisor updated successfully',
                     hide: true,
                     delay: 2000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: 'fa fa-' + data?.icon,
                     opacity: 1,
                     type: 'success'
                 })
@@ -1908,7 +1908,7 @@ function actionsDomainDetail(){
                     text: 'Favourite hypervisor updated successfully',
                     hide: true,
                     delay: 2000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: 'fa fa-' + data?.icon,
                     opacity: 1,
                     type: 'success'
                 })
@@ -2179,7 +2179,7 @@ function renderStorageActionsButton(data) {
                             text: 'Domain updated successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })

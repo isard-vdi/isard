@@ -56,7 +56,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.hypervisors import AdminHypervisorsService
 from api.services.error import Error
 from fastapi import Path, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_hypervisors"
 
@@ -83,7 +83,10 @@ async def admin_hypervisors_list(
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_hypervisors, status
         )
-        return [AdminHypervisor(**h) for h in result]
+        return JSONResponse(
+            content=[AdminHypervisor(**h).model_dump(mode="json") for h in result],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -111,12 +114,17 @@ async def admin_hypervisors_list_by_status(
     status: Literal["Online", "Offline", "Error"] = Path(
         ..., description="Hypervisor status filter"
     ),
-) -> list[AdminHypervisor]:
+):
     try:
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_hypervisors, status
         )
-        return [AdminHypervisor(**h) for h in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminHypervisor(**h).model_dump(mode="json") for h in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -145,12 +153,17 @@ async def admin_hypervisors_list_by_status(
 async def admin_hypervisor_status(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-) -> AdminHypervisorStatusResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_hyper_status, hyper_id
         )
-        return AdminHypervisorStatusResponse(**(result or {}))
+        return JSONResponse(
+            content=AdminHypervisorStatusResponse(**(result or {})).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -181,14 +194,20 @@ async def admin_hypervisor_status(
 async def admin_hypervisor_create(
     request: Request,
     data: AdminHypervisorCreateData,
-) -> AdminHypervisorCreateResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminHypervisorsService.create_or_update_hypervisor, data.model_dump()
         )
         if isinstance(result, dict):
-            return AdminHypervisorCreateResponse(**result)
-        return AdminHypervisorCreateResponse()
+            return JSONResponse(
+                content=AdminHypervisorCreateResponse(**result).model_dump(mode="json"),
+                status_code=200,
+            )
+        return JSONResponse(
+            content=AdminHypervisorCreateResponse().model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -219,7 +238,7 @@ async def admin_hypervisor_enable(
     request: Request,
     data: AdminHypervisorEnableData,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-) -> AdminHypervisorEnableResponse:
+):
     try:
         if data.numa_topology is not None:
             await asyncio.to_thread(
@@ -231,8 +250,14 @@ async def admin_hypervisor_enable(
             AdminHypervisorsService.enable_hyper, hyper_id, data.enabled
         )
         if isinstance(result, dict):
-            return AdminHypervisorEnableResponse(**result)
-        return AdminHypervisorEnableResponse()
+            return JSONResponse(
+                content=AdminHypervisorEnableResponse(**result).model_dump(mode="json"),
+                status_code=200,
+            )
+        return JSONResponse(
+            content=AdminHypervisorEnableResponse().model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -265,7 +290,7 @@ async def admin_hypervisor_delete(
 ):
     try:
         await asyncio.to_thread(AdminHypervisorsService.remove_hyper, hyper_id)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -296,7 +321,7 @@ async def admin_hypervisor_stop_domains(
 ):
     try:
         await asyncio.to_thread(AdminHypervisorsService.stop_hyper_domains, hyper_id)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -325,14 +350,20 @@ async def admin_hypervisor_stop_domains(
 async def admin_hypervisor_vpn(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-) -> AdminHypervisorVpnResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_hypervisor_vpn, hyper_id
         )
         if isinstance(result, dict):
-            return AdminHypervisorVpnResponse(**result)
-        return AdminHypervisorVpnResponse()
+            return JSONResponse(
+                content=AdminHypervisorVpnResponse(**result).model_dump(mode="json"),
+                status_code=200,
+            )
+        return JSONResponse(
+            content=AdminHypervisorVpnResponse().model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -362,14 +393,20 @@ async def admin_hypervisor_vpn(
 async def admin_hypervisor_wg_addr(
     request: Request,
     data: AdminHypervisorWgAddrData,
-) -> AdminHypervisorWgAddrResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminHypervisorsService.update_wg_address, data.mac, data.ip
         )
         if isinstance(result, dict):
-            return AdminHypervisorWgAddrResponse(**result)
-        return AdminHypervisorWgAddrResponse()
+            return JSONResponse(
+                content=AdminHypervisorWgAddrResponse(**result).model_dump(mode="json"),
+                status_code=200,
+            )
+        return JSONResponse(
+            content=AdminHypervisorWgAddrResponse().model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -397,10 +434,10 @@ async def admin_hypervisor_wg_addr(
 async def admin_hypervisor_media_found(
     request: Request,
     data: AdminHypervisorMediaFoundData,
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(AdminHypervisorsService.update_media_found, data.medias)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -425,10 +462,10 @@ async def admin_hypervisor_media_found(
 async def admin_hypervisor_disks_found(
     request: Request,
     data: AdminHypervisorDisksFoundData,
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(AdminHypervisorsService.update_disks_found, data.disks)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -453,10 +490,10 @@ async def admin_hypervisor_disks_found(
 async def admin_hypervisor_media_delete(
     request: Request,
     data: AdminHypervisorMediaDeleteData,
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(AdminHypervisorsService.delete_media, data.medias_paths)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -483,10 +520,10 @@ async def admin_hypervisor_media_delete(
 )
 async def admin_hypervisors_assign_gpus(
     request: Request,
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(AdminHypervisorsService.assign_gpus)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -518,7 +555,12 @@ async def admin_orchestrator_hypervisors_list(
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_orchestrator_hypervisors
         )
-        return [OrchestratorHypervisor(**h) for h in result]
+        return JSONResponse(
+            content=[
+                OrchestratorHypervisor(**h).model_dump(mode="json") for h in result
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -549,7 +591,10 @@ async def admin_orchestrator_hypervisor_get(
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_orchestrator_hypervisors, hyp_id=hypervisor_id
         )
-        return OrchestratorHypervisor(**result)
+        return JSONResponse(
+            content=OrchestratorHypervisor(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -581,7 +626,13 @@ async def admin_orchestrator_managed_list(
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_orchestrator_managed_hypervisors
         )
-        return [OrchestratorManagedHypervisor(**h) for h in result]
+        return JSONResponse(
+            content=[
+                OrchestratorManagedHypervisor(**h).model_dump(mode="json")
+                for h in result
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -616,7 +667,10 @@ async def admin_orchestrator_dead_row_set(
         result = await asyncio.to_thread(
             AdminHypervisorsService.set_hyper_deadrow_time, hypervisor_id
         )
-        return DeadRowSetResponse(**result)
+        return JSONResponse(
+            content=DeadRowSetResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -648,7 +702,7 @@ async def admin_orchestrator_dead_row_reset(
         await asyncio.to_thread(
             AdminHypervisorsService.set_hyper_deadrow_time, hypervisor_id, reset=True
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -681,7 +735,7 @@ async def admin_orchestrator_stop_desktops(
         await asyncio.to_thread(
             AdminHypervisorsService.stop_hyper_domains, hypervisor_id
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -715,7 +769,7 @@ async def admin_orchestrator_manage_set(
         await asyncio.to_thread(
             AdminHypervisorsService.set_hyper_orchestrator_managed, hypervisor_id
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -748,7 +802,7 @@ async def admin_orchestrator_manage_unset(
             hypervisor_id,
             reset=True,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -777,12 +831,18 @@ async def admin_orchestrator_manage_unset(
 async def admin_hypervisor_virt_pools_get(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-) -> list[AdminHypervisorVirtPool]:
+):
     try:
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_hyper_virt_pools, hyper_id
         )
-        return [AdminHypervisorVirtPool(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminHypervisorVirtPool(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -815,7 +875,7 @@ async def admin_hypervisor_virt_pools_update(
         await asyncio.to_thread(
             AdminHypervisorsService.update_hyper_virt_pools, hyper_id, data.model_dump()
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -844,12 +904,18 @@ async def admin_hypervisor_virt_pools_update(
 async def admin_hypervisor_mountpoints(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-) -> list[AdminHypervisorMountpoint]:
+):
     try:
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_hyper_mountpoints, hyper_id
         )
-        return [AdminHypervisorMountpoint(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminHypervisorMountpoint(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -878,12 +944,18 @@ async def admin_hypervisor_mountpoints(
 async def admin_hypervisor_started_domains(
     request: Request,
     hyper_id: str = Path(..., description="Hypervisor ID"),
-) -> list[AdminHypervisorStartedDomain]:
+):
     try:
         result = await asyncio.to_thread(
             AdminHypervisorsService.get_hyper_started_domains, hyper_id
         )
-        return [AdminHypervisorStartedDomain(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminHypervisorStartedDomain(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -903,12 +975,10 @@ async def admin_hypervisor_started_domains(
     description="Creates network interface entries for discovered VLANs.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_register_vlans(
-    request: Request, data: AdminRegisterVlansRequest
-) -> EmptyResponse:
+async def admin_register_vlans(request: Request, data: AdminRegisterVlansRequest):
     try:
         await asyncio.to_thread(AdminHypervisorsService.register_vlans, data.vlans)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -932,14 +1002,14 @@ async def admin_hypervisor_boot_progress(
     request: Request,
     hyper_id: str,
     data: AdminBootProgressRequest,
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(
             AdminHypervisorsService.update_hyper_boot_progress,
             hyper_id,
             data.boot_progress,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

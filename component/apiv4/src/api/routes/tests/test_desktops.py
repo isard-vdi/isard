@@ -438,7 +438,7 @@ def test_get_desktop_direct_viewer_accepts_waiting_ip_stub(monkeypatch, test_cli
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "WaitingIP"
-    assert body["viewers"]["browser-rdp"] == {
+    assert body["viewers"]["browser_rdp"] == {
         "kind": "browser",
         "protocol": "rdp",
         "viewer": None,
@@ -446,7 +446,7 @@ def test_get_desktop_direct_viewer_accepts_waiting_ip_stub(monkeypatch, test_cli
         "cookie": None,
         "values": None,
     }
-    assert body["viewers"]["file-rdpgw"] == {
+    assert body["viewers"]["file_rdpgw"] == {
         "kind": "file",
         "protocol": "rdpgw",
         "name": None,

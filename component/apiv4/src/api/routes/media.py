@@ -60,8 +60,9 @@ tag = "media"
 async def get_media(request: Request, media_id=Depends(owns_media_id)):
     media = await asyncio.to_thread(MediaService.get_media, media_id)
     try:
-        return MediaResponse(
-            **media,
+        return JSONResponse(
+            content=MediaResponse(**media).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -105,7 +106,8 @@ async def list_media_installs(request: Request):
             for row in result
         ]
         plucked.sort(key=lambda r: (r["name"] or "").lower())
-        return plucked
+        # TODO!: Check the result and create a response model
+        return JSONResponse(content=plucked, status_code=200)
     except Error:
         raise
     except Exception:
@@ -133,10 +135,13 @@ async def list_media_installs(request: Request):
 )
 async def get_user_media(request: Request):
     try:
-        return UserMediaResponse(
-            media=await asyncio.to_thread(
-                MediaService.get_user_media, request.token_payload["user_id"]
-            ),
+        return JSONResponse(
+            content=UserMediaResponse(
+                media=await asyncio.to_thread(
+                    MediaService.get_user_media, request.token_payload["user_id"]
+                ),
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -164,10 +169,13 @@ async def get_user_shared_media(
     request: Request,
 ):
     try:
-        return UserSharedMediaResponse(
-            media=await asyncio.to_thread(
-                MediaService.get_user_shared_media, request.token_payload
-            )
+        return JSONResponse(
+            content=UserSharedMediaResponse(
+                media=await asyncio.to_thread(
+                    MediaService.get_user_shared_media, request.token_payload
+                ),
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -246,7 +254,12 @@ async def get_user_allowed_media(
             search=search,
             search_field=search_field,
         )
-        return user_media
+        return JSONResponse(
+            content=UserAllowedMediaPaginationResponse(**user_media).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -268,12 +281,15 @@ async def get_user_allowed_media(
 )
 async def get_media_allowed_table(request: Request, media_id: str):
     try:
-        return AllowedResponse(
-            **await asyncio.to_thread(
-                MediaService.get_media_allowed,
-                media_id,
-                request.token_payload["category_id"],
-            )
+        return JSONResponse(
+            content=AllowedResponse(
+                **await asyncio.to_thread(
+                    MediaService.get_media_allowed,
+                    media_id,
+                    request.token_payload["category_id"],
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -297,7 +313,10 @@ async def get_media_allowed_table(request: Request, media_id: str):
 async def update_media_allowed(request: Request, allowed: AllowedUpdate, media_id: str):
     try:
         await asyncio.to_thread(MediaService.update_media_allowed, media_id, allowed)
-        return SimpleResponse(id=media_id)
+        return JSONResponse(
+            content=SimpleResponse(id=media_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -318,12 +337,15 @@ async def update_media_allowed(request: Request, allowed: AllowedUpdate, media_i
 )
 async def get_media_desktops(request: Request, media_id=Depends(owns_media_id)):
     try:
-        return [
-            MediaDesktopResponse(**desktop)
-            for desktop in await asyncio.to_thread(
-                MediaService.get_media_desktops, media_id
-            )
-        ]
+        return JSONResponse(
+            content=[
+                MediaDesktopResponse(**desktop).model_dump(mode="json")
+                for desktop in await asyncio.to_thread(
+                    MediaService.get_media_desktops, media_id
+                )
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -360,12 +382,20 @@ async def delete_media(
             request.token_payload,
         )
         if task_id is None:
-            return DeleteResponse(message="Media deleted", message_code="item.deleted")
-        response.status_code = 202
-        return DeleteResponse(
-            message="Task to delete media queued",
-            message_code="item.queued",
-            tasks_ids=[task_id],
+            return JSONResponse(
+                content=DeleteResponse(
+                    message="Media deleted", message_code="item.deleted"
+                ).model_dump(mode="json"),
+                status_code=200,
+            )
+
+        return JSONResponse(
+            content=DeleteResponse(
+                message="Task to delete media queued",
+                message_code="item.queued",
+                tasks_ids=[task_id],
+            ).model_dump(mode="json"),
+            status_code=202,
         )
     except Error:
         raise
@@ -405,7 +435,10 @@ async def create_media(media_data: CreateMediaRequest, request: Request):
         media_id = await asyncio.to_thread(
             MediaService.create_media, media_data, request.token_payload
         )
-        return SimpleResponse(id=str(media_id))
+        return JSONResponse(
+            content=SimpleResponse(id=str(media_id)).model_dump(mode="json"),
+            status_code=201,
+        )
     except Error:
         raise
     except Exception as e:
@@ -434,7 +467,9 @@ async def create_media(media_data: CreateMediaRequest, request: Request):
 async def abort_media_download(request: Request, media_id=Depends(owns_media_id)):
     try:
         await asyncio.to_thread(MediaService.abort_media_download, media_id)
-        return SimpleResponse(id=media_id)
+        return JSONResponse(
+            content=SimpleResponse(id=media_id).model_dump(mode="json"), status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -460,7 +495,9 @@ async def start_media_download(request: Request, media_id=Depends(owns_media_id)
     """Start a media download."""
     try:
         await asyncio.to_thread(MediaService.start_media_download, media_id)
-        return SimpleResponse(id=media_id)
+        return JSONResponse(
+            content=SimpleResponse(id=media_id).model_dump(mode="json"), status_code=200
+        )
     except Error:
         raise
     except Exception as e:

@@ -16,7 +16,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.notify import AdminNotifyService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_notify"
 
@@ -43,7 +43,7 @@ async def admin_notify_user_desktop(request: Request, data: NotifyUserDesktopReq
             data.msg_code,
             data.params,
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -72,7 +72,7 @@ async def admin_notify_desktop(request: Request, data: NotifyDesktopRequest):
             data.msg_code,
             data.params,
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -104,7 +104,7 @@ async def admin_notify_desktop_queue(
         await asyncio.to_thread(
             AdminNotifyService.notify_desktop_queue, data.root, hyp_id
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

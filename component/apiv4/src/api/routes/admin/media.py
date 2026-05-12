@@ -49,12 +49,18 @@ tag = "admin_media"
     "Managers are scoped to their category.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_media_status(request: Request) -> list[AdminMediaStatusCount]:
+async def admin_media_status(request: Request):
     try:
         result = await asyncio.to_thread(
             AdminMediaService.get_media_status, request.token_payload
         )
-        return [AdminMediaStatusCount(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminMediaStatusCount(**row).model_dump(mode="json")
+                for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -79,12 +85,17 @@ async def admin_media_status(request: Request) -> list[AdminMediaStatusCount]:
     description="Get all media items. Admins see all; managers are scoped to their category.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_media_list(request: Request) -> list[AdminMediaItem]:
+async def admin_media_list(request: Request):
     try:
         result = await asyncio.to_thread(
             AdminMediaService.get_media, request.token_payload
         )
-        return [AdminMediaItem(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminMediaItem(**row).model_dump(mode="json") for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -108,12 +119,17 @@ async def admin_media_list(request: Request) -> list[AdminMediaItem]:
 async def admin_media_by_status(
     request: Request,
     status: str = Path(..., description="Media status to filter by"),
-) -> list[AdminMediaItem]:
+):
     try:
         result = await asyncio.to_thread(
             AdminMediaService.get_media, request.token_payload, status=status
         )
-        return [AdminMediaItem(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                AdminMediaItem(**row).model_dump(mode="json") for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -150,7 +166,12 @@ async def list_desktop_attached_media(request: Request, desktop_id: str):
         media = await asyncio.to_thread(
             MediaService.list_desktop_attached_media, desktop_id
         )
-        return [DesktopAttachedMediaItem(**m) for m in media]
+        return JSONResponse(
+            content=[
+                DesktopAttachedMediaItem(**m).model_dump(mode="json") for m in media
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -190,7 +211,10 @@ async def change_media_owner(
             media_id=media_id,
             new_user_id=user_id,
         )
-        return SimpleResponse(id=media_id)
+        return JSONResponse(
+            content=SimpleResponse(id=media_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -222,7 +246,10 @@ async def check_media(request: Request, media_id=Depends(owns_media_id)):
             media_id,
             request.token_payload["user_id"],
         )
-        return MediaCheckResponse(**(result or {}))
+        return JSONResponse(
+            content=MediaCheckResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

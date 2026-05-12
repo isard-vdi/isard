@@ -28,7 +28,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.downloads import AdminDownloadsService
 from api.services.error import Error
 from fastapi import Body, Path, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_downloads"
 
@@ -50,14 +50,17 @@ tag = "admin_downloads"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_downloads(request: Request) -> DownloadsOverviewResponse:
+async def admin_downloads(request: Request):
     try:
         # AdminDownloadsService.get_downloads() makes a synchronous HTTP
         # call to the upstream updates server (``requests`` with a 10s
         # timeout). Offload to the threadpool so a slow upstream
         # doesn't freeze the apiv4 event loop for every other client.
         await asyncio.to_thread(AdminDownloadsService.get_downloads)
-        return DownloadsOverviewResponse()
+        return JSONResponse(
+            content=DownloadsOverviewResponse().model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -91,7 +94,7 @@ async def admin_downloads_kind(
     kind: Literal["domains", "media", "virt_install", "videos", "viewers"] = Path(
         ..., description="Download kind: domains, media, virt_install, videos, viewers"
     ),
-) -> list[DownloadItem]:
+):
     try:
         # See ``admin_downloads`` above: this also calls the updates
         # server synchronously and must not block the event loop.
@@ -100,7 +103,12 @@ async def admin_downloads_kind(
             kind,
             request.token_payload["user_id"],
         )
-        return [DownloadItem(**row) for row in (result or [])]
+        return JSONResponse(
+            content=[
+                DownloadItem(**row).model_dump(mode="json") for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -129,7 +137,7 @@ async def admin_downloads_register(request: Request):
     try:
         # ``register()`` POSTs to the updates server synchronously.
         await asyncio.to_thread(AdminDownloadsService.register)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -173,7 +181,7 @@ async def admin_downloads_action(
             kind,
             request.token_payload["user_id"],
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -215,7 +223,7 @@ async def admin_downloads_action_id(
             id=id,
             data=body,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

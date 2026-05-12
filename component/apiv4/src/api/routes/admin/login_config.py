@@ -32,7 +32,7 @@ from api.services.admin.categories import AdminCategoryService
 from api.services.admin.login_config import AdminLoginConfigService
 from api.services.error import Error
 from fastapi import Path, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin-login-config"
 
@@ -56,10 +56,13 @@ tag = "admin-login-config"
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_login_config_get(request: Request) -> AdminLoginConfigResponse:
+async def admin_login_config_get(request: Request):
     try:
         result = await asyncio.to_thread(AdminCategoryService.admin_get_login_config)
-        return AdminLoginConfigResponse(**(result or {}))
+        return JSONResponse(
+            content=AdminLoginConfigResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -91,12 +94,15 @@ async def admin_login_config_get(request: Request) -> AdminLoginConfigResponse:
 async def admin_login_config_by_category(
     request: Request,
     category_id: str = Path(..., description="Category ID"),
-) -> AdminLoginConfigResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminCategoryService.admin_get_login_config, category_id
         )
-        return AdminLoginConfigResponse(**(result or {}))
+        return JSONResponse(
+            content=AdminLoginConfigResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -143,7 +149,7 @@ async def admin_login_notification_update(
                         # so admins see "bad URL" instead of generic 500.
                         raise Error("bad_request", str(e))
         await asyncio.to_thread(AdminLoginConfigService.update_login_notification, dump)
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -173,7 +179,7 @@ async def admin_login_notification_cover_enable(
         await asyncio.to_thread(
             AdminLoginConfigService.enable_login_notification, "cover", data.enabled
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -203,7 +209,7 @@ async def admin_login_notification_form_enable(
         await asyncio.to_thread(
             AdminLoginConfigService.enable_login_notification, "form", data.enabled
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

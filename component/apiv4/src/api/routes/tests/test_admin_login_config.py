@@ -36,7 +36,7 @@ class TestUpdateLoginNotification:
             jwt=MockJWT(role_id="admin"),
             body={"cover": {"enabled": True, "title": "Welcome"}},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"]["cover"]["title"] == "Welcome"
 
     def test_manager_forbidden(self, monkeypatch, test_client):
@@ -107,7 +107,7 @@ class TestUpdateLoginNotification:
                 }
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"]["form"]["button"]["url"] == "https://example.com/info"
 
     def test_button_without_url_passes(self, monkeypatch, test_client):
@@ -122,7 +122,7 @@ class TestUpdateLoginNotification:
             jwt=MockJWT(role_id="admin"),
             body={"cover": {"button": {"text": "noop"}}},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
     def test_unexpected_exception_returns_500(self, monkeypatch, test_client):
         def boom(data):
@@ -172,7 +172,7 @@ class TestEnableLoginNotification:
             jwt=MockJWT(role_id="admin"),
             body={"enabled": True},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"section": "cover", "enabled": True}
 
     def test_disable_cover(self, monkeypatch, test_client):
@@ -184,7 +184,7 @@ class TestEnableLoginNotification:
             jwt=MockJWT(role_id="admin"),
             body={"enabled": False},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"section": "cover", "enabled": False}
 
     def test_enable_form(self, monkeypatch, test_client):
@@ -196,7 +196,7 @@ class TestEnableLoginNotification:
             jwt=MockJWT(role_id="admin"),
             body={"enabled": True},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"section": "form", "enabled": True}
 
     def test_missing_enabled_field_rejected(self, test_client):

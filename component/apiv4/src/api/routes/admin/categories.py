@@ -35,7 +35,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.categories import AdminCategoryService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin-categories"
 
@@ -57,12 +57,15 @@ tag = "admin-categories"
         500: {"model": ErrorResponse},
     },
 )
-async def get_category_branding(request: Request, category_id: str) -> BrandingResponse:
+async def get_category_branding(request: Request, category_id: str):
     try:
         branding = await asyncio.to_thread(
             AdminCategoryService.get_branding, request.token_payload, category_id
         )
-        return BrandingResponse(**(branding or {}))
+        return JSONResponse(
+            content=BrandingResponse(**(branding or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -97,7 +100,7 @@ async def update_category_branding(
             category_id,
             data.model_dump(exclude_none=True),
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -127,14 +130,17 @@ async def update_category_branding(
         500: {"model": ErrorResponse},
     },
 )
-async def get_category_authentication(
-    request: Request, category_id: str
-) -> CategoryAuthenticationResponse:
+async def get_category_authentication(request: Request, category_id: str):
     try:
         auth = await asyncio.to_thread(
             AdminCategoryService.get_authentication, request.token_payload, category_id
         )
-        return CategoryAuthenticationResponse(**(auth or {}))
+        return JSONResponse(
+            content=CategoryAuthenticationResponse(**(auth or {})).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -170,7 +176,7 @@ async def update_category_authentication(
             category_id,
             data.model_dump(),
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -209,7 +215,7 @@ async def update_category_login_notification(
             category_id,
             data.model_dump(exclude_none=True),
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -247,7 +253,7 @@ async def enable_category_login_notification(
             notification_type,
             data.enabled,
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

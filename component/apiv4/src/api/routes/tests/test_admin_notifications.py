@@ -45,7 +45,7 @@ class TestTemplateCreate:
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"]["language"] == "en"
 
     def test_missing_required_field_rejected(self, test_client):
@@ -228,7 +228,7 @@ class TestTemplateUpdate:
                 "footer": "",
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["template_id"] == "t-123"
         assert captured["data"]["title"] == "Updated"
 
@@ -367,7 +367,7 @@ class TestNotificationCRUD:
             jwt=MockJWT(role_id="admin"),
             body={"delete_logs": False},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"nid": "n-1", "delete_logs": False}
 
     def test_user_forbidden_on_create(self, monkeypatch, test_client):
@@ -463,7 +463,7 @@ class TestNotificationData:
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["user_id"] == "u-1"
 
     def test_delete_specific_data(self, monkeypatch, test_client):
@@ -477,7 +477,7 @@ class TestNotificationData:
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["nid"] == "nd-99"
 
     def test_delete_all_data(self, monkeypatch, test_client):
@@ -491,7 +491,7 @@ class TestNotificationData:
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert called["yes"] is True
 
     def test_user_forbidden_on_delete_all(self, monkeypatch, test_client):

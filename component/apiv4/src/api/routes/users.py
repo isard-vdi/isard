@@ -146,7 +146,10 @@ async def register_user(register_post_data: RegisterPostData, request: Request):
             photo=request.token_payload["photo"],
             email=request.token_payload["email"],
         )
-        return SimpleResponse(id=new_user.id)
+        return JSONResponse(
+            content=SimpleResponse(id=new_user.id).model_dump(mode="json"),
+            status_code=201,
+        )
     except Error:
         raise
     except Exception as e:
@@ -170,9 +173,13 @@ async def register_user(register_post_data: RegisterPostData, request: Request):
 )
 async def get_user_password_policy(request: Request):
     try:
-        return await asyncio.to_thread(
+        policy = await asyncio.to_thread(
             UsersService.get_user_password_policy,
             user_id=request.token_payload["user_id"],
+        )
+        return JSONResponse(
+            content=UserPasswordPolicyResponse(**policy).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -274,7 +281,12 @@ async def get_allowed_hardware(request: Request):
             UsersService.get_allowed_hardware,
             user_id=request.token_payload["user_id"],
         )
-        return UserAllowedHardwareResponse(**allowed_hardware)
+        return JSONResponse(
+            content=UserAllowedHardwareResponse(**allowed_hardware).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -308,7 +320,12 @@ async def get_allowed_hardware_for_domain(request: Request, domain_id: str):
             user_id=request.token_payload["user_id"],
             domain_id=domain_id,
         )
-        return UserAllowedHardwareResponse(**allowed_hardware)
+        return JSONResponse(
+            content=UserAllowedHardwareResponse(**allowed_hardware).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -332,16 +349,15 @@ async def get_allowed_hardware_for_domain(request: Request, domain_id: str):
     },
     description="Returns all the users that the user in the payload can see.",
 )
-async def get_all_users(request: Request) -> list[dict]:
+async def get_all_users(request: Request):
     try:
-        return (
-            CommonUsers.get_with_category(
-                request.token_payload["category_id"]
-                if request.token_payload["role_id"] != "admin"
-                else None
-            )
-            or []
+        users = CommonUsers.get_with_category(
+            request.token_payload["category_id"]
+            if request.token_payload["role_id"] != "admin"
+            else None
         )
+        # TODO!: check result and create a response model
+        return JSONResponse(content=users or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -367,10 +383,17 @@ async def get_all_users(request: Request) -> list[dict]:
 )
 async def get_all_groups(request: Request):
     try:
-        return CommonGroups.get_with_category(
+        groups = CommonGroups.get_with_category(
             request.token_payload["category_id"]
             if request.token_payload["role_id"] != "admin"
             else None
+        )
+        return JSONResponse(
+            content=[
+                DeploymentGroup(**group).model_dump(mode="json")
+                for group in (groups or [])
+            ],
+            status_code=200,
         )
     except Error:
         raise
@@ -392,11 +415,14 @@ async def get_all_groups(request: Request):
 )
 async def get_user(request: Request):
     try:
-        return UserResponse(
-            **await asyncio.to_thread(
-                UsersService.get_user_info,
-                request.token_payload["user_id"],
-            )
+        return JSONResponse(
+            content=UserResponse(
+                **await asyncio.to_thread(
+                    UsersService.get_user_info,
+                    request.token_payload["user_id"],
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -424,11 +450,14 @@ async def get_user_details(request: Request):
         # JSON null on $ref fields (`UserStorageModel.from_dict(None)`
         # crashes with TypeError), but it does handle the field being
         # absent (treated as UNSET).
-        return UserDetailsResponse(
-            **await asyncio.to_thread(
-                UsersService.get_user_details,
-                request.token_payload["user_id"],
-            )
+        return JSONResponse(
+            content=UserDetailsResponse(
+                **await asyncio.to_thread(
+                    UsersService.get_user_details,
+                    request.token_payload["user_id"],
+                )
+            ).model_dump(mode="json", exclude_none=True),
+            status_code=200,
         )
     except Error:
         raise
@@ -450,11 +479,14 @@ async def get_user_details(request: Request):
 )
 async def get_user_quotas(request: Request):
     try:
-        return UserQuotaResponse(
-            **await asyncio.to_thread(
-                UsersService.get_user_quotas,
-                request.token_payload["user_id"],
-            )
+        return JSONResponse(
+            content=UserQuotaResponse(
+                **await asyncio.to_thread(
+                    UsersService.get_user_quotas,
+                    request.token_payload["user_id"],
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -476,10 +508,13 @@ async def get_user_quotas(request: Request):
 )
 async def get_user_config(request: Request):
     try:
-        return UserConfigResponse(
-            **await asyncio.to_thread(
-                UsersService.get_user_config, request.token_payload
-            ),
+        return JSONResponse(
+            content=UserConfigResponse(
+                **await asyncio.to_thread(
+                    UsersService.get_user_config, request.token_payload
+                ),
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -511,7 +546,12 @@ async def set_user_language(request: Request, data: UserSetLangPutData):
             user_id=request.token_payload["user_id"],
             lang=data.lang,
         )
-        return SimpleResponse(id=request.token_payload["user_id"])
+        return JSONResponse(
+            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -542,7 +582,12 @@ async def set_user_email(request: Request, data: UserSetEmailPutData):
             user_id=request.token_payload["user_id"],
             email=data.email,
         )
-        return SimpleResponse(id=request.token_payload["user_id"])
+        return JSONResponse(
+            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -568,10 +613,14 @@ async def set_user_email(request: Request, data: UserSetEmailPutData):
 )
 async def get_user_api_key(request: Request):
     try:
-        return UserAPIKeyResponse(
-            **await asyncio.to_thread(
-                UsersService.get_user_api_key, user_id=request.token_payload["user_id"]
-            )
+        return JSONResponse(
+            content=UserAPIKeyResponse(
+                **await asyncio.to_thread(
+                    UsersService.get_user_api_key,
+                    user_id=request.token_payload["user_id"],
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -596,13 +645,13 @@ async def get_user_api_key(request: Request):
         500: {"description": "Failed to expire API key"},
     },
 )
-async def expire_user_api_key(request: Request) -> EmptyResponse:
+async def expire_user_api_key(request: Request):
     try:
         await asyncio.to_thread(
             UsersService.delete_user_api_key, user_id=request.token_payload["user_id"]
         )
 
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -634,7 +683,12 @@ async def set_user_password(request: Request, data: UserSetPasswordPutData):
             new_password=data.password,
             current_password=data.current_password,
         )
-        return SimpleResponse(id=request.token_payload["user_id"])
+        return JSONResponse(
+            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -658,13 +712,13 @@ async def set_user_password(request: Request, data: UserSetPasswordPutData):
         500: {"description": "Failed to delete user"},
     },
 )
-async def delete_user(request: Request) -> EmptyResponse:
+async def delete_user(request: Request):
     try:
         await asyncio.to_thread(
             UsersService.delete_user,
             user_id=request.token_payload["user_id"],
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -689,13 +743,14 @@ async def delete_user(request: Request) -> EmptyResponse:
         500: {"description": "Failed to retrieve desktops"},
     },
 )
-async def get_user_desktops(request: Request) -> list[dict]:
+async def get_user_desktops(request: Request):
     try:
         desktops = await asyncio.to_thread(
             UsersService.get_user_desktops,
             user_id=request.token_payload["user_id"],
         )
-        return desktops or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=desktops or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -726,7 +781,10 @@ async def get_user_desktop(request: Request, desktop_id: str):
             desktop_id=desktop_id,
             user_id=request.token_payload["user_id"],
         )
-        return UserDesktop(**desktop)
+        return JSONResponse(
+            content=UserDesktop(**desktop).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -759,7 +817,10 @@ async def get_user_vpn_with_os(
             os=os,
             user_id=request.token_payload["user_id"],
         )
-        return UserVpnData(**vpn_data)
+        return JSONResponse(
+            content=UserVpnData(**vpn_data).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -792,7 +853,10 @@ async def get_user_vpn(request: Request, kind: Literal["config"]):
             os=False,
             user_id=request.token_payload["user_id"],
         )
-        return UserVpnData(**vpn_data)
+        return JSONResponse(
+            content=UserVpnData(**vpn_data).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -815,13 +879,14 @@ async def get_user_vpn(request: Request, kind: Literal["config"]):
         500: {"description": "Failed to retrieve webapp desktops"},
     },
 )
-async def get_webapp_desktops(request: Request) -> list[dict]:
+async def get_webapp_desktops(request: Request):
     try:
         desktops = await asyncio.to_thread(
             UsersService.get_webapp_desktops,
             user_id=request.token_payload["user_id"],
         )
-        return desktops or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=desktops or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -844,13 +909,14 @@ async def get_webapp_desktops(request: Request) -> list[dict]:
         500: {"description": "Failed to retrieve webapp templates"},
     },
 )
-async def get_webapp_templates(request: Request) -> list[dict]:
+async def get_webapp_templates(request: Request):
     try:
         templates = await asyncio.to_thread(
             UsersService.get_webapp_templates,
             user_id=request.token_payload["user_id"],
         )
-        return templates or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=templates or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -880,7 +946,10 @@ async def groups_users_count(request: Request, data: GroupsUsersCountPutData):
             groups=data.groups,
             user_id=request.token_payload["user_id"],
         )
-        return GroupsUsersCountResponse(quantity=quantity)
+        return JSONResponse(
+            content=GroupsUsersCountResponse(quantity=quantity).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -920,14 +989,17 @@ async def get_hardware_kind_allowed(
         "floppies",
         "disk_bus",
     ],
-) -> dict:
+):
     try:
         result = await asyncio.to_thread(
             UsersService.get_hardware_kind_allowed,
             user_id=request.token_payload["user_id"],
             kind=kind,
         )
-        return result or {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -956,7 +1028,10 @@ async def get_user_applied_quota(request: Request):
             UsersService.get_applied_quota,
             user_id=request.token_payload["user_id"],
         )
-        return applied_quota
+        return JSONResponse(
+            content=UserAppliedQuotaResponse(**applied_quota).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -979,13 +1054,16 @@ async def get_user_applied_quota(request: Request):
         500: {"description": "Failed to check bastion access"},
     },
 )
-async def get_bastion_allowed(request: Request) -> dict:
+async def get_bastion_allowed(request: Request):
     try:
         result = await asyncio.to_thread(
             UsersService.get_bastion_allowed,
             payload=request.token_payload,
         )
-        return result or {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -1043,7 +1121,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 role_id=payload.get("role_id"),
                 connection_ip=body.ip,
             )
-            return EmptyResponse()
+            return Response(status_code=204)
 
         # Variant 2: guess_ip in body → lookup by guest_ip index.
         if body.ip:
@@ -1054,7 +1132,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 role_id=payload.get("role_id"),
                 guess_ip=body.ip,
             )
-            return EmptyResponse()
+            return Response(status_code=204)
 
         # Variant 3: proxy_video + proxy_hyper_host + port → proxies index.
         if not body.proxy_video or not body.proxy_hyper_host or not body.port:
@@ -1073,7 +1151,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
             proxy_hyper_host=body.proxy_hyper_host,
             port=body.port,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

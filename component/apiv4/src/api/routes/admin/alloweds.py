@@ -32,7 +32,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.alloweds import AdminAllowedsService
 from api.services.error import Error
 from fastapi import BackgroundTasks, Path, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_alloweds"
 
@@ -64,7 +64,7 @@ async def alloweds_table_term(
         "media",
         "deployments",
     ] = Path(..., description="Table to search in"),
-) -> list[dict]:
+):
     try:
         result = await asyncio.to_thread(
             AdminAllowedsService.get_table_term,
@@ -72,7 +72,8 @@ async def alloweds_table_term(
             data.model_dump(exclude_none=True),
             request.token_payload,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -119,7 +120,7 @@ async def admin_allowed_update(
             request.token_payload,
             background_tasks,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -147,12 +148,13 @@ async def allowed_table(
     request: Request,
     data: AllowedGetRequest,
     table: str = Path(..., description="Table containing the item"),
-) -> dict:
+):
     try:
         result = await asyncio.to_thread(
             AdminAllowedsService.get_allowed_table, table, data.model_dump()
         )
-        return result or {}
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or {}, status_code=200)
     except Error:
         raise
     except Exception as e:

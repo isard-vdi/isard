@@ -37,10 +37,13 @@ tag = "admin_roles"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_get_role(request: Request, role_id: str) -> RoleResponse:
+async def admin_get_role(request: Request, role_id: str):
     try:
         role = await asyncio.to_thread(AdminRolesService.get_role, role_id)
-        return RoleResponse(**role)
+        return JSONResponse(
+            content=RoleResponse(**role).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

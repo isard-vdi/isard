@@ -55,7 +55,7 @@ def test_delete_user_network(monkeypatch, test_client):
         method="DELETE",
         jwt=jwt,
     )
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 def test_create_user_network_missing_name(monkeypatch, test_client):

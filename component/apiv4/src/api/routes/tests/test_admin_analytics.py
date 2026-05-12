@@ -231,7 +231,7 @@ class TestGraphConfig:
             jwt=MockJWT(role_id="admin"),
             body={"name": "Storage by month", "type": "line"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"] == {"name": "Storage by month", "type": "line"}
 
     def test_update(self, monkeypatch, test_client):
@@ -246,7 +246,7 @@ class TestGraphConfig:
             jwt=MockJWT(role_id="admin"),
             body={"name": "Renamed"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {"cid": "g-1", "data": {"name": "Renamed"}}
 
     def test_delete(self, monkeypatch, test_client):
@@ -260,7 +260,7 @@ class TestGraphConfig:
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["cid"] == "g-1"
 
     def test_manager_forbidden_on_mutation(self, monkeypatch, test_client):

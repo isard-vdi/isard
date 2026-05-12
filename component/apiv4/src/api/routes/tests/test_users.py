@@ -511,7 +511,7 @@ def test_expire_user_api_key(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == [jwt.payload["user_id"]]
 
 

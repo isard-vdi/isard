@@ -148,7 +148,7 @@ def test_admin_hypervisor_delete(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["hyper-1"]
 
 
@@ -166,7 +166,7 @@ def test_admin_hypervisor_stop_domains(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert calls == ["hyper-1"]
 
 
@@ -211,7 +211,7 @@ def test_admin_hypervisor_virt_pools_update(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {
         "hyper_id": "hyper-1",
         "id": "pool-1",
@@ -294,7 +294,7 @@ def test_admin_orchestrator_manage_unset(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {"hyper_id": "hyper-1", "reset": True}
 
 
@@ -317,7 +317,7 @@ def test_admin_orchestrator_manage_set(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert captured == {"hyper_id": "hyper-1", "reset": False}
 
 
@@ -340,7 +340,7 @@ def test_admin_register_vlans_happy_path(test_client):
         db_tables_data={"interfaces": []},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 def test_admin_register_vlans_empty_list(test_client):
@@ -357,7 +357,7 @@ def test_admin_register_vlans_empty_list(test_client):
         db_tables_data={"interfaces": []},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 def test_admin_register_vlans_rejects_missing_field(test_client):
@@ -403,7 +403,7 @@ def test_admin_hypervisor_boot_progress_happy_path(test_client):
         db_tables_data={"hypervisors": [{"id": "hyper-1"}]},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 204
 
 
 def test_admin_hypervisor_boot_progress_rejects_string_payload(test_client):

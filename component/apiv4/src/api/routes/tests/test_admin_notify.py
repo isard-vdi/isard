@@ -40,7 +40,7 @@ class TestNotifyUserDesktop:
                 "params": {"minutes": 10},
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured == {
             "user_id": "u-1",
             "type": "warning",
@@ -63,7 +63,7 @@ class TestNotifyUserDesktop:
             jwt=MockJWT(role_id="admin"),
             body={"user_id": "u-1", "type": "info"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["msg"] is None
         assert captured["params"] is None
 
@@ -149,7 +149,7 @@ class TestNotifyDesktop:
                 "msg_code": "migration_done",
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["desktop_id"] == "d-1"
 
     def test_missing_desktop_id_rejected(self, test_client):
@@ -221,7 +221,7 @@ class TestNotifyDesktopQueue:
             jwt=MockJWT(role_id="admin"),
             body=[{"desktop_id": "d-1"}, {"desktop_id": "d-2"}],
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["hyp_id"] == "hyper-1"
         assert captured["data"][0].desktop_id == "d-1"
 

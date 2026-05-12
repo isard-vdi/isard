@@ -124,7 +124,7 @@ class TestQosDiskAdd:
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"]["name"] == "Standard"
         # exclude_none drops Optional unset fields
         assert "id" not in captured["data"]
@@ -207,7 +207,7 @@ class TestQosDiskUpdate:
                 "iotune": {"read_iops_sec": 2000},
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
         assert captured["data"]["id"] == "q-1"
 
     def test_id_required(self, test_client):

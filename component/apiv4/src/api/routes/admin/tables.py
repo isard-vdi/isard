@@ -28,7 +28,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.tables import AdminTablesService
 from api.services.error import Error
 from fastapi import Path, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_tables"
 
@@ -49,15 +49,21 @@ tag = "admin_tables"
 async def admin_table_get(
     request: Request,
     table: str = Path(..., description="Database table name"),
-) -> Union[TableItem, list[TableItem]]:
+):
     try:
         options = dict(request.query_params)
         result = await asyncio.to_thread(
             AdminTablesService.get_table, table, request.token_payload, options
         )
         if isinstance(result, list):
-            return [TableItem(**row) for row in result]
-        return TableItem(**(result or {}))
+            return JSONResponse(
+                content=[TableItem(**row).model_dump(mode="json") for row in result],
+                status_code=200,
+            )
+        return JSONResponse(
+            content=TableItem(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -86,15 +92,21 @@ async def admin_table_list(
     request: Request,
     data: TableListRequest,
     table: str = Path(..., description="Database table name"),
-) -> Union[TableItem, list[TableItem]]:
+):
     try:
         options = data.model_dump(exclude_none=True)
         result = await asyncio.to_thread(
             AdminTablesService.get_table, table, request.token_payload, options
         )
         if isinstance(result, list):
-            return [TableItem(**row) for row in result]
-        return TableItem(**(result or {}))
+            return JSONResponse(
+                content=[TableItem(**row).model_dump(mode="json") for row in result],
+                status_code=200,
+            )
+        return JSONResponse(
+            content=TableItem(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -126,7 +138,7 @@ async def admin_table_insert(
 ):
     try:
         await asyncio.to_thread(AdminTablesService.insert_table_item, table, data)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -158,7 +170,7 @@ async def admin_table_update(
 ):
     try:
         await asyncio.to_thread(AdminTablesService.update_table_item, table, data)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -190,7 +202,7 @@ async def admin_table_delete(
 ):
     try:
         await asyncio.to_thread(AdminTablesService.delete_table_item, table, item_id)
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:

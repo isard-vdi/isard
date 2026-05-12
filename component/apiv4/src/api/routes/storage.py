@@ -48,7 +48,7 @@ from api.schemas.storage import (
 from api.services.error import Error
 from api.services.storage import StorageService
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "storage"
 
@@ -79,7 +79,10 @@ async def set_storage_maintenance(
             storage_id,
             body.action,
         )
-        return SimpleResponse(id=result_id)
+        return JSONResponse(
+            content=SimpleResponse(id=result_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -107,7 +110,10 @@ async def set_storage_ready(request: Request, storage_id: str):
         result_id = await asyncio.to_thread(
             StorageService.set_ready, request.token_payload, storage_id
         )
-        return SimpleResponse(id=result_id)
+        return JSONResponse(
+            content=SimpleResponse(id=result_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -138,7 +144,7 @@ async def batch_check_backing_chain(
         await asyncio.to_thread(
             StorageService.batch_check_backing_chain, request.token_payload, body.ids
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -167,7 +173,7 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
             request.token_payload,
             status,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -193,12 +199,15 @@ async def batch_check_backing_chain_by_status(request: Request, status: str):
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage(request: Request, storage_id: str) -> dict:
+async def get_storage(request: Request, storage_id: str):
     try:
         storage = await asyncio.to_thread(
             StorageService.get_storage_detail, request.token_payload, storage_id
         )
-        return storage if isinstance(storage, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=storage if isinstance(storage, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -220,12 +229,13 @@ async def get_storage(request: Request, storage_id: str) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def get_user_ready_storages(request: Request) -> list[dict]:
+async def get_user_ready_storages(request: Request):
     try:
         disks = await asyncio.to_thread(
             StorageService.get_user_ready_storages, request.token_payload["user_id"]
         )
-        return disks or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=disks or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -264,7 +274,10 @@ async def create_storage(
             user_id=body.user_id,
             priority=priority,
         )
-        return StorageCreateResponse(**result)
+        return JSONResponse(
+            content=StorageCreateResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -294,10 +307,13 @@ async def delete_storage(request: Request, storage_id: str):
         task_id = await asyncio.to_thread(
             StorageService.delete_storage, request.token_payload, storage_id
         )
-        return DeleteResponse(
-            message="Task to delete storage queued",
-            message_code="item.queued",
-            tasks_ids=[task_id] if isinstance(task_id, str) else None,
+        return JSONResponse(
+            content=DeleteResponse(
+                message="Task to delete storage queued",
+                message_code="item.queued",
+                tasks_ids=[task_id] if isinstance(task_id, str) else None,
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -324,12 +340,12 @@ async def delete_storage(request: Request, storage_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_parents(request: Request, storage_id: str) -> list[dict]:
+async def get_storage_parents(request: Request, storage_id: str):
     try:
         parents = await asyncio.to_thread(
             StorageService.get_parents, request.token_payload, storage_id
         )
-        return parents or []
+        return JSONResponse(content=parents or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -352,12 +368,14 @@ async def get_storage_parents(request: Request, storage_id: str) -> list[dict]:
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_task(request: Request, storage_id: str) -> dict:
+async def get_storage_task(request: Request, storage_id: str):
     try:
         task = await asyncio.to_thread(
             StorageService.get_task, request.token_payload, storage_id
         )
-        return task if isinstance(task, dict) else {}
+        return JSONResponse(
+            content=task if isinstance(task, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -380,12 +398,12 @@ async def get_storage_task(request: Request, storage_id: str) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_statuses(request: Request, storage_id: str) -> list[dict]:
+async def get_storage_statuses(request: Request, storage_id: str):
     try:
         statuses = await asyncio.to_thread(
             StorageService.get_statuses, request.token_payload, storage_id
         )
-        return statuses or []
+        return JSONResponse(content=statuses or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -413,7 +431,12 @@ async def get_storage_has_derivatives(request: Request, storage_id: str):
         count = await asyncio.to_thread(
             StorageService.has_derivatives, request.token_payload, storage_id
         )
-        return StorageDerivativesResponse(derivatives=count)
+        return JSONResponse(
+            content=StorageDerivativesResponse(derivatives=count).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -445,7 +468,10 @@ async def sparsify_storage(request: Request, storage_id: str, priority: str):
         task_id = await asyncio.to_thread(
             StorageService.sparsify, request.token_payload, storage_id, priority
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -476,7 +502,7 @@ async def batch_sparsify_storages(
         await asyncio.to_thread(
             StorageService.batch_sparsify, request.token_payload, body.ids
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -505,7 +531,10 @@ async def disconnect_storage(request: Request, storage_id: str, priority: str):
         task_id = await asyncio.to_thread(
             StorageService.disconnect, request.token_payload, storage_id, priority
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -528,12 +557,14 @@ async def disconnect_storage(request: Request, storage_id: str, priority: str):
         500: {"model": ErrorResponse},
     },
 )
-async def check_storage_backing_chain(request: Request, storage_id: str) -> dict:
+async def check_storage_backing_chain(request: Request, storage_id: str):
     try:
         result = await asyncio.to_thread(
             StorageService.check_backing_chain, request.token_payload, storage_id
         )
-        return result if isinstance(result, dict) else {}
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -572,7 +603,10 @@ async def convert_storage(
             compress=body.compress,
             priority=body.priority,
         )
-        return StorageConvertResponse(**result)
+        return JSONResponse(
+            content=StorageConvertResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -608,7 +642,10 @@ async def recreate_storage(
             priority=body.priority,
             retry=body.retry,
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -647,7 +684,10 @@ async def virt_win_reg_storage(
             priority=priority,
             retry=body.retry,
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -687,7 +727,10 @@ async def move_storage_by_path(
             dest_path=body.dest_path,
             priority=body.priority,
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -726,7 +769,10 @@ async def rsync_storage_to_path(
             remove_source_file=body.remove_source_file,
             priority=body.priority,
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -765,7 +811,10 @@ async def rsync_storage_to_storage_pool(
             remove_source_file=body.remove_source_file,
             priority=body.priority,
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -796,7 +845,7 @@ async def stop_storage_desktops(request: Request, storage_id: str):
         await asyncio.to_thread(
             StorageService.stop_desktops, request.token_payload, storage_id
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -825,7 +874,10 @@ async def abort_storage_operations(request: Request, storage_id: str):
         task_id = await asyncio.to_thread(
             StorageService.abort_operations, request.token_payload, storage_id
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -863,7 +915,10 @@ async def set_storage_path(
             priority=body.priority,
             retry=body.retry,
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -901,7 +956,10 @@ async def delete_storage_path(
             priority=body.priority,
             retry=body.retry,
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -927,12 +985,15 @@ async def delete_storage_path(
         500: {"model": ErrorResponse},
     },
 )
-async def find_storage(request: Request, storage_id: str) -> dict:
+async def find_storage(request: Request, storage_id: str):
     try:
         result = await asyncio.to_thread(
             StorageService.find, request.token_payload, storage_id
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -963,7 +1024,7 @@ async def batch_find_storages(
         await asyncio.to_thread(
             StorageService.batch_find, request.token_payload, body.ids
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -996,7 +1057,10 @@ async def get_storage_ready(request: Request):
         items = await asyncio.to_thread(
             StorageService.get_user_ready_storages, request.token_payload["user_id"]
         )
-        return StorageReadyResponse(items=items)
+        return JSONResponse(
+            content=StorageReadyResponse(items=items).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -1037,7 +1101,10 @@ async def increase_storage_size(
             increment=increment,
             priority=priority,
         )
-        return TaskIdResponse(task_id=task_id)
+        return JSONResponse(
+            content=TaskIdResponse(task_id=task_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -1066,16 +1133,15 @@ async def increase_storage_size(
         500: {"model": ErrorResponse},
     },
 )
-async def get_storage_storages_with_uuid(
-    request: Request, storage_id: str
-) -> list[dict]:
+async def get_storage_storages_with_uuid(request: Request, storage_id: str):
     try:
         result = await asyncio.to_thread(
             StorageService.get_storage_storages_with_uuid,
             request.token_payload,
             storage_id,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -1099,12 +1165,13 @@ async def get_storage_storages_with_uuid(
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def list_all_storages_with_uuid(request: Request) -> list[dict]:
+async def list_all_storages_with_uuid(request: Request):
     try:
         result = await asyncio.to_thread(
             StorageService.get_all_storages_with_uuid, request.token_payload
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -1127,12 +1194,13 @@ async def list_all_storages_with_uuid(request: Request) -> list[dict]:
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def list_all_storages_with_uuid_status(request: Request) -> list[dict]:
+async def list_all_storages_with_uuid_status(request: Request):
     try:
         result = await asyncio.to_thread(
             StorageService.get_all_storages_with_uuid_status, request.token_payload
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -1150,20 +1218,19 @@ async def list_all_storages_with_uuid_status(request: Request) -> list[dict]:
     response_model=list[dict],
     summary="List storages_with_uuid filtered by status",
     description=(
-        "Returns the ``storages_with_uuid`` rows matching the given " "``status``."
+        "Returns the ``storages_with_uuid`` rows matching the given ``status``."
     ),
     responses={500: {"model": ErrorResponse}},
 )
-async def list_all_storages_with_uuid_filtered(
-    request: Request, status: str
-) -> list[dict]:
+async def list_all_storages_with_uuid_filtered(request: Request, status: str):
     try:
         result = await asyncio.to_thread(
             StorageService.get_all_storages_with_uuid,
             request.token_payload,
             status=status,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:

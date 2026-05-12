@@ -205,7 +205,7 @@ $(document).ready(function () {
                         text: 'Remote VPN created successfully',
                         hide: true,
                         delay: 1000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })
@@ -336,7 +336,7 @@ $(document).ready(function () {
                             text: 'Network Qos created successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -375,7 +375,7 @@ $(document).ready(function () {
                             text: 'Network Qos updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -556,7 +556,7 @@ $(document).ready(function () {
                             text: 'Disk QoS created successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -612,7 +612,7 @@ $(document).ready(function () {
                             text: 'Disk QoS updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -844,7 +844,7 @@ $(document).ready(function () {
                             text: 'Interface created successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -883,7 +883,7 @@ $(document).ready(function () {
                             text: 'Interface updated successfully',
                             hide: true,
                             delay: 1000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })
@@ -988,7 +988,7 @@ $(document).ready(function () {
                     text: 'Video created successfully',
                     hide: true,
                     delay: 1000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: 'fa fa-' + data?.icon,
                     opacity: 1,
                     type: 'success'
                 })

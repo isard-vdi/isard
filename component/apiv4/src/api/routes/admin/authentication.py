@@ -38,7 +38,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.authentication import AdminAuthenticationService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin-authentication"
 
@@ -65,7 +65,7 @@ async def admin_authentication_policy_add(request: Request, data: PolicyCreateRe
         await asyncio.to_thread(
             AdminAuthenticationService.add_policy, data.model_dump(exclude_none=True)
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -85,10 +85,16 @@ async def admin_authentication_policy_add(request: Request, data: PolicyCreateRe
     description="Returns all authentication policies.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_authentication_policies(request: Request) -> list[PolicyResponse]:
+async def admin_authentication_policies(request: Request):
     try:
         policies = await asyncio.to_thread(AdminAuthenticationService.get_policies)
-        return [PolicyResponse(**row) for row in (policies or [])]
+        return JSONResponse(
+            content=[
+                PolicyResponse(**row).model_dump(mode="json")
+                for row in (policies or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -108,14 +114,15 @@ async def admin_authentication_policies(request: Request) -> list[PolicyResponse
     description="Returns an authentication policy by its ID.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def admin_authentication_policy(
-    request: Request, policy_id: str
-) -> PolicyResponse:
+async def admin_authentication_policy(request: Request, policy_id: str):
     try:
         policy = await asyncio.to_thread(
             AdminAuthenticationService.get_policy, policy_id
         )
-        return PolicyResponse(**(policy or {}))
+        return JSONResponse(
+            content=PolicyResponse(**(policy or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -147,7 +154,7 @@ async def admin_authentication_policy_edit(
             policy_id,
             data.model_dump(exclude_none=True),
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -173,7 +180,7 @@ async def admin_authentication_policy_edit(
 async def admin_authentication_policy_delete(request: Request, policy_id: str):
     try:
         await asyncio.to_thread(AdminAuthenticationService.delete_policy, policy_id)
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -198,10 +205,13 @@ async def admin_authentication_policy_delete(request: Request, policy_id: str):
     description="Returns enabled status for all authentication providers.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_authentication_providers(request: Request) -> ProvidersResponse:
+async def admin_authentication_providers(request: Request):
     try:
         providers = await asyncio.to_thread(AdminAuthenticationService.get_providers)
-        return ProvidersResponse(**(providers or {}))
+        return JSONResponse(
+            content=ProvidersResponse(**(providers or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -233,7 +243,7 @@ async def admin_force_email(request: Request, policy_id: str):
             policy_id,
             "email_verified",
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -260,7 +270,7 @@ async def admin_force_disclaimer(request: Request, policy_id: str):
             policy_id,
             "disclaimer_acknowledged",
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -287,7 +297,7 @@ async def admin_force_password(request: Request, policy_id: str):
             policy_id,
             "password_last_updated",
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -312,13 +322,16 @@ async def admin_force_password(request: Request, policy_id: str):
     description="Returns the disclaimer template for the current user.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def get_disclaimer(request: Request) -> DisclaimerResponse:
+async def get_disclaimer(request: Request):
     try:
         text = await asyncio.to_thread(
             AdminAuthenticationService.get_disclaimer_template,
             request.token_payload["user_id"],
         )
-        return DisclaimerResponse(**(text or {}))
+        return JSONResponse(
+            content=DisclaimerResponse(**(text or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -356,12 +369,15 @@ async def get_disclaimer(request: Request) -> DisclaimerResponse:
 )
 async def get_provider_config_route(
     request: Request, provider: Literal["local", "google", "saml", "ldap"]
-) -> ProviderConfigResponse:
+):
     try:
         config = await asyncio.to_thread(
             AdminAuthenticationService.get_provider_config, provider
         )
-        return ProviderConfigResponse(**(config or {}))
+        return JSONResponse(
+            content=ProviderConfigResponse(**(config or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -395,7 +411,7 @@ async def edit_provider_config_route(
             provider,
             data.model_dump(exclude_none=True),
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -420,7 +436,7 @@ async def edit_provider_config_route(
     description="Returns all migration exceptions.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_get_migration_exceptions(request: Request) -> list[MigrationException]:
+async def admin_get_migration_exceptions(request: Request):
     try:
         exceptions = await asyncio.to_thread(
             AdminAuthenticationService.get_migrations_exceptions
@@ -428,7 +444,13 @@ async def admin_get_migration_exceptions(request: Request) -> list[MigrationExce
         # FastAPI's jsonable_encoder handles RethinkDB datetimes via the
         # Pydantic model's serialisation; the previous manual
         # json.dumps(default=...) shim was a pre-response_model relic.
-        return [MigrationException(**row) for row in (exceptions or [])]
+        return JSONResponse(
+            content=[
+                MigrationException(**row).model_dump(mode="json")
+                for row in (exceptions or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -458,7 +480,7 @@ async def admin_add_migration_exception(
         await asyncio.to_thread(
             AdminAuthenticationService.add_migration_exception, data.model_dump()
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -483,7 +505,7 @@ async def admin_delete_migration_exception(request: Request, exception_id: str):
         await asyncio.to_thread(
             AdminAuthenticationService.delete_migration_exception, exception_id
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

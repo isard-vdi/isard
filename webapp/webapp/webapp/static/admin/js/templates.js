@@ -243,7 +243,7 @@ $(document).ready(function() {
                         text: 'Item(s) deleted successfully',
                         hide: true,
                         delay: 2000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })
@@ -293,7 +293,7 @@ $(document).ready(function() {
                         text: 'Template duplicated successfully',
                         hide: true,
                         delay: 2000,
-                        icon: 'fa fa-' + data.icon,
+                        icon: 'fa fa-' + data?.icon,
                         opacity: 1,
                         type: 'success'
                     })
@@ -961,7 +961,7 @@ $('.btn-duplicate-template').on('click', function () {
                     text: 'Forced hypervisor updated successfully',
                     hide: true,
                     delay: 2000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: 'fa fa-' + data?.icon,
                     opacity: 1,
                     type: 'success'
                 })
@@ -1076,7 +1076,7 @@ $('.btn-duplicate-template').on('click', function () {
                     text: 'Favourite hypervisor updated successfully',
                     hide: true,
                     delay: 2000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: 'fa fa-' + data?.icon,
                     opacity: 1,
                     type: 'success'
                 })
@@ -1264,7 +1264,7 @@ function renderDisplay(data){
                             text: 'Domain updated successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         })

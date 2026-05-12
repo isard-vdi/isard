@@ -32,7 +32,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.resources import AdminResourcesService
 from api.services.error import Error
 from fastapi import Path, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_resources"
 
@@ -58,14 +58,20 @@ async def admin_remote_vpn_with_os(
     vpn_id: str = Path(..., description="VPN ID"),
     kind: str = Path(..., description="VPN data kind: config or install"),
     os: str = Path(..., description="Operating system"),
-) -> RemoteVpnResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminResourcesService.get_remote_vpn, vpn_id, kind, os
         )
         if isinstance(result, dict):
-            return RemoteVpnResponse(**result)
-        return RemoteVpnResponse()
+            return JSONResponse(
+                content=RemoteVpnResponse(**result).model_dump(mode="json"),
+                status_code=200,
+            )
+        return JSONResponse(
+            content=RemoteVpnResponse().model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -92,14 +98,20 @@ async def admin_remote_vpn(
     request: Request,
     vpn_id: str = Path(..., description="VPN ID"),
     kind: str = Path(..., description="VPN data kind: config or install"),
-) -> RemoteVpnResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminResourcesService.get_remote_vpn, vpn_id, kind
         )
         if isinstance(result, dict):
-            return RemoteVpnResponse(**result)
-        return RemoteVpnResponse()
+            return JSONResponse(
+                content=RemoteVpnResponse(**result).model_dump(mode="json"),
+                status_code=200,
+            )
+        return JSONResponse(
+            content=RemoteVpnResponse().model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -136,7 +148,7 @@ async def admin_qos_disk_add(
         await asyncio.to_thread(
             AdminResourcesService.add_qos_disk, data.model_dump(exclude_none=True)
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -168,7 +180,7 @@ async def admin_qos_disk_update(
         await asyncio.to_thread(
             AdminResourcesService.update_qos_disk, data.model_dump(exclude_none=True)
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

@@ -83,7 +83,7 @@ $(document).ready(function(){
                             text: 'Secret created successfully',
                             hide: true,
                             delay: 2000,
-                            icon: 'fa fa-' + data.icon,
+                            icon: 'fa fa-' + data?.icon,
                             opacity: 1,
                             type: 'success'
                         });

@@ -124,7 +124,7 @@ $(document).ready(function () {
                 text: 'Hypervisor ' + data["id"] + ' started',
                 hide: true,
                 delay: 7000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: change == "enable" ? 'warning' : 'success'
               });
@@ -175,7 +175,7 @@ $(document).ready(function () {
                 text: 'Hypervisor ' + data["id"] + ' stopped',
                 hide: true,
                 delay: 7000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: change == "enable" ? 'warning' : 'success'
               });

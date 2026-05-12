@@ -40,6 +40,7 @@ from api.services.error import Error
 from api.services.login_config_cache import login_config_cache
 from cachetools import cached
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
 tag = "login"
 
@@ -66,7 +67,10 @@ tag = "login"
 async def get_login_config(request: Request):
     try:
         config = await asyncio.to_thread(ConfigService.get_login_config)
-        return LoginConfigResponse(**config)
+        return JSONResponse(
+            content=LoginConfigResponse(**config).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -97,7 +101,11 @@ async def get_login_config_by_category(request: Request, category_id: str):
         config = await asyncio.to_thread(
             AdminCategoryService.get_login_config_for_category, category_id
         )
-        return LoginConfigResponse(**config)
+
+        return JSONResponse(
+            content=LoginConfigResponse(**config).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

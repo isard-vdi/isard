@@ -213,7 +213,7 @@ function setVirtPoolsTable(id) {
                 text: '',
                 hide: true,
                 delay: 7000,
-                icon: 'fa fa-' + data.icon,
+                icon: 'fa fa-' + data?.icon,
                 opacity: 1,
                 type: change == "enable" ? 'warning' : 'success'
               });

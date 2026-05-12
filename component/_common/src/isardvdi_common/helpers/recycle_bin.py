@@ -452,6 +452,8 @@ class Helpers(RethinkSharedConnection):
             # Build storage→domain mapping in O(D×disks) instead of O(S×D×disks)
             storage_to_domains = defaultdict(list)
             for domain in all_domains:
+                # Drop the libvirt xml blob
+                domain.pop("xml", None)
                 cat_id = domain.get("category")
                 grp_id = domain.get("group")
                 domain["category"] = categories.get(cat_id, deleted_cat)

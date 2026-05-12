@@ -55,7 +55,11 @@ async def get_status_bar_notifications(request: Request):
         notification = await asyncio.to_thread(
             AdminNotificationService.get_status_bar_notification, request.token_payload
         )
-        return notification
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=notification,
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -77,12 +81,15 @@ async def get_status_bar_notifications(request: Request):
 async def get_user_notification_displays(request: Request, trigger: str):
 
     try:
-        return NotificationsUserDisplaysTriggerResponse(
-            displays=await asyncio.to_thread(
-                NotificationService.get_user_trigger_notifications_displays,
-                request.token_payload,
-                trigger,
-            )
+        return JSONResponse(
+            content=NotificationsUserDisplaysTriggerResponse(
+                displays=await asyncio.to_thread(
+                    NotificationService.get_user_trigger_notifications_displays,
+                    request.token_payload,
+                    trigger,
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -113,13 +120,16 @@ async def get_user_notification_trigger_display(
 ):
 
     try:
-        return NotificationsUserTriggerDisplayFlatResponse(
-            notifications=await asyncio.to_thread(
-                NotificationService.get_user_trigger_notifications_flat,
-                request.token_payload,
-                trigger,
-                display,
-            )
+        return JSONResponse(
+            content=NotificationsUserTriggerDisplayFlatResponse(
+                notifications=await asyncio.to_thread(
+                    NotificationService.get_user_trigger_notifications_flat,
+                    request.token_payload,
+                    trigger,
+                    display,
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -152,13 +162,16 @@ async def get_user_notification_trigger_display_nested(
     request: Request, trigger: str, display: str
 ):
     try:
-        return NotificationsUserTriggerDisplayResponse(
-            notifications=await asyncio.to_thread(
-                NotificationService.get_user_trigger_notifications,
-                request.token_payload,
-                trigger,
-                display,
-            )
+        return JSONResponse(
+            content=NotificationsUserTriggerDisplayResponse(
+                notifications=await asyncio.to_thread(
+                    NotificationService.get_user_trigger_notifications,
+                    request.token_payload,
+                    trigger,
+                    display,
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise

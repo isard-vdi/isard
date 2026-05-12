@@ -37,6 +37,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
 from fastapi import BackgroundTasks, Depends, Path, Request
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin_domains"
 
@@ -58,9 +59,7 @@ tag = "admin_domains"
         500: {"model": ErrorResponse},
     },
 )
-async def admin_list_domains(
-    request: Request, data: AdminListDomainsData
-) -> list[dict]:
+async def admin_list_domains(request: Request, data: AdminListDomainsData):
     try:
         if data.domain_ids:
             result = await asyncio.to_thread(
@@ -78,7 +77,8 @@ async def admin_list_domains(
             result = await asyncio.to_thread(
                 AdminDomainsService.list_templates, request.token_payload
             )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -106,12 +106,15 @@ async def admin_list_domains(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_details(request: Request, domain_id: str) -> dict:
+async def admin_domain_details(request: Request, domain_id: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_domain_details, request.token_payload, domain_id
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -134,12 +137,15 @@ async def admin_domain_details(request: Request, domain_id: str) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_viewer_data(request: Request, domain_id: str) -> dict:
+async def admin_domain_viewer_data(request: Request, domain_id: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_domain_viewer_data, request.token_payload, domain_id
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -162,14 +168,17 @@ async def admin_domain_viewer_data(request: Request, domain_id: str) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_deployment_viewer_data(request: Request, deployment_id: str) -> dict:
+async def admin_deployment_viewer_data(request: Request, deployment_id: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_deployment_viewer_data,
             request.token_payload,
             deployment_id,
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -198,12 +207,13 @@ async def admin_deployment_viewer_data(request: Request, deployment_id: str) -> 
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domains_status(request: Request, status: str) -> list[dict]:
+async def admin_domains_status(request: Request, status: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_domains_by_status, request.token_payload, status
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -230,14 +240,17 @@ async def admin_domains_status(request: Request, status: str) -> list[dict]:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_find_storages_by_domain_status(request: Request, status: str) -> dict:
+async def admin_find_storages_by_domain_status(request: Request, status: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.find_storages_by_domain_status,
             request.token_payload,
             status,
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -265,12 +278,13 @@ async def admin_find_storages_by_domain_status(request: Request, status: str) ->
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_storage(request: Request, domain_id: str) -> list[dict]:
+async def admin_domain_storage(request: Request, domain_id: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_domain_storage, request.token_payload, domain_id
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -298,10 +312,13 @@ async def admin_domain_storage(request: Request, domain_id: str) -> list[dict]:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_xml_get(request: Request, domain_id: str) -> dict:
+async def admin_domain_xml_get(request: Request, domain_id: str):
     try:
         result = await asyncio.to_thread(AdminDomainsService.get_domain_xml, domain_id)
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -326,13 +343,16 @@ async def admin_domain_xml_get(request: Request, domain_id: str) -> dict:
 )
 async def admin_domain_xml_update(
     request: Request, domain_id: str, data: AdminDomainXmlData
-) -> dict:
+):
     try:
         request_data = data.model_dump(exclude_none=True)
         result = await asyncio.to_thread(
             AdminDomainsService.update_domain_xml, domain_id, request_data
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -360,14 +380,15 @@ async def admin_domain_xml_update(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_desktops_tree_list(request: Request, template_id: str) -> list[dict]:
+async def admin_desktops_tree_list(request: Request, template_id: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_template_tree_list,
             request.token_payload,
             template_id,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -390,14 +411,15 @@ async def admin_desktops_tree_list(request: Request, template_id: str) -> list[d
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_template_tree(request: Request, desktop_id: str) -> list[dict]:
+async def admin_domain_template_tree(request: Request, desktop_id: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_domain_template_tree,
             request.token_payload,
             desktop_id,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -429,7 +451,7 @@ async def admin_multiple_actions(
     request: Request,
     data: AdminMultipleActionsData,
     background_tasks: BackgroundTasks,
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(
             AdminDomainsService.multiple_actions,
@@ -438,7 +460,7 @@ async def admin_multiple_actions(
             data.ids,
             background_tasks,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -466,12 +488,12 @@ async def admin_multiple_actions(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_template_delete(request: Request, template_id: str) -> EmptyResponse:
+async def admin_template_delete(request: Request, template_id: str):
     try:
         await asyncio.to_thread(
             AdminDomainsService.delete_template, request.token_payload, template_id
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -499,12 +521,13 @@ async def admin_template_delete(request: Request, template_id: str) -> EmptyResp
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domains_field(request: Request, field: str, kind: str) -> list:
+async def admin_domains_field(request: Request, field: str, kind: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_domains_field, request.token_payload, field, kind
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -532,12 +555,15 @@ async def admin_domains_field(request: Request, field: str, kind: str) -> list:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_hardware(request: Request, domain_id: str) -> dict:
+async def admin_domain_hardware(request: Request, domain_id: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_domain_hardware, request.token_payload, domain_id
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -569,12 +595,12 @@ async def admin_domain_hardware(request: Request, domain_id: str) -> dict:
 )
 async def admin_desktops_status(
     request: Request, current_status: str, target_status: str
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(
             AdminDomainsService.change_desktops_status, current_status, target_status
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -601,7 +627,7 @@ async def admin_desktops_status(
 )
 async def admin_desktops_status_category(
     request: Request, category: str, current_status: str, target_status: str
-) -> EmptyResponse:
+):
     try:
         await asyncio.to_thread(
             AdminDomainsService.change_desktops_status_category,
@@ -609,7 +635,7 @@ async def admin_desktops_status_category(
             current_status,
             target_status,
         )
-        return EmptyResponse()
+        return Response(status_code=204)
     except Error:
         raise
     except Exception as e:
@@ -640,7 +666,7 @@ async def admin_desktops_status_category(
 )
 async def admin_domain_storage_path(
     request: Request, domain_id: str, data: AdminDomainStoragePathData
-) -> dict:
+):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.update_domain_storage_path,
@@ -648,7 +674,10 @@ async def admin_domain_storage_path(
             data.old_path,
             data.new_path,
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -676,12 +705,15 @@ async def admin_domain_storage_path(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domain_search_info(request: Request, domain_id: str) -> dict:
+async def admin_domain_search_info(request: Request, domain_id: str):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.get_domain_search_info, request.token_payload, domain_id
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -712,7 +744,7 @@ async def admin_domain_search_info(request: Request, domain_id: str) -> dict:
 )
 async def admin_logs_desktops_raw(
     request: Request, form_data=Depends(parse_json_or_form)
-) -> dict:
+):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_desktops,
@@ -720,7 +752,10 @@ async def admin_logs_desktops_raw(
             view="raw",
             payload=request.token_payload,
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -745,7 +780,7 @@ async def admin_logs_desktops_raw(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_view(request: Request, view: str = "raw") -> dict:
+async def admin_logs_desktops_view(request: Request, view: str = "raw"):
     try:
         try:
             form_data = await request.form()
@@ -760,7 +795,10 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw") -> dict:
             view=view,
             payload=request.token_payload,
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -789,9 +827,7 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw") -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_raw(
-    request: Request, form_data=Depends(parse_json_or_form)
-) -> dict:
+async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or_form)):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_users,
@@ -799,7 +835,10 @@ async def admin_logs_users_raw(
             view="raw",
             payload=request.token_payload,
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -824,7 +863,7 @@ async def admin_logs_users_raw(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_view(request: Request, view: str = "raw") -> dict:
+async def admin_logs_users_view(request: Request, view: str = "raw"):
     try:
         try:
             form_data = await request.form()
@@ -839,7 +878,10 @@ async def admin_logs_users_view(request: Request, view: str = "raw") -> dict:
             view=view,
             payload=request.token_payload,
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -872,7 +914,7 @@ async def admin_logs_desktops_list(
     offset: int = 0,
     desktop_id: str = None,
     user_id: str = None,
-) -> list[dict]:
+):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.list_desktop_logs,
@@ -884,7 +926,8 @@ async def admin_logs_desktops_list(
             desktop_id,
             user_id,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -912,7 +955,7 @@ async def admin_logs_users_list(
     offset: int = 0,
     user_id: str = None,
     group_id: str = None,
-) -> list[dict]:
+):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.list_user_logs,
@@ -924,7 +967,8 @@ async def admin_logs_users_list(
             user_id,
             group_id,
         )
-        return result or []
+        # TODO!: check result and create a response model
+        return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise
     except Exception:
@@ -952,10 +996,13 @@ async def admin_logs_users_list(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_config(request: Request) -> dict:
+async def admin_logs_desktops_config(request: Request):
     try:
         result = await asyncio.to_thread(AdminDomainsService.get_logs_desktops_config)
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -979,12 +1026,15 @@ async def admin_logs_desktops_config(request: Request) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_max_time(request: Request, max_time: int) -> dict:
+async def admin_logs_desktops_max_time(request: Request, max_time: int):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.set_logs_desktops_max_time, max_time
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -1011,12 +1061,15 @@ async def admin_logs_desktops_max_time(request: Request, max_time: int) -> dict:
 )
 async def admin_logs_desktops_action(
     request: Request, action: Literal["delete", "none"]
-) -> dict:
+):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.set_logs_desktops_action, action
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -1042,12 +1095,13 @@ async def admin_logs_desktops_action(
 )
 async def admin_logs_desktops_delete(
     request: Request, background_tasks: BackgroundTasks
-) -> int:
+):
     try:
         count = await asyncio.to_thread(
             AdminDomainsService.delete_old_desktop_logs, background_tasks
         )
-        return count or 0
+        # TODO!: check result and create a response model
+        return JSONResponse(content=count or 0, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -1073,12 +1127,13 @@ async def admin_logs_desktops_delete(
 )
 async def admin_logs_desktops_delete_all(
     request: Request, background_tasks: BackgroundTasks
-) -> int:
+):
     try:
         count = await asyncio.to_thread(
             AdminDomainsService.delete_all_desktop_logs, background_tasks
         )
-        return count or 0
+        # TODO!: check result and create a response model
+        return JSONResponse(content=count or 0, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -1106,10 +1161,13 @@ async def admin_logs_desktops_delete_all(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_config(request: Request) -> dict:
+async def admin_logs_users_config(request: Request):
     try:
         result = await asyncio.to_thread(AdminDomainsService.get_logs_users_config)
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -1133,12 +1191,15 @@ async def admin_logs_users_config(request: Request) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_max_time(request: Request, max_time: int) -> dict:
+async def admin_logs_users_max_time(request: Request, max_time: int):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.set_logs_users_max_time, max_time
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -1163,14 +1224,15 @@ async def admin_logs_users_max_time(request: Request, max_time: int) -> dict:
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_action(
-    request: Request, action: Literal["delete", "none"]
-) -> dict:
+async def admin_logs_users_action(request: Request, action: Literal["delete", "none"]):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.set_logs_users_action, action
         )
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception as e:
@@ -1194,14 +1256,13 @@ async def admin_logs_users_action(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_delete(
-    request: Request, background_tasks: BackgroundTasks
-) -> int:
+async def admin_logs_users_delete(request: Request, background_tasks: BackgroundTasks):
     try:
         count = await asyncio.to_thread(
             AdminDomainsService.delete_old_user_logs, background_tasks
         )
-        return count or 0
+        # TODO!: check result and create a response model
+        return JSONResponse(content=count or 0, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -1227,12 +1288,13 @@ async def admin_logs_users_delete(
 )
 async def admin_logs_users_delete_all(
     request: Request, background_tasks: BackgroundTasks
-) -> int:
+):
     try:
         count = await asyncio.to_thread(
             AdminDomainsService.delete_all_user_logs, background_tasks
         )
-        return count or 0
+        # TODO!: check result and create a response model
+        return JSONResponse(content=count or 0, status_code=200)
     except Error:
         raise
     except Exception as e:
@@ -1257,12 +1319,15 @@ async def admin_logs_users_delete_all(
     description="Returns libvirt domain XML capabilities and section definitions.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domain_xml_capabilities(request: Request) -> dict:
+async def admin_domain_xml_capabilities(request: Request):
     try:
         from api.services.xml_sections import get_domain_capabilities
 
         caps = get_domain_capabilities()
-        return caps if isinstance(caps, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=caps if isinstance(caps, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -1282,7 +1347,7 @@ async def admin_domain_xml_capabilities(request: Request) -> dict:
     description="Split raw XML into editable sections without a saved domain.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domain_xml_sections_parse(request: Request) -> dict:
+async def admin_domain_xml_sections_parse(request: Request):
     try:
         from api.services.xml_sections import split_xml_sections
 
@@ -1307,7 +1372,8 @@ async def admin_domain_xml_sections_parse(request: Request) -> dict:
                 request, "bad_request", "XML exceeds maximum allowed size (2 MB)"
             )
         sections = split_xml_sections(xml_str, [])
-        return {"sections": sections}
+        # TODO!: check result and create a response model
+        return JSONResponse(content={"sections": sections}, status_code=200)
     except Error:
         raise
     except Exception:
@@ -1327,7 +1393,7 @@ async def admin_domain_xml_sections_parse(request: Request) -> dict:
     description="Split a domain's XML into editable sections.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_domain_xml_sections_get(request: Request, domain_id: str) -> dict:
+async def admin_domain_xml_sections_get(request: Request, domain_id: str):
     try:
         from api.services.xml_sections import split_xml_sections
 
@@ -1335,7 +1401,11 @@ async def admin_domain_xml_sections_get(request: Request, domain_id: str) -> dic
             AdminDomainsService.get_domain_xml_and_protected, domain_id
         )
         sections = split_xml_sections(domain["xml"], domain["protected"])
-        return {"sections": sections, "xml_full": domain["xml"]}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content={"sections": sections, "xml_full": domain["xml"]},
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -1365,7 +1435,12 @@ async def admin_domain_xml_sections_save(
             data.sections,
             data.protected_sections,
         )
-        return AdminDomainXmlSectionsSaveResponse(xml=new_xml)
+        return JSONResponse(
+            content=AdminDomainXmlSectionsSaveResponse(xml=new_xml).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -1397,7 +1472,7 @@ async def admin_domain_xml_sections_save(
 )
 async def admin_domain_xml_sections_save_as_virt_install(
     request: Request, domain_id: str
-) -> dict:
+):
     try:
         from api.services.xml_sections import save_as_virt_install
 
@@ -1419,7 +1494,10 @@ async def admin_domain_xml_sections_save_as_virt_install(
                 traceback.format_exc(),
             )
         record = save_as_virt_install(domain_id, data["sections"], data["name"])
-        return {"id": record["id"], "name": record["name"]}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content={"id": record["id"], "name": record["name"]}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -1445,12 +1523,15 @@ async def admin_domain_xml_sections_save_as_virt_install(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_virt_install_xml_sections_get(request: Request, virt_id: str) -> dict:
+async def admin_virt_install_xml_sections_get(request: Request, virt_id: str):
     try:
         from api.services.xml_sections import get_virt_install_xml_sections
 
         result = get_virt_install_xml_sections(virt_id)
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:
@@ -1476,7 +1557,7 @@ async def admin_virt_install_xml_sections_get(request: Request, virt_id: str) ->
         500: {"model": ErrorResponse},
     },
 )
-async def admin_virt_install_xml_sections_save(request: Request, virt_id: str) -> dict:
+async def admin_virt_install_xml_sections_save(request: Request, virt_id: str):
     try:
         from api.services.xml_sections import save_virt_install_xml_sections
 
@@ -1494,7 +1575,10 @@ async def admin_virt_install_xml_sections_save(request: Request, virt_id: str) -
                 traceback.format_exc(),
             )
         result = save_virt_install_xml_sections(virt_id, data["sections"])
-        return result if isinstance(result, dict) else {}
+        # TODO!: check result and create a response model
+        return JSONResponse(
+            content=result if isinstance(result, dict) else {}, status_code=200
+        )
     except Error:
         raise
     except Exception:

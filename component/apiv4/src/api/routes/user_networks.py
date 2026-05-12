@@ -16,7 +16,7 @@ from api.schemas.user_networks import (
 from api.services.error import Error
 from api.services.user_networks import UserNetworkService
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "user_networks"
 
@@ -34,12 +34,18 @@ tag = "user_networks"
     description="Returns all networks accessible to the current user.",
     responses={500: {"model": ErrorResponse}},
 )
-async def list_user_networks(request: Request) -> list[UserNetworkResponse]:
+async def list_user_networks(request: Request):
     try:
         networks = await asyncio.to_thread(
             UserNetworkService.get_user_networks, request.token_payload
         )
-        return [UserNetworkResponse(**n) for n in (networks or [])]
+        return JSONResponse(
+            content=[
+                UserNetworkResponse(**n).model_dump(mode="json")
+                for n in (networks or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -63,12 +69,15 @@ async def list_user_networks(request: Request) -> list[UserNetworkResponse]:
         500: {"model": ErrorResponse},
     },
 )
-async def get_user_network(request: Request, network_id: str) -> UserNetworkResponse:
+async def get_user_network(request: Request, network_id: str):
     try:
         network = await asyncio.to_thread(
             UserNetworkService.get_user_network, network_id, request.token_payload
         )
-        return UserNetworkResponse(**(network or {}))
+        return JSONResponse(
+            content=UserNetworkResponse(**(network or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -91,14 +100,15 @@ async def get_user_network(request: Request, network_id: str) -> UserNetworkResp
         500: {"model": ErrorResponse},
     },
 )
-async def create_user_network(
-    request: Request, data: CreateUserNetworkRequest
-) -> UserNetworkResponse:
+async def create_user_network(request: Request, data: CreateUserNetworkRequest):
     try:
         network = await asyncio.to_thread(
             UserNetworkService.create_user_network, data, request.token_payload
         )
-        return UserNetworkResponse(**(network or {}))
+        return JSONResponse(
+            content=UserNetworkResponse(**(network or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -124,7 +134,7 @@ async def create_user_network(
 )
 async def update_user_network(
     request: Request, network_id: str, data: UpdateUserNetworkRequest
-) -> UserNetworkResponse:
+):
     try:
         network = await asyncio.to_thread(
             UserNetworkService.update_user_network,
@@ -132,7 +142,10 @@ async def update_user_network(
             data,
             request.token_payload,
         )
-        return UserNetworkResponse(**(network or {}))
+        return JSONResponse(
+            content=UserNetworkResponse(**(network or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -161,7 +174,7 @@ async def delete_user_network(request: Request, network_id: str):
         await asyncio.to_thread(
             UserNetworkService.delete_user_network, network_id, request.token_payload
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

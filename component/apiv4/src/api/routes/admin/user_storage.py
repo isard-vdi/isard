@@ -35,7 +35,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.user_storage import AdminUserStorageService
 from api.services.error import Error
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 tag = "admin-user-storage"
 
@@ -55,7 +55,7 @@ tag = "admin-user-storage"
 )
 async def admin_user_storage_auto_register(
     request: Request, data: UserStorageAutoRegisterRequest
-) -> UserStorageIdResponse:
+):
     try:
         result = await asyncio.to_thread(
             AdminUserStorageService.auto_register,
@@ -65,7 +65,10 @@ async def admin_user_storage_auto_register(
             data.intra_docker,
             data.verify_cert,
         )
-        return UserStorageIdResponse(id=result)
+        return JSONResponse(
+            content=UserStorageIdResponse(id=result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -101,7 +104,7 @@ async def admin_user_storage_test(request: Request, data: UserStorageConnTestReq
             data.password,
             data.verify_cert,
         )
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -126,14 +129,17 @@ async def admin_user_storage_test(request: Request, data: UserStorageConnTestReq
     description="Returns the login authentication URL for a user storage provider.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_user_storage_login_auth(
-    request: Request, provider_id: str
-) -> UserStorageLoginAuthResponse:
+async def admin_user_storage_login_auth(request: Request, provider_id: str):
     try:
         login_url = await asyncio.to_thread(
             AdminUserStorageService.get_login_auth, provider_id
         )
-        return UserStorageLoginAuthResponse(login_url=login_url)
+        return JSONResponse(
+            content=UserStorageLoginAuthResponse(login_url=login_url).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -158,10 +164,16 @@ async def admin_user_storage_login_auth(
     description="Returns all user storage providers.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_user_storage_list(request: Request) -> list[UserStorageProvider]:
+async def admin_user_storage_list(request: Request):
     try:
         providers = await asyncio.to_thread(AdminUserStorageService.list_providers)
-        return [UserStorageProvider(**row) for row in (providers or [])]
+        return JSONResponse(
+            content=[
+                UserStorageProvider(**row).model_dump(mode="json")
+                for row in (providers or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -181,10 +193,15 @@ async def admin_user_storage_list(request: Request) -> list[UserStorageProvider]
     description="Returns all users with user storage configured.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_user_storage_users(request: Request) -> list[UserStorageUser]:
+async def admin_user_storage_users(request: Request):
     try:
         users = await asyncio.to_thread(AdminUserStorageService.get_users)
-        return [UserStorageUser(**row) for row in (users or [])]
+        return JSONResponse(
+            content=[
+                UserStorageUser(**row).model_dump(mode="json") for row in (users or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -204,14 +221,15 @@ async def admin_user_storage_users(request: Request) -> list[UserStorageUser]:
     description="Returns a specific user storage provider by ID.",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def admin_user_storage_get(
-    request: Request, provider_id: str
-) -> UserStorageProvider:
+async def admin_user_storage_get(request: Request, provider_id: str):
     try:
         provider = await asyncio.to_thread(
             AdminUserStorageService.get_provider, provider_id
         )
-        return UserStorageProvider(**(provider or {}))
+        return JSONResponse(
+            content=UserStorageProvider(**(provider or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -234,7 +252,7 @@ async def admin_user_storage_get(
 async def admin_user_storage_remove(request: Request, provider_id: str):
     try:
         await asyncio.to_thread(AdminUserStorageService.delete_provider, provider_id)
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -262,7 +280,7 @@ async def admin_user_storage_remove(request: Request, provider_id: str):
 async def admin_user_storage_reset(request: Request, provider_id: str):
     try:
         await asyncio.to_thread(AdminUserStorageService.reset_provider, provider_id)
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -285,7 +303,7 @@ async def admin_user_storage_reset(request: Request, provider_id: str):
 async def admin_user_storage_reset_all(request: Request):
     try:
         await asyncio.to_thread(AdminUserStorageService.reset_all)
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:
@@ -317,7 +335,7 @@ async def admin_user_storage_reset_all(request: Request):
 )
 async def admin_user_storage_add(
     request: Request, auth_protocol: str, data: UserStorageAddRequest
-) -> UserStorageIdResponse:
+):
     try:
         if auth_protocol == "auth_basic":
             result = await asyncio.to_thread(
@@ -331,7 +349,10 @@ async def admin_user_storage_add(
                 data.quota,
                 data.verify_cert,
             )
-            return UserStorageIdResponse(id=result)
+            return JSONResponse(
+                content=UserStorageIdResponse(id=result).model_dump(mode="json"),
+                status_code=200,
+            )
         raise Error(
             "bad_request",
             f"Auth protocol '{auth_protocol}' is not supported",
@@ -363,7 +384,7 @@ async def admin_user_storage_add(
 async def admin_user_storage_sync(request: Request, provider_id: str, item: str):
     try:
         await asyncio.to_thread(AdminUserStorageService.sync, provider_id, item)
-        return {}
+        return Response(status_code=204)
     except Error:
         raise
     except Exception:

@@ -336,7 +336,7 @@ $(document).ready(function () {
                   text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
                   hide: true,
                   delay: 2000,
-                  icon: 'fa fa-' + data.icon,
+                  icon: 'fa fa-' + data?.icon,
                   opacity: 1,
                   type: 'error'
               })
@@ -421,7 +421,7 @@ $(document).ready(function () {
                   text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
                   hide: true,
                   delay: 2000,
-                  icon: 'fa fa-' + data.icon,
+                  icon: 'fa fa-' + data?.icon,
                   opacity: 1,
                   type: 'error'
                 });
@@ -530,7 +530,7 @@ $(document).ready(function () {
                     text: 'GPU active profile updated successfully',
                     hide: true,
                     delay: 2000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: 'fa fa-' + data?.icon,
                     opacity: 1,
                     type: 'success'
                 })
@@ -743,7 +743,7 @@ function initalize_bookables_modal_events() {
               text: 'GPU created successfully. Please, reassing physical devices',
               hide: true,
               delay: 2000,
-              icon: 'fa fa-' + data.icon,
+              icon: 'fa fa-' + data?.icon,
               opacity: 1,
               type: 'success'
           })
@@ -782,7 +782,7 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
               text: 'Updated ' + subitem_id,
               hide: true,
               delay: 2000,
-              icon: 'fa fa-' + data.icon,
+              icon: 'fa fa-' + data?.icon,
               opacity: 1,
               type: 'success'
           })
@@ -794,7 +794,7 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
         text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
         hide: true,
         delay: 2000,
-        icon: 'fa fa-' + data.icon,
+        icon: 'fa fa-' + data?.icon,
         opacity: 1,
         type: 'error'
     })

@@ -40,10 +40,15 @@ tag = "admin_scheduler"
     description="Get the list of system scheduler jobs ordered by next run time.",
     responses={500: {"model": ErrorResponse}},
 )
-async def admin_scheduler_jobs_system(request: Request) -> list[SchedulerSystemJob]:
+async def admin_scheduler_jobs_system(request: Request):
     try:
         result = await asyncio.to_thread(AdminSchedulerService.get_system_jobs)
-        return [SchedulerSystemJob(**row) for row in result]
+        return JSONResponse(
+            content=[
+                SchedulerSystemJob(**row).model_dump(mode="json") for row in result
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -65,10 +70,15 @@ async def admin_scheduler_jobs_system(request: Request) -> list[SchedulerSystemJ
 )
 async def admin_scheduler_jobs_bookings(
     request: Request,
-) -> list[SchedulerBookingsJob]:
+):
     try:
         result = await asyncio.to_thread(AdminSchedulerService.get_bookings_jobs)
-        return [SchedulerBookingsJob(**row) for row in result]
+        return JSONResponse(
+            content=[
+                SchedulerBookingsJob(**row).model_dump(mode="json") for row in result
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:

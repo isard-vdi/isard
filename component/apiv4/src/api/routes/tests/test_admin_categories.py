@@ -140,7 +140,7 @@ class TestUpdateCategoryBranding:
             body={"domain": {"enabled": False, "name": "test.example.com"}},
             db_tables_data=_db(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
     def test_manager_without_permission_cannot_update(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
@@ -243,7 +243,7 @@ class TestUpdateCategoryBranding:
             },
             db_tables_data=self._db_with_branding_on_default(),
         )
-        assert response.status_code == 200, response.text
+        assert response.status_code == 204, response.text
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -344,7 +344,7 @@ class TestUpdateCategoryAuthentication:
             body=self._payload(),
             db_tables_data=_db(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
     def test_manager_with_permission_updates_authentication(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
@@ -355,7 +355,7 @@ class TestUpdateCategoryAuthentication:
             body=self._payload(),
             db_tables_data=_db(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
     def test_manager_without_permission_is_forbidden(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
@@ -421,7 +421,7 @@ class TestUpdateCategoryAuthentication:
             body=self._payload(ldap={"ldap_config": {"password": ""}}),
             db_tables_data=_db(),
         )
-        assert update_response.status_code == 200
+        assert update_response.status_code == 204
 
         get_response = test_client(
             url="/admin/category/test-cat/authentication",
@@ -446,7 +446,7 @@ class TestUpdateCategoryAuthentication:
             body=self._payload(),
             db_tables_data=_db(),
         )
-        assert update_response.status_code == 200
+        assert update_response.status_code == 204
 
         get_response = test_client(
             url="/admin/category/test-cat/authentication",
@@ -470,7 +470,7 @@ class TestUpdateCategoryAuthentication:
             body=self._payload(ldap={"ldap_config": {"password": "new-ldap-pass"}}),
             db_tables_data=_db(),
         )
-        assert update_response.status_code == 200
+        assert update_response.status_code == 204
 
         get_response = test_client(
             url="/admin/category/test-cat/authentication",
@@ -504,7 +504,7 @@ class TestUpdateCategoryAuthentication:
             body=self._payload(ldap={"ldap_config": {"password": ""}}),
             db_tables_data=_db(authentication=custom_auth),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -522,7 +522,7 @@ class TestCategoryLoginNotification:
             body={"cover": {"enabled": True, "title": "Updated"}},
             db_tables_data=_db(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
     def test_manager_without_permission_cannot_update(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
@@ -544,7 +544,7 @@ class TestCategoryLoginNotification:
             body={"enabled": True},
             db_tables_data=_db(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
     def test_enable_invalid_type_rejected(self, test_client):
         """Invalid notification type returns 400 (Literal validation)."""
@@ -753,7 +753,7 @@ def test_update_branding_does_not_block_on_grpc(test_client):
         db_tables_data=_db(),
     )
     elapsed = time.monotonic() - start
-    assert response.status_code == 200
+    assert response.status_code == 204
     # Production gRPC timeout is 30s; generous 2s ceiling gives plenty of margin
     # on slow CI runners while still catching regressions.
     assert elapsed < 2.0, f"branding PUT took {elapsed:.2f}s — grpc mock not applied?"
