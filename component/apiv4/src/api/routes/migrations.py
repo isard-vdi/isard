@@ -183,7 +183,7 @@ async def migration_migrate_user(request: Request):
 
 
 @migration_router.get(
-    "/authentication/export/{provider_id}",
+    "/item/provider/export/{provider_id}",
     tags=[tag],
     response_model=MigrationProviderEnabledResponse,
     summary="Check if provider allows exporting user migrations.",
@@ -214,7 +214,7 @@ async def get_provider_export_enabled(request: Request, provider_id: str):
 
 
 @migration_router.get(
-    "/authentication/import/{provider_id}",
+    "/item/provider/import/{provider_id}",
     tags=[tag],
     response_model=MigrationProviderEnabledResponse,
     summary="Check if provider allows importing user migrations.",
@@ -250,7 +250,7 @@ admin_tag = "admin_migrations"
 
 
 @admin_router.get(
-    "/admin/config/user-migration",
+    "/admin/item/config/user-migration",
     tags=[admin_tag],
     response_model=MigrationConfigResponse,
     summary="Get user migration configuration",
@@ -275,7 +275,7 @@ async def get_migration_config(request: Request):
 
 
 @admin_router.put(
-    "/admin/config/user-migration",
+    "/admin/item/config/user-migration",
     tags=[admin_tag],
     response_model=MigrationConfigResponse,
     summary="Update user migration configuration",
@@ -303,7 +303,7 @@ async def update_migration_config(request: Request, data: MigrationConfigUpdateR
 
 
 @admin_router.get(
-    "/admin/migrations",
+    "/admin/item/user-migrations",
     tags=[admin_tag],
     response_model=AdminMigrationsResponse,
     summary="List all user migrations",
@@ -330,7 +330,7 @@ async def get_all_migrations(request: Request):
 
 
 @admin_router.put(
-    "/admin/migrations/{migration_id}/revoke",
+    "/admin/item/user-migration/{migration_id}/revoke",
     tags=[admin_tag],
     response_model=EmptyResponse,
     summary="Revoke a user migration",
@@ -352,7 +352,7 @@ async def revoke_migration(request: Request, migration_id: str):
 
 
 @admin_router.delete(
-    "/admin/migrations/{migration_id}",
+    "/admin/item/user-migration/{migration_id}",
     tags=[admin_tag],
     response_model=EmptyResponse,
     summary="Delete a user migration",

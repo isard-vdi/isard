@@ -356,7 +356,7 @@ function setModalUser(){
 function checkUserMigrationCheckQuotas() {
     $.ajax({
         type: "GET",
-        url: "/api/v4/admin/config/user-migration",
+        url: "/api/v4/admin/item/config/user-migration",
         success: function(data) {
             $("#migration-check-quotas-checkbox").iCheck(data.check_quotas ? "check" : "uncheck").iCheck('update');
         },
@@ -379,7 +379,7 @@ function checkUserMigrationCheckQuotas() {
 function toggleUserMigrationCheckQuotas() {
     $.ajax({
         type: "PUT",
-        url: "/api/v4/admin/config/user-migration",
+        url: "/api/v4/admin/item/config/user-migration",
         data: JSON.stringify({check_quotas: $("#migration-check-quotas-checkbox").is(":checked")}),
         contentType: "application/json",
         success: function(data) {
