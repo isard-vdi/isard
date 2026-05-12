@@ -70,7 +70,9 @@ async def admin_smtp_get(request: Request):
             # Admins must never see the password on read.
             config = {k: v for k, v in config.items() if k != "password"}
         return JSONResponse(
-            content=SmtpConfigResponse(**(config)).model_dump(mode="json"),
+            content=SmtpConfigResponse(**(config)).model_dump(
+                mode="json", by_alias=True
+            ),
             status_code=200,
         )
     except Error:
@@ -108,7 +110,9 @@ async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
         # Never echo the password back on write.
         config = {k: v for k, v in config.items() if k != "password"}
         return JSONResponse(
-            content=SmtpConfigResponse(**(config)).model_dump(mode="json"),
+            content=SmtpConfigResponse(**(config)).model_dump(
+                mode="json", by_alias=True
+            ),
             status_code=200,
         )
     except Error:
