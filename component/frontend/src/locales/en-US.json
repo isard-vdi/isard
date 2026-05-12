@@ -117,9 +117,20 @@
       "invalid-email": "Enter a valid email address",
       "error-generic": "An error occurred. Please try again.",
       "success": "A verification email has been sent. Please check your inbox.",
+      "redirecting": "Redirecting to login in {seconds}s…",
+      "verifying": "Verifying your email…",
+      "verified": {
+        "title": "Email verified",
+        "description": "Your email address has been verified."
+      },
+      "link-error": {
+        "title": "Verification link not valid",
+        "description": "The link is expired or has already been used. Log in and request a new verification email."
+      },
       "buttons": {
         "verify": "Send verification email",
-        "logout": "Log out"
+        "logout": "Log out",
+        "login": "Go to login"
       }
     },
     "login": {

@@ -390,6 +390,9 @@ router.beforeEach(async (to, from, next) => {
   const allowedRoles = to.meta.allowedRoles as Role | undefined
 
   const { token, tokenType, user } = authStore
+  if (to.name === 'verify-email' && typeof to.query.token === 'string') {
+    return next()
+  }
 
   if (!token || !tokenType) {
     return next({ name: 'login' })

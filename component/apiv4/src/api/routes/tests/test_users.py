@@ -590,6 +590,58 @@ def test_set_user_email(monkeypatch, test_client):
     }
 
 
+@pytest.mark.parametrize("token_type", ["email-verification-required", "login", ""])
+def test_set_user_email_accepts_gate_tokens(monkeypatch, test_client, token_type):
+    """PUT /item/user/set-email must accept the email-verification gate
+    token issued by the auth service when an admin enforces the
+    ``email_verification`` policy, as well as the normal logged-in
+    tokens used by the profile modal. Previously the endpoint sat on
+    ``token_router`` and ``has_token`` rejected anything but
+    ``login``/``""`` with HTTP 403 ``Token not valid for this operation``.
+    """
+    jwt = MockJWT(token_type=token_type)
+    monkeypatch.setattr(
+        "api.services.users.UsersService.set_user_email",
+        staticmethod(lambda user_id, email: None),
+    )
+
+    response = test_client(
+        url="/item/user/set-email",
+        method="PUT",
+        body={"email": "me@example.com"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.parametrize(
+    "token_type", ["register", "password-reset-required", "email-verification"]
+)
+def test_set_user_email_rejects_unrelated_token(monkeypatch, test_client, token_type):
+    """Tokens that aren't either the email-verification gate or a normal
+    login must be rejected. Notably the ``email-verification`` token
+    (delivered in the verification link email) is intentionally NOT
+    accepted — only Go auth's ``/verify-email`` consumes it, and letting
+    it set a new email would let a leaked link change the email *before*
+    verification completes.
+    """
+    jwt = MockJWT(token_type=token_type)
+    monkeypatch.setattr(
+        "api.services.users.UsersService.set_user_email",
+        staticmethod(lambda user_id, email: None),
+    )
+
+    response = test_client(
+        url="/item/user/set-email",
+        method="PUT",
+        body={"email": "me@example.com"},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 403
+
+
 # ─── Admin user migrate check (T1/admin/user/migrate/check shim) ──────
 
 

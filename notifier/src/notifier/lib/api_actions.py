@@ -72,7 +72,7 @@ def get_notification_message(data):
                 client=client, body=body
             )
             raise_for_status(resp)
-            return resp.parsed
+            return resp.parsed.to_dict()
     except (ApiV4Error, Exception):
         raise Error(
             "internal_server",

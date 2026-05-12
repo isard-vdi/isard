@@ -20,9 +20,20 @@
       "invalid-email": "Zadejte platnou e-mailovou adresu",
       "error-generic": "Došlo k chybě. Zkuste to prosím znovu.",
       "success": "Ověřovací e-mail byl odeslán. Zkontrolujte prosím svou schránku.",
+      "redirecting": "Přesměrování na přihlášení za {seconds} s…",
+      "verifying": "Ověřování vaší e-mailové adresy…",
+      "verified": {
+        "title": "E-mail ověřen",
+        "description": "Vaše e-mailová adresa byla ověřena."
+      },
+      "link-error": {
+        "title": "Ověřovací odkaz není platný",
+        "description": "Odkaz vypršel nebo již byl použit. Přihlaste se a vyžádejte si nový ověřovací e-mail."
+      },
       "buttons": {
         "verify": "Odeslat ověřovací e-mail",
-        "logout": "Odhlásit se"
+        "logout": "Odhlásit se",
+        "login": "Přejít na přihlášení"
       }
     }
   }

@@ -25,11 +25,16 @@ class TestGetSmtpConfig:
     URL = "/smtp"
 
     @pytest.mark.clear_cache
-    def test_admin_gets_config(self, monkeypatch, test_client):
+    def test_service_token_gets_full_config(self, monkeypatch, test_client):
+        # MockJWT mints session_id="isardvdi-service" — same shape the notifier
+        # uses. Service callers need password + from to send mail; admin UI
+        # sessions (covered separately) get the redacted shape.
         sample = {
             "host": "smtp.example.com",
             "port": 587,
             "username": "isardvdi",
+            "password": "secret",
+            "from": "noreply@example.com",
             "enabled": True,
         }
         monkeypatch.setattr(
@@ -38,9 +43,10 @@ class TestGetSmtpConfig:
         )
         response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
-        assert response.json()["host"] == "smtp.example.com"
-        # Password must NEVER appear on GET — sanity-check the wire shape.
-        assert "password" not in response.json()
+        body = response.json()
+        assert body["host"] == "smtp.example.com"
+        assert body["password"] == "secret"
+        assert body["from"] == "noreply@example.com"
 
     @pytest.mark.clear_cache
     def test_manager_forbidden(self, monkeypatch, test_client):

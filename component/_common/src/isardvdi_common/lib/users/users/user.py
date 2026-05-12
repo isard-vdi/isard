@@ -1378,7 +1378,7 @@ class UsersProcessed(RethinkSharedConnection):
             )
 
     @classmethod
-    def update_user(cls, user_id, data, revoke=True):
+    def update_user(cls, user_id, data, revoke=True, force_email_verification=False):
         """_From api/libv2/api_users.py ApiUsers.update_user()_"""
         if (
             data.get("group")
@@ -1418,7 +1418,7 @@ class UsersProcessed(RethinkSharedConnection):
             data.get("email")
             and not data.get("email_verified")
             and Configuration().smtp.get("enabled")
-            and data["email"] != user["email"]
+            and (force_email_verification or data["email"] != user["email"])
         ):
             should_verify_email = True
 

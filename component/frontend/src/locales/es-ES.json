@@ -19,6 +19,9 @@
     "maintenance": {
       "title": "Mantenimiento"
     },
+    "verify-email": {
+      "title": "Verificar correo"
+    },
     "profile": {
       "title": "Perfil",
       "subtitle": "Gestiona tu perfil y preferencias"
@@ -110,6 +113,30 @@
     }
   },
   "views": {
+    "verify-email": {
+      "title": "La dirección de correo debe ser verificada por IsardVDI",
+      "description": "Introduce tu dirección de correo para recibir un enlace de verificación.",
+      "email-label": "Correo electrónico",
+      "email-placeholder": "nombre{'@'}ejemplo.com",
+      "invalid-email": "Introduce una dirección de correo válida",
+      "error-generic": "Se ha producido un error. Vuelve a intentarlo.",
+      "success": "Se ha enviado un correo de verificación. Revisa tu bandeja de entrada.",
+      "redirecting": "Redirigiendo al inicio de sesión en {seconds} s…",
+      "verifying": "Verificando tu correo…",
+      "verified": {
+        "title": "Correo verificado",
+        "description": "Tu dirección de correo se ha verificado."
+      },
+      "link-error": {
+        "title": "Enlace de verificación no válido",
+        "description": "El enlace ha caducado o ya se ha utilizado. Inicia sesión y solicita un nuevo correo de verificación."
+      },
+      "buttons": {
+        "verify": "Enviar el correo de verificación",
+        "logout": "Cerrar sesión",
+        "login": "Ir al inicio de sesión"
+      }
+    },
     "login": {
       "separator": "Otros accessos",
       "select-category": "Selecciona una categoría"
