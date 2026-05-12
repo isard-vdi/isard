@@ -24,7 +24,8 @@ tag = "cards"
 
 
 @token_router.get(
-    "/images/desktops",
+    "/items/images/desktops",
+    # TODO: maybe it should be "/items/desktops/images"
     tags=[tag],
     response_model=list[CardResponse],
     summary="Get desktop images",
@@ -68,6 +69,7 @@ async def get_desktop_images(
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
+    deprecated=True,
 )
 async def get_desktop_images_by_type(
     request: Request,
@@ -76,6 +78,7 @@ async def get_desktop_images_by_type(
         None, description="Desktop ID to filter user cards"
     ),
 ):
+    # TODO@: probably not in use
     try:
         if kind == "stock":
             images = await asyncio.to_thread(CardService.get_stock_cards)
@@ -105,8 +108,10 @@ async def get_desktop_images_by_type(
     summary="Get default stock card for a domain",
     description="Returns the default stock card image for a specific domain.",
     responses={500: {"model": ErrorResponse}},
+    deprecated=True,
 )
 async def get_stock_default_card(request: Request, domain_id: str):
+    # TODO@: probably not in use
     try:
         result = await asyncio.to_thread(CardService.get_domain_stock_card, domain_id)
         return JSONResponse(
@@ -134,8 +139,10 @@ async def get_stock_default_card(request: Request, domain_id: str):
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
+    deprecated=True,
 )
 async def get_user_default_card(request: Request, domain_id: str):
+    # TODO@: probably not in use
     try:
         result = await asyncio.to_thread(CardService.get_domain_user_card, domain_id)
         return JSONResponse(
@@ -160,8 +167,10 @@ async def get_user_default_card(request: Request, domain_id: str):
     summary="Generate a default card",
     description="Generates a default card image for a domain. Admin only.",
     responses={500: {"model": ErrorResponse}},
+    deprecated=True,
 )
 async def generate_default_card(request: Request, data: GenerateCardRequest):
+    # TODO@: probably not in use
     try:
         result = await asyncio.to_thread(
             CardService.generate_default_card, data.desktop_id, data.desktop_name
