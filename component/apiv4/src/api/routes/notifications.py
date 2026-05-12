@@ -40,7 +40,7 @@ tag = "notifications"
 
 
 @token_router.get(
-    "/notifications/status-bar",
+    "/items/notifications/status-bar",
     tags=[tag],
     response_model=Union[StatusBarNotificationResponse, None],
     summary="Get status bar notification",
@@ -160,6 +160,7 @@ async def get_user_notification_trigger_display(
         "{trigger}/{display}``. ``@has_token``."
     ),
     responses={500: {"model": ErrorResponse}},
+    deprecated=True,
 )
 async def get_user_notification_trigger_display_nested(
     request: Request, trigger: str, display: str
