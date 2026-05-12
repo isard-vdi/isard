@@ -53,10 +53,12 @@ tag = "bastion"
     response_model=list[BastionResponse],
     summary="Get user's bastion targets",
     description="Returns a list of bastion target configurations for the user.",
+    deprecated=True,
 )
 async def get_bastion_targets(
     request: Request, can_use_bastion=Depends(can_use_bastion)
 ):
+    # TODO*: remove when old-frontend is removed
     targets = await asyncio.to_thread(
         Targets.get_user_targets, request.token_payload["user_id"]
     )
@@ -84,11 +86,13 @@ async def get_bastion_targets(
         Depends(owns_domain_id("desktop_id")),
         Depends(can_use_bastion),
     ],
+    deprecated=True,
 )
 async def get_desktop_bastion(
     request: Request,
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
+    # TODO*: remove when old-frontend is removed
     try:
         return JSONResponse(
             content=BastionResponse(
@@ -124,12 +128,14 @@ async def get_desktop_bastion(
         Depends(owns_domain_id("desktop_id")),
         Depends(can_use_bastion),
     ],
+    deprecated=True,
 )
 async def update_desktop_bastion(
     request: Request,
     data: BastionRequest,
     desktop_id: str = Path(..., description="The ID of the desktop"),
 ):
+    # TODO*: remove when old-frontend is removed
     try:
         try:
             can_use_individual_domains = await can_use_bastion_individual_domains(
@@ -261,6 +267,7 @@ async def update_bastion_domains(
     dependencies=[
         Depends(owns_domain_id("desktop_id")),
     ],
+    deprecated=True,
 )
 async def verify_bastion_domain(
     request: Request,
@@ -268,6 +275,7 @@ async def verify_bastion_domain(
     desktop_id: str = Path(..., description="The ID of the desktop"),
     can_use_individual: bool = Depends(can_use_bastion_individual_domains),
 ):
+    # TODO*: remove when old-frontend is removed
     try:
         if not can_use_individual:
             raise Error(
@@ -297,7 +305,7 @@ async def verify_bastion_domain(
 
 
 @admin_router.get(
-    "/bastion",
+    "/admin/item/config/bastion",
     tags=[tag],
     response_model=AdminBastionConfigResponse,
     summary="Get admin bastion configuration",
@@ -326,7 +334,7 @@ async def get_admin_bastion_config(request: Request):
 
 
 @admin_router.delete(
-    "/bastion/disallowed",
+    "/admin/items/bastion/disallowed",
     tags=[tag],
     response_model=dict,
     summary="Remove disallowed bastion targets",
@@ -358,7 +366,7 @@ async def remove_disallowed_bastion_targets(request: Request):
 
 
 @admin_router.put(
-    "/bastion/config",
+    "/admin/item/config/bastion",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update bastion configuration",
@@ -399,8 +407,10 @@ async def update_bastion_config(
     responses={
         500: {"model": ErrorResponse},
     },
+    deprecated=True,
 )
 async def get_bastion_domain_verification_config(request: Request):
+    # TODO@: probably not in use
     try:
         config = await asyncio.to_thread(
             BastionService.get_bastion_domain_verification_config

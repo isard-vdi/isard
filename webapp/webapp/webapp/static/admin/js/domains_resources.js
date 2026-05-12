@@ -1139,7 +1139,7 @@ $(document).ready(function () {
 
     $.ajax({
         type: 'GET',
-        url: "/api/v4/bastion",
+        url: "/api/v4/admin/item/config/bastion",
         contentType: 'application/json',
         success: function (data) {
             if (data['bastion_enabled_in_cfg'] === true) {
@@ -1189,7 +1189,7 @@ $(document).ready(function () {
                         text: 'Delete', click: function (notice) {
                             $.ajax({
                                 type: "DELETE",
-                                url: "/api/v4/bastion/disallowed",
+                                url: "/api/v4/admin/items/bastion/disallowed",
                                 accept: "application/json",
                             }).done(() => {
                                 new PNotify({
@@ -1234,7 +1234,7 @@ $(document).ready(function () {
         $('#modalEditBastion #modalEditBastionForm').parsley();
         $.ajax({
             type: "GET",
-            url: "/api/v4/bastion",
+            url: "/api/v4/admin/item/config/bastion",
             contentType: "application/json",
             accept: "application/json",
             success: function (response) {
@@ -1253,7 +1253,7 @@ $(document).ready(function () {
             console.log(data)
             $.ajax({
                 type: "PUT",
-                url: "/api/v4/bastion/config",
+                url: "/api/v4/admin/item/config/bastion",
                 data: JSON.stringify({
                     "enabled": "bastion-enabled" in data,
                     "bastion_domain": data["bastion-domain"],

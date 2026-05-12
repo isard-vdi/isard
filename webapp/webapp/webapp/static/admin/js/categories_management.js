@@ -808,7 +808,7 @@ function actionsCategoryDetail() {
         var verificationRequired = true;
         $.ajax({
             type: "GET",
-            url: "/api/v4/bastion",
+            url: "/api/v4/admin/item/config/bastion",
             contentType: "application/json",
             success: function (category) {
                 verificationRequired = category.domain_verification_required || true;
