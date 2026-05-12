@@ -6,6 +6,7 @@ import { appTitle } from './lib/constants'
 import { isString } from './lib/utils'
 import { useI18n } from 'vue-i18n'
 import { i18n } from './lib/i18n'
+import NotificationModal from '@/components/modal/NotificationModal.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -33,5 +34,6 @@ watch(i18n.global.locale, () => {
 <template>
   <TooltipProvider>
     <RouterView />
+    <NotificationModal />
   </TooltipProvider>
 </template>

@@ -47,13 +47,15 @@ import {
   type ApiSchemasDomainsDesktopsUserDesktop as UserDesktop,
   getMaxBookingDate,
   type ErrorResponse,
-  getBookingReservablesAvailable as getBookingReservablesAvailable
+  getBookingReservablesAvailable as getBookingReservablesAvailable,
+  getUserNotificationTriggerDisplay
 } from '@/gen/oas/apiv4/'
 
 import { cn } from '@/lib/utils'
 import { QUOTA_STALE_TIME } from '@/lib/constants'
 import { sessionTokenName } from '@/lib/auth'
 import { withOptimisticItemStatus, withOptimisticItemRemoval } from '@/lib/optimistic'
+import { useNotificationModalStore } from '@/stores/notification-modal'
 
 import desktopsEmptyImg from '@/assets/img/desktops-empty.svg'
 
@@ -126,6 +128,7 @@ const { t, d } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
+const notificationModalStore = useNotificationModalStore()
 
 const cookies = vueuseCookies(['viewerToken', 'browser_viewer', sessionTokenName])
 const localStorage = vueuseLocalStorage('viewers', '')
@@ -206,6 +209,19 @@ const {
           description: t('components.desktops.start-quota-exceeded-modal.description'),
           cancelLabel: t('components.desktops.start-quota-exceeded-modal.cancel')
         }
+      }
+    },
+    onSuccess: async () => {
+      try {
+        const { data } = await getUserNotificationTriggerDisplay({
+          path: { trigger: 'start_desktop', display: 'modal' }
+        })
+        const items = data?.notifications
+        if (items && items.length > 0) {
+          notificationModalStore.show(items)
+        }
+      } catch (e) {
+        console.error('Failed to fetch start_desktop notifications', e)
       }
     }
   })

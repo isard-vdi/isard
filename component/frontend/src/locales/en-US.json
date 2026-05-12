@@ -2128,6 +2128,9 @@
         "minimum-time": "The booking must last at least 5 minutes",
         "past-booking": "Can't create a booking in the past"
       }
+    },
+    "notification-modal": {
+      "title": "Notifications"
     }
   },
   "authentication": {

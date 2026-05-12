@@ -1481,6 +1481,9 @@
         "next": "Siguiente"
       }
     },
+    "notification-modal": {
+      "title": "Notificaciones"
+    },
     "message-modal": {
       "title": "Información importante",
       "extend-time": "Ampliar {minutes} min",
