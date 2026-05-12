@@ -787,15 +787,13 @@ def test_edit_desktop_accepts_image_upload_payload(monkeypatch, test_client):
     )
 
     assert response.status_code == 200, response.json()
-    # ``DesktopEditRequest.image.file`` is declared with ``exclude=True``
-    # so the dumped payload reaching the service does NOT carry the
-    # base64 blob in any echo path. ``model_dump(exclude_unset=True)``
-    # in the route preserves only the fields the client sent.
     assert "image" in captured["data"]
     assert captured["data"]["image"]["id"] == ""
     assert captured["data"]["image"]["type"] == "user"
-    # ``file`` field is write-only — exclude=True on dump.
-    assert captured["data"]["image"].get("file") is None
+    assert captured["data"]["image"]["file"] == {
+        "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAeImBZsAAAAASUVORK5CYII=",
+        "filename": "uploaded.png",
+    }
 
 
 def test_change_desktop_owner(monkeypatch, test_client):
