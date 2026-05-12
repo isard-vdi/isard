@@ -32,7 +32,7 @@ function startClientVpnSocket(socket){
 function setViewerButtons(desktop_id){
     $.ajax({
         type: "GET",
-        url:"/api/v4/admin/domain/" + desktop_id + "/viewer_data",
+        url:"/api/v4/admin/item/domain/" + desktop_id + "/viewer_data",
         // async: false,
         success: function (resp) {
             setViewerButtonData(desktop_id,resp)

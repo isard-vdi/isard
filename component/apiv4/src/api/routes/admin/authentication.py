@@ -49,7 +49,7 @@ tag = "admin-authentication"
 
 
 @admin_router.post(
-    "/admin/authentication/policy",
+    "/admin/item/authentication/policy",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Create authentication policy",
@@ -78,7 +78,7 @@ async def admin_authentication_policy_add(request: Request, data: PolicyCreateRe
 
 
 @admin_router.get(
-    "/admin/authentication/policies",
+    "/admin/items/authentication/policies",
     tags=[tag],
     response_model=list[PolicyResponse],
     summary="List authentication policies",
@@ -107,7 +107,7 @@ async def admin_authentication_policies(request: Request):
 
 
 @admin_router.get(
-    "/admin/authentication/policy/{policy_id}",
+    "/admin/item/authentication/policy/{policy_id}",
     tags=[tag],
     response_model=PolicyResponse,
     summary="Get authentication policy",
@@ -135,7 +135,7 @@ async def admin_authentication_policy(request: Request, policy_id: str):
 
 
 @admin_router.put(
-    "/admin/authentication/policy/{policy_id}",
+    "/admin/item/authentication/policy/{policy_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update authentication policy",
@@ -167,7 +167,7 @@ async def admin_authentication_policy_edit(
 
 
 @admin_router.delete(
-    "/admin/authentication/policy/{policy_id}",
+    "/admin/item/authentication/policy/{policy_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete authentication policy",
@@ -198,7 +198,7 @@ async def admin_authentication_policy_delete(request: Request, policy_id: str):
 
 
 @manager_router.get(
-    "/admin/authentication/providers",
+    "/admin/items/authentication/providers",
     tags=[tag],
     response_model=ProvidersResponse,
     summary="List authentication providers",
@@ -229,7 +229,7 @@ async def admin_authentication_providers(request: Request):
 
 
 @admin_router.put(
-    "/admin/authentication/force_validate/email/{policy_id}",
+    "/admin/item/authentication/force_validate/email/{policy_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Force email validation at login",
@@ -256,7 +256,7 @@ async def admin_force_email(request: Request, policy_id: str):
 
 
 @admin_router.put(
-    "/admin/authentication/force_validate/disclaimer/{policy_id}",
+    "/admin/item/authentication/force_validate/disclaimer/{policy_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Force disclaimer acknowledgement at login",
@@ -283,7 +283,7 @@ async def admin_force_disclaimer(request: Request, policy_id: str):
 
 
 @admin_router.put(
-    "/admin/authentication/force_validate/password/{policy_id}",
+    "/admin/item/authentication/force_validate/password/{policy_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Force password update at login",
@@ -315,7 +315,7 @@ async def admin_force_password(request: Request, policy_id: str):
 
 
 @disclaimer_router.get(
-    "/disclaimer",
+    "/item/disclaimer",
     tags=[tag],
     response_model=DisclaimerResponse,
     summary="Get disclaimer template",
@@ -360,7 +360,7 @@ async def get_disclaimer(request: Request):
 
 
 @admin_router.get(
-    "/authentication/provider/{provider}",
+    "/admin/item/authentication/provider/{provider}",
     tags=[tag],
     response_model=ProviderConfigResponse,
     summary="Get provider configuration",
@@ -390,7 +390,7 @@ async def get_provider_config_route(
 
 
 @admin_router.put(
-    "/authentication/provider/{provider}",
+    "/admin/item/authentication/provider/{provider}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update provider configuration",
@@ -429,7 +429,7 @@ async def edit_provider_config_route(
 
 
 @admin_router.get(
-    "/authentication/migrations/exceptions",
+    "/admin/items/authentication/migrations/exceptions",
     tags=[tag],
     response_model=list[MigrationException],
     summary="List migration exceptions",
@@ -463,7 +463,7 @@ async def admin_get_migration_exceptions(request: Request):
 
 
 @admin_router.post(
-    "/authentication/migrations/exceptions",
+    "/admin/item/authentication/migrations/exceptions",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Add migration exception",
@@ -493,7 +493,7 @@ async def admin_add_migration_exception(
 
 
 @admin_router.delete(
-    "/authentication/migrations/exceptions/{exception_id}",
+    "/admin/item/authentication/migrations/exceptions/{exception_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete migration exception",

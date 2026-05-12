@@ -46,7 +46,7 @@ tag = "admin-categories"
 
 
 @manager_router.get(
-    "/admin/category/{category_id}/branding",
+    "/admin/item/category/{category_id}/branding",
     tags=[tag],
     response_model=BrandingResponse,
     summary="Get category branding",
@@ -78,7 +78,7 @@ async def get_category_branding(request: Request, category_id: str):
 
 
 @manager_router.put(
-    "/admin/category/{category_id}/branding",
+    "/admin/item/category/{category_id}/branding",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update category branding",
@@ -118,7 +118,7 @@ async def update_category_branding(
 
 
 @manager_router.get(
-    "/admin/category/{category_id}/authentication",
+    "/admin/item/category/{category_id}/authentication",
     tags=[tag],
     response_model=CategoryAuthenticationResponse,
     summary="Get category authentication",
@@ -153,7 +153,7 @@ async def get_category_authentication(request: Request, category_id: str):
 
 
 @manager_router.put(
-    "/admin/category/{category_id}/authentication",
+    "/admin/item/category/{category_id}/authentication",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update category authentication",
@@ -194,7 +194,7 @@ async def update_category_authentication(
 
 
 @manager_router.put(
-    "/admin/category/{category_id}/login_notification",
+    "/admin/item/category/{category_id}/login_notification",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update category login notification",
@@ -228,7 +228,7 @@ async def update_category_login_notification(
 
 
 @manager_router.put(
-    "/admin/category/{category_id}/login_notification/{notification_type}/enable",
+    "/admin/item/category/{category_id}/login_notification/{notification_type}/enable",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Enable/disable category login notification",

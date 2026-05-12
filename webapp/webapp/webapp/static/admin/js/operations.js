@@ -9,7 +9,7 @@ $(document).ready(function () {
 
   operations_table = $('#operations').DataTable({
     "ajax": {
-      "url": "/api/v4/admin/operations/hypervisors",
+      "url": "/api/v4/admin/items/operations/hypervisors",
       "contentType": "application/json",
       "type": 'GET',
       "error": function (xhr, error, thrown) {
@@ -115,7 +115,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "PUT",
-            url: "/api/v4/admin/operations/hypervisor/" + data["id"],
+            url: "/api/v4/admin/item/operations/hypervisor/" + data["id"],
             data: JSON.stringify({}),
             contentType: "application/json",
             success: function (data) {
@@ -166,7 +166,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "DELETE",
-            url: "/api/v4/admin/operations/hypervisor/" + data["id"],
+            url: "/api/v4/admin/item/operations/hypervisor/" + data["id"],
             data: JSON.stringify({}),
             contentType: "application/json",
             success: function (data) {

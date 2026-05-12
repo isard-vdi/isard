@@ -73,7 +73,7 @@ tag = "admin_domains"
 
 
 @manager_router.post(
-    "/admin/domains",
+    "/admin/items/domains",
     tags=[tag],
     response_model=list[AdminDomainListItem],
     summary="List domains",
@@ -126,7 +126,7 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
 
 
 @manager_router.get(
-    "/admin/domain/{domain_id}/details",
+    "/admin/item/domain/{domain_id}/details",
     tags=[tag],
     response_model=AdminDomainDetailsResponse,
     summary="Get domain details",
@@ -159,7 +159,7 @@ async def admin_domain_details(request: Request, domain_id: str):
 
 
 @manager_router.get(
-    "/admin/domain/{domain_id}/viewer_data",
+    "/admin/item/domain/{domain_id}/viewer_data",
     tags=[tag],
     response_model=AdminDomainViewerDataResponse,
     summary="Get domain viewer data",
@@ -192,7 +192,7 @@ async def admin_domain_viewer_data(request: Request, domain_id: str):
 
 
 @manager_router.get(
-    "/admin/deployment/{deployment_id}/viewer_data",
+    "/admin/item/deployment/{deployment_id}/viewer_data",
     tags=[tag],
     response_model=AdminDeploymentViewerDataResponse,
     summary="Get deployment viewer data",
@@ -232,7 +232,7 @@ async def admin_deployment_viewer_data(request: Request, deployment_id: str):
 
 
 @manager_router.get(
-    "/admin/domains_status/{status}",
+    "/admin/item/domains_status/{status}",
     tags=[tag],
     response_model=list[AdminDomainStatusItem],
     summary="Get domains by status",
@@ -267,7 +267,7 @@ async def admin_domains_status(request: Request, status: str):
 
 
 @manager_router.put(
-    "/admin/domains/status/{status}/find_storages",
+    "/admin/items/domains/status/{status}/find_storages",
     tags=[tag],
     response_model=AdminFindStoragesByStatusResponse,
     summary="Enqueue find tasks for storages of domains in a given status",
@@ -311,7 +311,7 @@ async def admin_find_storages_by_domain_status(request: Request, status: str):
 
 
 @manager_router.get(
-    "/admin/domain/storage/{domain_id}",
+    "/admin/item/domain/storage/{domain_id}",
     tags=[tag],
     response_model=list[AdminDomainStorageItem],
     summary="Get domain storage",
@@ -350,7 +350,7 @@ async def admin_domain_storage(request: Request, domain_id: str):
 
 
 @admin_router.get(
-    "/admin/domain/{domain_id}/xml",
+    "/admin/item/domain/{domain_id}/xml",
     tags=[tag],
     response_model=AdminDomainXmlResponse,
     summary="Get domain XML",
@@ -381,7 +381,7 @@ async def admin_domain_xml_get(request: Request, domain_id: str):
 
 
 @admin_router.post(
-    "/admin/domain/{domain_id}/xml",
+    "/admin/item/domain/{domain_id}/xml",
     tags=[tag],
     response_model=AdminDomainXmlResponse,
     summary="Update domain XML",
@@ -422,7 +422,7 @@ async def admin_domain_xml_update(
 
 
 @manager_router.get(
-    "/admin/desktops/tree_list/{template_id}",
+    "/admin/items/desktops/tree_list/{template_id}",
     tags=[tag],
     response_model=list[AdminTemplateTreeNode],
     summary="Get template tree list",
@@ -458,7 +458,7 @@ async def admin_desktops_tree_list(request: Request, template_id: str):
 
 
 @manager_router.get(
-    "/admin/domain/template_tree/{desktop_id}",
+    "/admin/item/domain/template_tree/{desktop_id}",
     tags=[tag],
     response_model=list[AdminDomainTemplateTreeItem],
     summary="Get domain template tree",
@@ -499,7 +499,7 @@ async def admin_domain_template_tree(request: Request, desktop_id: str):
 
 
 @manager_router.post(
-    "/admin/multiple_actions",
+    "/admin/items/multiple_actions",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Perform multiple domain actions",
@@ -540,7 +540,7 @@ async def admin_multiple_actions(
 
 
 @manager_router.delete(
-    "/admin/templates/delete/{template_id}",
+    "/admin/item/templates/delete/{template_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete a template",
@@ -573,7 +573,7 @@ async def admin_template_delete(request: Request, template_id: str):
 
 
 @manager_router.get(
-    "/admin/domains/{field}/{kind}",
+    "/admin/items/domains/{field}/{kind}",
     tags=[tag],
     response_model=list,
     summary="Get domain field values",
@@ -612,7 +612,7 @@ async def admin_domains_field(request: Request, field: str, kind: str):
 
 
 @manager_router.get(
-    "/domain/hardware/{domain_id}",
+    "/admin/item/domain/hardware/{domain_id}",
     tags=[tag],
     response_model=AdminDomainHardwareResponse,
     summary="Get domain hardware",
@@ -650,7 +650,7 @@ async def admin_domain_hardware(request: Request, domain_id: str):
 
 
 @admin_router.put(
-    "/desktops/{current_status}/{target_status}",
+    "/admin/items/desktops/{current_status}/{target_status}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Change desktop status in bulk",
@@ -682,7 +682,7 @@ async def admin_desktops_status(
 
 
 @admin_router.put(
-    "/desktops/category/{category}/status/{current_status}/{target_status}",
+    "/admin/items/desktops/category/{category}/status/{current_status}/{target_status}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Change desktop status by category",
@@ -722,7 +722,7 @@ async def admin_desktops_status_category(
 
 
 @admin_router.put(
-    "/domain/{domain_id}/storage_path",
+    "/admin/item/domain/{domain_id}/storage_path",
     tags=[tag],
     response_model=AdminDomainStoragePathResponse,
     summary="Update domain storage path",
@@ -766,7 +766,7 @@ async def admin_domain_storage_path(
 
 
 @manager_router.get(
-    "/admin/domain/search-info/{domain_id}",
+    "/admin/item/domain/search-info/{domain_id}",
     tags=[tag],
     response_model=AdminDomainSearchInfoResponse,
     summary="Get domain search info",
@@ -804,7 +804,7 @@ async def admin_domain_search_info(request: Request, domain_id: str):
 
 
 @manager_router.post(
-    "/admin/logs_desktops",
+    "/admin/items/logs_desktops",
     tags=[tag],
     response_model=LogsDataTablesResponse[DesktopLogRow],
     summary="Query desktop logs (raw)",
@@ -843,7 +843,7 @@ async def admin_logs_desktops_raw(
 
 
 @manager_router.post(
-    "/admin/logs_desktops/{view}",
+    "/admin/items/logs_desktops/{view}",
     tags=[tag],
     response_model=LogsDataTablesResponse[DesktopLogsViewRow],
     summary="Query desktop logs (grouped)",
@@ -893,7 +893,7 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw"):
 
 
 @manager_router.post(
-    "/admin/logs_users",
+    "/admin/items/logs_users",
     tags=[tag],
     response_model=LogsDataTablesResponse[UserLogRow],
     summary="Query user logs (raw)",
@@ -930,7 +930,7 @@ async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or
 
 
 @manager_router.post(
-    "/admin/logs_users/{view}",
+    "/admin/items/logs_users/{view}",
     tags=[tag],
     response_model=LogsDataTablesResponse[UserLogsViewRow],
     summary="Query user logs (grouped)",
@@ -980,7 +980,7 @@ async def admin_logs_users_view(request: Request, view: str = "raw"):
 
 
 @manager_router.get(
-    "/admin/logs_desktops/list",
+    "/admin/items/logs_desktops/list",
     tags=[tag],
     response_model=list[DesktopLogRow],
     summary="List desktop logs (JSON)",
@@ -1025,7 +1025,7 @@ async def admin_logs_desktops_list(
 
 
 @manager_router.get(
-    "/admin/logs_users/list",
+    "/admin/items/logs_users/list",
     tags=[tag],
     response_model=list[UserLogRow],
     summary="List user logs (JSON)",
@@ -1075,7 +1075,7 @@ async def admin_logs_users_list(
 
 
 @admin_router.get(
-    "/logs_desktops/config/old_entries",
+    "/admin/item/logs_desktops/config/old_entries",
     tags=[tag],
     response_model=LogsRetentionConfigResponse,
     summary="Get desktop logs old entries config",
@@ -1106,7 +1106,7 @@ async def admin_logs_desktops_config(request: Request):
 
 
 @admin_router.put(
-    "/logs_desktops/config/old_entries/max_time/{max_time}",
+    "/admin/item/logs_desktops/config/old_entries/max_time/{max_time}",
     tags=[tag],
     response_model=LogsRetentionConfigResponse,
     summary="Set desktop logs max time",
@@ -1140,7 +1140,7 @@ async def admin_logs_desktops_max_time(request: Request, max_time: int):
 
 
 @admin_router.put(
-    "/logs_desktops/config/old_entries/action/{action}",
+    "/admin/item/logs_desktops/config/old_entries/action/{action}",
     tags=[tag],
     response_model=LogsRetentionConfigResponse,
     summary="Set desktop logs old entries action",
@@ -1177,7 +1177,7 @@ async def admin_logs_desktops_action(
 
 
 @admin_router.put(
-    "/logs_desktops/old_entries/delete",
+    "/admin/items/logs_desktops/old_entries/delete",
     tags=[tag],
     response_model=int,
     summary="Delete old desktop logs",
@@ -1208,7 +1208,7 @@ async def admin_logs_desktops_delete(
 
 
 @admin_router.delete(
-    "/logs_desktops/old_entries/delete/all",
+    "/admin/items/logs_desktops/old_entries/delete/all",
     tags=[tag],
     response_model=int,
     summary="Delete all desktop logs",
@@ -1244,7 +1244,7 @@ async def admin_logs_desktops_delete_all(
 
 
 @admin_router.get(
-    "/logs_users/config/old_entries",
+    "/admin/item/logs_users/config/old_entries",
     tags=[tag],
     response_model=LogsRetentionConfigResponse,
     summary="Get user logs old entries config",
@@ -1275,7 +1275,7 @@ async def admin_logs_users_config(request: Request):
 
 
 @admin_router.put(
-    "/logs_users/config/old_entries/max_time/{max_time}",
+    "/admin/item/logs_users/config/old_entries/max_time/{max_time}",
     tags=[tag],
     response_model=LogsRetentionConfigResponse,
     summary="Set user logs max time",
@@ -1309,7 +1309,7 @@ async def admin_logs_users_max_time(request: Request, max_time: int):
 
 
 @admin_router.put(
-    "/logs_users/config/old_entries/action/{action}",
+    "/admin/item/logs_users/config/old_entries/action/{action}",
     tags=[tag],
     response_model=LogsRetentionConfigResponse,
     summary="Set user logs old entries action",
@@ -1344,7 +1344,7 @@ async def admin_logs_users_action(request: Request, action: Literal["delete", "n
 
 
 @admin_router.put(
-    "/logs_users/old_entries/delete",
+    "/admin/items/logs_users/old_entries/delete",
     tags=[tag],
     response_model=int,
     summary="Delete old user logs",
@@ -1373,7 +1373,7 @@ async def admin_logs_users_delete(request: Request, background_tasks: Background
 
 
 @admin_router.delete(
-    "/logs_users/old_entries/delete/all",
+    "/admin/items/logs_users/old_entries/delete/all",
     tags=[tag],
     response_model=int,
     summary="Delete all user logs",
@@ -1409,7 +1409,7 @@ async def admin_logs_users_delete_all(
 
 
 @admin_router.get(
-    "/admin/domains/xml_capabilities",
+    "/admin/item/domains/xml_capabilities",
     tags=[tag],
     response_model=AdminDomainXmlCapabilitiesResponse,
     summary="Get XML capabilities",
@@ -1439,7 +1439,7 @@ async def admin_domain_xml_capabilities(request: Request):
 
 
 @admin_router.post(
-    "/admin/domains/xml_sections/parse",
+    "/admin/item/domains/xml_sections/parse",
     tags=[tag],
     response_model=AdminDomainXmlSectionsParseResponse,
     summary="Parse raw XML into sections",
@@ -1489,7 +1489,7 @@ async def admin_domain_xml_sections_parse(request: Request):
 
 
 @admin_router.get(
-    "/admin/domains/xml_sections/{domain_id}",
+    "/admin/item/domains/xml_sections/{domain_id}",
     tags=[tag],
     response_model=AdminDomainXmlSectionsGetResponse,
     summary="Get domain XML sections",
@@ -1522,7 +1522,7 @@ async def admin_domain_xml_sections_get(request: Request, domain_id: str):
 
 
 @admin_router.post(
-    "/admin/domains/xml_sections/{domain_id}",
+    "/admin/item/domains/xml_sections/{domain_id}",
     tags=[tag],
     response_model=AdminDomainXmlSectionsSaveResponse,
     summary="Save domain XML sections",
@@ -1557,7 +1557,7 @@ async def admin_domain_xml_sections_save(
 
 
 @admin_router.post(
-    "/admin/domains/xml_sections/{domain_id}/save_virt_install",
+    "/admin/item/domains/xml_sections/{domain_id}/save_virt_install",
     tags=[tag],
     response_model=AdminVirtInstallSaveResponse,
     summary="Save domain XML sections as a new virt_install template",
@@ -1616,7 +1616,7 @@ async def admin_domain_xml_sections_save_as_virt_install(
 
 
 @admin_router.get(
-    "/admin/virt_install/xml_sections/{virt_id}",
+    "/admin/item/virt_install/xml_sections/{virt_id}",
     tags=[tag],
     response_model=AdminDomainXmlSectionsGetResponse,
     summary="Get virt_install XML sections",
@@ -1652,7 +1652,7 @@ async def admin_virt_install_xml_sections_get(request: Request, virt_id: str):
 
 
 @admin_router.post(
-    "/admin/virt_install/xml_sections/{virt_id}",
+    "/admin/item/virt_install/xml_sections/{virt_id}",
     tags=[tag],
     response_model=AdminVirtInstallXmlSectionsSaveResponse,
     summary="Save virt_install XML sections",

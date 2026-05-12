@@ -115,7 +115,7 @@ $(document).ready(function () {
         switch (item) {
             case ("category"):
                 $.ajax({
-                    url: '/api/v4/admin/userschema',
+                    url: '/api/v4/admin/item/userschema',
                     type: 'GET',
                     contentType: 'application/json',
                     dataType: 'json',
@@ -165,7 +165,7 @@ $(document).ready(function () {
         }
 
         $.ajax({
-            url: '/api/v4/analytics/storage',
+            url: '/api/v4/admin/item/analytics/storage',
             type: 'POST',
             data: JSON.stringify(data),
             contentType: 'application/json',
@@ -242,7 +242,7 @@ $(document).ready(function () {
             };
         }
         $.ajax({
-            url: '/api/v4/analytics/resources/count',
+            url: '/api/v4/admin/item/analytics/resources/count',
             type: 'POST',
             data: JSON.stringify(data),
             contentType: 'application/json',
@@ -273,7 +273,7 @@ $(document).ready(function () {
             }
         }
         $.ajax({
-            url: '/api/v4/analytics/suggested_removals',
+            url: '/api/v4/admin/items/analytics/suggested_removals',
             type: 'POST',
             data: JSON.stringify(data),
             contentType: 'application/json',
@@ -369,7 +369,7 @@ $(document).ready(function () {
     function deleteDesktops(ids) {
         $.ajax({
             type: "POST",
-            url: "/api/v4/admin/multiple_actions",
+            url: "/api/v4/admin/items/multiple_actions",
             data: JSON.stringify({ 'ids': ids, 'action': 'delete' }),
             success: function () {
                 location.reload()

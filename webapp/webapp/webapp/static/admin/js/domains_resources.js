@@ -9,7 +9,7 @@
 $(document).ready(function () {
     remotevpn_table = $('#table-remotevpn').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/table/remotevpn",
+            "url": "/api/v4/admin/items/table/remotevpn",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -92,7 +92,7 @@ $(document).ready(function () {
                 $('#modalRemotevpn #modalRemotevpnForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v4/admin/table/remotevpn",
+                    url: "/api/v4/admin/items/table/remotevpn",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -127,7 +127,7 @@ $(document).ready(function () {
                     data['table'] = 'remotevpn'
                     $.ajax({
                         type: "DELETE",
-                        url: "/api/v4/admin/table/remotevpn/" + data["id"],
+                        url: "/api/v4/admin/item/table/remotevpn/" + data["id"],
                         data: JSON.stringify(data),
                         contentType: "application/json",
                         success: function (data) {
@@ -141,7 +141,7 @@ $(document).ready(function () {
             case 'btn-download':
                 $.ajax({
                     type: "GET",
-                    url: "/api/v4/remote_vpn/" + data['id'] + "/config/" + getOS(),
+                    url: "/api/v4/admin/item/remote_vpn/" + data['id'] + "/config/" + getOS(),
                     success: function (data) {
                         var el = document.createElement('a')
                         var content = data.content
@@ -196,7 +196,7 @@ $(document).ready(function () {
             })
             $.ajax({
                 type: "POST",
-                url: "/api/v4/admin/table/add/remotevpn",
+                url: "/api/v4/admin/item/table/add/remotevpn",
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function (data) {
@@ -230,7 +230,7 @@ $(document).ready(function () {
     // QOS NET
     qosnet_table = $('#table-qos-net').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/table/qos_net",
+            "url": "/api/v4/admin/items/table/qos_net",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -274,7 +274,7 @@ $(document).ready(function () {
                 $('#modalQosNet #modalQosNetForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v4/admin/table/qos_net",
+                    url: "/api/v4/admin/items/table/qos_net",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -327,7 +327,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "POST",
-                    url: "/api/v4/admin/table/add/qos_net",
+                    url: "/api/v4/admin/item/table/add/qos_net",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -366,7 +366,7 @@ $(document).ready(function () {
                 data['name'] = $('#modalQosNetForm #name').val();
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v4/admin/table/update/qos_net",
+                    url: "/api/v4/admin/item/table/update/qos_net",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -403,7 +403,7 @@ $(document).ready(function () {
     // QOS DISK
     qosdisk_table = $('#table-qos-disk').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/table/qos_disk",
+            "url": "/api/v4/admin/items/table/qos_disk",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -450,7 +450,7 @@ $(document).ready(function () {
                 $('#modalQosDisk .modal-footer button#send').text("Edit Disk QoS");
                 $.ajax({
                     type: "POST",
-                    url: "/api/v4/admin/table/qos_disk",
+                    url: "/api/v4/admin/items/table/qos_disk",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -490,7 +490,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: "DELETE",
-                        url: "/api/v4/admin/table/qos_disk/" + data["id"],
+                        url: "/api/v4/admin/item/table/qos_disk/" + data["id"],
                         contentType: "application/json",
                         success: function (data) {
                             $('form').each(function () { this.reset() });
@@ -547,7 +547,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "POST",
-                    url: "/api/v4/qos_disk",
+                    url: "/api/v4/admin/item/qos_disk",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -603,7 +603,7 @@ $(document).ready(function () {
                 data['name'] = $('#modalQosDiskForm #name').val();
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v4/qos_disk",
+                    url: "/api/v4/admin/item/qos_disk",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -683,7 +683,7 @@ $(document).ready(function () {
     });
     int_table = $('#table-interfaces').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/table/interfaces",
+            "url": "/api/v4/admin/items/table/interfaces",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -732,7 +732,7 @@ $(document).ready(function () {
                 $('#modalInterfaces #modalInterfacesForm').parsley();
                 $.ajax({
                     type: "POST",
-                    url: "/api/v4/admin/table/interfaces",
+                    url: "/api/v4/admin/items/table/interfaces",
                     data: JSON.stringify({ 'id': data.id }),
                     contentType: "application/json",
                     accept: "application/json",
@@ -782,7 +782,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: "DELETE",
-                        url: "/api/v4/admin/table/interfaces/" + data["id"],
+                        url: "/api/v4/admin/item/table/interfaces/" + data["id"],
                         contentType: "application/json",
                         success: function (data) {
                             $('form').each(function () { this.reset() });
@@ -835,7 +835,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "POST",
-                    url: "/api/v4/admin/table/add/interfaces",
+                    url: "/api/v4/admin/item/table/add/interfaces",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -874,7 +874,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v4/admin/table/update/interfaces",
+                    url: "/api/v4/admin/item/table/update/interfaces",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -913,7 +913,7 @@ $(document).ready(function () {
     // VIDEOS
     videos_table = $('#videos').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/table/videos",
+            "url": "/api/v4/admin/items/table/videos",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -979,7 +979,7 @@ $(document).ready(function () {
         })
         $.ajax({
             type: "POST",
-            url: "/api/v4/admin/table/add/videos",
+            url: "/api/v4/admin/item/table/add/videos",
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
@@ -1041,7 +1041,7 @@ $(document).ready(function () {
     // BOOTS
     boots_table = $('#boots').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/table/boots",
+            "url": "/api/v4/admin/items/table/boots",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name' }) }
@@ -1294,7 +1294,7 @@ $(document).ready(function () {
     // virt_install table
     virtinstall_table = $('#table-virt-install').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/table/virt_install",
+            "url": "/api/v4/admin/items/table/virt_install",
             "contentType": "application/json",
             "type": 'POST',
             "data": function (d) { return JSON.stringify({ 'order_by': 'name', 'without': ['xml'] }) }
@@ -1347,7 +1347,7 @@ $(document).ready(function () {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: "DELETE",
-                        url: "/api/v4/admin/table/virt_install/" + data["id"],
+                        url: "/api/v4/admin/item/table/virt_install/" + data["id"],
                         contentType: "application/json",
                         success: function (data) {
                             virtinstall_table.ajax.reload();
@@ -1480,7 +1480,7 @@ function populateDropdown(table, dropdown_id, selected_id, custom) {
     pluck = ['id', 'name', 'description']
     $.ajax({
         type: "POST",
-        url: "/api/v4/admin/table/" + table,
+        url: "/api/v4/admin/items/table/" + table,
         data: JSON.stringify({ 'pluck': pluck }),
         contentType: "application/json",
         accept: "application/json",

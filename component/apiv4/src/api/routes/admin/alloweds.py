@@ -40,7 +40,7 @@ tag = "admin_alloweds"
 
 
 @token_router.post(
-    "/admin/allowed/term/{table}",
+    "/items/alloweds/term/{table}",
     tags=[tag],
     response_model=list[AllowedTermItem],
     summary="Search table items by term",
@@ -92,7 +92,7 @@ async def alloweds_table_term(
 
 
 @token_router.post(
-    "/admin/allowed/update/{table}",
+    "/item/allowed/update/{table}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update allowed access for a table item",
@@ -147,7 +147,7 @@ async def admin_allowed_update(
 
 
 @token_router.post(
-    "/allowed/table/{table}",
+    "/item/allowed/table/{table}",
     tags=[tag],
     response_model=AllowedTableResponse,
     summary="Get allowed access list for a table item",

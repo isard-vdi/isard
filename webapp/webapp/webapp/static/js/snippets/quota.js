@@ -221,7 +221,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
     //~ Used in users.js
     function setQuotaTableDefaults(div_id,table,id){
         $.ajax({
-            url: '/api/v4/admin/table/'+table,
+            url: '/api/v4/admin/items/table/'+table,
             type: 'POST',
             data: {'id':id},
         }).done(function(domain) {

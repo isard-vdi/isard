@@ -430,7 +430,7 @@ $(document).ready(function () {
         $('#modalPersonalunitsForm #verify_cert').iCheck('check').iCheck('update')
         $.ajax({
             type: "GET",
-            url:"/api/v4/admin/userschema",
+            url:"/api/v4/admin/item/userschema",
             success: function (data) {
                 $('#modalPersonalunitsForm #access').find('option').remove().end();
                 $('#modalPersonalunitsForm #access').append('<option value="">Choose</option>');

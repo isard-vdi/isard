@@ -34,7 +34,7 @@ tag = "admin_queues"
 
 
 @admin_router.get(
-    "/admin/queues",
+    "/admin/items/queues",
     tags=[tag],
     response_model=list[QueueJobsResponse],
     summary="List all queues with job counts",
@@ -62,7 +62,7 @@ async def admin_queues_jobs(request: Request):
 
 
 @admin_router.get(
-    "/admin/queues/consumers",
+    "/admin/items/queues/consumers",
     tags=[tag],
     response_model=list[QueueConsumerResponse],
     summary="List queue consumers/workers",
@@ -91,7 +91,7 @@ async def admin_queues_consumers(request: Request):
 
 
 @admin_router.get(
-    "/admin/queues/old_tasks/config",
+    "/admin/item/queues/old_tasks/config",
     tags=[tag],
     response_model=AutoDeleteConfigResponse,
     summary="Get auto delete config",
@@ -117,7 +117,7 @@ async def admin_get_old_tasks_config(request: Request):
 
 
 @admin_router.get(
-    "/admin/queues/old_tasks/{older_than}",
+    "/admin/items/queues/old_tasks/{older_than}",
     tags=[tag],
     response_model=list[str],
     summary="Get old tasks",
@@ -143,7 +143,7 @@ async def admin_get_old_tasks(request: Request, older_than: int):
 
 
 @admin_router.delete(
-    "/admin/queues/old_tasks",
+    "/admin/items/queues/old_tasks",
     tags=[tag],
     response_model=DeleteOldTasksResult,
     summary="Delete old tasks",
@@ -180,7 +180,7 @@ async def admin_delete_old_tasks(request: Request, data: DeleteOldTasksRequest):
 
 
 @admin_router.put(
-    "/admin/queues/old_tasks/config/max_time/{max_time}",
+    "/admin/item/queues/old_tasks/config/max_time/{max_time}",
     tags=[tag],
     response_model=AutoDeleteMaxTimeResponse,
     summary="Set auto delete max time",
@@ -206,7 +206,7 @@ async def admin_set_old_tasks_max_time(request: Request, max_time: int):
 
 
 @admin_router.put(
-    "/admin/queues/old_tasks/config/queue_registries",
+    "/admin/item/queues/old_tasks/config/queue_registries",
     tags=[tag],
     response_model=AutoDeleteQueueRegistriesResponse,
     summary="Set auto delete queue registries",
@@ -240,7 +240,7 @@ async def admin_set_old_tasks_queue_registries(
 
 
 @admin_router.put(
-    "/admin/queues/old_tasks/config/enabled",
+    "/admin/item/queues/old_tasks/config/enabled",
     tags=[tag],
     response_model=AutoDeleteEnabledResponse,
     summary="Enable or disable auto delete",
@@ -274,7 +274,7 @@ async def admin_set_old_tasks_enabled(
 
 
 @admin_router.delete(
-    "/admin/queues/old_tasks/auto",
+    "/admin/items/queues/old_tasks/auto",
     tags=[tag],
     response_model=DeleteOldTasksResult,
     summary="Auto delete old tasks",

@@ -10,7 +10,7 @@ $(document).ready(function () {
   // RESERVABLE VGPUS
   vgpus_table = $("#reservables_vgpus").DataTable({
     ajax: {
-      url: "/api/v4/admin/table/reservables_vgpus",
+      url: "/api/v4/admin/items/table/reservables_vgpus",
       contentType: "application/json",
       type: "POST",
       data: function (d) {
@@ -118,7 +118,7 @@ $(document).ready(function () {
     };
     $.ajax({
       type: "PUT",
-      url: "/api/v4/admin/table/update/" + data.bookable_table,
+      url: "/api/v4/admin/item/table/update/" + data.bookable_table,
       data: JSON.stringify(payload),
       contentType: "application/json",
       success: function (data) {

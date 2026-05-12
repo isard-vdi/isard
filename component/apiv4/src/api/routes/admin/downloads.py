@@ -39,7 +39,7 @@ tag = "admin_downloads"
 
 
 @admin_router.get(
-    "/admin/downloads",
+    "/admin/items/downloads",
     tags=[tag],
     response_model=DownloadsOverviewResponse,
     summary="Get downloads overview",
@@ -78,7 +78,7 @@ async def admin_downloads(request: Request):
 
 
 @admin_router.get(
-    "/admin/downloads/{kind}",
+    "/admin/items/downloads/{kind}",
     tags=[tag],
     response_model=list[DownloadItem],
     summary="Get downloads by kind",
@@ -126,7 +126,7 @@ async def admin_downloads_kind(
 
 
 @admin_router.post(
-    "/admin/downloads/register",
+    "/admin/item/downloads/register",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Register with updates server",
@@ -155,7 +155,7 @@ async def admin_downloads_register(request: Request):
 
 
 @admin_router.post(
-    "/admin/downloads/{action}/{kind}",
+    "/admin/item/downloads/{action}/{kind}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Execute download action for all items",
@@ -194,7 +194,7 @@ async def admin_downloads_action(
 
 
 @admin_router.post(
-    "/admin/downloads/{action}/{kind}/{id}",
+    "/admin/item/downloads/{action}/{kind}/{id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Execute download action for a specific item",

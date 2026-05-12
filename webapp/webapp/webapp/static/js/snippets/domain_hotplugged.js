@@ -2,7 +2,7 @@ var derivates_table =''
 function setDomainHotplug(id){
     hotplug_table=$("#table-hotplug-"+id).DataTable({
         "ajax": {
-            "url": "/api/v4/item/desktop/" + encodeURIComponent(id) + "/media-list",
+            "url": "/api/v4/admin/item/desktop/" + encodeURIComponent(id) + "/media-list",
             "contentType": "application/json",
             "type": 'GET'
         },

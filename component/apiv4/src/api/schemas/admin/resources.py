@@ -52,7 +52,7 @@ class QosDiskUpdateRequest(BaseModel):
 
 
 class RemoteVpnResponse(BaseModel):
-    """Response shape for the ``/remote_vpn/{vpn_id}/{kind}[/{os}]``
+    """Response shape for the ``/admin/item/remote_vpn/{vpn_id}/{kind}[/{os}]``
     endpoints. ``kind`` switches between config text and an installer
     payload, so the model is permissive.
     """

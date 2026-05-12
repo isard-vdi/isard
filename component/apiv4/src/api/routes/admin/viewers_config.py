@@ -39,7 +39,7 @@ tag = "admin-viewers-config"
 
 
 @admin_router.get(
-    "/admin/viewers-config",
+    "/admin/items/viewers-config",
     tags=[tag],
     response_model=list[ViewerConfigItem],
     summary="Get viewers configuration",
@@ -71,7 +71,7 @@ async def admin_viewers_config(request: Request):
 
 
 @admin_router.put(
-    "/admin/viewers-config/{viewer}",
+    "/admin/item/viewers-config/{viewer}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update viewer configuration",
@@ -100,7 +100,7 @@ async def admin_viewers_config_update(
 
 
 @admin_router.put(
-    "/admin/viewers-config/reset/{viewer}",
+    "/admin/item/viewers-config/reset/{viewer}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Reset viewer configuration",

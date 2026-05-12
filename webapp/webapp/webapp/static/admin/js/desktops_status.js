@@ -35,7 +35,7 @@ $(document).ready(function () {
 function update() {
     start_ts = new Date().getTime();
     $.ajax({
-        url: "/api/v4/stats/desktops/status",
+        url: "/api/v4/admin/item/stats/desktops/status",
         type: "GET",
         contentType: 'application/json',
         success: function (data) {
@@ -185,7 +185,7 @@ function changeStatus(currentStatus, targetStatus, select) {
             'pnotify.confirm',
             function () {
                 $.ajax({
-                    url: `/api/v4/admin/domains/status/${currentStatus}/find_storages`,
+                    url: `/api/v4/admin/items/domains/status/${currentStatus}/find_storages`,
                     type: "PUT",
                     contentType: 'application/json',
                     success: function (data) {
@@ -230,7 +230,7 @@ function changeStatus(currentStatus, targetStatus, select) {
         'pnotify.confirm',
         function () {
             $.ajax({
-                url: `/api/v4/desktops/${currentStatus}/${targetStatus}`,
+                url: `/api/v4/admin/items/desktops/${currentStatus}/${targetStatus}`,
                 type: "PUT",
                 contentType: 'application/json',
                 success: function (data) {
@@ -345,7 +345,7 @@ $(window).on('resize', function(){
 
 function initialize_table(status) {
     if ($.fn.dataTable.isDataTable('#domains')) {
-        $('#domains').DataTable().ajax.url("/api/v4/admin/domains_status/" + status).load();
+        $('#domains').DataTable().ajax.url("/api/v4/admin/item/domains_status/" + status).load();
         $('#domains').DataTable().one('draw', function () {
             if (status == "Started") {
                 $(".btn-stop").show();
@@ -356,7 +356,7 @@ function initialize_table(status) {
     } else {
         $("#domains").DataTable({
             ajax: {
-                url: "/api/v4/admin/domains_status/" + status,
+                url: "/api/v4/admin/item/domains_status/" + status,
                 type: "GET",
                 contentType: 'application/json',
             },
@@ -425,7 +425,7 @@ function initialize_table(status) {
 function renderCategoryCountTable() {
     $("#category-count").DataTable({
         ajax: {
-            url: "/api/v4/admin/domains/started-count",
+            url: "/api/v4/admin/items/domains/started-count",
             type: "GET",
             contentType: 'application/json',
         },
@@ -567,7 +567,7 @@ function changeCategoryStatusButtonAction(action, currentStatus, rowData) {
 
 function changeCategoryStatus(category, action, currentStatus) {
     $.ajax({
-        url: `/api/v4/desktops/category/${category}/status/${currentStatus}/${action}`,
+        url: `/api/v4/admin/items/desktops/category/${category}/status/${currentStatus}/${action}`,
         type: "PUT",
         success: function (data) {
             new PNotify({

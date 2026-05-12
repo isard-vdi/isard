@@ -92,7 +92,7 @@ $(document).ready(function () {
   // tables above, so showing them here would be redundant.
   $.ajax({
     type: "GET",
-    url: "/api/v4/storage/status",
+    url: "/api/v4/admin/item/storage/status",
     success: function (data) {
       $('#status').removeAttr('disabled')
       let notShownStatus = ['ready', 'maintenance']
@@ -299,7 +299,7 @@ $(document).ready(function () {
   // storagesDuplicatedUUID status dropdown populate
   $.ajax({
     type: "GET",
-    url: "/api/v4/admin/table/storage",
+    url: "/api/v4/admin/items/table/storage",
     success: function (data) {
       $('#uuid_status').removeAttr('disabled')
       let notShownStatus = []
@@ -332,7 +332,7 @@ $(document).ready(function () {
 
     storagesUUID = $(tableId).DataTable({
       ajax: {
-        url: `/api/v4/admin/table/storage`,
+        url: `/api/v4/admin/items/table/storage`,
         contentType: 'application/json',
         type: 'GET',
       },
@@ -825,7 +825,7 @@ $(document).on('click', '.btn-increase', function () {
   }
 
   $.ajax({
-    url: `/api/v4/admin/storage/info/${storageId}`,
+    url: `/api/v4/admin/item/storage/info/${storageId}`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (storage) {
@@ -839,7 +839,7 @@ $(document).on('click', '.btn-increase', function () {
         $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", (virtual_size + 1).toFixed(0));
 
         $.ajax({
-          url: "/api/v4/admin/user/appliedquota/" + storage["user_id"],
+          url: "/api/v4/admin/item/user/appliedquota/" + storage["user_id"],
           type: 'GET',
         }).done(function (quota) {
           if (quota.quota) {
@@ -957,7 +957,7 @@ function initStorageSearchModal() {
       }
 
       $.ajax({
-        url: "/api/v4/admin/storage/search-info/" + storageId,
+        url: "/api/v4/admin/item/storage/search-info/" + storageId,
         type: "GET",
         contentType: "application/json",
       })
@@ -1268,7 +1268,7 @@ $(document).on('click', '.btn-add-storage', function () {
     dropdownParent: $(modal),
     ajax: {
       type: "POST",
-      url: '/api/v4/admin/allowed/term/users',
+      url: '/api/v4/items/alloweds/term/users',
       dataType: 'json',
       contentType: "application/json",
       delay: 250,
@@ -1302,7 +1302,7 @@ $(document).on('click', '.btn-create', function () {
   resetCreateDiskForm();
 
   $.ajax({
-    url: `/api/v4/admin/storage/info/${id}`,
+    url: `/api/v4/admin/item/storage/info/${id}`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
@@ -1536,7 +1536,7 @@ $(document).on('click', '.btn-move', function () {
       });
     } else {
       $.ajax({
-        url: `/api/v4/admin/storage/info/${storageId}`,
+        url: `/api/v4/admin/item/storage/info/${storageId}`,
         type: 'GET',
         contentType: "application/json",
       }).done(function (data) {
@@ -1783,7 +1783,7 @@ function loadTableFilters(table) {
 function createDatatable(tableId, status, initCompleteFn = null) {
   return $(tableId).DataTable({
     ajax: {
-      url: `/api/v4/admin/storage/by-status/${status}`,
+      url: `/api/v4/admin/items/storage/by-status/${status}`,
       contentType: 'application/json',
       type: 'POST',
       data: function () {
@@ -2585,7 +2585,7 @@ function populateSelect(item) {
       $.ajax({
         type: "GET",
         async: false,
-        url: "/api/v4/admin/userschema",
+        url: "/api/v4/admin/item/userschema",
         success: function (d) {
           $.each(d[item], function (pos, it) {
             if (item == 'category') { var value = it.id } else { var value = it.name }

@@ -211,7 +211,7 @@ function setHardwareDomainDefaults(div_id,domain){
 
 function setHardwareDomainDefaultsDetails(domain_id,item){
     if (item == "domain"){
-        ajaxUrl = "/api/v4/domain/hardware/"+domain_id
+        ajaxUrl = "/api/v4/admin/item/domain/hardware/"+domain_id
     } else if (item == "deployment"){
         ajaxUrl = "/api/v4/item/deployment/"+domain_id+"/hardware"
     }
@@ -261,7 +261,7 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
 function setDomainStorage(domain_id) {
     storage_table = $("#table-storage-" + domain_id.replaceAll('.', '\\.')).DataTable({
         "ajax": {
-            "url": "/api/v4/admin/domain/storage/" + domain_id,
+            "url": "/api/v4/admin/item/domain/storage/" + domain_id,
             "contentType": "application/json",
             "type": 'GET'
         },

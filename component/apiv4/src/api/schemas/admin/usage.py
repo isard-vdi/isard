@@ -348,7 +348,7 @@ class UsageGroupingResponse(BaseModel):
 
 
 class UsageGroupingsDropdownResponse(BaseModel):
-    """Dropdown shape for ``/admin/usage/groupings_dropdown``.
+    """Dropdown shape for ``/admin/items/usage/groupings_dropdown``.
 
     Inner dicts are keyed by item_type (``desktop``/``media``/``storage``/
     ``user``) and carry the system pseudo-groupings + the user-defined
@@ -425,13 +425,13 @@ class UsageCreditIntervalResponse(BaseModel):
 
 
 class UsageUnifyItemNameResponse(BaseModel):
-    """Response for ``/admin/usage/unify/{item_id}/item_name``."""
+    """Response for ``/admin/item/usage/unify/{item_id}/item_name``."""
 
     name: str = Field(description="Resolved canonical item name.")
 
 
 class UsageOverlappingResponse(BaseModel):
-    """Response for ``/admin/usage/check/overlapping/...``.
+    """Response for ``/admin/item/usage/check/overlapping/...``.
 
     ``check_overlapping`` returns ``None`` (no conflict) or a descriptor
     of the conflicting credit and the trim/delete action; ``None`` is

@@ -45,7 +45,7 @@ tag = "admin_storage"
 
 
 @manager_router.get(
-    "/storage/status",
+    "/admin/item/storage/status",
     tags=[tag],
     response_model=list[AdminStorageStatusCount],
     summary="Get storage status counts",
@@ -82,7 +82,7 @@ async def admin_storage_status(request: Request):
 
 
 @manager_router.get(
-    "/admin/storage",
+    "/admin/items/storage",
     tags=[tag],
     response_model=list[AdminStorageItem],
     summary="Get all storages",
@@ -113,7 +113,7 @@ async def admin_storage_list(request: Request):
 
 
 @manager_router.post(
-    "/admin/storage",
+    "/admin/items/storage",
     tags=[tag],
     response_model=list[AdminStorageItem],
     summary="Get all storages with category filter",
@@ -150,7 +150,7 @@ async def admin_storage_list_filtered(
 
 
 @manager_router.get(
-    "/admin/storage/by-status/{status}",
+    "/admin/items/storage/by-status/{status}",
     tags=[tag],
     response_model=list[AdminStorageItem],
     summary="Get storages by status",
@@ -185,7 +185,7 @@ async def admin_storage_by_status(
 
 
 @manager_router.post(
-    "/admin/storage/by-status/{status}",
+    "/admin/items/storage/by-status/{status}",
     tags=[tag],
     response_model=list[AdminStorageItem],
     summary="Get storages by status with category filter",
@@ -228,7 +228,7 @@ async def admin_storage_by_status_filtered(
 
 
 @manager_router.get(
-    "/admin/storage/domains/{storage_id:path}",
+    "/admin/items/storage/domains/{storage_id:path}",
     tags=[tag],
     response_model=list[AdminStorageDomain],
     summary="Get domains attached to a storage",
@@ -266,7 +266,7 @@ async def admin_storage_domains(
 
 
 @manager_router.get(
-    "/admin/media/domains/{storage_id:path}",
+    "/admin/items/media/domains/{storage_id:path}",
     tags=[tag],
     response_model=list[AdminStorageDomain],
     summary="Get domains using a media item",
@@ -309,7 +309,7 @@ async def admin_media_domains(
 
 
 @manager_router.delete(
-    "/admin/storage/{storage_id}",
+    "/admin/item/storage/{storage_id}",
     tags=[tag],
     response_model=DeleteResponse,
     status_code=202,
@@ -356,7 +356,7 @@ async def admin_storage_delete(
 
 
 @manager_router.get(
-    "/admin/storage/info/{storage_id}",
+    "/admin/item/storage/info/{storage_id}",
     tags=[tag],
     response_model=AdminStorageInfo,
     summary="Get storage information",
@@ -391,7 +391,7 @@ async def admin_storage_info(
 
 
 @manager_router.get(
-    "/admin/storage/search-info/{storage_id}",
+    "/admin/item/storage/search-info/{storage_id}",
     tags=[tag],
     response_model=AdminStorageInfo,
     summary="Get storage search information with owner data",
@@ -433,7 +433,7 @@ async def admin_storage_search_info(
 
 
 @admin_router.get(
-    "/admin/storage/by-role/{role}",
+    "/admin/items/storage/by-role/{role}",
     tags=[tag],
     response_model=list[AdminStorageItem],
     summary="Get storages by user role",

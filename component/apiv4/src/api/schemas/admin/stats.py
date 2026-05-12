@@ -22,7 +22,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-# -- /stats/{kind} per-kind response models --
+# -- /admin/items/stats/{kind} per-kind response models --
 
 
 class StatsKindUser(BaseModel):
@@ -30,7 +30,7 @@ class StatsKindUser(BaseModel):
     # table can carry rows with only ``id`` (+ stranded vpn config)
     # for users whose document was deleted but whose wireguard peer
     # was not. The strict ``str`` types rejected those rows and
-    # 500'd the entire ``/stats/users`` endpoint via Pydantic's
+    # 500'd the entire ``/admin/items/stats/users`` endpoint via Pydantic's
     # response_model validation. Make every non-id field Optional
     # so the orphan row surfaces with empty cells instead of breaking
     # the admin user-stats panel.
@@ -66,7 +66,7 @@ class StatsKindGroup(BaseModel):
     parent_category: str
 
 
-# -- /stats/categories response models --
+# -- /admin/item/stats/categories response models --
 
 
 class StatsCategoryUsersDetail(BaseModel):
@@ -95,14 +95,14 @@ class StatsCategoriesResponse(BaseModel):
     category: dict[str, StatsCategoryDetail]
 
 
-# -- /stats/categories/deployments --
+# -- /admin/item/stats/categories/deployments --
 
 
 class StatsCategoriesDeploymentsResponse(BaseModel):
     categories: dict[str, int]
 
 
-# -- /stats/domains/status --
+# -- /admin/item/stats/domains/status --
 
 
 class StatsDomainsStatusResponse(BaseModel):

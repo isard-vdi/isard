@@ -100,7 +100,7 @@
             autoWidth: false,
             searching: false,
             ajax: {
-                url: '/api/v4/admin/logs_users',
+                url: '/api/v4/admin/items/logs_users',
                 type: 'POST',
                 data: function(d) {
                     d.filter_field = 'user_id';
@@ -141,7 +141,7 @@
             });
 
             $.ajax({
-                url: '/api/v4/admin/logs_users',
+                url: '/api/v4/admin/items/logs_users',
                 type: 'POST',
                 data: formData,
                 success: function(resp) {

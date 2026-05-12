@@ -74,7 +74,7 @@ class AdminLogsQueryData(BaseModel):
 
 
 class AdminDomainXmlSectionsSaveData(BaseModel):
-    """Request body for ``POST /admin/domains/xml_sections/{domain_id}``.
+    """Request body for ``POST /admin/item/domains/xml_sections/{domain_id}``.
 
     The xml editor in the admin UI sends the edited per-section XML as
     a dict keyed by section name plus the user's protected-section
@@ -92,7 +92,7 @@ class AdminDomainXmlSectionsSaveData(BaseModel):
 
 
 class AdminDomainXmlSectionsSaveResponse(BaseModel):
-    """Response body for ``POST /admin/domains/xml_sections/{domain_id}``."""
+    """Response body for ``POST /admin/item/domains/xml_sections/{domain_id}``."""
 
     xml: str = Field(description="The rebuilt full domain XML")
 
@@ -623,13 +623,13 @@ class AdminDomainXmlSection(BaseModel):
 
 
 class AdminDomainXmlSectionsParseResponse(BaseModel):
-    """Response of ``POST /admin/domains/xml_sections/parse``."""
+    """Response of ``POST /admin/item/domains/xml_sections/parse``."""
 
     sections: List[AdminDomainXmlSection]
 
 
 class AdminDomainXmlSectionsGetResponse(BaseModel):
-    """Response of ``GET /admin/domains/xml_sections/{domain_id}`` and
+    """Response of ``GET /admin/item/domains/xml_sections/{domain_id}`` and
     ``GET /admin/virt_install/xml_sections/{virt_id}``."""
 
     sections: List[AdminDomainXmlSection] = Field(default_factory=list)
@@ -637,7 +637,7 @@ class AdminDomainXmlSectionsGetResponse(BaseModel):
 
 
 class AdminDomainXmlCapabilitiesResponse(RootModel[dict]):
-    """Response of ``GET /admin/domains/xml_capabilities``.
+    """Response of ``GET /admin/item/domains/xml_capabilities``.
 
     Libvirt domain capabilities are an arbitrary nested mapping (the
     apiv4 helper just forwards the first non-empty hypervisor copy).
@@ -651,7 +651,7 @@ class AdminDomainXmlCapabilitiesResponse(RootModel[dict]):
 
 
 class AdminVirtInstallSaveResponse(BaseModel):
-    """Response of ``POST /admin/domains/xml_sections/{domain_id}/save_virt_install``.
+    """Response of ``POST /admin/item/domains/xml_sections/{domain_id}/save_virt_install``.
 
     Only ``id`` and ``name`` are returned to the route layer (see the
     route's ``record["id"], record["name"]`` slice).

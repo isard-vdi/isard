@@ -109,7 +109,7 @@ class EchartRequest(BaseModel):
 
 
 class EchartDailyItemsResponse(BaseModel):
-    """Response shape for ``POST /admin/echart/daily_items``.
+    """Response shape for ``POST /admin/item/echart/daily_items``.
 
     The service returns ``{x: [iso-dates], series: {<date_field>: [counts]}}``
     matching the eChart contract — a single dict, not a list. The
@@ -267,7 +267,7 @@ class EchartGroupedItem(BaseModel):
     name: Any = Field(description="Group key — can be any JSON-serialisable value")
 
 
-# Alias for the response_model on POST /admin/echart/{view} — the three
+# Alias for the response_model on POST /admin/item/echart/{view} — the three
 # non-daily views all yield the same row shape, so a single list type
 # covers the union without per-view variants.
 EchartViewResponseRow = EchartGroupedItem

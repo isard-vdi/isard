@@ -32,7 +32,7 @@ $(document).ready(function () {
         populateNotificationTemplate(modal);
         $.ajax({
             type: "GET",
-            url: `/api/v4/authentication/provider/${provider}`,
+            url: `/api/v4/admin/item/authentication/provider/${provider}`,
             success: function (data) {
                 $(modal + "Form > [class*='_config']").each(function () {
                     toggleFormSection($(this), $(this).hasClass(provider + '_config'));
@@ -62,7 +62,7 @@ $(document).ready(function () {
                 placeholder: 'Select a category to filter ' + type + ' by',
                 ajax: {
                     type: "POST",
-                    url: `/api/v4/admin/allowed/term/categories`,
+                    url: `/api/v4/items/alloweds/term/categories`,
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -95,7 +95,7 @@ $(document).ready(function () {
             multiple: true,
             ajax: {
                 type: "POST",
-                url: `/api/v4/admin/allowed/term/${type}`,
+                url: `/api/v4/items/alloweds/term/${type}`,
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -138,7 +138,7 @@ $(document).ready(function () {
         var data = collectFormData($("#modalProviderConfigForm"));
         $.ajax({
             type: "PUT",
-            url: `/api/v4/authentication/provider/${provider}`,
+            url: `/api/v4/admin/item/authentication/provider/${provider}`,
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
@@ -168,7 +168,7 @@ $(document).ready(function () {
         var formData = $("#modalExemptionsForm").serializeObject();
         $.ajax({
             type: "POST",
-            url: "/api/v4/authentication/migrations/exceptions",
+            url: "/api/v4/admin/item/authentication/migrations/exceptions",
             data: JSON.stringify(formData),
             contentType: "application/json",
             success: function (data) {
@@ -209,7 +209,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: `/api/v4/authentication/migrations/exceptions/${data.id}`,
+                    url: `/api/v4/admin/item/authentication/migrations/exceptions/${data.id}`,
                     accept: "application/json",
                     success: function (resp) {
                         new PNotify({
@@ -279,7 +279,7 @@ function showHideContent(content, display) {
 function populateNotificationTemplate(modal) {
     $(modal + " select#template").empty();
     $.ajax({
-        url: "/api/v4/admin/notifications/templates",
+        url: "/api/v4/admin/items/notifications/templates",
         type: "GET"
     }).then(response => {
         $.each(response.templates, function (key, template) {
@@ -312,7 +312,7 @@ function addProviderConfigModalListeners(modal) {
         });
     $(modal + " select#template").off("change").on("change", function () {
         $.ajax({
-            url: "/api/v4/admin/notifications/template/" + $(this).val(),
+            url: "/api/v4/admin/item/notifications/template/" + $(this).val(),
             type: "GET",
         }).then((template) => {
             $(modal + " #notification-preview")
@@ -341,7 +341,7 @@ function addProviderConditionalRequiredListeners(modal) {
 function renderProviderDataTable(provider) {
     $(`#${provider}-table`).DataTable({
         "ajax": {
-            "url": `/api/v4/authentication/provider/${provider}`,
+            "url": `/api/v4/admin/item/authentication/provider/${provider}`,
             "type": 'GET',
             "dataSrc": function (json) {
                 $(`#${provider}-enabled`).css("color", json["enabled"] ? "green" : "darkgrey");
@@ -449,7 +449,7 @@ function renderExemptionsDataTable() {
     };
     $('#exemptions-table').DataTable({
         "ajax": {
-            "url": "/api/v4/authentication/migrations/exceptions",
+            "url": "/api/v4/admin/items/authentication/migrations/exceptions",
             "type": 'GET',
             "dataSrc": function (json) {
                 return json;

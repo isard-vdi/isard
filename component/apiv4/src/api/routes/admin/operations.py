@@ -26,7 +26,7 @@ tag = "admin_operations"
 
 
 @admin_router.get(
-    "/admin/operations/hypervisors",
+    "/admin/items/operations/hypervisors",
     tags=[tag],
     response_model=list[OperationsHypervisorResponse],
     summary="List operations hypervisors",
@@ -68,7 +68,7 @@ async def admin_operations_hypervisors(
 
 
 @admin_router.put(
-    "/admin/operations/hypervisor/{hypervisor_id}",
+    "/admin/item/operations/hypervisor/{hypervisor_id}",
     tags=[tag],
     response_model=HypervisorActionResponse,
     summary="Start a hypervisor",
@@ -107,7 +107,7 @@ async def admin_operations_hypervisor_start(request: Request, hypervisor_id: str
 
 
 @admin_router.delete(
-    "/admin/operations/hypervisor/{hypervisor_id}",
+    "/admin/item/operations/hypervisor/{hypervisor_id}",
     tags=[tag],
     response_model=HypervisorActionResponse,
     summary="Stop a hypervisor",

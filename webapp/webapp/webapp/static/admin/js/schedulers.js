@@ -25,7 +25,7 @@ $(document).ready(function () {
     scheduler_table = $('#table-scheduler').DataTable({
         "ajax": {
             "type": "GET",
-            "url": "/api/v4/admin/scheduler/jobs/system",
+            "url": "/api/v4/admin/items/scheduler/jobs/system",
         },
         "sAjaxDataProp": "",
         "language": {

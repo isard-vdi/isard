@@ -39,7 +39,7 @@ class AdminStorageStatusCount(BaseModel):
 
 
 class AdminStorageItem(BaseModel):
-    """One row of ``GET /admin/storage`` and the by-status / by-role
+    """One row of ``GET /admin/items/storage`` and the by-status / by-role
     variants. Permissive (``ConfigDict(extra="allow")``) because the
     storage doc carries varied per-status fields the webapp admin
     renders verbatim.
@@ -55,8 +55,8 @@ class AdminStorageItem(BaseModel):
 
 
 class AdminStorageDomain(BaseModel):
-    """One row of ``GET /admin/storage/domains/{id}`` and
-    ``GET /admin/media/domains/{id}``: the domain id + display name
+    """One row of ``GET /admin/items/storage/domains/{id}`` and
+    ``GET /admin/items/media/domains/{id}``: the domain id + display name
     the webapp admin lists. Permissive — joined fields differ.
     """
 
@@ -67,8 +67,8 @@ class AdminStorageDomain(BaseModel):
 
 
 class AdminStorageInfo(BaseModel):
-    """Response shape for ``GET /admin/storage/info/{id}`` and
-    ``GET /admin/storage/search-info/{id}``.
+    """Response shape for ``GET /admin/item/storage/info/{id}`` and
+    ``GET /admin/item/storage/search-info/{id}``.
 
     Backed by ``AdminStorageService.get_storage_info`` /
     ``get_storage_search_info`` — qemu-img blob plus owner joins.

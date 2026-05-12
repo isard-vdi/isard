@@ -75,7 +75,7 @@ class MigrationExceptionCreateRequest(BaseModel):
 
 
 class PolicyResponse(BaseModel):
-    """One row of ``GET /admin/authentication/policies`` and the matching
+    """One row of ``GET /admin/items/authentication/policies`` and the matching
     per-id read. The persisted policy doc is freeform and may carry
     fields the schema doesn't enumerate."""
 
@@ -91,7 +91,7 @@ class PolicyResponse(BaseModel):
 
 
 class ProvidersResponse(BaseModel):
-    """Response shape for ``GET /admin/authentication/providers``.
+    """Response shape for ``GET /admin/items/authentication/providers``.
 
     The service returns a flat ``dict[str, bool]`` mapping provider
     name (``local`` / ``google`` / ``saml`` / ``ldap``) to its enabled
@@ -106,7 +106,7 @@ class ProvidersResponse(BaseModel):
 
 
 class DisclaimerResponse(BaseModel):
-    """Response shape for ``GET /disclaimer``.
+    """Response shape for ``GET /item/disclaimer``.
 
     The service returns the current user's disclaimer template as a
     dict ``{title, body}``; both are markdown text.

@@ -10,7 +10,7 @@ $(document).ready(function () {
   // RESERVABLE VGPUS
   bookings_priority = $("#bookings_priority").DataTable({
     ajax: {
-      url: "/api/v4/admin/table/bookings_priority",
+      url: "/api/v4/admin/items/table/bookings_priority",
       contentType: "application/json",
       type: "POST",
       data: function (d) {
@@ -201,7 +201,7 @@ $(document).ready(function () {
       //Insert
       $.ajax({
         type: "POST",
-        url: "/api/v4/admin/table/add/bookings_priority",
+        url: "/api/v4/admin/item/table/add/bookings_priority",
         data: JSON.stringify(data),
         contentType: "application/json",
         success: function (data) {
@@ -238,7 +238,7 @@ $(document).ready(function () {
     if (form.parsley().isValid()) {
       $.ajax({
         type: "PUT",
-        url: "/api/v4/admin/table/update/bookings_priority",
+        url: "/api/v4/admin/item/table/update/bookings_priority",
         data: JSON.stringify(data),
         contentType: "application/json",
         success: function (data) {

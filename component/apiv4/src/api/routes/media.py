@@ -436,7 +436,7 @@ async def create_media(media_data: CreateMediaRequest, request: Request):
         )
 
 
-# NOTE: admin media listing lives at ``GET /admin/media/{status}`` on
+# NOTE: admin media listing lives at ``GET /admin/items/media/{status}`` on
 # ``manager_router`` in ``routes/admin/media.py``.
 
 

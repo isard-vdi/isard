@@ -43,7 +43,7 @@ tag = "admin_resources"
 
 
 @admin_router.get(
-    "/remote_vpn/{vpn_id}/{kind}/{os}",
+    "/admin/item/remote_vpn/{vpn_id}/{kind}/{os}",
     tags=[tag],
     response_model=RemoteVpnResponse,
     summary="Get remote VPN data with OS",
@@ -84,7 +84,7 @@ async def admin_remote_vpn_with_os(
 
 
 @admin_router.get(
-    "/remote_vpn/{vpn_id}/{kind}",
+    "/admin/item/remote_vpn/{vpn_id}/{kind}",
     tags=[tag],
     response_model=RemoteVpnResponse,
     summary="Get remote VPN data",
@@ -129,7 +129,7 @@ async def admin_remote_vpn(
 
 
 @admin_router.post(
-    "/qos_disk",
+    "/admin/item/qos_disk",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Add QoS disk profile",
@@ -161,7 +161,7 @@ async def admin_qos_disk_add(
 
 
 @admin_router.put(
-    "/qos_disk",
+    "/admin/item/qos_disk",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update QoS disk profile",

@@ -24,7 +24,7 @@ $(document).ready(function() {
             }
         },
         "ajax": {
-            "url": "/api/v4/admin/users/quotas_limits/users",
+            "url": "/api/v4/admin/items/users/quotas_limits/users",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
@@ -194,7 +194,7 @@ $(document).ready(function() {
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v4/admin/user/" + data['id'],
+                url:"/api/v4/admin/item/user/" + data['id'],
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 error: function(data) {
@@ -262,7 +262,7 @@ function actionsUserDetail(){
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v4/admin/allowed/term/groups/',
+                url: '/api/v4/items/alloweds/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -287,7 +287,7 @@ function actionsUserDetail(){
         setModalUser();
         $.ajax({
             type: "GET",
-            url: '/api/v4/admin/user/' + pk,
+            url: '/api/v4/admin/item/user/' + pk,
             contentType: "application/json",
             accept: "application/json",
             async: false
@@ -333,7 +333,7 @@ function renderUsersDetailPannel ( d ) {
 function setModalUser(){
     $.ajax({
         type: "GET",
-        url:"/api/v4/admin/userschema",
+        url:"/api/v4/admin/item/userschema",
         async: false,
         success: function (d) {
             $.each(d, function (key, value) {

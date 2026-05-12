@@ -44,7 +44,7 @@ $(document).ready(function () {
 function getConfig() {
     $.ajax({
         type: "GET",
-        url: `/api/v4/admin/queues/old_tasks/config`,
+        url: `/api/v4/admin/item/queues/old_tasks/config`,
         contentType: 'application/json',
         success: function (data) {
             $('#registries').val(data.queue_registries).trigger('change');
@@ -84,13 +84,13 @@ $("#btn-update-config").on("click", function () {
     }
     $.ajax({
         type: "PUT",
-        url: `/api/v4/admin/queues/old_tasks/config/max_time/${selected_max_time}`,
+        url: `/api/v4/admin/item/queues/old_tasks/config/max_time/${selected_max_time}`,
     })
 
     const selected_queue_registries = $('#registries').val();
     $.ajax({
         type: "PUT",
-        url: `/api/v4/admin/queues/old_tasks/config/queue_registries`,
+        url: `/api/v4/admin/item/queues/old_tasks/config/queue_registries`,
         contentType: 'application/json',
         data: JSON.stringify({ queue_registries: selected_queue_registries }),
     })
@@ -99,7 +99,7 @@ $("#btn-update-config").on("click", function () {
 $('#enabled-check').on("ifChecked", function () {
     $.ajax({
         type: "PUT",
-        url: `/api/v4/admin/queues/old_tasks/config/enabled`,
+        url: `/api/v4/admin/item/queues/old_tasks/config/enabled`,
         contentType: 'application/json',
         data: JSON.stringify({ enabled: true }),
     })
@@ -108,7 +108,7 @@ $('#enabled-check').on("ifChecked", function () {
 $('#enabled-check').on("ifUnchecked", function () {
     $.ajax({
         type: "PUT",
-        url: `/api/v4/admin/queues/old_tasks/config/enabled`,
+        url: `/api/v4/admin/item/queues/old_tasks/config/enabled`,
         contentType: 'application/json',
         data: JSON.stringify({ enabled: false }),
     })

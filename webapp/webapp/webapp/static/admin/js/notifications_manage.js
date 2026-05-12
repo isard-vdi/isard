@@ -52,7 +52,7 @@ $(document).ready(function () {
             if (data.operation === "edit") {
                 delete data.operation;
                 $.ajax({
-                    url: `/api/v4/admin/notification/${data.id}`,
+                    url: `/api/v4/admin/item/notification/${data.id}`,
                     type: 'PUT',
                     contentType: 'application/json',
                     data: JSON.stringify(data),
@@ -84,7 +84,7 @@ $(document).ready(function () {
                 delete data.operation;
                 delete data.id;
                 $.ajax({
-                    url: '/api/v4/admin/notification',
+                    url: '/api/v4/admin/item/notification',
                     type: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify(data),
@@ -123,7 +123,7 @@ $(document).ready(function () {
                 setupNotificationModal(modal, "edit", "fa fa-pencil");
                 $(modal + " #id").val(data.id);
                 $.ajax({
-                    url: `/api/v4/admin/notification/${data.id}`,
+                    url: `/api/v4/admin/item/notification/${data.id}`,
                     type: 'GET',
                     success: function (notification) {
                         $(modal + " #name").val(notification.name);
@@ -186,7 +186,7 @@ $(document).ready(function () {
 function renderNotificationsDatatable() {
     $('#notifications-table').DataTable({
         "ajax": {
-            url: '/api/v4/admin/notifications',
+            url: '/api/v4/admin/items/notifications',
             type: 'GET',
         },
         "sAjaxDataProp": "notifications",
@@ -287,7 +287,7 @@ function addTemplatePreviewListener(modal) {
             return;
         }
         $.ajax({
-            url: '/api/v4/admin/notifications/template/' + templateId,
+            url: '/api/v4/admin/item/notifications/template/' + templateId,
             type: 'GET',
             success: function (template) {
                 var langEntry = (template.lang && template.default) ? template.lang[template.default] : null;
@@ -361,7 +361,7 @@ function populateItemTypeSelect(modal, operation) {
 function deleteNotification(id, delete_logs) {
     $.ajax({
         type: 'DELETE',
-        url: `/api/v4/admin/notification/${id}`,
+        url: `/api/v4/admin/item/notification/${id}`,
         data: JSON.stringify({ "delete_logs": delete_logs }),
         contentType: "application/json",
         accept: "application/json",
@@ -393,7 +393,7 @@ function deleteNotification(id, delete_logs) {
 function resetTemplateDropdown(modal, callback) {
     $(modal + " #template_id").empty();
     $.ajax({
-        url: '/api/v4/admin/notifications/templates',
+        url: '/api/v4/admin/items/notifications/templates',
         type: 'GET',
         success: function (data) {
             $.each(data.templates, function (_, template) {
@@ -407,7 +407,7 @@ function resetTemplateDropdown(modal, callback) {
 function resetActionDropdown(modal, callback) {
     $(modal + " #action_id").empty();
     $.ajax({
-        url: '/api/v4/admin/notification/actions',
+        url: '/api/v4/admin/items/notification/actions',
         type: 'GET',
         success: function (data) {
             $.each(data.actions, function (_, action) {

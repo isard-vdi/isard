@@ -219,7 +219,7 @@ $(document).ready(function() {
             })
             $.ajax({
                 type: 'DELETE',
-                url: '/api/v4/admin/templates/delete/'+template_id,
+                url: '/api/v4/admin/item/templates/delete/'+template_id,
                 contentType: 'application/json',
                 error: function(data) {
                     notice.update({
@@ -314,7 +314,7 @@ $(document).ready(function() {
         scrollY: false,
         scrollX: false,
         ajax: {
-            url: "/api/v4/admin/domains",
+            url: "/api/v4/admin/items/domains",
             type: "POST",
             contentType: 'application/json',
             dataSrc : "",
@@ -618,7 +618,7 @@ function actionsDomainDetail(){
         $('#modalServerForm #id').val(pk);
         $.ajax({
             type: "POST",
-            url:"/api/v4/admin/table/domains",
+            url:"/api/v4/admin/items/table/domains",
             data: JSON.stringify({
                 'id': pk,
                 'pluck': "server"
@@ -653,7 +653,7 @@ function actionsDomainDetail(){
             dropdownParent: $('#modalChangeOwnerDomain'),
             ajax: {
                 type: "POST",
-                url: '/api/v4/admin/users/search',
+                url: '/api/v4/admin/items/users/search',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -852,7 +852,7 @@ $('.btn-duplicate-template').on('click', function () {
         }).modal('show');
         $.ajax({
             type: "POST",
-            url:"/api/v4/admin/table/domains",
+            url:"/api/v4/admin/items/table/domains",
             data: JSON.stringify({'id':pk,'pluck':['id','forced_hyp']}),
             contentType: 'application/json',
             accept: "application/json",
@@ -891,7 +891,7 @@ $('.btn-duplicate-template').on('click', function () {
             pk=$('#modalForcedhypForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v4/admin/table/domains",
+                url:"/api/v4/admin/items/table/domains",
                 data: JSON.stringify({'id':pk,'pluck':['id','forced_hyp']}),
                 contentType: 'application/json',
                 accept: "application/json",
@@ -979,7 +979,7 @@ $('.btn-duplicate-template').on('click', function () {
         }).modal('show');
         $.ajax({
             type: "POST",
-            url:"/api/v4/admin/table/domains",
+            url:"/api/v4/admin/items/table/domains",
             data: JSON.stringify({'id':pk,'pluck':['id','favourite_hyp']}),
             contentType: 'application/json',
             accept: "application/json",
@@ -1018,7 +1018,7 @@ $('.btn-duplicate-template').on('click', function () {
             pk=$('#modalFavouriteHypForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v4/admin/table/domains",
+                url:"/api/v4/admin/items/table/domains",
                 data: JSON.stringify({'id':pk,'pluck':['id','favourite_hyp']}),
                 contentType: 'application/json',
                 accept: "application/json",
@@ -1089,7 +1089,7 @@ function HypervisorsDropdown(selected) {
     $("#modalForcedhypForm #forced_hyp").empty();
     $.ajax({
         type: "POST",
-        url:"/api/v4/admin/table/hypervisors",
+        url:"/api/v4/admin/items/table/hypervisors",
         data: JSON.stringify({
             'pluck': ['id','hostname']
         }),
@@ -1111,7 +1111,7 @@ function HypervisorsFavDropdown(selected) {
     $("#modalFavouriteHypForm #favourite_hyp").empty();
     $.ajax({
         type: "POST",
-        url:"/api/v4/admin/table/hypervisors",
+        url:"/api/v4/admin/items/table/hypervisors",
         data: JSON.stringify({
             'pluck': ['id','hostname']
         }),
@@ -1146,7 +1146,7 @@ function setDefaultsTemplate(id) {
 function populate_tree_template_delete(id) {
     $.ajax({
         type: "GET",
-        url:"/api/v4/admin/desktops/tree_list/" + id,
+        url:"/api/v4/admin/items/desktops/tree_list/" + id,
         contentType: 'application/json',
         success: function(data)
         {
@@ -1313,7 +1313,7 @@ function renderDisplay(data){
                 dropdownparent: $("#modalDuplicateTemplateForm"),
                 ajax: {
                     type: "POST",
-                    url: '/api/v4/admin/allowed/term/users',
+                    url: '/api/v4/items/alloweds/term/users',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,

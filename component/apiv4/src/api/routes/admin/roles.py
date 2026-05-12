@@ -21,13 +21,13 @@ tag = "admin_roles"
 # ROLES ENDPOINTS (admin_router)
 # =============================================================================
 #
-# ``GET /admin/roles`` lives on manager_router in admin/users.py and
+# ``GET /admin/items/roles`` lives on manager_router in admin/users.py and
 # is registered first, so any handler defined here would be dead code.
 # Only the per-role lookup belongs here.
 
 
 @admin_router.get(
-    "/admin/role/{role_id}",
+    "/admin/item/role/{role_id}",
     tags=[tag],
     response_model=RoleResponse,
     summary="Get a role",
