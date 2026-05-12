@@ -871,15 +871,17 @@ async def delete_unused_item_timeout_rule(request: Request, rule_id: str):
 
 
 @admin_router.post(
-    "/recycle-bin/unused-items",
+    "/items/recycle-bin/unused-items",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Send unused items to recycle bin",
     description="Finds unused desktops and sends them to the recycle bin. "
     "Called by the scheduler for automatic cleanup.",
     responses={500: {"model": ErrorResponse}},
+    deprecated=True,
 )
 async def recycle_bin_add_unused_items(request: Request):
+    # TODO@: probably not in use
     try:
         await asyncio.to_thread(RecycleBinService.recycle_unused_items)
         return Response(status_code=204)

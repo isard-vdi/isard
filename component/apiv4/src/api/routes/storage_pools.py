@@ -44,7 +44,7 @@ tag = "storage_pools"
 
 
 @token_router.get(
-    "/storage_pools/check-create-availability",
+    "/storage-pools/check-create-availability",
     tags=[tag],
     status_code=204,
     response_class=Response,
