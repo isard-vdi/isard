@@ -560,7 +560,7 @@ $(document).ready(function () {
             var item_id = data.id;
             $.ajax({
                 type: 'PUT',
-                url: '/api/v4/admin/reservables/gpus/' + item_id,
+                url: '/api/v4/admin/items/reservables/gpus/' + item_id,
                 data: JSON.stringify({ name: data.name, description: data.description }),
                 contentType: 'application/json',
                 success: function(data) {

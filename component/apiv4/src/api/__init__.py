@@ -403,7 +403,7 @@ email_verification_router = APIRouter(
     responses={401: {"model": ErrorResponse}},
 )
 
-from .routes import (
+from .routes import (  # user_networks,
     bastion,
     cards,
     categories,
@@ -421,7 +421,6 @@ from .routes import (
     storage,
     storage_pools,
     tasks,
-    user_networks,
     users,
     vpn,
 )
