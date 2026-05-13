@@ -25,5 +25,19 @@
         "profiles_enabled": [
             "NVIDIA-T4-2Q"
         ]
+    },
+    {
+        "architecture": "NVIDIA Ampere",
+        "brand": "NVIDIA",
+        "description": "A40 mock with active profile for force-profile tests",
+        "id": "e2e-gpu-force-a40",
+        "memory": "48 GB GDDR",
+        "model": "A40",
+        "name": "GPU A40 force-profile",
+        "physical_device": "e2e-hyp-force-pci_0000_01_00_0",
+        "profiles_enabled": [
+            "NVIDIA-A40-2Q"
+        ],
+        "reservable_type": "gpus"
     }
 ]

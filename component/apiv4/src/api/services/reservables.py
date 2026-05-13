@@ -23,8 +23,17 @@ from typing import Optional
 
 from api.services.error import Error
 from isardvdi_common.connections.api_notifier import send_deleted_gpu_notification
+from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.bookings.reservables import Reservables, ReservablesProcessed
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
+
+
+# Reservable mutations bypass ApiAdmin.*_table_item, so the 5 s
+# admin_table_list TTL cache must be invalidated by hand.
+def _invalidate_reservable_caches(reservable_type: str) -> None:
+    ApiAdmin.clear_admin_table_list_cache(reservable_type)
+    if reservable_type == "gpus":
+        ApiAdmin.clear_admin_table_list_cache("reservables_vgpus")
 
 
 class ReservableService:
@@ -63,6 +72,9 @@ class ReservableService:
             "plans": ReservableService._get_item_plans(
                 reservables, reservable_type, item
             ),
+            "desktops_started": item.get("desktops_started", []),
+            "available_units": item.get("available_units", 0),
+            "gpu_warnings": item.get("gpu_warnings", []),
         }
 
     @staticmethod
@@ -133,51 +145,25 @@ class ReservableService:
         return formatted_items
 
     @staticmethod
-    def get_reservable_item(reservable_type: str, item_id: str) -> dict:
+    def list_subitems(reservable_type: str, item_id: str) -> list[dict]:
+        """Return the catalog of subitems (vGPU profiles) for ``item_id``.
+
+        v3 parity: ``GET /api/v3/admin/reservables/<type>/<id>`` returned
+        ``api_ri.list_subitems(...)`` (a list of profile dicts), not the
+        item itself. The webapp's "expand GPU row" child table consumes
+        this list to render checkboxes and decides which are checked
+        client-side by intersecting with the parent row's
+        ``profiles_enabled``.
         """
-        Get detailed information for a specific reservable item
-
-        Args:
-            reservable_type (str): The reservable type (e.g., "gpus")
-            item_id (str): The specific item ID
-
-        Returns:
-            dict: Detailed information for the specific reservable item
-        """
-        try:
-            reservables = Reservables()
-            valid_types = reservables.list_reservables()
-            if reservable_type not in valid_types:
-                raise Error(
-                    "not_found",
-                    f"Reservable type '{reservable_type}' not found",
-                    description_code="reservable_type_not_found",
-                )
-
-            items = reservables.list_items(reservable_type)
-            target_item = next((i for i in items if i.get("id") == item_id), None)
-
-            if not target_item:
-                raise Error(
-                    "not_found",
-                    f"Reservable item '{item_id}' not found in type '{reservable_type}'",
-                    description_code="reservable_item_not_found",
-                )
-
-            formatted_item = ReservableService._format_item(
-                target_item, reservables, reservable_type
-            )
-
-            return formatted_item
-
-        except Error:
-            raise
-        except Exception as e:
+        reservables = Reservables()
+        valid_types = reservables.list_reservables()
+        if reservable_type not in valid_types:
             raise Error(
-                "internal_server",
-                f"Failed to retrieve reservable item '{item_id}' of type '{reservable_type}': {str(e)}",
-                description_code="failed_to_retrieve_reservable_item",
+                "not_found",
+                f"Reservable type '{reservable_type}' not found",
+                description_code="reservable_type_not_found",
             )
+        return reservables.list_subitems(reservable_type, item_id)
 
     @staticmethod
     def reservable_item_exists(item_id: str) -> bool:
@@ -206,7 +192,9 @@ class ReservableService:
     @staticmethod
     def add_item(reservable_type: str, data: dict) -> dict:
         reservables = Reservables()
-        return reservables.add_item(reservable_type, data)
+        result = reservables.add_item(reservable_type, data)
+        _invalidate_reservable_caches(reservable_type)
+        return result
 
     @staticmethod
     def _notify_affected_users(reservable_type: str, item_id: str) -> None:
@@ -272,6 +260,7 @@ class ReservableService:
         result = reservables.enable_subitems(
             reservable_type, item_id, subitem_id, enabled
         )
+        _invalidate_reservable_caches(reservable_type)
         return result["id"]
 
     @staticmethod
@@ -321,6 +310,7 @@ class ReservableService:
         if notify_user:
             ReservableService._notify_affected_users(reservable_type, item_id)
         ReservablesPlannerProccess.delete_item(reservable_type, item_id)
+        _invalidate_reservable_caches(reservable_type)
 
     @staticmethod
     def update_item(reservable_type: str, item_id: str, data: dict) -> None:
@@ -339,6 +329,7 @@ class ReservableService:
         if "description" in data:
             update_data["description"] = data["description"]
         ReservablesProcessed.update_item(table, item_id, update_data)
+        _invalidate_reservable_caches(reservable_type)
 
     @staticmethod
     def list_all_plans() -> list[dict]:

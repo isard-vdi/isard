@@ -58,7 +58,7 @@ $(document).ready(function () {
       contentType: "application/json",
       type: "GET",
     },
-    sAjaxDataProp: "",
+    sAjaxDataProp: "items",
     language: {
       loadingRecords:
         '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
@@ -343,7 +343,6 @@ $(document).ready(function () {
               profile_checkbox.prop("checked", true)
             },
             }).done(function(data) {
-              data = JSON.parse(data)
               // check if the profile is in any domain or has plans
               if (data['last'].includes(true)) {
                 if (data['desktops'].length > 0 || data['plans'].length > 0) {
@@ -427,7 +426,6 @@ $(document).ready(function () {
                 });
               }
             }).done(function (data) {
-              data = JSON.parse(data);
               if (data['last'].includes(true)) {
                 if (data['desktops'].length > 0 || data['plans'].length > 0) {
                   showDeleteGPUModal(null, item_id, reservable_type, data);
@@ -747,6 +745,17 @@ function initalize_bookables_modal_events() {
               opacity: 1,
               type: 'success'
           })
+          },
+          error: function (data) {
+            new PNotify({
+              title: "ERROR creating GPU",
+              text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+              hide: true,
+              delay: 5000,
+              icon: 'fa fa-warning',
+              opacity: 1,
+              type: 'error'
+            })
           },
         });
       } else {

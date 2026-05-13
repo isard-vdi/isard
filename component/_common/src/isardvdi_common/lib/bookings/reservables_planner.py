@@ -323,7 +323,9 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
 
     @classmethod
     def check_subitem_current_plan(cls, subitem_id, item_id):
-        plans = cls.get_subitems_planning([subitem_id], item_id=item_id, now=True)
+        plans = ReservablesPlannerCompute.get_subitems_planning(
+            [subitem_id], item_id=item_id, now=True
+        )
         if plans and any(
             booking["start"] <= datetime.now(pytz.utc) <= booking["end"]
             for plan in plans

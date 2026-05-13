@@ -15,6 +15,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 )
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
+from isardvdi_common.lib.api_admin import ApiAdmin
 from pydantic import BaseModel, Field
 from rethinkdb import r
 
@@ -224,6 +225,19 @@ class ResourceItemsGpus(RethinkSharedConnection):
     @classmethod
     def add_item(cls, data):
         with cls._rdb_context():
+            duplicates = list(
+                r.table("gpus")
+                .filter({"name": data["name"]})
+                .limit(1)
+                .run(cls._rdb_connection)
+            )
+        if duplicates:
+            raise Error(
+                "conflict",
+                f'A GPU with name "{data["name"]}" already exists.',
+                description_code="duplicated_name",
+            )
+        with cls._rdb_context():
             gpu_profile = (
                 r.table("gpu_profiles").get(data["bookable"]).run(cls._rdb_connection)
             )
@@ -257,18 +271,20 @@ class ResourceItemsGpus(RethinkSharedConnection):
         GPUsModel(**new_gpu)
 
         with cls._rdb_context():
-            if not Helpers._check(
+            insert_result = (
                 r.table("gpus")
                 .insert(new_gpu, conflict="update")
-                .run(cls._rdb_connection),
-                "inserted",
-            ):
-                raise Error(
-                    "internal_server",
-                    "Unable to insert bookable in database.",
-                    description_code="unable_to_insert",
-                )
-
+                .run(cls._rdb_connection)
+            )
+        if not Helpers._check(insert_result, "inserted"):
+            raise Error(
+                "internal_server",
+                "Unable to insert bookable in database.",
+                description_code="unable_to_insert",
+            )
+        generated = insert_result.get("generated_keys") or []
+        if generated:
+            new_gpu["id"] = generated[0]
         return new_gpu
 
     @classmethod
@@ -398,6 +414,9 @@ class ResourceItemsGpus(RethinkSharedConnection):
                 r.table("reservables_vgpus").filter(
                     {"id": new_reservable_vgpu["id"]}
                 ).update({"total_units": total_units}).run(cls._rdb_connection)
+            # Bypass the ApiAdmin 5 s TTL cache so the Bookables admin
+            # listing reflects the new row immediately after enable.
+            ApiAdmin.clear_admin_table_list_cache("reservables_vgpus")
 
     @classmethod
     def delete_reservable_vgpu(cls, subitem_id):
@@ -415,6 +434,7 @@ class ResourceItemsGpus(RethinkSharedConnection):
                         "Reservable vgpu id not found in reservables_vgpus table",
                         traceback.format_exc(),
                     )
+                ApiAdmin.clear_admin_table_list_cache("reservables_vgpus")
             else:
                 raise Error(
                     "not_found",
