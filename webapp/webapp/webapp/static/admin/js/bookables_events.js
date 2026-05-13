@@ -32,7 +32,7 @@ $(document).ready(function () {
                 "data": "start", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -41,7 +41,7 @@ $(document).ready(function () {
                 "data": "end", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -122,6 +122,7 @@ $(document).ready(function () {
                             type: 'success'
                         });
                         planning_table.ajax.reload();
+                        booking_table.ajax.reload();
                     },
                     error: function (data) {
                         new PNotify({
@@ -160,6 +161,7 @@ $(document).ready(function () {
                             type: 'success'
                         });
                         planning_table.ajax.reload();
+                        booking_table.ajax.reload();
                     },
                     error: function (data) {
                         new PNotify({
@@ -198,6 +200,10 @@ $(document).ready(function () {
                             type: 'success'
                         });
                         booking_table.ajax.reload();
+                        // Refresh the plan-detail subtable
+                        if (p_detail_table && typeof p_detail_table.ajax === 'object') {
+                            p_detail_table.ajax.reload(null, false);
+                        }
                     },
                     error: function (data) {
                         new PNotify({
@@ -237,7 +243,7 @@ $(document).ready(function () {
                 "data": "start", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -246,7 +252,7 @@ $(document).ready(function () {
                 "data": "end", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -426,7 +432,7 @@ function renderPlanningDetailDatatable(planId) {
                 "data": "start", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -435,7 +441,7 @@ function renderPlanningDetailDatatable(planId) {
                 "data": "end", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -497,7 +503,7 @@ function renderBookingDetailDatatable(bookingId) {
                 "data": "start", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }
@@ -506,7 +512,7 @@ function renderBookingDetailDatatable(bookingId) {
                 "data": "end", "render": function (data, type, full, meta) {
                     const date = new Date(data);
                     if (type === 'display' || type === 'filter') {
-                        return moment(date).format("DD-MM-YY HH:mm");
+                        return moment(date).format("DD-MM-YYYY HH:mm");
                     }
                     return date;
                 }

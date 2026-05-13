@@ -108,6 +108,7 @@ $(document).ready(function () {
   $("#modalEditBookable #send").on("click", function (e) {
     var form = $("#modalEdit");
     form.parsley().validate();
+    if (!form.parsley().isValid()) return;
     data = $("#modalEdit").serializeObject();
     payload = {
       id: data.bookable_id,

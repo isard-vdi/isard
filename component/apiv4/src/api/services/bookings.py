@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from api.schemas.bookings import CreateBookingEventRequest
+from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed as CommonBookings
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
 from isardvdi_common.lib.domains.desktops.desktops import (
@@ -151,6 +152,7 @@ class BookingsService:
     @staticmethod
     def delete_users_priority(priority_id: str) -> None:
         CommonBookings.delete_users_priority(priority_id)
+        ApiAdmin.clear_admin_table_list_cache("bookings_priority")
 
     @staticmethod
     def list_priority_rules() -> list[dict]:
