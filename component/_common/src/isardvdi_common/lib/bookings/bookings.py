@@ -366,9 +366,10 @@ class BookingsProcessed(RethinkSharedConnection):
                         description_code="booking_desktop_delete_stop",
                     )
                 else:
-                    r.table("domains").get(booking.get("item_id")).update(
-                        {"booking_id": False}
-                    ).run(cls._rdb_connection)
+                    with cls._rdb_context():
+                        r.table("domains").get(booking.get("item_id")).update(
+                            {"booking_id": False}
+                        ).run(cls._rdb_connection)
                     SchedulerHelper.remove_desktop_timeouts(booking.get("item_id"))
             elif booking.get("item_type") == "deployment":
                 with cls._rdb_context():
@@ -682,6 +683,7 @@ class BookingsProcessed(RethinkSharedConnection):
             profiles_forecast.append(profile)
         return profiles_forecast
 
+    @classmethod
     def empty_planning(cls, plan_id):
         bookings = ReservablesPlannerProccess.get_plan_bookings(plan_id)
         for b in bookings:
