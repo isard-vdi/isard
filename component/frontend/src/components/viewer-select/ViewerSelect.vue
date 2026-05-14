@@ -37,8 +37,19 @@ const emit = defineEmits<{
   openViewer: [id: string]
 }>()
 
-const selectedViewer = ref<Viewer>(
-  props.viewers.find((v) => v.id === props.selectedViewer) || props.viewers[0]
+// Track the selected viewer by id only, then derive the full Viewer object
+// from props.viewers each render. Holding a Viewer ref captured once at setup
+// time would freeze the loading flag — when props.viewers later flips a
+// viewer's loading from true to false (e.g. when desktop.ip arrives via WS),
+// the dropdown would keep showing the stale loading=true state and the button
+// would stay disabled. Re-derive via computed so the loading flag follows the
+// latest props.viewers.
+const selectedViewerId = ref<string>(
+  (props.viewers.find((v) => v.id === props.selectedViewer) || props.viewers[0])?.id
+)
+
+const selectedViewer = computed<Viewer>(
+  () => props.viewers.find((v) => v.id === selectedViewerId.value) || props.viewers[0]
 )
 
 const selectedViewerLabel = computed(() => t(`viewers.${selectedViewer.value.id}`))
@@ -68,8 +79,8 @@ const selectViewer = (viewer: Viewer) => {
   //   return
   // }
 
-  if (viewer.id !== selectedViewer.value.id) {
-    selectedViewer.value = viewer
+  if (viewer.id !== selectedViewerId.value) {
+    selectedViewerId.value = viewer.id
   }
 
   emit('openViewer', viewer.id)
