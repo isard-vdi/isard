@@ -8,8 +8,9 @@ IP=$3
 
 export API_HYPERVISORS_SECRET=$API_HYPERVISORS_SECRET
 
-# Notify API of IP assignment (existing functionality)
-/usr/bin/python3 /dnsmasq-hook/update-client-ips.py "$@"
+# Notify API of IP assignment (existing functionality).
+# Use the venv interpreter: python:3.13-alpine has no /usr/bin/python3, and isardvdi_apiv4_client only lives in the venv.
+/.venv/bin/python3 /dnsmasq-hook/update-client-ips.py "$@"
 
 # Static ARP entries for ARP cache poisoning protection
 # Static entries cannot be overwritten by ARP replies
