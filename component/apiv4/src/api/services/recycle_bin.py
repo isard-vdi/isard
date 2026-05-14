@@ -22,6 +22,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from api.services.error import Error
+from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.desktop_events import DesktopEvents
 from isardvdi_common.helpers.recycle_bin import Helpers as RecycleBinHelpers
 from isardvdi_common.helpers.recycle_bin import RecycleBin as CommonRecycleBin
@@ -270,6 +271,105 @@ class RecycleBinService:
                 notification_data.append({**common_data, "user_id": deployment["user"]})
                 for co_owner in deployment.get("co_owners") or []:
                     notification_data.append({**common_data, "user_id": co_owner})
+        if notification_data:
+            NotificationsDataProcessed.add_notification_data(notification_data)
+
+        # Third pass: trim cold desktops belonging to deployments without
+        # removing the parent deployment. Rule resolution is keyed on the
+        # deployment creator. Port of main 7df258e32.
+        deployment_desktop_groups = (
+            DeploymentsProcessed.get_unused_deployment_desktops()
+        )
+        owner_notification = NotificationsProcessed.get_notifications_by_action_id(
+            "unused_deployment_desktops_owner"
+        )
+        owner_notification = (
+            owner_notification[0]
+            if owner_notification and owner_notification[0].get("trigger")
+            else None
+        )
+        user_notification = NotificationsProcessed.get_notifications_by_action_id(
+            "unused_deployment_desktops_user"
+        )
+        user_notification = (
+            user_notification[0]
+            if user_notification and user_notification[0].get("trigger")
+            else None
+        )
+
+        user_name_cache: dict[str, str] = {}
+
+        def _resolve_user_name(user_id):
+            if user_id not in user_name_cache:
+                try:
+                    name = Caches.get_document("users", user_id, ["name"])
+                    user_name_cache[user_id] = name or user_id
+                except ValueError:
+                    user_name_cache[user_id] = user_id
+            return user_name_cache[user_id]
+
+        notification_data = []
+        for group in deployment_desktop_groups:
+            desktop_ids = [d["id"] for d in group["desktops"]]
+            try:
+                deployment_name = (
+                    Caches.get_document("deployments", group["deployment_id"], ["name"])
+                    or group["deployment_id"]
+                )
+            except ValueError:
+                deployment_name = group["deployment_id"]
+            DesktopEvents.deployment_delete_desktops(
+                "isard-scheduler",
+                desktop_ids,
+                owner_id=group["creator"],
+                name=deployment_name,
+            )
+
+            if not (owner_notification or user_notification):
+                continue
+
+            deployment_owner_name = _resolve_user_name(group["creator"])
+            for desktop in group["desktops"]:
+                desktop_owner_name = _resolve_user_name(desktop["user"])
+                common_data = {
+                    "item_id": desktop["id"],
+                    "item_type": "desktop",
+                    "status": "pending",
+                    "created_at": datetime.now(timezone.utc),
+                    "notified_at": None,
+                    "accepted_at": None,
+                    "ignore_after": datetime.now(timezone.utc)
+                    + timedelta(hours=int(cutoff_hours)),
+                }
+                if owner_notification:
+                    notification_data.append(
+                        {
+                            **common_data,
+                            "user_id": group["creator"],
+                            "notification_id": owner_notification["id"],
+                            "vars": {
+                                "desktop_name": desktop["name"],
+                                "desktop_owner": desktop_owner_name,
+                                "deployment_name": deployment_name,
+                                "accessed": desktop["accessed"],
+                            },
+                        }
+                    )
+                if user_notification:
+                    notification_data.append(
+                        {
+                            **common_data,
+                            "user_id": desktop["user"],
+                            "notification_id": user_notification["id"],
+                            "vars": {
+                                "desktop_name": desktop["name"],
+                                "deployment_name": deployment_name,
+                                "deployment_owner": deployment_owner_name,
+                                "accessed": desktop["accessed"],
+                            },
+                        }
+                    )
+
         if notification_data:
             NotificationsDataProcessed.add_notification_data(notification_data)
 

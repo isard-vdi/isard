@@ -929,7 +929,8 @@
         "desktop": "Escriptori '{name}' esborrat en data {date}",
         "template": "Plantilla '{name}' esborrada en data {date}",
         "bulk": "Diversos escriptoris esborrats en data {date}",
-        "user": "Usuari esborrat en data {date}"
+        "user": "Usuari esborrat en data {date}",
+        "deployment_users_delete": "Escriptoris de desplegament esborrats en data {date}"
       },
       "desktops": {
         "title": "Escriptoris",
@@ -1024,7 +1025,8 @@
         "deployment": "Desplegament",
         "template": "Plantilla",
         "bulk": "Múltiples esborrats",
-        "user": "Usuari"
+        "user": "Usuari",
+        "deployment_users_delete": "Escriptoris de desplegament"
       }
     },
     "desktop": {

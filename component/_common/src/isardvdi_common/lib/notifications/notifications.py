@@ -256,12 +256,16 @@ class NotificationsProcessed(RethinkSharedConnection):
                 ):
                     continue
                 if notification["order"] == order:
-                    if notification["item_type"] not in ordered_notifications[order]:
-                        ordered_notifications[order][notification["item_type"]] = {}
-                    # Add the notification to the ordered_notifications
-                    ordered_notifications[order][notification["item_type"]] = {
+                    # Slot per rule: item_type alone is not unique within an
+                    # order (e.g. unused_desktops and
+                    # unused_deployment_desktops_* all share item_type
+                    # "desktop"). Key on notification id so they don't
+                    # overwrite each other. Port of main 7df258e32.
+                    slot_key = notification["id"]
+                    ordered_notifications[order][slot_key] = {
                         "display": notification["display"],
                         "action_id": notification["action_id"],
+                        "item_type": notification["item_type"],
                         "template_id": notification["template_id"],
                         "force_accept": notification["force_accept"],
                         "notifications": [],
@@ -281,7 +285,7 @@ class NotificationsProcessed(RethinkSharedConnection):
                                 notification_template_user["default"]
                             ],
                         )
-                        ordered_notifications[order][notification["item_type"]][
+                        ordered_notifications[order][slot_key][
                             "template"
                         ] = notification_template_user_lang
                     # If the notification is a custom notification then compute the notification
@@ -293,12 +297,10 @@ class NotificationsProcessed(RethinkSharedConnection):
                             )
                         )
                         if notifications_data:
-                            if not ordered_notifications[order][
-                                notification["item_type"]
-                            ]["notifications"]:
-                                del ordered_notifications[order][
-                                    notification["item_type"]
-                                ]
+                            if not ordered_notifications[order][slot_key][
+                                "notifications"
+                            ]:
+                                del ordered_notifications[order][slot_key]
                             continue
                         # Generate the notification data entry for the user
                         NotificationsDataProcessed.add_notification_data(
@@ -315,9 +317,7 @@ class NotificationsProcessed(RethinkSharedConnection):
                                 "ignore_after": notification["ignore_after"],
                             }
                         )
-                        ordered_notifications[order][notification["item_type"]][
-                            "notifications"
-                        ].append(
+                        ordered_notifications[order][slot_key]["notifications"].append(
                             {
                                 "id": "0000-000",
                                 "vars": {
@@ -344,7 +344,7 @@ class NotificationsProcessed(RethinkSharedConnection):
                                 payload, notification, user_lang
                             )
                             # Add the computed notifications to the array that object that will be returned
-                            ordered_notifications[order][notification["item_type"]][
+                            ordered_notifications[order][slot_key][
                                 "notifications"
                             ] += computed_notifications
                         else:
@@ -369,7 +369,7 @@ class NotificationsProcessed(RethinkSharedConnection):
                                         except ValueError:
                                             pass
 
-                                ordered_notifications[order][notification["item_type"]][
+                                ordered_notifications[order][slot_key][
                                     "notifications"
                                 ].append(
                                     {
@@ -395,10 +395,8 @@ class NotificationsProcessed(RethinkSharedConnection):
                                 )
 
                     # If the notification has no notifications_data then remove it from the list
-                    if not ordered_notifications[order][notification["item_type"]][
-                        "notifications"
-                    ]:
-                        del ordered_notifications[order][notification["item_type"]]
+                    if not ordered_notifications[order][slot_key]["notifications"]:
+                        del ordered_notifications[order][slot_key]
             # Remove the order if it is empty
             if not ordered_notifications[order]:
                 del ordered_notifications[order]

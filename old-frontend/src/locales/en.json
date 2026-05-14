@@ -1214,7 +1214,8 @@
                 "desktop": "Desktop '{name}' deleted at {date}",
                 "template": "Template '{name}' deleted at {date}",
                 "bulk": "Multiple desktops deleted at {date}",
-                "user": "User deleted at {date}"
+                "user": "User deleted at {date}",
+                "deployment_users_delete": "Deployment desktops deleted at {date}"
             },
             "desktops": {
                 "title": "Desktops",
@@ -1309,7 +1310,8 @@
                 "deployment": "Deployment",
                 "template": "Template",
                 "bulk": "Bulk delete",
-                "user": "User"
+                "user": "User",
+                "deployment_users_delete": "Deployment desktops"
             }
         },
         "desktop": {

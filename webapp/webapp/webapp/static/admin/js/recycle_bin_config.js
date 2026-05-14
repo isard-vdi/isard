@@ -421,7 +421,8 @@ function renderModal(modal, action) {
     $(modal + ' :checkbox').iCheck('uncheck').iCheck('update');
     const options = [
         "send_unused_desktops_to_recycle_bin",
-        "send_unused_deployments_to_recycle_bin"
+        "send_unused_deployments_to_recycle_bin",
+        "send_unused_deployment_desktops_to_recycle_bin"
     ];
     $(modal + "Form #op").empty().append(options.map(value => `<option value="${value}">${value.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())}</option>`).join(''));
 

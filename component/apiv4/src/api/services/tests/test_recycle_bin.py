@@ -144,6 +144,10 @@ class TestRecycleUnusedItems:
         return_value=[{"id": "n1", "trigger": True, "action_id": "a1"}],
     )
     @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployment_desktops",
+        return_value=[],
+    )
+    @patch(
         "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
         return_value=[],
     )
@@ -168,6 +172,7 @@ class TestRecycleUnusedItems:
         _cutoff,
         _desktops,
         _deployments,
+        _deployment_desktops,
         _notif_lookup,
         _action_lookup,
         mock_add_notification_data,
@@ -205,7 +210,13 @@ class TestRecycleUnusedItems:
         side_effect=[
             [],  # no unused_desktops notification
             [{"id": "n2", "trigger": True, "action_id": "a2"}],
+            [],  # no unused_deployment_desktops_owner notification
+            [],  # no unused_deployment_desktops_user notification
         ],
+    )
+    @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployment_desktops",
+        return_value=[],
     )
     @patch(
         "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
@@ -231,6 +242,7 @@ class TestRecycleUnusedItems:
         _cutoff,
         _desktops,
         _deployments,
+        _deployment_desktops,
         _notif_lookup,
         _action_lookup,
         mock_add_notification_data,
@@ -258,6 +270,10 @@ class TestRecycleUnusedItems:
         return_value=[],
     )
     @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployment_desktops",
+        return_value=[],
+    )
+    @patch(
         "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
         return_value=[],
     )
@@ -278,6 +294,7 @@ class TestRecycleUnusedItems:
         _cutoff,
         _desktops,
         _deployments,
+        _deployment_desktops,
         _notif_lookup,
         _action_lookup,
         mock_add_notification_data,
@@ -300,6 +317,10 @@ class TestRecycleUnusedItems:
         return_value=[{"id": "n1", "trigger": False, "action_id": "a1"}],
     )
     @patch(
+        "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployment_desktops",
+        return_value=[],
+    )
+    @patch(
         "api.services.recycle_bin.DeploymentsProcessed.get_unused_deployments",
         return_value=[],
     )
@@ -320,6 +341,7 @@ class TestRecycleUnusedItems:
         _cutoff,
         _desktops,
         _deployments,
+        _deployment_desktops,
         _notif_lookup,
         _action_lookup,
         mock_add_notification_data,

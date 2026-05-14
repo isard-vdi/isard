@@ -652,11 +652,15 @@ class DesktopEvents(RethinkCustomBase):
             return tasks
 
     @classmethod
-    def deployment_delete_desktops(cls, agent_id, desktops_ids, permanent=False):
+    def deployment_delete_desktops(
+        cls, agent_id, desktops_ids, permanent=False, owner_id=None, name=None
+    ):
         rcb = RecycleBinDeploymentDesktops(user_id=agent_id)
-        rcb.add(desktops_ids)
+        rcb.add(desktops_ids, owner_id=owner_id, name=name)
 
-        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
+        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(
+            owner_id or agent_id
+        )
         if max_time == 0 or permanent:
             rcb.delete_storage(agent_id)
 

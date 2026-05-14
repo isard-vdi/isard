@@ -35,7 +35,8 @@ from .log import *
 """
 Update to new database release version when new code version release
 """
-release_version = 192
+release_version = 193
+# release 193: Add unused_deployment_desktops notification kinds, default rule, and matching notifications/action entries (port of main 7df258e32)
 # release 192: Add config.usage_retention defaults (daily_months=3, weekly_months=6, total_months=None)
 # release 191: Add domains.kind_user_accessed compound index for apiv4 pagination
 # release 190: Add allow_insecure_tls field to LDAP and SAML provider configs
@@ -7060,6 +7061,83 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 193:
+            try:
+                r.table(table).insert(
+                    [
+                        {
+                            "default": "en",
+                            "description": "Text that will be associated with each notification sent to a deployment owner when a desktop of their deployment is not used for a long time and is sent to the recycle bin.",
+                            "kind": "unused_deployment_desktops_owner",
+                            "lang": {
+                                "ca": {
+                                    "body": "<p>L'escriptori <b>{desktop_name}</b> del desplegament <b>{deployment_name}</b>, propietat de <b>{desktop_owner}</b>, va ser utilitzat per últim cop el <b>{accessed}</b>.</p>",
+                                    "footer": "Podeu restaurar-los des de la paperera si encara són necessaris.",
+                                    "title": "Escriptoris de desplegament sense utilitzar han estat eliminats",
+                                },
+                                "en": {
+                                    "body": "<p>Desktop <b>{desktop_name}</b> from deployment <b>{deployment_name}</b>, owned by <b>{desktop_owner}</b>, was last used at <b>{accessed}</b>.</p>",
+                                    "footer": "You can restore them from the recycle bin if they are still needed.",
+                                    "title": "Unused deployment desktops have been deleted",
+                                },
+                                "es": {
+                                    "body": "<p>El escritorio <b>{desktop_name}</b> del despliegue <b>{deployment_name}</b>, propiedad de <b>{desktop_owner}</b>, fue utilizado por última vez el <b>{accessed}</b>.</p>",
+                                    "footer": "Puede restaurarlos desde la papelera si aún son necesarios.",
+                                    "title": "Escritorios de despliegue sin utilizar han sido eliminados",
+                                },
+                            },
+                            "name": "Send unused deployment desktops to recycle bin (deployment owner)",
+                            "system": {
+                                "body": "<p>Desktop <b>{desktop_name}</b> from deployment <b>{deployment_name}</b>, owned by <b>{desktop_owner}</b>, was last used at <b>{accessed}</b>.</p>",
+                                "footer": "You can restore them from the recycle bin if they are still needed.",
+                                "title": "Unused deployment desktops have been deleted",
+                            },
+                            "vars": {
+                                "desktop_name": "Testing desktop",
+                                "desktop_owner": "John Doe",
+                                "deployment_name": "Testing environment deployment",
+                                "accessed": "12 Mar 2024 13:00",
+                            },
+                        },
+                        {
+                            "default": "en",
+                            "description": "Text that will be associated with each notification sent to a desktop owner when their deployment desktop is not used for a long time and is moved to the deployment recycle bin (which is owned by the deployment creator).",
+                            "kind": "unused_deployment_desktops_user",
+                            "lang": {
+                                "ca": {
+                                    "body": "<p>El vostre escriptori <b>{desktop_name}</b> del desplegament <b>{deployment_name}</b> (propietat de <b>{deployment_owner}</b>) va ser utilitzat per últim cop el <b>{accessed}</b>.</p>",
+                                    "footer": "Contacteu amb el propietari del desplegament si encara necessiteu l'escriptori.",
+                                    "title": "El vostre escriptori de desplegament ha estat eliminat",
+                                },
+                                "en": {
+                                    "body": "<p>Your desktop <b>{desktop_name}</b> from deployment <b>{deployment_name}</b> (owned by <b>{deployment_owner}</b>) was last used at <b>{accessed}</b>.</p>",
+                                    "footer": "Contact the deployment owner if you still need the desktop.",
+                                    "title": "Your deployment desktop has been deleted",
+                                },
+                                "es": {
+                                    "body": "<p>Su escritorio <b>{desktop_name}</b> del despliegue <b>{deployment_name}</b> (propiedad de <b>{deployment_owner}</b>) fue utilizado por última vez el <b>{accessed}</b>.</p>",
+                                    "footer": "Contacte con el propietario del despliegue si aún necesita el escritorio.",
+                                    "title": "Su escritorio de despliegue ha sido eliminado",
+                                },
+                            },
+                            "name": "Your deployment desktop has been sent to the recycle bin (desktop owner)",
+                            "system": {
+                                "body": "<p>Your desktop <b>{desktop_name}</b> from deployment <b>{deployment_name}</b> (owned by <b>{deployment_owner}</b>) was last used at <b>{accessed}</b>.</p>",
+                                "footer": "Contact the deployment owner if you still need the desktop.",
+                                "title": "Your deployment desktop has been deleted",
+                            },
+                            "vars": {
+                                "desktop_name": "Testing desktop",
+                                "deployment_name": "Testing environment deployment",
+                                "deployment_owner": "John Doe",
+                                "accessed": "12 Mar 2024 13:00",
+                            },
+                        },
+                    ]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -7108,6 +7186,25 @@ password:s:%s"""
                         "name": "default",
                         "op": "send_unused_deployments_to_recycle_bin",
                         "description": "Keep only the deployments that desktops that have been used in the last selected cutoff time. Send the rest of unused deployments to recycle bin automatically.",
+                        "allowed": {
+                            "roles": [],  ## Matches all
+                            "categories": False,
+                            "groups": False,
+                            "users": False,
+                        },
+                        "priority": 0,
+                        "cutoff_time": None,
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+        if version == 193:
+            try:
+                r.table(table).insert(
+                    {
+                        "name": "default",
+                        "op": "send_unused_deployment_desktops_to_recycle_bin",
+                        "description": "Trim cold desktops belonging to deployments without removing the parent deployment. Rule is matched against the deployment creator.",
                         "allowed": {
                             "roles": [],  ## Matches all
                             "categories": False,
@@ -7220,6 +7317,55 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 193:
+            try:
+                r.table(table).insert(
+                    [
+                        {
+                            "name": "Unused deployment desktops have been sent to the recycle bin (deployment owner)",
+                            "action_id": "unused_deployment_desktops_owner",
+                            "allowed": {
+                                "roles": [],
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                            "trigger": "login",
+                            "item_type": "desktop",
+                            "template_id": "",
+                            "display": ["fullpage"],
+                            "order": 0,
+                            "force_accept": False,
+                            "enabled": False,
+                            "ignore_after": r.epoch_time(0),
+                            "keep_time": 0,
+                            "compute": None,
+                        },
+                        {
+                            "name": "Your deployment desktop has been sent to the recycle bin (desktop owner)",
+                            "action_id": "unused_deployment_desktops_user",
+                            "allowed": {
+                                "roles": [],
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                            "trigger": "login",
+                            "item_type": "desktop",
+                            "template_id": "",
+                            "display": ["fullpage"],
+                            "order": 0,
+                            "force_accept": False,
+                            "enabled": False,
+                            "ignore_after": r.epoch_time(0),
+                            "keep_time": 0,
+                            "compute": None,
+                        },
+                    ]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -7250,6 +7396,37 @@ password:s:%s"""
                         "id": "start_desktop",
                         "compute": "start_desktop_notifications",
                     }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 193:
+            try:
+                r.table(table).insert(
+                    [
+                        {
+                            "description": "Unused deployment desktops are automatically recycled by the system. Notification sent to the deployment owner.",
+                            "id": "unused_deployment_desktops_owner",
+                            "kwargs": [
+                                "desktop_name",
+                                "desktop_owner",
+                                "deployment_name",
+                                "accessed",
+                            ],
+                            "compute": None,
+                        },
+                        {
+                            "description": "Unused deployment desktops are automatically recycled by the system. Notification sent to the desktop owner.",
+                            "id": "unused_deployment_desktops_user",
+                            "kwargs": [
+                                "desktop_name",
+                                "deployment_name",
+                                "deployment_owner",
+                                "accessed",
+                            ],
+                            "compute": None,
+                        },
+                    ]
                 ).run(self.conn)
             except Exception as e:
                 print(e)

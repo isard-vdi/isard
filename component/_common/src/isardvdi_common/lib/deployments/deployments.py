@@ -1204,13 +1204,115 @@ class DeploymentsProcessed(RethinkSharedConnection):
         return deployments
 
     @staticmethod
-    def deployment_delete_desktops(agent_id, desktops_ids, permanent=False):
+    def deployment_delete_desktops(
+        agent_id, desktops_ids, permanent=False, owner_id=None, name=None
+    ):
         rcb = RecycleBinDeploymentDesktops(user_id=agent_id)
-        rcb.add(desktops_ids)
+        rcb.add(desktops_ids, owner_id=owner_id, name=name)
 
-        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(agent_id)
+        max_time = RecycleBinHelpers.get_user_recycle_bin_cutoff_time(
+            owner_id or agent_id
+        )
         if max_time == 0 or permanent:
             rcb.delete_storage(agent_id)
+
+    @classmethod
+    def get_unused_deployment_desktops(cls):
+        """
+        Retrieve cold desktops belonging to deployments, grouped by deployment.
+
+        Unlike ``get_unused_deployments``, this does NOT delete the parent
+        deployment: only individual desktops whose ``accessed`` is older than
+        the matching rule's cutoff are returned. The deployment row stays
+        alive even if every one of its desktops is reaped.
+
+        Rule resolution is keyed on the deployment **creator** (consistent
+        with ``send_unused_deployments_to_recycle_bin``), using the op
+        ``send_unused_deployment_desktops_to_recycle_bin``. Only desktops
+        in ``Stopped``, ``Maintenance`` or ``Failed`` are eligible (mirrors
+        ``get_unused_desktops``).
+
+        :return: List of dicts ``{"creator": <user_id>, "deployment_id": <id>,
+                 "desktops": [{"id", "user", "name", "accessed"}, ...]}``,
+                 one entry per deployment with at least one cold desktop.
+        :rtype: list
+        """
+        result = []
+
+        with cls._rdb_context():
+            users_with_deployments = list(
+                r.table("deployments")
+                .pluck("user")
+                .distinct()["user"]
+                .run(cls._rdb_connection)
+            )
+
+        for user in users_with_deployments:
+            try:
+                payload = Helpers.gen_payload_from_user(user)
+                user_timeout_rule = get_unused_item_timeout(
+                    payload, "send_unused_deployment_desktops_to_recycle_bin"
+                )
+            except TypeError:
+                log.error(
+                    "api_deployments get unused deployment desktops: Could not generate payload for user %s",
+                    user,
+                )
+                continue
+
+            if user_timeout_rule is False or user_timeout_rule["cutoff_time"] is None:
+                continue
+
+            cutoff_time = timedelta(days=user_timeout_rule["cutoff_time"] * 30)
+            cutoff_timestamp = (datetime.now(timezone.utc) - cutoff_time).timestamp()
+
+            with cls._rdb_context():
+                deployment_ids = list(
+                    r.table("deployments")
+                    .get_all(user, index="user")["id"]
+                    .run(cls._rdb_connection)
+                )
+                if not deployment_ids:
+                    continue
+                tag_status_keys = [
+                    [d_id, status]
+                    for d_id in deployment_ids
+                    for status in ("Stopped", "Maintenance", "Failed")
+                ]
+                cold_desktops = list(
+                    r.table("domains")
+                    .get_all(r.args(tag_status_keys), index="tag_status")
+                    .filter(
+                        (r.row["kind"] == "desktop")
+                        & (r.row["accessed"] < cutoff_timestamp)
+                    )
+                    .pluck("id", "user", "name", "accessed", "tag")
+                    .run(cls._rdb_connection)
+                )
+
+            if not cold_desktops:
+                continue
+
+            by_deployment = {}
+            for desk in cold_desktops:
+                by_deployment.setdefault(desk["tag"], []).append(
+                    {
+                        "id": desk["id"],
+                        "user": desk["user"],
+                        "name": desk["name"],
+                        "accessed": desk["accessed"],
+                    }
+                )
+            for deployment_id, desktops in by_deployment.items():
+                result.append(
+                    {
+                        "creator": user,
+                        "deployment_id": deployment_id,
+                        "desktops": desktops,
+                    }
+                )
+
+        return result
 
     @classmethod
     def get_deployment_info(cls, deployment_id):

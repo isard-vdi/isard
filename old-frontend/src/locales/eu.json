@@ -778,7 +778,8 @@
         "template": "Txantiloia '{name}' ezabatu da {date}",
         "deployment": "Hedapena'{name}' ezabatu da {date}",
         "user": "Erabiltzailea ezabatua{date}",
-        "bulk": "Zenbait mahaigai ezabatuta {date}"
+        "bulk": "Zenbait mahaigai ezabatuta {date}",
+        "deployment_users_delete": "Hedapeneko mahaigainak ezabatuta {date}"
       },
       "modal": {
         "title": {
@@ -868,7 +869,8 @@
         "user": "Erabiltzaile",
         "desktop": "Mahaigain",
         "deployment": "Hedapena",
-        "bulk": "Ezabatze masiboa"
+        "bulk": "Ezabatze masiboa",
+        "deployment_users_delete": "Hedapeneko mahaigainak"
       },
       "status": {
         "recycled": "Birziklatuta"
