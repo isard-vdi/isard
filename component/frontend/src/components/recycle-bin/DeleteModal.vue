@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
   deleteRecycleBinEntryMutation,
-  getRecycleBinItemCountUserOptions
+  getRecycleBinItemCountUserQueryKey
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { AlertModal } from '@/components/modal'
 import { Button } from '@/components/ui/button'
@@ -33,7 +33,7 @@ const { mutate: deleteEntry, isPending: deleteIsPending } = useMutation({
   ...deleteRecycleBinEntryMutation(),
   onSuccess: () => {
     queryClient.invalidateQueries({
-      queryKey: getRecycleBinItemCountUserOptions()
+      queryKey: getRecycleBinItemCountUserQueryKey()
     })
     handleClose()
     if (props.onSuccess) {

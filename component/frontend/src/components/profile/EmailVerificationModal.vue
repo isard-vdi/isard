@@ -10,7 +10,7 @@ import { InputField } from '@/components/input-field'
 import { Icon } from '@/components/icon'
 import { useI18n } from 'vue-i18n'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { setUserEmailMutation, getUserOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
+import { setUserEmailMutation, getUserQueryKey } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 interface Props {
   open?: boolean
@@ -53,7 +53,7 @@ const form = useForm({
 
     try {
       await setUserEmail({ body: { email: form.getFieldValue('email') } })
-      await queryClient.invalidateQueries({ queryKey: getUserOptions() })
+      await queryClient.invalidateQueries({ queryKey: getUserQueryKey() })
       handleClose()
     } catch (error: unknown) {
       const descriptionCode =

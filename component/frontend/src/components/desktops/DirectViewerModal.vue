@@ -15,6 +15,7 @@ import directViewerImg from '@/assets/img/modal/direct-viewer.svg'
 
 import {
   getShareLinkOptions,
+  getShareLinkQueryKey,
   updateShareLinkMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
@@ -36,7 +37,7 @@ const emit = defineEmits<{
 const queryClient = useQueryClient()
 
 const shareLinkQueryKey = computed(() =>
-  getShareLinkOptions({
+  getShareLinkQueryKey({
     path: { desktop_id: props.desktopId ?? '' }
   })
 )
