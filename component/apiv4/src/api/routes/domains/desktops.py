@@ -1279,6 +1279,15 @@ async def get_desktop_viewer(
             request.token_payload["role_id"] == "admin",
             request,
         )
+        # Log here, not in the @cached service: cache hits skip the body and would drop the audit entry.
+        from isardvdi_common.helpers.logging import Logging
+
+        Logging.logs_domain_event_viewer(
+            desktop_id,
+            request.token_payload["user_id"],
+            viewer_type,
+            user_request=request,
+        )
         return JSONResponse(
             content=DesktopGetViewerResponse(**connection_string).model_dump(
                 mode="json"

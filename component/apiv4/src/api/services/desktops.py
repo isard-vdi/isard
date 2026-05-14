@@ -88,8 +88,7 @@ def _get_desktop_viewer_cache_key(
     is_admin: bool = False,
     request: Optional[Request] = None,
 ) -> tuple:
-    # Exclude `request` (unhashable) but keep user_id so each caller still
-    # gets an audit-log entry written on first hit within the TTL window.
+    # user_id is in the key so different users never share a cached viewer credential (e.g. SPICE password); `request` is unhashable.
     return hashkey(user_id, desktop_id, viewer_type, is_admin)
 
 
@@ -1216,7 +1215,6 @@ class DesktopService:
                 f"Desktop with ID {desktop_id} not found",
                 description_code="not_found",
             )
-        Logging.logs_domain_event_viewer(desktop_id, user_id, viewer_type, request)
         viewer = DesktopDirectViewer.desktop_viewer(
             desktop_id, protocol=viewer_type, get_cookie=True, admin_role=is_admin
         )

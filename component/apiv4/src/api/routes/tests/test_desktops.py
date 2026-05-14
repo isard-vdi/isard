@@ -375,6 +375,7 @@ def test_get_desktop_viewer(monkeypatch, test_client):
         "cookie": "session=abc",
     }
     captured = {}
+    logged = {}
 
     def fake_get_viewer(user_id, desktop_id, viewer_type, is_admin, request):
         captured["user_id"] = user_id
@@ -383,9 +384,21 @@ def test_get_desktop_viewer(monkeypatch, test_client):
         captured["is_admin"] = is_admin
         return stub
 
+    def fake_log(domain_id, action_user, viewer_type, user_request=None):
+        logged["domain_id"] = domain_id
+        logged["action_user"] = action_user
+        logged["viewer_type"] = viewer_type
+        logged["had_request"] = user_request is not None
+
     monkeypatch.setattr(
         "api.services.desktops.DesktopService.get_desktop_viewer",
         staticmethod(fake_get_viewer),
+    )
+    # The log must fire from the route, not the cached service, so cache
+    # hits still produce an audit entry per user request.
+    monkeypatch.setattr(
+        "isardvdi_common.helpers.logging.Logging.logs_domain_event_viewer",
+        staticmethod(fake_log),
     )
     _bypass_owns_domain_id(monkeypatch)
 
@@ -403,6 +416,12 @@ def test_get_desktop_viewer(monkeypatch, test_client):
         "desktop_id": "desktop-1",
         "viewer_type": "browser-vnc",
         "is_admin": True,  # default MockJWT role_id == "admin"
+    }
+    assert logged == {
+        "domain_id": "desktop-1",
+        "action_user": jwt.payload["user_id"],
+        "viewer_type": "browser-vnc",
+        "had_request": True,
     }
 
 
