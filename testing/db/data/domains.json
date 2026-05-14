@@ -1780,5 +1780,122 @@
                 }
             }
         }
+    },
+    {
+        "accessed": 1758268200,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "storage-ws-ip-arrival-fixture"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:e2:e2:00"
+                    },
+                    {
+                        "id": "wireguard",
+                        "mac": "52:54:00:e2:e2:01"
+                    }
+                ],
+                "isos": [],
+                "memory": 1048576,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Fixture for WS IP-arrival e2e tests. Owned by bootstrap admin, status=Started, wireguard interface, viewer.guest_ip starts null.",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_rdp": {
+                    "options": null
+                },
+                "file_rdpgw": {
+                    "options": null
+                },
+                "file_rdpvpn": {
+                    "options": null
+                },
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "ws-ip-arrival-fixture-0001",
+        "image": {
+            "id": "45.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/45.jpg"
+        },
+        "kind": "desktop",
+        "name": "WS IP-arrival fixture",
+        "os": "linux",
+        "persistent": true,
+        "server": false,
+        "status": "Started",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "local-default-admin-admin",
+        "username": "admin",
+        "hyp_started": "isard-hypervisor",
+        "viewer": {
+            "guest_ip": null,
+            "passwd": "test-passwd",
+            "base_port": 5900,
+            "ports": [5900, 5901, 5902, 5700],
+            "static": null,
+            "proxy_video": null,
+            "proxy_hyper_host": null,
+            "html5_ext_port": null,
+            "spice_ext_port": null,
+            "tls": {}
+        },
+        "xml": null
     }
 ]

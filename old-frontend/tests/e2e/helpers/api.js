@@ -419,6 +419,46 @@ export class ApiHelper {
     throw new Error(`Domain ${domainId} did not reach status ${status} within ${timeoutMs}ms`)
   }
 
+  /**
+   * Set a desktop's viewer.guest_ip via the admin table-update endpoint.
+   * Mirrors the apiv4 ``POST /admin/hypervisor/vm/wg_addr`` path that the
+   * dnsmasq DHCP hook uses in production: rethinkdb ``.update()`` deep-
+   * merges, so the rest of ``viewer`` (passwd, base_port, ports …) is
+   * preserved. The same changefeed → change-handler → socketio chain
+   * fires, so this is the cheapest way to simulate the WS desktop_update
+   * event in e2e without standing up a real hypervisor.
+   *
+   * @param {string} desktopId
+   * @param {string|null} ip  pass null to clear (park back at WaitingIP)
+   */
+  async setDesktopGuestIp (desktopId, ip) {
+    return this._authFetch('PUT', '/api/v4/admin/table/update/domains', {
+      id: desktopId,
+      viewer: { guest_ip: ip }
+    })
+  }
+
+  /**
+   * Poll ``/items/desktops`` until the desktop's listing ``ip`` matches
+   * ``expected`` (or null). Companion to ``setDesktopGuestIp`` for tests
+   * that assert the WS path delivered the new IP into the listing too.
+   */
+  async waitForDesktopIp (desktopId, expected, timeoutMs = 10000) {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const resp = await this._authFetch('GET', '/api/v4/items/desktops')
+        const list = Array.isArray(resp) ? resp : resp?.desktops ?? []
+        const found = list.find((d) => d.id === desktopId)
+        if (found && (found.ip ?? null) === (expected ?? null)) return found
+      } catch (e) {
+        // transient listing churn — keep polling
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+    throw new Error(`Desktop ${desktopId} did not reach ip=${expected} within ${timeoutMs}ms`)
+  }
+
   // --- Internal helpers ---
 
   async _fetch (method, path, body = undefined) {
@@ -479,6 +519,10 @@ export class ApiHelper {
       const text = await res.text()
       throw new Error(`API ${method} ${path} failed (${res.status}): ${text}`)
     }
-    return res.json()
+    // ``admin/table/update/*`` and friends respond with 204 No Content;
+    // ``res.json()`` blows up on an empty body. Guard against it.
+    if (res.status === 204) return null
+    const text = await res.text()
+    return text ? JSON.parse(text) : null
   }
 }
