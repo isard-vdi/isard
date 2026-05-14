@@ -19,6 +19,7 @@
 
 import asyncio
 import logging
+import threading
 import traceback
 from time import time
 from uuid import uuid4
@@ -430,6 +431,22 @@ class Logging(RethinkSharedConnection):
     def logs_domain_event_viewer(
         cls, domain_id, action_user, viewer_type, user_request=None
     ):
+        # Called from asyncio.to_thread workers with no event loop bound; fall back to a daemon thread to keep fire-and-forget. See logs_domain_event_directviewer.
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            threading.Thread(
+                target=lambda: asyncio.run(
+                    cls._logs_domain_event_viewer(
+                        domain_id,
+                        action_user,
+                        viewer_type,
+                        user_request=user_request,
+                    )
+                ),
+                daemon=True,
+            ).start()
+            return
         asyncio.create_task(
             cls._logs_domain_event_viewer(
                 domain_id,

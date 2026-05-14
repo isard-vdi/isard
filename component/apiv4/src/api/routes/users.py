@@ -1122,7 +1122,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 role_id=payload.get("role_id"),
                 connection_ip=body.ip,
             )
-            return Response(status_code=204)
+            return EmptyResponse()
 
         # Variant 2: guess_ip in body → lookup by guest_ip index.
         if body.ip:
@@ -1133,7 +1133,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
                 role_id=payload.get("role_id"),
                 guess_ip=body.ip,
             )
-            return Response(status_code=204)
+            return EmptyResponse()
 
         # Variant 3: proxy_video + proxy_hyper_host + port → proxies index.
         if not body.proxy_video or not body.proxy_hyper_host or not body.port:
@@ -1152,7 +1152,7 @@ async def user_owns_desktop(request: Request, body: UserOwnsDesktopRequest):
             proxy_hyper_host=body.proxy_hyper_host,
             port=body.port,
         )
-        return Response(status_code=204)
+        return EmptyResponse()
     except Error:
         raise
     except Exception:
