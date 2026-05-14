@@ -450,13 +450,14 @@ def check_permissions(permission):
             kwargs["payload"] = payload
             category_id = kwargs.get("category_id")
             ownsCategoryId(payload, category_id)
+            if not Category.exists(category_id):
+                raise Error(
+                    error="not_found",
+                    description=f"Category {category_id} not found",
+                    description_code="not_found",
+                )
             if payload["role_id"] == "manager":
-                if Category.exists(category_id):
-                    manager_permissions = (
-                        Category(category_id).manager_permissions or {}
-                    )
-                else:
-                    raise Error("not_found", "Category not found")
+                manager_permissions = Category(category_id).manager_permissions or {}
                 if not manager_permissions.get(permission):
                     raise Error(
                         "forbidden", "Manager does not have permission: " + permission

@@ -531,6 +531,8 @@ def add_category_to_storage_pool(storage_pool_id, category_id):
 
 def get_storage_derivatives(storage_id):
     total = []
+    if not Storage.exists(storage_id):
+        return total
     domains = Storage(storage_id).domains
     for domain in domains:
         total.append(domain.id)
@@ -572,6 +574,8 @@ def _check_domains_status(storage_id):
 def process_check_backing_chain(storages_ids, user_id):
     try:
         for storage_id in storages_ids:
+            if not Storage.exists(storage_id):
+                continue
             storage = Storage(storage_id)
             storage.check_backing_chain(user_id=user_id)
         notify_admins(
