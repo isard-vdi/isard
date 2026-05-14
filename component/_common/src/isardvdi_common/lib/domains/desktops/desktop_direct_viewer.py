@@ -306,6 +306,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
                 sched_src if isinstance(sched_src, dict) else {"shutdown": False}
             ),
             "viewers": {},
+            "image": domain.get("image"),
         }
         desktop_viewers = list(domain["guest_properties"]["viewers"].keys())
         if "file_spice" in desktop_viewers:

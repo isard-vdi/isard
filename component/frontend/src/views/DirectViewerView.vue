@@ -7,14 +7,11 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
 import { AlertModal } from '@/components/modal'
 
 import {
-  getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetOptions,
-  getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetQueryKey,
-  apiV4LoginConfigApiV4ItemLoginConfigGetOptions
+  getDesktopViewerByTokenOptions,
+  getDesktopViewerByTokenQueryKey,
+  apiV4LoginConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import {
-  resetDesktopApiV4ItemDesktopTokenTokenResetDesktopPut,
-  type ViewersModel
-} from '@/gen/oas/apiv4'
+import { resetDesktop as resetDesktopRequest, type ViewersModel } from '@/gen/oas/apiv4'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4/types.gen'
 import { createClient, createConfig } from '@/gen/oas/apiv4/client'
 
@@ -38,11 +35,15 @@ import { ButtonGroup } from '@/components/ui/button-group'
 import { Icon } from '@/components/icon'
 import { LoginNotification } from '@/components/login'
 import { Skeleton } from '@/components/ui/skeleton'
+import LogoSvg from '@/assets/logo.svg?url'
 
 const { t, d } = useI18n()
 const route = useRoute()
 const queryClient = useQueryClient()
-const cookies = vueuseCookies(['browser_viewer'])
+const cookies = vueuseCookies(['browser_viewer', 'viewerToken'])
+
+// Path / sameSite are required so /viewer/noVNC/ can read both cookies; without path:/ the cookie is scoped to /direct/<token>.
+const VIEWER_COOKIE_OPTS = { path: '/', sameSite: 'strict' } as const
 
 const token = computed(() => route.params.token as string)
 
@@ -52,7 +53,7 @@ const token = computed(() => route.params.token as string)
 // logged in elsewhere keeps using their own JWT for other views.
 const directViewerClient = createClient(createConfig())
 
-const queryOptions = getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetOptions({
+const queryOptions = getDesktopViewerByTokenOptions({
   path: { token: token.value },
   client: directViewerClient
 })
@@ -67,10 +68,10 @@ const {
 })
 
 const { data: loginConfig } = useQuery(
-  apiV4LoginConfigApiV4ItemLoginConfigGetOptions({ client: directViewerClient })
+  apiV4LoginConfigOptions({ client: directViewerClient })
 )
 
-const queryKey = getDesktopViewerApiV4ItemDesktopTokenTokenGetViewerGetQueryKey({
+const queryKey = getDesktopViewerByTokenQueryKey({
   path: { token: token.value }
 })
 const { isConnected, connect: connectSocket } = useDirectViewerSocket(token, queryClient, queryKey)
@@ -81,8 +82,12 @@ watch(
     directViewerClient.setConfig({
       headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined
     })
-    if (jwt && !isConnected.value) {
-      connectSocket(jwt)
+    if (jwt) {
+      // noVNC reads `viewerToken` from document.cookie and uses it as the websocket security token (docker/static/noVNC/index.html: getCookie("viewerToken")). Without it the wss URL ends in `null` and websockify closes the connection.
+      cookies.set('viewerToken', jwt, VIEWER_COOKIE_OPTS)
+      if (!isConnected.value) {
+        connectSocket(jwt)
+      }
     }
   },
   { immediate: true }
@@ -169,11 +174,16 @@ const notificationText = computed<string | null>(() => {
 
 const showNetworkOverlay = ref(false)
 
+const logoSrc = ref('/custom/logo.svg')
+const handleLogoError = () => {
+  logoSrc.value = LogoSvg
+}
+
 const showResetModal = ref(false)
 
 const { mutate: resetDesktop, isPending: isResetting } = useMutation({
   mutationFn: async () => {
-    const { data, error } = await resetDesktopApiV4ItemDesktopTokenTokenResetDesktopPut({
+    const { data, error } = await resetDesktopRequest({
       path: { token: token.value },
       client: directViewerClient
     })
@@ -231,10 +241,13 @@ const openViewer = (viewerId: string) => {
   } else if (viewerId === 'browser-rdp' && (viewers as any)[rawKey]) {
     const viewer = (viewers as any)[rawKey]
     if (viewer.cookie) {
-      cookies.set('browser_viewer', viewer.cookie)
+      cookies.set('browser_viewer', viewer.cookie, VIEWER_COOKIE_OPTS)
     }
     if (viewer.viewer) {
-      window.open(viewer.viewer, '_blank')
+      // `direct=1` flips noVNC's cookie precedence to `viewerToken` (no session cookie exists in the direct-viewer flow).
+      const url = new URL(viewer.viewer, window.location.origin)
+      url.searchParams.set('direct', '1')
+      window.open(url.toString(), '_blank')
     }
   } else if (viewerId === 'file-spice' && viewers['file-spice']) {
     const viewer = viewers['file-spice']
@@ -264,7 +277,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       <h1 class="text-display-xs font-semibold text-gray-warm-900">
         {{ t('views.direct-viewer.title') }}
       </h1>
-      <img :src="'/custom/logo.svg'" alt="IsardVDI logo" class="h-[40px]" />
+      <img :src="logoSrc" alt="IsardVDI logo" class="h-[40px]" @error="handleLogoError" />
     </header>
     <main class="flex-1 flex flex-col items-center px-8 py-10">
       <div class="w-full max-w-[640px] flex flex-col gap-6">
@@ -331,8 +344,8 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
           />
           <DesktopCardBase
             desktop-kind="nonpersistent"
-            :image-url="(desktopViewer as any).image?.url ?? ''"
-            :show-network-overlay="showNetworkOverlay"
+            :image-url="desktopViewer.image?.url ?? ''"
+            :show-overlay="showNetworkOverlay"
           >
             <template #header-actions>
               <Button
@@ -349,7 +362,7 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
               <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
             </template>
 
-            <template #networks>
+            <template #overlay>
               <DesktopCardNetworksOverlay
                 :desktop-id="desktopViewer.id"
                 :direct-viewer-token="token"

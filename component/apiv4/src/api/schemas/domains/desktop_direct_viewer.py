@@ -22,7 +22,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal, Optional, Union
 
-from isardvdi_common.schemas.domains import DesktopStatusEnum
+from isardvdi_common.schemas.domains import DesktopStatusEnum, Image
 from pydantic import BaseModel, Field
 
 
@@ -162,6 +162,10 @@ class DesktopViewerResponse(BaseModel):
     )
     viewers: ViewersModel = Field(
         description="List of available viewers for the desktop.",
+    )
+    image: Optional[Image] = Field(
+        default=None,
+        description="Desktop image (stock id or uploaded URL) used by the card.",
     )
     needs_booking: Optional[bool] = Field(
         default=False,
