@@ -789,7 +789,11 @@
     },
     "direct-viewer": {
       "title": "Visor directo",
-      "connecting-to": "Conectando al siguiente escritorio",
+      "connecting-to": "Access the desktop",
+      "loading": {
+        "title": "Loading desktop",
+        "description": "The desktop is being prepared, this might take a few moments"
+      },
       "error-title": "No se ha podido conectar",
       "error-description": "El enlace del visor directo no es válido o ha caducado.",
       "reset-modal": {
@@ -797,7 +801,9 @@
         "description": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor.",
         "confirm": "Forzar reinicio del escritorio",
         "cancel": "Cancelar"
-      }
+      },
+      "hardware-summary": "Hardware summary",
+      "access-summary": "Access summary"
     }
   },
   "layouts": {

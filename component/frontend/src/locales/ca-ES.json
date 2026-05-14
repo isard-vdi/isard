@@ -699,7 +699,11 @@
     },
     "direct-viewer": {
       "title": "Visor directe",
-      "connecting-to": "Connectant al següent escriptori",
+      "connecting-to": "Accedeix a l'escriptori",
+      "loading": {
+        "title": "Carregant l'escriptori",
+        "description": "L'escriptori s'està preparant, això pot trigar uns moments"
+      },
       "error-title": "No s'ha pogut connectar",
       "error-description": "L'enllaç del visor directe no és vàlid o ha caducat.",
       "reset-modal": {
@@ -707,7 +711,9 @@
         "description": "Forçar el reinici de l'escriptori es una acció perillosa. És l'equivalent a treure-li la corrent mentres està en marxa. Si pots, atura'l desde dins d'un visor.",
         "confirm": "Forçar reinici de l'escriptori",
         "cancel": "Cancel·la"
-      }
+      },
+      "hardware-summary": "Resum del maquinari",
+      "access-summary": "Resum d'accés"
     },
     "edit-desktop": {
       "title": "Edita l’escriptori",

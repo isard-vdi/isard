@@ -681,6 +681,11 @@ class DesktopService:
         return DesktopService.get_desktop_networks(desktop_id)
 
     @staticmethod
+    def get_desktop_details_from_token(token: str) -> dict:
+        desktop_id = DesktopDirectViewer.get_desktop_from_token(token)["id"]
+        return DesktopService.get_desktop_details(desktop_id)
+
+    @staticmethod
     def start_desktop_from_token(token, request):
         return DesktopDirectViewer.start_desktop(token, request)
 

@@ -11,7 +11,11 @@ import {
   getDesktopViewerByTokenQueryKey,
   apiV4LoginConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { resetDesktop as resetDesktopRequest, type ViewersModel } from '@/gen/oas/apiv4'
+import {
+  resetDesktop as resetDesktopRequest,
+  type DesktopDetailsResponse,
+  type ViewersModel
+} from '@/gen/oas/apiv4'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4/types.gen'
 import { createClient, createConfig } from '@/gen/oas/apiv4/client'
 
@@ -35,8 +39,11 @@ import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { Icon } from '@/components/icon'
 import { LoginNotification } from '@/components/login'
 import { ChangeViewerModal } from '@/components/modal'
-import { Skeleton } from '@/components/ui/skeleton'
+import { DesktopCardSkeleton } from '@/components/desktop-card'
+import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
 import LogoSvg from '@/assets/logo.svg?url'
+import Separator from '@/components/ui/separator/Separator.vue'
+import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
 
 const { t, d } = useI18n()
 const route = useRoute()
@@ -68,14 +75,44 @@ const {
   enabled: !!token.value
 })
 
-const { data: loginConfig } = useQuery(
-  apiV4LoginConfigOptions({ client: directViewerClient })
-)
+const { data: loginConfig } = useQuery(apiV4LoginConfigOptions({ client: directViewerClient }))
 
 const queryKey = getDesktopViewerByTokenQueryKey({
   path: { token: token.value }
 })
 const { isConnected, connect: connectSocket } = useDirectViewerSocket(token, queryClient, queryKey)
+
+// Desktop details (hardware) are fetched separately so the user can
+// see what they're about to launch while the viewer page is still
+// booting. The endpoint lives on `direct_viewer_router` and needs the
+// viewer JWT, so the query stays disabled until `directViewerClient`
+// has its Authorization header set in the watch below.
+const viewerJwt = ref<string | undefined>(undefined)
+const { data: desktopDetails, isPending: isDetailsPending } = useQuery<DesktopDetailsResponse>({
+  queryKey: ['direct-viewer-details', token],
+  enabled: computed(() => !!viewerJwt.value),
+  queryFn: async () => {
+    const { data, error } = await directViewerClient.get<DesktopDetailsResponse>({
+      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/get-details`
+    })
+    if (error) throw error
+    return data as DesktopDetailsResponse
+  }
+})
+
+const hardwareBootOrder = computed(() => desktopDetails.value?.boot_order?.map((b) => b.name))
+const hardwareVideos = computed(() => desktopDetails.value?.videos?.map((v) => v.name))
+const hardwareIsos = computed(() => desktopDetails.value?.isos?.map((m) => m.name))
+const hardwareFloppies = computed(() => desktopDetails.value?.floppies?.map((m) => m.name))
+const hardwareInterfaces = computed(() => desktopDetails.value?.interfaces?.map((n) => n.name))
+const hardwareDiskSize = computed(() => desktopDetails.value?.disks?.[0]?.size)
+const hardwareVgpus = computed(() => desktopDetails.value?.reservables?.vgpus ?? null)
+const hardwareViewers = computed(() => desktopDetails.value?.viewers ?? [])
+const hardwareFullscreen = computed(() => desktopDetails.value?.fullscreen ?? false)
+const hardwareCredentials = computed(() => ({
+  username: desktopDetails.value?.credentials?.username ?? 'isard',
+  password: desktopDetails.value?.credentials?.password ?? 'pirineus'
+}))
 
 watch(
   () => desktopViewer.value?.jwt,
@@ -83,6 +120,7 @@ watch(
     directViewerClient.setConfig({
       headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined
     })
+    viewerJwt.value = jwt
     if (jwt) {
       // noVNC reads `viewerToken` from document.cookie and uses it as the websocket security token (docker/static/noVNC/index.html: getCookie("viewerToken")). Without it the wss URL ends in `null` and websockify closes the connection.
       cookies.set('viewerToken', jwt, VIEWER_COOKIE_OPTS)
@@ -264,44 +302,53 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       </h1>
       <img :src="logoSrc" alt="IsardVDI logo" class="h-[40px]" @error="handleLogoError" />
     </header>
-    <main class="flex-1 flex flex-col items-center px-8 py-10">
-      <div class="w-full max-w-[640px] flex flex-col gap-6">
+    <main class="flex-1 flex flex-col items-center justify-center px-2">
+      <div class="w-full grid place-items-center">
         <template v-if="isPending">
-          <div class="flex flex-col gap-1">
-            <p class="text-md text-gray-warm-600">
-              {{ t('views.direct-viewer.connecting-to') }}
-            </p>
-            <Skeleton class="h-7 w-48" />
-          </div>
-
-          <div class="flex flex-col gap-4 rounded-lg border border-gray-warm-200 bg-base-white p-5">
-            <div class="flex flex-col gap-3">
-              <Skeleton class="h-5 w-40" />
-              <Skeleton class="h-4 w-64" />
+          <div class="flex flex-col">
+            <div class="flex flex-col gap-2.5 items-center animate-pulse">
+              <div class="h-5 w-48 rounded-md bg-gray-warm-200"></div>
+              <div class="h-9 w-72 rounded-md bg-gray-warm-200"></div>
             </div>
-            <div class="border-t border-gray-warm-200" />
-            <div class="flex flex-col gap-2">
-              <Skeleton class="h-4 w-32" />
-              <div class="flex gap-2">
-                <Skeleton class="h-6 w-16 rounded-md" />
-                <Skeleton class="h-6 w-16 rounded-md" />
+            <Separator class="pt-4 pb-5" />
+            <div class="flex gap-10 items-start">
+              <div>
+                <DesktopCardSkeleton variant="started" class="shadow-md h-[310px] w-[433px]" />
               </div>
-            </div>
-            <div class="border-t border-gray-warm-200" />
-            <div class="flex items-center gap-2">
-              <Skeleton class="h-4 w-4 rounded-full" />
-              <Skeleton class="h-4 w-24" />
+              <div class="flex flex-col gap-10 max-w-[700px]">
+                <section
+                  class="p-5 rounded-md border border-gray-warm-200 shadow-md flex flex-col gap-7"
+                >
+                  <div>
+                    <div class="flex items-center gap-3 mb-3.5">
+                      <div class="w-1.5 h-4 rounded-full bg-brand-700"></div>
+                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
+                        {{ t('views.direct-viewer.access-summary') }}
+                      </h3>
+                    </div>
+                    <DomainAccessSummary
+                      :loading="true"
+                      :credentials="{ username: '', password: '' }"
+                      :fullscreen="false"
+                      :viewers="[]"
+                    />
+                  </div>
+                  <Separator />
+                  <div>
+                    <div class="flex items-center gap-3 mb-3.5">
+                      <div class="w-1.5 h-4 rounded-full bg-brand-700"></div>
+                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
+                        {{ t('views.direct-viewer.hardware-summary') }}
+                      </h3>
+                    </div>
+                    <DomainHardwareSummary :loading="true" />
+                  </div>
+                </section>
+              </div>
             </div>
           </div>
         </template>
         <template v-else-if="isError">
-          <div class="flex flex-col gap-1">
-            <p class="text-md text-gray-warm-600">
-              {{ t('views.direct-viewer.connecting-to') }}
-            </p>
-            <p class="text-display-xs font-semibold text-gray-warm-900">—</p>
-          </div>
-
           <div
             class="flex flex-col items-center gap-3 rounded-lg p-8 border border-error-300 bg-error-25"
           >
@@ -315,88 +362,144 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
           </div>
         </template>
         <template v-else-if="desktopViewer">
-          <div class="flex flex-col gap-1">
-            <p class="text-md text-gray-warm-600">
-              {{ t('views.direct-viewer.connecting-to') }}
-            </p>
-            <p class="text-display-xs font-semibold text-gray-warm-900">
-              {{ desktopViewer.name }}
-            </p>
-          </div>
-          <LoginNotification
-            v-if="loginConfig?.notification_cover?.enabled"
-            :config="loginConfig.notification_cover"
-          />
-          <DesktopCardBase
-            desktop-kind="nonpersistent"
-            :image-url="desktopViewer.image?.url ?? ''"
-            :show-overlay="showNetworkOverlay"
-          >
-            <template #header-actions>
-              <Button
-                hierarchy="link-gray"
-                size="sm"
-                class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
-                icon="modem-02"
-                icon-stroke-color="base-white"
-                @click="showNetworkOverlay = !showNetworkOverlay"
-              />
-            </template>
-
-            <template #ip>
-              <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
-            </template>
-
-            <template #overlay>
-              <DesktopCardNetworksOverlay
-                :desktop-id="desktopViewer.id"
-                :direct-viewer-token="token"
-                :direct-viewer-client="directViewerClient"
-                :full-height="!(notificationText && desktopViewer.description?.trim().length !== 0)"
-              />
-            </template>
-
-            <template #header>
-              <DesktopCardHeader
-                :notification-text="notificationText"
-                :name="desktopViewer.name"
-                :description="desktopViewer.description || ''"
-              />
-            </template>
-
-            <template #footer>
-              <DesktopCardFooter
-                :main-button-data="mainButtonData"
-                :desktop-status="desktopViewer.status"
-                :desktop-viewers="[]"
-                :desktop-ip="null"
-                :preferred-viewer="selectedViewerId"
-                @main-button-click="handleDesktopAction(mainButtonData.actionButton!.action)"
-              />
-              <ButtonGroup v-if="viewerIds.length > 0" class="ml-auto min-w-0">
-                <Button
-                  class="min-w-0 overflow-hidden"
-                  :icon="activeViewerLoading ? 'loading-02' : ''"
-                  :icon-class="
-                    activeViewerLoading ? 'motion-safe:animate-[spin_2s_linear_infinite]' : ''
-                  "
-                  :disabled="activeViewerLoading"
-                  @click="openViewer(activeViewer!)"
+          <div class="flex flex-col">
+            <div class="flex flex-col gap-1.5 items-center">
+              <p class="text-display-sm text-left font-light text-brand-700">
+                {{ t('views.direct-viewer.connecting-to') }}
+              </p>
+              <h2 class="text-display-md text-left font-semibold text-brand-700">
+                {{ desktopViewer.name }}
+              </h2>
+            </div>
+            <Separator class="pt-4 pb-5" />
+            <div class="flex gap-10 items-start">
+              <div>
+                <LoginNotification
+                  v-if="loginConfig?.notification_cover?.enabled"
+                  :config="loginConfig.notification_cover"
+                />
+                <div class="self-center">
+                  <DesktopCardBase
+                    desktop-kind="nonpersistent"
+                    :image-url="desktopViewer.image?.url ?? ''"
+                    :show-overlay="showNetworkOverlay"
+                    class="shadow-md"
+                  >
+                    <template #header-actions>
+                      <Button
+                        hierarchy="link-gray"
+                        size="sm"
+                        class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
+                        icon="modem-02"
+                        icon-stroke-color="base-white"
+                        @click="showNetworkOverlay = !showNetworkOverlay"
+                      />
+                    </template>
+                    <template #ip>
+                      <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
+                    </template>
+                    <template #overlay>
+                      <div class="z-10 pl-[40px] pr-3 pb-2">
+                        <DesktopCardNetworksOverlay
+                          :desktop-id="desktopViewer.id"
+                          :direct-viewer-token="token"
+                          :direct-viewer-client="directViewerClient"
+                          :full-height="
+                            !(notificationText && desktopViewer.description?.trim().length !== 0)
+                          "
+                        />
+                      </div>
+                    </template>
+                    <template #header>
+                      <DesktopCardHeader
+                        :notification-text="notificationText"
+                        :name="desktopViewer.name"
+                        :description="desktopViewer.description || ''"
+                      />
+                    </template>
+                    <template #footer>
+                      <DesktopCardFooter
+                        :main-button-data="mainButtonData"
+                        :desktop-status="desktopViewer.status"
+                        :desktop-viewers="[]"
+                        :desktop-ip="null"
+                        :preferred-viewer="selectedViewerId"
+                        @main-button-click="
+                          handleDesktopAction(mainButtonData.actionButton!.action)
+                        "
+                      />
+                      <ButtonGroup v-if="viewerIds.length > 0" class="ml-auto min-w-0">
+                        <Button
+                          class="min-w-0 overflow-hidden"
+                          :icon="activeViewerLoading ? 'loading-02' : ''"
+                          :icon-class="
+                            activeViewerLoading
+                              ? 'motion-safe:animate-[spin_2s_linear_infinite]'
+                              : ''
+                          "
+                          :disabled="activeViewerLoading"
+                          @click="openViewer(activeViewer!)"
+                        >
+                          <span class="min-w-0 truncate">{{ activeViewerLabel }}</span>
+                        </Button>
+                        <template v-if="viewerIds.length > 1">
+                          <ButtonGroupSeparator color="brand-800" />
+                          <Button
+                            icon="settings-02"
+                            class="rounded-l-none"
+                            :aria-label="t('views.direct-viewer.select-viewer')"
+                            @click="isViewerChangeModalOpen = true"
+                          />
+                        </template>
+                      </ButtonGroup>
+                    </template>
+                  </DesktopCardBase>
+                </div>
+              </div>
+              <div class="flex flex-col gap-10 max-w-[700px]">
+                <section
+                  class="bg-gray-warm-50 p-5 rounded-md border border-gray-warm-200 shadow-md flex flex-col gap-7"
                 >
-                  <span class="min-w-0 truncate">{{ activeViewerLabel }}</span>
-                </Button>
-                <template v-if="viewerIds.length > 1">
-                  <ButtonGroupSeparator color="brand-800" />
-                  <Button
-                    icon="settings-02"
-                    class="rounded-l-none"
-                    :aria-label="t('views.direct-viewer.select-viewer')"
-                    @click="isViewerChangeModalOpen = true"
-                  />
-                </template>
-              </ButtonGroup>
-            </template>
-          </DesktopCardBase>
+                  <div>
+                    <div class="flex items-center gap-3 mb-3.5">
+                      <div class="w-1.5 h-4 rounded-full bg-brand-700 self-stretch"></div>
+                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
+                        {{ t('views.direct-viewer.access-summary') }}
+                      </h3>
+                    </div>
+                    <DomainAccessSummary
+                      :credentials="hardwareCredentials"
+                      :fullscreen="hardwareFullscreen"
+                      :viewers="hardwareViewers"
+                      :loading="isDetailsPending"
+                    />
+                  </div>
+                  <Separator />
+                  <div>
+                    <div class="flex items-center gap-3 mb-3.5">
+                      <div class="w-1.5 h-4 rounded-full bg-brand-700 self-stretch"></div>
+                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
+                        {{ t('views.direct-viewer.hardware-summary') }}
+                      </h3>
+                    </div>
+                    <DomainHardwareSummary
+                      :vcpu="desktopDetails?.vcpu"
+                      :memory="desktopDetails?.memory"
+                      :disk-bus="desktopDetails?.disk_bus"
+                      :disk-size="hardwareDiskSize"
+                      :boot-order="hardwareBootOrder"
+                      :videos="hardwareVideos"
+                      :isos="hardwareIsos"
+                      :floppies="hardwareFloppies"
+                      :vgpus="hardwareVgpus"
+                      :interfaces="hardwareInterfaces"
+                      :loading="isDetailsPending"
+                    />
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
         </template>
       </div>
     </main>
@@ -407,18 +510,13 @@ const downloadFile = (name: string, ext: string, mime: string, content: string) 
       @close="isViewerChangeModalOpen = false"
       @change="(id) => (selectedViewerId = id)"
     />
-    <div
-      class="absolute bottom-0 left-0 right-0 top-0 -z-10 select-none flex flex-col justify-center items-center pointer-events-none"
-    >
-      <img src="@/assets/img/bg-dots.svg" class="size-200 opacity-60" />
-    </div>
     <img
       src="@/assets/img/mountains.svg"
       class="fixed bottom-0 right-0 -z-10 select-none pointer-events-none"
     />
     <img
       src="@/assets/img/clouds.svg"
-      class="absolute top-20 left-10 md:left-32 -z-10 select-none pointer-events-none"
+      class="absolute hidden lg:block top-20 lg:left-0 xl:left-10 -z-10 select-none pointer-events-none"
     />
 
     <AlertModal

@@ -73,7 +73,6 @@ const networksIsError = computed(() => active.value.isError.value)
 const networksError = computed(() => active.value.error.value)
 const networks = computed(() => active.value.data.value)
 
-
 // Wireguard ALWAYS shown first when present so users with many networks
 // still see the IP at a glance — the +N overflow then covers the rest.
 const sortedNetworks = computed(() => {
