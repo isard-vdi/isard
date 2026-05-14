@@ -121,6 +121,59 @@ class TestGetTable:
         response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
         assert response.status_code == 500
 
+    def test_non_utf8_bytes_do_not_500(self, monkeypatch, test_client):
+        """RethinkDB rows can carry ``bytes`` values with non-UTF8 content
+        (observed 0xb5 = µ in latin-1 on the domains table during 2026-05-14
+        load tests). ``TableItem(**row).model_dump(mode="json")`` 500'd the
+        whole admin DataTables page; ``_sanitize_bytes`` at the route
+        boundary decodes with errors="replace" so the row still surfaces.
+        """
+
+        def fake_get(table, payload, options):
+            return [{"id": "dom-1", "description": b"\xb5 binary blob"}]
+
+        monkeypatch.setattr(
+            "api.routes.admin.tables.AdminTablesService.get_table",
+            staticmethod(fake_get),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        body = response.json()
+        assert body[0]["id"] == "dom-1"
+        # 0xb5 is not valid UTF-8 — decoded with errors="replace" so it
+        # surfaces as U+FFFD (replacement character) instead of vanishing.
+        assert "�" in body[0]["description"]
+        assert "binary blob" in body[0]["description"]
+
+    def test_nested_bytes_in_dict_are_sanitized(self, monkeypatch, test_client):
+        """Nested dicts/lists carrying bytes must also be decoded. The
+        sanitizer recurses so a binary blob inside ``hardware.disks[0]``
+        doesn't 500 the row."""
+
+        def fake_get(table, payload, options):
+            return [
+                {
+                    "id": "dom-1",
+                    "hardware": {
+                        "disks": [{"path": b"/isard/templates/\xb5.qcow2"}],
+                    },
+                }
+            ]
+
+        monkeypatch.setattr(
+            "api.routes.admin.tables.AdminTablesService.get_table",
+            staticmethod(fake_get),
+        )
+        response = test_client(url=self.URL, jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        # TableItem(extra="allow") preserves the nested shape; the leaf
+        # bytes value was decoded before serialization.
+        body = response.json()
+        nested = body[0]["hardware"]["disks"][0]["path"]
+        assert "�" in nested
+        assert "/isard/templates/" in nested
+        assert ".qcow2" in nested
+
 
 # ══════════════════════════════════════════════════════════════════════════
 #  POST /admin/table/{table}  (manager_router) — filter + list

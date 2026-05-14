@@ -33,6 +33,27 @@ from fastapi.responses import JSONResponse, Response
 tag = "admin_tables"
 
 
+def _sanitize_bytes(obj):
+    """Recursively decode bytes values to str so Pydantic's JSON
+    serializer doesn't choke on non-UTF8.
+
+    ``TableItem`` is ``extra=allow`` (per-table fields vary) and any
+    upstream RethinkDB driver bug or stored binary column can carry a
+    bytes value with a non-UTF8 byte — observed `0xb5` (`µ` in
+    latin-1) on the ``domains`` table during 2026-05-14 load tests.
+    ``model_dump(mode="json")`` then 500s the whole admin DataTables
+    page. Replace invalid bytes rather than drop them so the field
+    still surfaces (admins can identify and clean the row).
+    """
+    if isinstance(obj, bytes):
+        return obj.decode("utf-8", errors="replace")
+    if isinstance(obj, dict):
+        return {k: _sanitize_bytes(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_bytes(x) for x in obj]
+    return obj
+
+
 @manager_router.get(
     "/admin/table/{table}",
     tags=[tag],
@@ -55,6 +76,7 @@ async def admin_table_get(
         result = await asyncio.to_thread(
             AdminTablesService.get_table, table, request.token_payload, options
         )
+        result = _sanitize_bytes(result)
         if isinstance(result, list):
             return JSONResponse(
                 content=[TableItem(**row).model_dump(mode="json") for row in result],
@@ -98,6 +120,7 @@ async def admin_table_list(
         result = await asyncio.to_thread(
             AdminTablesService.get_table, table, request.token_payload, options
         )
+        result = _sanitize_bytes(result)
         if isinstance(result, list):
             return JSONResponse(
                 content=[TableItem(**row).model_dump(mode="json") for row in result],

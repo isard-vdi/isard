@@ -346,8 +346,20 @@ async def stats_categories_kind(request: Request, kind: Literal["desktop", "temp
 async def stats_users(request: Request):
     try:
         result = await asyncio.to_thread(AdminStatsService.get_kind, "users")
+        # ``role``/``category``/``group`` are ``Optional[str]`` so the
+        # Pydantic schema accepts orphan rows whose user document was
+        # deleted but whose vpn config still exists (see the schema
+        # comment in api/schemas/admin/stats.py). Serialising them as
+        # `"role": null` makes the Go stats-go collector's ogen-
+        # generated `OptString.Decode` fail with `unexpected byte 110
+        # 'n'` because ogen's `OptString` only handles "absent" vs
+        # "present", not "null". Omit None fields so the wire shape
+        # matches what `OptString` can decode.
         return JSONResponse(
-            content=[StatsKindUser(**u).model_dump(mode="json") for u in result],
+            content=[
+                StatsKindUser(**u).model_dump(mode="json", exclude_none=True)
+                for u in result
+            ],
             status_code=200,
         )
     except Error:
