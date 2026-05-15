@@ -100,7 +100,9 @@ class UsersProcessed(RethinkSharedConnection):
 
         query = query.merge(
             {
-                "category_name": r.table("categories").get(r.row["category"])["name"],
+                "category_name": r.table("categories")
+                .get(r.row["category"])
+                .default({"name": "[deleted]"})["name"],
                 "photo": r.branch(r.row.has_fields("photo"), r.row["photo"], ""),
             }
         ).pluck("id", "name", "category", "category_name", "photo", "accessed")
@@ -859,9 +861,9 @@ class UsersProcessed(RethinkSharedConnection):
                             )
                             .pluck("id", "name", "category_name")
                             .coerce_to("array"),
-                            "parent_category_name": r.table("categories").get(
-                                group["parent_category"]
-                            )["name"],
+                            "parent_category_name": r.table("categories")
+                            .get(group["parent_category"])
+                            .default({"name": "[deleted]"})["name"],
                         }
                     )
                 )
@@ -924,9 +926,9 @@ class UsersProcessed(RethinkSharedConnection):
                             .get_all(r.args(group["linked_groups"].default([])))
                             .pluck("id", "name")
                             .coerce_to("array"),
-                            "parent_category_name": r.table("categories").get(
-                                group["parent_category"]
-                            )["name"],
+                            "parent_category_name": r.table("categories")
+                            .get(group["parent_category"])
+                            .default({"name": "[deleted]"})["name"],
                             "media_size": (
                                 r.table("media")
                                 .get_all(group["id"], index="group")

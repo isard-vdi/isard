@@ -36,6 +36,7 @@ from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.analytics import AdminAnalyticsService
 from api.services.error import Error
 from fastapi import Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response
 
 tag = "admin_analytics"
@@ -172,7 +173,7 @@ async def analytics_graphs_conf_list(request: Request):
     try:
         result = await asyncio.to_thread(AdminAnalyticsService.get_usage_graphs_conf)
         # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
     except Error:
         raise
     except Exception:
@@ -322,7 +323,7 @@ async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsR
             data.status or False,
         )
         # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
     except Error:
         raise
     except Exception:
@@ -354,7 +355,7 @@ async def analytics_desktops_recently_used(
             data.status or False,
         )
         # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
     except Error:
         raise
     except Exception:
@@ -384,7 +385,7 @@ async def analytics_desktops_most_used(request: Request, data: DesktopAnalyticsR
             data.status or False,
         )
         # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
     except Error:
         raise
     except Exception:
@@ -475,7 +476,7 @@ async def admin_echart(
                 data.group_field,
             )
         # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(content=jsonable_encoder(result or []), status_code=200)
     except Error:
         raise
     except Exception:
