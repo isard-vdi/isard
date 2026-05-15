@@ -7181,40 +7181,56 @@ password:s:%s"""
         log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
         if version == 162:
             try:
-                r.table(table).insert(
-                    {
-                        "name": "default",
-                        "op": "send_unused_deployments_to_recycle_bin",
-                        "description": "Keep only the deployments that desktops that have been used in the last selected cutoff time. Send the rest of unused deployments to recycle bin automatically.",
-                        "allowed": {
-                            "roles": [],  ## Matches all
-                            "categories": False,
-                            "groups": False,
-                            "users": False,
-                        },
-                        "priority": 0,
-                        "cutoff_time": None,
-                    }
-                ).run(self.conn)
+                op = "send_unused_deployments_to_recycle_bin"
+                exists = (
+                    r.table(table)
+                    .filter({"name": "default", "op": op})
+                    .count()
+                    .run(self.conn)
+                )
+                if not exists:
+                    r.table(table).insert(
+                        {
+                            "name": "default",
+                            "op": op,
+                            "description": "Keep only the deployments that desktops that have been used in the last selected cutoff time. Send the rest of unused deployments to recycle bin automatically.",
+                            "allowed": {
+                                "roles": [],  ## Matches all
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                            "priority": 0,
+                            "cutoff_time": None,
+                        }
+                    ).run(self.conn)
             except Exception as e:
                 print(e)
         if version == 193:
             try:
-                r.table(table).insert(
-                    {
-                        "name": "default",
-                        "op": "send_unused_deployment_desktops_to_recycle_bin",
-                        "description": "Trim cold desktops belonging to deployments without removing the parent deployment. Rule is matched against the deployment creator.",
-                        "allowed": {
-                            "roles": [],  ## Matches all
-                            "categories": False,
-                            "groups": False,
-                            "users": False,
-                        },
-                        "priority": 0,
-                        "cutoff_time": None,
-                    }
-                ).run(self.conn)
+                op = "send_unused_deployment_desktops_to_recycle_bin"
+                exists = (
+                    r.table(table)
+                    .filter({"name": "default", "op": op})
+                    .count()
+                    .run(self.conn)
+                )
+                if not exists:
+                    r.table(table).insert(
+                        {
+                            "name": "default",
+                            "op": op,
+                            "description": "Trim cold desktops belonging to deployments without removing the parent deployment. Rule is matched against the deployment creator.",
+                            "allowed": {
+                                "roles": [],  ## Matches all
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                            "priority": 0,
+                            "cutoff_time": None,
+                        }
+                    ).run(self.conn)
             except Exception as e:
                 print(e)
         return True
