@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 go build -o bin/rdpgw cmd/rdpgw/main.go
 #
 # VPN
 #
-FROM alpine:3.22.0 as production
+FROM alpine:3.22 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
