@@ -253,11 +253,7 @@ class DesktopService:
         # the apiv4 MediaHardware schema receives memory in GB.
         if "memory" in hardware:
             hardware["memory"] = int(hardware["memory"] * 1048576)
-        reservables = (
-            data.reservables.model_dump(exclude_unset=True)
-            if hasattr(data, "reservables") and data.reservables
-            else {}
-        )
+        reservables = hardware.pop("reservables", None) or {}
         # Vue 3 ships ``vgpus: ["None"]`` (the literal string list)
         # to clear the GPU reservable. Coerce here so the booking
         # layer doesn't treat ``["None"]`` as a real reservable
