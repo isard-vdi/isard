@@ -621,6 +621,12 @@ class hyp(object):
                         "sleep 2",
                     ]
                 )
+            elif old_profile:
+                # vGPU mode with active SR-IOV VFs: nvidia-smi -mig 1 rejects
+                # the PF while any VF is bound, so tear them down first.
+                # sriov-manage handles the unbind/sriov_numvfs=0 dance the
+                # nvidia driver requires.
+                cmds.append(f"sriov-manage -d {pci_bdf} 2>/dev/null || true")
             cmds.extend(
                 [
                     f"nvidia-smi -i {pci_bdf} -mig 1",
@@ -642,6 +648,11 @@ class hyp(object):
                 f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
                 "sleep 2",
             ]
+            if new_profile != "passthrough":
+                # Restore SR-IOV VFs for vGPU mode. For passthrough the caller
+                # (change_vgpu_profile) tears VFs down again and rebinds to
+                # vfio-pci, so re-enabling here would be wasted work.
+                cmds.append(f"sriov-manage -e {pci_bdf} 2>/dev/null || true")
         else:
             # Should not happen — caller should not route here
             logs.main.error(
