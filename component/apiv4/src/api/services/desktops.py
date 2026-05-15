@@ -70,6 +70,7 @@ from isardvdi_common.models.targets import Targets as RethinkTargets
 from isardvdi_common.models.user import User as RethinkUser
 from isardvdi_common.models.videos import Video as RethinkVideos
 from isardvdi_common.schemas.domains import DesktopStatusEnum
+from isardvdi_common.schemas.media import MediaStatusEnum
 
 # Short TTL coalesces accidental double-clicks on the desktop card "View"
 # button. Each .vv download spawns a virt-viewer that opens a fresh SPICE
@@ -263,6 +264,12 @@ class DesktopService:
 
         user = RethinkUser(user_id)
         media = RethinkMedia(data.media_id)
+        if media.status != MediaStatusEnum.downloaded.value:
+            raise Error(
+                "bad_request",
+                f"Media with ID {data.media_id} is not downloaded.",
+                description_code="media_not_downloaded",
+            )
 
         if data.kind == "iso":
             if "isos" not in hardware:
