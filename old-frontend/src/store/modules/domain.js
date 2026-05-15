@@ -119,7 +119,7 @@ export default {
       return state.mediaInstalls
     },
     getMediaInstallsLoaded: state => {
-      return state.mediaInstalls
+      return state.mediaInstallsLoaded
     },
     getBastion: state => {
       return state.bastion
@@ -180,7 +180,12 @@ export default {
       state.domain.OSTemplateId = selectedOSTemplateId
     },
     setMediaInstalls: (state, installs) => {
-      state.mediaInstalls = installs
+      state.mediaInstalls = (installs || []).map((install) => ({
+        ...install,
+        // Vue2 table renders the version column from ``version``.
+        // APIv4 installs endpoint returns ``vers``.
+        version: install.version ?? install.vers ?? ''
+      }))
       state.mediaInstallsLoaded = true
     },
     changeVideos: (state, videos) => {
@@ -289,8 +294,14 @@ export default {
     },
     fetchMediaInstalls ({ commit }) {
       axios.get(`${apiV3Segment}/items/media/installs`).then(response => {
+        // Backward-compatible parsing:
+        // - legacy shape: [ {...}, ... ]
+        // - current shape: { installs: [ {...}, ... ] }
+        const installs = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.installs || [])
         commit(
-          'setMediaInstalls', response.data, ['desc']
+          'setMediaInstalls', installs
         )
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

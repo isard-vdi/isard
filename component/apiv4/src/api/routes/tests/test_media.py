@@ -440,44 +440,31 @@ def test_get_media_desktops(test_client, media_db_factory):
 def test_list_media_installs(monkeypatch, test_client):
     """GET /items/media/installs returns the virt_install table plucked
     to the v3 wire shape (id, name, description, vers) and sorted by
-    name. Replaces v3_compat /media/installs."""
+    name. Replaces v3_compat /media/installs. The list_virt_installs
+    helper in _common does the pluck + sort server-side via the
+    rethink query; the route wraps it in the VirtInstallListResponse
+    envelope."""
     jwt = MockJWT()
+    # Helper returns rows already plucked + sorted by name. Rows may or
+    # may not carry ``vers``; the schema's default fills "" when absent.
     stub = [
-        {"id": "vi-1", "name": "ubuntu-24.04", "description": "Ubuntu LTS"},
         {"id": "vi-2", "name": "debian-12", "description": "Debian bookworm"},
+        {"id": "vi-1", "name": "ubuntu-24.04", "description": "Ubuntu LTS"},
     ]
-    captured = {}
-
-    def fake_get_table(table, payload, options):
-        captured["table"] = table
-        captured["options"] = options
-        return stub
 
     monkeypatch.setattr(
-        "api.services.admin.tables.AdminTablesService.get_table",
-        staticmethod(fake_get_table),
+        "isardvdi_common.lib.domains.xml_sections.XmlSectionsProcessed.list_virt_installs",
+        staticmethod(lambda: stub),
     )
 
     response = test_client(url="/items/media/installs", jwt=jwt)
 
     assert response.status_code == 200
-    # Plucked + sorted by name. ``vers`` defaults to None when the
-    # underlying row doesn't carry it.
-    assert response.json() == [
-        {
-            "id": "vi-2",
-            "name": "debian-12",
-            "description": "Debian bookworm",
-            "vers": None,
-        },
-        {
-            "id": "vi-1",
-            "name": "ubuntu-24.04",
-            "description": "Ubuntu LTS",
-            "vers": None,
-        },
-    ]
-    assert captured["table"] == "virt_install"
+    body = response.json()
+    assert set(body.keys()) == {"installs"}
+    installs = body["installs"]
+    assert [row["name"] for row in installs] == ["debian-12", "ubuntu-24.04"]
+    assert all(row["vers"] == "" for row in installs)
 
 
 def test_list_desktop_attached_media(monkeypatch, test_client):

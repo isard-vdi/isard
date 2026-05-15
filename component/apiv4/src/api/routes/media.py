@@ -36,6 +36,7 @@ from api.schemas.media import (
     UserAllowedMediaSearchFields,
     UserMediaResponse,
     UserSharedMediaResponse,
+    VirtInstallListResponse,
 )
 from api.services.error import Error
 from api.services.media import MediaService
@@ -75,46 +76,31 @@ async def get_media(request: Request, media_id=Depends(owns_media_id)):
         )
 
 
-@token_router.get(
+@advanced_router.get(
     "/items/media/installs",
     tags=[tag],
-    response_model=list[MediaInstallItem],
-    summary="List virt_install templates available to users",
-    description=(
-        "Returns the list of virt_install entries used by the 'Add "
-        "Install' modal when creating a desktop from an ISO. Each entry "
-        "is plucked to ``id``, ``name``, ``description`` and ``vers``. "
-        "Replaces v3 ``GET /media/installs`` ``@has_token``."
-    ),
+    response_model=VirtInstallListResponse,
+    summary="Get available OS templates for media installs",
+    description="Returns the list of available OS templates (virt_install) that can be used when creating a desktop from media.",
+    responses={
+        500: {"model": ErrorResponse},
+    },
 )
-async def list_media_installs(request: Request):
+async def get_media_installs(request: Request):
     try:
-        from api.services.admin.tables import AdminTablesService
-
-        result = await asyncio.to_thread(
-            AdminTablesService.get_table, "virt_install", request.token_payload, {}
+        return JSONResponse(
+            content=VirtInstallListResponse(
+                installs=MediaService.get_media_installs(),
+            ).model_dump(mode="json"),
+            status_code=200,
         )
-        # Pluck to the v3 wire shape and stable-sort by name so callers
-        # see a deterministic order regardless of underlying storage.
-        plucked = [
-            {
-                "id": row.get("id"),
-                "name": row.get("name"),
-                "description": row.get("description", ""),
-                "vers": row.get("vers"),
-            }
-            for row in result
-        ]
-        plucked.sort(key=lambda r: (r["name"] or "").lower())
-        # TODO!: Check the result and create a response model
-        return JSONResponse(content=plucked, status_code=200)
-    except Error:
-        raise
-    except Exception:
+    except Error as e:
+        raise e
+    except Exception as e:
         raise await Error.create(
             request,
             "internal_server",
-            "Failed to list media installs",
+            "Failed to retrieve media installs",
             traceback.format_exc(),
         )
 

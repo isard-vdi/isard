@@ -30,6 +30,7 @@ from api.services.error import Error
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.quotas import Quotas
+from isardvdi_common.lib.domains.xml_sections import XmlSectionsProcessed
 from isardvdi_common.lib.media.media import MediaProcessed as CommonMedia
 from isardvdi_common.models.media import Media as RethinkMedia
 from isardvdi_common.models.media import MediaModel
@@ -48,6 +49,11 @@ URL_DOWNLOAD_INSECURE_SSL = (
 
 
 class MediaService:
+
+    @staticmethod
+    def get_media_installs():
+        """Get available OS templates (virt_install) for media installs."""
+        return XmlSectionsProcessed.list_virt_installs()
 
     @staticmethod
     def get_media(media_id: str) -> dict:
