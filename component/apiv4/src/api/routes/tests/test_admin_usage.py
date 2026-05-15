@@ -380,12 +380,25 @@ class TestParameters:
     def test_list_admin(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.usage.AdminUsageService.get_usage_parameters",
-            staticmethod(lambda *a: [{"id": "p1"}]),
+            staticmethod(
+                lambda *a: [
+                    {
+                        "id": "p1",
+                        "name": "Param 1",
+                        "custom": False,
+                        "item_type": "desktop",
+                    }
+                ]
+            ),
         )
         response = test_client(
             url="/admin/usage/parameters", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["id"] == "p1"
+        assert body[0]["item_type"] == "desktop"
 
     def test_list_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -404,7 +417,15 @@ class TestParameters:
 
         def fake(ids):
             captured["ids"] = ids
-            return {p: {} for p in ids}
+            return [
+                {
+                    "id": p,
+                    "name": f"Param {p}",
+                    "custom": False,
+                    "item_type": "desktop",
+                }
+                for p in ids
+            ]
 
         monkeypatch.setattr(
             "api.routes.admin.usage.AdminUsageService.get_usage_parameters",
@@ -418,6 +439,8 @@ class TestParameters:
         )
         assert response.status_code == 200
         assert captured["ids"] == ["p1", "p2"]
+        body = response.json()
+        assert [row["id"] for row in body] == ["p1", "p2"]
 
     def test_list_by_ids_empty_returns_empty_dict(self, monkeypatch, test_client):
         """When ids is empty/None the handler short-circuits to {} —

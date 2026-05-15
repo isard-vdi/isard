@@ -82,3 +82,62 @@ class TableItem(BaseModel):
     model_config = {"extra": "allow"}
 
     id: Optional[str] = None
+
+
+class AllowedTermItem(BaseModel):
+    """Single autocomplete row returned by
+    ``POST /admin/allowed/term/{table}``. The service hard-codes the
+    pluck to ``["id", "name"]`` regardless of table."""
+
+    id: str
+    name: Optional[str] = None
+
+
+class AllowedTableUserItem(BaseModel):
+    """Enriched user row from ``Alloweds.get_allowed`` — pluck'd to
+    ``id, name, uid, username, photo`` and merged with
+    ``category_name``/``group_name``."""
+
+    id: str
+    name: Optional[str] = None
+    uid: Optional[str] = None
+    username: Optional[str] = None
+    photo: Optional[str] = None
+    group_name: Optional[str] = None
+    category_name: Optional[str] = None
+
+
+class AllowedTableGroupItem(BaseModel):
+    """Enriched group row from ``Alloweds.get_allowed`` — pluck'd to
+    ``id, name, uid, parent_category`` and merged with ``category_name``."""
+
+    id: str
+    name: Optional[str] = None
+    uid: Optional[str] = None
+    parent_category: Optional[str] = None
+    category_name: Optional[str] = None
+
+
+class AllowedTableEntityItem(BaseModel):
+    """Enriched roles/categories row from ``Alloweds.get_allowed`` —
+    pluck'd to ``id, name, uid, parent_category``."""
+
+    id: str
+    name: Optional[str] = None
+    uid: Optional[str] = None
+    parent_category: Optional[str] = None
+
+
+class AllowedTableResponse(BaseModel):
+    """Response model for ``POST /allowed/table/{table}``.
+
+    Mirrors the dict returned by ``Alloweds.get_allowed`` — each
+    bucket is either ``False`` (allow-none) or a list of enriched
+    rows. Buckets are individually optional because the underlying
+    ``allowed`` dict may not declare every key on legacy rows.
+    """
+
+    roles: Optional[Union[bool, list[AllowedTableEntityItem]]] = None
+    categories: Optional[Union[bool, list[AllowedTableEntityItem]]] = None
+    groups: Optional[Union[bool, list[AllowedTableGroupItem]]] = None
+    users: Optional[Union[bool, list[AllowedTableUserItem]]] = None

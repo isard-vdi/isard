@@ -52,8 +52,11 @@ from api.schemas.deployments import (
     DeploymentEditData,
     DeploymentEditRequest,
     DeploymentEditUsersRequest,
+    DeploymentHardwareResponse,
+    DeploymentInfoResponse,
     DeploymentPermissions,
     DeploymentResponse,
+    DeploymentVideowallResponse,
     OwnedDeploymentsResponse,
     SharedDeploymentsResponse,
     ToggleVisibilityRequest,
@@ -680,7 +683,7 @@ async def get_deployment_user_desktops_detail(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/videowall",
     tags=[tag],
-    response_model=dict,
+    response_model=DeploymentVideowallResponse,
     summary="Get deployment with videowall support",
     description="Returns a deployment with its desktops for videowall (lab) display.",
     responses={
@@ -697,18 +700,17 @@ async def get_deployment_videowall(
         result = await asyncio.to_thread(
             DeploymentService.get_deployment_videowall, deployment_id
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {},
+            content=DeploymentVideowallResponse(**result).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",
-            f"Failed to retrieve deployment videowall",
+            "Failed to retrieve deployment videowall",
             traceback.format_exc(),
         )
 
@@ -880,7 +882,7 @@ async def toggle_desktop_deployment_visibility(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/hardware",
     tags=[tag],
-    response_model=dict,
+    response_model=DeploymentHardwareResponse,
     summary="Get deployment hardware details",
     description="Returns the hardware configuration details of a deployment.",
     responses={
@@ -897,8 +899,10 @@ async def get_deployment_hardware(
         result = await asyncio.to_thread(
             DeploymentService.get_deployment_hardware, deployment_id
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(result if isinstance(result, dict) else {}, status_code=200)
+        return JSONResponse(
+            content=DeploymentHardwareResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -913,7 +917,7 @@ async def get_deployment_hardware(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/info",
     tags=[tag],
-    response_model=dict,
+    response_model=DeploymentInfoResponse,
     summary="Get deployment info with quota limits",
     description="Returns deployment info with hardware limited by user quota.",
     responses={
@@ -930,8 +934,10 @@ async def get_deployment_info(
         result = await asyncio.to_thread(
             DeploymentService.get_deployment_info, deployment_id, request.token_payload
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(result if isinstance(result, dict) else {}, status_code=200)
+        return JSONResponse(
+            content=DeploymentInfoResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -1120,9 +1126,8 @@ async def get_deployment_permissions(
         result = await asyncio.to_thread(
             DeploymentService.get_permissions, deployment_id
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, list) else [],
+            content=[DeploymentPermissions(p).value for p in (result or [])],
             status_code=200,
         )
     except Error:

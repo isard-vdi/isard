@@ -55,9 +55,12 @@ async def get_status_bar_notifications(request: Request):
         notification = await asyncio.to_thread(
             AdminNotificationService.get_status_bar_notification, request.token_payload
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=notification,
+            content=(
+                StatusBarNotificationResponse(**notification).model_dump(mode="json")
+                if isinstance(notification, dict)
+                else None
+            ),
             status_code=200,
         )
     except Error:

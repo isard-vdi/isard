@@ -16,12 +16,7 @@ from api.routes.tests.helpers import MockJWT
 
 def test_admin_domain_details(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = {
-        "id": "desktop-1",
-        "name": "Desktop 1",
-        "status": "Stopped",
-        "user": "user-1",
-    }
+    stub = {"detail": "<info/>", "description": "Desktop 1"}
     monkeypatch.setattr(
         "api.services.admin.domains.AdminDomainsService.get_domain_details",
         staticmethod(lambda payload, domain_id: stub),
@@ -35,7 +30,13 @@ def test_admin_domain_details(monkeypatch, test_client):
 
 def test_admin_domain_viewer_data(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = {"viewers": {"browser-vnc": {"url": "https://viewer.example/vnc/1"}}}
+    stub = {
+        "guest_properties": {
+            "viewers": {"browser-vnc": {"url": "https://viewer.example/vnc/1"}}
+        },
+        "create_dict": {"hardware": {"interfaces": ["i-1"]}},
+        "viewer": {"guest_ip": "10.0.0.1"},
+    }
     monkeypatch.setattr(
         "api.services.admin.domains.AdminDomainsService.get_domain_viewer_data",
         staticmethod(lambda payload, domain_id: stub),
@@ -44,12 +45,25 @@ def test_admin_domain_viewer_data(monkeypatch, test_client):
     response = test_client(url="/admin/domain/desktop-1/viewer_data", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert body["viewer"]["guest_ip"] == "10.0.0.1"
+    assert body["create_dict"]["hardware"]["interfaces"] == ["i-1"]
+    assert body["guest_properties"]["viewers"]["browser-vnc"]["url"] == (
+        "https://viewer.example/vnc/1"
+    )
 
 
 def test_admin_domain_storage(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = [{"id": "stor-1", "size": 10737418240, "status": "ready"}]
+    stub = [
+        {
+            "id": "stor-1",
+            "type": "qcow2",
+            "status": "ready",
+            "actual_size": 10.0,
+            "virtual_size": 20.0,
+        }
+    ]
     monkeypatch.setattr(
         "api.services.admin.domains.AdminDomainsService.get_domain_storage",
         staticmethod(lambda payload, domain_id: stub),
@@ -58,7 +72,12 @@ def test_admin_domain_storage(monkeypatch, test_client):
     response = test_client(url="/admin/domain/storage/desktop-1", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "stor-1"
+    assert body[0]["status"] == "ready"
+    assert body[0]["actual_size"] == 10.0
+    assert body[0]["virtual_size"] == 20.0
 
 
 def test_admin_domains_by_status(monkeypatch, test_client):
@@ -72,7 +91,10 @@ def test_admin_domains_by_status(monkeypatch, test_client):
     response = test_client(url="/admin/domains_status/Failed", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "desktop-1"
+    assert body[0]["status"] == "Failed"
 
 
 def test_admin_find_storages_by_domain_status(monkeypatch, test_client):
@@ -116,7 +138,16 @@ def test_admin_virt_install_xml_sections_get(monkeypatch, test_client):
     def fake_get(virt_id):
         captured["virt_id"] = virt_id
         return {
-            "sections": [{"key": "memory", "xml": "<memory>2048</memory>"}],
+            "sections": [
+                {
+                    "key": "memory",
+                    "label": "Memory",
+                    "xml": "<memory>2048</memory>",
+                    "protected": False,
+                    "protectable": True,
+                    "derived": False,
+                }
+            ],
             "xml_full": "<domain>...</domain>",
         }
 

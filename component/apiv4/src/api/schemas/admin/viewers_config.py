@@ -27,3 +27,17 @@ class ViewerConfigUpdateRequest(BaseModel):
     """Request to update a viewer custom configuration"""
 
     custom: Optional[str] = None
+
+
+class ViewerConfigItem(BaseModel):
+    """Single viewer configuration row.
+
+    Fields match the per-viewer dict stored under ``config.viewers`` in
+    RethinkDB and consumed by the webapp DataTables admin view.
+    """
+
+    key: Optional[str] = None
+    viewer: Optional[str] = None
+    custom: Optional[str] = None
+    default: Optional[str] = None
+    fixed: Optional[str] = None

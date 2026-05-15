@@ -179,9 +179,9 @@ async def admin_get_notification_template(request: Request, template_id: str):
         template = await asyncio.to_thread(
             AdminNotificationService.get_template, template_id
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=template if isinstance(template, dict) else {}, status_code=200
+            content=TemplateResponse(**(template or {})).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise
@@ -213,9 +213,9 @@ async def admin_preview_notification_template(
             data.user_id,
             data.data,
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=texts if isinstance(texts, dict) else {}, status_code=200
+            content=TemplatePreviewResponse(**(texts or {})).model_dump(mode="json"),
+            status_code=200,
         )
     except Error:
         raise

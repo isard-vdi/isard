@@ -25,6 +25,8 @@ from typing import Literal
 from api import token_router
 from api.schemas.admin.tables import (
     AllowedGetRequest,
+    AllowedTableResponse,
+    AllowedTermItem,
     AllowedTermRequest,
     AllowedUpdateRequest,
 )
@@ -40,7 +42,7 @@ tag = "admin_alloweds"
 @token_router.post(
     "/admin/allowed/term/{table}",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[AllowedTermItem],
     summary="Search table items by term",
     description="Search for items in a table matching a term. "
     "Returns matching rows pluck'd to ``{id, name, ...}`` for typeahead "
@@ -72,8 +74,12 @@ async def alloweds_table_term(
             data.model_dump(exclude_none=True),
             request.token_payload,
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=[
+                AllowedTermItem(**row).model_dump(mode="json") for row in (result or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -143,7 +149,7 @@ async def admin_allowed_update(
 @token_router.post(
     "/allowed/table/{table}",
     tags=[tag],
-    response_model=dict,
+    response_model=AllowedTableResponse,
     summary="Get allowed access list for a table item",
     description="Get the allowed access configuration for an item, "
     "enriched with names for roles, categories, groups, and users.",
@@ -161,8 +167,10 @@ async def allowed_table(
         result = await asyncio.to_thread(
             AdminAllowedsService.get_allowed_table, table, data.model_dump()
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=result or {}, status_code=200)
+        return JSONResponse(
+            content=AllowedTableResponse(**(result or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:

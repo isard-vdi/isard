@@ -36,6 +36,7 @@ from api.schemas.recycle_bin import (
     RecycleBinBulkResponse,
     RecycleBinCutoffTimeResponse,
     RecycleBinEntriesResponse,
+    RecycleBinEntry,
     RecycleBinOldEntriesConfig,
     RecycleBinResponse,
     RecycleBinSetDefaultDeleteRequest,
@@ -43,6 +44,7 @@ from api.schemas.recycle_bin import (
     RecycleBinSystemCutoffTimeResponse,
     RecycleBinUpdateCutoffTimeRequest,
     RecycleBinUpdateTaskRequest,
+    UnusedItemTimeoutRule,
     UnusedItemTimeoutRuleCreateRequest,
     UnusedItemTimeoutRulesResponse,
     UnusedItemTimeoutRuleUpdateRequest,
@@ -506,7 +508,7 @@ async def get_recycle_bin_status(request: Request):
 @manager_router.get(
     "/items/recycle-bin/admin-entries",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[RecycleBinEntry],
     summary="Get recycle bin entries with item counts (admin view)",
     description=(
         "Returns the full list of recycle bin entries with per-item-type "
@@ -522,11 +524,13 @@ async def get_recycle_bin_admin_entries(request: Request, status: str | None = N
             if request.token_payload["role_id"] == "manager"
             else None
         )
-        # TODO!: check result and create a response model
+        rows = await asyncio.to_thread(
+            RecycleBinService.get_item_count, category_id=category_id, status=status
+        )
         return JSONResponse(
-            content=await asyncio.to_thread(
-                RecycleBinService.get_item_count, category_id=category_id, status=status
-            ),
+            content=[
+                RecycleBinEntry(**row).model_dump(mode="json") for row in (rows or [])
+            ],
             status_code=200,
         )
     except Error:
@@ -714,7 +718,6 @@ async def set_default_delete(request: Request, data: RecycleBinSetDefaultDeleteR
 )
 async def get_delete_action(request: Request):
     try:
-        # TODO!: check result and create a response model
         return JSONResponse(
             content=await asyncio.to_thread(RecycleBinService.get_delete_action),
             status_code=200,
@@ -782,7 +785,7 @@ async def get_all_unused_item_timeout_rules(request: Request):
 @admin_router.get(
     "/item/recycle-bin/unused-item-timeout-rule/{rule_id}",
     tags=[tag],
-    response_model=dict,
+    response_model=UnusedItemTimeoutRule,
     summary="Get unused item timeout rule",
     description="Returns a specific unused item timeout rule.",
 )
@@ -791,8 +794,10 @@ async def get_unused_item_timeout_rule(request: Request, rule_id: str):
         rule = await asyncio.to_thread(
             RecycleBinService.get_unused_item_timeout_rule, rule_id
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=rule, status_code=200)
+        return JSONResponse(
+            content=UnusedItemTimeoutRule(**(rule or {})).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:

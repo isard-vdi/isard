@@ -96,7 +96,7 @@ async def api_v4_category_custom_url(category_id: str, request: Request):
     # path. Webapp consumers that decode the raw bytes still work —
     # `"my-url"` strips back to `my-url` via `.strip('"')`.
     try:
-        # TODO!: check result and create a response model
+        # TODO*: This endpoint calls a function that does not exsist
         return JSONResponse(
             content=await asyncio.to_thread(
                 CategoryService.get_category_custom_login_url, category_id

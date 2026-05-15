@@ -162,3 +162,9 @@ class BastionDomainVerifyResponse(BaseModel):
     verified: bool = Field(
         description="Whether the domain's DNS is correctly configured.",
     )
+
+
+class DeleteBastionDisallowedTargetsResponse(BaseModel):
+    removed_targets: list[str] = Field(
+        description="List of bastion target IDs that were removed because they are no longer allowed.",
+    )

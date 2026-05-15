@@ -34,6 +34,7 @@ from api import (
 )
 from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
 from api.schemas.deployments import DeploymentGroup, DeploymentUser
+from api.schemas.domains.desktops import UserDesktop as ParsedUserDesktop
 from api.schemas.users import (
     GroupsUsersCountPutData,
     GroupsUsersCountResponse,
@@ -44,6 +45,8 @@ from api.schemas.users import (
     UserConfigResponse,
     UserDesktop,
     UserDetailsResponse,
+    UserHardwareKindAllowedResponse,
+    UserListItem,
     UserOwnsDesktopRequest,
     UserPasswordPolicyResponse,
     UserQuotaResponse,
@@ -52,6 +55,7 @@ from api.schemas.users import (
     UserSetLangPutData,
     UserSetPasswordPutData,
     UserVpnData,
+    WebappDomainItem,
 )
 from api.services.desktops import DesktopService
 from api.services.error import Error
@@ -343,7 +347,7 @@ async def get_allowed_hardware_for_domain(request: Request, domain_id: str):
     "/items/users",
     summary="Get all users",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[UserListItem],
     responses={
         200: {"description": "Users retrieved successfully"},
         500: {"description": "Failed to retrieve users"},
@@ -357,8 +361,12 @@ async def get_all_users(request: Request):
             if request.token_payload["role_id"] != "admin"
             else None
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=users or [], status_code=200)
+        return JSONResponse(
+            content=[
+                UserListItem(**user).model_dump(mode="json") for user in (users or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -734,7 +742,7 @@ async def delete_user(request: Request):
 @token_router.get(
     "/item/user/desktops",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[ParsedUserDesktop],
     summary="Get user desktops",
     description="Returns a list of desktops for the current user.",
     operation_id="get_user_desktops_legacy",
@@ -750,8 +758,13 @@ async def get_user_desktops(request: Request):
             UsersService.get_user_desktops,
             user_id=request.token_payload["user_id"],
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=desktops or [], status_code=200)
+        return JSONResponse(
+            content=[
+                ParsedUserDesktop(**desktop).model_dump(mode="json")
+                for desktop in (desktops or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -872,7 +885,7 @@ async def get_user_vpn(request: Request, kind: Literal["config"]):
 @token_router.get(
     "/item/user/webapp-desktops",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[WebappDomainItem],
     summary="Get webapp desktops",
     description="Returns webapp desktops for the current user.",
     responses={
@@ -886,8 +899,13 @@ async def get_webapp_desktops(request: Request):
             UsersService.get_webapp_desktops,
             user_id=request.token_payload["user_id"],
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=desktops or [], status_code=200)
+        return JSONResponse(
+            content=[
+                WebappDomainItem(**desktop).model_dump(mode="json")
+                for desktop in (desktops or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -902,7 +920,7 @@ async def get_webapp_desktops(request: Request):
 @token_router.get(
     "/item/user/webapp-templates",
     tags=[tag],
-    response_model=list[dict],
+    response_model=list[WebappDomainItem],
     summary="Get webapp templates",
     description="Returns webapp templates for the current user.",
     responses={
@@ -916,8 +934,13 @@ async def get_webapp_templates(request: Request):
             UsersService.get_webapp_templates,
             user_id=request.token_payload["user_id"],
         )
-        # TODO!: check result and create a response model
-        return JSONResponse(content=templates or [], status_code=200)
+        return JSONResponse(
+            content=[
+                WebappDomainItem(**template).model_dump(mode="json")
+                for template in (templates or [])
+            ],
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -965,7 +988,8 @@ async def groups_users_count(request: Request, data: GroupsUsersCountPutData):
 @token_router.get(
     "/item/user/hardware/{kind}/allowed",
     tags=[tag],
-    response_model=dict,
+    response_model=UserHardwareKindAllowedResponse,
+    response_model_exclude_none=True,
     summary="Get allowed hardware by kind",
     description="Returns the allowed hardware configurations for a specific hardware kind.",
     responses={
@@ -997,9 +1021,11 @@ async def get_hardware_kind_allowed(
             user_id=request.token_payload["user_id"],
             kind=kind,
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
-            content=result if isinstance(result, dict) else {}, status_code=200
+            content=UserHardwareKindAllowedResponse(**(result or {})).model_dump(
+                mode="json", exclude_none=True
+            ),
+            status_code=200,
         )
     except Error:
         raise
@@ -1061,7 +1087,6 @@ async def get_bastion_allowed(request: Request):
             UsersService.get_bastion_allowed,
             payload=request.token_payload,
         )
-        # TODO!: check result and create a response model
         return JSONResponse(
             content=result if isinstance(result, dict) else {}, status_code=200
         )

@@ -130,7 +130,6 @@ async def admin_get_old_tasks_config(request: Request):
 async def admin_get_old_tasks(request: Request, older_than: int):
     try:
         result = await asyncio.to_thread(AdminQueuesService.get_old_tasks, older_than)
-        # TODO!: check result and create a response model
         return JSONResponse(content=result or [], status_code=200)
     except Error:
         raise

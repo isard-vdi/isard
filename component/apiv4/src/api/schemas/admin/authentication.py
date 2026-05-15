@@ -26,13 +26,17 @@ from pydantic import BaseModel
 # --- Policy schemas ---
 
 
+class PolicyCreateDisclaimerRequest(BaseModel):
+    template: Optional[str] = None
+
+
 class PolicyCreateRequest(BaseModel):
     """Request to create an authentication policy"""
 
     category: str
     role: str
     type: str
-    disclaimer: Optional[Union[bool, Dict[str, Any]]] = None
+    disclaimer: Optional[PolicyCreateDisclaimerRequest | bool] = None
     email_verification: Optional[bool] = False
     password: Optional[Dict[str, Any]] = None
 

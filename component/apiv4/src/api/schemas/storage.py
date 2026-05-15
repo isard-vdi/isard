@@ -20,7 +20,7 @@
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StorageDomain(BaseModel):
@@ -190,3 +190,75 @@ class StorageBatchIdsRequest(BaseModel):
     """Request body for batch operations with storage IDs"""
 
     ids: list[str] = Field(description="List of storage IDs")
+
+
+class StorageStatusLog(BaseModel):
+    """A single status-log entry on a storage row"""
+
+    status: str
+    time: float
+
+
+class StorageQemuImgInfo(BaseModel):
+    """The ``qemu-img-info`` sub-document on a storage row.
+
+    Stored in RethinkDB with hyphenated keys; aliased here so callers can
+    populate the model from the raw row via ``**row``.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    actual_size: Optional[int] = Field(default=None, alias="actual-size")
+    virtual_size: Optional[int] = Field(default=None, alias="virtual-size")
+    backing_filename: Optional[str] = Field(default=None, alias="backing-filename")
+    full_backing_filename: Optional[str] = Field(
+        default=None, alias="full-backing-filename"
+    )
+    cluster_size: Optional[int] = Field(default=None, alias="cluster-size")
+    dirty_flag: Optional[bool] = Field(default=None, alias="dirty-flag")
+    filename: Optional[str] = None
+    format: Optional[str] = None
+
+
+class StoragesWithUuidEntry(BaseModel):
+    """Phantom-storage diagnostic entry.
+
+    Shape produced by the worker when a ``find`` task discovers extra
+    files matching a storage UUID (see ``core_worker/task.py``):
+    ``{"status": ..., "path": ...}`` per row, with ``id`` merged in by
+    the global aggregation queries (``get_storages_with_uuid``) and
+    ``count`` returned instead of ``path`` by the per-status grouping
+    query (``get_storages_with_uuid_status``). One model serves all
+    four endpoints; only ``status`` is universal.
+    """
+
+    status: str
+    path: Optional[str] = None
+    id: Optional[str] = None
+    count: Optional[int] = None
+
+
+class StorageDetailResponse(BaseModel):
+    """Raw storage row returned by ``GET /item/storage/{storage_id}``.
+
+    Mirrors the well-known columns of the ``storage`` RethinkDB table.
+    Unknown extras are dropped (default ``extra='ignore'``); the
+    hyphenated ``qemu-img-info`` key is aliased so the model can be
+    instantiated directly from the raw row.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    type: Optional[str] = None
+    status: Optional[str] = None
+    directory_path: Optional[str] = None
+    parent: Optional[str] = None
+    user_id: Optional[str] = None
+    perms: Optional[list[str]] = None
+    status_logs: Optional[list[StorageStatusLog]] = None
+    task: Optional[str] = None
+    qemu_img_info: Optional[StorageQemuImgInfo] = Field(
+        default=None, alias="qemu-img-info"
+    )
+    storages_with_uuid: Optional[list[StoragesWithUuidEntry]] = None

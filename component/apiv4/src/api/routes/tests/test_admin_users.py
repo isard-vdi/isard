@@ -413,7 +413,14 @@ def test_admin_user_logout(monkeypatch, test_client):
 
 def test_admin_list_groups(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = [{"id": "group-1", "name": "Group 1"}]
+    stub = [
+        {
+            "id": "group-1",
+            "name": "Group 1",
+            "parent_category": "cat-1",
+            "description": "Test group",
+        }
+    ]
     monkeypatch.setattr(
         "api.services.admin.users.AdminUsersService.list_groups",
         staticmethod(lambda payload: stub),
@@ -422,12 +429,21 @@ def test_admin_list_groups(monkeypatch, test_client):
     response = test_client(url="/admin/groups", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "group-1"
+    assert body[0]["name"] == "Group 1"
+    assert body[0]["parent_category"] == "cat-1"
 
 
 def test_admin_get_group(monkeypatch, test_client):
     jwt = MockJWT()
-    stub = {"id": "group-1", "name": "Group 1", "description": "Test"}
+    stub = {
+        "id": "group-1",
+        "name": "Group 1",
+        "parent_category": "cat-1",
+        "description": "Test",
+    }
     # Note: ``get_group(group_id)`` takes a single argument (no payload).
     monkeypatch.setattr(
         "api.services.admin.users.AdminUsersService.get_group",
@@ -437,7 +453,11 @@ def test_admin_get_group(monkeypatch, test_client):
     response = test_client(url="/admin/group/group-1", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert body["id"] == "group-1"
+    assert body["name"] == "Group 1"
+    assert body["parent_category"] == "cat-1"
+    assert body["description"] == "Test"
 
 
 def test_admin_create_group(monkeypatch, test_client):
@@ -548,7 +568,9 @@ def test_admin_get_category(monkeypatch, test_client):
     response = test_client(url="/admin/category/cat-1", jwt=jwt)
 
     assert response.status_code == 200
-    assert response.json() == stub
+    body = response.json()
+    assert body["id"] == "cat-1"
+    assert body["name"] == "Category 1"
 
 
 def test_admin_create_category(monkeypatch, test_client):
@@ -558,7 +580,7 @@ def test_admin_create_category(monkeypatch, test_client):
     def fake_create(payload, data):
         captured["name"] = data["name"]
         captured["frontend"] = data["frontend"]
-        return {"id": "cat-new"}
+        return {"id": "cat-new", "name": data["name"]}
 
     monkeypatch.setattr(
         "api.services.admin.users.AdminUsersService.create_category",
@@ -590,5 +612,7 @@ def test_admin_delete_category(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 200
+    # Route returns 204 (no body) like every other ``EmptyResponse`` route
+    # in admin/users.py.
+    assert response.status_code == 204
     assert calls == ["cat-1"]
