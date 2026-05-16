@@ -752,6 +752,9 @@ class hyp(object):
         # Check if mdevs data exists for this PCI device and the new profile
         pci_mdevs = self.mdevs.get(pci_id, {})
         if not pci_mdevs.get(new_profile):
+            d_type = (
+                self.info_nvidia.get(pci_id, {}).get("types", {}).get(new_profile, {})
+            )
             if new_profile == "passthrough":
                 # Lazily create passthrough mdevs entry if it doesn't exist yet
                 pt_uuid = str(uuid.uuid4())
@@ -768,6 +771,31 @@ class hyp(object):
                 update_vgpu_uuids(gpu_id, pci_mdevs)
                 logs.main.info(
                     f"Created lazy passthrough mdevs entry for {gpu_id} with uuid {pt_uuid}"
+                )
+            elif d_type.get("mig"):
+                # MIG profiles are not seeded by discovery (the host has no
+                # /sys/bus/mdev nodes for MIG); bootstrap a placeholder pool
+                # so the upcoming MIG transition has UUIDs to bind to.
+                bdf = self.info_nvidia[pci_id]["path"].split("/")[-1]
+                capacity = max(d_type.get("max", 1), d_type.get("available", 1))
+                new_map = {
+                    str(uuid.uuid4()): {
+                        "pci_mdev_id": bdf,
+                        "type_id": d_type["id"],
+                        "mig": True,
+                        "mig_profile_id": d_type.get("mig_profile_id"),
+                        "created": False,
+                        "domain_started": False,
+                        "domain_reserved": False,
+                    }
+                    for _ in range(capacity)
+                }
+                pci_mdevs[new_profile] = new_map
+                self.mdevs[pci_id] = pci_mdevs
+                update_vgpu_uuids(gpu_id, pci_mdevs)
+                logs.main.info(
+                    f"Created lazy MIG mdevs entry for {gpu_id} profile "
+                    f"{new_profile} ({len(new_map)} placeholders)"
                 )
             else:
                 logs.main.error(
