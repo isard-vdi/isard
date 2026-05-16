@@ -697,6 +697,12 @@ class hyp(object):
                         "sleep 2",
                     ]
                 )
+            elif old_profile:
+                # vGPU mode with active SR-IOV VFs: nvidia-smi -mig 1 rejects
+                # the PF while any VF is bound, so tear them down first.
+                # sriov-manage handles the unbind/sriov_numvfs=0 dance the
+                # nvidia driver requires.
+                cmds.append(f"sriov-manage -d {pci_bdf} 2>/dev/null || true")
             cmds.extend(
                 [
                     f"nvidia-smi -i {pci_bdf} -mig 1",
@@ -718,6 +724,11 @@ class hyp(object):
                 f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
                 "sleep 2",
             ]
+            if new_profile != "passthrough":
+                # Restore SR-IOV VFs for vGPU mode. For passthrough the caller
+                # (change_vgpu_profile) tears VFs down again and rebinds to
+                # vfio-pci, so re-enabling here would be wasted work.
+                cmds.append(f"sriov-manage -e {pci_bdf} 2>/dev/null || true")
         else:
             # Should not happen — caller should not route here
             logs.main.error(
@@ -746,6 +757,9 @@ class hyp(object):
         # Check if mdevs data exists for this PCI device and the new profile
         pci_mdevs = self.mdevs.get(pci_id, {})
         if not pci_mdevs.get(new_profile):
+            d_type = (
+                self.info_nvidia.get(pci_id, {}).get("types", {}).get(new_profile, {})
+            )
             if new_profile == "passthrough":
                 # Lazily create passthrough mdevs entry if it doesn't exist yet
                 pt_uuid = str(uuid.uuid4())
@@ -762,6 +776,31 @@ class hyp(object):
                 update_vgpu_uuids(gpu_id, pci_mdevs)
                 logs.main.info(
                     f"Created lazy passthrough mdevs entry for {gpu_id} with uuid {pt_uuid}"
+                )
+            elif d_type.get("mig"):
+                # MIG profiles are not seeded by discovery (the host has no
+                # /sys/bus/mdev nodes for MIG); bootstrap a placeholder pool
+                # so the upcoming MIG transition has UUIDs to bind to.
+                bdf = self.info_nvidia[pci_id]["path"].split("/")[-1]
+                capacity = max(d_type.get("max", 1), d_type.get("available", 1))
+                new_map = {
+                    str(uuid.uuid4()): {
+                        "pci_mdev_id": bdf,
+                        "type_id": d_type["id"],
+                        "mig": True,
+                        "mig_profile_id": d_type.get("mig_profile_id"),
+                        "created": False,
+                        "domain_started": False,
+                        "domain_reserved": False,
+                    }
+                    for _ in range(capacity)
+                }
+                pci_mdevs[new_profile] = new_map
+                self.mdevs[pci_id] = pci_mdevs
+                update_vgpu_uuids(gpu_id, pci_mdevs)
+                logs.main.info(
+                    f"Created lazy MIG mdevs entry for {gpu_id} profile "
+                    f"{new_profile} ({len(new_map)} placeholders)"
                 )
             else:
                 # Lazy-init pool for any profile defined in info.types — covers
@@ -1065,15 +1104,20 @@ class hyp(object):
                 if not result:
                     update_table_field("vgpus", gpu_id, "changing_to_profile", False)
                     return False
-                # After MIG transition, update profile and mark MIG UUIDs as created
-                new_profile_mdevs = pci_mdevs.get(new_profile, {})
-                for uuid_create in new_profile_mdevs:
-                    update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
-                    new_profile_mdevs[uuid_create]["created"] = True
-                self.info_nvidia[pci_id]["vgpu_profile"] = new_profile
-                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
-                update_table_field("vgpus", gpu_id, "vgpu_profile", new_profile)
-                return
+                # MIG → passthrough still needs the nvidia → vfio-pci rebind
+                # below; only finalize-and-return for the other MIG paths
+                # where the card stays on the nvidia driver.
+                if not (old_is_mig and new_profile == "passthrough"):
+                    new_profile_mdevs = pci_mdevs.get(new_profile, {})
+                    for uuid_create in new_profile_mdevs:
+                        update_vgpu_created(
+                            gpu_id, new_profile, uuid_create, created=True
+                        )
+                        new_profile_mdevs[uuid_create]["created"] = True
+                    self.info_nvidia[pci_id]["vgpu_profile"] = new_profile
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    update_table_field("vgpus", gpu_id, "vgpu_profile", new_profile)
+                    return
 
             # DRIVER BINDING: swap between nvidia and vfio-pci for passthrough
             pci_bdf = pci_info["path"].split("/")[-1]
