@@ -1060,15 +1060,20 @@ class hyp(object):
                 if not result:
                     update_table_field("vgpus", gpu_id, "changing_to_profile", False)
                     return False
-                # After MIG transition, update profile and mark MIG UUIDs as created
-                new_profile_mdevs = pci_mdevs.get(new_profile, {})
-                for uuid_create in new_profile_mdevs:
-                    update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
-                    new_profile_mdevs[uuid_create]["created"] = True
-                self.info_nvidia[pci_id]["vgpu_profile"] = new_profile
-                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
-                update_table_field("vgpus", gpu_id, "vgpu_profile", new_profile)
-                return
+                # MIG → passthrough still needs the nvidia → vfio-pci rebind
+                # below; only finalize-and-return for the other MIG paths
+                # where the card stays on the nvidia driver.
+                if not (old_is_mig and new_profile == "passthrough"):
+                    new_profile_mdevs = pci_mdevs.get(new_profile, {})
+                    for uuid_create in new_profile_mdevs:
+                        update_vgpu_created(
+                            gpu_id, new_profile, uuid_create, created=True
+                        )
+                        new_profile_mdevs[uuid_create]["created"] = True
+                    self.info_nvidia[pci_id]["vgpu_profile"] = new_profile
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    update_table_field("vgpus", gpu_id, "vgpu_profile", new_profile)
+                    return
 
             # DRIVER BINDING: swap between nvidia and vfio-pci for passthrough
             pci_bdf = pci_info["path"].split("/")[-1]
