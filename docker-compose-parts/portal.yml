@@ -2,6 +2,15 @@ services:
   isard-portal:
     container_name: isard-portal
     image: ${DOCKER_IMAGE_PREFIX}portal:${DOCKER_IMAGE_TAG-latest}
+    restart: unless-stopped
+    # tini as PID 1 so haproxy's exit-on-failure SIGTERM is not ignored by the kernel
+    init: true
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'show info' | socat -T2 - UNIX-CONNECT:/var/run/haproxy.sock | grep -q '^Process_num' || exit 1"]
+      start_period: 60s
+      interval: 30s
+      timeout: 5s
+      retries: 3
     logging:
       driver: "json-file"
       options:
