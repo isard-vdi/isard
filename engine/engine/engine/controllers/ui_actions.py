@@ -16,6 +16,7 @@ from engine.models.domain_xml import (
     add_memory_backing,
     add_numa_pinning,
     add_qemu_pcie_reserve,
+    hostdev_locked,
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
     recreate_xml_to_start,
@@ -109,7 +110,13 @@ class UiActions(object):
                 "kind",
                 "name",
                 "category",
-                {"create_dict": {"hardware": "memory", "reservables": True}},
+                {
+                    "create_dict": {
+                        "hardware": "memory",
+                        "reservables": True,
+                        "xml_protected_sections": True,
+                    }
+                },
                 "forced_hyp",
                 "favourite_hyp",
                 "hypervisors_pools",
@@ -189,14 +196,31 @@ class UiActions(object):
             "cpu_host_model", DEFAULT_HOST_MODE
         )
 
+        # When the admin has locked the <hostdev> XML section
+        # (create_dict.xml_protected_sections contains "hostdev"), the manual
+        # passthrough entries are the sole source of truth: the engine must not
+        # also reserve/inject a managed GPU, or recreate_xml_if_gpu would append
+        # an extra balancer-selected <hostdev> on top of the locked ones (no
+        # dedup). Treat such desktops as non-GPU for balancing/reservation.
+        hostdev_section_locked = hostdev_locked(domain)
+        if hostdev_section_locked:
+            log.info(
+                f"Domain {id_domain}: 'hostdev' XML section is admin-locked; "
+                f"skipping managed GPU reservation/injection "
+                f"(manual passthrough owns <hostdev>)"
+            )
+        reservables_eff = (
+            None
+            if hostdev_section_locked
+            else domain.get("create_dict", {}).get("reservables", {})
+        )
+        force_gpus_eff = None if hostdev_section_locked else domain.get("force_gpus")
+
         # GPU desktops cannot use the paused-start flow: start_domain_from_xml
         # drops force_gpus/reservables when action == "start_paused_domain"
         # (see start_paused_domain_from_xml), which leaves the XML without the
         # <hostdev> GPU and clashes with virtiofs hugepages backing on the QXL.
-        if starting_paused and (
-            domain.get("force_gpus")
-            or (domain.get("create_dict", {}).get("reservables") or {}).get("vgpus")
-        ):
+        if starting_paused and (force_gpus_eff or (reservables_eff or {}).get("vgpus")):
             log.info(
                 f"Domain {id_domain} has GPU configured; using normal start "
                 f"flow instead of paused-start"
@@ -234,8 +258,8 @@ class UiActions(object):
                     pool_id=pool_id,
                     forced_hyp=domain.get("forced_hyp"),
                     favourite_hyp=domain.get("favourite_hyp"),
-                    force_gpus=domain.get("force_gpus"),
-                    reservables=domain.get("create_dict", {}).get("reservables", {}),
+                    force_gpus=force_gpus_eff,
+                    reservables=reservables_eff,
                     storage_pool_id=domain_storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
                     viewer_passwd=viewer_passwd,
@@ -247,8 +271,8 @@ class UiActions(object):
                     pool_id=pool_id,
                     forced_hyp=domain.get("forced_hyp"),
                     favourite_hyp=domain.get("favourite_hyp"),
-                    force_gpus=domain.get("force_gpus"),
-                    reservables=domain.get("create_dict", {}).get("reservables", {}),
+                    force_gpus=force_gpus_eff,
+                    reservables=reservables_eff,
                     storage_pool_id=domain_storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
                     viewer_passwd=viewer_passwd,
@@ -370,13 +394,25 @@ class UiActions(object):
                     profile=extra_info["profile"],
                 )
                 if reserved_ok:
-                    xml = recreate_xml_if_gpu(
-                        xml,
-                        extra_info["uid"],
-                        pci_bus_id=extra_info.get("pci_bus_id"),
-                        is_passthrough=(extra_info.get("profile") == "passthrough"),
-                        companion_pci_bdfs=extra_info.get("companion_pci_bdfs") or [],
-                    )
+                    try:
+                        xml = recreate_xml_if_gpu(
+                            xml,
+                            extra_info["uid"],
+                            pci_bus_id=extra_info.get("pci_bus_id"),
+                            is_passthrough=(extra_info.get("profile") == "passthrough"),
+                            companion_pci_bdfs=extra_info.get("companion_pci_bdfs")
+                            or [],
+                        )
+                    except ValueError as e:
+                        log.error(
+                            "{}: recreate_xml_if_gpu failed: {}".format(id_domain, e)
+                        )
+                        update_domain_status(
+                            "Failed",
+                            id_domain,
+                            detail="GPU XML injection failed: {}".format(e),
+                        )
+                        return False
                     if extra_info.get("profile") == "passthrough":
                         xml = add_qemu_pcie_reserve(xml)
                     break
