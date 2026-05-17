@@ -1,8 +1,14 @@
 from io import StringIO
 
+import pytest
 from lxml import etree
 
-from engine.models.domain_xml import DomainXML, add_memory_backing, recreate_xml_if_gpu
+from engine.models.domain_xml import (
+    DomainXML,
+    add_memory_backing,
+    hostdev_locked,
+    recreate_xml_if_gpu,
+)
 
 
 def test_add_metadata_isard():
@@ -449,3 +455,76 @@ def test_set_disk_driver_cache_top_level_still_applies():
             del os.environ["ENGINE_GUESTS_DISK_DRIVER_CACHE"]
         else:
             os.environ["ENGINE_GUESTS_DISK_DRIVER_CACHE"] = prev
+
+
+# ---- XML-edit GPU/hostdev robustness fixes (#6-#9) -------------------------
+
+
+def test_hostdev_locked_true_when_section_protected():
+    """#6: hostdev_locked is True iff create_dict.xml_protected_sections
+    contains 'hostdev' — the signal that managed GPU reservation/injection
+    must be skipped because the manual passthrough <hostdev> is authoritative."""
+    assert hostdev_locked(
+        {"create_dict": {"xml_protected_sections": ["memory", "hostdev"]}}
+    )
+
+
+def test_hostdev_locked_false_variants():
+    """#6: anything that is not an explicit 'hostdev' lock yields False:
+    other sections, empty/None list, missing create_dict, empty doc."""
+    assert not hostdev_locked({"create_dict": {"xml_protected_sections": ["memory"]}})
+    assert not hostdev_locked({"create_dict": {"xml_protected_sections": []}})
+    assert not hostdev_locked({"create_dict": {"xml_protected_sections": None}})
+    assert not hostdev_locked({"create_dict": {}})
+    assert not hostdev_locked({"create_dict": None})
+    assert not hostdev_locked({})
+
+
+def test_recreate_xml_if_gpu_raises_clear_error_on_invalid_xml():
+    """#7: a parse failure raises a clear ValueError instead of falling
+    through to an unbound `tree` and surfacing as a confusing
+    NameError/UnboundLocalError that masks the real cause."""
+    with pytest.raises(ValueError, match="invalid domain XML"):
+        recreate_xml_if_gpu("<domain><not-closed>", "fake-uid")
+
+
+def test_recreate_xml_if_gpu_rejects_malformed_pci_bus_id():
+    """#8: a malformed pci_bus_id raises a clear ValueError naming the
+    offending value, instead of an opaque IndexError from split('_')."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    with pytest.raises(ValueError, match="pci_bus_id"):
+        recreate_xml_if_gpu(
+            xml, "fake-uid", pci_bus_id="not-a-bdf", is_passthrough=True
+        )
+
+
+def test_recreate_xml_if_gpu_valid_pci_bus_id_address():
+    """#8: a well-formed pci_bus_id still yields the correct <hostdev pci>
+    source address (regression guard for the new validation gate)."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(
+        xml, "fake-uid", pci_bus_id="pci_0000_21_00_0", is_passthrough=True
+    )
+    tree = _parse(result)
+    addr = tree.xpath('//hostdev[@type="pci"]/source/address')
+    assert len(addr) == 1
+    assert addr[0].get("domain") == "0x0000"
+    assert addr[0].get("bus") == "0x21"
+    assert addr[0].get("slot") == "0x00"
+    assert addr[0].get("function") == "0x0"
+
+
+def test_remove_device_emits_no_stdout(capsys):
+    """#9: remove_device must not print debug noise ('ORDER NUM:' /
+    'REMAINING:') on the hot start path, while still removing every match."""
+    x = DomainXML(
+        '<domain type="kvm"><devices>'
+        "<hostdev mode='subsystem' type='pci'><source/></hostdev>"
+        "<hostdev mode='subsystem' type='pci'><source/></hostdev>"
+        "</devices></domain>"
+    )
+    assert x.remove_device("/domain/devices/hostdev", order_num=-1) is True
+    tree = _parse(x.return_xml())
+    assert tree.xpath("//hostdev") == []
+    captured = capsys.readouterr()
+    assert captured.out == ""

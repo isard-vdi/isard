@@ -11,6 +11,7 @@
 
 import os
 import random
+import re
 import string
 import traceback
 import uuid
@@ -47,6 +48,7 @@ from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
 from engine.services.lib.storage import _get_filename
 from engine.services.log import *
+from engine.services.log import log, logs
 
 DEFAULT_SPICE_VIDEO_COMPRESSION = "auto_glz"
 
@@ -1235,15 +1237,8 @@ class DomainXML(object):
         if self.tree.xpath("/domain/devices"):
             if self.tree.xpath(xpath):
                 if order_num == -1:
-                    print("ORDER NUM:" + str(order_num))
                     remaining = len(self.tree.xpath(xpath))
                     while remaining:
-                        print(
-                            "ORDER NUM:"
-                            + str(order_num)
-                            + " REMAINING:"
-                            + str(remaining)
-                        )
                         self.tree.xpath(xpath)[remaining - 1].getparent().remove(
                             self.tree.xpath(xpath)[remaining - 1]
                         )
@@ -2115,6 +2110,19 @@ def recreate_xml_if_start_paused(xml, memory_mb=64):
     return xml_output
 
 
+def hostdev_locked(domain):
+    """True when the admin locked the <hostdev> XML section for this domain.
+
+    When create_dict.xml_protected_sections contains "hostdev", the manual
+    passthrough <hostdev> entries are authoritative: the engine must not also
+    reserve/inject a managed GPU on top of them (otherwise recreate_xml_if_gpu
+    would append an extra balancer-selected <hostdev>, with no dedup).
+    """
+    return "hostdev" in (
+        (domain.get("create_dict") or {}).get("xml_protected_sections") or []
+    )
+
+
 def recreate_xml_if_gpu(
     xml,
     mdev_uid,
@@ -2141,7 +2149,7 @@ def recreate_xml_if_gpu(
         log.error("Exception when parse xml in recreate_xml_if_gpu: {}".format(e))
         log.error("xml that fail: \n{}".format(xml))
         log.error("Traceback: {}".format(traceback.format_exc()))
-        # return False
+        raise ValueError("recreate_xml_if_gpu: invalid domain XML: {}".format(e)) from e
 
     uid = mdev_uid
     extra_hostdev_xmls = []
@@ -2154,6 +2162,14 @@ def recreate_xml_if_gpu(
     elif is_passthrough and pci_bus_id:
         # PCI passthrough: pass the whole GPU device via VFIO
         # pci_bus_id format: "pci_0000_21_00_0" -> domain=0x0000, bus=0x21, slot=0x00, function=0x0
+        if not re.fullmatch(
+            r"pci_[0-9a-fA-F]{4}_[0-9a-fA-F]{2}_[0-9a-fA-F]{2}_[0-9a-fA-F]",
+            pci_bus_id,
+        ):
+            raise ValueError(
+                "recreate_xml_if_gpu: malformed pci_bus_id {!r}; expected "
+                "'pci_DDDD_BB_SS_F' (hex)".format(pci_bus_id)
+            )
         parts = pci_bus_id.replace("pci_", "").split("_")
         domain = "0x" + parts[0]
         bus = "0x" + parts[1]
@@ -2174,6 +2190,14 @@ def recreate_xml_if_gpu(
                 "  </hostdev>"
             )
             for idx, cbdf in enumerate(companions, start=1):
+                if not re.fullmatch(
+                    r"[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F]",
+                    cbdf,
+                ):
+                    raise ValueError(
+                        "recreate_xml_if_gpu: malformed companion PCI BDF "
+                        "{!r}; expected 'DDDD:BB:SS.F' (hex)".format(cbdf)
+                    )
                 c_parts = cbdf.split(":")
                 c_domain = "0x" + c_parts[0]
                 c_bus = "0x" + c_parts[1]
