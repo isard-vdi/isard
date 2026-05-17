@@ -882,6 +882,29 @@ def get_hypers_gpu_online(
                 pci_sysfs[: len(pci_sysfs) - 2] + "." + pci_sysfs[-1]
             )  # "0000:41:00.0"
             gpu_numa_node = h.get("pci_devices", {}).get(pci_sysfs, {}).get("numa_node")
+            # Companion PCI BDFs (e.g. HD-audio .1 on display-mode NVIDIA
+            # boards) live in vgpus.info — pulled here so the domain XML
+            # rewrite at start time can emit both functions as a
+            # multifunction pair without an extra round-trip.
+            companion_pci_bdfs = []
+            try:
+                r_conn = new_rethink_connection()
+                try:
+                    vgpu_info = (
+                        r.table("vgpus")
+                        .get(gpu_id)
+                        .pluck({"info": "companion_pci_bdfs"})
+                        .run(r_conn)
+                    )
+                    companion_pci_bdfs = (
+                        vgpu_info.get("info", {}).get("companion_pci_bdfs") or []
+                    )
+                finally:
+                    close_rethink_connection(r_conn)
+            except Exception as e:
+                logs.workers.debug(
+                    f"Could not fetch companion_pci_bdfs for {gpu_id}: {e}"
+                )
             hypervisors_with_available_profile.append(
                 {
                     **h,
@@ -893,6 +916,7 @@ def get_hypers_gpu_online(
                             "next_gpu_id": gpu_id,
                             "gpu_profile": gpu_brand_model_profile,
                             "pci_bus_id": pci,
+                            "companion_pci_bdfs": companion_pci_bdfs,
                             "hugepages_info": h.get("hugepages_info", {}),
                             "hugepages_free_kb": h.get("stats", {})
                             .get("mem_stats", {})

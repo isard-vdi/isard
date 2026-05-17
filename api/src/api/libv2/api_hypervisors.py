@@ -920,6 +920,12 @@ class ApiHypervisors:
                 gpu_uuid = gpu.get("gpu_uuid")
                 if gpu_uuid and existing_card.get("gpu_uuid") != gpu_uuid:
                     update_fields["gpu_uuid"] = gpu_uuid
+                # companion_pci_bdfs reflects current sysfs/IOMMU-group state;
+                # always re-sync so a displaymodeselector flip or hardware
+                # change shows up in the row without a re-curation step.
+                companion_pci_bdfs = gpu.get("companion_pci_bdfs") or []
+                if existing_card.get("companion_pci_bdfs", []) != companion_pci_bdfs:
+                    update_fields["companion_pci_bdfs"] = companion_pci_bdfs
                 with app.app_context():
                     r.table("gpus").get(card_id).update(update_fields).run(db.conn)
                 log.info(f"GPU card '{card_id}' updated physical_device -> {vgpu_id}")
@@ -970,6 +976,7 @@ class ApiHypervisors:
                 "profiles_enabled": [],
                 "physical_device": vgpu_id,
                 "gpu_uuid": gpu.get("gpu_uuid"),
+                "companion_pci_bdfs": gpu.get("companion_pci_bdfs") or [],
             }
 
             with app.app_context():

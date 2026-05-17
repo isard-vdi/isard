@@ -375,6 +375,7 @@ class UiActions(object):
                         extra_info["uid"],
                         pci_bus_id=extra_info.get("pci_bus_id"),
                         is_passthrough=(extra_info.get("profile") == "passthrough"),
+                        companion_pci_bdfs=extra_info.get("companion_pci_bdfs") or [],
                     )
                     if extra_info.get("profile") == "passthrough":
                         xml = add_qemu_pcie_reserve(xml)
@@ -558,6 +559,9 @@ class UiActions(object):
                     dict_action["profile"] = extra_info.get("profile", False)
                     dict_action["vgpu_id"] = extra_info["gpu_id"]
                     dict_action["pci_bus_id"] = extra_info.get("pci_bus_id")
+                    dict_action["companion_pci_bdfs"] = (
+                        extra_info.get("companion_pci_bdfs") or []
+                    )
 
                 if expects_slow_createxml:
                     dict_action["expects_slow_createxml"] = True
