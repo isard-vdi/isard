@@ -313,6 +313,41 @@ def _get_mig_profiles(gpu_index):
     return profiles
 
 
+def _find_audio_companions(sysfs_pci_id):
+    """Find HD Audio companion functions in the GPU's IOMMU group.
+
+    Display-enabled NVIDIA boards expose their HDMI/DP audio codec as a
+    second PCI function (class 0x040300) inside the same IOMMU group as
+    the main GPU function. Compute-mode boards lack the display engine
+    entirely and therefore have no audio function. The display/compute
+    setting is a per-board VBIOS attribute managed by NVIDIA's
+    displaymodeselector — IsardVDI only reads what sysfs advertises.
+
+    Args:
+        sysfs_pci_id: normalised BDF, e.g. "0000:86:00.0".
+
+    Returns:
+        Sorted list of companion BDFs (e.g. ["0000:86:00.1"]) — empty when
+        the card has no audio companion or sysfs lookup fails.
+    """
+    iommu_devices_dir = f"/sys/bus/pci/devices/{sysfs_pci_id}/iommu_group/devices"
+    try:
+        peers = os.listdir(iommu_devices_dir)
+    except OSError:
+        return []
+
+    companions = []
+    for peer in peers:
+        if peer == sysfs_pci_id:
+            continue
+        peer_class = _read_sysfs_attr(f"/sys/bus/pci/devices/{peer}", "class")
+        # PCI base class 0x04 = Multimedia; subclass 0x03 = HD Audio.
+        # Match "0403xx" to cover any prog-IF variant.
+        if peer_class and peer_class.startswith("0403"):
+            companions.append(peer)
+    return sorted(companions)
+
+
 def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
     """Scan sysfs for NVIDIA GPUs not already found by nvidia-smi.
 
@@ -375,18 +410,24 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
         name = _lookup_gpu_name(device_id) or f"NVIDIA Unknown GPU ({entry})"
         memory_mb = 0
 
-        gpus.append(
-            {
-                "name": name,
-                "memory_total_mb": memory_mb,
-                "pci_bus_id": pci_id,
-                "driver_version": "N/A",
-                "vgpu_profiles": [],
-                "mig_mode": "[N/A]",
-                "model": normalize_gpu_model(name),
-                "gpu_uuid": None,
-            }
-        )
+        gpu_dict = {
+            "name": name,
+            "memory_total_mb": memory_mb,
+            "pci_bus_id": pci_id,
+            "driver_version": "N/A",
+            "vgpu_profiles": [],
+            "mig_mode": "[N/A]",
+            "model": normalize_gpu_model(name),
+            "gpu_uuid": None,
+        }
+        companions = _find_audio_companions(pci_id)
+        if companions:
+            gpu_dict["companion_pci_bdfs"] = companions
+            print(
+                f"  GPU {pci_id}: HD-audio companion(s) detected: "
+                f"{', '.join(companions)}"
+            )
+        gpus.append(gpu_dict)
 
     return gpus
 
@@ -899,8 +940,18 @@ def discover_gpus():
             if mig_profiles:
                 gpu_info["mig_profiles"] = mig_profiles
 
-        # Check for SR-IOV capability (vGPU cards like A40, Blackwell)
+        # Detect HD-audio companion in the same IOMMU group (display-mode
+        # NVIDIA boards expose .0 + .1; compute-mode boards have no .1).
         sysfs_pci_id = _normalize_pci_bus_id(gpu["pci_bus_id"]).lower()
+        companions = _find_audio_companions(sysfs_pci_id)
+        if companions:
+            gpu_info["companion_pci_bdfs"] = companions
+            print(
+                f"  GPU {sysfs_pci_id}: HD-audio companion(s) detected: "
+                f"{', '.join(companions)}"
+            )
+
+        # Check for SR-IOV capability (vGPU cards like A40, Blackwell)
         sriov_path = f"/sys/bus/pci/devices/{sysfs_pci_id}/sriov_totalvfs"
         try:
             with open(sriov_path) as f:

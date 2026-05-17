@@ -251,6 +251,66 @@ def test_recreate_xml_if_gpu_preserves_channel():
     assert len(tree.xpath("//filesystem")) == 1
 
 
+def test_recreate_xml_if_gpu_passthrough_with_audio_companion():
+    """Display-mode NVIDIA boards must emit GPU + .1 audio as a multifunction
+    pair on a single guest PCI slot, matching bare-metal topology so the GPU
+    driver finds its HDMI/DP audio codec at the expected offset."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(
+        xml,
+        "fake-uid",
+        pci_bus_id="pci_0000_86_00_0",
+        is_passthrough=True,
+        companion_pci_bdfs=["0000:86:00.1"],
+    )
+    tree = _parse(result)
+
+    hostdevs = tree.xpath('//hostdev[@type="pci"][@managed="yes"]')
+    assert len(hostdevs) == 2, "expected one hostdev for .0 + one for .1"
+
+    # Main function: source 86:00.0, guest-side multifunction='on'
+    main = hostdevs[0]
+    main_src = main.find("source/address")
+    assert main_src.get("bus") == "0x86"
+    assert main_src.get("slot") == "0x00"
+    assert main_src.get("function") == "0x0"
+    main_guest = main.find("address")
+    assert main_guest.get("multifunction") == "on"
+    assert main_guest.get("function") == "0x0"
+    main_guest_slot = main_guest.get("slot")
+
+    # Companion: source 86:00.1, same guest slot at function 0x1
+    companion = hostdevs[1]
+    comp_src = companion.find("source/address")
+    assert comp_src.get("bus") == "0x86"
+    assert comp_src.get("slot") == "0x00"
+    assert comp_src.get("function") == "0x1"
+    comp_guest = companion.find("address")
+    assert comp_guest.get("slot") == main_guest_slot
+    assert comp_guest.get("function") == "0x1"
+    # Companion is not the first function — must NOT carry multifunction
+    assert comp_guest.get("multifunction") is None
+
+
+def test_recreate_xml_if_gpu_passthrough_without_companion_unchanged():
+    """Compute-mode boards (no audio companion) keep the original
+    single-hostdev shape with no guest-side address (libvirt auto-assigns)."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(
+        xml,
+        "fake-uid",
+        pci_bus_id="pci_0000_c1_00_0",
+        is_passthrough=True,
+        companion_pci_bdfs=[],
+    )
+    tree = _parse(result)
+    hostdevs = tree.xpath('//hostdev[@type="pci"][@managed="yes"]')
+    assert len(hostdevs) == 1
+    # No guest-side multifunction injection when there are no companions.
+    guest_addr = hostdevs[0].find("address")
+    assert guest_addr is None
+
+
 # ---- engine bug fixes surfaced during the Redmine #15065 audit -------------
 
 

@@ -678,6 +678,27 @@ class hyp(object):
         update_table_field("vgpus", gpu_id, "changing_to_profile", new_profile)
         pci_id = gpu_id.split("-")[-1]
 
+        # Display-mode NVIDIA boards expose an HD-audio companion and no
+        # SR-IOV VFs — only passthrough is feasible. Refuse vGPU/MIG
+        # targets up front so the operator sees a clear error instead of
+        # an opaque sysfs/mdev failure later. To unlock vGPU/MIG profiles,
+        # flip the card to compute mode with NVIDIA's displaymodeselector
+        # and reboot.
+        pci_info_pre = self.info_nvidia.get(pci_id, {})
+        if (
+            new_profile != "passthrough"
+            and pci_info_pre.get("companion_pci_bdfs")
+            and pci_info_pre.get("sriov_totalvfs", 0) == 0
+        ):
+            logs.main.error(
+                f"Cannot change {gpu_id} to profile {new_profile!r}: card "
+                f"has an HD-audio companion and no SR-IOV VFs — only "
+                f"'passthrough' is supported. Use displaymodeselector to "
+                f"flip the card to compute mode if vGPU/MIG is required."
+            )
+            update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+            return False
+
         # Check if mdevs data exists for this PCI device and the new profile
         pci_mdevs = self.mdevs.get(pci_id, {})
         if not pci_mdevs.get(new_profile):
@@ -1100,6 +1121,41 @@ class hyp(object):
                     f"fi",
                 ]
                 execute_commands(self.hostname, cmds_vfio, port=self.port)
+
+                # Bind any HD-audio companion in the same IOMMU group to
+                # vfio-pci too. Display-mode NVIDIA boards expose .1 audio
+                # that VFIO requires bound (or unbound from a host driver)
+                # before it will open the group; today's leak is the audio
+                # function staying on snd_hda_intel. Generic unbind covers
+                # snd_hda_intel, driverless, or already-vfio-pci.
+                for cbdf in pci_info.get("companion_pci_bdfs", []):
+                    cmds_companion = [
+                        f"[ -L /sys/bus/pci/devices/{cbdf}/driver ] && "
+                        f"echo {cbdf} > /sys/bus/pci/devices/{cbdf}/driver/unbind "
+                        f"2>/dev/null || true",
+                        f"echo vfio-pci > /sys/bus/pci/devices/{cbdf}/driver_override",
+                        f"echo {cbdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
+                    ]
+                    execute_commands(
+                        self.hostname, cmds_companion, port=self.port, timeout=30
+                    )
+                    verify_companion = execute_commands(
+                        self.hostname,
+                        [f"readlink /sys/bus/pci/devices/{cbdf}/driver"],
+                        port=self.port,
+                    )
+                    companion_driver = verify_companion[0].get("out", "").strip()
+                    if "vfio-pci" not in companion_driver:
+                        logs.main.warning(
+                            f"Companion {cbdf} did not bind to vfio-pci "
+                            f"(driver now: {companion_driver!r}); guest may "
+                            f"start without its audio function or VFIO may "
+                            f"refuse the IOMMU group."
+                        )
+                    else:
+                        logs.main.info(
+                            f"Companion {cbdf} bound to vfio-pci alongside {pci_bdf}"
+                        )
             elif old_profile == "passthrough":
                 logs.main.info(
                     f"Switching GPU {pci_bdf} from vfio-pci back to nvidia "
@@ -1154,6 +1210,24 @@ class hyp(object):
                         f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
                     ]
                 execute_commands(self.hostname, cmds_driver, port=self.port, timeout=60)
+
+                # Release HD-audio companions from vfio-pci so the host audio
+                # driver (snd_hda_intel or whatever modaliases to the device)
+                # can re-bind. Mirrors the new_profile=="passthrough" branch.
+                for cbdf in pci_info.get("companion_pci_bdfs", []):
+                    cmds_companion = [
+                        f"[ -L /sys/bus/pci/devices/{cbdf}/driver ] && "
+                        f"echo {cbdf} > /sys/bus/pci/devices/{cbdf}/driver/unbind "
+                        f"2>/dev/null || true",
+                        f"echo > /sys/bus/pci/devices/{cbdf}/driver_override",
+                        f"echo {cbdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
+                    ]
+                    execute_commands(
+                        self.hostname, cmds_companion, port=self.port, timeout=30
+                    )
+                    logs.main.info(
+                        f"Companion {cbdf} released from vfio-pci for {pci_bdf}"
+                    )
 
             # Right-size the target profile's mdev map to what the driver
             # can actually host. Must run *before* we read the pool and
@@ -2053,6 +2127,14 @@ class hyp(object):
             # passthrough/MIG) has nothing to tear down, so the dance is
             # skipped and stops churning failed sysfs writes every cycle.
             info_nvidia["sriov_numvfs"] = gpu.get("sriov_numvfs", 0)
+
+            # HD-audio companion functions in the same IOMMU group. Populated
+            # by hypervisor discovery (gpu_discovery._find_audio_companions);
+            # display-mode NVIDIA boards have a .1 audio companion that must
+            # be moved as a unit with .0 — passed through to the guest and
+            # bound to vfio-pci on profile flips to passthrough. Compute-mode
+            # boards have an empty list and behave like today.
+            info_nvidia["companion_pci_bdfs"] = gpu.get("companion_pci_bdfs") or []
 
             # Bootstrap mdev-reset timestamp stamped by the hypervisor on each
             # (re)start. Reconcile uses it to tell whether it needs to do an

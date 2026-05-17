@@ -2115,7 +2115,22 @@ def recreate_xml_if_start_paused(xml, memory_mb=64):
     return xml_output
 
 
-def recreate_xml_if_gpu(xml, mdev_uid, pci_bus_id=None, is_passthrough=False):
+def recreate_xml_if_gpu(
+    xml,
+    mdev_uid,
+    pci_bus_id=None,
+    is_passthrough=False,
+    companion_pci_bdfs=None,
+):
+    """Inject the appropriate GPU hostdev(s) into a domain XML.
+
+    For passthrough mode, when ``companion_pci_bdfs`` is non-empty the
+    GPU's main function and each companion (typically the .1 HD-audio
+    function on display-mode NVIDIA boards) are emitted as a multifunction
+    pair on a single guest PCI slot so the guest sees them as one logical
+    device — matching bare-metal topology so the GPU driver finds its
+    audio codec at the expected offset.
+    """
     xml = xml
 
     parser = etree.XMLParser(remove_blank_text=True)
@@ -2129,6 +2144,7 @@ def recreate_xml_if_gpu(xml, mdev_uid, pci_bus_id=None, is_passthrough=False):
         # return False
 
     uid = mdev_uid
+    extra_hostdev_xmls = []
 
     if os.environ.get("GPU_FAKE") == "true":
         xml_hostdev = f"""    <gpufake:gpufake xmlns:gpufake="http://gpufake.com">
@@ -2143,7 +2159,37 @@ def recreate_xml_if_gpu(xml, mdev_uid, pci_bus_id=None, is_passthrough=False):
         bus = "0x" + parts[1]
         slot = "0x" + parts[2]
         function = "0x" + parts[3]
-        xml_hostdev = f"""  <hostdev mode='subsystem' type='pci' managed='yes'>
+        companions = list(companion_pci_bdfs or [])
+        if companions:
+            # Guest-side slot for the GPU+audio multifunction pair. Slot
+            # picked from a high free range to avoid colliding with
+            # libvirt's default device placement on q35/i440fx topologies.
+            guest_slot = "0x09"
+            xml_hostdev = (
+                "  <hostdev mode='subsystem' type='pci' managed='yes'>\n"
+                "    <source>\n"
+                f"      <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>\n"
+                "    </source>\n"
+                f"    <address type='pci' slot='{guest_slot}' function='0x0' multifunction='on'/>\n"
+                "  </hostdev>"
+            )
+            for idx, cbdf in enumerate(companions, start=1):
+                c_parts = cbdf.split(":")
+                c_domain = "0x" + c_parts[0]
+                c_bus = "0x" + c_parts[1]
+                c_slot, _, c_function = c_parts[2].partition(".")
+                c_slot = "0x" + c_slot
+                c_function = "0x" + c_function
+                extra_hostdev_xmls.append(
+                    "  <hostdev mode='subsystem' type='pci' managed='yes'>\n"
+                    "    <source>\n"
+                    f"      <address domain='{c_domain}' bus='{c_bus}' slot='{c_slot}' function='{c_function}'/>\n"
+                    "    </source>\n"
+                    f"    <address type='pci' slot='{guest_slot}' function='0x{idx:x}'/>\n"
+                    "  </hostdev>"
+                )
+        else:
+            xml_hostdev = f"""  <hostdev mode='subsystem' type='pci' managed='yes'>
         <source>
           <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>
         </source>
@@ -2159,6 +2205,14 @@ def recreate_xml_if_gpu(xml, mdev_uid, pci_bus_id=None, is_passthrough=False):
 
     element_tree = etree.parse(StringIO(xml_hostdev)).getroot()
     tree.xpath(xpath_parent)[0].insert(-1, element_tree)
+    # Place each companion immediately after the main hostdev so document
+    # order matches function order (.0 then .1). insert(-1) on the parent
+    # would reverse them when devices has zero or one existing child.
+    anchor = element_tree
+    for extra_xml in extra_hostdev_xmls:
+        extra_tree = etree.parse(StringIO(extra_xml)).getroot()
+        anchor.addnext(extra_tree)
+        anchor = extra_tree
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output
 
