@@ -240,6 +240,36 @@ def SetupHypervisor():
     except:
         raise
 
+    ## Save VPN tunneling mode + infrastructure MTU from the API response
+    ## for use by start.sh / OVS setup. start.sh reads
+    ## /tmp/vpn_tunneling_mode and otherwise defaults to "wireguard+geneve";
+    ## on geneve-only infrastructure (no WireGuard hyper peer) that default
+    ## makes the hypervisor take the wg VPNc path and fail. main writes
+    ## these files; apiv4-integration lost the write side while keeping the
+    ## read side in start.sh.
+    ##
+    ## NOTE: unlike main (where `data` is the raw JSON dict), here `data` is
+    ## the generated apiv4 client's parsed model. The server returns `vpn`
+    ## as an undeclared extra (AdminHypervisorCreateResponse has
+    ## extra="allow"); the client exposes it via __getitem__ (subscript),
+    ## not dict .get() — so `data.get("vpn")` would always miss it. Access
+    ## by subscript with a safe fallback, mirroring the existing
+    ## `data["certs"]` usage above.
+    try:
+        vpn_info = data["vpn"] or {}
+    except (KeyError, TypeError):
+        vpn_info = {}
+    vpn_tunneling_mode = vpn_info.get("tunneling_mode", "wireguard+geneve")
+    print(f"VPN tunneling mode from API: {vpn_tunneling_mode}")
+    with open("/tmp/vpn_tunneling_mode", "w") as f:
+        f.write(vpn_tunneling_mode)
+
+    infra_mtu = vpn_info.get("infrastructure_mtu", "")
+    if infra_mtu:
+        print(f"Infrastructure MTU from API: {infra_mtu}")
+        with open("/tmp/infrastructure_mtu", "w") as f:
+            f.write(str(infra_mtu))
+
 
 def DeleteHypervisor():
     """Best-effort API unregister. Bounded: one attempt, logged on failure.
