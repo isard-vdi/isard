@@ -101,6 +101,9 @@ vpn:
       allowed:
         - wireguard+geneve
         - geneve
+    guest_mtu:
+      type: integer
+      required: false
 hugepages_info:
   type: dict
   default: {}

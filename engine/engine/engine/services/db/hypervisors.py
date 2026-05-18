@@ -28,6 +28,35 @@ def get_hypervisor(hyp_id):
     return out
 
 
+def get_cluster_guest_mtu():
+    """Tenant-overlay guest MTU ceiling published by the API per hypervisor.
+
+    The cluster is homogeneous (same INFRASTRUCTURE_MTU / GENEVE_ONLY_INFRA
+    across nodes), so any Online hypervisor's ``vpn.guest_mtu`` is the
+    cluster value. Returns the int ceiling, or ``None`` when no Online
+    hypervisor publishes it (older/mixed-version cluster, fresh install,
+    or DB error) — callers must then emit unchanged XML (no regression).
+    """
+    r_conn = new_rethink_connection()
+    try:
+        out = list(
+            r.table("hypervisors")
+            .filter({"status": "Online"})
+            .filter(lambda h: h["vpn"]["guest_mtu"].default(False).ne(False))
+            .pluck({"vpn": "guest_mtu"})
+            .limit(1)
+            .run(r_conn)
+        )
+    except Exception:
+        close_rethink_connection(r_conn)
+        return None
+    close_rethink_connection(r_conn)
+    try:
+        return int(out[0]["vpn"]["guest_mtu"])
+    except (IndexError, KeyError, TypeError, ValueError):
+        return None
+
+
 def update_hyp_thread_status(thread_type, hyp_id, status):
     if thread_type in ["worker", "disk_operations"] and status in [
         "Started",

@@ -98,29 +98,42 @@ for _port in $(ovs-vsctl list-ports ovsbr0 2>/dev/null); do
 done
 
 # --- MTU derivation from INFRASTRUCTURE_MTU ---
+# Canonical formula (mirrored verbatim in api/src/api/libv2/api_hypervisors.py
+# `_overlay_max`, which the engine injects as the guest virtio <mtu>). Two
+# derived values:
+#   _overlay_max : the true guest payload ceiling the datapath carries
+#                  (ovsbr0/vlan-wg + the virtio NIC) — lets a jumbo underlay
+#                  expose a high in-guest MTU.
+#   _dhcp_mtu    : safe DHCP default = min(overlay_max, 1500) so ordinary
+#                  guests stay at 1500 (never black-hole), while a user inside
+#                  may raise the NIC up to _overlay_max on a jumbo underlay.
 _geneve_oh=54  # 20 IP + 8 UDP + 8 geneve + 14 eth + 4 VLAN
 _wg_oh=60      # 20 IP + 8 UDP + 32 WG
 
-if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
-    _infra_mtu=${INFRASTRUCTURE_MTU:-1500}
-    _ovs_mtu=$_infra_mtu
-    _guest_mtu=$(( _infra_mtu - _geneve_oh ))
-    [ $_guest_mtu -gt 1500 ] && _guest_mtu=1500
-else
-    _infra_mtu=${INFRASTRUCTURE_MTU:-1500}
-    # Backward compat: VPN_MTU was the WG interface MTU
-    if [ -z "${INFRASTRUCTURE_MTU:-}" ] && [ -n "${VPN_MTU:-}" ]; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') WARNING: VPN_MTU is deprecated, use INFRASTRUCTURE_MTU"
-        _infra_mtu=$(( VPN_MTU + _wg_oh ))
-    fi
-    _wg_mtu=$(( _infra_mtu - _wg_oh ))
-    _ovs_mtu=$_wg_mtu
-    _guest_mtu=$(( _wg_mtu - _geneve_oh ))
-    [ $_guest_mtu -gt 1420 ] && _guest_mtu=1420  # user WG cap
+_infra_mtu=${INFRASTRUCTURE_MTU:-1500}
+# Backward compat: VPN_MTU was the WG interface MTU (applies to BOTH modes)
+if [ -z "${INFRASTRUCTURE_MTU:-}" ] && [ -n "${VPN_MTU:-}" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') WARNING: VPN_MTU is deprecated, use INFRASTRUCTURE_MTU"
+    _infra_mtu=$(( VPN_MTU + _wg_oh ))
 fi
-[ $_guest_mtu -lt 1280 ] && _guest_mtu=1280  # IPv6 minimum floor
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] infra=$_infra_mtu ovs=$_ovs_mtu dhcp=$_guest_mtu"
+if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
+    _overlay_max=$(( _infra_mtu - _geneve_oh ))
+else
+    _overlay_max=$(( _infra_mtu - _wg_oh - _geneve_oh ))
+fi
+# clamp: IPv6 minimum floor .. sane jumbo cap
+[ $_overlay_max -lt 1280 ] && _overlay_max=1280
+[ $_overlay_max -gt 9000 ] && _overlay_max=9000
+
+# safe DHCP / guest auto-config default (never advertise > 1500)
+_dhcp_mtu=$_overlay_max
+[ $_dhcp_mtu -gt 1500 ] && _dhcp_mtu=1500
+
+# OVS bridge + guest-facing vlan-wg port carry the full overlay ceiling
+_ovs_mtu=$_overlay_max
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] infra=$_infra_mtu overlay_max=$_overlay_max dhcp=$_dhcp_mtu geneve_only=${GENEVE_ONLY_INFRA:-false}"
 
 # Sanity-check OVS bridge MTU against the underlay (docker network) interface.
 # If OVS > underlay, geneve-encapsulated packets get fragmented/dropped because
@@ -146,7 +159,7 @@ ovs-vsctl set interface ovsbr0 mtu_request=$_ovs_mtu
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Adding OVS vlan-wg port to default bridge with tag 4095"
 ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
 ip a a ${GUESTS_GW}/${WG_GUESTS_NETS#*/} dev vlan-wg >> /var/log/ovs 2>&1
-ovs-vsctl set interface vlan-wg mtu_request=$_guest_mtu
+ovs-vsctl set interface vlan-wg mtu_request=$_overlay_max
 ip link set vlan-wg up >> /var/log/ovs 2>&1
 
 # Monitor if vlan-wg is really up
@@ -278,7 +291,7 @@ dhcp-hostsdir=/var/lib/static_leases
 dhcp-option=121,${WG_MAIN_NET},${GUESTS_GW}
 EOT
 
-echo "dhcp-option=26,$_guest_mtu" >> /etc/dnsmasq.d/vlan-wg.conf
+echo "dhcp-option=26,$_dhcp_mtu" >> /etc/dnsmasq.d/vlan-wg.conf
 
 cat <<EOT >> /etc/dnsmasq.d/vlan-wg.conf
 #dhcp-option=vlan-wg,3,${GUESTS_GW}
