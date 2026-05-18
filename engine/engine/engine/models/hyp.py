@@ -22,6 +22,11 @@ from libpci import LibPCI
 from lxml import etree
 
 from engine.config import *
+from engine.models._gpu_pool import (
+    _profile_pool_size,
+    plan_passthrough_dedup,
+    plan_pool_trim,
+)
 from engine.services.db import (
     get_hyp_info,
     get_id_hyp_from_uri,
@@ -50,6 +55,7 @@ from engine.services.db.domains import (
 )
 from engine.services.db.hypervisors import (
     add_vgpu_uuids,
+    get_domains_vgpu_uuids,
     get_gpu_card_models,
     get_hypervisor,
     get_vgpu_full,
@@ -2776,10 +2782,11 @@ class hyp(object):
         sub_paths = d_info_gpu.get("sub_paths", False)
         for name, d_type in d_info_gpu["types"].items():
             d = {}
-            # in some nvidia cards as A40 d['max'] is None
-            if d_type.get("max") is None:
-                d_type["max"] = d_type.get("available", 1)
-            total_available = max(d_type.get("max", 1), d_type.get("available", 1))
+            # The driver max_instance is the realisable hard cap; some
+            # cards (A40) report it as None. _profile_pool_size handles
+            # the fallback to available without mutating d_type, and
+            # never lets `available` over-grow the pool past `max`.
+            total_available = _profile_pool_size(d_type)
 
             if d_type.get("mig"):
                 # MIG profiles: placeholder UUIDs, no mdev path needed
@@ -2889,6 +2896,70 @@ class hyp(object):
         self.mdevs[pci_id][profile] = new_map
         replace_vgpu_profile_mdevs(gpu_id, profile, new_map)
 
+    def _selfheal_vgpu_pools(self, vgpu_id, existing, existing_mdevs):
+        """FREE-only trim + passthrough dedup of over-sized mdev pools.
+
+        Heals pools a pre-fix engine persisted with max(max, available)
+        (and duplicate passthrough entries) down to the driver cap,
+        without waiting for an authoritative reset or profile switch.
+
+        Safe by construction:
+        - cheap in-memory gate first: returns 0 (no DB query, no write)
+          unless some pool exceeds its cap or passthrough has >1 entry,
+          so the steady state after healing costs nothing;
+        - never removes an entry that is created/started/reserved OR
+          whose UUID any domain still references via vgpu_info
+          (``get_domains_vgpu_uuids`` cross-check — pool flags can lag a
+          Stopped/reserved domain);
+        - per-profile ``r.literal`` write (no sibling churn); updates the
+          in-memory ``existing_mdevs`` so a later top-up sees post-trim
+          state.
+
+        Returns the number of phantom mdev entries removed.
+        """
+        card_types = (existing.get("info") or {}).get("types") or {}
+        needs_work = any(
+            isinstance(pool, dict)
+            and (
+                len(pool) > 1
+                if name == "passthrough"
+                else len(pool) > ((card_types.get(name) or {}).get("max") or 0) > 0
+            )
+            for name, pool in existing_mdevs.items()
+        )
+        if not needs_work:
+            return 0
+
+        bound_uuids = get_domains_vgpu_uuids()
+        total_trimmed = 0
+        for name, pool in list(existing_mdevs.items()):
+            if not isinstance(pool, dict):
+                continue
+            if name == "passthrough":
+                plan = plan_passthrough_dedup(pool, bound_uuids)
+            else:
+                cap = (card_types.get(name) or {}).get("max")
+                plan = plan_pool_trim(pool, cap, bound_uuids)
+            if not plan:
+                continue
+            kept, removed = plan
+            replace_vgpu_profile_mdevs(vgpu_id, name, kept)
+            existing_mdevs[name] = kept
+            # Keep the in-memory pool authoritative too: the per-cycle
+            # passthrough re-bind (change_vgpu_profile) reads self.mdevs,
+            # not the DB — without this it sees an empty/stale pool and
+            # deep-merges a fresh legacy-pci_mdev_id duplicate every
+            # cycle, oscillating against this dedup.
+            pci_id = vgpu_id[len(self.id_hyp_rethink) + 1 :]
+            self.mdevs.setdefault(pci_id, {})[name] = kept
+            total_trimmed += len(removed)
+            logs.workers.warning(
+                f"[{self.id_hyp_rethink}] Self-healed {vgpu_id} profile "
+                f"{name!r}: trimmed {len(removed)} free phantom mdev(s) "
+                f"({len(pool)} -> {len(kept)})"
+            )
+        return total_trimmed
+
     def reconcile_vgpu_uuids(self, vgpu_id, d_info_gpu):
         """Reconcile a vgpu row's mdev UUID pool with live VF state.
 
@@ -2909,13 +2980,20 @@ class hyp(object):
         Returns the number of mdev entries added (top-up) or created from
         scratch (rebuild) across all profiles.
         """
-        sub_paths = d_info_gpu.get("sub_paths", False)
-        if sub_paths is False:
-            return 0
         existing = get_vgpu_full(vgpu_id)
         if not existing:
             return 0
         existing_mdevs = existing.get("mdevs") or {}
+
+        # Self-heal pre-fix over-sized / duplicated pools. Runs regardless
+        # of sub_paths so passthrough / SR-IOV-incapable cards (no VFs,
+        # hence no sub_paths) are healed too. FREE-only and gated, so it
+        # is a no-op with zero DB writes once pools match the driver cap.
+        total_trimmed = self._selfheal_vgpu_pools(vgpu_id, existing, existing_mdevs)
+
+        sub_paths = d_info_gpu.get("sub_paths", False)
+        if sub_paths is False:
+            return total_trimmed
         sorted_paths = sorted(sub_paths)
 
         reset_at = d_info_gpu.get("mdevs_reset_at")
@@ -2933,10 +3011,7 @@ class hyp(object):
         for name, d_type in d_info_gpu["types"].items():
             if d_type.get("mig"):
                 continue
-            target = max(
-                d_type.get("max") or d_type.get("available", 1) or 1,
-                d_type.get("available", 1),
-            )
+            target = _profile_pool_size(d_type)
             cap = min(target, len(sorted_paths))
             prof_existing = existing_mdevs.get(name, {}) or {}
             used_pcis = {
@@ -2978,7 +3053,7 @@ class hyp(object):
                     f"{len(merged_subpaths)})"
                 )
             return total_added
-        return 0
+        return total_trimmed
 
     def _rebuild_vgpu_uuids_authoritative(
         self, vgpu_id, d_info_gpu, existing, sorted_paths, reset_at
@@ -2994,10 +3069,7 @@ class hyp(object):
         for name, d_type in d_info_gpu["types"].items():
             if d_type.get("mig"):
                 continue
-            target = max(
-                d_type.get("max") or d_type.get("available", 1) or 1,
-                d_type.get("available", 1),
-            )
+            target = _profile_pool_size(d_type)
             cap = min(target, len(sorted_paths))
             prof_new = {}
             for path in sorted_paths[:cap]:
