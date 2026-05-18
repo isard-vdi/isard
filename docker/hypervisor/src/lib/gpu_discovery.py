@@ -806,14 +806,18 @@ def _aggregate_subdevice_profiles(pci_bus_id):
 
 
 def normalize_gpu_model(gpu_name, vgpu_profiles=None):
-    """Derive a dash-free canonical model name for a GPU.
+    """Derive a dash- and slash-free canonical model name for a GPU.
 
     Uses vGPU profile name prefix when available (e.g., "A40" from "A40-4Q"),
     otherwise normalizes the nvidia-smi name by stripping "NVIDIA " prefix
-    and removing spaces and dashes to produce a dash-free string.
+    and removing spaces, dashes and slashes to produce a clean string.
 
     The model MUST be dash-free because the system uses
-    "BRAND-MODEL-PROFILE" format with dashes as separators.
+    "BRAND-MODEL-PROFILE" format with dashes as separators. It MUST also be
+    slash-free because that id is used verbatim as a URL path segment
+    (e.g. /api/v3/admin/reservables/enable/gpus/<card>/<id>): a '/' in the
+    model -- as in the A16 die name "GA107GL [A2 / A16]" -- would inject an
+    extra path segment and make the route unmatchable (HTTP 405).
     """
     if vgpu_profiles:
         # Extract model from vGPU profile name by removing the profile suffix.
@@ -828,16 +832,23 @@ def normalize_gpu_model(gpu_name, vgpu_profiles=None):
         else:
             # Fallback: use rsplit for simple cases
             model_part = profile_name.rsplit("-", 1)[0]
-        # Strip vendor prefix and remove spaces/dashes so the two code paths
-        # (profile-derived and nvidia-smi-name-derived) produce the same model.
+        # Strip vendor prefix and remove spaces/dashes/slashes so the two code
+        # paths (profile-derived and nvidia-smi-name-derived) produce the same
+        # model.
         result = (
             model_part.replace("NVIDIA ", "")
             .replace("GRID ", "")
             .replace(" ", "")
             .replace("-", "")
+            .replace("/", "")
         )
         return result
-    result = gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+    result = (
+        gpu_name.replace("NVIDIA ", "")
+        .replace(" ", "")
+        .replace("-", "")
+        .replace("/", "")
+    )
     return result
 
 
