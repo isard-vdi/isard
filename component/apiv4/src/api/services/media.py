@@ -101,6 +101,7 @@ class MediaService:
             query_filter=lambda media: media["status"] != "deleted",
             order="name",
             only_in_allowed=True,
+            exclude_owner_user_id=payload["user_id"],
         )
 
     @staticmethod
