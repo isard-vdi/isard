@@ -489,7 +489,7 @@ def _cycle_sriov_vfs(sysfs_pci_id):
             timeout=60,
         )
         if r.returncode != 0:
-            log.warning(
+            log.debug(
                 "GPU %s: sriov-manage -d failed: %s",
                 sysfs_pci_id,
                 (r.stderr or r.stdout).strip()[:200],
@@ -502,14 +502,18 @@ def _cycle_sriov_vfs(sysfs_pci_id):
             timeout=60,
         )
         if r.returncode != 0:
-            log.warning(
+            log.debug(
                 "GPU %s: sriov-manage -e failed: %s",
                 sysfs_pci_id,
                 (r.stderr or r.stdout).strip()[:200],
             )
             return False
     except (OSError, subprocess.TimeoutExpired) as e:
-        log.warning("GPU %s: sriov-manage error: %s", sysfs_pci_id, e)
+        log.debug(
+            "GPU %s: sriov-manage unavailable (%s); using manual pci-pf-stub fallback",
+            sysfs_pci_id,
+            e,
+        )
         return False
 
     log.info("GPU %s: cycled SR-IOV VFs via sriov-manage", sysfs_pci_id)
@@ -837,6 +841,48 @@ def normalize_gpu_model(gpu_name, vgpu_profiles=None):
     return result
 
 
+def _classify_sriov_state(totalvfs, numvfs, has_profiles, vf_driver):
+    """Classify a GPU's SR-IOV state into informational notes vs warnings.
+
+    Pure decision logic split out of :func:`discover_gpus` so it can be
+    unit-tested without sysfs. Inputs are already-resolved primitives:
+
+    - ``totalvfs``     -- ``sriov_totalvfs`` (capability; 0 = not SR-IOV).
+    - ``numvfs``       -- ``sriov_numvfs`` (VFs created right now).
+    - ``has_profiles`` -- truthy if vGPU mdev profiles exist on the PF.
+    - ``vf_driver``    -- driver bound to ``virtfn0`` ("" if none); only
+                          consulted when VFs exist but no profiles.
+
+    Returns ``(notes, warnings)``: ``notes`` are non-fault states rendered
+    neutrally; ``warnings`` are genuine misconfigurations rendered as the
+    orange fault icon. A correctly configured passthrough/MIG card (no VFs
+    and no profiles) yields a single note and *no* warning, so the admin
+    UI stays clean when everything is correct.
+    """
+    notes = []
+    warnings = []
+    if totalvfs > 0 and not has_profiles:
+        if numvfs == 0:
+            notes.append(
+                f"SR-IOV not in use ({totalvfs} VFs supported, none "
+                f"created); serving passthrough/MIG. This is expected "
+                f"unless a time-sliced vGPU (Q) profile is required."
+            )
+        elif vf_driver != "nvidia":
+            warnings.append(
+                f"SR-IOV VFs created ({numvfs}) but nvidia driver "
+                f"cannot bind VFs (driver={vf_driver or 'none'}). "
+                f"vGPU requires IOMMU enabled in BIOS and kernel "
+                f"(iommu=pt). Only passthrough and MIG modes available."
+            )
+        else:
+            warnings.append(
+                f"SR-IOV VFs active ({numvfs}) and nvidia-bound but "
+                f"no vGPU profiles found on VFs."
+            )
+    return notes, warnings
+
+
 def discover_gpus():
     """Discover NVIDIA GPUs and their vGPU profiles.
 
@@ -901,6 +947,17 @@ def discover_gpus():
                 totalvfs = int(f.read().strip())
             if totalvfs > 0:
                 gpu_info["sriov_totalvfs"] = totalvfs
+                # Current VF count, recorded for *every* SR-IOV-capable
+                # card (not only profile-less ones): the engine gates the
+                # passthrough VF-teardown dance on VFs actually existing,
+                # so an A40 that *does* have VFs must still report its
+                # real count or the teardown would be wrongly skipped.
+                numvfs_path = f"/sys/bus/pci/devices/{sysfs_pci_id}/sriov_numvfs"
+                try:
+                    with open(numvfs_path) as nf:
+                        gpu_info["sriov_numvfs"] = int(nf.read().strip())
+                except (OSError, ValueError):
+                    gpu_info["sriov_numvfs"] = 0
         except (OSError, ValueError):
             pass
 
@@ -909,46 +966,32 @@ def discover_gpus():
         if path_parent is not None:
             gpu_info["path_parent"] = path_parent
 
-        # Detect misconfiguration: SR-IOV GPUs with VFs but no vGPU profiles
-        warnings = []
+        # Classify SR-IOV state. `notes` are non-fault informational items
+        # (rendered neutrally, not the orange fault icon); `warnings` are
+        # genuine misconfigurations. Pure decision in _classify_sriov_state;
+        # only the VF-driver sysfs walk (needed when VFs exist but no
+        # profiles) is resolved here.
         totalvfs = gpu_info.get("sriov_totalvfs", 0)
-        if totalvfs > 0 and not profiles:
-            numvfs_path = f"/sys/bus/pci/devices/{sysfs_pci_id}/sriov_numvfs"
-            try:
-                with open(numvfs_path) as f:
-                    numvfs = int(f.read().strip())
-            except (OSError, ValueError):
-                numvfs = 0
-            if numvfs == 0:
-                warnings.append(
-                    f"SR-IOV capable ({totalvfs} VFs) but VF creation failed. "
-                    f"Only passthrough and MIG modes available."
-                )
-            else:
-                # VFs exist but no profiles — likely IOMMU issue
-                first_vf = f"/sys/bus/pci/devices/{sysfs_pci_id}/virtfn0"
-                vf_driver = ""
-                if os.path.exists(first_vf):
-                    vf_bdf = os.path.basename(os.path.realpath(first_vf))
-                    drv = f"/sys/bus/pci/devices/{vf_bdf}/driver"
-                    if os.path.exists(drv):
-                        vf_driver = os.path.basename(os.path.realpath(drv))
-                if vf_driver != "nvidia":
-                    warnings.append(
-                        f"SR-IOV VFs created ({numvfs}) but nvidia driver "
-                        f"cannot bind VFs (driver={vf_driver or 'none'}). "
-                        f"vGPU requires IOMMU enabled in BIOS and kernel "
-                        f"(iommu=pt). Only passthrough and MIG modes available."
-                    )
-                else:
-                    warnings.append(
-                        f"SR-IOV VFs active ({numvfs}) and nvidia-bound but "
-                        f"no vGPU profiles found on VFs."
-                    )
+        numvfs = gpu_info.get("sriov_numvfs", 0)
+        vf_driver = ""
+        if totalvfs > 0 and not profiles and numvfs > 0:
+            first_vf = f"/sys/bus/pci/devices/{sysfs_pci_id}/virtfn0"
+            if os.path.exists(first_vf):
+                vf_bdf = os.path.basename(os.path.realpath(first_vf))
+                drv = f"/sys/bus/pci/devices/{vf_bdf}/driver"
+                if os.path.exists(drv):
+                    vf_driver = os.path.basename(os.path.realpath(drv))
+        notes, warnings = _classify_sriov_state(
+            totalvfs, numvfs, bool(profiles), vf_driver
+        )
         if warnings:
             gpu_info["warnings"] = warnings
             for w in warnings:
                 print(f"  GPU {sysfs_pci_id}: {w}")
+        if notes:
+            gpu_info["notes"] = notes
+            for n in notes:
+                print(f"  GPU {sysfs_pci_id} [info]: {n}")
 
         gpus.append(gpu_info)
 
@@ -1549,14 +1592,20 @@ def _enable_sriov_for_gpu(pci_bdf):
             timeout=60,
         )
         if r.returncode != 0:
-            log.error(
-                "GPU %s: sriov-manage -e failed: %s",
+            log.debug(
+                "GPU %s: sriov-manage -e unavailable (%s); manual "
+                "pci-pf-stub path handles VF enablement",
                 pci_bdf,
                 (r.stderr or r.stdout).strip()[:200],
             )
             return
     except (OSError, subprocess.TimeoutExpired) as e:
-        log.error("GPU %s: sriov-manage error: %s", pci_bdf, e)
+        log.debug(
+            "GPU %s: sriov-manage unavailable (%s); manual pci-pf-stub "
+            "path handles VF enablement",
+            pci_bdf,
+            e,
+        )
         return
 
     # Verify VFs created. sriov-manage exits 0 even when the underlying

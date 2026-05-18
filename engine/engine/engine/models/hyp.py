@@ -1149,17 +1149,23 @@ class hyp(object):
             # DRIVER BINDING: swap between nvidia and vfio-pci for passthrough
             pci_bdf = pci_info["path"].split("/")[-1]
             sriov_totalvfs = pci_info.get("sriov_totalvfs", 0)
+            sriov_numvfs = pci_info.get("sriov_numvfs", 0)
 
             if new_profile == "passthrough":
                 logs.main.info(
                     f"Switching GPU {pci_bdf} to vfio-pci for passthrough "
-                    f"(sriov_totalvfs={sriov_totalvfs})"
+                    f"(sriov_totalvfs={sriov_totalvfs}, "
+                    f"sriov_numvfs={sriov_numvfs})"
                 )
-                if sriov_totalvfs > 0:
-                    # SR-IOV card (e.g. A40 with vGPU driver): must disable
-                    # VFs before vfio-pci will accept the PF. Replicates
-                    # sriov-manage -d logic with proper error handling for
-                    # container environment (no systemctl, sysfs error codes).
+                if sriov_totalvfs > 0 and sriov_numvfs > 0:
+                    # SR-IOV card with VFs actually created (e.g. A40 with
+                    # vGPU driver): must disable VFs before vfio-pci will
+                    # accept the PF. Replicates sriov-manage -d logic with
+                    # proper error handling for the container environment.
+                    # Skipped when sriov_numvfs == 0 (no VFs to tear down —
+                    # e.g. SR-IOV-incapable Blackwell serving passthrough):
+                    # running it there only churns failing sysfs writes
+                    # ("No such device", unbindLock) every discovery cycle.
                     sb = pci_bdf.replace("00.0", "")
                     cmds_driver = [
                         "modprobe vfio-pci",
@@ -1646,6 +1652,7 @@ class hyp(object):
         # "GPU at capacity" diagnoses are deterministic and must NOT trigger
         # the 30 s retry loop.
         self._gpu_warnings = []
+        self._gpu_notes = []
         self._gpu_warnings_retryable = False
         try:
             if self.hypervisor:
@@ -1659,6 +1666,8 @@ class hyp(object):
                         self._gpu_warnings.append(
                             f"GPU {gpu.get('pci_bus_id', '?')}: {w}"
                         )
+                    for n in gpu.get("notes", []):
+                        self._gpu_notes.append(f"GPU {gpu.get('pci_bus_id', '?')}: {n}")
         except Exception:
             pass
 
@@ -1681,6 +1690,18 @@ class hyp(object):
         logs.workers.info(
             f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Completed in {time.time() - step_start:.2f}s"
         )
+
+        # Write accumulated GPU notes (non-fault, informational) to DB.
+        try:
+            update_table_field(
+                "hypervisors",
+                self.id_hyp_rethink,
+                "gpu_notes",
+                getattr(self, "_gpu_notes", []),
+                merge_dict=False,
+            )
+        except Exception:
+            pass
 
         # Write accumulated GPU warnings to DB for admin visibility
         try:
@@ -2419,6 +2440,13 @@ class hyp(object):
 
             # SR-IOV total VFs (needed for passthrough on vGPU cards)
             info_nvidia["sriov_totalvfs"] = gpu.get("sriov_totalvfs", 0)
+            # Current VF count from discovery. Lets the driver-binding
+            # paths gate the SR-IOV teardown dance on VFs *actually*
+            # existing rather than mere SR-IOV capability — a card that
+            # never created VFs (e.g. SR-IOV-incapable Blackwell serving
+            # passthrough/MIG) has nothing to tear down, so the dance is
+            # skipped and stops churning failed sysfs writes every cycle.
+            info_nvidia["sriov_numvfs"] = gpu.get("sriov_numvfs", 0)
 
             # HD-audio companion functions in the same IOMMU group. Populated
             # by hypervisor discovery (gpu_discovery._find_audio_companions);
