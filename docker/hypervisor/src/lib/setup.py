@@ -112,15 +112,19 @@ def _detect_nested_virtualization():
 def SetupHypervisor():
     ensure_sriov_vfs()
 
-    nvidia_enabled = os.environ.get("GPU_NVIDIA_SCAN") == "true"
+    # GPU discovery runs unconditionally and nvidia_enabled is derived from
+    # whether any NVIDIA GPU was found (apiv3/main behaviour). The
+    # GPU_NVIDIA_SCAN opt-in gate was dropped: it silently hid passthrough
+    # and vGPU capable cards on hypervisors that never set the variable,
+    # diverging from main where the same hardware is auto-detected.
     nvidia_gpus = None
-    if nvidia_enabled:
-        try:
-            nvidia_gpus = discover_gpus()
-        except Exception as exc:
-            print(f"discover_gpus failed: {type(exc).__name__}: {exc}")
-            traceback.print_exc()
-            nvidia_gpus = None
+    try:
+        nvidia_gpus = discover_gpus()
+    except Exception as exc:
+        print(f"discover_gpus failed: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
+        nvidia_gpus = None
+    nvidia_enabled = bool(nvidia_gpus)
 
     HYPERVISOR = {
         "hyper_id": os.environ.get("HYPER_ID", "isard-hypervisor"),
