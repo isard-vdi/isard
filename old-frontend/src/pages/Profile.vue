@@ -312,12 +312,6 @@
                               />
                               <QuotaProgressBar
                                 v-if="profile.role.toLowerCase() !== 'user'"
-                                :title="$t('components.profile.quota.deployment_users')"
-                                :value="profile.used.deploymentUsers"
-                                :max="profile.quota.deploymentUsers"
-                              />
-                              <QuotaProgressBar
-                                v-if="profile.role.toLowerCase() !== 'user'"
                                 v-b-tooltip="{ title: `${$t('components.profile.quota.started_deployment_desktops.description')}`,
                                                placement: 'left',
                                                customClass: 'isard-tooltip',
