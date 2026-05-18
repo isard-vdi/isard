@@ -1451,8 +1451,8 @@ class Helpers(RethinkSharedConnection):
         if payload.get("role_id", "") == "admin":
             return booking_id
 
-        booking = Caches.get_document("bookings", booking_id, ["user_id"])
-        if booking is None:
+        booking_user_id = Caches.get_document("bookings", booking_id, ["user_id"])
+        if booking_user_id is None:
             raise Error(
                 "not_found",
                 f"Booking {booking_id} not found",
@@ -1460,7 +1460,6 @@ class Helpers(RethinkSharedConnection):
                 description_code="not_found",
             )
 
-        booking_user_id = booking.get("user_id")
         if booking_user_id == payload["user_id"]:
             return booking_id
 

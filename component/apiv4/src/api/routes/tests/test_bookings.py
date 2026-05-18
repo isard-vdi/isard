@@ -184,7 +184,7 @@ def test_get_booking_priority_desktop(monkeypatch, test_client):
         staticmethod(lambda payload, domain_id: domain_id),
     )
 
-    def fake_get_priority(payload, desktop_id):
+    def fake_get_priority(payload, item_type, item_id):
         return {
             "priority": {"NVIDIA-A16-1Q": 5},
             "forbid_time": 60,
@@ -194,7 +194,7 @@ def test_get_booking_priority_desktop(monkeypatch, test_client):
         }
 
     monkeypatch.setattr(
-        "api.services.bookings.BookingsService.get_user_priority_for_desktop",
+        "api.services.bookings.BookingsService.get_user_priority",
         staticmethod(fake_get_priority),
     )
 

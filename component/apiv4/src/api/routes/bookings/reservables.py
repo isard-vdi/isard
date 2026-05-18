@@ -588,7 +588,10 @@ async def get_plan_bookings(
     tags=[tag],
     response_model=list[dict],
     summary="Get plans for item",
-    description="Returns all plans for a specific item.",
+    description=(
+        "Returns plans for a specific item that overlap with ``[start, end]``. "
+        "If both are omitted, defaults to plans active right now (v3 parity)."
+    ),
     responses={
         500: {"model": ErrorResponse},
     },
@@ -596,9 +599,20 @@ async def get_plan_bookings(
 async def get_item_plans(
     request: Request,
     item_id: str = Path(..., description="The item ID"),
+    start: Optional[datetime] = Query(
+        None, description="Lower bound of the time window (ISO 8601, UTC)"
+    ),
+    end: Optional[datetime] = Query(
+        None, description="Upper bound of the time window (ISO 8601, UTC)"
+    ),
 ) -> list[dict]:
     try:
-        return await asyncio.to_thread(ReservableService.get_item_plans, item_id) or []
+        return (
+            await asyncio.to_thread(
+                ReservableService.get_item_plans, item_id, start, end
+            )
+            or []
+        )
     except Error:
         raise
     except Exception as e:

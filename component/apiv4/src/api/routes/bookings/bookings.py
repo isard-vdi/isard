@@ -206,8 +206,9 @@ async def get_booking_desktop(
 async def get_booking_priority_desktop(request: Request, item_id: str):
     try:
         result = await asyncio.to_thread(
-            BookingsService.get_user_priority_for_desktop,
+            BookingsService.get_user_priority,
             request.token_payload,
+            "desktop",
             item_id,
         )
         return BookingPriorityDesktopResponse(**result)
@@ -218,6 +219,42 @@ async def get_booking_priority_desktop(request: Request, item_id: str):
             request,
             "internal_server",
             "Failed to retrieve booking priority for desktop",
+            traceback.format_exc(),
+        )
+
+
+@token_router.get(
+    "/items/bookings/get-priority-deployment/{item_id}",
+    tags=[tag],
+    response_model=BookingPriorityDesktopResponse,
+    summary="Get booking priority for a deployment",
+    description=(
+        "Returns the calling user's booking priority profile and the "
+        "deployment name. ``@has_token`` + ``ownsDeploymentId``."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[Depends(owns_deployment_id("item_id"))],
+)
+async def get_booking_priority_deployment(request: Request, item_id: str):
+    try:
+        result = await asyncio.to_thread(
+            BookingsService.get_user_priority,
+            request.token_payload,
+            "deployment",
+            item_id,
+        )
+        return BookingPriorityDesktopResponse(**result)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve booking priority for deployment",
             traceback.format_exc(),
         )
 
