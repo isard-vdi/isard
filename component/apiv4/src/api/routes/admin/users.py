@@ -199,7 +199,11 @@ async def admin_get_user(request: Request, user_id: str):
         )
         result = await asyncio.to_thread(AdminUsersService.get_user_full_data, user_id)
         return JSONResponse(
-            content=AdminUserFullDataResponse(**result).model_dump(mode="json"),
+            # exclude_none: the generated client's nested from_dict() treats
+            # an explicit null as a dict and raises; an absent key is UNSET.
+            content=AdminUserFullDataResponse(**result).model_dump(
+                mode="json", exclude_none=True
+            ),
             status_code=200,
         )
     except Error:
@@ -231,7 +235,11 @@ async def admin_get_user_raw(request: Request, user_id: str):
         )
         result = await asyncio.to_thread(AdminUsersService.get_user_raw, user_id)
         return JSONResponse(
-            content=AdminUserFullDataResponse(**(result or {})).model_dump(mode="json"),
+            # exclude_none: the generated client's nested from_dict() treats
+            # an explicit null as a dict and raises; an absent key is UNSET.
+            content=AdminUserFullDataResponse(**(result or {})).model_dump(
+                mode="json", exclude_none=True
+            ),
             status_code=200,
         )
     except Error:

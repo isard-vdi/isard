@@ -175,6 +175,95 @@ def test_admin_create_user(monkeypatch, test_client):
     assert captured == {"username": "alice", "role": "advanced"}
 
 
+def _raw_user_with_nullable_nested():
+    """A users-table row whose ``user_storage`` carries a ``provider_quota``
+    that resolves to ``None``. ``AdminUserFullDataResponse`` keeps
+    ``user_storage.provider_quota`` as an optional nested object, so a
+    naive ``model_dump(mode="json")`` emits ``provider_quota: null``."""
+    return {
+        "id": "local-default-admin-admin",
+        "name": "Administrator",
+        "provider": "local",
+        "category": "default",
+        "uid": "admin",
+        "username": "admin",
+        "role": "admin",
+        "group": "default-default",
+        "active": True,
+        "secondary_groups": [],
+        "email": "admin@isard",
+        "accessed": 1700000000.0,
+        "email_verified": False,
+        "vpn": {"wireguard": {"keys": {"private": "x", "public": "y"}}},
+        "user_storage": {},
+    }
+
+
+def test_admin_get_user_raw_roundtrips_through_generated_client(
+    monkeypatch, test_client
+):
+    """Regression: ``GET /admin/user/{id}/raw`` must NOT emit explicit
+    ``null`` for nullable nested-object fields. The openapi generated
+    client's ``_parse_response`` eagerly does
+    ``AdminUserFullDataResponse.from_dict(response.json())`` inside
+    ``sync_detailed``; an explicit ``user_storage.provider_quota: null``
+    makes the nested ``from_dict(None)`` raise ``TypeError`` — so the
+    webapp's ``user_loader`` sees an exception on a 200 and wrongly
+    redirects to maintenance. ``exclude_none=True`` keeps those keys
+    absent (``UNSET``) so the client parses cleanly."""
+    from isardvdi_apiv4_client.models.admin_user_full_data_response import (
+        AdminUserFullDataResponse as ClientModel,
+    )
+
+    jwt = MockJWT()
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_user_id",
+        staticmethod(lambda payload, user_id: True),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.get_user_raw",
+        staticmethod(lambda user_id: _raw_user_with_nullable_nested()),
+    )
+
+    response = test_client(url="/admin/user/local-default-admin-admin/raw", jwt=jwt)
+
+    assert response.status_code == 200
+    body = response.json()
+    # No explicit nulls for the nullable nested object the client chokes on.
+    assert "provider_quota" not in body.get("user_storage", {})
+    # The generated client must parse the body without raising — this is
+    # exactly what the webapp's user_loader does.
+    parsed = ClientModel.from_dict(body)
+    assert parsed.id == "local-default-admin-admin"
+    assert parsed.role == "admin"
+
+
+def test_admin_get_user_full_data_roundtrips_through_generated_client(
+    monkeypatch, test_client
+):
+    """Same contract for ``GET /admin/user/{id}`` — it shares
+    ``AdminUserFullDataResponse`` and the same serialization path."""
+    from isardvdi_apiv4_client.models.admin_user_full_data_response import (
+        AdminUserFullDataResponse as ClientModel,
+    )
+
+    jwt = MockJWT()
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_user_id",
+        staticmethod(lambda payload, user_id: True),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.get_user_full_data",
+        staticmethod(lambda user_id: _raw_user_with_nullable_nested()),
+    )
+
+    response = test_client(url="/admin/user/local-default-admin-admin", jwt=jwt)
+
+    assert response.status_code == 200
+    parsed = ClientModel.from_dict(response.json())
+    assert parsed.id == "local-default-admin-admin"
+
+
 def test_admin_update_user(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}
