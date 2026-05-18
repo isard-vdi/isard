@@ -17,6 +17,73 @@ toolchain is a single source of truth.
 
 ---
 
+## Test layers and boundaries
+
+The suite is built in four layers. Each test should belong to exactly one — if you can't place a test, you probably haven't decided what it's actually verifying.
+
+| Layer | What it proves | Speed | Cost | Coverage |
+|---|---|---|---|---|
+| **Unit** | One function/class, no network, no DB. Mocks for dependencies. | <1s per test | Low per test, many tests | 60-80% |
+| **Integration** | Multiple modules together against a **real DB + real Redis**, no UI. Response shape validation. | 1-10s per test | Medium | 15-30% |
+| **Contract** | Pins wire shapes the Pydantic→OpenAPI→SDK→`tsc` pipeline can't catch: `response_model=dict` / v3-compat / hand-built responses, serialization behaviour (e.g. null-omission), and shapes consumed by untyped clients (Flask/Vue 2). Path + status + shape hardcoded. *Not yet built — `testing/contract/` is the planned home.* | <1s per test | Low (few, strict) | only the pipeline's blind spots |
+| **E2E** | A user flow through the real browser (Playwright). Click, fill, navigate. | 10-60s per test | High (selectors, races) | 5-10%, critical happy paths only |
+
+Classical pyramid: many unit, some integration, a thin contract net (only the typed-pipeline blind spots — not one per endpoint), very few e2e. E2E are expensive and flaky — don't aim for 200.
+
+### Where each kind lives
+
+```
+component/<pkg>/src/<module>/tests/   # unit — co-located with the code
+testing/integration/                  # integration — needs a live stack
+testing/contract/                     # contract — planned; only pipeline blind-spot endpoints
+testing/e2e/                          # e2e — Playwright UI flows
+testing/db/                           # shared seed (used by e2e today;
+                                      # planned to grow into per-layer fixtures)
+```
+
+### Which layer is this test?
+
+| If the test… | …is |
+|---|---|
+| Calls a pure function and mocks any IO | **unit** |
+| Needs Redis or RethinkDB but no UI nor HTTP routing | **integration** |
+| Asserts path + status + shape for an endpoint the typed SDK can't already pin | **contract** |
+| Opens a page with Playwright and clicks | **e2e** |
+| Needs `docker compose` up | **integration** or **e2e**, never unit |
+| Takes >10s | Rethink whether you can push it down a layer |
+
+### Call style by layer (SDK vs raw paths)
+
+| Layer / location | Allowed call style |
+|---|---|
+| `testing/e2e/tests/**/*.spec.js` (UI flows) | Playwright UI selectors only |
+| `testing/e2e/fixtures/apiv4/**` (test-issued setup/cleanup) | **Generated SDK** (`testing/e2e/src/gen/apiv4`) |
+| `testing/integration/**` | SDK for setup, raw HTTP for the assertions you actually want to pin |
+| `testing/contract/**` (new) | **Hardcoded paths** — the whole point of the layer is to pin the wire contract |
+| DB seeding (`testing/db/populate_test_db.py`) | RethinkDB directly, no HTTP |
+| `bridgeAdminSession` and similar narrow bridges | Raw `page.request` allowed (explicit carve-out) |
+
+The Pydantic→OpenAPI→SDK→`tsc` pipeline already enforces the contract for **typed** consumers: a renamed, removed or retyped field breaks the frontend build when the SDK is regenerated. The contract layer is therefore narrow — it exists only for what that pipeline can't see: `response_model=dict` / v3-compat / hand-built responses, serialization behaviour (e.g. null-omission), and shapes consumed by untyped clients (Flask/Vue 2).
+
+### Code-review block list
+
+- `page.request.<get|post|put|delete|patch>('/api/...')` inside `testing/e2e/tests/**` → block, ask to move into `testing/e2e/fixtures/apiv4/` and call via SDK.
+- `requests.<method>('http://...api/v...')` (or equivalent) in `testing/integration/**` test files when the call is part of **setup** → block, ask to add a helper that uses the generated Python SDK.
+- Hardcoded paths inside `testing/contract/**` are **expected** — don't flag them.
+- `bridgeAdminSession` in `testing/e2e/fixtures/common.js` hits `/isard-admin/login` raw — explicit exception (Flask session bridge, not an `/api/` call).
+- Mocks deep enough to neutralise three or more modules in an integration test → block, ask whether it's actually a unit test in disguise.
+
+### Naming conventions
+
+| Layer | Pattern |
+|---|---|
+| Python unit / integration | `test_<unit_or_topic>.py` |
+| Python contract (planned) | `test_<endpoint>_contract.py` |
+| Go unit | `*_test.go` (next to the code) |
+| Playwright e2e | `*.spec.js` |
+
+---
+
 ## Quick Start
 
 ```bash
