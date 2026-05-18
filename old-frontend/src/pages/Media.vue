@@ -200,7 +200,7 @@
           </template>
           <template #cell(user)="data">
             <p class="text-dark-gray m-0">
-              {{ data.item.userName }}
+              {{ data.item.userName || (data.item.user && data.item.user.name) || '' }}
             </p>
           </template>
           <template #cell(category)="data">
