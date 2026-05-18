@@ -149,6 +149,7 @@ class ResourceItemsGpus(RethinkSharedConnection):
         )
         with cls._rdb_context():
             items = list(query.run(cls._rdb_connection))
+        # Cache gpu_warnings / gpu_notes per hypervisor to avoid repeated queries
         hyp_gpu_warnings = {}
         hyp_gpu_notes = {}
         for item in items:

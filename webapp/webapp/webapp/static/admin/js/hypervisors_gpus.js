@@ -76,11 +76,16 @@ $(document).ready(function () {
           '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>',
       },
       { data: "name", width: "300px", render: function (data, type, full) {
+        var suffix = '';
         if (full.gpu_warnings && full.gpu_warnings.length > 0) {
           var tooltip = full.gpu_warnings.join('&#10;');
-          return data + ' <i class="fa fa-microchip" style="color:orange" title="' + tooltip + '"></i>';
+          suffix += ' <i class="fa fa-microchip" style="color:orange" title="' + tooltip + '"></i>';
         }
-        return data;
+        if (full.gpu_notes && full.gpu_notes.length > 0) {
+          var notes_tooltip = full.gpu_notes.join('&#10;');
+          suffix += ' <i class="fa fa-info-circle" style="color:#3c8dbc" title="' + notes_tooltip + '"></i>';
+        }
+        return data + suffix;
       }},
       { data: "description" },
       { data: "physical_device", render: function (data, type, full) {
