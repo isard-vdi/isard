@@ -439,7 +439,13 @@ class BalancerInterface:
 
 
 def _build_hugepages_extra(hyper_dict):
-    """Extract hugepages fallback info for non-GPU desktops."""
+    """Extract hugepages + NUMA fallback info for non-GPU desktops.
+
+    Surfaces numa_topology and per-NUMA hugepages free so ui_actions can
+    emit ``<cputune>`` + ``<numatune>`` for NUMA-local CPU/memory placement.
+    Falls back to hash-distributed node pick when ``numa_hugepages_free_kb``
+    is empty (stats writer hasn't run yet or libvirt unavailable).
+    """
     hugepages_info = hyper_dict.get("hugepages_info", {})
     if not hugepages_info or not hugepages_info.get("mounted"):
         return {}
@@ -449,6 +455,8 @@ def _build_hugepages_extra(hyper_dict):
         "min_free_mem_gb": hyper_dict.get("min_free_mem_gb", 0) or 0,
         "mem_available_kb": mem_stats.get("available", 0),
         "hugepages_free_kb": mem_stats.get("hugepages_free_kb", 0),
+        "numa_topology": hyper_dict.get("numa_topology", {}) or {},
+        "numa_hugepages_free_kb": mem_stats.get("numa_hugepages_free_kb", {}) or {},
     }
 
 
@@ -464,8 +472,10 @@ def _parse_extra_gpu_info(gpu_selected):
             else ""
         ),
         "pci_bus_id": gpu_selected.get("pci_bus_id"),
+        "gpu_numa_node": gpu_selected.get("gpu_numa_node"),
         "companion_pci_bdfs": gpu_selected.get("companion_pci_bdfs") or [],
         "hugepages": gpu_selected.get("hugepages_info", {}),
+        "numa_topology": gpu_selected.get("numa_topology", {}) or {},
     }
 
 

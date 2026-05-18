@@ -126,6 +126,25 @@ def SetupHypervisor():
         nvidia_gpus = None
     nvidia_enabled = bool(nvidia_gpus)
 
+    # Sysfs-only discovery (no libvirt required, runs before libvirtd). The
+    # engine balancer reads ``pci_devices[<sysfs-bdf>].numa_node`` to set
+    # ``gpu_numa_node`` on gpu_selected, and ``hugepages_info`` to gate
+    # ``<memoryBacking><hugepages/>`` emission and pick the NUMA-local node
+    # for non-GPU desktops. Both are best-effort: a failure here must not
+    # block registration.
+    hugepages_info = None
+    try:
+        hugepages_info = discover_hugepages()
+    except Exception as exc:
+        print(f"discover_hugepages failed: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
+    pci_devices = None
+    try:
+        pci_devices = discover_pci_devices(nvidia_gpus)
+    except Exception as exc:
+        print(f"discover_pci_devices failed: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
+
     HYPERVISOR = {
         "hyper_id": os.environ.get("HYPER_ID", "isard-hypervisor"),
         "hostname": hostname,
@@ -169,6 +188,8 @@ def SetupHypervisor():
             os.environ.get("BUFFERING_HYPER", "false").lower()
         ),
         "gpu_only": True if os.environ.get("GPU_ONLY") == "true" else False,
+        "hugepages_info": hugepages_info,
+        "pci_devices": pci_devices,
     }
 
     ## Adding hyper. Received dict with certs and number

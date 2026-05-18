@@ -96,6 +96,7 @@ class AdminHypervisorsService:
             buffering_hyper=data.get("buffering_hyper", False),
             gpu_only=data.get("gpu_only", False),
             hugepages_info=data.get("hugepages_info"),
+            pci_devices=data.get("pci_devices"),
             kvm_module=data.get("kvm_module"),
             nested=data.get("nested"),
         )

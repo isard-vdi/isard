@@ -622,6 +622,8 @@ def get_hypers_online(
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
             "hugepages_info",
+            "pci_devices",  # sysfs-keyed map used to look up gpu_numa_node
+            "numa_topology",  # libvirt-validated cells (set by enable_hyper)
             "libvirt_warning",  # Include warning state for balancer
             "degraded",  # Include degraded state for webapp display
             "cap_status",  # Include cap_status for balancer operation
@@ -844,6 +846,8 @@ def get_hypers_gpu_online(
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
             "hugepages_info",
+            "pci_devices",
+            "numa_topology",
         )
         .run(r_conn)
     )
@@ -933,6 +937,17 @@ def get_hypers_gpu_online(
                 f"hypervisor with available profile gpu: {h['id']}, uuid_selected: {mdev_uuid}, "
                 + f"gpu_profile: {gpu_brand_model_profile}, gpu_id: {gpu_id}"
             )
+            # Look up the GPU's NUMA node from pci_devices for NUMA-local
+            # CPU+memory pinning in ui_actions. pci is in libvirt format
+            # (``pci_0000_41_00_0``) — convert to sysfs format ``0000:41:00.0``
+            # to match the pci_devices keys populated by hypervisor discovery.
+            pci_sysfs = pci[4:].replace("_", ":", 2)  # "0000:41:00_0"
+            pci_sysfs = (
+                pci_sysfs[: len(pci_sysfs) - 2] + "." + pci_sysfs[-1]
+            )  # "0000:41:00.0"
+            gpu_numa_node = (
+                (h.get("pci_devices") or {}).get(pci_sysfs, {}).get("numa_node")
+            )
             # Companion PCI BDFs (e.g. HD-audio .1 on display-mode NVIDIA
             # boards) live in vgpus.info — pulled here so the domain XML
             # rewrite at start time can emit both functions as a
@@ -967,8 +982,10 @@ def get_hypers_gpu_online(
                             "next_gpu_id": gpu_id,
                             "gpu_profile": gpu_brand_model_profile,
                             "pci_bus_id": pci,
+                            "gpu_numa_node": gpu_numa_node,
                             "companion_pci_bdfs": companion_pci_bdfs,
                             "hugepages_info": h.get("hugepages_info", {}),
+                            "numa_topology": h.get("numa_topology", {}),
                         }
                     },
                 }

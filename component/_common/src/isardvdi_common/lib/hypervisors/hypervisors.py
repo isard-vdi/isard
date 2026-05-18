@@ -316,6 +316,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
         buffering_hyper=False,
         gpu_only=False,
         hugepages_info=None,
+        pci_devices=None,
         kvm_module=None,
         nested=None,
     ):
@@ -323,6 +324,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
 
         if hugepages_info is not None:
             data["hugepages_info"] = hugepages_info
+        if pci_devices is not None:
+            data["pci_devices"] = pci_devices
 
         # Check if it is in database
         with cls._rdb_context():
@@ -428,6 +431,11 @@ class HypervisorsProcessed(RethinkSharedConnection):
             with cls._rdb_context():
                 r.table("hypervisors").get(hyper_id).update(
                     {"hugepages_info": hugepages_info}
+                ).run(cls._rdb_connection)
+        if pci_devices is not None:
+            with cls._rdb_context():
+                r.table("hypervisors").get(hyper_id).update(
+                    {"pci_devices": pci_devices}
                 ).run(cls._rdb_connection)
 
         # Auto-populate gpu_profiles and gpu cards from scanned GPU data.

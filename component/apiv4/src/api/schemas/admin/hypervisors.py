@@ -62,6 +62,16 @@ class AdminHypervisorCreateData(BaseModel):
     # Self-reported KVM capability (replaces engine SSH probes for the same)
     kvm_module: Optional[str] = None
     nested: Optional[bool] = None
+    # Per-NUMA hugepages availability discovered from /sys/devices/system/node/
+    # at registration. Used by the engine balancer to pick the NUMA node with
+    # most free hugepages for non-GPU desktops, and by ``add_memory_backing``
+    # / ``add_numa_pinning`` to emit ``<numatune>`` + ``<cputune>`` XML.
+    hugepages_info: Optional[Dict[str, Any]] = None
+    # Sysfs-keyed PCI device inventory (``{"0000:41:00.0": {numa_node: 0,
+    # vendor: "10de", ...}, ...}``). Used by the engine balancer to look up
+    # ``gpu_numa_node`` for the NUMA-local placement of GPU passthrough
+    # desktops; also drives the IO-thread pinning for virtio disks.
+    pci_devices: Optional[Dict[str, Dict[str, Any]]] = None
 
 
 class AdminHypervisorEnableData(BaseModel):
