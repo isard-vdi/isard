@@ -39,5 +39,31 @@
             "NVIDIA-A40-2Q"
         ],
         "reservable_type": "gpus"
+    },
+    {
+        "architecture": "NVIDIA Turing",
+        "brand": "NVIDIA",
+        "description": "T4 mock for E2E priority-override tests (single-unit NVIDIA-T4-OVERRIDE profile)",
+        "id": "e2e-gpu-override-t4",
+        "memory": "16GB GDDR5",
+        "model": "T4",
+        "name": "GPU T4 Override",
+        "physical_device": null,
+        "profiles_enabled": [
+            "NVIDIA-T4-OVERRIDE"
+        ]
+    },
+    {
+        "architecture": "NVIDIA Turing",
+        "brand": "NVIDIA",
+        "description": "T4 mock for E2E admin planning tests (no seeded resource_planner so the admin owns the whole timeline)",
+        "id": "e2e-gpu-planning",
+        "memory": "16GB GDDR5",
+        "model": "T4",
+        "name": "GPU T4 Planning",
+        "physical_device": null,
+        "profiles_enabled": [
+            "NVIDIA-T4-2Q"
+        ]
     }
 ]

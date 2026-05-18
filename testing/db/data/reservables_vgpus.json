@@ -83,5 +83,28 @@
         "total_units": 8,
         "units": 8,
         "vram": 2048
+    },
+    {
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": [
+                "advanced",
+                "user"
+            ],
+            "users": false
+        },
+        "brand": "NVIDIA",
+        "description": "E2E override-test vGPU T4 2Q, single unit, role-differentiated priority (test-override-rule)",
+        "heads": 1,
+        "id": "NVIDIA-T4-OVERRIDE",
+        "model": "T4",
+        "name": "GPU NVIDIA T4 Override",
+        "priority_id": "test-override-rule",
+        "profile": "2Q",
+        "ram": 2048,
+        "total_units": 1,
+        "units": 1,
+        "vram": 2048
     }
 ]

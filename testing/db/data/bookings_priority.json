@@ -50,5 +50,41 @@
         "forbid_time": 15,
         "max_time": 120,
         "max_items": 2
+    },
+    {
+        "id": "test-override-advanced",
+        "rule_id": "test-override-rule",
+        "name": "Test Override Advanced",
+        "description": "E2E: advanced role gets high priority so it can override user-role bookings (users/groups/categories set to false so role matching is reached)",
+        "allowed": {
+            "roles": [
+                "advanced"
+            ],
+            "categories": false,
+            "groups": false,
+            "users": false
+        },
+        "priority": 800,
+        "forbid_time": 1,
+        "max_time": 999999,
+        "max_items": 999999
+    },
+    {
+        "id": "test-override-user",
+        "rule_id": "test-override-rule",
+        "name": "Test Override User",
+        "description": "E2E: user role gets low priority so it cannot override advanced-role bookings (users/groups/categories set to false so role matching is reached)",
+        "allowed": {
+            "roles": [
+                "user"
+            ],
+            "categories": false,
+            "groups": false,
+            "users": false
+        },
+        "priority": 300,
+        "forbid_time": 1,
+        "max_time": 999999,
+        "max_items": 999999
     }
 ]

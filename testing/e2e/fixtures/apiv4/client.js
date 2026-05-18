@@ -70,6 +70,15 @@ export const test = baseTest.extend({
   apiv4Admin: async ({ authenticatedPage }, use) => {
     await use(apiv4ClientForPage(authenticatedPage))
   },
+  apiv4User: async ({ userE2EPage }, use) => {
+    await use(apiv4ClientForPage(userE2EPage))
+  },
+  apiv4Advanced: async ({ advancedE2EPage }, use) => {
+    await use(apiv4ClientForPage(advancedE2EPage))
+  },
+  apiv4Manager: async ({ managerE2EPage }, use) => {
+    await use(apiv4ClientForPage(managerE2EPage))
+  },
 })
 
 export { expect } from '@playwright/test'

@@ -52,6 +52,13 @@ const users = {
   // E2E user (non-admin) for tests requiring role=user
   user_e2e_01: { username: 'user_e2e_01', password: 'IsardTest1!', category: 'default' },
 
+  // E2E advanced user for booking priority-override tests (higher
+  // priority than user_e2e_01 on the NVIDIA-T4-OVERRIDE bookable)
+  advanced_e2e_01: { username: 'advanced_e2e_01', password: 'IsardTest1!', category: 'default' },
+
+  // E2E manager user — reserved for future manager-role vue2 specs
+  manager_e2e_01: { username: 'manager_e2e_01', password: 'IsardTest1!', category: 'default' },
+
   // LDAP test users (from planetexpress.com test server)
   ldap_fry: { username: 'fry', password: 'fry', category: 'default' },
   ldap_leela: { username: 'leela', password: 'leela', category: 'default' },
@@ -293,6 +300,57 @@ export const test = base.extend({
 
   authenticatedPage: async ({ authenticatedContext }, use) => {
     const page = await authenticatedContext.newPage()
+    await use(page)
+    await page.close()
+  },
+
+  // Worker-scoped logins for the two shared non-admin e2e accounts so
+  // the vue2 specs reuse one session per worker instead of logging in
+  // per test. Each test gets a fresh page (tab) from the shared
+  // context — same cookies, no re-login.
+  userE2EContext: [async ({ browser }, use) => {
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await ctx.newPage()
+    await loginHelpers.login(page, users.user_e2e_01, categories)
+    await page.close()
+    await use(ctx)
+    await ctx.close()
+  }, { scope: 'worker' }],
+
+  userE2EPage: async ({ userE2EContext }, use) => {
+    const page = await userE2EContext.newPage()
+    await use(page)
+    await page.close()
+  },
+
+  advancedE2EContext: [async ({ browser }, use) => {
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await ctx.newPage()
+    await loginHelpers.login(page, users.advanced_e2e_01, categories)
+    await page.close()
+    await use(ctx)
+    await ctx.close()
+  }, { scope: 'worker' }],
+
+  advancedE2EPage: async ({ advancedE2EContext }, use) => {
+    const page = await advancedE2EContext.newPage()
+    await use(page)
+    await page.close()
+  },
+
+  // Reserved for future manager-role vue2 specs; same once-per-worker
+  // pattern. Lazy — only logs in if a spec consumes it.
+  managerE2EContext: [async ({ browser }, use) => {
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await ctx.newPage()
+    await loginHelpers.login(page, users.manager_e2e_01, categories)
+    await page.close()
+    await use(ctx)
+    await ctx.close()
+  }, { scope: 'worker' }],
+
+  managerE2EPage: async ({ managerE2EContext }, use) => {
+    const page = await managerE2EContext.newPage()
     await use(page)
     await page.close()
   },
