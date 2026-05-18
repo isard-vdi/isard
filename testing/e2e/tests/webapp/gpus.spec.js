@@ -16,49 +16,56 @@
 //     gracefully when the dev DB has none, so the file is safe to run
 //     against a hypervisor-less environment.
 
-import { test, expect } from '../../fixtures/login.js'
+import { test, expect, apiv4ClientForPage, unwrap } from '../../fixtures/apiv4/index.js'
+import {
+  addReservableItem,
+  adminTableList,
+  deleteReservableItem,
+  enableReservableSubitem,
+  getReservableItems,
+  listProfiles,
+  listReservableSubitems,
+} from '../../src/gen/apiv4/sdk.gen'
 
 // Matches the Parsley pattern on #modalAddGpu #name and stays under
 // the 50-char ceiling.
 const VALID_NAME_RE = /^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/
 
-async function listGpus(page) {
-  const resp = await page.request.get('/api/v4/items/reservables/gpus')
-  if (!resp.ok()) return []
-  const body = await resp.json().catch(() => null)
+async function listGpus(client) {
+  const body = await unwrap(
+    getReservableItems({ client, path: { reservable_type: 'gpus' } }),
+  ).catch(() => null)
   return body?.items ?? []
 }
 
-async function findGpuByName(page, name) {
-  const items = await listGpus(page)
+async function findGpuByName(client, name) {
+  const items = await listGpus(client)
   return items.find((g) => g.name === name) || null
 }
 
-async function listAvailableProfiles(page) {
-  const resp = await page.request.get('/api/v4/items/reservables/profiles/gpus')
-  if (!resp.ok()) return []
-  // The endpoint is rendered into a DataTable as `dataSrc: ""`, so the
-  // response is the raw array.
-  return (await resp.json().catch(() => [])) || []
+async function listAvailableProfiles(client) {
+  const data = await unwrap(
+    listProfiles({ client, path: { reservable_type: 'gpus' } }),
+  ).catch(() => [])
+  return Array.isArray(data) ? data : []
 }
 
-async function getGpuProfiles(page, gpuId) {
-  const resp = await page.request.get(`/api/v4/items/reservables/gpus/${gpuId}`)
-  if (!resp.ok()) return []
-  return (await resp.json().catch(() => [])) || []
+async function getGpuProfiles(client, gpuId) {
+  const data = await unwrap(
+    listReservableSubitems({ client, path: { reservable_type: 'gpus', item_id: gpuId } }),
+  ).catch(() => [])
+  return Array.isArray(data) ? data : []
 }
 
-async function createGpuViaApi(page, { name, description, bookable }) {
-  const resp = await page.request.post('/api/v4/item/reservable/gpus', {
-    data: { name, description, reservable_type: 'gpus', bookable },
-  })
-  if (!resp.ok()) {
-    throw new Error(
-      `createGpuViaApi failed: ${resp.status()} ${await resp.text().catch(() => '')}`,
-    )
-  }
+async function createGpuViaApi(client, { name, description, bookable }) {
+  const body = await unwrap(
+    addReservableItem({
+      client,
+      path: { reservable_type: 'gpus' },
+      body: { name, description, reservable_type: 'gpus', bookable },
+    }),
+  )
   // apiv4 returns SimpleResponse(id=<new_gpu_id>) — use it directly.
-  const body = await resp.json().catch(() => ({}))
   if (!body?.id) {
     throw new Error(
       `createGpuViaApi: POST response missing 'id' for "${name}": ${JSON.stringify(body)}`,
@@ -67,21 +74,34 @@ async function createGpuViaApi(page, { name, description, bookable }) {
   return { id: body.id, name, description }
 }
 
-async function deleteGpuViaApi(page, gpuId, notifyUser = false) {
-  const url = `/api/v4/item/reservable/gpus/${gpuId}` + (notifyUser ? '?notify_user=true' : '')
-  await page.request.delete(url).catch(() => {})
+async function deleteGpuViaApi(client, gpuId, notifyUser = false) {
+  await deleteReservableItem({
+    client,
+    path: { reservable_type: 'gpus', item_id: gpuId },
+    query: notifyUser ? { notify_user: true } : undefined,
+  }).catch(() => {})
 }
 
-async function setProfileEnabledViaApi(page, gpuId, profileId, enabled) {
-  const resp = await page.request.put(
-    `/api/v4/item/reservable/enable/gpus/${gpuId}/${profileId}`,
-    { data: { enabled } },
-  )
-  const body = await resp.text().catch(() => '')
-  if (!resp.ok()) {
-    throw new Error(`enable ${gpuId}/${profileId}=${enabled} failed: ${resp.status()} ${body}`)
+async function setProfileEnabledViaApi(client, gpuId, profileId, enabled) {
+  const result = await enableReservableSubitem({
+    client,
+    path: { reservable_type: 'gpus', item_id: gpuId, subitem_id: profileId },
+    body: { enabled },
+  })
+  if (result.error !== undefined && result.data === undefined) {
+    const status = result.response?.status
+    throw new Error(
+      `enable ${gpuId}/${profileId}=${enabled} failed: ${status} ${JSON.stringify(result.error)}`,
+    )
   }
-  console.log(`[enable] ${gpuId}/${profileId}=${enabled} → ${resp.status()} ${body}`)
+  console.log(`[enable] ${gpuId}/${profileId}=${enabled} → ${result.response?.status}`)
+}
+
+async function fetchGpuRow(client, gpuId) {
+  const body = await unwrap(
+    adminTableList({ client, path: { table: 'gpus' }, body: { id: gpuId } }),
+  ).catch(() => null)
+  return body || null
 }
 
 async function trackGpuName(testInfo, name) {
@@ -177,32 +197,33 @@ test.describe('Admin GPUs — webapp', () => {
   test.beforeAll(async ({ authenticatedContext }, workerInfo) => {
     const page = await authenticatedContext.newPage()
     try {
+      const client = apiv4ClientForPage(page)
       const prefix = `e2e-gpu-${workerInfo.workerIndex}-`
-      const stale = (await listGpus(page)).filter(
+      const stale = (await listGpus(client)).filter(
         (g) => typeof g.name === 'string' && g.name.startsWith(prefix),
       )
       for (const gpu of stale) {
-        await deleteGpuViaApi(page, gpu.id)
+        await deleteGpuViaApi(client, gpu.id)
       }
     } finally {
       await page.close()
     }
   })
 
-  test.afterEach(async ({ authenticatedPage: page }, testInfo) => {
+  test.afterEach(async ({ apiv4Admin }, testInfo) => {
     const names = testInfo.annotations
       .filter((a) => a.type === 'gpu-name')
       .map((a) => a.description)
     for (const name of names) {
-      const gpu = await findGpuByName(page, name).catch(() => null)
-      if (gpu) await deleteGpuViaApi(page, gpu.id)
+      const gpu = await findGpuByName(apiv4Admin, name).catch(() => null)
+      if (gpu) await deleteGpuViaApi(apiv4Admin, gpu.id)
     }
   })
 
   // ---------------------------------------------------------------------
   // Scenario 1 — admin creates a GPU and sees it listed
   // ---------------------------------------------------------------------
-  test('S1: creates a GPU and lists it in #table-gpus', async ({ authenticatedPage: page }, testInfo) => {
+  test('S1: creates a GPU and lists it in #table-gpus', async ({ authenticatedPage: page, apiv4Admin }, testInfo) => {
     const gpuName = uniqueGpuName(testInfo)
     const gpuDescription = `e2e GPU created at ${new Date().toISOString()}`
     expect(gpuName).toMatch(VALID_NAME_RE)
@@ -239,7 +260,7 @@ test.describe('Admin GPUs — webapp', () => {
     await expect(newRow).toBeVisible({ timeout: 10000 })
     await expect(newRow).toContainText(gpuDescription)
 
-    const apiGpu = await findGpuByName(page, gpuName)
+    const apiGpu = await findGpuByName(apiv4Admin, gpuName)
     expect(apiGpu, 'GPU not returned by /api/v4/items/reservables/gpus').not.toBeNull()
     expect(apiGpu.id).toBe(createBody.id)
     expect(apiGpu.description).toBe(gpuDescription)
@@ -248,8 +269,8 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   // Scenario 2 — admin edits name and description
   // ---------------------------------------------------------------------
-  test('S2: edits name and description via the pencil icon', async ({ authenticatedPage: page }, testInfo) => {
-    const profiles = await listAvailableProfiles(page)
+  test('S2: edits name and description via the pencil icon', async ({ authenticatedPage: page, apiv4Admin }, testInfo) => {
+    const profiles = await listAvailableProfiles(apiv4Admin)
     test.skip(profiles.length === 0, 'no GPU profiles available in the dev DB')
 
     const original = uniqueGpuName(testInfo)
@@ -258,7 +279,7 @@ test.describe('Admin GPUs — webapp', () => {
     // Track the original too — if the PUT fails mid-flow we still want
     // the row gone after the test.
     await trackGpuName(testInfo, original)
-    const gpu = await createGpuViaApi(page, {
+    const gpu = await createGpuViaApi(apiv4Admin, {
       name: original,
       description: 'pre-edit description',
       bookable: profiles[0].id,
@@ -292,7 +313,7 @@ test.describe('Admin GPUs — webapp', () => {
     await expect(row).toContainText(edited, { timeout: 10000 })
     await expect(row).toContainText('post-edit description')
 
-    const fresh = await findGpuByName(page, edited)
+    const fresh = await findGpuByName(apiv4Admin, edited)
     expect(fresh, 'edited GPU not returned by API').not.toBeNull()
     expect(fresh.description).toBe('post-edit description')
   })
@@ -300,13 +321,13 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   // Scenario 3 — admin deletes a GPU without dependencies
   // ---------------------------------------------------------------------
-  test('S3: deletes a dependency-free GPU through the trash icon', async ({ authenticatedPage: page }, testInfo) => {
-    const profiles = await listAvailableProfiles(page)
+  test('S3: deletes a dependency-free GPU through the trash icon', async ({ authenticatedPage: page, apiv4Admin }, testInfo) => {
+    const profiles = await listAvailableProfiles(apiv4Admin)
     test.skip(profiles.length === 0, 'no GPU profiles available in the dev DB')
 
     const name = uniqueGpuName(testInfo)
     await trackGpuName(testInfo, name) // afterEach cleans up if delete fails
-    const gpu = await createGpuViaApi(page, {
+    const gpu = await createGpuViaApi(apiv4Admin, {
       name,
       description: 'to be deleted',
       bookable: profiles[0].id,
@@ -336,7 +357,7 @@ test.describe('Admin GPUs — webapp', () => {
     await expect(page.locator('#modalDeleteGPU')).toBeHidden({ timeout: 5000 })
     await expect(row).toBeHidden({ timeout: 10000 })
 
-    expect(await findGpuByName(page, name)).toBeNull()
+    expect(await findGpuByName(apiv4Admin, name)).toBeNull()
   })
 
   // ---------------------------------------------------------------------
@@ -353,19 +374,19 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   // Scenario 5 — admin enables a profile of a GPU
   // ---------------------------------------------------------------------
-  test('S5: enabling a profile checkbox toggles profiles_enabled', async ({ authenticatedPage: page }, testInfo) => {
-    const profiles = await listAvailableProfiles(page)
+  test('S5: enabling a profile checkbox toggles profiles_enabled', async ({ authenticatedPage: page, apiv4Admin }, testInfo) => {
+    const profiles = await listAvailableProfiles(apiv4Admin)
     test.skip(profiles.length === 0, 'no GPU profiles available in the dev DB')
 
     const name = uniqueGpuName(testInfo, 's5')
     await trackGpuName(testInfo, name)
-    const gpu = await createGpuViaApi(page, {
+    const gpu = await createGpuViaApi(apiv4Admin, {
       name,
       description: 's5',
       bookable: profiles[0].id,
     })
 
-    const initialProfile = (await getGpuProfiles(page, gpu.id))[0]
+    const initialProfile = (await getGpuProfiles(apiv4Admin, gpu.id))[0]
     test.skip(!initialProfile, 'no profiles returned for the freshly-created GPU')
 
     await findGpuRowAfterNavigation(page, gpu.id)
@@ -389,12 +410,9 @@ test.describe('Admin GPUs — webapp', () => {
 
     // Persistence check via the admin table endpoint that the JS uses
     // to populate the forced-profile dropdown.
-    const persisted = await page.request.post('/api/v4/admin/table/gpus', {
-      data: { id: gpu.id },
-    })
-    expect(persisted.ok()).toBeTruthy()
-    const body = await persisted.json()
-    expect(body.profiles_enabled).toContain(initialProfile.id)
+    const persisted = await fetchGpuRow(apiv4Admin, gpu.id)
+    expect(persisted).not.toBeNull()
+    expect(persisted.profiles_enabled).toContain(initialProfile.id)
   })
 
   // ---------------------------------------------------------------------
@@ -402,22 +420,23 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   test('S6: disabling a profile without dependencies skips the deps modal', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
-    const profiles = await listAvailableProfiles(page)
+    const profiles = await listAvailableProfiles(apiv4Admin)
     test.skip(profiles.length === 0, 'no GPU profiles available in the dev DB')
 
     const name = uniqueGpuName(testInfo, 's6')
     await trackGpuName(testInfo, name)
-    const gpu = await createGpuViaApi(page, {
+    const gpu = await createGpuViaApi(apiv4Admin, {
       name,
       description: 's6',
       bookable: profiles[0].id,
     })
-    const initialProfile = (await getGpuProfiles(page, gpu.id))[0]
+    const initialProfile = (await getGpuProfiles(apiv4Admin, gpu.id))[0]
     test.skip(!initialProfile, 'no profiles returned for the freshly-created GPU')
     // Newly-created GPUs start with profiles_enabled=[]; enable one via API
     // so the UI starts in the "checked" state we want to drive into "off".
-    await setProfileEnabledViaApi(page, gpu.id, initialProfile.id, true)
+    await setProfileEnabledViaApi(apiv4Admin, gpu.id, initialProfile.id, true)
 
     await findGpuRowAfterNavigation(page, gpu.id)
     const child = await expandGpuRow(page, gpu.id)
@@ -446,11 +465,9 @@ test.describe('Admin GPUs — webapp', () => {
 
     await expect(page.locator('#modalDeleteGPU')).toBeHidden({ timeout: 5000 })
 
-    const persisted = await page.request.post('/api/v4/admin/table/gpus', {
-      data: { id: gpu.id },
-    })
-    const body = await persisted.json()
-    expect(body.profiles_enabled).not.toContain(initialProfile.id)
+    const persisted = await fetchGpuRow(apiv4Admin, gpu.id)
+    expect(persisted).not.toBeNull()
+    expect(persisted.profiles_enabled).not.toContain(initialProfile.id)
   })
 
   // ---------------------------------------------------------------------
@@ -458,6 +475,7 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   test('S7: disabling a profile with dependencies opens the notify modal', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     // Driven against the seeded (GPU A16, NVIDIA-A16-4Q) pair:
     //   - gpus.json: e2e8b73f-… has NVIDIA-A16-4Q enabled
@@ -469,7 +487,7 @@ test.describe('Admin GPUs — webapp', () => {
     const SEED_GPU_ID = 'e2e8b73f-b989-47b4-9864-9e0da97f7b21'
     const SEED_PROFILE_ID = 'NVIDIA-A16-4Q'
 
-    const gpu = (await listGpus(page)).find((g) => g.id === SEED_GPU_ID)
+    const gpu = (await listGpus(apiv4Admin)).find((g) => g.id === SEED_GPU_ID)
     expect(gpu, `seeded GPU ${SEED_GPU_ID} not found`).toBeTruthy()
     expect(gpu.profiles_enabled).toContain(SEED_PROFILE_ID)
 
@@ -523,7 +541,7 @@ test.describe('Admin GPUs — webapp', () => {
     expect(putFired, 'enable PUT must NOT fire when the modal is cancelled')
       .toBeFalsy()
 
-    const after = (await listGpus(page)).find((g) => g.id === SEED_GPU_ID)
+    const after = (await listGpus(apiv4Admin)).find((g) => g.id === SEED_GPU_ID)
     expect(after.profiles_enabled).toContain(SEED_PROFILE_ID)
   })
 
@@ -532,13 +550,14 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   test('S8a: force-profile button warns when no profiles are enabled', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
-    const profiles = await listAvailableProfiles(page)
+    const profiles = await listAvailableProfiles(apiv4Admin)
     test.skip(profiles.length === 0, 'no GPU profiles available in the dev DB')
 
     const name = uniqueGpuName(testInfo, 's8a')
     await trackGpuName(testInfo, name)
-    const gpu = await createGpuViaApi(page, {
+    const gpu = await createGpuViaApi(apiv4Admin, {
       name,
       description: 's8a',
       bookable: profiles[0].id,
@@ -556,6 +575,7 @@ test.describe('Admin GPUs — webapp', () => {
 
   test('S8b: forcing the same profile that is already active is rejected', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     // Driven against the seeded ``e2e-gpu-force-a40`` GPU (gpus.json +
     // vgpus.json) — that's the only fixture in the e2e DB with
@@ -565,7 +585,7 @@ test.describe('Admin GPUs — webapp', () => {
     const SEED_ACTIVE_PROFILE_ID = 'NVIDIA-A40-2Q'
     const SEED_ACTIVE_PROFILE_TEXT = '2Q'
 
-    const gpu = (await listGpus(page)).find((g) => g.id === SEED_GPU_ID)
+    const gpu = (await listGpus(apiv4Admin)).find((g) => g.id === SEED_GPU_ID)
     expect(gpu, `seeded GPU ${SEED_GPU_ID} not found`).toBeTruthy()
     expect(gpu.physical_device).toBeTruthy()
     expect(gpu.active_profile).toBe(SEED_ACTIVE_PROFILE_TEXT)
@@ -603,8 +623,8 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   // Scenario 9 — invalid name validation (Parsley)
   // ---------------------------------------------------------------------
-  test('S9: Parsley blocks creation when the name is invalid', async ({ authenticatedPage: page }, testInfo) => {
-    const profiles = await listAvailableProfiles(page)
+  test('S9: Parsley blocks creation when the name is invalid', async ({ authenticatedPage: page, apiv4Admin }, testInfo) => {
+    const profiles = await listAvailableProfiles(apiv4Admin)
     test.skip(profiles.length === 0, 'no GPU profiles available in the dev DB')
 
     await gotoHypervisors(page)
@@ -687,13 +707,13 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   // Scenario 11 — duplicate name
   // ---------------------------------------------------------------------
-  test('S11: re-creating with an existing name returns 409', async ({ authenticatedPage: page }, testInfo) => {
-    const profiles = await listAvailableProfiles(page)
+  test('S11: re-creating with an existing name returns 409', async ({ authenticatedPage: page, apiv4Admin }, testInfo) => {
+    const profiles = await listAvailableProfiles(apiv4Admin)
     test.skip(profiles.length === 0, 'no GPU profiles available in the dev DB')
 
     const name = uniqueGpuName(testInfo, 's11')
     await trackGpuName(testInfo, name)
-    await createGpuViaApi(page, {
+    await createGpuViaApi(apiv4Admin, {
       name,
       description: 'first',
       bookable: profiles[0].id,
@@ -728,7 +748,7 @@ test.describe('Admin GPUs — webapp', () => {
     ).toBeVisible({ timeout: 5000 })
     await expect(modal).toBeVisible()
 
-    const items = (await listGpus(page)).filter((g) => g.name === name)
+    const items = (await listGpus(apiv4Admin)).filter((g) => g.name === name)
     expect(items.length, 'only one GPU should exist with this name').toBe(1)
     await expect(
       page.locator(`#table-gpus tbody tr:has-text("${name}")`),
@@ -750,9 +770,10 @@ test.describe('Admin GPUs — webapp', () => {
   // ---------------------------------------------------------------------
   test('S13: enabling a profile from the GPU details surfaces it in Bookables', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
-    const catalog = await listAvailableProfiles(page)
-    const allGpus = await listGpus(page)
+    const catalog = await listAvailableProfiles(apiv4Admin)
+    const allGpus = await listGpus(apiv4Admin)
     const enabledProfiles = new Set(
       allGpus.flatMap((g) => g.profiles_enabled ?? []),
     )
@@ -781,7 +802,7 @@ test.describe('Admin GPUs — webapp', () => {
 
     const name = uniqueGpuName(testInfo, 's13')
     await trackGpuName(testInfo, name)
-    const gpu = await createGpuViaApi(page, {
+    const gpu = await createGpuViaApi(apiv4Admin, {
       name,
       description: 's13',
       bookable: model.id,
@@ -817,12 +838,9 @@ test.describe('Admin GPUs — webapp', () => {
       page.locator('.ui-pnotify-title', { hasText: /gpu profile enabled/i }),
     ).toBeVisible({ timeout: 5000 })
 
-    const persisted = await page.request.post('/api/v4/admin/table/gpus', {
-      data: { id: gpu.id },
-    })
-    expect(persisted.ok()).toBeTruthy()
-    const body = await persisted.json()
-    expect(body.profiles_enabled).toContain(subProfileId)
+    const persisted = await fetchGpuRow(apiv4Admin, gpu.id)
+    expect(persisted).not.toBeNull()
+    expect(persisted.profiles_enabled).toContain(subProfileId)
 
     // Now navigate to Bookables and verify the entry showed up.
     await page.goto('/isard-admin/admin/domains/render/Bookables')
