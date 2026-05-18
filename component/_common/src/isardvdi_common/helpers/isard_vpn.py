@@ -140,18 +140,28 @@ class IsardVpn(RethinkSharedConnection):
         # the per-peer wireguard subtree. Between those two writes the server-keys
         # check below passes but get_wireguard_file would KeyError on
         # peer["vpn"]["wireguard"][...]. Surface a typed 4xx so callers retry.
-        peer_wg = (wgdata.get("vpn") or {}).get("wireguard") or {}
-        if not all(k in peer_wg for k in ("Address", "keys", "AllowedIPs")):
-            raise Error(
-                "precondition_required",
-                "Vpn peer config not yet initialized for kind "
-                + str(vpn)
-                + " and id "
-                + str(itemid)
-                + ". Try again in a few seconds...",
-                traceback.format_exc(),
-                description_code="vpn_peer_not_ready",
-            )
+        # In geneve-only infrastructure the hypervisor has no WireGuard peer
+        # subtree by design (isard-vpn skips WireGuard for hypers and sets up
+        # a geneve port instead), so this race-guard must not apply to it —
+        # otherwise hypervisor registration 428s forever. Mirrors main, which
+        # has no such guard on the geneve-only path.
+        geneve_only_hyper = (
+            vpn == "hypers"
+            and os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
+        )
+        if not geneve_only_hyper:
+            peer_wg = (wgdata.get("vpn") or {}).get("wireguard") or {}
+            if not all(k in peer_wg for k in ("Address", "keys", "AllowedIPs")):
+                raise Error(
+                    "precondition_required",
+                    "Vpn peer config not yet initialized for kind "
+                    + str(vpn)
+                    + " and id "
+                    + str(itemid)
+                    + ". Try again in a few seconds...",
+                    traceback.format_exc(),
+                    description_code="vpn_peer_not_ready",
+                )
 
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
         # if not getattr(app, "wireguard_server_keys", False):
