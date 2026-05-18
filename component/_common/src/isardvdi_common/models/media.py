@@ -27,7 +27,6 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.models.storage_pool import StoragePool
 from pydantic import BaseModel, Field
 from rethinkdb import r
-from rq.job import JobStatus
 
 from ..schemas.media import MediaStatusEnum
 from ..schemas.shared.allowed import Allowed
@@ -244,26 +243,10 @@ class Media(RethinkCustomBase):
                     "dependents": [
                         {
                             "queue": "core",
-                            "task": "update_status",
+                            "task": "media_download_update_status",
                             "job_kwargs": {
                                 "kwargs": {
-                                    "statuses": {
-                                        "finished": {
-                                            "Downloaded": {
-                                                "media": [self.id],
-                                            },
-                                        },
-                                        JobStatus.FAILED: {
-                                            "DownloadFailed": {
-                                                "media": [self.id],
-                                            },
-                                        },
-                                        JobStatus.CANCELED: {
-                                            "DownloadFailed": {
-                                                "media": [self.id],
-                                            },
-                                        },
-                                    },
+                                    "media_id": self.id,
                                 },
                             },
                         }

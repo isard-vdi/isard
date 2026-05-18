@@ -671,9 +671,23 @@ def _run_curl_download(
                 continue
             line += ch
 
+        if not aborted and watcher.cancelled:
+            aborted = True
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+
     process.wait(timeout=10)
 
     if aborted:
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(returncode=130, cmd=curl_cmd)
+
+    if is_aborting():
         try:
             os.unlink(dest_path)
         except OSError:

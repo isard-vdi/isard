@@ -166,6 +166,70 @@ def test_media_update_indirect_walks_check_media_existence():
 
 
 # ---------------------------------------------------------------------------
+# media.handle_media_download_update_status
+# ---------------------------------------------------------------------------
+
+
+def test_media_download_update_status_downloaded_when_no_abort():
+    """depending_status=finished + media not aborting → Downloaded."""
+    from isardvdi_change_handler.task_results import media
+
+    task = _task(depending_status="finished")
+    fake_media = MagicMock()
+    fake_media.status = "Downloading"
+    with patch.object(media, "Media") as mock_media_cls:
+        mock_media_cls.exists.return_value = True
+        mock_media_cls.return_value = fake_media
+        media.handle_media_download_update_status(task, media_id="m1")
+    assert fake_media.status == "Downloaded"
+
+
+def test_media_download_update_status_failed_when_aborting():
+    """Even if depending_status=finished, DownloadAborting → DownloadFailed.
+
+    Pins the race condition: curl may have finished successfully just as
+    the user aborted. The media row's current status is the only authority
+    here, not the chain's depending_status. From
+    naomi.hidalgo/fix/1171-media-fixes:c84a99e43.
+    """
+    from isardvdi_change_handler.task_results import media
+
+    task = _task(depending_status="finished")
+    fake_media = MagicMock()
+    fake_media.status = "DownloadAborting"
+    with patch.object(media, "Media") as mock_media_cls:
+        mock_media_cls.exists.return_value = True
+        mock_media_cls.return_value = fake_media
+        media.handle_media_download_update_status(task, media_id="m1")
+    assert fake_media.status == "DownloadFailed"
+
+
+def test_media_download_update_status_failed_when_chain_failed():
+    """depending_status=failed → DownloadFailed regardless of media row."""
+    from isardvdi_change_handler.task_results import media
+
+    task = _task(depending_status="failed")
+    fake_media = MagicMock()
+    fake_media.status = "Downloading"
+    with patch.object(media, "Media") as mock_media_cls:
+        mock_media_cls.exists.return_value = True
+        mock_media_cls.return_value = fake_media
+        media.handle_media_download_update_status(task, media_id="m1")
+    assert fake_media.status == "DownloadFailed"
+
+
+def test_media_download_update_status_skips_missing_media():
+    """Media.exists=False → no write."""
+    from isardvdi_change_handler.task_results import media
+
+    task = _task(depending_status="finished")
+    with patch.object(media, "Media") as mock_media_cls:
+        mock_media_cls.exists.return_value = False
+        media.handle_media_download_update_status(task, media_id="missing")
+    mock_media_cls.assert_not_called()  # __init__ not invoked
+
+
+# ---------------------------------------------------------------------------
 # media.handle_recycle_bin_update
 # ---------------------------------------------------------------------------
 
