@@ -433,3 +433,56 @@ class TestEnsureGpuCards:
         assert stub_rdb["tables"]["gpus"].rows[unassigned_id]["physical_device"] == (
             "isard-hypervisor-pci_0000_3b_00_0"
         )
+
+
+class TestNormalizeGpuModel:
+    """Lock the ``_common`` mirror of ``normalize_gpu_model`` against drift.
+
+    Stays in lockstep with
+    ``docker/hypervisor/src/lib/gpu_discovery.py::normalize_gpu_model``
+    and ``component.apiv4.api.services.admin.hypervisors.
+    AdminHypervisorsService._normalize_gpu_model``. The model is
+    embedded verbatim in a URL path segment, so the output must be
+    space-, dash- AND slash-free.
+    """
+
+    @staticmethod
+    def _normalize(gpu_name, vgpu_profiles=None):
+        from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
+
+        return HypervisorsProcessed._normalize_gpu_model(gpu_name, vgpu_profiles)
+
+    @pytest.mark.parametrize(
+        "gpu_name, expected",
+        [
+            ("NVIDIA A16", "A16"),
+            ("NVIDIA RTX A6000", "RTXA6000"),
+            ("NVIDIA GA107GL [A2 / A16]", "GA107GL[A2A16]"),
+            ("GA107GL[A2/A16]", "GA107GL[A2A16]"),
+        ],
+    )
+    def test_name_path_is_clean(self, gpu_name, expected):
+        result = self._normalize(gpu_name)
+        assert result == expected
+        assert "/" not in result
+        assert "-" not in result
+        assert " " not in result
+
+    @pytest.mark.parametrize(
+        "profile_name, expected",
+        [
+            # Classic time-sliced profile suffix
+            ("A16-2Q", "A16"),
+            # MIG slot-notation suffix (handled by the ``_common`` mirror's
+            # MIG-aware regex)
+            ("A100-1-5C", "A100"),
+            # Slash inside model name
+            ("GA107GL[A2/A16]-2Q", "GA107GL[A2A16]"),
+        ],
+    )
+    def test_profile_path_is_clean(self, profile_name, expected):
+        result = self._normalize("irrelevant", vgpu_profiles=[{"name": profile_name}])
+        assert result == expected
+        assert "/" not in result
+        assert "-" not in result
+        assert " " not in result

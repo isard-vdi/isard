@@ -117,10 +117,22 @@ class AdminHypervisorsService:
     def _normalize_gpu_model(
         gpu_name: str, vgpu_profiles: Optional[list[dict]] = None
     ) -> str:
-        """Dash-free model name (same logic as hypervisor gpu_discovery)."""
+        """Dash- and slash-free model name (same logic as hypervisor gpu_discovery).
+
+        Must stay in lockstep with the hypervisor-side ``normalize_gpu_model``
+        and the ``_common`` mirror: the BRAND-MODEL-PROFILE id is used verbatim
+        as a URL path segment, so a '/' in the model (e.g. the A16 die name
+        "GA107GL [A2 / A16]") would inject an extra path segment and 405 the
+        reservables route.
+        """
         if vgpu_profiles:
-            return vgpu_profiles[0]["name"].split("-")[0]
-        return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+            return vgpu_profiles[0]["name"].split("-")[0].replace("/", "")
+        return (
+            gpu_name.replace("NVIDIA ", "")
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("/", "")
+        )
 
     @staticmethod
     def update_hyper_numa_topology(hyper_id: str, numa_topology: dict) -> None:

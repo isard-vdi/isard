@@ -96,3 +96,46 @@ class TestRemoveHyper:
     def test_failed_status_raises_typed_error(self, _mock_remove):
         with pytest.raises(Error):
             AdminHypervisorsService.remove_hyper("h1")
+
+
+class TestNormalizeGpuModel:
+    """Lock the apiv4 mirror of ``normalize_gpu_model`` against drift.
+
+    The model is embedded verbatim in a URL path segment (the
+    BRAND-MODEL-PROFILE reservable id), so the output must be space-,
+    dash- AND slash-free. Stays in lockstep with
+    ``docker/hypervisor/src/lib/gpu_discovery.py::normalize_gpu_model``
+    and ``isardvdi_common.lib.hypervisors.hypervisors.
+    HypervisorsProcessed._normalize_gpu_model``.
+    """
+
+    @pytest.mark.parametrize(
+        "gpu_name, expected",
+        [
+            ("NVIDIA A16", "A16"),
+            ("NVIDIA RTX A6000", "RTXA6000"),
+            ("NVIDIA GA107GL [A2 / A16]", "GA107GL[A2A16]"),
+            ("GA107GL[A2/A16]", "GA107GL[A2A16]"),
+        ],
+    )
+    def test_name_path_is_clean(self, gpu_name, expected):
+        result = AdminHypervisorsService._normalize_gpu_model(gpu_name)
+        assert result == expected
+        assert "/" not in result
+        assert "-" not in result
+        assert " " not in result
+
+    @pytest.mark.parametrize(
+        "profile_name, expected",
+        [
+            ("A16-2Q", "A16"),
+            ("A100-1-5C", "A100"),
+            ("GA107GL[A2/A16]-2Q", "GA107GL[A2A16]"),
+        ],
+    )
+    def test_profile_path_is_clean(self, profile_name, expected):
+        result = AdminHypervisorsService._normalize_gpu_model(
+            "irrelevant", vgpu_profiles=[{"name": profile_name}]
+        )
+        assert result == expected
+        assert "/" not in result
