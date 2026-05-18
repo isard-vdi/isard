@@ -105,6 +105,11 @@ def internal_error(error):
     return render_template("page_500.html"), 500
 
 
+@app.errorhandler(503)
+def service_unavailable_error(error):
+    return render_template("maintenance.html"), 503
+
+
 """
 Import all views
 """

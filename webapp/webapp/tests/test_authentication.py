@@ -22,6 +22,8 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
+from flask import g
+from werkzeug.exceptions import ServiceUnavailable
 
 from webapp.auth.authentication import (
     User,
@@ -147,20 +149,47 @@ def test_user_loader_returns_none_when_api_returns_none(app, mock_admin_get_user
     assert result is None
 
 
-def test_user_loader_returns_maintenance_response_on_exception(
-    app, mock_admin_get_user_raw, monkeypatch
-):
+def test_user_loader_aborts_503_when_api_unreachable(app, mock_admin_get_user_raw):
+    """apiv4 unreachable → ``abort(503)`` (NOT ``render_template`` inside
+    the loader, which recurses through Flask-Login's context processor).
+    The sticky ``g`` flag is set so the 503 handler's maintenance render
+    can re-enter the loader without re-aborting."""
     mock_admin_get_user_raw.side_effect = RuntimeError("apiv4 down")
-    rendered = MagicMock(return_value="<maintenance-html>")
-    monkeypatch.setattr("webapp.auth.authentication.render_template", rendered)
 
     with app.test_request_context("/"):
-        result = user_loader("any-id")
+        with pytest.raises(ServiceUnavailable):
+            user_loader("any-id")
+        assert g.get("_isard_api_unreachable") is True
 
-    body, status = result
-    assert status == 503
-    assert body == "<maintenance-html>"
-    rendered.assert_called_once_with("maintenance.html")
+
+def test_user_loader_short_circuits_when_api_already_unreachable(
+    app, mock_admin_get_user_raw
+):
+    """Once the request is flagged api-unreachable, the loader returns
+    ``None`` immediately and does NOT call apiv4 again — this is what
+    breaks the render→context-processor→loader recursion cycle."""
+    with app.test_request_context("/"):
+        g._isard_api_unreachable = True
+        assert user_loader("any-id") is None
+        mock_admin_get_user_raw.assert_not_called()
+
+
+def test_maintenance_page_served_without_recursion(client, mock_admin_get_user_raw):
+    """End-to-end regression for the RecursionError: a request whose
+    template/decorator touches ``current_user`` while apiv4 is down must
+    render maintenance.html with 503 — the loader aborts, the 503 handler
+    renders maintenance, and its context processor re-enters the loader
+    once (short-circuited by the sticky ``g`` flag) instead of recursing
+    until the stack blows."""
+    mock_admin_get_user_raw.side_effect = RuntimeError("apiv4 down")
+    with client.session_transaction() as sess:
+        sess["_user_id"] = "any-id"
+
+    resp = client.get("/isard-admin/about")
+
+    assert resp.status_code == 503
+    # The recursion previously surfaced as a RecursionError 500.
+    assert mock_admin_get_user_raw.call_count == 1
 
 
 def test_user_reloader_returns_user_on_success(
@@ -174,3 +203,12 @@ def test_user_reloader_returns_user_on_success(
     assert isinstance(result, User)
     assert result.role == "manager"
     assert result.is_admin is False
+
+
+def test_user_reloader_aborts_503_when_api_unreachable(app, mock_admin_get_user_raw):
+    mock_admin_get_user_raw.side_effect = RuntimeError("apiv4 down")
+
+    with app.test_request_context("/"):
+        with pytest.raises(ServiceUnavailable):
+            user_reloader("any-id")
+        assert g.get("_isard_api_unreachable") is True

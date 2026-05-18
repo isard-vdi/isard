@@ -20,7 +20,7 @@
 
 import json
 
-from flask import render_template, request
+from flask import abort, g, request
 from flask_login import LoginManager, UserMixin
 from isardvdi_apiv4_client.api.role_manager import admin_get_user_raw
 from isardvdi_apiv4_client.api.role_user import get_user_details
@@ -28,8 +28,6 @@ from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_statu
 from rethinkdb import RethinkDB
 
 from webapp import app
-
-from ..views.decorators import maintenance
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -73,34 +71,41 @@ def get_authenticated_user():
     return None
 
 
-@maintenance
+def _load_user_from_api(user_id):
+    """Resolve a session user via apiv4.
+
+    A Flask-Login user-loader callback MUST return a ``User`` or ``None``
+    and MUST NOT render a template: ``render_template`` runs Flask-Login's
+    ``_user_context_processor``, which calls back into the loader and
+    recurses until the stack blows. When apiv4 is unreachable we instead
+    ``abort(503)`` so the maintenance page is produced by the 503 error
+    handler at the top of the request, outside the loader.
+
+    ``g._isard_api_unreachable`` makes the failure sticky for the rest of
+    the request: the 503 handler renders ``maintenance.html``, whose
+    template context re-enters this loader once more — that nested call
+    short-circuits to ``None`` instead of hitting apiv4 again and
+    re-aborting.
+    """
+    if g.get("_isard_api_unreachable"):
+        return None
+    try:
+        with build_client("isard-webapp") as client:
+            resp = admin_get_user_raw.sync_detailed(client=client, user_id=user_id)
+            raise_for_status(resp)
+        user = json.loads(resp.content.decode("utf-8")) if resp.content else None
+        if user is None:
+            return None
+        return User(user)
+    except Exception:
+        g._isard_api_unreachable = True
+        abort(503)
+
+
 @login_manager.user_loader
 def user_loader(user_id):
-    try:
-        with build_client("isard-webapp") as client:
-            resp = admin_get_user_raw.sync_detailed(client=client, user_id=user_id)
-            raise_for_status(resp)
-        user = json.loads(resp.content.decode("utf-8")) if resp.content else None
-        if user is None:
-            return
-        return User(user)
-    except ApiV4Error:
-        return render_template("maintenance.html"), 503
-    except Exception:
-        return render_template("maintenance.html"), 503
+    return _load_user_from_api(user_id)
 
 
-@maintenance
 def user_reloader(user_id):
-    try:
-        with build_client("isard-webapp") as client:
-            resp = admin_get_user_raw.sync_detailed(client=client, user_id=user_id)
-            raise_for_status(resp)
-        user = json.loads(resp.content.decode("utf-8")) if resp.content else None
-        if user is None:
-            return
-        return User(user)
-    except ApiV4Error:
-        return render_template("maintenance.html"), 503
-    except Exception:
-        return render_template("maintenance.html"), 503
+    return _load_user_from_api(user_id)
