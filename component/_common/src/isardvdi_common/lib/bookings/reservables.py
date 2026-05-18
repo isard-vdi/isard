@@ -128,14 +128,16 @@ class ResourceItemsGpus(RethinkSharedConnection):
                 {"active_profile": None, "changing_to_profile": None},
                 r.table("vgpus")
                 .get(gpu["physical_device"])
-                .pluck("vgpu_profile", "changing_to_profile")
+                .default({})
                 .do(
                     lambda vgpu: {
-                        "active_profile": vgpu["vgpu_profile"],
-                        "changing_to_profile": vgpu["changing_to_profile"],
+                        "active_profile": vgpu["vgpu_profile"].default(None),
+                        "changing_to_profile": vgpu["changing_to_profile"].default(
+                            None
+                        ),
                         "desktops_started": r.table("vgpus")
                         .filter(lambda row: row["id"] == gpu["physical_device"])
-                        .concat_map(lambda row: row["mdevs"].values())
+                        .concat_map(lambda row: row["mdevs"].default({}).values())
                         .concat_map(lambda mdev_group: mdev_group.values())
                         .filter(lambda mdev: mdev["domain_started"] != False)
                         .map(lambda mdev: mdev["domain_started"])
@@ -148,6 +150,7 @@ class ResourceItemsGpus(RethinkSharedConnection):
         with cls._rdb_context():
             items = list(query.run(cls._rdb_connection))
         hyp_gpu_warnings = {}
+        hyp_gpu_notes = {}
         for item in items:
             if item.get("active_profile"):
                 with cls._rdb_context():
@@ -192,7 +195,7 @@ class ResourceItemsGpus(RethinkSharedConnection):
                     item["active_profile"] = cls.get_subitem(
                         item["id"], available_units["id"]
                     )["profile"]
-            # Attach gpu_warnings for this GPU's hypervisor
+            # Attach gpu_warnings / gpu_notes for this GPU's hypervisor
             phys = item.get("physical_device") or ""
             # physical_device format: "hyper_id-pci_XXXX_XX_XX_X"
             parts = phys.rsplit("-pci_", 1)
@@ -206,18 +209,27 @@ class ResourceItemsGpus(RethinkSharedConnection):
                         hyp_data = (
                             r.table("hypervisors")
                             .get(hyp_id)
-                            .pluck("gpu_warnings")
+                            .pluck("gpu_warnings", "gpu_notes")
                             .default({})
                             .run(cls._rdb_connection)
                         )
                     hyp_gpu_warnings[hyp_id] = hyp_data.get("gpu_warnings", [])
+                    hyp_gpu_notes[hyp_id] = hyp_data.get("gpu_notes", [])
                 except Exception:
                     hyp_gpu_warnings[hyp_id] = []
+                    hyp_gpu_notes[hyp_id] = []
             # Filter warnings relevant to this specific GPU's PCI address
             all_warnings = hyp_gpu_warnings.get(hyp_id, [])
             item["gpu_warnings"] = (
                 ([w for w in all_warnings if pci_bdf and pci_bdf in w] or all_warnings)
                 if all_warnings
+                else []
+            )
+            # Filter notes relevant to this specific GPU's PCI address
+            all_notes = hyp_gpu_notes.get(hyp_id, [])
+            item["gpu_notes"] = (
+                ([n for n in all_notes if pci_bdf and pci_bdf in n] or all_notes)
+                if all_notes
                 else []
             )
         return list(items)
