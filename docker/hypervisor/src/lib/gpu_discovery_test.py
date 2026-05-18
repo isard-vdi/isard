@@ -13,7 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pytest
-from gpu_discovery import _classify_sriov_state
+from gpu_discovery import _classify_sriov_state, normalize_gpu_model
 
 
 @pytest.mark.parametrize(
@@ -77,3 +77,38 @@ def test_iommu_warning_handles_unknown_driver():
     notes, warnings = _classify_sriov_state(16, 16, False, "")
     assert notes == []
     assert "driver=none" in warnings[0]
+
+
+# normalize_gpu_model output is used verbatim as a URL path segment inside the
+# BRAND-MODEL-PROFILE reservable id, so it must be space-, dash- AND slash-free.
+# The A16 die's PCI name "GA107GL [A2 / A16]" is the regression that motivated
+# slash stripping: a '/' made the reservables enable route 405.
+@pytest.mark.parametrize(
+    "gpu_name, expected",
+    [
+        ("NVIDIA A16", "A16"),
+        ("NVIDIA RTX A6000", "RTXA6000"),
+        ("NVIDIA GA107GL [A2 / A16]", "GA107GL[A2A16]"),
+        ("GA107GL[A2/A16]", "GA107GL[A2A16]"),
+    ],
+)
+def test_normalize_gpu_model_name_path_is_clean(gpu_name, expected):
+    result = normalize_gpu_model(gpu_name)
+    assert result == expected
+    assert "/" not in result
+    assert "-" not in result
+    assert " " not in result
+
+
+@pytest.mark.parametrize(
+    "profile_name, expected",
+    [
+        ("A16-2Q", "A16"),
+        ("A100-1-5C", "A100"),
+        ("GA107GL[A2/A16]-2Q", "GA107GL[A2A16]"),
+    ],
+)
+def test_normalize_gpu_model_profile_path_is_clean(profile_name, expected):
+    result = normalize_gpu_model("irrelevant", vgpu_profiles=[{"name": profile_name}])
+    assert result == expected
+    assert "/" not in result

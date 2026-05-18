@@ -550,11 +550,14 @@ class ApiHypervisors:
 
     @staticmethod
     def _normalize_gpu_model(gpu_name, vgpu_profiles=None):
-        """Dash-free model name derivation (mirror of gpu_discovery.normalize_gpu_model).
+        """Dash- and slash-free model derivation (mirror of gpu_discovery.normalize_gpu_model).
 
         Handles both classic time-sliced profile suffixes ("-4Q", "-96Q") and
         MIG-backed slot-notation suffixes ("-1-3Q", "-4-48Q") so GPUs like the
-        RTX PRO 6000 Blackwell DC produce a dash-free model name.
+        RTX PRO 6000 Blackwell DC produce a dash-free model name. Slashes are
+        stripped too: the BRAND-MODEL-PROFILE id is a URL path segment, so a
+        '/' in the model (e.g. the A16 die "GA107GL [A2 / A16]") would 405 the
+        reservables route. Must stay in lockstep with the canonical function.
         """
         if vgpu_profiles:
             profile_name = vgpu_profiles[0]["name"]
@@ -570,8 +573,14 @@ class ApiHypervisors:
                 .replace("GRID ", "")
                 .replace(" ", "")
                 .replace("-", "")
+                .replace("/", "")
             )
-        return gpu_name.replace("NVIDIA ", "").replace(" ", "").replace("-", "")
+        return (
+            gpu_name.replace("NVIDIA ", "")
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("/", "")
+        )
 
     def _resolve_gpu_models(self, hyper_id, nvidia_gpus):
         """Resolve stable model names for discovered GPUs.
