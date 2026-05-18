@@ -1147,6 +1147,29 @@ def get_vgpu_full(vgpu_id):
     return out
 
 
+def get_domains_vgpu_uuids():
+    """Set of mdev UUIDs referenced by ANY domain's ``vgpu_info``.
+
+    A domain (running, reserved, or merely Stopped with a stale binding)
+    points at its mdev only through ``domains.vgpu_info.uuid`` — the pool
+    entry's own ``domain_started``/``domain_reserved`` flags can lag. Used
+    as a belt-and-suspenders cross-check so pool self-heal never trims a
+    UUID a domain still claims.
+    """
+    r_conn = new_rethink_connection()
+    try:
+        uuids = (
+            r.table("domains")
+            .has_fields("vgpu_info")
+            .pluck({"vgpu_info": "uuid"})
+            .run(r_conn)
+        )
+        out = {u for d in uuids if (u := (d.get("vgpu_info") or {}).get("uuid"))}
+    finally:
+        close_rethink_connection(r_conn)
+    return out
+
+
 def add_vgpu_uuids(
     vgpu_id,
     additions,
