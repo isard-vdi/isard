@@ -181,6 +181,10 @@ $(document).ready(function () {
           var tooltip = row.gpu_warnings.join('&#10;');
           result += ' <i class="fa fa-microchip" style="color:orange" title="' + tooltip + '"></i>';
         }
+        if (row.gpu_notes && row.gpu_notes.length > 0) {
+          var notes_tooltip = row.gpu_notes.join('&#10;');
+          result += ' <i class="fa fa-info-circle" style="color:#3c8dbc" title="' + notes_tooltip + '"></i>';
+        }
         return result;
       }
     },
@@ -639,6 +643,16 @@ $(document).ready(function () {
         gpuWarningsDiv.html(html);
       } else {
         gpuWarningsDiv.html('');
+      }
+      var gpuNotesDiv = $('#gpu-notes-' + row.data().id);
+      if (row.data().gpu_notes && row.data().gpu_notes.length > 0) {
+        var notes_html = '<div class="alert alert-info" style="margin-top:10px;">' +
+          '<i class="fa fa-info-circle"></i> <strong>GPU Information:</strong><ul>';
+        row.data().gpu_notes.forEach(function(n) { notes_html += '<li>' + n + '</li>'; });
+        notes_html += '</ul></div>';
+        gpuNotesDiv.html(notes_html);
+      } else {
+        gpuNotesDiv.html('');
       }
       tableHypervisorDomains(row.data().id);
       setMountpoints(row.data().id);
