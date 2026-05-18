@@ -10,46 +10,43 @@
 //   - System rules `default` and `default admins` are touched only by
 //     read-only assertions (S1, S5) — never mutated.
 
-import { test, expect } from '../../../fixtures/login.js'
+import { test, expect, apiv4ClientForPage, unwrap } from '../../../fixtures/apiv4/index.js'
+import {
+  adminTableInsert,
+  adminTableList,
+  deletePriority,
+} from '../../../src/gen/apiv4/sdk.gen'
 
 const PRIORITY_URL = '/isard-admin/admin/domains/render/Priority'
 const VALID_NAME_RE = /^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/
 
-async function listPriorities(page) {
-  const resp = await page.request.post('/api/v4/admin/table/bookings_priority', {
-    data: { order_by: 'name' },
-  })
-  if (!resp.ok()) return []
-  return (await resp.json().catch(() => [])) || []
+async function listPriorities(client) {
+  const data = await unwrap(
+    adminTableList({ client, path: { table: 'bookings_priority' }, body: { order_by: 'name' } }),
+  ).catch(() => [])
+  return Array.isArray(data) ? data : []
 }
 
-async function findPriorityByName(page, name) {
-  const items = await listPriorities(page)
+async function findPriorityByName(client, name) {
+  const items = await listPriorities(client)
   return items.find((p) => p.name === name) || null
 }
 
-async function createPriorityViaApi(page, data) {
-  const resp = await page.request.post('/api/v4/admin/table/add/bookings_priority', {
-    data,
-  })
-  if (!resp.ok()) {
-    throw new Error(
-      `createPriorityViaApi failed: ${resp.status()} ${await resp.text().catch(() => '')}`,
-    )
-  }
-  // /admin/table/add returns 204 (EmptyResponse); look up the inserted
-  // row by name to recover the generated id.
-  const created = await findPriorityByName(page, data.name)
+async function createPriorityViaApi(client, data) {
+  await unwrap(
+    adminTableInsert({ client, path: { table: 'bookings_priority' }, body: data }),
+  )
+  // /admin/table/add returns an EmptyResponse; look up the inserted row
+  // by name to recover the generated id.
+  const created = await findPriorityByName(client, data.name)
   if (!created) {
     throw new Error(`createPriorityViaApi: row "${data.name}" not visible after insert`)
   }
   return created
 }
 
-async function deletePriorityViaApi(page, id) {
-  await page.request
-    .delete(`/api/v4/item/booking/priority/${id}`)
-    .catch(() => {})
+async function deletePriorityViaApi(client, id) {
+  await deletePriority({ client, path: { priority_id: id } }).catch(() => {})
 }
 
 async function trackPriorityId(testInfo, id) {
@@ -91,31 +88,32 @@ test.describe('Admin Bookables — Priority', () => {
   test.beforeAll(async ({ authenticatedContext }, workerInfo) => {
     const page = await authenticatedContext.newPage()
     try {
+      const client = apiv4ClientForPage(page)
       const prefix = `e2e-prio-${workerInfo.workerIndex}-`
-      const stale = (await listPriorities(page)).filter(
+      const stale = (await listPriorities(client)).filter(
         (p) => typeof p.name === 'string' && p.name.startsWith(prefix),
       )
       for (const p of stale) {
-        await deletePriorityViaApi(page, p.id)
+        await deletePriorityViaApi(client, p.id)
       }
     } finally {
       await page.close()
     }
   })
 
-  test.afterEach(async ({ authenticatedPage: page }, testInfo) => {
+  test.afterEach(async ({ apiv4Admin }, testInfo) => {
     const ids = testInfo.annotations
       .filter((a) => a.type === 'priority-id')
       .map((a) => a.description)
     for (const id of ids) {
-      await deletePriorityViaApi(page, id)
+      await deletePriorityViaApi(apiv4Admin, id)
     }
   })
 
   // ---------------------------------------------------------------------
   // Scenario 1 — lists priority rules from the seed
   // ---------------------------------------------------------------------
-  test('S1: lists priority rules from the seed', async ({ authenticatedPage: page }) => {
+  test('S1: lists priority rules from the seed', async ({ authenticatedPage: page, apiv4Admin }) => {
     const tableResponse = page.waitForResponse(
       (r) =>
         r.url().includes('/api/v4/admin/table/bookings_priority') &&
@@ -125,7 +123,7 @@ test.describe('Admin Bookables — Priority', () => {
     await page.goto(PRIORITY_URL)
     expect((await tableResponse).status()).toBeLessThan(400)
 
-    const items = await listPriorities(page)
+    const items = await listPriorities(apiv4Admin)
     const ids = new Set(items.map((p) => p.id))
     expect(ids).toContain('default')
     expect(ids).toContain('default admins')
@@ -149,6 +147,7 @@ test.describe('Admin Bookables — Priority', () => {
   // ---------------------------------------------------------------------
   test('S2: creates a new priority rule from the Add modal', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const name = uniquePriorityName(testInfo, 's2')
     const ruleId = uniqueRuleId(testInfo, 's2')
@@ -184,7 +183,7 @@ test.describe('Admin Bookables — Priority', () => {
     expect(body.max_items).toBe(3)
     await modal.waitFor({ state: 'hidden', timeout: 10000 })
 
-    const created = await findPriorityByName(page, name)
+    const created = await findPriorityByName(apiv4Admin, name)
     expect(created, 'newly created rule should be returned by /admin/table').not.toBeNull()
     await trackPriorityId(testInfo, created.id)
 
@@ -197,9 +196,10 @@ test.describe('Admin Bookables — Priority', () => {
   // ---------------------------------------------------------------------
   test('S3: edits an existing rule via the pencil icon', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const name = uniquePriorityName(testInfo, 's3')
-    const created = await createPriorityViaApi(page, {
+    const created = await createPriorityViaApi(apiv4Admin, {
       name,
       description: 's3 original',
       rule_id: uniqueRuleId(testInfo, 's3'),
@@ -239,7 +239,7 @@ test.describe('Admin Bookables — Priority', () => {
     expect(body.max_items).toBe(5)
     await modal.waitFor({ state: 'hidden', timeout: 10000 })
 
-    const persisted = await findPriorityByName(page, editedName)
+    const persisted = await findPriorityByName(apiv4Admin, editedName)
     expect(persisted).not.toBeNull()
     expect(persisted.max_items).toBe(5)
   })
@@ -249,9 +249,10 @@ test.describe('Admin Bookables — Priority', () => {
   // ---------------------------------------------------------------------
   test('S4: deletes a user-created rule through the trash icon', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const name = uniquePriorityName(testInfo, 's4')
-    const created = await createPriorityViaApi(page, {
+    const created = await createPriorityViaApi(apiv4Admin, {
       name,
       description: 's4 to be deleted',
       rule_id: uniqueRuleId(testInfo, 's4'),
@@ -288,7 +289,7 @@ test.describe('Admin Bookables — Priority', () => {
     expect((await reloadResponse).status()).toBeLessThan(400)
 
     await expect(row).toBeHidden({ timeout: 10000 })
-    expect(await findPriorityByName(page, name)).toBeNull()
+    expect(await findPriorityByName(apiv4Admin, name)).toBeNull()
   })
 
   // ---------------------------------------------------------------------
@@ -315,8 +316,9 @@ test.describe('Admin Bookables — Priority', () => {
   // ---------------------------------------------------------------------
   test('S6: alloweds modal saves and the new state hydrates on reopen', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
-    const created = await createPriorityViaApi(page, {
+    const created = await createPriorityViaApi(apiv4Admin, {
       name: uniquePriorityName(testInfo, 's6'),
       description: 's6 alloweds target',
       rule_id: uniqueRuleId(testInfo, 's6'),
@@ -393,8 +395,9 @@ test.describe('Admin Bookables — Priority', () => {
   // ---------------------------------------------------------------------
   test('S7: expanding a rule row renders the alloweds viewer', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
-    const created = await createPriorityViaApi(page, {
+    const created = await createPriorityViaApi(apiv4Admin, {
       name: uniquePriorityName(testInfo, 's7'),
       description: 's7 viewer target',
       rule_id: uniqueRuleId(testInfo, 's7'),
@@ -477,9 +480,10 @@ test.describe('Admin Bookables — Priority', () => {
   // ---------------------------------------------------------------------
   test('S9: re-creating with an existing name returns a conflict', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const name = uniquePriorityName(testInfo, 's9')
-    const first = await createPriorityViaApi(page, {
+    const first = await createPriorityViaApi(apiv4Admin, {
       name,
       description: 'first',
       rule_id: uniqueRuleId(testInfo, 's9'),
@@ -517,7 +521,7 @@ test.describe('Admin Bookables — Priority', () => {
     ).toBeVisible({ timeout: 5000 })
     await expect(modal).toBeVisible()
 
-    const items = (await listPriorities(page)).filter((p) => p.name === name)
+    const items = (await listPriorities(apiv4Admin)).filter((p) => p.name === name)
     expect(items.length, 'only one rule should exist with this name').toBe(1)
   })
 

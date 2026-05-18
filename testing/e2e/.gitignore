@@ -1,0 +1,7 @@
+# Generated apiv4 SDK — emitted by docker/codegen/gen.sh (openapi_ts_e2e).
+# Regenerated whenever the apiv4 OAS spec changes; never committed.
+src/gen/
+
+# Playwright outputs
+test-results/
+playwright-report/

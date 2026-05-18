@@ -16,7 +16,16 @@
 //     "booking-id"). Worker time slots don't overlap, so concurrent
 //     bookings on the same desktop don't race the quota check.
 
-import { test, expect } from '../../../fixtures/login.js'
+import { test, expect, apiv4ClientForPage, unwrap } from '../../../fixtures/apiv4/index.js'
+import {
+  createBookingEvent,
+  createPlan,
+  deleteBookingEvent,
+  deletePlan,
+  getAllBookings,
+  getPlanBookings,
+  listAllPlans,
+} from '../../../src/gen/apiv4/sdk.gen'
 
 const EVENTS_URL = '/isard-admin/admin/domains/render/BookablesEvents'
 
@@ -36,23 +45,13 @@ const SHARED_RESERVABLE_DESKTOP = {
   subitem_id: 'NVIDIA-A16-2Q',
 }
 
-async function createPlanViaApi(page, data) {
-  const resp = await page.request.post('/api/v4/item/reservables-planner', {
-    data,
-  })
-  if (!resp.ok()) {
-    throw new Error(
-      `createPlanViaApi failed: ${resp.status()} ${await resp.text().catch(() => '')}`,
-    )
-  }
-  const body = await resp.json().catch(() => ({}))
+async function createPlanViaApi(client, data) {
+  const body = await unwrap(createPlan({ client, body: data })).catch(() => ({}))
   if (body?.id) return body
-  // Fallback when an older apiv4 build is still in front of us
-  // (returns ``{}`` because the route used to drop the str id).
-  // Locate the freshly inserted plan by exact item/subitem/start
-  // signature.
-  const listResp = await page.request.get('/api/v4/items/reservables-planner')
-  const list = (await listResp.json().catch(() => [])) || []
+  // Older apiv4 builds returned ``{}`` because the route used to drop
+  // the str id. Locate the freshly inserted plan by exact
+  // item/subitem/start signature.
+  const list = (await unwrap(listAllPlans({ client })).catch(() => [])) || []
   const match = list.find(
     (p) =>
       p.item_id === data.item_id &&
@@ -69,10 +68,8 @@ async function createPlanViaApi(page, data) {
   return match
 }
 
-async function deletePlanViaApi(page, planId) {
-  await page.request
-    .delete(`/api/v4/item/reservables-planner/${planId}`)
-    .catch(() => {})
+async function deletePlanViaApi(client, planId) {
+  await deletePlan({ client, path: { plan_id: planId } }).catch(() => {})
 }
 
 async function trackPlanId(testInfo, id) {
@@ -83,24 +80,21 @@ async function trackBookingId(testInfo, id) {
   testInfo.annotations.push({ type: 'booking-id', description: id })
 }
 
-async function createBookingViaApi(page, { item_id, start, end, title }) {
-  const resp = await page.request.post('/api/v4/item/booking/event', {
-    data: { item_id, item_type: 'desktop', start, end, title },
-  })
-  if (!resp.ok()) {
-    throw new Error(
-      `createBookingViaApi failed: ${resp.status()} ${await resp.text().catch(() => '')}`,
-    )
-  }
-  const body = await resp.json().catch(() => ({}))
+async function createBookingViaApi(client, { item_id, start, end, title }) {
+  const body = await unwrap(
+    createBookingEvent({
+      client,
+      body: { item_id, item_type: 'desktop', start, end, title },
+    }),
+  )
   if (!body?.id) {
     throw new Error(`createBookingViaApi: no id in response`)
   }
   return body
 }
 
-async function deleteBookingViaApi(page, id) {
-  await page.request.delete(`/api/v4/item/booking/event/${id}`).catch(() => {})
+async function deleteBookingViaApi(client, id) {
+  await deleteBookingEvent({ client, path: { booking_id: id } }).catch(() => {})
 }
 
 // Pick a fresh, never-before-used start ms within this worker's
@@ -179,16 +173,14 @@ async function clickPnotifyCancel(page) {
     .click({ timeout: 5000 })
 }
 
-async function listPlans(page) {
-  const resp = await page.request.get('/api/v4/items/reservables-planner')
-  if (!resp.ok()) return []
-  return (await resp.json().catch(() => [])) || []
+async function listPlans(client) {
+  const data = await unwrap(listAllPlans({ client })).catch(() => [])
+  return Array.isArray(data) ? data : []
 }
 
-async function listBookings(page) {
-  const resp = await page.request.get('/api/v4/items/bookings/all')
-  if (!resp.ok()) return []
-  return (await resp.json().catch(() => [])) || []
+async function listBookings(client) {
+  const data = await unwrap(getAllBookings({ client })).catch(() => [])
+  return Array.isArray(data) ? data : []
 }
 
 test.describe('Admin Bookables — Events', () => {
@@ -198,6 +190,7 @@ test.describe('Admin Bookables — Events', () => {
   test.beforeAll(async ({ authenticatedContext }, workerInfo) => {
     const page = await authenticatedContext.newPage()
     try {
+      const client = apiv4ClientForPage(page)
       const workerBase = Date.UTC(2400, 0, 1) + workerInfo.workerIndex * _WORKER_SLOT_MS
       const workerEnd = workerBase + _WORKER_SLOT_MS
       const titlePrefixes = [
@@ -205,27 +198,27 @@ test.describe('Admin Bookables — Events', () => {
         `e2e-del-${workerInfo.workerIndex}`,
         `e2e-del-sub-${workerInfo.workerIndex}`,
       ]
-      const staleBookings = (await listBookings(page)).filter(
+      const staleBookings = (await listBookings(client)).filter(
         (b) =>
           typeof b.title === 'string' &&
           titlePrefixes.some((p) => b.title.startsWith(p)),
       )
       for (const b of staleBookings) {
-        await deleteBookingViaApi(page, b.id)
+        await deleteBookingViaApi(client, b.id)
       }
-      const stalePlans = (await listPlans(page)).filter((p) => {
+      const stalePlans = (await listPlans(client)).filter((p) => {
         const t = new Date(p.start).getTime()
         return Number.isFinite(t) && t >= workerBase && t < workerEnd
       })
       for (const p of stalePlans) {
-        await deletePlanViaApi(page, p.id)
+        await deletePlanViaApi(client, p.id)
       }
     } finally {
       await page.close()
     }
   })
 
-  test.afterEach(async ({ authenticatedPage: page }, testInfo) => {
+  test.afterEach(async ({ apiv4Admin }, testInfo) => {
     // Bookings first — they reference plans. Order keeps the cleanup
     // resilient if a test fails mid-flow (the booking's plan-membership
     // may still be intact).
@@ -233,13 +226,13 @@ test.describe('Admin Bookables — Events', () => {
       .filter((a) => a.type === 'booking-id')
       .map((a) => a.description)
     for (const id of bookingIds) {
-      await deleteBookingViaApi(page, id)
+      await deleteBookingViaApi(apiv4Admin, id)
     }
     const planIds = testInfo.annotations
       .filter((a) => a.type === 'plan-id')
       .map((a) => a.description)
     for (const id of planIds) {
-      await deletePlanViaApi(page, id)
+      await deletePlanViaApi(apiv4Admin, id)
     }
   })
 
@@ -418,12 +411,13 @@ test.describe('Admin Bookables — Events', () => {
   // ---------------------------------------------------------------------
   test('S6: empties a plan via the Empty button', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const win = workerBookingWindow(testInfo)
     // Worker-isolated plan in year 2400+ so no seed plan covers our
     // booking window. The booking that follows will associate to *this*
     // plan only (new_booking_plans picks the smallest matching plan).
-    const plan = await createPlanViaApi(page, {
+    const plan = await createPlanViaApi(apiv4Admin, {
       item_type: 'gpus',
       item_id: SEED_PLAN_GPU_ID,
       subitem_id: SHARED_RESERVABLE_DESKTOP.subitem_id,
@@ -432,7 +426,7 @@ test.describe('Admin Bookables — Events', () => {
     })
     await trackPlanId(testInfo, plan.id)
 
-    const booking = await createBookingViaApi(page, {
+    const booking = await createBookingViaApi(apiv4Admin, {
       item_id: SHARED_RESERVABLE_DESKTOP.id,
       start: win.bookingStart,
       end: win.bookingEnd,
@@ -460,16 +454,13 @@ test.describe('Admin Bookables — Events', () => {
     ).toBeVisible({ timeout: 5000 })
 
     // Plan still exists; its bookings list is empty.
-    const bookingsAfter = await page.request.get(
-      `/api/v4/item/reservables-planner/${plan.id}/bookings`,
-    )
-    expect(bookingsAfter.ok()).toBeTruthy()
-    const arr = await bookingsAfter.json()
-    expect(arr.find((b) => b.id === booking.id)).toBeUndefined()
+    const bookingsAfter =
+      (await unwrap(getPlanBookings({ client: apiv4Admin, path: { plan_id: plan.id } }))) || []
+    expect(bookingsAfter.find((b) => b.id === booking.id)).toBeUndefined()
 
     // Empty must NOT delete the plan itself, nor touch unrelated plans
     // (regression guard against a backend that mass-deletes by mistake).
-    const plansAfter = await listPlans(page)
+    const plansAfter = await listPlans(apiv4Admin)
     expect(plansAfter.find((p) => p.id === plan.id), 'emptied plan must still exist')
       .toBeDefined()
     expect(plansAfter.find((p) => p.id === SEED_PLAN_ID), 'seed plan must be untouched')
@@ -481,9 +472,10 @@ test.describe('Admin Bookables — Events', () => {
   // ---------------------------------------------------------------------
   test('S7: deletes a user-created plan through the trash icon', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const { start, end } = uniqueFuturePlan(testInfo)
-    const plan = await createPlanViaApi(page, {
+    const plan = await createPlanViaApi(apiv4Admin, {
       item_type: 'gpus',
       item_id: SEED_PLAN_GPU_ID,
       subitem_id: SEED_PLAN_PROFILE,
@@ -516,7 +508,7 @@ test.describe('Admin Bookables — Events', () => {
 
     // Deleting one plan must NOT delete other plans (regression guard
     // against a backend that mass-deletes by mistake).
-    const plansAfter = await listPlans(page)
+    const plansAfter = await listPlans(apiv4Admin)
     expect(plansAfter.find((p) => p.id === plan.id), 'deleted plan must be gone')
       .toBeUndefined()
     expect(plansAfter.find((p) => p.id === SEED_PLAN_ID), 'seed plan must be untouched')
@@ -528,9 +520,10 @@ test.describe('Admin Bookables — Events', () => {
   // ---------------------------------------------------------------------
   test('S8: deletes a booking from #table-booking', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const win = workerBookingWindow(testInfo)
-    const plan = await createPlanViaApi(page, {
+    const plan = await createPlanViaApi(apiv4Admin, {
       item_type: 'gpus',
       item_id: SEED_PLAN_GPU_ID,
       subitem_id: SHARED_RESERVABLE_DESKTOP.subitem_id,
@@ -539,7 +532,7 @@ test.describe('Admin Bookables — Events', () => {
     })
     await trackPlanId(testInfo, plan.id)
 
-    const booking = await createBookingViaApi(page, {
+    const booking = await createBookingViaApi(apiv4Admin, {
       item_id: SHARED_RESERVABLE_DESKTOP.id,
       start: win.bookingStart,
       end: win.bookingEnd,
@@ -573,9 +566,10 @@ test.describe('Admin Bookables — Events', () => {
   // ---------------------------------------------------------------------
   test('S9: deletes a booking from inside a plan detail subtable', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const win = workerBookingWindow(testInfo)
-    const plan = await createPlanViaApi(page, {
+    const plan = await createPlanViaApi(apiv4Admin, {
       item_type: 'gpus',
       item_id: SEED_PLAN_GPU_ID,
       subitem_id: SHARED_RESERVABLE_DESKTOP.subitem_id,
@@ -584,7 +578,7 @@ test.describe('Admin Bookables — Events', () => {
     })
     await trackPlanId(testInfo, plan.id)
 
-    const booking = await createBookingViaApi(page, {
+    const booking = await createBookingViaApi(apiv4Admin, {
       item_id: SHARED_RESERVABLE_DESKTOP.id,
       start: win.bookingStart,
       end: win.bookingEnd,
@@ -666,9 +660,10 @@ test.describe('Admin Bookables — Events', () => {
   // ---------------------------------------------------------------------
   test('S11: cancelling the delete-plan PNotify does NOT call DELETE', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const { start, end } = uniqueFuturePlan(testInfo)
-    const plan = await createPlanViaApi(page, {
+    const plan = await createPlanViaApi(apiv4Admin, {
       item_type: 'gpus',
       item_id: SEED_PLAN_GPU_ID,
       subitem_id: SEED_PLAN_PROFILE,

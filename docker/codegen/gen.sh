@@ -16,6 +16,11 @@ openapi_ts() {
 		&& echo "  generated TypeScript client: $1"
 }
 
+openapi_ts_e2e() {
+	CODEGEN="$1" CODEGEN_TARGET=e2e run_quietly openapi-ts \
+		&& echo "  generated TypeScript client (e2e): $1"
+}
+
 openapi_python() {
 	run_quietly openapi-python-client generate \
 		--path "$2" \
@@ -47,6 +52,7 @@ rm -rf pkg/gen/asyncapi/changefeed/changefeed_models
 rm -rf pkg/gen/asyncapi/changefeed/changefeed_subscribers
 rm -f pkg/gen/asyncapi/changefeed/changefeed.yaml
 rm -rf component/frontend/src/gen
+rm -rf testing/e2e/src/gen
 rm -rf component/_common/isardvdi_apiv4_client/src/isardvdi_apiv4_client
 rm -rf component/_common/isardvdi_authentication_client/src/isardvdi_authentication_client
 rm -rf component/_common/isardvdi_notifier_client/src/isardvdi_notifier_client
@@ -182,6 +188,12 @@ JOB_PIDS="$JOB_PIDS $!"
 (
 	set -e
 	openapi_ts apiv4 || echo "WARNING: openapi_ts apiv4 failed"
+) &
+JOB_PIDS="$JOB_PIDS $!"
+
+(
+	set -e
+	openapi_ts_e2e apiv4 || echo "WARNING: openapi_ts_e2e apiv4 failed"
 ) &
 JOB_PIDS="$JOB_PIDS $!"
 

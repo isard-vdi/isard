@@ -11,42 +11,43 @@
 //     captured once per worker in `beforeAll` and restored after every
 //     test by `afterEach`, even on failure.
 
-import { test, expect } from '../../../fixtures/login.js'
+import { test, expect, apiv4ClientForPage, unwrap } from '../../../fixtures/apiv4/index.js'
+import {
+  adminAllowedUpdate,
+  adminTableList,
+  adminTableUpdate,
+} from '../../../src/gen/apiv4/sdk.gen'
 
 const TARGET_BOOKABLE_ID = 'NVIDIA-T4-2Q'
 const RESOURCES_URL = '/isard-admin/admin/domains/render/Bookables'
 const VALID_NAME_RE = /^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/
 
-async function listBookables(page) {
-  const resp = await page.request.post('/api/v4/admin/table/reservables_vgpus', {
-    data: { order_by: 'name' },
-  })
-  if (!resp.ok()) return []
-  return (await resp.json().catch(() => [])) || []
+async function listBookables(client) {
+  const data = await unwrap(
+    adminTableList({ client, path: { table: 'reservables_vgpus' }, body: { order_by: 'name' } }),
+  ).catch(() => [])
+  return Array.isArray(data) ? data : []
 }
 
-async function fetchBookable(page, id) {
-  const items = await listBookables(page)
+async function fetchBookable(client, id) {
+  const items = await listBookables(client)
   return items.find((b) => b.id === id) || null
 }
 
-async function fetchRawAllowed(page, id) {
+async function fetchRawAllowed(client, id) {
   // The raw row holds canonical ids-only allowed; `/allowed/table` would enrich
   // it, and round-tripping that back through `/admin/allowed/update` corrupts the row.
-  const row = await fetchBookable(page, id)
+  const row = await fetchBookable(client, id)
   return row?.allowed ?? null
 }
 
-async function updateBookable(page, payload) {
-  const resp = await page.request.put('/api/v4/admin/table/update/reservables_vgpus', {
-    data: payload,
-  })
-  return resp
+async function updateBookable(client, payload) {
+  return adminTableUpdate({ client, path: { table: 'reservables_vgpus' }, body: payload })
 }
 
-async function restoreBookable(page, id, original) {
+async function restoreBookable(client, id, original) {
   if (!original) return
-  await updateBookable(page, {
+  await updateBookable(client, {
     id,
     name: original.name,
     description: original.description ?? '',
@@ -54,13 +55,13 @@ async function restoreBookable(page, id, original) {
   }).catch(() => {})
 }
 
-async function restoreAlloweds(page, id, original) {
+async function restoreAlloweds(client, id, original) {
   if (!original) return
-  await page.request
-    .post('/api/v4/admin/allowed/update/reservables_vgpus', {
-      data: { id, table: 'reservables_vgpus', allowed: original },
-    })
-    .catch(() => {})
+  await adminAllowedUpdate({
+    client,
+    path: { table: 'reservables_vgpus' },
+    body: { id, table: 'reservables_vgpus', allowed: original },
+  }).catch(() => {})
 }
 
 async function gotoResources(page) {
@@ -89,24 +90,25 @@ test.describe('Admin Bookables — Resources', () => {
 
   test.beforeAll(async ({ authenticatedContext }) => {
     const page = await authenticatedContext.newPage()
-    originalSnapshot = await fetchBookable(page, TARGET_BOOKABLE_ID)
-    originalAlloweds = await fetchRawAllowed(page, TARGET_BOOKABLE_ID)
+    const client = apiv4ClientForPage(page)
+    originalSnapshot = await fetchBookable(client, TARGET_BOOKABLE_ID)
+    originalAlloweds = await fetchRawAllowed(client, TARGET_BOOKABLE_ID)
     await page.close()
   })
 
-  test.afterEach(async ({ authenticatedPage: page }) => {
+  test.afterEach(async ({ apiv4Admin }) => {
     if (originalSnapshot) {
-      await restoreBookable(page, TARGET_BOOKABLE_ID, originalSnapshot)
+      await restoreBookable(apiv4Admin, TARGET_BOOKABLE_ID, originalSnapshot)
     }
     if (originalAlloweds) {
-      await restoreAlloweds(page, TARGET_BOOKABLE_ID, originalAlloweds)
+      await restoreAlloweds(apiv4Admin, TARGET_BOOKABLE_ID, originalAlloweds)
     }
   })
 
   // ---------------------------------------------------------------------
   // Scenario 1 — lists vGPU bookables from the seed
   // ---------------------------------------------------------------------
-  test('S1: lists vGPU bookables from the seed', async ({ authenticatedPage: page }) => {
+  test('S1: lists vGPU bookables from the seed', async ({ authenticatedPage: page, apiv4Admin }) => {
     const tableResponse = page.waitForResponse(
       (r) =>
         r.url().includes('/api/v4/admin/table/reservables_vgpus') &&
@@ -117,7 +119,7 @@ test.describe('Admin Bookables — Resources', () => {
     const resp = await tableResponse
     expect(resp.status()).toBeLessThan(400)
 
-    const items = await listBookables(page)
+    const items = await listBookables(apiv4Admin)
     const ids = new Set(items.map((b) => b.id))
     expect(ids).toContain('NVIDIA-A16-2Q')
     expect(ids).toContain('NVIDIA-A16-4Q')
@@ -141,6 +143,7 @@ test.describe('Admin Bookables — Resources', () => {
   // ---------------------------------------------------------------------
   test('S2: edits name and description via the pencil icon', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }, testInfo) => {
     const newName = uniqueBookableName(testInfo, 's2')
     const newDescription = `e2e vGPU bookable updated at ${new Date().toISOString()}`
@@ -179,7 +182,7 @@ test.describe('Admin Bookables — Resources', () => {
     await expect(row).toContainText(newName, { timeout: 10000 })
     await expect(row).toContainText(newDescription)
 
-    const persisted = await fetchBookable(page, TARGET_BOOKABLE_ID)
+    const persisted = await fetchBookable(apiv4Admin, TARGET_BOOKABLE_ID)
     expect(persisted.name).toBe(newName)
     expect(persisted.description).toBe(newDescription)
   })
@@ -189,6 +192,7 @@ test.describe('Admin Bookables — Resources', () => {
   // ---------------------------------------------------------------------
   test('S3: changes the priority rule via the dropdown', async ({
     authenticatedPage: page,
+    apiv4Admin,
   }) => {
     // T4-2Q starts on `test-booking-rule`; switching to `default` is the
     // smallest visible change without touching values we want to restore.
@@ -220,7 +224,7 @@ test.describe('Admin Bookables — Resources', () => {
 
     await expect(row.locator('td').nth(3)).toHaveText('default', { timeout: 10000 })
 
-    const persisted = await fetchBookable(page, TARGET_BOOKABLE_ID)
+    const persisted = await fetchBookable(apiv4Admin, TARGET_BOOKABLE_ID)
     expect(persisted.priority_id).toBe('default')
   })
 
