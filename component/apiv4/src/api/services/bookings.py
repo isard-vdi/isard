@@ -26,6 +26,9 @@ from api.schemas.bookings import CreateBookingEventRequest
 from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.bookings.bookings import BookingsProcessed as CommonBookings
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
+from isardvdi_common.lib.deployments.deployments import (
+    DeploymentsProcessed as CommonDeployment,
+)
 from isardvdi_common.lib.domains.desktops.desktops import (
     DesktopsProcessed as CommonDesktop,
 )
@@ -118,21 +121,26 @@ class BookingsService:
         return CommonBookings.delete(booking_id=booking_id)
 
     @staticmethod
-    def get_user_priority_for_desktop(payload: dict, desktop_id: str) -> dict:
-        """Compute the booking priority of ``payload`` for a desktop.
+    def get_user_priority(
+        payload: dict, item_type: Literal["desktop", "deployment"], item_id: str
+    ) -> dict:
+        """Compute the booking priority of ``payload`` for an item.
 
         Mirrors v3 ``BookingView.py:42-55``: combines the result of
-        ``CommonBookings.get_user_priority(payload, item_type,
-        item_id)`` with the desktop name. The route name fixes the
-        item_type to ``desktop``; deployment-priority lookups go
-        through a separate endpoint.
+        ``CommonBookings.get_user_priority(...)`` with the item's
+        ``name`` resolved against the right table per ``item_type``.
+        Routes split by item_type for ownership checks but share this
+        unified service entry.
         """
-        priority = CommonBookings.get_user_priority(payload, "desktop", desktop_id)
+        priority = CommonBookings.get_user_priority(payload, item_type, item_id)
         try:
-            desktop = CommonDesktop.get_desktop(desktop_id)
+            if item_type == "desktop":
+                item = CommonDesktop.get_desktop(item_id)
+            else:
+                item = CommonDeployment.get_deployment(item_id, desktops=False)
         except Exception:
-            desktop = {}
-        return {**priority, "name": desktop.get("name", "")}
+            item = {}
+        return {**priority, "name": item.get("name", "")}
 
     @staticmethod
     def get_max_booking_date(payload: dict, desktop_id: str) -> dict:

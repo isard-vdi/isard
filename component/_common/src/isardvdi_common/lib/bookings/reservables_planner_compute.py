@@ -255,8 +255,12 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
         query = query.filter(
             r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
         )
+        # A booking blocks the caller only if its priority is >= the
+        # caller's; strictly-lower-priority bookings are overridable.
+        # Mirrors the display path (get_overridable_bookings uses
+        # < caller, get_nonoverridable_bookings uses >= caller).
         query = query.filter(
-            r.row["plans"].contains(lambda plan: plan["priority"] <= priority)
+            r.row["plans"].contains(lambda plan: plan["priority"] >= priority)
         )
         with cls._rdb_context():
             bookings = list(query.run(cls._rdb_connection))
@@ -516,16 +520,18 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
 
     @classmethod
     def join_consecutive_plans(cls, plan):
-        join_plan_op = lambda x, y: {
-            "units": 1,
-            "id": "available",
-        }
+        # Merge only consecutive intervals that share the event type so
+        # available / overridable / unavailable survive to the caller.
+        join_plan_op = lambda x, y: (x if x["event_type"] == y["event_type"] else y)
         output = P.IntervalDict()
         for interval in plan:
-            if interval.get("start") and interval.get("units", 0) > 0:
-                i = P.closedopen(interval["start"], interval["end"])
-                d = P.IntervalDict({i: {"units": 1, "id": "available"}})
-                output = output.combine(d, how=join_plan_op)
+            if not interval.get("start"):
+                continue
+            i = P.closedopen(interval["start"], interval["end"])
+            d = P.IntervalDict(
+                {i: {"event_type": interval.get("event_type", "available")}}
+            )
+            output = output.combine(d, how=join_plan_op)
 
         items = _sorted_atomic_items(output)
 
@@ -533,10 +539,10 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
             {
                 "start": item[0].lower,
                 "end": item[0].upper,
-                "units": "Enough",
-                "ids": item[1]["id"].split("/"),
-                "id": item[1]["id"],
-                "event_type": "available",
+                "units": (-1 if item[1]["event_type"] == "unavailable" else "Enough"),
+                "ids": ["available"],
+                "id": "available",
+                "event_type": item[1]["event_type"],
             }
             for item in items
         ]
@@ -869,59 +875,30 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
         log.debug("NON OVERRIDABLE PLANS: " + str(len(nonoverridable)))
         log.debug("OVERRIDABLE PLANS: " + str(len(overridable)))
         plans = cls.convert_plans_to_portions(plans)
-        join_plan_op = lambda x, y: {
-            "units": x["units"] - y["units"],
+
+        # Accumulate, per plan interval, units held by bookings the
+        # caller must respect (nonoverridable, >= caller priority) and
+        # ones it may displace (overridable, < caller priority).
+        nonoverridable_op = lambda x, y: {
             "id": x["id"] + "/" + y["id"],
-            "event_type": (
-                "unavailable"
-                if x["units"] - y["units"] <= 0
-                else "overridable" if x["units"] - y["units"] < units else "available"
-            ),
+            "units": x["units"],
+            "nonoverridable": x.get("nonoverridable", 0) + y["units"],
+            "overridable": x.get("overridable", 0),
         }
-
-        for interval in overridable:
-            i = P.closed(interval["start"], interval["end"])
-            d = P.IntervalDict(
-                {
-                    i: {
-                        "units": interval["units"],
-                        "id": interval["id"],
-                        "event_type": "available",
-                    }
-                }
-            )
-            plans = plans.combine(d, how=join_plan_op)
-
-        # There are 3 out of 6 in current plan (-3 nonoverridable)
-        # We want to fit 4 that have higher priority (overrridable)
-        # Let's think there aren't nonoverridable ones and we want to
-        # add 2 but there are 2 overridable already.
-        join_plan_op = lambda x, y: {
-            "units": x["units"] - y["units"],
+        overridable_op = lambda x, y: {
             "id": x["id"] + "/" + y["id"],
-            "event_type": (
-                "unavailable"
-                if x["units"] - (units + y["units"]) < 0
-                else (
-                    "overridable"
-                    if x["units"] - (units + y["units"]) < 0
-                    else "available"
-                )
-            ),
+            "units": x["units"],
+            "nonoverridable": x.get("nonoverridable", 0),
+            "overridable": x.get("overridable", 0) + y["units"],
         }
-
         for interval in nonoverridable:
             i = P.closed(interval["start"], interval["end"])
-            d = P.IntervalDict(
-                {
-                    i: {
-                        "units": interval["units"],
-                        "id": interval["id"],
-                        "event_type": "available",
-                    }
-                }
-            )
-            plans = plans.combine(d, how=join_plan_op)
+            d = P.IntervalDict({i: {"units": interval["units"], "id": interval["id"]}})
+            plans = plans.combine(d, how=nonoverridable_op)
+        for interval in overridable:
+            i = P.closed(interval["start"], interval["end"])
+            d = P.IntervalDict({i: {"units": interval["units"], "id": interval["id"]}})
+            plans = plans.combine(d, how=overridable_op)
 
         items = []
         if len(plans):
@@ -932,23 +909,30 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
         else:
             log.debug("NO PLANS FOUND")
 
-        log.debug("Intervals found:")
-        log.debug([{"units": item[1]["units"]} for item in items])
-        log.debug("Intervals found with only available units:")
-        log.debug(
-            [{"units": item[1]["units"]} for item in items if item[1]["units"] >= units]
-        )
-        return [
-            {
-                "start": item[0].lower,
-                "end": item[0].upper,
-                "units": item[1]["units"],
-                "ids": item[1]["id"].split("/"),
-                "event_type": item[1]["event_type"],
-            }
-            for item in items
-            if item[1]["units"] >= units
-        ]
+        # free = units the caller can ultimately get (overridable ones
+        # can be displaced). It is "available" if it fits without
+        # overriding, "overridable" if it only fits by displacing
+        # lower-priority bookings, "unavailable" otherwise.
+        result = []
+        for atomic, value in items:
+            free = value["units"] - value.get("nonoverridable", 0)
+            free_no_override = free - value.get("overridable", 0)
+            if free < units:
+                event_type = "unavailable"
+            elif free_no_override < units:
+                event_type = "overridable"
+            else:
+                event_type = "available"
+            result.append(
+                {
+                    "start": atomic.lower,
+                    "end": atomic.upper,
+                    "units": free,
+                    "ids": value["id"].split("/"),
+                    "event_type": event_type,
+                }
+            )
+        return result
 
     ## PLANS FUNCTIONS
     @classmethod

@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging as log
+from datetime import datetime
 from typing import Optional
 
 from api.services.error import Error
@@ -343,8 +344,12 @@ class ReservableService:
         return plan[0]
 
     @staticmethod
-    def get_item_plans(item_id: str) -> list[dict]:
-        return ReservablesPlannerProccess.list_item_plans(item_id)
+    def get_item_plans(
+        item_id: str,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+    ) -> list[dict]:
+        return ReservablesPlannerProccess.list_item_plans(item_id, start, end)
 
     @staticmethod
     def add_plan(payload: dict, data: dict) -> dict:

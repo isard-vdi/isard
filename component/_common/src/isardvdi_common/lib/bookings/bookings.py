@@ -33,6 +33,7 @@ from isardvdi_common.helpers.bookings import Bookings as BookingsHelper
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.scheduler import Scheduler as SchedulerHelper
+from isardvdi_common.lib.api_admin import ApiAdmin
 from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlannerProccess
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
     ReservablesPlannerCompute,
@@ -186,6 +187,7 @@ class BookingsProcessed(RethinkSharedConnection):
             r.table("bookings_priority").get(priority_id).delete().run(
                 cls._rdb_connection
             )
+        ApiAdmin.clear_admin_table_list_cache("bookings_priority")
 
     @classmethod
     def list_priority_rules(cls):

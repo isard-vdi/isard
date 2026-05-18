@@ -160,15 +160,13 @@ export default {
       })
     },
     fetchPlanning (context, data) {
-      return axios.get(`${apiV3Segment}/item/reservables-planner/by-item/${data.itemId}`).then(response => {
-        const rangeStart = new Date(data.start)
-        const rangeEnd = new Date(data.end)
-        const events = (response.data || []).filter(plan => {
-          const planStart = new Date(plan.start)
-          const planEnd = new Date(plan.end)
-          return planStart < rangeEnd && planEnd > rangeStart
-        })
-        context.commit('setPlanningEvents', PlanningUtils.parseEvents(events))
+      return axios.get(`${apiV3Segment}/item/reservables-planner/by-item/${data.itemId}`, {
+        params: {
+          start: new Date(data.start).toISOString(),
+          end: new Date(data.end).toISOString()
+        }
+      }).then(response => {
+        context.commit('setPlanningEvents', PlanningUtils.parseEvents(response.data || []))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

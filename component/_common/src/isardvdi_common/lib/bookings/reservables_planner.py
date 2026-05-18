@@ -591,7 +591,7 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                 new_plan["id"],
                 new_plan["item_type"],
                 new_plan["item_id"],
-                ReservablesProccess.get_default_subitem(
+                cls.reservables.get_default_subitem(
                     new_plan["item_type"], new_plan["item_id"]
                 ),
                 new_plan["end"],

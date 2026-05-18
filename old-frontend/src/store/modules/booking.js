@@ -182,7 +182,10 @@ export default {
       })
     },
     fetchPriority (context, data) {
-      axios.get(`${apiV3Segment}/items/bookings/get-priority-desktop/${data.itemId}`).then(response => {
+      const endpoint = data.itemType === 'deployment'
+        ? 'get-priority-deployment'
+        : 'get-priority-desktop'
+      axios.get(`${apiV3Segment}/items/bookings/${endpoint}/${data.itemId}`).then(response => {
         context.commit('setBookingPriority', BookingUtils.parsePriority(response.data))
         context.commit('setBookingItemName', response.data.name)
       }).catch(e => {
@@ -282,8 +285,8 @@ export default {
 
       if (priorityAllowed && canCreate) {
         const data = {
-          element_id: payload.elementId,
-          element_type: payload.elementType,
+          item_id: payload.elementId,
+          item_type: payload.elementType,
           title: payload.title,
           start: DateUtils.formatAsUTC(payload.start),
           end: DateUtils.formatAsUTC(payload.end)
@@ -305,8 +308,8 @@ export default {
     },
     createEventNow (context, payload) {
       const data = {
-        element_id: payload.elementId,
-        element_type: payload.elementType,
+        item_id: payload.elementId,
+        item_type: payload.elementType,
         start: payload.start,
         end: payload.end,
         now: true
