@@ -494,6 +494,17 @@ $(document).ready(function () {
             opacity: 1
           })
         }
+        if (!data["physical_device"]) {
+          return notice.update({
+            title: 'ERROR',
+            text: 'This GPU has no physical device assigned. Its profile can only be forced while the GPU is present on an online hypervisor.',
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 5000,
+            opacity: 1
+          })
+        }
         // Detect MIG ↔ vGPU/passthrough mode switch and warn user
         var oldIsMig = /^\d+g\./.test(data["actual_active_profile"]);
         var newIsMig = /^\d+g\./.test(profile_id);
