@@ -435,7 +435,7 @@ $(document).ready(function () {
                         'not_username': formData['not_username'].toLowerCase() === 'true',
                     },
                     'email_verification': formData['verification-cb'] == 'on',
-                    'disclaimer': formData['disclaimer-cb'] != 'on' && formData['category'] !== "all" ? null :
+                    'disclaimer': formData['disclaimer-cb'] != 'on' ? false :
                         {
                             'template': formData['disclaimer-template']
                         }
