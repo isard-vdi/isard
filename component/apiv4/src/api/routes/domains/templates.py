@@ -533,10 +533,14 @@ async def update_template(
     data: TemplateEditRequest,
 ):
     try:
+        payload = data.model_dump(exclude_unset=True)
+        if data.image is not None and getattr(data.image, "file", None) is not None:
+            payload["image"]["file"] = data.image.file.model_dump(exclude_unset=True)
+
         await asyncio.to_thread(
             DesktopService.edit_desktop,
             template_id,
-            data.model_dump(),
+            payload,
             request.token_payload,
         )
 
