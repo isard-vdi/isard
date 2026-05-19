@@ -208,7 +208,7 @@ class MigrationService:
         }
 
     @staticmethod
-    def migrate_user(target_user_id: str) -> str:
+    def migrate_user(target_user_id: str) -> dict:
         user_migration = UserMigrationsProcessed.get_user_migration_by_target_user(
             target_user_id
         )
@@ -233,11 +233,27 @@ class MigrationService:
                 "errors": errors,
             }
 
+        return {
+            "origin_user": user_migration["origin_user"],
+            "target_user_id": target_user_id,
+            "token": user_migration["token"],
+        }
+
+    @staticmethod
+    async def migrate_user_and_process(target_user_id: str) -> dict:
+        result = await asyncio.to_thread(MigrationService.migrate_user, target_user_id)
+        if result.get("errors"):
+            return result
+
         asyncio.create_task(
             UserMigrationsProcessed.process_automigrate_user(
-                user_migration["origin_user"], target_user_id, user_migration["token"]
+                result["origin_user"],
+                result["target_user_id"],
+                result["token"],
             )
         )
+
+        return {}
 
     @staticmethod
     def get_admin_migration_config() -> dict:

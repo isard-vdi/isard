@@ -156,13 +156,14 @@ async def migration_list_items(request: Request):
 )
 async def migration_migrate_user(request: Request):
     try:
-        result = await asyncio.to_thread(
-            MigrationService.migrate_user, request.token_payload["user_id"]
+        result = await MigrationService.migrate_user_and_process(
+            request.token_payload["user_id"]
         )
-        if result:
-            return JSONResponse(
-                content={"errors": result["errors"]},
-                status_code=428,
+        if result.get("errors"):
+            raise Error(
+                "precondition_required",
+                description=result["errors"][0]["description"],
+                description_code=result["errors"][0]["description_code"],
             )
         return JSONResponse(
             content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
