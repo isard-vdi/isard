@@ -39,6 +39,7 @@ from api.dependencies.jwt_token import (
 )
 from api.services.error import Error
 from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -304,7 +305,7 @@ async def request_validation_exception_handler(
         content=_error_response_body(
             error="validation_error",
             description="Request validation failed",
-            extra={"details": exc.errors()},
+            extra={"details": jsonable_encoder(exc.errors())},
         ),
     )
 
