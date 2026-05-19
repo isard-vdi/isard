@@ -85,7 +85,14 @@ class TestCreateDeployment:
         kwargs = mock_create.call_args.kwargs
         assert result == "d-new"
         assert kwargs["name"] == "Lab"
-        assert kwargs["selected"] == {"groups": ["g1"]}
+        # selected must carry all four allowed buckets so CommonDeployments
+        # can index them directly; unset buckets default to False.
+        assert kwargs["selected"] == {
+            "groups": ["g1"],
+            "users": False,
+            "categories": False,
+            "roles": False,
+        }
         # Optional fields default
         assert kwargs["co_owners"] == []
         assert kwargs["visible"] is False
