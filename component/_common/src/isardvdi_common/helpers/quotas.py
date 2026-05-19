@@ -1477,10 +1477,11 @@ class Quotas(RethinkCustomBase):
             isos = Alloweds.get_items_allowed(
                 payload,
                 "media",
-                query_pluck=["id", "name", "description"],
+                query_pluck=["id", "name", "description", "user", "category"],
                 query_filter={"status": "Downloaded"},
                 index_key="kind",
                 index_value="iso",
+                query_merge=False,
             )
             for iso in create_dict["hardware"]["isos"]:
                 iso_id = iso["id"] if isinstance(iso, dict) else iso
@@ -1507,10 +1508,11 @@ class Quotas(RethinkCustomBase):
             floppies = Alloweds.get_items_allowed(
                 payload,
                 "media",
-                query_pluck=["id", "name", "description"],
+                query_pluck=["id", "name", "description", "user", "category"],
                 query_filter={"status": "Downloaded"},
                 index_key="kind",
                 index_value="floppy",
+                query_merge=False,
             )
             for floppy in create_dict["hardware"]["floppies"]:
                 if floppy["id"] not in [f["id"] for f in floppies]:
@@ -1773,10 +1775,10 @@ class Quotas(RethinkCustomBase):
             media_allowed = Alloweds.get_items_allowed(
                 payload,
                 "media",
-                query_pluck=["id", "kind", "name", "description"],
+                query_pluck=["id", "kind", "name", "description", "user", "category"],
                 index_key="status",
                 index_value="Downloaded",
-                # query_merge=False,
+                query_merge=False,
                 order="name",
             )
             # Classify the media in isos and floppies
