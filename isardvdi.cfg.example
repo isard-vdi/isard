@@ -578,10 +578,28 @@ HAPROXY_LOGGING=.
 ## Infrastructure MTU: physical/underlay network MTU between nodes.
 ## All internal MTU values (WireGuard, DHCP, OVS bridge) are derived from this.
 ##
-## Defaults:  1500 (wg+geneve)  /  9000 (geneve-only)
+## Default: 1500 (safe Ethernet, applies to both wg+geneve and geneve-only).
+##
+## NOTE: changing this value requires the docker isard-network to be
+## recreated; docker does NOT recreate networks on driver_opt changes, so a
+## raised MTU silently has no effect until the network is removed and
+## brought up again. `build.sh` prints a drift warning when it detects this.
+##
+## NOTE: in multi-host deployments, set the same value on every host
+## running `build.sh` (web, hypervisor, storage, video, ...). Each host
+## renders its own docker isard-network independently from its local cfg,
+## and the hypervisor OVS warns at startup when its bridge MTU exceeds
+## the local eth0 MTU.
+##
+## NOTE: the guest VM MTU is auto-derived from this value + the tunneling
+## mode (no jumbo required for a normal 1500 underlay) and is enforced on
+## the guest virtio NIC itself, not only via DHCP. With a jumbo underlay
+## the guest still defaults to 1500 but a user inside the desktop may
+## raise its NIC up to the derived overlay ceiling. VPN_MTU is deprecated
+## (superseded by INFRASTRUCTURE_MTU; a backward-compat warning is logged).
 ##
 ## Common values:
-##   9000 - datacenter with jumbo frames
+##   9000 - datacenter with jumbo frames (entire underlay must support it)
 ##   1500 - standard Ethernet (default for most networks)
 ##   1492 - PPPoE connections
 ##   1400 - when running behind another VPN/tunnel overlay

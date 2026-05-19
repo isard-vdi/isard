@@ -24,6 +24,7 @@ import xmltodict
 from cachetools import TTLCache, cached
 from engine.services.db import (
     get_and_update_personal_vlan_id_from_domain_id,
+    get_cluster_guest_mtu,
     get_dict_from_item_in_table,
     get_domain,
     get_graphics_types,
@@ -83,6 +84,23 @@ def get_video_cached(video_id):
 def get_storage_cached(storage_id):
     """Get storage with TTL caching for batch operations."""
     return get_dict_from_item_in_table("storage", storage_id)
+
+
+_guest_mtu_cache = TTLCache(maxsize=1, ttl=30)
+
+
+@cached(cache=_guest_mtu_cache)
+def get_cluster_guest_mtu_cached():
+    """Tenant-overlay guest-MTU ceiling (cluster-wide, TTL-cached).
+
+    ``None`` => the guest interface XML is emitted unchanged (no ``<mtu>``),
+    preserving the previous DHCP-option-26-only behaviour with zero
+    regression on older/mixed-version or freshly-installed clusters.
+    """
+    try:
+        return get_cluster_guest_mtu()
+    except Exception:
+        return None
 
 
 XML_SNIPPET_NETWORK = """
@@ -721,6 +739,11 @@ class DomainXML(object):
         :return:
         """
 
+        # OVS/GENEVE tenant-overlay interfaces (ethernet snippet) must carry
+        # the derived overlay MTU on the guest virtio NIC; n2m-bridge and the
+        # NAT "network" ride the underlay directly and must NOT be clamped.
+        is_overlay = False
+
         if type_interface == "bridge":
             interface_etree = etree.parse(StringIO(XML_SNIPPET_BRIDGE))
             interface_etree.xpath("/interface")[0].xpath("source")[0].set("bridge", net)
@@ -728,6 +751,7 @@ class DomainXML(object):
         elif type_interface == "ovs":
             # Use ethernet type - ovs-worker manages OVS port via OVSDB IDL
             interface_etree = etree.parse(StringIO(XML_SNIPPET_ETHERNET))
+            is_overlay = True
             # Collect mapping for mac2network metadata
             self.mac2network_mappings.append(
                 {
@@ -773,6 +797,7 @@ class DomainXML(object):
                                 interface_etree = etree.parse(
                                     StringIO(XML_SNIPPET_ETHERNET)
                                 )
+                                is_overlay = True
                                 # Collect mapping for mac2network metadata
                                 self.mac2network_mappings.append(
                                     {
@@ -807,6 +832,7 @@ class DomainXML(object):
             ovs_br_name = "ovsbr" + suffix_br
             # Use ethernet type - ovs-worker manages OVS port via OVSDB IDL
             interface_etree = etree.parse(StringIO(XML_SNIPPET_ETHERNET))
+            is_overlay = True
             # Collect mapping for mac2network metadata (include bridge name)
             self.mac2network_mappings.append(
                 {
@@ -832,6 +858,17 @@ class DomainXML(object):
 
         interface_etree.xpath("/interface")[0].xpath("mac")[0].set("address", mac)
         interface_etree.xpath("/interface")[0].xpath("model")[0].set("type", model_type)
+
+        # Enforce the tenant-overlay MTU on the guest virtio NIC
+        # (VIRTIO_NET_F_MTU; honoured by Linux and Windows virtio drivers
+        # regardless of DHCP/static config) so GENEVE+WireGuard guests do
+        # not black-hole oversized frames. Omitted when the cluster does
+        # not publish a value (older/mixed/fresh) -> XML unchanged.
+        if is_overlay:
+            guest_mtu = get_cluster_guest_mtu_cached()
+            if guest_mtu:
+                mtu_element = etree.fromstring(f"<mtu size='{int(guest_mtu)}'/>")
+                interface_etree.xpath("/interface")[0].append(mtu_element)
 
         new_interface = interface_etree.xpath("/interface")[0]
 

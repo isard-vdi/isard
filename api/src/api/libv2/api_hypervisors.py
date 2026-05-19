@@ -51,6 +51,27 @@ from cachetools import TTLCache, cached
 from .helpers import _check, generate_db_media
 from .validators import _validate_item
 
+# GENEVE / WireGuard encapsulation overheads. Canonical arithmetic lives in
+# docker/vpn/ovs/ovs_setup.sh (it physically sizes vlan-wg/ovsbr0); this is a
+# faithful port. Keep both in sync.
+_GENEVE_OH = 54  # 20 IP + 8 UDP + 8 geneve + 14 eth + 4 VLAN
+_WG_OH = 60  # 20 IP + 8 UDP + 32 WG
+
+
+def _overlay_max(infrastructure_mtu, tunneling_mode):
+    """Maximum payload MTU a guest NIC may use on the tenant overlay.
+
+    This is the *ceiling* advertised to the guest virtio NIC (engine
+    injects it as ``<mtu size=...>``) and the size the host datapath
+    (ovsbr0/vlan-wg) is set to. dnsmasq separately serves
+    ``min(overlay_max, 1500)`` as the safe DHCP default so ordinary
+    guests stay at 1500 while a jumbo underlay lets a user raise the
+    in-guest MTU up to this ceiling. Mirrors docker/vpn/ovs/ovs_setup.sh.
+    """
+    oh = _GENEVE_OH if tunneling_mode == "geneve" else _WG_OH + _GENEVE_OH
+    raw = int(infrastructure_mtu) - oh
+    return max(1280, min(raw, 9000))  # IPv6 floor .. sane jumbo cap
+
 
 class ApiHypervisors:
     def get_hypervisors(
@@ -441,12 +462,11 @@ class ApiHypervisors:
         # Return the tunneling mode and infrastructure MTU for hypervisor OVS setup
         geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
         vpn_tunneling_mode = "geneve" if geneve_only else "wireguard+geneve"
+        infra_mtu = int(os.environ.get("INFRASTRUCTURE_MTU", "") or "1500")
         data["vpn"] = {
             "tunneling_mode": vpn_tunneling_mode,
-            "infrastructure_mtu": int(
-                os.environ.get("INFRASTRUCTURE_MTU", "")
-                or ("9000" if vpn_tunneling_mode == "geneve" else "1500")
-            ),
+            "infrastructure_mtu": infra_mtu,
+            "guest_mtu": _overlay_max(infra_mtu, vpn_tunneling_mode),
         }
 
         return {"status": True, "msg": "Hypervisor added", "data": data}
@@ -492,6 +512,7 @@ class ApiHypervisors:
             if os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
             else "wireguard+geneve"
         )
+        vpn_infra_mtu = int(os.environ.get("INFRASTRUCTURE_MTU", "") or "1500")
 
         hypervisor = {
             "capabilities": {"disk_operations": cap_disk, "hypervisor": cap_hyper},
@@ -528,7 +549,10 @@ class ApiHypervisors:
             "virt_pools": virt_pools,
             "buffering_hyper": buffering_hyper,
             "gpu_only": gpu_only,
-            "vpn": {"tunneling_mode": vpn_tunneling_mode},
+            "vpn": {
+                "tunneling_mode": vpn_tunneling_mode,
+                "guest_mtu": _overlay_max(vpn_infra_mtu, vpn_tunneling_mode),
+            },
             "hugepages_info": hugepages_info if hugepages_info else {},
             "pci_devices": pci_devices if pci_devices else {},
             "numa_topology": numa_topology if numa_topology else {},

@@ -677,6 +677,141 @@ done
 # See also BUILD_ROOT_PATH env section above
 sed -i "s|$(pwd)|.|g" docker-compose*.yml
 
+# isard-network MTU drift handling.  Two env-var knobs (same convention as
+# SKIP_CHECK_DOCKER_COMPOSE_VERSION above):
+#   SKIP_CHECK_ISARD_NETWORK_MTU=true   acknowledge the drift and continue the
+#                                       build without changing anything
+#   ISARD_RECREATE_ISARD_NETWORK=true   perform the destructive recreate
+#                                       (docker compose down -> docker network
+#                                       rm isard-network -> docker compose up
+#                                       -d) so the new MTU actually applies.
+#                                       This restarts the stack on THIS host
+#                                       and kills running desktops on a host
+#                                       running the hypervisor role.
+_isard_net_drift(){
+	# Echo "<live>|<requested>" when the live isard-network MTU differs from
+	# what the freshly generated docker-compose.yml requests; echo nothing
+	# and return 0 when there is no drift or it cannot be determined.
+	# Single source of truth, used by the gate and the recreate.
+	command -v docker >/dev/null 2>&1 || return 0
+	docker network ls >/dev/null 2>&1 || return 0
+	docker network inspect isard-network >/dev/null 2>&1 || return 0
+
+	_req=$(awk -F: '/com\.docker\.network\.driver\.mtu/ {gsub(/[^0-9]/,"",$2); print $2; exit}' docker-compose.yml 2>/dev/null)
+	[ -z "$_req" ] && return 0
+
+	_live=$(docker network inspect isard-network --format '{{index .Options "com.docker.network.driver.mtu"}}' 2>/dev/null)
+	{ [ -z "$_live" ] || [ "$_live" = "<no value>" ]; } && _live=1500
+
+	[ "$_live" = "$_req" ] && return 0
+	echo "$_live|$_req"
+}
+
+recreate_isard_network(){
+	# Destructive opt-in: the only mechanism that actually applies a new MTU.
+	# Reached only via ISARD_RECREATE_ISARD_NETWORK=true.  The env var IS the
+	# consent: build.sh runs non-interactively under sysadm/upgrade.sh, so
+	# there is deliberately no y/N prompt.
+	_drift=$(_isard_net_drift) || true  # || true: detector may abort under set -e if docker-compose.yml is absent; empty => no drift
+	if [ -z "$_drift" ]; then
+		echo "isard-network MTU already correct, nothing to do."
+		exit 0
+	fi
+	_live=${_drift%|*}
+	_req=${_drift#*|}
+	_compose="$DOCKER_COMPOSE -f docker-compose.yml"
+	[ -f docker-compose-open-ports.yml ] && _compose="$_compose -f docker-compose-open-ports.yml"
+
+	cat >&2 <<EOF
+
+================================================================================
+RECREATING docker network 'isard-network'  (MTU $_live -> $_req)
+
+This runs '$_compose down' on THIS host: the IsardVDI control plane
+stops, and on a host running the hypervisor role every running desktop on
+this node is killed (can take minutes on a busy node).  Proceeding because
+ISARD_RECREATE_ISARD_NETWORK=true was set.
+================================================================================
+
+EOF
+
+	$_compose down || { echo "ERROR: '$_compose down' failed; stack may be partially down — run '$_compose up -d' to restore. isard-network NOT recreated; re-run with ISARD_RECREATE_ISARD_NETWORK=true once resolved." >&2; exit 1; }
+
+	if docker network inspect isard-network >/dev/null 2>&1; then
+		_rmlog=$(mktemp)
+		if ! docker network rm isard-network >"$_rmlog" 2>&1; then
+			if grep -q 'active endpoints' "$_rmlog"; then
+				echo "ERROR: isard-network still has active endpoints after '$_compose down'." >&2
+				echo "       Something outside this compose project is attached to it." >&2
+				echo "       Detach/stop it, then re-run with ISARD_RECREATE_ISARD_NETWORK=true." >&2
+			else
+				echo "ERROR: 'docker network rm isard-network' failed:" >&2
+				cat "$_rmlog" >&2
+			fi
+			rm -f "$_rmlog"
+			exit 1
+		fi
+		rm -f "$_rmlog"
+	fi
+
+	$_compose up -d || { echo "ERROR: '$_compose up -d' failed after network removal; re-run build.sh to recover." >&2; exit 1; }
+
+	_after=$(_isard_net_drift) || true
+	if [ -z "$_after" ]; then
+		echo "OK: isard-network recreated, MTU is now $_req."
+		exit 0
+	fi
+	echo "FAIL: isard-network MTU still wrong after recreate ($_after); investigate." >&2
+	exit 1
+}
+
+check_isard_network_mtu(){
+	# Gate. No drift -> return 0 (build continues). On drift, in order:
+	#   SKIP_CHECK_ISARD_NETWORK_MTU=true -> acknowledge, continue
+	#   ISARD_RECREATE_ISARD_NETWORK=true -> perform the recreate (exits)
+	#   otherwise                         -> FATAL, exit 1
+	_drift=$(_isard_net_drift) || true  # || true: detector may abort under set -e if docker-compose.yml is absent; empty => no drift
+	[ -z "$_drift" ] && return 0
+
+	if [ "${SKIP_CHECK_ISARD_NETWORK_MTU:-false}" = "true" ]; then
+		echo "isard-network MTU drift acknowledged via SKIP_CHECK_ISARD_NETWORK_MTU, continuing." >&2
+		return 0
+	fi
+
+	if [ "${ISARD_RECREATE_ISARD_NETWORK:-false}" = "true" ]; then
+		recreate_isard_network
+		return 0
+	fi
+
+	_live=${_drift%|*}
+	_req=${_drift#*|}
+	cat >&2 <<EOF
+
+================================================================================
+FATAL: docker network 'isard-network' MTU drift
+  live network    : $_live
+  compose requests: $_req
+
+Docker cannot change a network's MTU in place. 'docker compose up -d' keeps the
+OLD network and silently fragments/drops geneve traffic. Build stopped.
+
+To fix (maintenance window — restarts the stack on THIS host; kills running
+desktops on a hypervisor node):
+
+  sudo ISARD_RECREATE_ISARD_NETWORK=true bash build.sh     # guided down->rm->up
+      (or by hand:)
+  sudo $DOCKER_COMPOSE down && sudo docker network rm isard-network && sudo $DOCKER_COMPOSE up -d
+      (add '-f docker-compose-open-ports.yml' to the down and up commands if you use open ports)
+
+Already handled / fresh install / intentional / CI?
+  export SKIP_CHECK_ISARD_NETWORK_MTU=true   and re-run build.sh
+================================================================================
+
+EOF
+	exit 1
+}
+check_isard_network_mtu
+
 echo "You have the docker-compose files. Have fun!"
 echo "You can download the prebuild images and bring it up:"
 echo "   $DOCKER_COMPOSE pull && $DOCKER_COMPOSE up -d"
