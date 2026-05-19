@@ -3,6 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "playwright": "node_modules/@playwright/test/cli.js",
         "test": "playwright test",
         "test:headed": "playwright test --headed",
         "test:ui": "playwright test --ui",
