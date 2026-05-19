@@ -23,6 +23,7 @@ import base64
 import glob
 import os
 import traceback
+from typing import Optional
 
 from api import admin_router, advanced_router, manager_router, open_router, token_router
 from api.schemas.common import ErrorResponse
@@ -123,6 +124,12 @@ _DEFAULT_LOGO_PATH = "/usr/share/nginx/html/default_logo.svg"
 # dropping ``logo.<ext>`` there provides a deployment-wide fallback when
 # no per-category branding is configured.
 _STATIC_CUSTOM_LOGO_GLOB = "/static/custom/logo.*"
+# Same admin-mounted directory, separate file for the collapsed-sidebar
+# variant. ``component/frontend``'s ``Sidebar.vue`` requests both via the
+# API; no per-category DB column for the collapsed variant yet, so this
+# endpoint is glob-only and 404s when nothing is uploaded (Vue then falls
+# back to the bundled ``LogoCollapsedSvg`` asset).
+_STATIC_CUSTOM_LOGO_COLLAPSED_GLOB = "/static/custom/logo-collapsed.*"
 
 _LOGO_MIME_TYPES = {
     "svg": "image/svg+xml",
@@ -141,17 +148,16 @@ _LOGO_HEADERS = {
 }
 
 
-def _logo_response(data_url: str | None) -> Response:
-    """Serve a branding logo data URL, falling back to the static custom then default logo."""
-    if data_url and data_url.startswith("data:"):
-        header, b64_data = data_url.split(",", 1)
-        mime_type = header.split(":")[1].split(";")[0]
-        return Response(
-            content=base64.b64decode(b64_data),
-            media_type=mime_type,
-            headers=_LOGO_HEADERS,
-        )
-    for path in sorted(glob.glob(_STATIC_CUSTOM_LOGO_GLOB)):
+def _serve_logo_from_glob(glob_pattern: str) -> Optional[Response]:
+    """Serve the first readable file matching the glob as a Response.
+
+    Returns ``None`` when no file matches so the caller can decide on the
+    fallback (default-logo file for ``/logo``, plain 404 for
+    ``/logo-collapsed``). The matching file's extension drives the
+    ``media_type`` via :data:`_LOGO_MIME_TYPES`; unknown extensions fall
+    back to ``application/octet-stream``.
+    """
+    for path in sorted(glob.glob(glob_pattern)):
         try:
             with open(path, "rb") as f:
                 file_bytes = f.read()
@@ -162,6 +168,22 @@ def _logo_response(data_url: str | None) -> Response:
         return Response(
             content=file_bytes, media_type=media_type, headers=_LOGO_HEADERS
         )
+    return None
+
+
+def _logo_response(data_url: str | None) -> Response:
+    """Serve a branding logo data URL, falling back to the static custom then default logo."""
+    if data_url and data_url.startswith("data:"):
+        header, b64_data = data_url.split(",", 1)
+        mime_type = header.split(":")[1].split(";")[0]
+        return Response(
+            content=base64.b64decode(b64_data),
+            media_type=mime_type,
+            headers=_LOGO_HEADERS,
+        )
+    response = _serve_logo_from_glob(_STATIC_CUSTOM_LOGO_GLOB)
+    if response is not None:
+        return response
     if os.path.isfile(_DEFAULT_LOGO_PATH):
         with open(_DEFAULT_LOGO_PATH, "rb") as f:
             return Response(
@@ -248,6 +270,46 @@ async def get_category_logo(category_id: str, request: Request):
             request,
             "internal_server",
             f"Failed to retrieve logo for category '{category_id}'",
+            traceback.format_exc(),
+        )
+
+
+@open_router.get(
+    "/logo-collapsed",
+    tags=["categories"],
+    response_class=Response,
+    summary="Get collapsed logo",
+    description=(
+        "Returns the collapsed-sidebar logo variant. Reads "
+        "``/static/custom/logo-collapsed.<ext>`` from the admin-mounted "
+        "branding directory and serves it with the matching media type. "
+        "Returns 404 when no file is present; the apiv4 frontend handles "
+        "the 404 by rendering its bundled ``LogoCollapsedSvg`` asset."
+    ),
+    responses={
+        200: {
+            "description": "Collapsed logo image file",
+            "content": {
+                "image/png": {},
+                "image/jpeg": {},
+                "image/svg+xml": {},
+                "image/*": {},
+            },
+        },
+        404: {"model": ErrorResponse},
+    },
+)
+async def get_logo_collapsed(request: Request):
+    try:
+        response = _serve_logo_from_glob(_STATIC_CUSTOM_LOGO_COLLAPSED_GLOB)
+        if response is not None:
+            return response
+        return Response(status_code=404)
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve collapsed logo",
             traceback.format_exc(),
         )
 

@@ -825,6 +825,23 @@ class TestLogoEndpoint:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+#  GET /logo-collapsed — public endpoint
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestLogoCollapsedEndpoint:
+    def test_returns_404_when_no_collapsed_logo(self, test_client):
+        response = test_client(
+            url="/logo-collapsed",
+            db_tables_data=_db(),
+        )
+        # /static/custom/logo-collapsed.* is absent in the test env → 404.
+        # The apiv4 frontend handles the 404 by rendering the bundled
+        # LogoCollapsedSvg asset.
+        assert response.status_code == 404
+
+
+# ══════════════════════════════════════════════════════════════════════════
 #  /logo direct endpoint
 # ══════════════════════════════════════════════════════════════════════════
 
