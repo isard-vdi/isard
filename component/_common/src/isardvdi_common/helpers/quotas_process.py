@@ -1047,7 +1047,7 @@ class QuotasProcess(RethinkCustomBase):
         user = Caches.get_document("users", user_id)
         group = Caches.get_document("groups", user["group"])
 
-        limits = group["limits"]
+        limits = group.get("limits", False)
         if limits == False:
             limits = Caches.get_document(
                 "categories", group["parent_category"], ["limits"]

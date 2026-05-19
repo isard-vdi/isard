@@ -618,12 +618,13 @@ class StatsProcessed(RethinkSharedConnection):
                     .run(cls._rdb_connection)
                 )
 
-            if category["limits"] is False:
+            limits = category.get("limits", False)
+            if limits is False:
                 query[category["id"]]["vCPUs"]["Limit"] = 0
                 query[category["id"]]["Memory"]["Limit"] = 0
             else:
-                query[category["id"]]["vCPUs"]["Limit"] = category["limits"]["vcpus"]
-                query[category["id"]]["Memory"]["Limit"] = category["limits"]["memory"]
+                query[category["id"]]["vCPUs"]["Limit"] = limits["vcpus"]
+                query[category["id"]]["Memory"]["Limit"] = limits["memory"]
 
             with cls._rdb_context():
                 query[category["id"]]["vCPUs"]["Running"] = (
