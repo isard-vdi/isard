@@ -24,20 +24,10 @@ func (g *Group) GenerateNameExternal(prv string) {
 	g.Name = fmt.Sprintf("%s_%s_%s", prv, g.ExternalAppID, g.ExternalGID)
 }
 
-func externalFilter(src r.Term, category interface{}, externalAppID interface{}, externalGID interface{}) r.Term {
-	return r.And(
-		r.Eq(src.Field("parent_category"), category),
-		r.Eq(src.Field("external_app_id"), externalAppID),
-		r.Eq(src.Field("external_gid"), externalGID),
-	)
-}
-
 func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
-	res, err := r.Table("groups").Filter(externalFilter(
-		r.Row,
-		g.Category,
-		g.ExternalAppID,
-		g.ExternalGID,
+	res, err := r.Table("groups").GetAllByIndex("parent_category", g.Category).Filter(r.And(
+		r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
+		r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
 	)).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return &db.Err{
@@ -92,8 +82,8 @@ func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) 
 	return true, nil
 }
 
-func (g *Group) existsWith(ctx context.Context, sess r.QueryExecutor, filter r.Term) (bool, error) {
-	res, err := r.Table("groups").Filter(filter).Run(sess, r.RunOpts{Context: ctx})
+func (g *Group) existsWith(ctx context.Context, sess r.QueryExecutor, category interface{}, filter r.Term) (bool, error) {
+	res, err := r.Table("groups").GetAllByIndex("parent_category", category).Filter(filter).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return false, &db.Err{
 			Err: err,
@@ -120,22 +110,19 @@ func (g *Group) existsWith(ctx context.Context, sess r.QueryExecutor, filter r.T
 }
 
 func (g *Group) ExistsWithExternal(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	return g.existsWith(ctx, sess, externalFilter(
-		r.Row,
-		g.Category,
-		g.ExternalAppID,
-		g.ExternalGID,
+	return g.existsWith(ctx, sess, g.Category, r.And(
+		r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
+		r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
 	))
 }
 
 func GroupsExistsWithExternal(ctx context.Context, sess r.QueryExecutor, groups []*Group) ([]*Group, error) {
 	res, err := r.Table("groups").Filter(func(row r.Term) r.Term {
 		return r.Expr(groups).Contains(func(group r.Term) r.Term {
-			return externalFilter(
-				row,
-				group.Field("parent_category"),
-				group.Field("external_app_id"),
-				group.Field("external_gid"),
+			return r.And(
+				r.Eq(row.Field("parent_category"), group.Field("parent_category")),
+				r.Eq(row.Field("external_app_id"), group.Field("external_app_id")),
+				r.Eq(row.Field("external_gid"), group.Field("external_gid")),
 			)
 		})
 	}).Run(sess, r.RunOpts{Context: ctx})

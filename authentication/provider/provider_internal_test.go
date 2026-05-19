@@ -88,7 +88,7 @@ func TestGuessCategory(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria1")).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria1",
 						"uid":         "categoria1",
@@ -97,7 +97,7 @@ func TestGuessCategory(t *testing.T) {
 						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria2"))).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria2")).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria2",
 						"uid":         "categoria2",
@@ -106,7 +106,7 @@ func TestGuessCategory(t *testing.T) {
 						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria3"))).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria3")).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria3",
 						"uid":         "categoria3",
@@ -178,7 +178,7 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should return the category ID if the user only belongs to a single category": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria1")).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria1",
 						"uid":         "categoria1",
@@ -221,7 +221,7 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should ignore categories that don't exist in the DB": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria1")).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria1",
 						"uid":         "categoria1",
@@ -230,7 +230,7 @@ func TestGuessCategory(t *testing.T) {
 						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria2"))).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria2")).Return([]interface{}{}, nil)
 			},
 			Secret: "Nodigasna",
 			PrepareRegexp: func() *regexp.Regexp {
@@ -298,7 +298,7 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should parse the categories correctly from a single field, with multiple regex matches": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria1")).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria1",
 						"uid":         "categoria1",
@@ -307,8 +307,8 @@ func TestGuessCategory(t *testing.T) {
 						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria2"))).Return([]interface{}{}, nil)
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria3"))).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria2")).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria3")).Return([]interface{}{}, nil)
 			},
 			Secret: "Nodigasna",
 			PrepareRegexp: func() *regexp.Regexp {
@@ -343,7 +343,7 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should return an error if there's an error checking if the category exists": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{}, errors.New("eRRoR"))
+				m.On(r.Table("categories").GetAllByIndex("uid", "categoria1")).Return([]interface{}{}, errors.New("eRRoR"))
 			},
 			Secret: "Nodigasna",
 			PrepareRegexp: func() *regexp.Regexp {
@@ -379,7 +379,7 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should match a regex group in a signle field response": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "escola"))).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "escola")).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "escola",
 						"uid":         "escola",

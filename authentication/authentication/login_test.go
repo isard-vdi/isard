@@ -50,11 +50,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                     "nefix",
@@ -401,11 +401,11 @@ func TestLogin(t *testing.T) {
 						},
 					},
 				}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                     "nefix",
@@ -544,11 +544,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{}, nil)
 			},
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
@@ -570,11 +570,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                  "nefix",
@@ -612,11 +612,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                  "nefix",
@@ -663,11 +663,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                  "nefix",
@@ -738,11 +738,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                  "nefix",
@@ -817,11 +817,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                  "nefix",
@@ -895,11 +895,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "pau"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"pau",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
 						"uid":                  "pau",
@@ -969,11 +969,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
 						"uid":                  "pau",
@@ -1042,11 +1042,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
 						"uid":                  "pau",
@@ -1116,11 +1116,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
 						"uid":                  "pau",
@@ -1187,11 +1187,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                  "nefix",
@@ -1248,11 +1248,11 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						"uid":                  "nefix",

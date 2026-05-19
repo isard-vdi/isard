@@ -288,9 +288,7 @@ func TestCategoryExistsWithUID(t *testing.T) {
 	}{
 		"should return true when category with UID exists": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(
-					r.Eq(r.Row.Field("uid"), "my-uid"),
-				)).Return([]interface{}{
+				m.On(r.Table("categories").GetAllByIndex("uid", "my-uid")).Return([]interface{}{
 					map[string]interface{}{
 						"id":   "some-id",
 						"uid":  "my-uid",
@@ -303,18 +301,14 @@ func TestCategoryExistsWithUID(t *testing.T) {
 		},
 		"should return false when category with UID does not exist": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(
-					r.Eq(r.Row.Field("uid"), "nonexistent-uid"),
-				)).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").GetAllByIndex("uid", "nonexistent-uid")).Return([]interface{}{}, nil)
 			},
 			Category:       &model.Category{UID: "nonexistent-uid"},
 			ExpectedExists: false,
 		},
 		"should return an error on DB failure": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Filter(
-					r.Eq(r.Row.Field("uid"), "my-uid"),
-				)).Return(nil, errors.New("connection refused"))
+				m.On(r.Table("categories").GetAllByIndex("uid", "my-uid")).Return(nil, errors.New("connection refused"))
 			},
 			Category:    &model.Category{UID: "my-uid"},
 			ExpectedErr: "connection refused",

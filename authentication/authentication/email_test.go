@@ -48,8 +48,7 @@ func TestRequestEmailVerification(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("category"), "default"),
+				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
 					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{}, nil)
@@ -140,8 +139,7 @@ func TestRequestEmailVerification(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("category"), "default"),
+				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
 					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{
