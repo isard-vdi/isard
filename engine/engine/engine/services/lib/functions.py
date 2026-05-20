@@ -7,7 +7,6 @@ import ctypes
 import json
 import os
 import queue
-import shlex
 import socket
 import sys
 import threading
@@ -32,23 +31,6 @@ from engine.services.db.domains import (
     update_domain_status,
 )
 from engine.services.log import log, logs
-
-QCOW2_CLUSTER_SIZE = os.environ.get("QCOW2_CLUSTER_SIZE", "4k")
-QCOW2_EXTENDED_L2 = os.environ.get("QCOW2_EXTENDED_L2", "off")
-QCOW2_LAZY_REFCOUNTS = os.environ.get("QCOW2_LAZY_REFCOUNTS", "off")
-QCOW2_PREALLOCATION = os.environ.get("QCOW2_PREALLOCATION", "off")
-
-if QCOW2_EXTENDED_L2 == "on":
-    _size_str = QCOW2_CLUSTER_SIZE.upper().strip()
-    _multipliers = {"K": 1024, "M": 1024**2}
-    _num = int("".join(c for c in _size_str if c.isdigit()))
-    _unit = "".join(c for c in _size_str if c.isalpha())
-    _cluster_bytes = _num * _multipliers.get(_unit, 1)
-    if _cluster_bytes < 16384:
-        raise ValueError(
-            f"QCOW2_CLUSTER_SIZE={QCOW2_CLUSTER_SIZE} is too small for extended_l2=on "
-            f"(minimum 16k). Either set QCOW2_CLUSTER_SIZE>=16k or QCOW2_EXTENDED_L2=off"
-        )
 
 
 def check_tables_populated():
@@ -228,37 +210,10 @@ def calcule_cpu_hyp_stats(start, end, round_digits=3):
     return percent, diff_time, total_diff_time
 
 
-DEFAULT_SIZE_TO_DISK = "10G"
-
-
-def create_new_disk_cmd(
-    filename,
-    size=DEFAULT_SIZE_TO_DISK,
-    clustersize=QCOW2_CLUSTER_SIZE,
-    extended_l2=QCOW2_EXTENDED_L2,
-    lazy_refcounts=QCOW2_LAZY_REFCOUNTS,
-    preallocation=QCOW2_PREALLOCATION,
-):
-    filename = shlex.quote(filename)
-    cmd = "qemu-img create -f qcow2 -o cluster_size={clustersize},extended_l2={extended_l2},lazy_refcounts={lazy_refcounts},preallocation={preallocation} {filename} {size}"
-    cmd = cmd.format(
-        filename=filename,
-        size=size,
-        clustersize=clustersize,
-        extended_l2=extended_l2,
-        lazy_refcounts=lazy_refcounts,
-        preallocation=preallocation,
-    )
-    return cmd
-
-
 class SSHTimeoutError(Exception):
     """Exception raised when SSH commands timeout."""
 
     pass
-
-
-TIMEOUT_MOVE_OPERATIONS = 900  # seconds - mv/rsync over NFS can be very slow
 
 
 def exec_remote_cmd(
@@ -306,10 +261,6 @@ def exec_remote_cmd(
         ) from e
     finally:
         client.close()
-
-
-def replace_path_disk(path_original, path_replace):
-    return path_original
 
 
 def exec_remote_updating_progress(
