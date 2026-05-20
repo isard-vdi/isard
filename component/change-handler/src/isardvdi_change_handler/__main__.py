@@ -42,6 +42,7 @@ from .handlers.resources import ResourcesHandler
 from .handlers.targets import TargetsHandler
 from .handlers.users import UsersHandler
 from .handlers.vgpus import VgpusHandler
+from .streams import task_results_consumer
 
 redis_manager = AsyncRedisManager(socketio_url(), write_only=True)
 
@@ -114,8 +115,13 @@ handler_map = {
 }
 
 
-async def listen_to_redis():
-    # Configure logging to output to stdout/stderr for container environments
+def _configure_logging():
+    """Configure root logging for the change-handler process.
+
+    Called once from :func:`main` before any coroutine starts so both
+    the pub/sub listener and the new task-results stream consumer
+    share the same format and level.
+    """
     logging_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
     if environ.get("DEBUG_WEBSOCKETS", "") == "true":
@@ -136,6 +142,8 @@ async def listen_to_redis():
             force=True,  # Override any existing logging configuration
         )
 
+
+async def listen_to_redis():
     # Create a logger instance
     logger = log.getLogger(__name__)
 
@@ -184,8 +192,38 @@ async def listen_to_redis():
             await asyncio.sleep(5)
 
 
+async def main():
+    """Run the changefeed pub/sub listener and, when enabled, the new
+    ``stream:task-results`` consumer concurrently.
+
+    ``CHANGEHANDLER_TASK_RESULTS_ENABLED`` defaults to ``false`` so
+    MR-1 ships dark: only the storage-worker producer side runs in
+    prod, and operators flip the flag in staging/canary to validate
+    the dual-write before MR-2 promotes the consumer to canonical.
+    """
+    _configure_logging()
+    enabled = environ.get("CHANGEHANDLER_TASK_RESULTS_ENABLED", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    if enabled:
+        log.warning(
+            "CHANGEHANDLER_TASK_RESULTS_ENABLED=true; starting task_results stream consumer alongside the pub/sub listener."
+        )
+        await asyncio.gather(
+            listen_to_redis(),
+            task_results_consumer.run(redis_manager),
+        )
+    else:
+        log.warning(
+            "CHANGEHANDLER_TASK_RESULTS_ENABLED is off; task_results stream consumer disabled. core_worker remains the canonical writer."
+        )
+        await listen_to_redis()
+
+
 if __name__ == "__main__":
     try:
-        asyncio.run(listen_to_redis())
+        asyncio.run(main())
     except KeyboardInterrupt:
         log.info("Shutting down change-handler.")
