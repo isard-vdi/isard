@@ -193,16 +193,20 @@ async def listen_to_redis():
 
 
 async def main():
-    """Run the changefeed pub/sub listener and, when enabled, the new
+    """Run the changefeed pub/sub listener and the
     ``stream:task-results`` consumer concurrently.
 
-    ``CHANGEHANDLER_TASK_RESULTS_ENABLED`` defaults to ``false`` so
-    MR-1 ships dark: only the storage-worker producer side runs in
-    prod, and operators flip the flag in staging/canary to validate
-    the dual-write before MR-2 promotes the consumer to canonical.
+    ``CHANGEHANDLER_TASK_RESULTS_ENABLED`` defaults to ``true`` from
+    MR-2 of the core_worker retirement — change-handler is the
+    canonical emitter for the ``task`` SocketIO event and for the
+    chain-handler bodies that used to live on core_worker. Operators
+    can still set it to ``false`` to roll back temporarily; the
+    storage worker keeps XADD'ing to ``stream:task-results``
+    regardless, so flipping the flag back on resumes processing
+    without state loss.
     """
     _configure_logging()
-    enabled = environ.get("CHANGEHANDLER_TASK_RESULTS_ENABLED", "false").lower() in (
+    enabled = environ.get("CHANGEHANDLER_TASK_RESULTS_ENABLED", "true").lower() in (
         "1",
         "true",
         "yes",
@@ -217,7 +221,7 @@ async def main():
         )
     else:
         log.warning(
-            "CHANGEHANDLER_TASK_RESULTS_ENABLED is off; task_results stream consumer disabled. core_worker remains the canonical writer."
+            "CHANGEHANDLER_TASK_RESULTS_ENABLED is off; task_results stream consumer disabled. Storage chain SocketIO `task` emits will not be delivered until the flag is flipped back on."
         )
         await listen_to_redis()
 
