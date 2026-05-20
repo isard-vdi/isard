@@ -207,6 +207,9 @@ class DeploymentService:
             deployment_data,
         )
 
+        # invalidate cache
+        Caches.invalidate_cache("deployments", deployment_id)
+
     @staticmethod
     def recreate_desktops(payload: dict, deployment_id: str) -> str:
         """
