@@ -35,6 +35,11 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   GITLAB_ADVANCED_SAST_ENABLED: "true"
   MAX_UNVERIFIED_CORES: "16"
+  # Secret Detection scans third-party Go module testdata fixtures (RSA/SSH keys,
+  # AWS sample IDs, etc.) inside .go-mod-cache as critical findings. Those are
+  # not project secrets — they ship inside dependency tarballs. Excluding the
+  # dependency caches keeps the report focused on this repo's own code.
+  SECRET_DETECTION_EXCLUDED_PATHS: ".go-mod-cache,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
 
 default:
   retry: 1
