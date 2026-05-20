@@ -39,8 +39,7 @@ func TestForgotPassword(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("category"), "default"),
+				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
 					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{
@@ -71,8 +70,7 @@ func TestForgotPassword(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("category"), "default"),
+				m.On(r.Table("users").GetAllByIndex("category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
 					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{}, nil)
@@ -125,7 +123,7 @@ func TestResetPassword(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareAPI      func(*apiv4.MockInvoker)
-		PrepareDB       func(*r.Mock)
+		PrepareDB       func(*r.Mock, string)
 		PrepareSessions func(*grpcmock.Server)
 		PrepareToken    func() string
 		Password        string
@@ -136,7 +134,7 @@ func TestResetPassword(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminResetPassword", mock.AnythingOfType("*context.cancelCtx"), &apiv4.AdminPasswordResetData{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Password: "f0kt3Rf"}).Return(&apiv4.EmptyResponse{}, nil)
 			},
-			PrepareDB: func(m *r.Mock) {
+			PrepareDB: func(m *r.Mock, _ string) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
@@ -180,14 +178,12 @@ func TestResetPassword(t *testing.T) {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
 				c.On("AdminResetPassword", mock.AnythingOfType("*context.cancelCtx"), &apiv4.AdminPasswordResetData{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Password: "f0kt3Rf"}).Return(&apiv4.EmptyResponse{}, nil)
 			},
-			PrepareDB: func(m *r.Mock) {
+			PrepareDB: func(m *r.Mock, tkn string) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("id"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
-					r.Eq(r.Row.Field("password_reset_token"), r.MockAnything()),
-				))).Return(map[string]interface{}{
-					"id": "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return(map[string]interface{}{
+					"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"password_reset_token": tkn,
 				}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
 					"password_reset_token": "",
@@ -212,14 +208,12 @@ func TestResetPassword(t *testing.T) {
 					Description:     "Password must have at least 1 special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
 				}, nil)
 			},
-			PrepareDB: func(m *r.Mock) {
+			PrepareDB: func(m *r.Mock, tkn string) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("id"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
-					r.Eq(r.Row.Field("password_reset_token"), r.MockAnything()),
-				))).Return(map[string]interface{}{
-					"id": "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return(map[string]interface{}{
+					"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"password_reset_token": tkn,
 				}, nil)
 			},
 			PrepareToken: func() string {
@@ -249,8 +243,13 @@ func TestResetPassword(t *testing.T) {
 				tc.PrepareAPI(apiMock)
 			}
 
+			var resetTkn string
+			if tc.PrepareToken != nil {
+				resetTkn = tc.PrepareToken()
+			}
+
 			if tc.PrepareDB != nil {
-				tc.PrepareDB(dbMock)
+				tc.PrepareDB(dbMock, resetTkn)
 			}
 
 			if tc.PrepareSessions == nil {
@@ -271,7 +270,7 @@ func TestResetPassword(t *testing.T) {
 			a := authentication.Init(ctx, &wg, cfg, log, dbMock, nil, nil, sessionsCli)
 			a.API = apiMock
 
-			err = a.ResetPassword(t.Context(), tc.PrepareToken(), tc.Password, tc.RemoteAddr)
+			err = a.ResetPassword(t.Context(), resetTkn, tc.Password, tc.RemoteAddr)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

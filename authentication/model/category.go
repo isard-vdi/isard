@@ -129,9 +129,7 @@ func (c *Category) Exists(ctx context.Context, sess r.QueryExecutor) (bool, erro
 }
 
 func (c *Category) ExistsWithUID(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	res, err := r.Table("categories").Filter(
-		r.Eq(r.Row.Field("uid"), c.UID),
-	).Run(sess)
+	res, err := r.Table("categories").GetAllByIndex("uid", c.UID).Run(sess)
 	if err != nil {
 		return false, &db.Err{
 			Err: err,

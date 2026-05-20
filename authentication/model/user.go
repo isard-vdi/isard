@@ -62,11 +62,11 @@ func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {
 }
 
 func (u *User) LoadWithoutID(ctx context.Context, sess r.QueryExecutor) error {
-	res, err := r.Table("users").Filter(r.And(
-		r.Eq(r.Row.Field("uid"), u.UID),
-		r.Eq(r.Row.Field("provider"), u.Provider),
-		r.Eq(r.Row.Field("category"), u.Category),
-	), r.FilterOpts{}).Run(sess)
+	res, err := r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+		u.UID,
+		u.Category,
+		u.Provider,
+	}).Run(sess)
 	if err != nil {
 		return &db.Err{
 			Err: err,
@@ -137,11 +137,11 @@ func (u *User) UpdatePasswordResetToken(ctx context.Context, sess r.QueryExecuto
 }
 
 func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	res, err := r.Table("users").Filter(r.And(
-		r.Eq(r.Row.Field("uid"), u.UID),
-		r.Eq(r.Row.Field("provider"), u.Provider),
-		r.Eq(r.Row.Field("category"), u.Category),
-	), r.FilterOpts{}).Run(sess)
+	res, err := r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+		u.UID,
+		u.Category,
+		u.Provider,
+	}).Run(sess)
 	if err != nil {
 		return false, &db.Err{
 			Err: err,
@@ -168,11 +168,11 @@ func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 }
 
 func (u *User) FindExisting(ctx context.Context, sess r.QueryExecutor) (*User, bool, error) {
-	res, err := r.Table("users").Filter(r.And(
-		r.Eq(r.Row.Field("uid"), u.UID),
-		r.Eq(r.Row.Field("provider"), u.Provider),
-		r.Eq(r.Row.Field("category"), u.Category),
-	), r.FilterOpts{}).Run(sess)
+	res, err := r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+		u.UID,
+		u.Category,
+		u.Provider,
+	}).Run(sess)
 	if err != nil {
 		return nil, false, &db.Err{
 			Err: err,
@@ -200,8 +200,7 @@ func (u *User) FindExisting(ctx context.Context, sess r.QueryExecutor) (*User, b
 }
 
 func (u *User) ExistsWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	res, err := r.Table("users").Filter(r.And(
-		r.Eq(r.Row.Field("category"), u.Category),
+	res, err := r.Table("users").GetAllByIndex("category", u.Category).Filter(r.And(
 		r.Eq(r.Row.Field("email"), u.Email),
 		r.Ne(r.Row.Field("email_verified"), nil),
 	), r.FilterOpts{}).Run(sess)
@@ -227,10 +226,7 @@ func (u *User) ExistsWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor
 }
 
 func (u *User) ExistsWithPasswordResetToken(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	res, err := r.Table("users").Filter(r.And(
-		r.Eq(r.Row.Field("id"), u.ID),
-		r.Eq(r.Row.Field("password_reset_token"), u.PasswordResetToken),
-	), r.FilterOpts{}).Run(sess)
+	res, err := r.Table("users").Get(u.ID).Run(sess)
 	if err != nil {
 		return false, &db.Err{
 			Err: err,
@@ -238,7 +234,8 @@ func (u *User) ExistsWithPasswordResetToken(ctx context.Context, sess r.QueryExe
 	}
 	defer res.Close()
 
-	if err := res.One(u); err != nil {
+	var dbUser User
+	if err := res.One(&dbUser); err != nil {
 		if !errors.Is(err, r.ErrEmptyResult) {
 			return false, &db.Err{
 				Msg: "read db response",
@@ -248,6 +245,12 @@ func (u *User) ExistsWithPasswordResetToken(ctx context.Context, sess r.QueryExe
 
 		return false, nil
 	}
+
+	if dbUser.PasswordResetToken != u.PasswordResetToken {
+		return false, nil
+	}
+
+	*u = dbUser
 
 	return true, nil
 }

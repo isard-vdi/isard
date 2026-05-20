@@ -34,11 +34,11 @@ func TestLogin(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "pau"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"pau",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                      "905d7714-df00-499a-8b0a-7d7a0a40191f",
 						"username":                "pau",
@@ -85,11 +85,11 @@ func TestLogin(t *testing.T) {
 		},
 		"should return an error if user is not found": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "pau"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"pau",
+					"default",
+					"local",
+				})).Return([]interface{}{}, nil)
 			},
 			CategoryID: "default",
 			PrepareArgs: func() provider.LoginArgs {
@@ -110,11 +110,11 @@ func TestLogin(t *testing.T) {
 		},
 		"should return an internal error if DB load fails": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "pau"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return(nil, fmt.Errorf("DB error :("))
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"pau",
+					"default",
+					"local",
+				})).Return(nil, fmt.Errorf("DB error :("))
 			},
 			CategoryID: "default",
 			PrepareArgs: func() provider.LoginArgs {
@@ -135,11 +135,11 @@ func TestLogin(t *testing.T) {
 		},
 		"should return an error if the password doesn't match": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "pau"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				), r.FilterOpts{})).Return([]interface{}{
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"pau",
+					"default",
+					"local",
+				})).Return([]interface{}{
 					map[string]interface{}{
 						"id":                      "905d7714-df00-499a-8b0a-7d7a0a40191f",
 						"username":                "pau",

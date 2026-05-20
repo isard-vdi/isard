@@ -45,11 +45,11 @@ func TestStartLogin(t *testing.T) {
 	}{
 		"should sign a register token if the user is missing and the provider doesn't support autoregistration": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"default",
+					"local",
+				})).Return([]interface{}{}, nil)
 
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
@@ -103,20 +103,18 @@ func TestStartLogin(t *testing.T) {
 		},
 		"should autoregister both the groups and user correctly": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
-					r.Eq(r.Row.Field("provider"), "mock"),
-					r.Eq(r.Row.Field("category"), "default"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"default",
+					"mock",
+				})).Return([]interface{}{}, nil)
 
-				m.On(r.Table("groups").Filter(r.And(
-					r.Eq(r.Row.Field("parent_category"), "default"),
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
 					r.Eq(r.Row.Field("external_gid"), "my group ID"),
 				))).Return([]interface{}{}, nil)
 
-				m.On(r.Table("groups").Filter(r.And(
-					r.Eq(r.Row.Field("parent_category"), "default"),
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
 					r.Eq(r.Row.Field("external_gid"), "existing secondary group"),
 				))).Return([]interface{}{
@@ -125,8 +123,7 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("groups").Filter(r.And(
-					r.Eq(r.Row.Field("parent_category"), "default"),
+				m.On(r.Table("groups").GetAllByIndex("parent_category", "default").Filter(r.And(
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
 					r.Eq(r.Row.Field("external_gid"), "other secondary group"),
 				))).Return([]interface{}{}, nil)
@@ -244,11 +241,11 @@ func TestStartLogin(t *testing.T) {
 		},
 		"should work as expected if the user doesn't have an email, but there's no allowed domains configured": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), uuid.Max.String()),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					uuid.Max.String(),
+					"default",
+					"local",
+				})).Return([]interface{}{}, nil)
 
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
@@ -418,11 +415,11 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "admin"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"admin",
+					"default",
+					"local",
+				})).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -473,11 +470,11 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "admin"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"admin",
+					"default",
+					"local",
+				})).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -523,11 +520,11 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"default",
+					"local",
+				})).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -578,11 +575,11 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
-					r.Eq(r.Row.Field("provider"), "ldap"),
-					r.Eq(r.Row.Field("category"), "default"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"default",
+					"ldap",
+				})).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -631,11 +628,11 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "default"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"default",
+					"local",
+				})).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProvider: func(p *provider.MockProvider) {
@@ -975,11 +972,11 @@ func TestFinishCategorySelect(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix-uid"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "test-category"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"test-category",
+					"local",
+				})).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
@@ -1045,11 +1042,11 @@ func TestFinishCategorySelect(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "saml-uid"),
-					r.Eq(r.Row.Field("provider"), "saml"),
-					r.Eq(r.Row.Field("category"), "test-category"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"saml-uid",
+					"test-category",
+					"saml",
+				})).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
@@ -1133,11 +1130,11 @@ func TestFinishCategorySelect(t *testing.T) {
 					},
 				}, nil)
 
-				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix-uid"),
-					r.Eq(r.Row.Field("provider"), "local"),
-					r.Eq(r.Row.Field("category"), "test-category"),
-				))).Return([]interface{}{}, nil)
+				m.On(r.Table("users").GetAllByIndex("uid_category_provider", []interface{}{
+					"nefix-uid",
+					"test-category",
+					"local",
+				})).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *apiv4.MockInvoker) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
