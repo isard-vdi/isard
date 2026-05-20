@@ -18,8 +18,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Any, Literal, Optional
+from typing import Optional
 
+from isardvdi_common.schemas.domains import DesktopStatusEnum
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -28,6 +29,7 @@ class StorageDomain(BaseModel):
 
     id: str
     name: str
+    status: DesktopStatusEnum
 
 
 class StorageItem(BaseModel):
