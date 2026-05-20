@@ -1,0 +1,87 @@
+#
+#   IsardVDI - Open Source KVM Virtual Desktops based on KVM Linux and dockers
+#   Copyright (C) 2026 IsardVDI
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Affero General Public License for more details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""Domain-side task_results handlers ported from core_worker."""
+
+from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.storage import Storage
+
+# Statuses a domain can be in at the start of the task-based creation
+# chain. Used to detect whether ``domain_creating_disk`` /
+# ``domain_change_storage`` should advance the row or leave it alone.
+# Kept aligned with core_worker.task's matching frozensets.
+_DOMAIN_CREATE_TO_CREATING_DOMAIN = frozenset(
+    {
+        "Creating",
+        "CreatingAndStarting",
+        "CreatingDisk",
+        "CreatingDiskFromScratch",
+    }
+)
+
+_DOMAIN_CREATING_TO_CREATING_DISK = frozenset(
+    {
+        "Creating",
+        "CreatingDiskFromScratch",
+    }
+)
+
+
+def handle_domain_creating_disk(task, domain_id):
+    """Port of core_worker.task.domain_creating_disk."""
+    if not Domain.exists(domain_id):
+        return
+    domain = Domain(domain_id)
+    if domain.status in _DOMAIN_CREATING_TO_CREATING_DISK:
+        domain.status = "CreatingDisk"
+
+
+def handle_domain_change_storage(task, domain_id, storage_id):
+    """Port of core_worker.task.domain_change_storage.
+
+    Wires a storage into a domain's first disk and, when the domain is
+    in a pre-libvirt creation status, advances it to ``CreatingDomain``
+    so engine's libvirt-define handler takes over.
+
+    Raises if the storage isn't ready and the domain is in a create
+    state — same propagation behaviour core_worker has today (the
+    trailing ``update_status`` dependent flips both rows to Failed).
+    """
+    if not Domain.exists(domain_id):
+        return
+    if not Storage.exists(storage_id):
+        return
+    domain = Domain(domain_id)
+    storage = Storage(storage_id)
+
+    if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN and storage.status != "ready":
+        raise Exception(
+            f"Cannot finalize domain {domain_id}: storage {storage_id} is "
+            f"not ready (status={storage.status!r})."
+        )
+
+    c_dict = domain.create_dict
+    disk = c_dict["hardware"]["disks"][0]
+    disk["storage_id"] = storage_id
+    disk["file"] = storage.path
+    disk["parent"] = storage.parent
+    domain.create_dict = c_dict
+
+    if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN:
+        domain.status = "CreatingDomain"

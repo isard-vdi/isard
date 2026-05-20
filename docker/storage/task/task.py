@@ -23,6 +23,7 @@ import shlex
 import shutil
 import signal
 import tempfile
+from functools import wraps
 from json import loads
 from os import environ, makedirs, remove, rename
 from os import stat as os_stat
@@ -49,6 +50,86 @@ from rq import Queue, get_current_job
 log = logging.getLogger(__name__)
 
 QEMU_IMG_TIMEOUT = 30  # seconds; prevents indefinite hangs on NFS
+
+# Stream used to deliver task completion + progress events to
+# isard-change-handler. Coexists with the legacy core_worker RQ chain
+# during MR-1's dual-write phase; change-handler only consumes when its
+# CHANGEHANDLER_TASK_RESULTS_ENABLED flag is on. MAXLEN caps the stream
+# at ~10k entries (approximate) so it doesn't grow unbounded when the
+# consumer is down or disabled.
+TASK_RESULTS_STREAM = "stream:task-results"
+TASK_RESULTS_STREAM_MAXLEN = 10000
+
+
+def _publish_task_event(connection, *, kind, task_id, task_name, queue, **extra):
+    """Best-effort XADD to ``stream:task-results``.
+
+    The change-handler is the canonical consumer for this stream. RQ's
+    chain semantics remain the authoritative path for task completion
+    during MR-1's dual-write phase, so failures here are logged but
+    never propagated to the caller.
+    """
+    try:
+        fields = {
+            "kind": kind,
+            "task_id": task_id,
+            "task_name": task_name,
+            "queue": queue,
+        }
+        for k, v in extra.items():
+            if v is None:
+                continue
+            fields[k] = str(v)
+        connection.xadd(
+            TASK_RESULTS_STREAM,
+            fields,
+            maxlen=TASK_RESULTS_STREAM_MAXLEN,
+            approximate=True,
+        )
+    except Exception:
+        log.exception("Failed to XADD task-result event for %s", task_id)
+
+
+def _publishes_result(func):
+    """Decorator for storage-worker RQ task functions.
+
+    Publishes a single ``kind=result`` event to ``stream:task-results``
+    when the wrapped function returns (``job_status=finished``) or
+    raises (``job_status=failed``). Re-raises the original exception so
+    RQ's chain semantics are unchanged. A no-op outside an RQ context
+    so unit tests that call the bare function still work.
+    """
+    task_name = func.__name__
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            result = func(*args, **kwargs)
+        except BaseException:
+            job = get_current_job()
+            if job is not None:
+                _publish_task_event(
+                    job.connection,
+                    kind="result",
+                    task_id=job.id,
+                    task_name=task_name,
+                    queue=job.origin,
+                    job_status="failed",
+                )
+            raise
+        job = get_current_job()
+        if job is not None:
+            _publish_task_event(
+                job.connection,
+                kind="result",
+                task_id=job.id,
+                task_name=task_name,
+                queue=job.origin,
+                job_status="finished",
+            )
+        return result
+
+    return wrapper
 
 
 def _same_file(file1, file2):
@@ -182,6 +263,14 @@ def run_with_progress(command, extract_progress, on_progress=None, initial_check
                 Queue("core", connection=job.connection).enqueue(
                     "task.feedback", task_id=job.id, result_ttl=0
                 )
+                _publish_task_event(
+                    job.connection,
+                    kind="progress",
+                    task_id=job.id,
+                    task_name=job.func_name.rsplit(".", 1)[-1],
+                    queue=job.origin,
+                    progress=pct,
+                )
                 if on_progress is not None:
                     try:
                         on_progress(pct)
@@ -214,6 +303,7 @@ def run_with_progress(command, extract_progress, on_progress=None, initial_check
     return process.returncode
 
 
+@_publishes_result
 def create(storage_path, storage_type, size=None, parent_path=None, parent_type=None):
     """
     Create disk.
@@ -339,6 +429,7 @@ def qemu_img_info(storage_id, storage_path):
     return {"id": storage_id, "status": "ready", "qemu-img-info": qemu_img_info_data}
 
 
+@_publishes_result
 def qemu_img_info_backing_chain(storage_id, storage_path):
     """
     Get storage data with `qemu-img info` data updated.
@@ -560,10 +651,19 @@ def _run_curl_download(
                     except Exception:
                         log.exception("download: failed to persist progress")
                     if progress.get("received_percent") is not None:
-                        job.meta["progress"] = progress["received_percent"] / 100.0
+                        pct = progress["received_percent"] / 100.0
+                        job.meta["progress"] = pct
                         job.save_meta()
                         Queue("core", connection=job.connection).enqueue(
                             "task.feedback", task_id=job.id, result_ttl=0
+                        )
+                        _publish_task_event(
+                            job.connection,
+                            kind="progress",
+                            task_id=job.id,
+                            task_name=job.func_name.rsplit(".", 1)[-1],
+                            queue=job.origin,
+                            progress=pct,
                         )
                 continue
             line += ch
@@ -593,6 +693,7 @@ def _run_curl_download(
     return True
 
 
+@_publishes_result
 def download_url(
     media_id,
     url,
@@ -676,6 +777,7 @@ def download_url(
     }
 
 
+@_publishes_result
 def download_url_for_domain(
     domain_id,
     storage_id,
@@ -752,6 +854,7 @@ def download_url_for_domain(
     }
 
 
+@_publishes_result
 def check_media_existence(media_id, path):
     """
     Returns Media data with `Downloaded` status if file exists otherwise with `deleted` status.
@@ -770,6 +873,7 @@ def check_media_existence(media_id, path):
     return media
 
 
+@_publishes_result
 def check_backing_filename():
     """
     Check backing filename
@@ -791,6 +895,7 @@ def check_backing_filename():
     return result
 
 
+@_publishes_result
 def move(
     origin_path,
     destination_path,
@@ -886,6 +991,7 @@ def move(
         raise ValueError(f"Invalid move method: {method}")
 
 
+@_publishes_result
 def move_delete(path):
     """
     Move the disk to a "deleted" subdirectory within the same directory path
@@ -905,6 +1011,7 @@ def move_delete(path):
         raise ValueError(f"Path {path} not found")
 
 
+@_publishes_result
 def convert(source_disk_path, dest_disk_path, format, compression):
     """
     Convert disk.
@@ -946,6 +1053,7 @@ def convert(source_disk_path, dest_disk_path, format, compression):
     )
 
 
+@_publishes_result
 def delete(path):
     """
     Delete disk.
@@ -957,6 +1065,7 @@ def delete(path):
         remove(path)
 
 
+@_publishes_result
 def virt_win_reg(storage_path, registry_patch):
     """
     Copy reg file to tmp
@@ -1000,6 +1109,7 @@ def virt_win_reg(storage_path, registry_patch):
         return f"Error: {str(e)}"
 
 
+@_publishes_result
 def resize(storage_path, increment):
     """
     Increase disk size
@@ -1028,6 +1138,7 @@ def resize(storage_path, increment):
         return e
 
 
+@_publishes_result
 def find(storage_id, storage_path, full_walk=False):
     """
     Find storage path from storage_id recursively in base_path.
@@ -1105,6 +1216,7 @@ def find(storage_id, storage_path, full_walk=False):
     return {"id": storage_id, "status": status, "matching_files": matching_files}
 
 
+@_publishes_result
 def touch(path):
     """
     Update the access and modification times of a file.
@@ -1137,6 +1249,7 @@ def _format_size(kb):
         return f"{kb / (1024 * 1024):.2f} GB"
 
 
+@_publishes_result
 def sparsify(storage_path):
     """
     Sparsify disk
@@ -1224,6 +1337,7 @@ def sparsify(storage_path):
     }
 
 
+@_publishes_result
 def disconnect(storage_path):
     """
     Disconnect storage_id from backing file
