@@ -72,17 +72,16 @@ class Hardware(BaseModel):
 
 
 class GuestProperties(BaseModel):
-
     class _GuestPropertiesCredentials(BaseModel):
         username: str = "isard"
         password: str = "pirineus"
 
     class _GuestPropertiesViewers(BaseModel):
-        browser_rdp: dict | MISSING = MISSING
-        browser_vnc: dict | MISSING = MISSING
-        file_rdpgw: dict | MISSING = MISSING
-        file_rdpvpn: dict | MISSING = MISSING
-        file_spice: dict | MISSING = MISSING
+        browser_rdp: dict | None | MISSING = MISSING
+        browser_vnc: dict | None | MISSING = MISSING
+        file_rdpgw: dict | None | MISSING = MISSING
+        file_rdpvpn: dict | None | MISSING = MISSING
+        file_spice: dict | None | MISSING = MISSING
 
     # Vue 3 from-media payloads omit ``credentials`` and ``fullscreen``;
     # template-derive then inherits the same shape so the
