@@ -381,13 +381,6 @@ unit-test-socketio:
   script:
     - make ci-test-socketio
 
-unit-test-core-worker:
-  extends: .python-test-job
-  variables:
-    COVERAGE_DIR: component/core_worker/src
-  script:
-    - make ci-test-core-worker
-
 unit-test-openapi:
   extends: .python-test-job
   variables:
@@ -428,7 +421,6 @@ docker-image:
           - authentication
           - backupninja
           - bastion
-          - core_worker
           - db
           - engine
           - grafana

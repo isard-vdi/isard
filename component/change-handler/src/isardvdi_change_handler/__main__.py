@@ -196,34 +196,17 @@ async def main():
     """Run the changefeed pub/sub listener and the
     ``stream:task-results`` consumer concurrently.
 
-    ``CHANGEHANDLER_TASK_RESULTS_ENABLED`` defaults to ``true`` from
-    MR-2 of the core_worker retirement — change-handler is the
-    canonical emitter for the ``task`` SocketIO event and for the
-    chain-handler bodies that used to live on core_worker. Operators
-    can still set it to ``false`` to roll back temporarily; the
-    storage worker keeps XADD'ing to ``stream:task-results``
-    regardless, so flipping the flag back on resumes processing
-    without state loss.
+    The task-results consumer is the canonical emitter of the ``task``
+    SocketIO event and the canonical executor of the chain-handler
+    bodies that used to live on core_worker. It is started
+    unconditionally — the dark-mode flag introduced in MR-1 was
+    retired in MR-3 once core_worker was deleted.
     """
     _configure_logging()
-    enabled = environ.get("CHANGEHANDLER_TASK_RESULTS_ENABLED", "true").lower() in (
-        "1",
-        "true",
-        "yes",
+    await asyncio.gather(
+        listen_to_redis(),
+        task_results_consumer.run(redis_manager),
     )
-    if enabled:
-        log.warning(
-            "CHANGEHANDLER_TASK_RESULTS_ENABLED=true; starting task_results stream consumer alongside the pub/sub listener."
-        )
-        await asyncio.gather(
-            listen_to_redis(),
-            task_results_consumer.run(redis_manager),
-        )
-    else:
-        log.warning(
-            "CHANGEHANDLER_TASK_RESULTS_ENABLED is off; task_results stream consumer disabled. Storage chain SocketIO `task` emits will not be delivered until the flag is flipped back on."
-        )
-        await listen_to_redis()
 
 
 if __name__ == "__main__":

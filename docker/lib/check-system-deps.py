@@ -41,11 +41,6 @@ COMPONENTS: list[tuple[str, str, str]] = [
         "component/openapi/pyproject.toml",
         "alpine",
     ),
-    (
-        "component/core_worker/docker/Dockerfile",
-        "component/core_worker/pyproject.toml",
-        "alpine",
-    ),
     ("engine/docker/Dockerfile", "engine/pyproject.toml", "alpine"),
     ("webapp/docker/Dockerfile", "webapp/pyproject.toml", "alpine"),
     ("notifier/docker/Dockerfile", "notifier/pyproject.toml", "alpine"),

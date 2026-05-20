@@ -98,7 +98,7 @@ test-go:
 	go test -race -cover ./...
 
 .PHONY: test-python
-test-python: test-apiv4 test-common test-change-handler test-changefeed test-socketio test-core-worker test-openapi test-notifier test-scheduler test-webapp
+test-python: test-apiv4 test-common test-change-handler test-changefeed test-socketio test-openapi test-notifier test-scheduler test-webapp
 
 .PHONY: test-python-cov
 test-python-cov:
@@ -162,10 +162,6 @@ test-changefeed:
 test-socketio:
 	uv run --group test --package isardvdi-socketio pytest component/socketio/src/isardvdi_socketio/tests -n auto
 
-.PHONY: test-core-worker
-test-core-worker:
-	uv run --group test --package isardvdi-core-worker pytest component/core_worker/src/isardvdi_core_worker/tests -n auto
-
 .PHONY: test-openapi
 test-openapi:
 	uv run --group test --package isardvdi-openapi pytest component/openapi/src/isardvdi_openapi/tests -n auto
@@ -219,11 +215,6 @@ ci-test-socketio:
 	uv sync --no-dev --group test --package isardvdi-socketio
 	cd component/socketio/src && uv run --no-dev --group test --package isardvdi-socketio pytest isardvdi_socketio/tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_socketio --cov-report=term --cov-report=xml:coverage.xml
 
-.PHONY: ci-test-core-worker
-ci-test-core-worker:
-	uv sync --no-dev --group test --package isardvdi-core-worker
-	cd component/core_worker/src && uv run --no-dev --group test --package isardvdi-core-worker pytest isardvdi_core_worker/tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=isardvdi_core_worker --cov-report=term --cov-report=xml:coverage.xml
-
 .PHONY: ci-test-openapi
 ci-test-openapi:
 	uv sync --no-dev --group test --package isardvdi-openapi
@@ -245,7 +236,7 @@ ci-test-webapp:
 	cd webapp/webapp && uv run --no-dev --group test --package isardvdi-webapp pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=webapp --cov-report=term --cov-report=xml:coverage.xml
 
 .PHONY: ci-test-python
-ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-core-worker ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp
+ci-test-python: ci-test-apiv4 ci-test-common ci-test-change-handler ci-test-changefeed ci-test-socketio ci-test-openapi ci-test-notifier ci-test-scheduler ci-test-webapp
 
 .PHONY: setup-hooks
 setup-hooks:

@@ -13,7 +13,6 @@ members = [
     "isardvdi-changefeed-asyncapi",
     "isardvdi-codegen",
     "isardvdi-common",
-    "isardvdi-core-worker",
     "isardvdi-db",
     "isardvdi-engine",
     "isardvdi-hypervisor",
@@ -922,43 +921,6 @@ requires-dist = [
 test = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-xdist" },
-]
-
-[[package]]
-name = "isardvdi-core-worker"
-version = "0.0.0"
-source = { editable = "component/core_worker" }
-dependencies = [
-    { name = "cachetools" },
-    { name = "isardvdi-apiv4-client" },
-    { name = "isardvdi-common" },
-    { name = "python-socketio" },
-    { name = "requests" },
-    { name = "rq" },
-]
-
-[package.dev-dependencies]
-test = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-xdist" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cachetools", specifier = "==5.5.0" },
-    { name = "isardvdi-apiv4-client", editable = "component/_common/isardvdi_apiv4_client" },
-    { name = "isardvdi-common", editable = "component/_common" },
-    { name = "python-socketio", specifier = "==5.13.0" },
-    { name = "requests", specifier = "==2.32.4" },
-    { name = "rq", specifier = "==2.3.2" },
-]
-
-[package.metadata.requires-dev]
-test = [
-    { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
 ]

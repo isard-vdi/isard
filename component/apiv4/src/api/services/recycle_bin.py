@@ -425,10 +425,6 @@ class RecycleBinService:
         CommonRecycleBin.set_delete_action(action)
 
     @staticmethod
-    def update_task(task: dict) -> None:
-        RecycleBinHelpers.update_task_status(task)
-
-    @staticmethod
     def get_all_unused_item_timeout_rules() -> list[dict]:
         return CommonRecycleBin.get_all_unused_item_timeout()
 
