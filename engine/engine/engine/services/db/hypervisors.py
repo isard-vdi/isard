@@ -604,28 +604,6 @@ def get_pool_hypers_conf(id_pool="default"):
     return result
 
 
-def get_diskopts_online(
-    id_pool="default",
-    forced_hyp=None,
-    favourite_hyp=None,
-):
-    r_conn = new_rethink_connection()
-    disk_opts_online = list(
-        r.table("hypervisors")
-        .filter({"status": "Online", "capabilities": {"disk_operations": True}})
-        .filter(r.row["storage_pools"].contains(id_pool))
-        .pluck("id", "only_forced", "gpu_only", "stats", "mountpoints")
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    return filter_available_hypers(
-        disk_opts_online,
-        forced_hyp=forced_hyp,
-        favourite_hyp=favourite_hyp,
-        exclude_outofmem=False,
-    )
-
-
 def get_hypers_online(
     id_pool="default",
     forced_hyp=None,

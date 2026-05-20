@@ -121,16 +121,3 @@ class PoolHypervisors:
             ),
         )
         self.conf = get_pool_hypers_conf(id_pool)
-
-
-class PoolDiskoperations:
-    def __init__(
-        self,
-        id_pool=DEFAULT_STORAGE_POOL_ID,
-        balancer_type=None,
-    ):
-        self.id_pool = id_pool
-        self.balancer = BalancerInterface(
-            id_pool, balancer_type=os.environ.get("ENGINE_DISK_BALANCER", "less_cpu")
-        )
-        self.conf = get_pool_hypers_conf(id_pool)

@@ -130,5 +130,4 @@ def set_domains_coherence(dict_hyps_ready):
 
 
 # IMPORT Thread Classes HERE
-from engine.services.threads.disk_operations_thread import DiskOperationsThread
 from engine.services.threads.hyp_worker_thread import HypWorkerThread

@@ -31,9 +31,9 @@ MAX_LEN_PREV_STATUS_HYP = 10
 # scheduler / webapp / vpn.
 _ACQUIRE_TIMEOUT_S = float(os.environ.get("RETHINKDB_ACQUIRE_TIMEOUT_SEC", "30"))
 
-# Engine has long-lived worker threads (DiskOperationsThread,
-# ThreadHypEvents, manager_pooling, hypervisor workers) that go quiet
-# for 10+ minutes between queries. The default 300s eviction would
+# Engine has long-lived worker threads (ThreadHypEvents,
+# manager_pooling, hypervisor workers) that go quiet for 10+ minutes
+# between queries. The default 300s eviction would
 # make every cold-path query pay a TCP/TLS handshake; bump to keep
 # steady-state warm without holding sockets open forever after a
 # real traffic drop.

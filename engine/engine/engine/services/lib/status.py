@@ -25,22 +25,11 @@ virt_balancer = BalancerInterface(
     balancer_type=virt_balancer_type,
 )
 
-disk_balancer_type = os.environ.get("ENGINE_DISK_BALANCER", "less_cpu")
-disk_balancer = BalancerInterface(
-    DEFAULT_STORAGE_POOL_ID,
-    balancer_type=disk_balancer_type,
-)
-
 
 @cached(cache=TTLCache(maxsize=1, ttl=5))
 def get_next_hypervisor():
     virt, _ = virt_balancer.get_next_hypervisor(storage_pool_id=DEFAULT_STORAGE_POOL_ID)
     return virt
-
-
-@cached(cache=TTLCache(maxsize=1, ttl=5))
-def get_next_disk():
-    return disk_balancer.get_next_diskoperations()
 
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))

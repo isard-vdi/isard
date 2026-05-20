@@ -22,8 +22,8 @@
 The legacy ``_ThreadLocalConnection`` descriptor handed every engine
 worker thread a dedicated connection that the thread held forever
 (reconnecting on socket close, never releasing). With 50+ long-lived
-threads (DiskOperationsThread, ThreadHypEvents, manager_pooling, the
-hypervisor workers) that pinned ~50 sockets to engine regardless of
+threads (ThreadHypEvents, manager_pooling, the hypervisor workers)
+that pinned ~50 sockets to engine regardless of
 activity, and a thread idle for 10 minutes between queries still
 held its slot.
 

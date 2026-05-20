@@ -19,12 +19,12 @@ except Exception as e:
     print("Error populating...")
     exit(1)
 
-from engine.services.lib.status import disk_balancer_type, virt_balancer_type
+from engine.services.lib.status import virt_balancer_type
 from engine.services.lib.telegram import telegram_send_thread
 
 telegram_send_thread(
     "STARTING",
-    f"------------------------\nWARNING: Engine is starting now...\n - virt_balancer_type: {virt_balancer_type}\n - disk_balancer_type: {disk_balancer_type}",
+    f"------------------------\nWARNING: Engine is starting now...\n - virt_balancer_type: {virt_balancer_type}",
 )
 
 from initdb.upgrade import Upgrade

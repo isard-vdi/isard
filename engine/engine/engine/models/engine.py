@@ -27,7 +27,7 @@ from engine.controllers.broom import launch_thread_broom
 from engine.controllers.events_recolector import launch_thread_hyps_event
 from engine.controllers.ui_actions import UiActions
 from engine.models.hypervisor_orchestrator import HypervisorsOrchestratorThread
-from engine.models.pool_hypervisors import PoolDiskoperations, PoolHypervisors
+from engine.models.pool_hypervisors import PoolHypervisors
 from engine.services.db import (
     delete_table_item,
     get_domain,
@@ -42,7 +42,6 @@ from engine.services.db.db import (
 )
 from engine.services.db.domains import update_domain_status
 from engine.services.db.hypervisors import update_all_hyps_status
-from engine.services.db.storage_pool import get_storage_pool_ids
 from engine.services.lib.functions import (
     QueuesThreads,
     clean_intermediate_status,
@@ -51,7 +50,7 @@ from engine.services.lib.functions import (
     get_threads_running,
     get_tid,
 )
-from engine.services.lib.status import get_next_disk, get_next_hypervisor
+from engine.services.lib.status import get_next_hypervisor
 from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
 
@@ -86,9 +85,6 @@ class Engine(object):
         self.t_workers = {}
         self.t_status = {}
         self.pools = {}
-        self.diskoperations_pools = {}
-        self.t_disk_operations = {}
-        self.q_disk_operations = {}
         self.t_orchestrator = None
         self.t_events = None
         self.t_changes_domains = None
@@ -101,7 +97,6 @@ class Engine(object):
 
         self.threads_info_main = {}
         self.threads_info_hyps = {}
-        self.hypers_disk_operations_tested = []
 
         self.num_workers = 0
         self.threads_main_started = False
@@ -221,21 +216,6 @@ class Engine(object):
                             for t in threads_started
                             if t[0].startswith("worker_")
                         ]
-                        diskop_started = [
-                            t[0].split("_")[1]
-                            for t in threads_started
-                            if t[0].startswith("diskop_")
-                        ]
-                        # Sometimes engine starts with no hypervisors available
-                        # Afterwards we are testing if hypervisors are available through balancer
-                        # if not len(workers_started) or not len(diskop_started):
-                        #     telegram_send_thread("DOWN", "No hypervisors available")
-                        if len(workers_started) != len(diskop_started):
-                            telegram_send_thread(
-                                "WARN",
-                                f"Engine Workers threads ({workers_started}) and diskop threads ({diskop_started}) are not equal",
-                            )
-                            next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
 
                         for t in threads_dead:
                             if t[0].startswith("worker_"):
@@ -253,23 +233,6 @@ class Engine(object):
                                 telegram_send_thread(
                                     "WARN",
                                     f"Hypervisor {hyp_id} worker is dead\n",
-                                )
-                                next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
-                            if t[0].startswith("diskop_"):
-                                hyp_id = t[0].split("_")[1]
-                                if hyp_id in diskop_started:
-                                    logs.main.info(
-                                        f"Dead diskop for {hyp_id} already replaced by new thread, skipping cap_status downgrade"
-                                    )
-                                    continue
-                                update_table_dict(
-                                    "hypervisors",
-                                    hyp_id,
-                                    {"cap_status": {"disk_operations": False}},
-                                )
-                                telegram_send_thread(
-                                    "WARN",
-                                    f"Hypervisor {hyp_id} disk_operations is dead\n",
                                 )
                                 next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
 
@@ -296,29 +259,18 @@ class Engine(object):
                                 f"Video {k} connection to hypervisor {w} not functional",
                             )
 
-                disk = get_next_disk()
                 virt = get_next_hypervisor()
                 if next_available is True:
-                    if not disk and not virt:
-                        telegram_send_thread(
-                            "DOWN",
-                            "No hypervisor for virtualization neither disk operations available.",
-                        )
-                    elif not virt:
+                    if not virt:
                         telegram_send_thread(
                             "DOWN", "No hypervisor for virtualization available."
                         )
-                    elif not disk:
-                        telegram_send_thread(
-                            "DOWN", "No disk operations hypervisor available."
-                        )
-                    if not disk or not virt:
                         next_available = False
                 else:
-                    if disk and virt:
+                    if virt:
                         telegram_send_thread(
                             "UP",
-                            f"Engine threads changes detected, workers started: {workers_started}, diskop started: {diskop_started}",
+                            f"Engine threads changes detected, workers started: {workers_started}",
                         )
                         next_available = True
                 # pprint.pprint(threads_running)
@@ -352,11 +304,6 @@ class Engine(object):
 
                     # Hypervisors balancer pools
                     self.manager.pools["default"] = PoolHypervisors("default")
-                    # Diskoperations balancer pools
-                    for pool_id in get_storage_pool_ids(only_enabled=False):
-                        self.manager.diskoperations_pools[pool_id] = PoolDiskoperations(
-                            pool_id
-                        )
 
                     # launch brom thread
                     self.manager.t_broom = launch_thread_broom(self.manager)
@@ -370,8 +317,6 @@ class Engine(object):
                         "orchestrator",
                         t_workers=self.manager.t_workers,
                         t_events=self.manager.t_events,
-                        t_disk_operations=self.manager.t_disk_operations,
-                        q_disk_operations=self.manager.q_disk_operations,
                         queues_object=self.manager.q,
                         manager=self.manager,
                     )
@@ -837,7 +782,7 @@ class Engine(object):
         alive = []
         dead = []
         not_defined = []
-        for name in ["workers", "status", "disk_operations"]:
+        for name in ["workers", "status"]:
             for hyp, t in self.__getattribute__("t_" + name).items():
                 try:
                     (
@@ -869,8 +814,6 @@ class Engine(object):
         #    pass
         self.t_broom.stop_thread()
         # operations / status
-        for k, v in self.t_disk_operations.items():
-            v.stop = True
         for k, v in self.t_workers.items():
             v.stop = True
         for k, v in self.t_status.items():
