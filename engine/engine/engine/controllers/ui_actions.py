@@ -11,6 +11,7 @@ from time import sleep
 from cachetools import TTLCache, cached
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
 from isardvdi_common.models.domain import Domain
+from isardvdi_common.models.storage import Storage
 from rethinkdb import r
 
 from engine.models.domain_xml import (
@@ -25,13 +26,10 @@ from engine.models.domain_xml import (
 )
 from engine.services.db import (
     delete_domain,
-    domains_with_attached_disk,
     domains_with_attached_storage_id,
     get_dict_from_item_in_table,
     get_domain,
-    get_domain_forced_hyp,
     get_domain_hyp_started,
-    get_hypers_in_pool,
     get_table_field,
     get_table_fields,
     insert_domain,
@@ -42,15 +40,6 @@ from engine.services.db import (
     update_vgpu_uuid_domain_action,
 )
 from engine.services.db.storage_pool import get_category_storage_pool_id
-from engine.services.lib.qcow import (
-    create_cmds_delete_disk,
-    get_host_disk_operations_from_path,
-    get_path_to_disk,
-)
-from engine.services.lib.storage import (
-    get_storage_id_filename,
-    update_storage_deleted_domain,
-)
 from engine.services.log import *
 
 DEFAULT_HOST_MODE = "host-passthrough"
@@ -59,7 +48,6 @@ DEFAULT_HOST_MODE = "host-passthrough"
 # lower number => more priority
 Q_PRIORITY_START = 50
 Q_PRIORITY_STARTPAUSED = 60
-Q_PRIORITY_DELETE = 150
 Q_PRIORITY_STOP = 40  # Destroy
 Q_PRIORITY_SHUTDOWN = 80  # Soft Shut-Down
 Q_PRIORITY_PERSONAL_UNIT = 130  # Mount personal unit inside a desktop
@@ -812,13 +800,14 @@ class UiActions(object):
     # y el path que se guarda en el disco podría ser relativo, aunque igual no vale la pena...
 
     def deleting_disks_from_domain(self, id_domain):
-        """Enqueue delete_disk SSH actions for every disk of ``id_domain``.
+        """Enqueue storage delete-task chains for every disk of ``id_domain``.
 
         Invoked only by ``force_deleting`` on the apiv4-driven
         ``ForceDeleting`` flow; domain-row removal is handled by the
-        caller after the dispatch. The old Deleting / DeletingDomainDisk /
-        DiskDeleted status-driven path is gone (apiv4 never writes those
-        statuses to desktop rows).
+        caller after this returns. Each per-storage chain runs in
+        ``isard-storage`` (``task="delete"`` → ``core:update_status`` →
+        ``core:storage_delete``) and removes both the qcow2 file and
+        the ``storages`` row independently of the desktop row.
         """
         try:
             dict_domain = get_domain(id_domain)
@@ -832,169 +821,72 @@ class UiActions(object):
 
             if dict_domain["kind"] != "desktop":
                 log.warning(
-                    "DELETE_DOMAIN_DISKS: Domain {} is a template!. It's disks will be deleted. Disks who depends on this one will be unusabe and should be deleted.".format(
+                    "DELETE_DOMAIN_DISKS: Domain {} is a template. Its disks will be deleted; derivatives will become unusable.".format(
                         id_domain
                     )
                 )
 
-            wait_for_disks_to_be_deleted = False
             disks = dict_domain["create_dict"]["hardware"].get("disks", [])
-
-            if len(disks) > 0:
-                index_disk = 0
-
-                for d in disks:
-                    storage_id = d.get("storage_id")
-                    if not storage_id:
-                        # Old disks in domain
-                        disk_path = d.get("file")
-                        if not disk_path:
-                            log.error(
-                                "DELETE_DOMAIN_DISKS: Domain {} disk in old format and not found the file key in db entry. Unable to delete disk entry: \n {}".format(
-                                    id_domain, d
-                                )
-                            )
-                            index_disk += 1
-                            continue
-                        # Check for duplicates
-                        if len(domains_with_attached_disk(disk_path)) > 1:
-                            log.debug(
-                                "DELETE_DOMAIN_DISKS: Others than this domain {} have this old format disk {} attached. Skipping deleting disk.".format(
-                                    id_domain, disk_path
-                                )
-                            )
-                            index_disk += 1
-                            continue
-                    else:
-                        # New disks in storage
-                        disk_path = get_storage_id_filename(storage_id)
-                        if not disk_path:
-                            log.error(
-                                "DELETE_DOMAIN_DISKS: Domain {} storage_id {} missing disk path or not in storage table. This should not happen.".format(
-                                    id_domain, storage_id
-                                )
-                            )
-                            index_disk += 1
-                            continue
-                        # Check for duplicates
-                        if len(domains_with_attached_storage_id(d["storage_id"])) > 1:
-                            log.debug(
-                                "DELETE_DOMAIN_DISKS: Others than this domain {} have this storage_id {} attached. Skipping deleting disk.".format(
-                                    id_domain, storage_id
-                                )
-                            )
-                            index_disk += 1
-                            continue
-
-                    pool_id = dict_domain["hypervisors_pools"][0]
-                    if pool_id not in self.manager.pools.keys():
-                        log.error(
-                            "DELETE_DOMAIN_DISKS: Hypervisor pool {} not available in manager. Unable to delete domain {} disk {} in pool.".format(
-                                pool_id, id_domain, disk_path
-                            )
-                        )
-                        return False
-
-                    # Which hypervisors are online in this pool?
-                    (
-                        hyps_to_start,
-                        hyps_only_forced,
-                        hyps_all,
-                    ) = get_hypers_in_pool(pool_id, only_online=True)
-                    if not len(hyps_all):
-                        log.error(
-                            "DELETE_DOMAIN_DISKS: No hypervisors online in pool {} to delete disk {}".format(
-                                pool_id, disk_path
-                            )
-                        )
-                        return False
-
-                    # Choose a hypervisor to delete the disk
-                    forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
-                    if forced_hyp in hyps_all:
-                        next_hyp = forced_hyp
-                    elif favourite_hyp in hyps_all:
-                        next_hyp = favourite_hyp
-                    else:
-                        next_hyp = hyps_all[0]
-
-                    if type(next_hyp) is tuple:
-                        h = next_hyp[0]
-                        next_hyp = h
-                    log.debug(
-                        "DELETE_DOMAIN_DISKS: Preparing disk {} to be enqueued in hypervisor {}...".format(
-                            disk_path, next_hyp
-                        )
-                    )
-                    mv_to_extension_deleted = self.manager.pools[pool_id].conf.get(
-                        "mv_to_extension_deleted", False
-                    )
-                    cmds = create_cmds_delete_disk(
-                        disk_path, mv_to_extension_deleted=mv_to_extension_deleted
-                    )
-
-                    action = {
-                        "id_domain": id_domain,
-                        "type": "delete_disk",
-                        "disk_path": disk_path,
-                        "domain": id_domain,
-                        "ssh_commands": cmds,
-                        "index_disk": index_disk,
-                        "storage_id": (
-                            dict(
-                                enumerate(
-                                    dict_domain.get("create_dict", {})
-                                    .get("hardware", {})
-                                    .get("disks", [])
-                                )
-                            )
-                            .get(index_disk, {})
-                            .get("storage_id")
-                        ),
-                    }
-
-                    try:
-                        update_storage_deleted_domain(action["storage_id"], dict_domain)
-                        log.info(
-                            "DELETE_DOMAIN_DISKS: Domain {} disk {} queued in hypervisor {} to be deleted".format(
-                                id_domain, disk_path, next_hyp
-                            )
-                        )
-                        self.manager.q.workers[next_hyp].put(action, Q_PRIORITY_DELETE)
-                        wait_for_disks_to_be_deleted = True
-                    except Exception as e:
-                        logs.exception_id.debug("0011")
-                        log.error(
-                            "DELETE_DOMAIN_DISKS: Unable to enqueue disk {} to be deleted in hypervisor {}. Exception: {}".format(
-                                disk_path, next_hyp, e
-                            )
-                        )
-                        return False
-                    index_disk += 1
-                else:
-                    log.debug(
-                        "DELETE_DOMAIN_DISKS: No disks to delete in domain {}".format(
-                            id_domain
-                        )
-                    )
-            else:
-                log.error(
-                    "DELETE_DOMAIN_DISKS: No hardware dict in domain to delete {}. This should not happen".format(
+            if not disks:
+                log.debug(
+                    "DELETE_DOMAIN_DISKS: No disks to delete in domain {}".format(
                         id_domain
                     )
                 )
-            if not wait_for_disks_to_be_deleted:
-                delete_domain(id_domain)
+                return True
+
+            user_id = dict_domain.get("user")
+            for d in disks:
+                storage_id = d.get("storage_id")
+                if not storage_id:
+                    # Pre-storages-table format with a bare ``file`` path.
+                    # No storage row -> no maintenance lock, no task chain.
+                    # apiv4-integration should not be producing these; if
+                    # one slips through, leave the file behind and surface
+                    # a warning rather than reintroducing ssh.
+                    log.warning(
+                        "DELETE_DOMAIN_DISKS: Domain {} has an old-format disk (no storage_id); skipping deletion. Entry: {}".format(
+                            id_domain, d
+                        )
+                    )
+                    continue
+                if len(domains_with_attached_storage_id(storage_id)) > 1:
+                    log.debug(
+                        "DELETE_DOMAIN_DISKS: Storage {} is shared with other domains; skipping deletion for domain {}.".format(
+                            storage_id, id_domain
+                        )
+                    )
+                    continue
+                if not Storage.exists(storage_id):
+                    log.warning(
+                        "DELETE_DOMAIN_DISKS: Storage {} not in storages table for domain {}; skipping.".format(
+                            storage_id, id_domain
+                        )
+                    )
+                    continue
+                try:
+                    Storage(storage_id).task_delete(user_id=user_id)
+                    log.info(
+                        "DELETE_DOMAIN_DISKS: Domain {} storage {} enqueued for deletion via task chain".format(
+                            id_domain, storage_id
+                        )
+                    )
+                except Exception as e:
+                    logs.exception_id.debug("0011")
+                    log.error(
+                        "DELETE_DOMAIN_DISKS: Unable to enqueue delete-storage task for storage {} (domain {}): {}".format(
+                            storage_id, id_domain, e
+                        )
+                    )
             return True
         except Exception as e:
             logs.exception_id.debug("0071")
             log.error(
-                "DELETE_DOMAIN_DISKS: Internal error when deleting disks for domain {}".format(
-                    id_domain
+                "DELETE_DOMAIN_DISKS: Internal error when deleting disks for domain {}: {}".format(
+                    id_domain, e
                 )
             )
             log.error("Traceback: \n .{}".format(traceback.format_exc()))
-            log.error("Exception message: {}".format(e))
             return False
 
     def force_deleting(self, domain_id, old_status):

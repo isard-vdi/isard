@@ -67,7 +67,6 @@ from engine.services.threads.threads import (
     RETRIES_HYP_IS_ALIVE,
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE,
     TIMEOUT_QUEUES,
-    launch_delete_disk_action,
 )
 
 ITEMS_STATUS_MAP = {
@@ -77,7 +76,6 @@ ITEMS_STATUS_MAP = {
     "stop_domain": "Stopping",
     "reset_domain": "Starting",
     "create_disk": "Creating disk",
-    "delete_disk": "Deleting disk",
     "add_media_hot": "Adding media",
 }
 
@@ -395,7 +393,6 @@ class HypWorkerThread(threading.Thread):
             "shutdown_domain": self._handle_shutdown_domain,
             "stop_domain": self._handle_stop_domain,
             "reset_domain": self._handle_reset_domain,
-            "delete_disk": lambda a, t, i: self._handle_disk_action(a, t, i, "delete"),
             "add_media_hot": lambda a, t, i: None,  # Placeholder as in original
             "update_status_db_from_running_domains": self._handle_update_status,
             "hyp_info": self._handle_hyp_info,
@@ -1743,41 +1740,6 @@ class HypWorkerThread(threading.Thread):
             time.time() - action_time,
             "Failed",
         )
-
-    def _handle_disk_action(self, action, action_time, intervals, operation_type):
-        """Handle delete_disk action.
-
-        Phase B removed the SSH-based create_disk / create_disk_from_scratch
-        paths; disk creation runs entirely through the storage task chain
-        dispatched by apiv4 now. Only delete_disk remains here.
-        """
-        t = time.time()
-        try:
-            # Launch disk action
-            launch_delete_disk_action(
-                action, self.hostname, user=self.h.user, port=self.h.port
-            )
-            intervals.append({f"{operation_type}_disk": round(time.time() - t, 3)})
-
-            # Log result
-            log_action(
-                self.hyp_id,
-                action.get("domain"),
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                "Finished",
-            )
-        except Exception as e:
-            logs.workers.error(f"Error in {action['type']} action: {e}")
-            log_action(
-                self.hyp_id,
-                action.get("domain"),
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                "Failed",
-            )
 
     def _handle_update_status(self, action, action_time, intervals):
         """Handle update_status_db_from_running_domains action"""
