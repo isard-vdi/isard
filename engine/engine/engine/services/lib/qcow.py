@@ -4,18 +4,12 @@
 # License: AGPLv3
 
 import shlex
-import string
-from os.path import dirname as extract_dir_path
-from pprint import pprint
 from random import choices
 from uuid import uuid4
 
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
-from engine.services.db import get_hyp_hostname_user_port_from_id
-from engine.services.db.db import get_pool, get_pools_from_hyp
 from engine.services.db.storage_pool import get_category_storage_pool
-from engine.services.lib.functions import execute_commands, size_format
 from engine.services.log import *
 
 QCOW2_CLUSTER_SIZE = os.environ.get("QCOW2_CLUSTER_SIZE", "4k")
@@ -100,65 +94,3 @@ def get_host_disk_operations_from_path(
     #     [d_threads_h[k] for k in set(l_threads).intersection(set(d_threads_h.keys()))]
     # )
     return disk_operations
-
-
-def test_hypers_disk_operations(hyps_disk_operations):
-    list_hyps_ok = list()
-    str_random = "".join(choices(string.ascii_uppercase + string.digits, k=8))
-    for hyp_id in hyps_disk_operations:
-        d_hyp = get_hyp_hostname_user_port_from_id(hyp_id)
-        cmds1 = list()
-        for pool_id in get_pools_from_hyp(hyp_id):
-            # test write permissions in root dir of all paths defined in pool
-            paths = {
-                k: [l["path"] for l in d] for k, d in get_pool(pool_id)["paths"].items()
-            }
-            for k, p in paths.items():
-                for path in p:
-                    path = shlex.quote(path)
-                    cmds1.append(
-                        {
-                            "title": f"try create dir if not exists - pool:{pool_id}, hypervisor: {hyp_id}, path_kind: {k}",
-                            "cmd": f"mkdir -p {path}",
-                        }
-                    )
-                    cmds1.append(
-                        {
-                            "title": f"touch random file - pool:{pool_id}, hypervisor: {hyp_id}, path_kind: {k}",
-                            "cmd": f"touch {path}/test_random_{str_random}",
-                        }
-                    )
-                    cmds1.append(
-                        {
-                            "title": "delete random file - pool:{pool_id}, hypervisor: {hyp_id}, path_kind: {k}",
-                            "cmd": f"rm -f {path}/test_random_{str_random}",
-                        }
-                    )
-        try:
-            array_out_err = execute_commands(
-                d_hyp["hostname"],
-                ssh_commands=cmds1,
-                dict_mode=True,
-                user=d_hyp["user"],
-                port=d_hyp["port"],
-            )
-            # if error in some path hypervisor is not valid
-            if len([d["err"] for d in array_out_err if len(d["err"]) > 0]) > 0:
-                logs.main.error(
-                    f"Hypervisor {hyp_id} can not be disk_operations, some errors when testing if can create files in all paths_"
-                )
-                for d_cmd_err in [d for d in array_out_err if len(d["err"]) > 0]:
-                    cmd = d_cmd_err["cmd"]
-                    err = d_cmd_err["err"]
-                    logs.main.error(f"Command: {cmd} --  Error: {err}")
-            else:
-                list_hyps_ok.append(hyp_id)
-
-        except Exception as e:
-            logs.exception_id.debug("0053")
-            if __name__ == "__main__":
-                logs.main.err(
-                    f"Error when launch commands to test hypervisor {hyp_id} disk_operations: {e}"
-                )
-
-    return list_hyps_ok

@@ -15,7 +15,6 @@ from engine.services.db import (
     update_all_domains_status,
 )
 from engine.services.db.domains import get_domain_status, update_domain_status
-from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.hypervisors import (
     get_hyp_hostname_from_id,
     update_hyp_status,
@@ -77,63 +76,6 @@ def launch_delete_disk_action(action, hostname, user, port):
         hostname, ssh_commands=action["ssh_commands"], user=user, port=port
     )
     # TODO or TOREMOVE
-
-
-def launch_action_delete_disk(action, hostname, user, port):
-    disk_path = action["disk_path"]
-    id_domain = action["domain"]
-    array_out_err = execute_commands(
-        hostname, ssh_commands=action["ssh_commands"], user=user, port=port
-    )
-    # last ls must fail
-    if len([k["err"] for k in array_out_err if len(k["err"]) == 1]):
-        log.debug(
-            "all operations deleting  disk {} for domain {} runned ok".format(
-                disk_path, id_domain
-            )
-        )
-
-
-def launch_killall_curl(hostname, user, port):
-    ssh_commands = ["killall curl"]
-    try:
-        array_out_err = execute_commands(
-            hostname, ssh_commands=ssh_commands, user=user, port=port
-        )
-        out = array_out_err[0]["out"]
-        err = array_out_err[0]["err"]
-        logs.downloads.info(
-            f"kill al curl process in hypervisor {hostname}: {out} {err}"
-        )
-        return True
-    except Exception as e:
-        logs.exception_id.debug("0068")
-        logs.downloads.error(
-            f"Kill all curl process in hypervisor {hostname} fail: {e}"
-        )
-
-
-def launch_delete_media(action, hostname, user, port, final_status="Deleted"):
-    array_out_err = execute_commands(
-        hostname, ssh_commands=action["ssh_commands"], user=user, port=port
-    )
-    path = action["path"]
-    id_media = action["id_media"]
-    if len([k["err"] for k in array_out_err if len(k["err"]) == 0]) != 2:
-        log.error("failed deleting media {}".format(id_media))
-        update_status_media_from_path(path, "FailedDeleted")
-        return False
-    # ls of the file after deleted failed, has deleted ok
-    elif len(array_out_err[2]["err"]) > 0:
-        if final_status == "DownloadFailed":
-            update_status_media_from_path(path, final_status)
-        else:
-            update_status_media_from_path(path, "Deleted")
-        return True
-    else:
-        log.error("failed deleting media {}".format(id_media))
-        update_status_media_from_path(path, "FailedDeleted")
-        return False
 
 
 def launch_thread_worker(hyp_id, q_event_register, queue_master):
