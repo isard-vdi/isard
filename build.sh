@@ -55,7 +55,6 @@ ALLINONE_PARTS="
 	redis
 	storage
 	backupninja
-	core_worker
 	infrastructure
 	check
 	notifier
@@ -116,7 +115,6 @@ WEB_PARTS="
 	stats
 	guac
 	redis
-	core_worker
 	infrastructure
 	notifier
 	sessions

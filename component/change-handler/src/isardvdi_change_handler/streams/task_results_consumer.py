@@ -25,11 +25,9 @@ so the existing changefeed-driven SocketIO fan-out keeps emitting per
 table change exactly as today; this consumer only handles the new
 storage-worker → change-handler bridge.
 
-Gated by the ``CHANGEHANDLER_TASK_RESULTS_ENABLED`` environment
-variable so MR-1 ships dark by default and only the storage-worker
-producer side runs in production. Operators flip the flag on staging
-or in a canary to validate the dual-write before MR-2 promotes the
-consumer to canonical.
+Started unconditionally from ``__main__.main`` — this consumer is the
+canonical executor of the chain-handler bodies that used to live on
+isard-core_worker.
 """
 
 import asyncio
@@ -156,6 +154,23 @@ async def _process_entry(redis_manager, fields):
     dependents = await asyncio.to_thread(lambda: list(_walk_core_dependents(task)))
     for dep_task in dependents:
         await _run_handler(redis_manager, dep_task)
+
+    # MR-3 of the core_worker retirement: core_worker is gone, so the
+    # ``core`` queue has no consumer. RQ would otherwise move each
+    # dependent Job from DEFERRED to QUEUED when its storage parent
+    # completes, and the Job would sit on the queue forever. Now that
+    # change-handler is the sole executor, drop the Job objects after
+    # the in-process handlers have run. Done after the dispatch loop
+    # (not inline) so the recursive ``Task.dependents`` walk still
+    # finds nested dependents via each parent's ``meta["dependent_ids"]``.
+    for dep_task in dependents:
+        try:
+            await asyncio.to_thread(dep_task.job.delete)
+        except Exception:
+            log.exception(
+                "task_results: failed to drop RQ Job %s after dispatch",
+                dep_task.id,
+            )
 
 
 async def _read_and_dispatch(redis, redis_manager, consumer_name):

@@ -52,11 +52,10 @@ log = logging.getLogger(__name__)
 QEMU_IMG_TIMEOUT = 30  # seconds; prevents indefinite hangs on NFS
 
 # Stream used to deliver task completion + progress events to
-# isard-change-handler. Coexists with the legacy core_worker RQ chain
-# during MR-1's dual-write phase; change-handler only consumes when its
-# CHANGEHANDLER_TASK_RESULTS_ENABLED flag is on. MAXLEN caps the stream
+# isard-change-handler, which is the canonical consumer of the chain
+# work that used to run on isard-core_worker. MAXLEN caps the stream
 # at ~10k entries (approximate) so it doesn't grow unbounded when the
-# consumer is down or disabled.
+# consumer is briefly down.
 TASK_RESULTS_STREAM = "stream:task-results"
 TASK_RESULTS_STREAM_MAXLEN = 10000
 
@@ -64,10 +63,11 @@ TASK_RESULTS_STREAM_MAXLEN = 10000
 def _publish_task_event(connection, *, kind, task_id, task_name, queue, **extra):
     """Best-effort XADD to ``stream:task-results``.
 
-    The change-handler is the canonical consumer for this stream. RQ's
-    chain semantics remain the authoritative path for task completion
-    during MR-1's dual-write phase, so failures here are logged but
-    never propagated to the caller.
+    The change-handler stream consumer is the canonical executor of the
+    chain-handler work that used to live on isard-core_worker, and this
+    XADD is the only signal it has. Failures are logged but never
+    propagated so a transient Redis blip can't fail the underlying RQ
+    task body.
     """
     try:
         fields = {

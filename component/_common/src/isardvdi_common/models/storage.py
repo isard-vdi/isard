@@ -1501,8 +1501,9 @@ class Storage(RethinkCustomBase):
     ):
         """
         Enqueue the chain that builds the qcow2 file on a storage worker and
-        wires the resulting storage back into the domain row via core_worker
-        feedback. The storage row must already exist (``Storage.new_dict``).
+        wires the resulting storage back into the domain row via the
+        change-handler ``task_results.domain.handle_domain_change_storage``
+        handler. The storage row must already exist (``Storage.new_dict``).
 
         Chain:
             domain_creating_disk  (core — root)
@@ -1695,7 +1696,8 @@ class Storage(RethinkCustomBase):
         Status transitions:
             queued       → CreatingTemplate (set by caller before insert)
             running      → CreatingTemplate (no flip needed; rsync progress
-                                              streams via task.feedback)
+                                              streams via stream:task-results
+                                              → change-handler emit_task_feedback)
             finished     → Stopped          (via storage_update →
                                               _promote_domains_to_stopped on
                                               both storages)

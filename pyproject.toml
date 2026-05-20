@@ -16,7 +16,6 @@ members = [
   "component/change-handler",
   "component/socketio",
   "component/openapi",
-  "component/core_worker",
   "engine",
   "webapp",
   "notifier",
