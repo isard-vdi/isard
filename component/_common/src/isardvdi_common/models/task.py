@@ -22,7 +22,7 @@ import os
 from cachetools import TTLCache, cached
 from isardvdi_common.connections.redis_base import RedisBase
 from rq import Queue, Retry
-from rq.job import Dependency, Job, JobStatus
+from rq.job import Job, JobStatus
 
 
 def tasks_from_ids(task_ids):
@@ -149,13 +149,15 @@ class Task(RedisBase):
                 task.job.save()
                 self.job.meta.setdefault("dependent_ids", []).append(task.id)
             self.job.save_meta()
-            if "user_id" in kwargs:
-                Queue("core.feedback", connection=self._redis).enqueue(
-                    "task.feedback",
-                    result_ttl=0,
-                    depends_on=Dependency(jobs=[self.job], allow_failure=True),
-                    kwargs={"task_id": self.id},
-                )
+            # The legacy auto-feedback enqueue on ``core.feedback`` (one
+            # follow-up job per root Task) was retired in MR-2 of the
+            # core_worker retirement. The storage worker now XADDs the
+            # equivalent ``kind=result`` event to ``stream:task-results``
+            # when each RQ task completes, and isard-change-handler is
+            # the canonical consumer that fans the SocketIO ``task``
+            # event out (and runs the chain-handler bodies that used to
+            # live on core_worker). See change-handler's
+            # ``task_results.feedback.emit_task_feedback``.
             self.job = Queue(
                 kwargs.get("queue", "default"), connection=self._redis
             ).enqueue_job(self.job)
