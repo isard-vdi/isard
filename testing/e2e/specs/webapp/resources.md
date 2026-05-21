@@ -514,28 +514,24 @@ free text. `kind` in the POST body is `"network"`.
 
 ### Scenario F2 — *admin edits a Remote VPN*
 
+> **Current UI reality:** the row action column does **not** render an
+> edit button for Remote VPNs right now. The handler still exists in
+> `domains_resources.js`, but the button HTML is commented out, so this
+> scenario cannot be exercised from the current webapp.
+
 #### Given
 
 1. A Remote VPN created by this test exists.
 
 #### When
 
-1. On the row, they press the **edit** icon (pencil).
-2. `POST /api/v4/admin/table/remotevpn` with `{"id": "<id>"}` is
-   called; name (disabled), description, and nets fields are
-   pre-filled.
-3. They change the **Description**.
-4. They press **Add VPN client** (button label is the same).
+1. They inspect the row action column.
 
 #### Then
 
-1. `POST /api/v4/admin/table/add/remotevpn` is called with the
-   updated fields (id is stripped before sending); response status
-   `< 400`.
-2. The dialog closes and a success PNotify appears ("Remote VPN
-   updated successfully" or "Remote VPN created successfully" — the
-   exact text depends on backend upsert response).
-3. The row reflects the new description.
+1. No **edit** icon is available in the rendered UI.
+2. The scenario is documented as currently **not automatable through
+   webapp** until the button is exposed again.
 
 ---
 
@@ -849,7 +845,7 @@ action is irreversible." and **Edit** opens `#modalAlloweds` with
 | D2 — Video alloweds | ✅ | Modal opens, call 2XX |
 | E1 — Boot alloweds | ✅ | Modal opens, call 2XX |
 | F1 — Remote VPN create | ✅ | `POST admin/table/add/remotevpn` 2XX; row in table |
-| F2 — Remote VPN edit | ✅ | Same endpoint POST (upsert) 2XX; row updated |
+| F2 — Remote VPN edit | ⚠️ | Handler exists, but no edit button is rendered in current UI |
 | F3 — Remote VPN alloweds | ✅ | Modal opens, call 2XX |
 | F4 — Remote VPN delete | ✅ | Confirmation; `DELETE admin/table/remotevpn/{id}` 2XX; row removed |
 | F5 — VPN config download | ✅ | `GET /api/v4/remote_vpn/{id}/config/{os}` 2XX; download triggered |
