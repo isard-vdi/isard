@@ -3,7 +3,7 @@
 """Tests for the ``stream:task-results`` consumer dispatch."""
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -17,7 +17,13 @@ def _stub_task(
     depending_status="finished",
     kwargs=None,
 ):
-    """Lightweight Task double that ``_walk_core_dependents`` can iterate."""
+    """Lightweight Task double that ``_walk_core_dependents`` can iterate.
+
+    Includes a ``job.set_status`` mock so the consumer's
+    in-process FINISHED/FAILED transition (the replacement for the
+    RQ-worker marking core_worker used to provide) can be asserted.
+    """
+    job = MagicMock(name=f"job-{task_id}")
     return SimpleNamespace(
         id=task_id,
         task=task_name,
@@ -25,6 +31,7 @@ def _stub_task(
         depending_status=depending_status,
         kwargs=kwargs or {},
         dependents=dependents or [],
+        job=job,
     )
 
 
@@ -230,6 +237,92 @@ def test_walk_core_dependents_is_depth_first():
 
     yielded = [t.id for t in _walk_core_dependents(root)]
     assert yielded == ["m", "a", "b"]
+
+
+@pytest.mark.asyncio
+async def test_root_and_dependents_get_finished_status_after_dispatch():
+    """The consumer must mark each consumed RQ Job FINISHED so the next
+    handler's ``task.depending_status`` reflects reality (no worker on
+    the core queue does this for us after the core_worker retirement).
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+    from rq.job import JobStatus
+
+    dep_a = _stub_task(
+        "dep-a", task_name="storage_update_pool", kwargs={"storage_id": "s1"}
+    )
+    dep_b = _stub_task(
+        "dep-b", task_name="storage_update_parent", kwargs={"storage_id": "s1"}
+    )
+    root = _stub_task("root", dependents=[dep_a])
+    dep_a.dependents = [dep_b]
+
+    redis_manager = AsyncMock()
+    fake_registry = {
+        "storage_update_pool": (AsyncMock(), True),
+        "storage_update_parent": (AsyncMock(), False),
+    }
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
+            fake_registry,
+        ),
+    ):
+        await task_results_consumer._process_entry(
+            redis_manager,
+            {"kind": "result", "task_id": "root", "task_name": "find"},
+        )
+
+    root.job.set_status.assert_called_once_with(JobStatus.FINISHED)
+    dep_a.job.set_status.assert_called_once_with(JobStatus.FINISHED)
+    dep_b.job.set_status.assert_called_once_with(JobStatus.FINISHED)
+
+
+@pytest.mark.asyncio
+async def test_failing_handler_marks_dep_failed_not_finished():
+    """If a handler raises, the consumer must mark its Job FAILED so the
+    next handler's ``depending_status`` reads ``failed`` and the chain
+    can take its else branch (e.g. media_download_update_status →
+    DownloadFailed) for the right reason.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+    from rq.job import JobStatus
+
+    bad = _stub_task("bad", task_name="storage_update", queue="core")
+    root = _stub_task("root", dependents=[bad])
+
+    redis_manager = AsyncMock()
+    raising = AsyncMock(side_effect=RuntimeError("boom"))
+    fake_registry = {"storage_update": (raising, True)}
+
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
+            fake_registry,
+        ),
+    ):
+        await task_results_consumer._process_entry(
+            redis_manager,
+            {"kind": "result", "task_id": "root", "task_name": "find"},
+        )
+
+    bad.job.set_status.assert_called_once_with(JobStatus.FAILED)
 
 
 @pytest.mark.asyncio
