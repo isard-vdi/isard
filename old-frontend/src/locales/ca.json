@@ -142,7 +142,8 @@
         "edit": "Editar",
         "direct-link": "Enllaç directe",
         "recreate": "Recrear",
-        "bastion": "Bastió"
+        "bastion": "Bastió",
+        "increase-storage": "Ampliar emmagatzematge"
       },
       "filter-label": "Filtre",
       "queue": "Posició a la cua: {position}",

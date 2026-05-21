@@ -3,14 +3,12 @@ import axios from 'axios'
 import i18n from '@/i18n'
 import { apiV3Segment } from '../../shared/constants'
 import { StorageUtils } from '../../utils/storageUtils'
-import { ProfileUtils } from '../../utils/profileUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
 
 const getDefaultState = () => {
   return {
     storage: [],
     storage_loaded: false,
-    quota: {},
     increaseModalShow: false,
     increaseItem: {}
   }
@@ -27,9 +25,6 @@ export default {
     getStorageLoaded: state => {
       return state.storage_loaded
     },
-    getQuota: state => {
-      return state.quota
-    },
     getShowIncreaseModal: state => {
       return state.increaseModalShow
     },
@@ -44,9 +39,6 @@ export default {
     setStorage: (state, storage) => {
       state.storage = storage
       state.storage_loaded = true
-    },
-    setQuota: (state, quota) => {
-      state.quota = quota
     },
     setShowIncreaseModal: (state, show) => {
       state.increaseModalShow = show
@@ -67,11 +59,6 @@ export default {
     fetchStorage (context) {
       axios.get(`${apiV3Segment}/items/storage/ready`).then(response => {
         context.commit('setStorage', StorageUtils.parseStorageList(response.data))
-      })
-    },
-    fetchAppliedQuota (context) {
-      axios.get(`${apiV3Segment}/item/user/get-quotas`).then(response => {
-        context.commit('setQuota', ProfileUtils.parseQuota(response.data.quota))
       })
     },
     showIncreaseModal (context, data) {
