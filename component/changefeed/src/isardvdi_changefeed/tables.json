@@ -251,5 +251,30 @@
   },
   {
     "table": "users_migrations"
+  },
+  {
+    "table": "storage",
+    "stream": true,
+    "pluck": [
+      "id",
+      "status",
+      "status_time",
+      "user_id",
+      "directory_path",
+      "type",
+      "parent",
+      "task",
+      "storages_with_uuid",
+      {
+        "progress": true
+      },
+      {
+        "qemu-img-info": {
+          "virtual-size": true,
+          "actual-size": true,
+          "full-backing-filename": true
+        }
+      }
+    ]
   }
 ]

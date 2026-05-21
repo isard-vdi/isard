@@ -39,6 +39,7 @@ from .handlers.media import MediaHandler
 from .handlers.recycle_bin import RecycleBinHandler
 from .handlers.resource_planner import ResourcePlannerHandler
 from .handlers.resources import ResourcesHandler
+from .handlers.storage import StorageHandler
 from .handlers.targets import TargetsHandler
 from .handlers.users import UsersHandler
 from .handlers.vgpus import VgpusHandler
@@ -111,6 +112,7 @@ handler_map = {
     "vgpus": VgpusHandler(redis_manager, "vgpus"),
     "user_storage": BaseHandler(redis_manager, "user_storage"),
     "users_migrations": BaseHandler(redis_manager, "users_migrations"),
+    "storage": StorageHandler(redis_manager, "storage"),
 }
 
 
