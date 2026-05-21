@@ -37,6 +37,8 @@ BUCKET_B_ALLOWLIST: set[tuple[str, str]] = {
     ("GET", "/api/v4/quota/template/new"),
     ("GET", "/api/v4/quota/deployment/new"),
     ("PUT", "/api/v4/item/user/reset-vpn"),
+    ("PUT", "/api/v4/items/storage/sparsify/{status}"),
+    ("PUT", "/api/v4/items/storage/find/{status}"),
     # CSV / file download
     ("GET", "/api/v4/item/deployment/{deployment_id}/download-csv"),
     # StreamingResponse — VPN config bytes

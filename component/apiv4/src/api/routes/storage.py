@@ -526,6 +526,37 @@ async def batch_sparsify_storages(
 
 
 @admin_router.put(
+    "/items/storage/sparsify/{status}",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Batch sparsify storages by status",
+    description="Sparsify all storages with the given status.",
+    responses={
+        204: {"description": "Storages queued for sparsify"},
+        500: {"model": ErrorResponse},
+    },
+)
+async def batch_sparsify_storages_by_status(request: Request, status: str):
+    try:
+        await asyncio.to_thread(
+            StorageService.batch_sparsify_by_status,
+            request.token_payload,
+            status,
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to batch sparsify storages by status",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
     "/item/storage/{storage_id}/disconnect/priority/{priority}",
     tags=[tag],
     response_model=TaskIdResponse,
@@ -1043,6 +1074,37 @@ async def batch_find_storages(
             request,
             "internal_server",
             "Failed to batch find storages",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.put(
+    "/items/storage/find/{status}",
+    tags=[tag],
+    status_code=204,
+    response_class=Response,
+    summary="Batch find storages by status",
+    description="Finds all storages on disk with the given status.",
+    responses={
+        204: {"description": "Storages queued to be found on disk"},
+        500: {"model": ErrorResponse},
+    },
+)
+async def batch_find_storages_by_status(request: Request, status: str):
+    try:
+        await asyncio.to_thread(
+            StorageService.batch_find_by_status,
+            request.token_payload,
+            status,
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to batch find storages by status",
             traceback.format_exc(),
         )
 

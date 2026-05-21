@@ -178,6 +178,44 @@ def test_sparsify_storage(monkeypatch, test_client):
     assert captured == {"storage_id": "stor-1", "priority": "low"}
 
 
+def test_batch_sparsify_storages_by_status(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.batch_sparsify_by_status",
+        staticmethod(lambda payload, status: captured.update(status=status)),
+    )
+
+    response = test_client(
+        url="/items/storage/sparsify/ready",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert captured == {"status": "ready"}
+
+
+def test_batch_find_storages_by_status(monkeypatch, test_client):
+    jwt = MockJWT()
+    captured = {}
+    monkeypatch.setattr(
+        "api.services.storage.StorageService.batch_find_by_status",
+        staticmethod(lambda payload, status: captured.update(status=status)),
+    )
+
+    response = test_client(
+        url="/items/storage/find/orphan",
+        method="PUT",
+        jwt=jwt,
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert captured == {"status": "orphan"}
+
+
 def test_stop_storage_desktops(monkeypatch, test_client):
     jwt = MockJWT()
     calls = []
