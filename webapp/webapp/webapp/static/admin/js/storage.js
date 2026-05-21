@@ -611,9 +611,13 @@ $(document).on('click', '.btn-find', function () {
     url: '/api/v4/item/storage/' + id + '/find',
     contentType: 'application/json',
     success: function (result) {
+      // The endpoint only enqueues the find task — the asynchronous
+      // chain handler updates the storage status (ready / deleted)
+      // when the scan actually completes. Saying "Storage found" here
+      // misleads operators when the file is genuinely gone.
       new PNotify({
-        title: 'Find',
-        text: 'Storage found',
+        title: 'Find task started',
+        text: 'Status will update when the scan completes',
         hide: true,
         delay: 2000,
         icon: '',
@@ -1015,15 +1019,17 @@ $(document).on("click", ".btn-modal-disconnect", function() {
 $(document).on("click", ".btn-modal-find", function() {
   var storageId = $(this).data("id");
   $("#modalSearchStorage").modal("hide");
-  // Find action is a direct API call
+  // Find action is a direct API call. The endpoint only enqueues the
+  // task — see the .btn-find handler above for why this toaster cannot
+  // honestly say "Storage found".
   $.ajax({
     type: 'GET',
     url: '/api/v4/item/storage/' + storageId + '/find',
     contentType: 'application/json',
     success: function (result) {
       new PNotify({
-        title: 'Find',
-        text: 'Storage found',
+        title: 'Find task started',
+        text: 'Status will update when the scan completes',
         hide: true,
         delay: 2000,
         icon: '',
