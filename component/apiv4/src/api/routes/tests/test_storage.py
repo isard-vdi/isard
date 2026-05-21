@@ -22,7 +22,7 @@ def test_get_user_ready_storages_with_data(monkeypatch, test_client):
             "category": "cat-1",
             "user_id": "user-1",
             "user_name": "User 1",
-            "domains": [{"id": "desktop-1", "name": "Desktop 1"}],
+            "domains": [{"id": "desktop-1", "name": "Desktop 1", "status": "Stopped"}],
         }
     ]
     monkeypatch.setattr(
@@ -307,7 +307,7 @@ def test_get_storage_ready_wires_real_service(monkeypatch, test_client):
         return [
             {
                 "category": "default",
-                "domains": [{"id": "d1", "name": "Desktop One"}],
+                "domains": [{"id": "d1", "name": "Desktop One", "status": "Stopped"}],
                 "id": "storage-1",
                 "user_id": user_id,
                 "user_name": "admin",
