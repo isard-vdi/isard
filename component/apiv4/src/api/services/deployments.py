@@ -213,8 +213,8 @@ class DeploymentService:
     @staticmethod
     def recreate_desktops(payload: dict, deployment_id: str) -> str:
         """
-        Recreate all desktops for a deployment with updated parameters.
-        This involves deleting existing desktops and creating new ones.
+        Recreate a deployment by creating the desktops that are missing
+        for its currently allowed users.
 
         Args:
             payload: The token payload of the requesting user
@@ -228,18 +228,6 @@ class DeploymentService:
                 "not_found",
                 f"Deployment with ID {deployment_id} does not exist.",
             )
-
-        # Preflight every recipe before the irreversible delete so a
-        # malformed create_dict (missing template, missing hardware
-        # fields, booking conflict) raises *here* and the live desktops
-        # stay intact.
-        CommonDeployments.validate_recreate(payload, deployment_id)
-
-        deployment = RethinkDeployment(deployment_id)
-        desktops_to_delete = CommonDeploymentDesktops.get_with_tag_dict(deployment.tag)
-
-        for desktop in desktops_to_delete:
-            RethinkDomain.delete(desktop["id"])
 
         CommonDeployments.recreate(payload, deployment_id)
 

@@ -911,18 +911,15 @@ class DeploymentsProcessed(RethinkSharedConnection):
         return deployment, plan
 
     @classmethod
-    def validate_recreate(cls, payload, deployment_id):
-        """Run preflight without performing any side effects.
-
-        Callers that delete the existing desktops before recreating must
-        invoke this first, so a malformed create_dict (missing template,
-        missing memory, etc.) doesn't leave the deployment empty after
-        the irreversible delete.
-        """
-        cls._prepare_recreate(payload, deployment_id)
-
-    @classmethod
     def recreate(cls, payload, deployment_id):
+        """Create the desktops missing for the deployment's allowed users.
+
+        Mirrors apiv3 ``api_deployments.recreate``: existing desktops are
+        left untouched. ``_prepare_recreate`` resolves users with
+        ``include_existing_desktops=False`` and builds the full plan
+        (raising on any malformed create_dict) before a single desktop is
+        created, so a bad recipe fails fast without partial side effects.
+        """
         _, plan = cls._prepare_recreate(payload, deployment_id)
         for deployment_tag, desktop, users in plan:
             cls.create_deployment_desktops(deployment_tag, [desktop], users)
