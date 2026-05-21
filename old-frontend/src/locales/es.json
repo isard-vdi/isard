@@ -423,7 +423,7 @@
       "no-info-default": "No hay descripción disponible",
       "open-with": "Acceder con visor",
       "storage-operation": {
-        "increase": "El tamaño de disco de este escritorio está siendo incrementado",
+        "resize": "El tamaño de disco de este escritorio está siendo incrementado",
         "virt_win_reg": "Se está editando el registro",
         "move": "El disco de este escritorio se está moviendo"
       },

@@ -131,7 +131,7 @@
       "no-info-default": "No hi ha cap descripció disponible",
       "open-with": "Accedir amb visor",
       "storage-operation": {
-        "increase": "La mida del disc d'aquest escriptori s'està incrementant",
+        "resize": "La mida del disc d'aquest escriptori s'està incrementant",
         "virt_win_reg": "S'està editant el registre",
         "move": "El disc d'aquest escriptori s'està movent"
       },

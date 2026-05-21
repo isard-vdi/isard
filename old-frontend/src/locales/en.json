@@ -427,7 +427,7 @@
             "open-with": "Open with viewer",
             "filter-label": "Filter",
             "storage-operation": {
-                "increase": "The disk size of this desktop is being increased",
+                "resize": "The disk size of this desktop is being increased",
                 "virt_win_reg": "The registry is being edited",
                 "move": "This desktop's disk is being moved"
             },
