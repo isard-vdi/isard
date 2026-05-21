@@ -65,10 +65,21 @@ $(document).on('click', '.btn-increase', function () {
       url: `/api/v4/item/storage/${storageId}/has-derivatives`,
     }).done(function (data) {
       if (data.derivatives <= 1) {
-        var virtual_size = storage.virtual_size / 1024 / 1024 / 1024
-        $(modal + " #current-size").text(virtual_size.toFixed(0) + " GB");
+        // ``virtual_size`` from the API is in bytes (from qemu-img-info).
+        // Sub-GB disks (load-test fixtures at 20 MiB, 512 B empty disks)
+        // used to render as "0 GB". Two changes:
+        //   - Show the current size in human units (e.g. "512 B") so it
+        //     never collapses to "0.00 GB".
+        //   - Pre-fill the new-size spinner with the smallest integer GB
+        //     strictly greater than the current size, so the default is
+        //     a valid value (no "minimum is 1" error from parsley on a
+        //     0 GB pre-fill) and matches the spinner's min.
+        var virtual_size_bytes = storage.virtual_size || 0;
+        var virtual_size = virtual_size_bytes / 1024 / 1024 / 1024;
+        var min_next_size = Math.floor(virtual_size) + 1;
+        $(modal + " #current-size").text(humanizeBytes(virtual_size_bytes));
         $(modal + " #current_size").val(virtual_size);
-        $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", (virtual_size + 1).toFixed(0));
+        $(modal + " #new-size").val(min_next_size).prop("min", min_next_size);
 
         $.ajax({
           url: "/api/v4/admin/item/user/appliedquota/" + storage["user_id"],
