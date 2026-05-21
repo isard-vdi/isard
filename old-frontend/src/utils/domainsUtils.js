@@ -44,9 +44,31 @@ function buildTieredOptions (quotaMax, tiers) {
   return result
 }
 
+// Snap a non-tier-aligned legacy value to the nearest dropdown option so the
+// form submits a valid value. Ties break low.
+function roundToNearestTier (value, tiers, quotaMax) {
+  if (value == null || !Number.isFinite(value)) return value
+  const options = buildTieredOptions(quotaMax, tiers)
+  if (options.length === 0) return value
+  let best = options[0]
+  let bestDiff = Math.abs(options[0] - value)
+  for (let i = 1; i < options.length; i++) {
+    const diff = Math.abs(options[i] - value)
+    if (diff < bestDiff) {
+      best = options[i]
+      bestDiff = diff
+    }
+  }
+  return best
+}
+
 export class DomainsUtils {
   static parseDomain (item) {
     const { id, kind, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware } = item
+    const rawQuota = hardware.quota
+    const quotaMemory = rawQuota ? rawQuota.memory : 128
+    const quotaVcpus = rawQuota ? rawQuota.vcpus : 128
+    const quotaDiskSize = rawQuota ? rawQuota.desktops_disk_size : 500
     return {
       id,
       kind,
@@ -64,14 +86,14 @@ export class DomainsUtils {
         bootOrder: hardware.boot_order,
         diskBus: hardware.disk_bus ? hardware.disk_bus : 'default',
         disks: hardware.disks,
-        diskSize: hardware.disk_size,
+        diskSize: roundToNearestTier(parseFloat(hardware.disk_size), DISK_TIERS, quotaDiskSize),
         floppies: AllowedUtils.parseItems(hardware.floppies),
         graphics: hardware.graphics ? hardware.graphics : 'default',
         interfaces: hardware.interfaces.map(i => i.id),
         interfacesMac: hardware.interfaces.map(i => i.mac),
         isos: AllowedUtils.parseItems(hardware.isos),
-        memory: parseFloat(hardware.memory),
-        vcpus: parseInt(hardware.vcpus),
+        memory: roundToNearestTier(parseFloat(hardware.memory), MEMORY_TIERS, quotaMemory),
+        vcpus: roundToNearestTier(parseInt(hardware.vcpus), VCPU_TIERS, quotaVcpus),
         videos: hardware.videos,
         quota: !hardware.quota ? { memory: 128, vcpus: 128, desktopDiskSizes: 500 } : hardware.quota
       },
