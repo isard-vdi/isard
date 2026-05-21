@@ -32,7 +32,7 @@ $(document).ready(function () {
     "ajax": {
       "type": 'GET',
       "url": "/api/v4/storage-pools",
-      "dataSrc": "",
+      "dataSrc": "storage_pools",
       "contentType": "application/json",
     },
     "language": {
