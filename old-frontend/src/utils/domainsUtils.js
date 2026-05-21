@@ -2,6 +2,48 @@ import { diskBus } from '../shared/constants'
 import { AllowedUtils } from './allowedUtils'
 import { ImageUtils } from './imageUtils'
 
+// Dropdown ceilings (1 TB RAM, 128 vCPU, 2 TB disk) with coarsening steps so
+// the option list stays bounded even when the quota is the "unlimited" sentinel.
+const MEMORY_TIERS = [
+  { from: 0.5, to: 4, step: 0.5 },
+  { from: 5, to: 16, step: 1 },
+  { from: 18, to: 32, step: 2 },
+  { from: 36, to: 64, step: 4 },
+  { from: 72, to: 128, step: 8 },
+  { from: 144, to: 256, step: 16 },
+  { from: 288, to: 512, step: 32 },
+  { from: 576, to: 1024, step: 64 }
+]
+const VCPU_TIERS = [
+  { from: 1, to: 16, step: 1 },
+  { from: 18, to: 32, step: 2 },
+  { from: 36, to: 64, step: 4 },
+  { from: 72, to: 128, step: 8 }
+]
+const DISK_TIERS = [
+  { from: 1, to: 16, step: 1 },
+  { from: 18, to: 32, step: 2 },
+  { from: 36, to: 64, step: 4 },
+  { from: 72, to: 128, step: 8 },
+  { from: 144, to: 256, step: 16 },
+  { from: 288, to: 512, step: 32 },
+  { from: 576, to: 1024, step: 64 },
+  { from: 1152, to: 2048, step: 128 }
+]
+
+function buildTieredOptions (quotaMax, tiers) {
+  if (quotaMax == null || !(quotaMax > 0)) return []
+  const result = []
+  for (const { from, to, step } of tiers) {
+    const limit = Math.min(to, quotaMax)
+    if (from > limit) break
+    for (let v = from; v <= limit + 1e-9; v += step) {
+      result.push(+v.toFixed(2))
+    }
+  }
+  return result
+}
+
 export class DomainsUtils {
   static parseDomain (item) {
     const { id, kind, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware } = item
@@ -48,19 +90,9 @@ export class DomainsUtils {
     if (hardware.quota !== false) {
       quota = { memory: hardware.quota.memory, vcpus: hardware.quota.vcpus, desktopDiskSizes: hardware.quota.desktops_disk_size }
     }
-    const memory = []
-    for (let i = 0.5; i <= quota.memory; i += 0.5) {
-      memory.push(i)
-    }
-    const vcpus = []
-    for (let i = 1; i <= quota.vcpus; i += 1) {
-      vcpus.push(i)
-    }
-
-    const desktopDiskSizes = []
-    for (let i = 1; i <= quota.desktopDiskSizes; i += 1) {
-      desktopDiskSizes.push(i)
-    }
+    const memory = buildTieredOptions(quota.memory, MEMORY_TIERS)
+    const vcpus = buildTieredOptions(quota.vcpus, VCPU_TIERS)
+    const desktopDiskSizes = buildTieredOptions(quota.desktopDiskSizes, DISK_TIERS)
 
     return {
       bootOrder,
