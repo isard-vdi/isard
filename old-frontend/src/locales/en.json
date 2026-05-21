@@ -407,7 +407,8 @@
                 "edit": "Edit",
                 "direct-link": "Direct Link",
                 "recreate": "Recreate",
-                "bastion": "Bastion info"
+                "bastion": "Bastion info",
+                "increase-storage": "Increase storage"
             },
             "table-header": {
                 "name": "Name",

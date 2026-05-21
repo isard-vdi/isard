@@ -403,7 +403,8 @@
         "edit": "Editar",
         "direct-link": "Enlace directo",
         "recreate": "Recrear",
-        "bastion": "Bastión"
+        "bastion": "Bastión",
+        "increase-storage": "Ampliar almacenamiento"
       },
       "table-header": {
         "name": "Nombre",

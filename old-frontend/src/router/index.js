@@ -265,25 +265,6 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/userstorage',
-      component: () => import('@/layouts/MainLayout.vue'),
-      children: [
-        {
-          path: '',
-          name: 'userstorage',
-          component: () => import('@/pages/Storage.vue'),
-          meta: {
-            title: i18n.t('router.titles.storage'),
-            allowedRoles: ['admin', 'manager', 'advanced', 'user']
-          }
-        }
-      ],
-      meta: {
-        title: i18n.t('router.titles.storage'),
-        requiresAuth: true
-      }
-    },
-    {
       path: '/',
       name: 'RecycleBins',
       redirect: '/recycleBins',

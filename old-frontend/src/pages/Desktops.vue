@@ -13,6 +13,7 @@
         <CantStartNowModal />
         <DesktopModal />
         <BastionModal />
+        <IncreaseModal />
         <template #title>
           <b-spinner
             v-if="!getDesktopsLoaded"
@@ -110,6 +111,7 @@ import StartNowModal from '@/components/booking/StartNowModal.vue'
 import CantStartNowModal from '@/components/booking/CantStartNowModal.vue'
 import DesktopModal from '@/components/desktops/DesktopModal.vue'
 import BastionModal from '@/components/BastionModal.vue'
+import IncreaseModal from '@/components/desktops/IncreaseModal.vue'
 
 export default {
   components: {
@@ -119,7 +121,8 @@ export default {
     StartNowModal,
     CantStartNowModal,
     DesktopModal,
-    BastionModal
+    BastionModal,
+    IncreaseModal
   },
   setup (_, context) {
     const $store = context.root.$store
@@ -138,6 +141,7 @@ export default {
 
     $store.dispatch('fetchDesktops')
     $store.dispatch('fetchProfile')
+    $store.dispatch('fetchStorage')
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
     const showStarted = computed(() => $store.getters.getShowStarted)
