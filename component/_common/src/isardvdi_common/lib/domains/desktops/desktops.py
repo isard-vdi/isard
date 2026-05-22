@@ -453,6 +453,26 @@ class DesktopsProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
                 description_code="not_found",
             )
+        # Reject derivation from a template that's still being built
+        # (or that previously failed). Otherwise the chain dispatch
+        # downstream raises "Parent storage is not ready", which used
+        # to surface as a 500 and is now a generic 428 — give the user
+        # an actionable message instead.
+        _UNUSABLE_TEMPLATE_STATUSES = {
+            "CreatingTemplate",
+            "Failed",
+            "Maintenance",
+            "DownloadStarting",
+            "Downloading",
+        }
+        if template.get("status") in _UNUSABLE_TEMPLATE_STATUSES:
+            raise Error(
+                "precondition_required",
+                f"Template {template_id} is not ready "
+                f"(status={template['status']!r}); wait for it to finish "
+                "or pick another template",
+                description_code="template_not_ready",
+            )
         user = Caches.get_document(
             "users", user_id, ["id", "username", "category", "group"]
         )
