@@ -48,7 +48,6 @@ from engine.services.lib.qcow import (
     get_path_to_disk,
 )
 from engine.services.lib.storage import (
-    create_storage,
     get_storage_id_filename,
     update_storage_deleted_domain,
 )

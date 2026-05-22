@@ -30,7 +30,6 @@ class StorageStatusEnum(str, Enum):
     recycled = "recycled"
     orphan = "orphan"
     deleted = "deleted"
-    deleting = "Deleting"  # TODO: Evaluate if this status is needed
 
 
 class FormatSpecific(BaseModel):
