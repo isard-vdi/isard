@@ -32,13 +32,6 @@ def update_status_table(table, status, id_table, detail=""):
         )
 
 
-def update_status_media_from_path(path, status, detail=""):
-    with rethink_conn() as conn:
-        r.table("media").filter({"path_downloaded": path}).update(
-            {"status": status, "detail": detail}
-        ).run(conn)
-
-
 def update_download_percent(done, table, id):
     with rethink_conn() as conn:
         r.table(table).get(id).update({"progress": done}).run(conn)

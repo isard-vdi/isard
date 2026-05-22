@@ -68,7 +68,6 @@ from engine.services.threads.threads import (
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE,
     TIMEOUT_QUEUES,
     launch_delete_disk_action,
-    launch_delete_media,
     launch_killall_curl,
 )
 
@@ -82,7 +81,6 @@ ITEMS_STATUS_MAP = {
     "delete_disk": "Deleting disk",
     "add_media_hot": "Adding media",
     "killall_curl": "Canceling download",
-    "delete_media": "Deleting media",
 }
 
 notify_thread_pool = ThreadPoolExecutor(max_workers=1)
@@ -404,7 +402,6 @@ class HypWorkerThread(threading.Thread):
             "delete_disk": lambda a, t, i: self._handle_disk_action(a, t, i, "delete"),
             "add_media_hot": lambda a, t, i: None,  # Placeholder as in original
             "killall_curl": self._handle_killall_curl,
-            "delete_media": self._handle_delete_media,
             "update_status_db_from_running_domains": self._handle_update_status,
             "hyp_info": self._handle_hyp_info,
             "notify": self._handle_notify,
@@ -1804,40 +1801,6 @@ class HypWorkerThread(threading.Thread):
             )
         except Exception as e:
             logs.workers.error(f"Error in killall_curl action: {e}")
-            log_action(
-                self.hyp_id,
-                None,
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                "Failed",
-            )
-
-    def _handle_delete_media(self, action, action_time, intervals):
-        """Handle delete_media action"""
-        final_status = action.get("final_status", "Deleted")
-        t = time.time()
-
-        try:
-            launch_delete_media(
-                action,
-                self.hostname,
-                user=self.h.user,
-                port=self.h.port,
-                final_status=final_status,
-            )
-            intervals.append({"delete_media": round(time.time() - t, 3)})
-
-            log_action(
-                self.hyp_id,
-                None,
-                action["type"],
-                intervals,
-                time.time() - action_time,
-                final_status,
-            )
-        except Exception as e:
-            logs.workers.error(f"Error in delete_media action: {e}")
             log_action(
                 self.hyp_id,
                 None,
