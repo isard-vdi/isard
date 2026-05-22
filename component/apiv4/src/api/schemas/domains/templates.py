@@ -228,26 +228,31 @@ class UserAllowedTemplateFlatItem(BaseModel):
 
 class TemplateEditRequest(BaseModel):
     name: str = Field(
-        description="Name of the template. Must be unique within the user's templates.",
+        description="Name of the template. Must be unique within the user's templates. If not provided, the current value will be kept.",
         min_length=4,
         max_length=50,
+        default=None,
     )
     description: str = Field(
-        description="Description of the template.",
+        description="Description of the template. If not provided, the current value will be kept.",
         max_length=255,
+        default=None,
     )
     guest_properties: DomainGuestProperties = Field(
-        description="Guest properties to be set for the template.",
+        description="Guest properties to be set for the template. If not provided, the current value will be kept.",
+        default=None,
     )
     hardware: DomainHardware = Field(
-        description="Hardware configuration for the template.",
+        description="Hardware configuration for the template. If not provided, the current value will be kept.",
+        default=None,
     )
     reservables: Reservables = Field(
-        description="The domain bookable resources. If None, no reservables are available.",
+        description="The domain bookable resources. If None, no reservables are available. If not provided, the current value will be kept.",
+        default=None,
     )
     image: DomainImage | None = Field(
         default=None,
-        description="Image to be used for the template.",
+        description="Image to be used for the template. If None or not provided, the current value will be kept.",
     )
 
 

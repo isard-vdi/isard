@@ -592,7 +592,7 @@ class DomainInfoResponse(BaseModel):
     name: str
     description: str = ""
     image: DomainImage | None = None
-    guest_properties: GuestProperties | None = None
+    guest_properties: DomainGuestProperties | None = None
     hardware: Hardware | None = None
     reservables: Reservables | None = None
     limited_hardware: dict | None = None  # TODO: check type
