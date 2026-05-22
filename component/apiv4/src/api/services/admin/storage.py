@@ -23,6 +23,7 @@ from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.media.media import MediaProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
+from isardvdi_common.models.storage import Storage
 
 
 class AdminStorageService:
@@ -71,10 +72,41 @@ class AdminStorageService:
         return MediaProcessed.get_media_domains(storage_id)
 
     @staticmethod
-    def delete_storage(storage_id: str) -> dict:
-        """Mark a storage for deletion."""
-        StorageProcessed.mark_delete(storage_id)
-        return {}
+    def delete_storage(payload: dict, storage_id: str) -> str:
+        """Delete a storage via the canonical task chain (same one the
+        user-facing ``DELETE /item/storage/{id}`` uses).
+
+        The historical implementation only flipped ``status="Deleting"``
+        via ``StorageProcessed.mark_delete``. No worker scans for that
+        status — verified across change-handler, scheduler, storage
+        worker — so the storage row got marked, the qcow2 file was never
+        unlinked, and any child storages (rows whose ``parent ==
+        storage_id``) silently became orphans pointing at a row marked
+        Deleting. Operator's storage table showed the row "deleted"
+        from Ready and they thought it worked.
+
+        Now the admin endpoint mirrors the user endpoint:
+        ``Storage(id).task_delete(user_id)`` fires the real cascade chain
+        on the storage worker (delete file -> update_status ->
+        storage_delete), with a typed-Error 428 precondition that rejects
+        the call if the row still has child storages — avoids the
+        silent "delete parent, orphan children" race.
+        """
+        if not Storage.exists(storage_id):
+            raise Error(
+                "not_found",
+                f"Storage {storage_id} not found",
+                description_code="not_found",
+            )
+        storage = Storage(storage_id)
+        if storage.children:
+            raise Error(
+                "precondition_required",
+                f"Storage {storage_id} has {len(storage.children)} child "
+                "storage(s); delete them first.",
+                description_code="storage_has_children",
+            )
+        return storage.task_delete(payload.get("user_id"))
 
     @staticmethod
     def get_storage_info(payload: dict, storage_id: str) -> dict:

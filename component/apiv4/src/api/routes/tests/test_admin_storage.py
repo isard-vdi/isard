@@ -245,16 +245,28 @@ class TestDeleteStorage:
     URL = "/admin/storage/s-99"
 
     def test_admin_deletes(self, monkeypatch, test_client):
+        """Happy path: 202 + DeleteResponse with the cascade task_id.
+
+        Mirrors the user-facing ``DELETE /item/storage/{id}`` contract
+        (the admin endpoint was changed from a fire-and-forget 204
+        mark-only path to the real cascade chain — see
+        AdminStorageService.delete_storage docstring).
+        """
         captured = {}
         monkeypatch.setattr(
             "api.routes.admin.storage.AdminStorageService.delete_storage",
-            staticmethod(lambda sid: captured.update(sid=sid)),
+            staticmethod(
+                lambda payload, sid: captured.update(payload=payload, sid=sid)
+                or "task-abc"
+            ),
         )
         response = test_client(
             url=self.URL, method="DELETE", jwt=MockJWT(role_id="admin")
         )
-        assert response.status_code == 204
+        assert response.status_code == 202
         assert captured["sid"] == "s-99"
+        body = response.json()
+        assert body["tasks_ids"] == ["task-abc"]
 
     def test_manager_allowed(self, monkeypatch, test_client):
         """Storage delete is on manager_router (managers handle their
@@ -265,18 +277,18 @@ class TestDeleteStorage:
         called = {}
         monkeypatch.setattr(
             "api.routes.admin.storage.AdminStorageService.delete_storage",
-            staticmethod(lambda sid: called.update(yes=True)),
+            staticmethod(lambda payload, sid: called.update(yes=True) or "task-mgr"),
         )
         response = test_client(
             url=self.URL, method="DELETE", jwt=MockJWT(role_id="manager")
         )
-        assert response.status_code == 204
+        assert response.status_code == 202
         assert called["yes"] is True
 
     def test_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.storage.AdminStorageService.delete_storage",
-            staticmethod(lambda sid: None),
+            staticmethod(lambda payload, sid: None),
         )
         response = test_client(
             url=self.URL, method="DELETE", jwt=MockJWT(role_id="user")
@@ -284,7 +296,7 @@ class TestDeleteStorage:
         assert response.status_code == 403
 
     def test_unknown_storage_returns_404(self, monkeypatch, test_client):
-        def fail(sid):
+        def fail(payload, sid):
             raise Error("not_found", "Storage not found")
 
         monkeypatch.setattr(
@@ -295,6 +307,27 @@ class TestDeleteStorage:
             url=self.URL, method="DELETE", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 404
+
+    def test_storage_with_children_returns_428(self, monkeypatch, test_client):
+        """Precondition: deleting a parent storage that still has child
+        storages must be rejected at the route layer with 428, never
+        silently fired (the old behaviour orphaned the children)."""
+
+        def fail(payload, sid):
+            raise Error(
+                "precondition_required",
+                f"Storage {sid} has 2 child storage(s); delete them first.",
+                description_code="storage_has_children",
+            )
+
+        monkeypatch.setattr(
+            "api.routes.admin.storage.AdminStorageService.delete_storage",
+            staticmethod(fail),
+        )
+        response = test_client(
+            url=self.URL, method="DELETE", jwt=MockJWT(role_id="admin")
+        )
+        assert response.status_code == 428
 
 
 # ══════════════════════════════════════════════════════════════════════════
