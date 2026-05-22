@@ -53,7 +53,7 @@ class StorageItem(BaseModel):
     user_name: str
     actual_size: int | None = None
     virtual_size: int | None = None
-    last: int | None = None
+    last: float | None = None
 
 
 class StorageReadyResponse(BaseModel):
