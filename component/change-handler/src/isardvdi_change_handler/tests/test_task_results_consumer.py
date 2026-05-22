@@ -366,3 +366,171 @@ async def test_handler_exception_is_logged_but_loop_continues():
 
     raising.assert_awaited_once()
     succeeding_sync.assert_called_once_with(good, id="s2")
+
+
+@pytest.mark.asyncio
+async def test_core_dep_with_storage_child_releases_deferred_storage_job():
+    """A ``storage -> core -> storage`` hand-off must release the deferred
+    storage child after the core handler runs. Without this the storage
+    worker never sees the next-stage Job and chains like
+    ``enqueue_template_creation_chain_from_desktop`` hang with the source
+    desktop stuck in ``CreatingTemplate``.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    storage_grandchild = _stub_task(
+        "storage-child",
+        task_name="qemu_img_info_backing_chain",
+        queue="storage.poolA.default",
+    )
+    core_dep = _stub_task(
+        "core-dep",
+        task_name="storage_update",
+        queue="core",
+        kwargs={"id": "tpl", "status": "ready"},
+        dependents=[storage_grandchild],
+    )
+    root = _stub_task(
+        "root", task_name="qemu_img_info_backing_chain", dependents=[core_dep]
+    )
+
+    redis_manager = AsyncMock()
+    fake_registry = {"storage_update": (AsyncMock(), True)}
+    fake_queue = MagicMock()
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
+            fake_registry,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Queue",
+            return_value=fake_queue,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.redis.from_url",
+            return_value=MagicMock(),
+        ),
+    ):
+        await task_results_consumer._process_entry(
+            redis_manager,
+            {"kind": "result", "task_id": "root", "task_name": "find"},
+        )
+
+    fake_queue.enqueue_dependents.assert_called_once_with(core_dep.job)
+
+
+@pytest.mark.asyncio
+async def test_failed_core_handler_does_not_release_dependents():
+    """When a core handler raises, the chain has failed — its deferred
+    storage child MUST stay deferred so the chain doesn't advance past a
+    bad state.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    storage_grandchild = _stub_task(
+        "storage-child",
+        task_name="qemu_img_info_backing_chain",
+        queue="storage.poolA.default",
+    )
+    core_dep = _stub_task(
+        "core-dep",
+        task_name="storage_update",
+        queue="core",
+        dependents=[storage_grandchild],
+    )
+    root = _stub_task("root", dependents=[core_dep])
+
+    redis_manager = AsyncMock()
+    raising = AsyncMock(side_effect=RuntimeError("boom"))
+    fake_registry = {"storage_update": (raising, True)}
+    fake_queue = MagicMock()
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
+            fake_registry,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Queue",
+            return_value=fake_queue,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.redis.from_url",
+            return_value=MagicMock(),
+        ),
+    ):
+        await task_results_consumer._process_entry(
+            redis_manager,
+            {"kind": "result", "task_id": "root", "task_name": "find"},
+        )
+
+    fake_queue.enqueue_dependents.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_core_dep_with_only_core_children_does_not_call_queue():
+    """When a core dep has only core-queue children, the consumer must not
+    spin up an RQ Queue or call enqueue_dependents. Avoids touching Redis
+    for the common case of a tail of core handlers.
+    """
+    from isardvdi_change_handler.streams import task_results_consumer
+
+    grand_core = _stub_task("grand", task_name="update_status", queue="core")
+    core_dep = _stub_task(
+        "core-dep",
+        task_name="storage_update",
+        queue="core",
+        kwargs={"id": "s1"},
+        dependents=[grand_core],
+    )
+    root = _stub_task("root", dependents=[core_dep])
+
+    redis_manager = AsyncMock()
+    fake_registry = {
+        "storage_update": (AsyncMock(), True),
+        "update_status": (AsyncMock(), True),
+    }
+    fake_queue = MagicMock()
+    with (
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.emit_task_feedback",
+            new=AsyncMock(),
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Task",
+            return_value=root,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.HANDLERS",
+            fake_registry,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.Queue",
+            return_value=fake_queue,
+        ),
+        patch(
+            "isardvdi_change_handler.streams.task_results_consumer.redis.from_url",
+            return_value=MagicMock(),
+        ),
+    ):
+        await task_results_consumer._process_entry(
+            redis_manager,
+            {"kind": "result", "task_id": "root", "task_name": "find"},
+        )
+
+    fake_queue.enqueue_dependents.assert_not_called()

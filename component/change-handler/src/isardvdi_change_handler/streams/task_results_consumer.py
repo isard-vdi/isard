@@ -34,10 +34,12 @@ import asyncio
 import logging as log
 import uuid
 
+import redis
 import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.models.task import Task
 from redis.exceptions import ResponseError
+from rq import Queue
 from rq.job import JobStatus
 
 from ..task_results.feedback import emit_task_feedback
@@ -126,6 +128,61 @@ async def _run_handler(redis_manager, dep_task):
         return False
 
 
+async def _release_storage_dependents(dep_task):
+    """Push every non-``core`` dependent of ``dep_task`` from DEFERRED to
+    QUEUED, mirroring what RQ's ``Worker._handle_job_success`` would do
+    after a real worker finished a job.
+
+    Background: ``_walk_core_dependents`` deliberately stops at the
+    storage-queue boundary because the storage worker publishes its own
+    ``stream:task-results`` entry per task and will drive a fresh
+    dispatch. But for the worker to RUN the storage-queue dependent it
+    has to be QUEUED, not DEFERRED. RQ's normal release path lives in
+    ``Worker._handle_job_success`` and never runs for ``core``-queue
+    parents — no worker pops the ``core`` queue. Without an explicit
+    release, the next-stage storage Job sits DEFERRED forever and the
+    chain dies at the ``storage -> core -> storage`` hand-off.
+
+    Affects every chain that bounces back to a storage queue after a
+    ``core`` handler (today: only
+    ``Storage.enqueue_template_creation_chain_from_desktop`` — the first
+    chain with that topology).
+
+    ``Queue.enqueue_dependents`` works on the parent: for each dependent
+    it removes the parent id from the dependent's dependencies set and
+    pushes the dependent to its own origin queue if no other parent is
+    still pending. Core-queue dependents end up QUEUED on ``core`` —
+    harmless, since the walker still yields and handles them in-process
+    and the trailing ``job.delete`` loop drops them after dispatch.
+    """
+    try:
+        children = await asyncio.to_thread(lambda: list(dep_task.dependents))
+    except Exception:
+        log.exception(
+            "task_results: could not enumerate dependents of %s for release",
+            getattr(dep_task, "id", "?"),
+        )
+        return
+    has_storage_child = any(
+        getattr(child, "queue", "") and not child.queue.startswith("core")
+        for child in children
+    )
+    if not has_storage_child:
+        return
+    try:
+        conn = redis.from_url(rq_url())
+        # ``Queue(...)`` here is just the gateway to ``enqueue_dependents``
+        # — the method routes each dependent to its OWN ``origin`` queue,
+        # so the queue name we pass is irrelevant beyond construction.
+        queue = Queue(connection=conn)
+        await asyncio.to_thread(queue.enqueue_dependents, dep_task.job)
+    except Exception:
+        log.exception(
+            "task_results: failed to release storage dependents of %s",
+            getattr(dep_task, "id", "?"),
+        )
+
+
 async def _set_job_status(dep_task, status):
     """Best-effort RQ ``Job.set_status`` wrapper.
 
@@ -196,6 +253,12 @@ async def _process_entry(redis_manager, fields):
         # ``task.depending_status`` see the right value (was "deferred"
         # otherwise — no worker on the core queue ever marks it).
         await _set_job_status(dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED)
+        # Release any deferred storage-queue dependent of this core dep so
+        # the storage worker actually picks it up. See helper docstring
+        # for why ``set_status(FINISHED)`` alone is not enough. Skipped
+        # when the handler failed — failure must NOT advance the chain.
+        if ok:
+            await _release_storage_dependents(dep_task)
 
     # MR-3 of the core_worker retirement: core_worker is gone, so the
     # ``core`` queue has no consumer. RQ would otherwise move each
