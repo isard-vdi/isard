@@ -114,8 +114,8 @@ class CreateDeploymentRequest(BaseModel):
         min_length=4,
         max_length=50,
     )
-    description: str | None = Field(
-        default=None,
+    description: str = Field(
+        default="",
         description="Description of the deployment",
         max_length=255,
     )
@@ -126,15 +126,15 @@ class CreateDeploymentRequest(BaseModel):
         default=True,
         description="Whether to create a desktop for the user creating the deployment.",
     )
-    visible: bool | None = Field(
+    visible: bool = Field(
         default=False,
         description="Whether the deployment is visible to it's users.",
     )
-    co_owners: list[str] | None = Field(
+    co_owners: list[str] = Field(
         default=[],
         description="List of user IDs that will be co-owners of the deployment.",
     )
-    user_permissions: list[DeploymentPermissions] | None = Field(
+    user_permissions: list[DeploymentPermissions] = Field(
         default=[],
         description="List of permissions the user creating the deployment has over it.",
     )
