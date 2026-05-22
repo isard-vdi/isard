@@ -1479,6 +1479,16 @@ class DesktopsProcessed(RethinkSharedConnection):
             "tag_visible": False,
             "tag_desktop_id": False,
             "booking_id": False,
+            # From-media desktops have no template ancestry, but every
+            # other writer of the ``parents`` field (new_from_template,
+            # duplicate_template, the desktop-rewrite path in
+            # new_template) sets it explicitly to a list. Initialize it
+            # here too so cascade-walking code that does
+            # ``r.table("domains").get_all(tid, index="parents")`` /
+            # ``domain["parents"]`` always sees the column present —
+            # defensive against any reader that does not use
+            # ``.get("parents", [])``.
+            "parents": [],
         }
 
         res = Quotas.limit_user_hardware_allowed(payload, domain["create_dict"])
