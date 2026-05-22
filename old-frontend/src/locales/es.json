@@ -1476,6 +1476,7 @@
       "recreating-deployment": "Recreando despliegue",
       "deployment-desktops-created": "Escritorios del despliegue creados",
       "deleting-deployment": "Eliminando despliegue",
+      "deployment-deleted": "Despliegue eliminado",
       "making-visible-deployment": "Haciendo el despliegue visible",
       "making-invisible-deployment": "Haciendo el despliegue invisible",
       "making-visible-desktop": "Haciendo el escritorio visible",

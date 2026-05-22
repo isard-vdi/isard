@@ -1466,6 +1466,7 @@
             "recreating-deployment": "Recreating Deployment",
             "deployment-desktops-created": "Deployment desktops created",
             "deleting-deployment": "Deleting deployment",
+            "deployment-deleted": "Deployment deleted",
             "making-visible-deployment": "Making the deployment visible",
             "making-invisible-deployment": "Making the deployment invisible",
             "making-visible-desktop": "Making the desktop visible",

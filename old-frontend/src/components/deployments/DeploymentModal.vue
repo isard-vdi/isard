@@ -322,8 +322,16 @@ export default {
     }
 
     const deleteDeployment = () => {
-      $store.dispatch('deleteDeployment', { id: modal.value.item.id, permanent: !sendToRecycleBin.value, pathName: 'deployments' }).then(() => {
+      $store.dispatch('deleteDeployment', {
+        id: modal.value.item.id,
+        permanent: !sendToRecycleBin.value,
+        pathName: 'deployments'
+      }).then(() => {
         sendToRecycleBin.value = $store.getters.getDefaultCheck
+        closeModal()
+      }).catch(() => {
+        // Error already toasted by the action — close the modal anyway so
+        // the user isn't stuck on a frozen confirmation screen.
         closeModal()
       })
     }
@@ -333,11 +341,16 @@ export default {
     // when it isn't called with ``()``, which is *always* truthy and
     // makes the "Update co-owners" footer button visible to every
     // viewer (including co-owners who are not the owner). Loading
-    // ``fetchCoOwners`` lives in a watcher that fires when the
-    // co-owners modal opens, so the side effect doesn't ride on the
-    // render.
+    // ``fetchCoOwners`` lives in a watcher that fires when either the
+    // co-owners modal or the delete modal opens, so the side effect
+    // doesn't ride on the render. The delete modal also needs it: its
+    // footer "Delete" button is gated on ``isOwner``, and opening the
+    // delete modal from the deployments LIST (which doesn't eagerly
+    // fetch co-owners) used to leave ``getCoOwners.owner`` empty →
+    // ``isOwner=false`` → user saw a misleading "you're a co-owner"
+    // warning and had no delete button.
     watch(
-      () => modal.value.type === 'coOwners' ? modal.value.item.id : null,
+      () => (['coOwners', 'delete'].includes(modal.value.type)) ? modal.value.item.id : null,
       (id) => { if (id) $store.dispatch('fetchCoOwners', id) },
       { immediate: true }
     )

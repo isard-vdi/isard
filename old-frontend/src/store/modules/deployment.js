@@ -251,18 +251,31 @@ export default {
     },
 
     deleteDeployment (context, payload) {
+      // Return the axios promise so callers can await — DeploymentModal.vue
+      // chained `.then(() => closeModal())` against this dispatch and was
+      // closing the modal *immediately* (before the API call returned)
+      // because the action wasn't returning a Promise. The post-delete
+      // navigate then raced with the user, who saw nothing happen on the
+      // detail page until they manually went back to /deployments.
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
       const url = payload.permanent
         ? `${apiV3Segment}/item/deployment/${payload.id}?permanent=true`
         : `${apiV3Segment}/item/deployment/${payload.id}`
-      axios.delete(url).then(response => {
+      return axios.delete(url).then(response => {
         context.commit('remove_deployments', { id: payload.id })
         this._vm.$snotify.clear()
+        // Explicit success toast — confirms the action to the user. The
+        // detail page's deployment getter still holds the old row until
+        // navigation completes, so without this the user sees no feedback
+        // at all between clicking "Delete" and the router push.
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deployment-deleted'), '', false, 2500)
         if (payload.pathName) {
           context.dispatch('navigate', payload.pathName)
         }
       }).catch(e => {
+        this._vm.$snotify.clear()
         ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
       })
     },
     recreateDeployment (_, payload) {
