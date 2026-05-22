@@ -5,6 +5,8 @@ import { useI18n } from 'vue-i18n'
 
 import { getDesktopNetworksOptions } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 import { DesktopStatusEnum } from '@/gen/oas/apiv4'
+import type { Client } from '@/gen/oas/apiv4/client'
+import type { DesktopNetworksResponse } from '@/gen/oas/apiv4'
 
 import { Icon } from '@/components/icon'
 import { CopyIcon } from '@/components/icon'
@@ -21,30 +23,55 @@ interface Props {
   // wireguard so we render it inline with the wireguard row).
   desktopIp?: string | null
   fullHeight?: boolean
+  // When provided, fetches networks via the direct-viewer token endpoint
+  // (using the supplied client's viewer JWT). Otherwise falls back to the
+  // standard user-authenticated endpoint keyed by desktopId.
+  directViewerToken?: string
+  directViewerClient?: Client
 }
 
 const props = withDefaults(defineProps<Props>(), {
   desktopStatus: undefined,
   desktopIp: undefined,
-  fullHeight: true
+  fullHeight: true,
+  directViewerToken: undefined,
+  directViewerClient: undefined
 })
 
 const emit = defineEmits<{
   showNetworksModal: []
 }>()
 
-const {
-  isPending: networksIsPending,
-  isError: networksIsError,
-  error: networksError,
-  data: networks
-} = useQuery(
-  getDesktopNetworksOptions({
-    path: {
-      desktop_id: props.desktopId
-    }
-  })
-)
+const tokenNetworksQueryOptions = {
+  queryKey: ['getDesktopNetworksFromToken', props.directViewerToken] as const,
+  queryFn: async () => {
+    const client = props.directViewerClient
+    const token = props.directViewerToken
+    if (!client || !token) throw new Error('Missing direct viewer client/token')
+    const { data, error } = await client.get<DesktopNetworksResponse>({
+      url: `/api/v4/item/desktop/token/${encodeURIComponent(token)}/get-networks`
+    })
+    if (error) throw error
+    return data as DesktopNetworksResponse
+  },
+  enabled: !!props.directViewerToken && !!props.directViewerClient
+}
+
+const desktopIdNetworksQueryOptions = {
+  ...getDesktopNetworksOptions({
+    path: { desktop_id: props.desktopId }
+  }),
+  enabled: !props.directViewerToken
+}
+
+const tokenQuery = useQuery(tokenNetworksQueryOptions)
+const desktopIdQuery = useQuery(desktopIdNetworksQueryOptions)
+
+const active = computed(() => (props.directViewerToken ? tokenQuery : desktopIdQuery))
+const networksIsPending = computed(() => active.value.isPending.value)
+const networksIsError = computed(() => active.value.isError.value)
+const networksError = computed(() => active.value.error.value)
+const networks = computed(() => active.value.data.value)
 
 // Wireguard ALWAYS shown first when present so users with many networks
 // still see the IP at a glance — the +N overflow then covers the rest.

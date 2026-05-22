@@ -479,6 +479,27 @@ class Logging(RethinkSharedConnection):
     def logs_domain_event_directviewer(
         cls, domain_id, action_user, viewer_type=None, user_request=None
     ):
+        # Route handlers offload the direct-viewer service calls via
+        # asyncio.to_thread, so this sync wrapper is reached from a
+        # worker thread with no event loop bound — asyncio.create_task
+        # would raise RuntimeError and the route would swallow it as a
+        # generic 404. Detect that case and run the coroutine on a
+        # short-lived daemon thread to preserve fire-and-forget.
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            threading.Thread(
+                target=lambda: asyncio.run(
+                    cls._logs_domain_event_directviewer(
+                        domain_id,
+                        action_user,
+                        viewer_type,
+                        user_request=user_request,
+                    )
+                ),
+                daemon=True,
+            ).start()
+            return
         asyncio.create_task(
             cls._logs_domain_event_directviewer(
                 domain_id,

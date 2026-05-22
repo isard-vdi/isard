@@ -44,6 +44,14 @@ const colors = {
   lightgreen: {
     class: 'bg-success-50 text-success-800 border-success-200',
     icon: 'success-500'
+  },
+  'viewer-blue': {
+    class: 'bg-badges-viewer-blue text-brand-900',
+    icon: ''
+  },
+  'viewer-violet': {
+    class: 'bg-badges-viewer-violet text-badges-violet-900',
+    icon: ''
   }
 } satisfies Record<string, Color>
 

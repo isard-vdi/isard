@@ -22,7 +22,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal, Optional, Union
 
-from isardvdi_common.schemas.domains import DesktopStatusEnum
+from isardvdi_common.schemas.domains import DesktopStatusEnum, Image
 from pydantic import BaseModel, Field
 
 
@@ -34,9 +34,12 @@ class DesktopUpdateShareLinkRequest(BaseModel):
 
 
 class DesktopViewerScheduled(BaseModel):
-    shutdown: Union[datetime, Literal[False], None] = Field(
+    shutdown: Union[bool, str] = Field(
         default=False,
-        description="Scheduled shutdown time for the desktop. If False, no shutdown is scheduled. If None, the desktop is not scheduled.",
+        description=(
+            "When a shutdown is scheduled, contains the UTC end time as a "
+            "'%Y-%m-%dT%H:%M%z' string. False when no shutdown is scheduled."
+        ),
     )
 
 
@@ -50,7 +53,6 @@ class ViewerProtocol(str, Enum):
     VNC = "vnc"
     RDP = "rdp"
     RDPGW = "rdpgw"
-    RDPVPN = "rdpvpn"
 
 
 class ScheduledModel(BaseModel):
@@ -117,21 +119,11 @@ class FileRDPGWViewer(BaseModel):
     content: Optional[str] = None
 
 
-class FileRDPVPNViewer(BaseModel):
-    kind: ViewerKind
-    protocol: ViewerProtocol
-    name: Optional[str] = None
-    ext: Optional[str] = None
-    mime: Optional[str] = None
-    content: Optional[str] = None
-
-
 class ViewersModel(BaseModel):
     file_spice: Optional[FileSpiceViewer] = Field(None, alias="file-spice")
     browser_vnc: Optional[BrowserVNCViewer] = Field(None, alias="browser-vnc")
     browser_rdp: Optional[BrowserRDPViewer] = Field(None, alias="browser-rdp")
     file_rdpgw: Optional[FileRDPGWViewer] = Field(None, alias="file-rdpgw")
-    file_rdpvpn: Optional[FileRDPVPNViewer] = Field(None, alias="file-rdpvpn")
 
     model_config = {"populate_by_name": True}
 
@@ -153,11 +145,16 @@ class DesktopViewerResponse(BaseModel):
     status: DesktopStatusEnum = Field(
         description="Status of the desktop.",
     )
-    scheduled: DesktopViewerScheduled = Field(
+    scheduled: Optional[DesktopViewerScheduled] = Field(
+        default=None,
         description="Scheduled actions for the desktop viewer.",
     )
     viewers: ViewersModel = Field(
-        description="List of available viewers for the desktop.",
+        description="Available viewers for the desktop keyed by viewer ID.",
+    )
+    image: Optional[Image] = Field(
+        default=None,
+        description="Desktop image (stock id or uploaded URL) used by the card.",
     )
     needs_booking: Optional[bool] = Field(
         default=False,

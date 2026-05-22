@@ -656,7 +656,17 @@ class DesktopService:
         return direct_viewer
 
     @staticmethod
-    def get_direct_viewer_docs() -> str:
+    def get_desktop_viewer_data_from_token(token, viewer_type, request):
+        Logging.logs_domain_event_directviewer(
+            DesktopDirectViewer.desktop_from_token(token)["id"],
+            action_user=None,
+            viewer_type=viewer_type,
+            user_request=request,
+        )
+        return DesktopDirectViewer.desktop_viewer_data_from_token(token, viewer_type)
+
+    @staticmethod
+    def get_direct_viewer_docs():
         docs_link = DesktopDirectViewer.desktop_viewer_docs()
         return docs_link
 
@@ -664,6 +674,20 @@ class DesktopService:
     def reset_desktop_from_token(token: str, request: Request) -> str:
         desktop_id = DesktopDirectViewer.reset_desktop(token, request)
         return desktop_id
+
+    @staticmethod
+    def get_desktop_networks_from_token(token):
+        desktop_id = DesktopDirectViewer.get_desktop_from_token(token)["id"]
+        return DesktopService.get_desktop_networks(desktop_id)
+
+    @staticmethod
+    def get_desktop_details_from_token(token: str) -> dict:
+        desktop_id = DesktopDirectViewer.get_desktop_from_token(token)["id"]
+        return DesktopService.get_desktop_details(desktop_id)
+
+    @staticmethod
+    def start_desktop_from_token(token, request):
+        return DesktopDirectViewer.start_desktop(token, request)
 
     @staticmethod
     def owns_desktop_viewer_by_desktop_id(

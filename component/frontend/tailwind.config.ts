@@ -242,7 +242,10 @@ export default {
           600: 'var(--badges-violet-600)',
           700: 'var(--badges-violet-700)',
           900: 'var(--badges-violet-900)'
-        }
+        },
+        // used for browser viewers and file viewers, respectively
+        'badges-viewer-blue': 'var(--badges-viewer-blue)',
+        'badges-viewer-violet': 'var(--badges-viewer-violet)'
       },
       spacing: {
         '0': 'var(--spacing-0)',

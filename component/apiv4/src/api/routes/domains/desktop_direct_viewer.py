@@ -49,6 +49,7 @@ from api.schemas.domains.desktop_direct_viewer import (
     DesktopViewerResponse,
     ViewersDocsResponse,
 )
+from api.schemas.domains.desktops import DesktopDetailsResponse, DesktopNetworksResponse
 from api.services.desktops import DesktopService
 from api.services.error import Error
 from cachetools import TTLCache, cached
@@ -227,7 +228,6 @@ _VIEWER_PROTOCOLS = {
     "browser-vnc",
     "browser-rdp",
     "file-rdpgw",
-    "file-rdpvpn",
 }
 
 
@@ -270,6 +270,132 @@ async def log_viewer_click(
         raise
     except Exception:
         log.warning("Direct viewer click logging failed", exc_info=True)
+        return await _timed_not_found(start_time)
+
+
+@direct_viewer_router.get(
+    "/item/desktop/token/{token}/get-networks",
+    tags=[tag],
+    response_model=DesktopNetworksResponse,
+    operation_id="get_networks_from_token",
+    summary="Get networks of a desktop from a direct viewer token",
+    description=(
+        "Returns the networks information about an IsardVDI desktop "
+        "identified by a direct viewer share token. Requires a direct "
+        "viewer JWT as Authorization bearer."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_desktop_networks_from_token(
+    request: Request,
+    token: str = Path(
+        ...,
+        description="Code provided for the desktop viewer. Mainly defined when generating the share link.",
+    ),
+):
+    start_time = time.time()
+    if direct_viewer_limiter.is_limited(request):
+        log.warning("Direct viewer rate limit exceeded for networks request")
+        return await _timed_not_found(start_time)
+    try:
+        networks = DesktopService.get_desktop_networks_from_token(token)
+        return JSONResponse(
+            content=DesktopNetworksResponse(networks=networks).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        log.warning("Direct viewer networks token lookup failed")
+        return await _timed_not_found(start_time)
+
+
+@direct_viewer_router.get(
+    "/item/desktop/token/{token}/get-details",
+    tags=[tag],
+    response_model=DesktopDetailsResponse,
+    operation_id="get_desktop_details_from_token",
+    summary="Get the details of a desktop from a direct viewer token",
+    description=(
+        "Returns the details of an IsardVDI desktop identified by a "
+        "direct viewer share token. Requires a direct viewer JWT as "
+        "Authorization bearer."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def get_desktop_details_from_token(
+    request: Request,
+    token: str = Path(
+        ...,
+        description="Code provided for the desktop viewer.",
+    ),
+):
+    start_time = time.time()
+    if direct_viewer_limiter.is_limited(request):
+        log.warning("Direct viewer rate limit exceeded for details request")
+        return await _timed_not_found(start_time)
+    try:
+        details = await asyncio.to_thread(
+            DesktopService.get_desktop_details_from_token, token
+        )
+        return JSONResponse(
+            content=DesktopDetailsResponse(**details).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        log.warning("Direct viewer details token lookup failed", exc_info=True)
+        return await _timed_not_found(start_time)
+
+
+@direct_viewer_router.put(
+    "/item/desktop/token/{token}/start-desktop",
+    tags=[tag],
+    response_model=SimpleResponse,
+    operation_id="start_desktop_from_token",
+    summary="Start a desktop from a direct viewer token",
+    description=(
+        "Starts an IsardVDI desktop identified by a direct viewer share "
+        "token. Requires a direct viewer JWT as Authorization bearer. "
+        "No-op if the desktop is not in a stopped/failed state."
+    ),
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def start_desktop(
+    request: Request,
+    token: str = Path(
+        ...,
+        description="Code provided for the desktop viewer. Mainly defined when generating the share link.",
+    ),
+):
+    start_time = time.time()
+    if direct_viewer_limiter.is_limited(request):
+        log.warning("Direct viewer rate limit exceeded for start request")
+        return await _timed_not_found(start_time)
+    try:
+        desktop_id = DesktopService.start_desktop_from_token(token, request)
+        return JSONResponse(
+            content=SimpleResponse(id=desktop_id).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        log.warning("Direct viewer start token lookup failed")
         return await _timed_not_found(start_time)
 
 

@@ -698,63 +698,22 @@
       }
     },
     "direct-viewer": {
-      "title": "Accés als visors d'escriptori:",
-      "logo-alt": "Logotip",
-      "loading": "S'està carregant",
-      "restart": "Reinicia",
-      "waitingip": "S'està esperant que l'escriptori s'engegui",
-      "powered-by": "Funciona amb {isardvdi}",
-      "errors": {
-        "not_found": "No s'ha trobat el recurs sol·licitat.",
-        "generic_error": "S'ha produït un error inesperat.",
-        "desktop_not_booked_until": "Aquest escriptori no està reservat fins a {start}.",
-        "direct_viewer_docs_not_found": "Documentació no trobada.",
-        "unable_to_reset_domain_jumperurl": "No s'ha pogut reiniciar l'escriptori."
+      "title": "Visor directe",
+      "connecting-to": "Accedeix a l'escriptori",
+      "loading": {
+        "title": "Carregant l'escriptori",
+        "description": "L'escriptori s'està preparant, això pot trigar uns moments"
       },
-      "browser": {
-        "title": "Accés a través d'aquest navegador",
-        "subtitle": "No requereix cap instal·lació"
-      },
-      "file": {
-        "title": "Accés a través d'aplicació",
-        "subtitle": "Cal tenir programari específic instal·lat (millor rendiment)"
-      },
-      "description": {
-        "vnc": "Accés a l'escriptori en aquest navegador",
-        "rdp": "Accés a l'escriptori en aquest navegador (requereix l'usuari i contrasenya de l'escriptori Windows)",
-        "spice": "Accés a l'escriptori a través d'un fitxer que cal obrir amb el programa remote-viewer",
-        "rdpgw": "Windows inclou el programari necessari per al seu ús"
-      },
-      "help": {
-        "spice": {
-          "spice-help": "Instruccions d'instal·lació de SPICE",
-          "local-client": "Utilitza el client local (recomanat)",
-          "best-performance": "És l'opció amb millor rendiment",
-          "spice-client-required": "però es requereix una aplicació externa.",
-          "generic-text": "Feu clic al següent enllaç per trobar enllaços de descàrrega i instruccions d'instal·lació:",
-          "download-install": "Descarrega el programari del visor",
-          "once-installed": "Un cop instal·lat, feu clic al botó 'SPICE', que descarregarà el fitxer de l'escriptori virtual.",
-          "close-guide": "Tanca la guia"
-        },
-        "rdp": {
-          "rdp-help": "Instruccions d'instal·lació de RDP",
-          "local-client": "Utilitza el client RDP (recomanat)",
-          "included": "Windows inclou el programari necessari per al seu ús,",
-          "client-required": "però en altres sistemes operatius pot requerir la instal·lació d'una aplicació externa. Consulteu les instruccions d'instal·lació:",
-          "download-install": "Descarrega el programari del visor",
-          "once-installed": "Un cop instal·lat, feu clic al botó 'RDP', que descarregarà el fitxer de l'escriptori virtual.",
-          "close-guide": "Tanca la guia"
-        }
-      },
+      "error-title": "No s'ha pogut connectar",
+      "error-description": "L'enllaç del visor directe no és vàlid o ha caducat.",
       "reset-modal": {
-        "title": "Reinicia l'escriptori",
-        "option": {
-          "reset-desktop": "Forçar el reinici d'un escriptori és una acció perillosa. És equivalent a desendollar-lo mentre s'està executant. Si pots, atura'l des d'un visor."
-        },
-        "confirmation": {
-          "reset-desktop": "Força el reinici de l'escriptori"
-        }
-      }
+        "title": "Forçar reinici de l'escriptori?",
+        "description": "Forçar el reinici de l'escriptori es una acció perillosa. És l'equivalent a treure-li la corrent mentres està en marxa. Si pots, atura'l desde dins d'un visor.",
+        "confirm": "Forçar reinici de l'escriptori",
+        "cancel": "Cancel·la"
+      },
+      "hardware-summary": "Resum del maquinari",
+      "access-summary": "Resum d'accés"
     },
     "edit-desktop": {
       "title": "Edita l’escriptori",
@@ -1221,7 +1180,8 @@
           "recreate": "Recrea",
           "template": "Converteix en plantilla",
           "change-image": "Canvia la imatge",
-          "storage": "Emmagatzematge"
+          "storage": "Emmagatzematge",
+          "reset": "Reinicia"
         },
         "debug-options": {
           "copy-id": "Copia l'ID de l'escriptori"
@@ -1505,21 +1465,46 @@
         "rdp-vpn": "RDP VPN"
       }
     },
-    "domain-hardware-summary": {
-      "system": {
-        "title": "Sistema"
+    "change-viewer-modal": {
+      "title": "Canviar visor",
+      "subtitle": "Pots visualitzar aquest escriptori des del navegador o amb un client d'escriptori remot.",
+      "badge": {
+        "browser": "Navegador",
+        "application": "Aplicació"
       },
-      "networks": {
-        "title": "Xarxes"
+      "show-guide": "Mostra la guia",
+      "confirm": "Canvia",
+      "cancel": "Cancel·la",
+      "bullets": {
+        "browser-vnc": {
+          "0": "Funciona en qualsevol navegador modern",
+          "1": "Latència mitjana",
+          "2": "Sense àudio disponible"
+        },
+        "browser-rdp": {
+          "0": "Funciona en qualsevol navegador modern",
+          "1": "Latència baixa",
+          "2": "Amb àudio i porta-retalls",
+          "3": "Requereix la xarxa WireGuard"
+        },
+        "file-spice": {
+          "0": "Latència baixa amb àudio",
+          "1": "Connecta dispositius externs (USB, etc.)",
+          "2": "Requereix virt-viewer instal·lat"
+        },
+        "file-rdpgw": {
+          "0": "Latència baixa amb àudio",
+          "1": "Connecta dispositius externs (USB, etc.)",
+          "2": "Millor experiència en escriptoris Windows",
+          "3": "Requereix la xarxa WireGuard"
+        },
+        "file-rdpvpn": {
+          "0": "Latència baixa amb àudio",
+          "1": "Connecta dispositius externs (USB, etc.)",
+          "2": "Millor experiència en escriptoris Windows",
+          "3": "Requereix accés VPN amb client WireGuard"
+        }
       },
-      "peripherals": {
-        "title": "Perifèrics"
-      },
-      "reservables": {
-        "title": "Reservables"
-      }
-    },
-    "datatable": {
       "empty": "No hi ha escriptoris disponibles",
       "pagination": {
         "rows": "files",

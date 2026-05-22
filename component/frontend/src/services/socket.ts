@@ -2,7 +2,7 @@ import { io } from 'socket.io-client'
 import { webSockets } from '@/lib/constants'
 import { useAuthStore } from '@/stores/auth'
 
-export function createSocket() {
+export function createSocket(jwtOverride?: string) {
   return io(`/userspace`, {
     path: webSockets,
     // socket.io-client v4 accepts `auth` as a function that's invoked on
@@ -10,7 +10,8 @@ export function createSocket() {
     // call time so the infinite reconnection loop picks up tokens refreshed
     // mid-session by renewSession(), instead of replaying an expired JWT
     // captured at socket-construction time forever.
-    auth: (cb) => cb({ jwt: useAuthStore().token ?? '' }),
+    // Direct-viewer callers pass an explicit jwt (desktop-scoped, no auth store session).
+    auth: (cb) => cb({ jwt: jwtOverride ?? useAuthStore().token ?? '' }),
     transports: ['websocket'],
     rememberUpgrade: true,
     reconnection: true,

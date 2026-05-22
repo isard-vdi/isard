@@ -1,336 +1,546 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import { useI18n } from 'vue-i18n'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { io, type Socket } from 'socket.io-client'
-import { useCookies } from '@vueuse/integrations/useCookies'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/vue-query'
+import { AlertModal } from '@/components/modal'
+
 import {
   getDesktopViewerByTokenOptions,
   getDesktopViewerByTokenQueryKey,
-  getViewerDocsOptions,
   apiV4LoginConfigOptions
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
-import { DesktopStatusEnum, type DesktopViewerResponse, type ErrorResponse } from '@/gen/oas/apiv4'
-import { webSockets } from '@/lib/constants'
-import { formatAsTime, utcToLocalTime } from '@/lib/booking/date-utils'
 import {
-  DirectViewerButton,
-  DirectViewerHelpRDP,
-  DirectViewerHelpSpice,
-  DirectViewerResetModal,
-  DirectViewerSkeleton
-} from '@/components/direct-viewer'
-import { Spinner } from '@/components/ui/spinner'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Icon } from '@/components/icon'
+  resetDesktop as resetDesktopRequest,
+  type DesktopDetailsResponse,
+  type ViewersModel
+} from '@/gen/oas/apiv4'
+import { DesktopStatusEnum } from '@/gen/oas/apiv4/types.gen'
+import { createClient, createConfig } from '@/gen/oas/apiv4/client'
 
-const { t, locale } = useI18n()
+import {
+  desktopActionsData,
+  desktopBookingNotificationText,
+  DesktopActionsEnum
+} from '@/lib/desktops'
+
+import { useDirectViewerSocket } from '@/services/directViewerSocket'
+
+import {
+  DesktopCardBase,
+  DesktopCardHeader,
+  DesktopCardFooter,
+  DesktopCardIp,
+  DesktopCardNetworksOverlay
+} from '@/components/desktop-card'
+import { Button } from '@/components/ui/button'
+import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
+import { Icon } from '@/components/icon'
+import { LoginNotification } from '@/components/login'
+import { ChangeViewerModal } from '@/components/modal'
+import { DesktopCardSkeleton } from '@/components/desktop-card'
+import DomainHardwareSummary from '@/components/domain/DomainHardwareSummary.vue'
+import LogoSvg from '@/assets/logo.svg?url'
+import Separator from '@/components/ui/separator/Separator.vue'
+import DomainAccessSummary from '@/components/domain/DomainAccessSummary.vue'
+
+const { t, d } = useI18n()
 const route = useRoute()
 const queryClient = useQueryClient()
-const cookies = useCookies(['viewerToken'])
+const cookies = vueuseCookies(['browser_viewer', 'viewerToken'])
 
-const token = computed(() => {
-  const param = route.params.token
-  return Array.isArray(param) ? param[0] : (param ?? '')
+// Path / sameSite are required so /viewer/noVNC/ can read both cookies; without path:/ the cookie is scoped to /direct/<token>.
+const VIEWER_COOKIE_OPTS = { path: '/', sameSite: 'strict' } as const
+
+const token = computed(() => route.params.token as string)
+
+// Isolated apiv4 client for this view: uses the viewer JWT returned by
+// get-viewer as its Authorization bearer. This deliberately bypasses the
+// global apiv4 client's auth interceptor so that a user who is already
+// logged in elsewhere keeps using their own JWT for other views.
+const directViewerClient = createClient(createConfig())
+
+const queryOptions = getDesktopViewerByTokenOptions({
+  path: { token: token.value },
+  client: directViewerClient
 })
+
+const {
+  isPending,
+  isError,
+  data: desktopViewer
+} = useQuery({
+  ...queryOptions,
+  enabled: !!token.value
+})
+
+const { data: loginConfig } = useQuery(apiV4LoginConfigOptions({ client: directViewerClient }))
+
+const queryKey = getDesktopViewerByTokenQueryKey({
+  path: { token: token.value }
+})
+const { isConnected, connect: connectSocket } = useDirectViewerSocket(token, queryClient, queryKey)
+
+// Desktop details (hardware) are fetched separately so the user can
+// see what they're about to launch while the viewer page is still
+// booting. The endpoint lives on `direct_viewer_router` and needs the
+// viewer JWT, so the query stays disabled until `directViewerClient`
+// has its Authorization header set in the watch below.
+const viewerJwt = ref<string | undefined>(undefined)
+const { data: desktopDetails, isPending: isDetailsPending } = useQuery<DesktopDetailsResponse>({
+  queryKey: ['direct-viewer-details', token],
+  enabled: computed(() => !!viewerJwt.value),
+  queryFn: async () => {
+    const { data, error } = await directViewerClient.get<DesktopDetailsResponse>({
+      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/get-details`
+    })
+    if (error) throw error
+    return data as DesktopDetailsResponse
+  }
+})
+
+const hardwareBootOrder = computed(() => desktopDetails.value?.boot_order?.map((b) => b.name))
+const hardwareVideos = computed(() => desktopDetails.value?.videos?.map((v) => v.name))
+const hardwareIsos = computed(() => desktopDetails.value?.isos?.map((m) => m.name))
+const hardwareFloppies = computed(() => desktopDetails.value?.floppies?.map((m) => m.name))
+const hardwareInterfaces = computed(() => desktopDetails.value?.interfaces?.map((n) => n.name))
+const hardwareDiskSize = computed(() => desktopDetails.value?.disks?.[0]?.size)
+const hardwareVgpus = computed(() => desktopDetails.value?.reservables?.vgpus ?? null)
+const hardwareViewers = computed(() => desktopDetails.value?.viewers ?? [])
+const hardwareFullscreen = computed(() => desktopDetails.value?.fullscreen ?? false)
+const hardwareCredentials = computed(() => ({
+  username: desktopDetails.value?.credentials?.username ?? 'isard',
+  password: desktopDetails.value?.credentials?.password ?? 'pirineus'
+}))
+
+watch(
+  () => desktopViewer.value?.jwt,
+  (jwt) => {
+    directViewerClient.setConfig({
+      headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined
+    })
+    viewerJwt.value = jwt
+    if (jwt) {
+      // noVNC reads `viewerToken` from document.cookie and uses it as the websocket security token (docker/static/noVNC/index.html: getCookie("viewerToken")). Without it the wss URL ends in `null` and websockify closes the connection.
+      cookies.set('viewerToken', jwt, VIEWER_COOKIE_OPTS)
+      if (!isConnected.value) {
+        connectSocket(jwt)
+      }
+    }
+  },
+  { immediate: true }
+)
+
+const mainButtonData = computed(() => {
+  if (!desktopViewer.value) return desktopActionsData(DesktopStatusEnum.UNKNOWN, false, true)
+  return desktopActionsData(desktopViewer.value.status, false, true)
+})
+
+const normalizeViewerId = (viewerId: string) => viewerId.replace(/_/g, '-')
+
+const viewerIds = computed<string[]>(() => {
+  if (!desktopViewer.value?.viewers) return []
+  const viewers = desktopViewer.value.viewers as Record<string, unknown>
+  return Object.entries(viewers)
+    .filter(([, value]) => value != null)
+    .map(([key]) => normalizeViewerId(key))
+})
+
+const selectedViewerId = ref<string | undefined>(undefined)
+
+const activeViewer = computed(() => {
+  if (selectedViewerId.value && viewerIds.value.includes(selectedViewerId.value)) {
+    return selectedViewerId.value
+  }
+  return viewerIds.value[0] ?? null
+})
+
+const activeViewerLabel = computed(() => {
+  if (!activeViewer.value) return ''
+  return t(`viewers.${activeViewer.value}`)
+})
+
+watch(
+  viewerIds,
+  (ids) => {
+    if (!selectedViewerId.value && ids.length > 0) {
+      selectedViewerId.value = ids[0]
+    }
+  },
+  { immediate: true }
+)
+
+// The card is rendered whenever `desktopViewer` exists, across every
+// status (started, stopped, failed, etc.) so the user always has an
+// action button and is never stranded when the owner stops the desktop
+// from elsewhere. The footer's `mainButtonData` drives what action is
+// shown per status.
+
+const isWaitingIp = computed(() => desktopViewer.value?.status === DesktopStatusEnum.WAITING_IP)
+
+const viewerNeedsIp = (viewerId: string) => viewerId.includes('rdp')
+
+const isViewerLoading = (viewerId: string) => isWaitingIp.value && viewerNeedsIp(viewerId)
+
+const activeViewerLoading = computed(() =>
+  activeViewer.value ? isViewerLoading(activeViewer.value) : false
+)
+
+const notificationText = computed<string | null>(() => {
+  if (!desktopViewer.value) return null
+
+  const dv = desktopViewer.value
+
+  const bookingText = desktopBookingNotificationText(dv, t, d)
+  if (bookingText) return bookingText
+
+  if (
+    [DesktopStatusEnum.STARTED, DesktopStatusEnum.WAITING_IP, DesktopStatusEnum.STARTING].includes(
+      dv.status
+    ) &&
+    dv.scheduled?.shutdown
+  ) {
+    const shutdownDate = new Date(dv.scheduled.shutdown)
+    return t('components.desktops.desktop-card.notification-bar.shutdown', {
+      date: d(shutdownDate, { dateStyle: 'short' }),
+      time: d(shutdownDate, { timeStyle: 'short' })
+    })
+  }
+
+  return null
+})
+
+const showNetworkOverlay = ref(false)
+const isViewerChangeModalOpen = ref(false)
+
+const logoSrc = ref('/custom/logo.svg')
+const handleLogoError = () => {
+  logoSrc.value = LogoSvg
+}
 
 const showResetModal = ref(false)
-const helpModal = ref<'spice' | 'rdp' | null>(null)
 
-const viewerQueryOptions = computed(() =>
-  getDesktopViewerByTokenOptions({
-    path: { token: token.value }
-  })
-)
-const viewerQueryKey = computed(() =>
-  getDesktopViewerByTokenQueryKey({
-    path: { token: token.value }
-  })
-)
-const {
-  data: viewerData,
-  error: viewerError,
-  isPending: viewerPending
-} = useQuery({
-  ...viewerQueryOptions.value,
-  queryKey: viewerQueryKey,
-  enabled: computed(() => !!token.value),
-  retry: false
-})
-
-const { data: viewerDocs } = useQuery(getViewerDocsOptions())
-const { data: loginConfig } = useQuery(apiV4LoginConfigOptions())
-
-const errorMessage = computed(() => {
-  if (!viewerError.value) return null
-  const err = viewerError.value as ErrorResponse | undefined
-  if (err?.description_code === 'desktop_not_booked_until' && err.params?.start) {
-    const localStart = utcToLocalTime(err.params.start as string)
-    return t('views.direct-viewer.errors.desktop_not_booked_until', { start: localStart })
+const { mutate: resetDesktop, isPending: isResetting } = useMutation({
+  mutationFn: async () => {
+    const { data, error } = await resetDesktopRequest({
+      path: { token: token.value },
+      client: directViewerClient
+    })
+    if (error) throw error
+    return data
+  },
+  onSuccess: () => {
+    showResetModal.value = false
   }
-  if (err?.description_code) {
-    return t(`views.direct-viewer.errors.${err.description_code}`, err.params ?? {})
+})
+
+// Start desktop (authenticated via the direct-viewer JWT). Used for
+// explicit user clicks after the owner has stopped the desktop from
+// elsewhere; initial auto-start is handled server-side by get-viewer.
+const { mutate: startDesktop } = useMutation({
+  mutationFn: async () => {
+    const { data, error } = await directViewerClient.put<{ id: string }>({
+      url: `/api/v4/item/desktop/token/${encodeURIComponent(token.value)}/start-desktop`
+    })
+    if (error) throw error
+    return data
   }
-  return t('views.direct-viewer.errors.not_found')
 })
 
-const viewersList = computed(() => {
-  const viewers = viewerData.value?.viewers ?? {}
-  return Object.values(viewers).filter((v): v is NonNullable<typeof v> => Boolean(v))
-})
+const handleDesktopAction = (action: DesktopActionsEnum) => {
+  switch (action) {
+    case DesktopActionsEnum.Reset:
+    case DesktopActionsEnum.Stop:
+      showResetModal.value = true
+      break
+    case DesktopActionsEnum.Start:
+      startDesktop()
+      break
+    default:
+      break
+  }
+}
 
-const browserViewers = computed(() => viewersList.value.filter((v) => v.kind === 'browser'))
-const fileViewers = computed(() => viewersList.value.filter((v) => v.kind === 'file'))
+const openViewer = (viewerId: string) => {
+  if (!desktopViewer.value?.viewers) return
+  const viewers = desktopViewer.value.viewers as Record<string, any>
+  const viewer = viewers[viewerId] ?? viewers[viewerId.replace(/-/g, '_')]
+  if (!viewer) return
 
-const viewerDescriptions = computed(
-  () =>
-    ({
-      vnc: t('views.direct-viewer.description.vnc'),
-      rdp: t('views.direct-viewer.description.rdp'),
-      spice: t('views.direct-viewer.description.spice'),
-      rdpgw: t('views.direct-viewer.description.rdpgw')
-    }) as Record<string, string>
-)
-
-const shutdownText = computed(() => {
-  const scheduled = viewerData.value?.scheduled
-  if (!scheduled?.shutdown || !viewerData.value?.name) return ''
-  return t('components.message-modal.messages.desktop-time-limit', {
-    name: viewerData.value.name,
-    date: formatAsTime(utcToLocalTime(scheduled.shutdown as string))
-  })
-})
-
-const isWaiting = computed(() => viewerData.value?.status === DesktopStatusEnum.WAITING_IP)
-
-let socket: Socket | null = null
-
-function openSocket(jwt: string, room: string) {
-  closeSocket()
-  socket = io('/userspace', {
-    path: webSockets,
-    auth: (cb) => cb({ jwt }),
-    query: { room },
-    transports: ['websocket'],
-    rememberUpgrade: true,
-    reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 2000,
-    randomizationFactor: 0.5,
-    timeout: 3000
-  })
-  socket.on('directviewer_update', (payload: string) => {
-    try {
-      const next = JSON.parse(payload) as DesktopViewerResponse
-      queryClient.setQueryData(viewerQueryKey.value, next)
-    } catch (err) {
-      console.warn('[direct-viewer] invalid payload:', err)
+  if (viewer.kind === 'browser') {
+    if (viewer.cookie) {
+      cookies.set('browser_viewer', viewer.cookie, VIEWER_COOKIE_OPTS)
     }
-  })
-  socket.connect()
-}
-
-function closeSocket() {
-  if (socket) {
-    socket.disconnect()
-    socket = null
-  }
-}
-
-function autoLaunchIfApplicable(data: DesktopViewerResponse) {
-  if (viewersList.value.length !== 1) return
-  const only = viewersList.value[0]
-  if (
-    only.kind === 'browser' &&
-    (only.protocol === 'vnc' ||
-      (only.protocol === 'rdp' && data.status !== DesktopStatusEnum.WAITING_IP))
-  ) {
-    triggerOpen.value = only
-  }
-}
-
-const triggerOpen = ref<unknown>(null)
-
-watch(viewerData, (data, prev) => {
-  if (!data || prev) return
-  cookies.set('viewerToken', data.jwt, { path: '/', sameSite: 'strict' })
-  openSocket(data.jwt, data.id)
-  autoLaunchIfApplicable(data)
-})
-
-watch(isWaiting, (next, prev) => {
-  if (prev === true && next === false) {
-    const data = viewerData.value
-    if (
-      data &&
-      viewersList.value.length === 1 &&
-      viewersList.value[0].kind === 'browser' &&
-      viewersList.value[0].protocol === 'rdp'
-    ) {
-      triggerOpen.value = viewersList.value[0]
+    if (viewer.viewer) {
+      // `direct=1` flips noVNC's cookie precedence to `viewerToken` (no session cookie exists in the direct-viewer flow).
+      const url = new URL(viewer.viewer, window.location.origin)
+      url.searchParams.set('direct', '1')
+      window.open(url.toString(), '_blank')
     }
+  } else if (viewer.kind === 'file' && viewer.name && viewer.ext && viewer.mime && viewer.content) {
+    downloadFile(viewer.name, viewer.ext, viewer.mime, viewer.content)
   }
-})
+}
 
-onMounted(() => {
-  document.title = t('views.direct-viewer.title')
-})
-
-onUnmounted(() => {
-  closeSocket()
-})
-
-const tokenStr = computed(() => token.value)
-const _ = locale
+const downloadFile = (name: string, ext: string, mime: string, content: string) => {
+  const el = document.createElement('a')
+  el.setAttribute('href', `data:${mime};charset=utf-8,${encodeURIComponent(content || '')}`)
+  el.setAttribute('download', `${name}.${ext}`)
+  el.style.display = 'none'
+  document.body.appendChild(el)
+  el.click()
+  document.body.removeChild(el)
+}
 </script>
 
 <template>
-  <div class="min-h-screen w-full bg-gray-warm-400 py-6">
-    <div class="max-w-5xl mx-auto px-2 md:px-8">
-      <Alert v-if="loginConfig?.notification_cover?.enabled" class="bg-white border-error-600 mb-4">
-        <AlertTitle v-if="loginConfig.notification_cover.title">
-          {{ loginConfig.notification_cover.title }}
-        </AlertTitle>
-        <AlertDescription>
-          {{ loginConfig.notification_cover.description }}
-        </AlertDescription>
-      </Alert>
-
-      <div
-        class="rounded-t-[30px] flex justify-center items-center"
-        style="background: #3a4445; height: 100px"
-      >
-        <div
-          class="rounded-full bg-white overflow-hidden flex items-center justify-center"
-          style="height: 110px; width: 110px; margin-top: 45px; z-index: 5"
-        >
-          <img
-            :src="'/api/v4/logo'"
-            :alt="t('views.direct-viewer.logo-alt')"
-            class="max-w-full max-h-full"
-          />
-        </div>
-      </div>
-
-      <div class="rounded-b-[30px] bg-gray-warm-100 px-4 pt-12 pb-8">
-        <div v-if="viewerError" class="text-center">
-          <Alert class="bg-white border-error-600 mb-4">
-            <AlertDescription>{{ errorMessage }}</AlertDescription>
-          </Alert>
-        </div>
-
-        <template v-else>
-          <div class="flex justify-end mb-2">
-            <Button
-              v-if="!viewerPending && viewerData"
-              hierarchy="destructive"
-              size="sm"
-              class="gap-2"
-              @click="showResetModal = true"
-            >
-              <Icon name="refresh-cw-05" stroke-color="base-white" size="sm" />
-              {{ t('views.direct-viewer.restart') }}
-            </Button>
-          </div>
-
-          <div class="text-center mb-6">
-            <h5 class="font-bold text-gray-warm-600 mb-2">
-              {{ t('views.direct-viewer.title') }}
-            </h5>
-            <div
-              v-if="!viewerData?.name && !viewerError"
-              class="flex items-center justify-center gap-2"
-            >
-              <h2 class="text-2xl font-bold">{{ t('views.direct-viewer.loading') }}</h2>
-              <Spinner size="sm" color="green" />
+  <div class="flex flex-col min-h-screen bg-base-background relative z-0 overflow-hidden">
+    <header class="flex items-center justify-between px-8 py-5 border-b border-gray-warm-200">
+      <h1 class="text-display-xs font-semibold text-gray-warm-900">
+        {{ t('views.direct-viewer.title') }}
+      </h1>
+      <img :src="logoSrc" alt="IsardVDI logo" class="h-[40px]" @error="handleLogoError" />
+    </header>
+    <main class="flex-1 flex flex-col items-center justify-center px-2">
+      <div class="w-full grid place-items-center">
+        <template v-if="isPending">
+          <div class="flex flex-col">
+            <div class="flex flex-col gap-2.5 items-center animate-pulse">
+              <div class="h-5 w-48 rounded-md bg-gray-warm-200"></div>
+              <div class="h-9 w-72 rounded-md bg-gray-warm-200"></div>
             </div>
-            <h1 v-else class="text-3xl font-bold">{{ viewerData?.name }}</h1>
-            <h4 v-if="shutdownText" class="text-gray-warm-600 mt-2">{{ shutdownText }}</h4>
-            <h5 v-if="viewerData?.description" class="text-gray-warm-600 mt-1">
-              {{ viewerData.description }}
-            </h5>
-          </div>
-
-          <div class="flex flex-row flex-wrap justify-center pt-2">
-            <template v-if="viewerPending">
-              <DirectViewerSkeleton />
-              <DirectViewerSkeleton />
-            </template>
-            <template v-else>
-              <div
-                v-if="browserViewers.length"
-                class="flex-1 min-w-[280px] max-w-md text-center px-2"
-              >
-                <h6 class="font-bold text-gray-warm-600 mb-2">
-                  {{ t('views.direct-viewer.browser.title') }}
-                </h6>
-                <div class="h-[75px] flex items-center justify-center text-sm text-gray-warm-500">
-                  <p>{{ t('views.direct-viewer.browser.subtitle') }}</p>
-                </div>
-                <DirectViewerButton
-                  v-for="viewer in browserViewers"
-                  :key="`${viewer.kind}-${viewer.protocol}`"
-                  :viewer="viewer"
-                  :state="viewerData?.status ?? ''"
-                  :description="viewerDescriptions[viewer.protocol]"
-                  :token="tokenStr"
-                  @help="(p) => (helpModal = p === 'spice' ? 'spice' : 'rdp')"
-                />
+            <Separator class="pt-4 pb-5" />
+            <div class="flex gap-10 items-start">
+              <div>
+                <DesktopCardSkeleton variant="started" class="shadow-md h-[310px] w-[433px]" />
               </div>
-
-              <div v-if="fileViewers.length" class="flex-1 min-w-[280px] max-w-md text-center px-2">
-                <h6 class="font-bold text-gray-warm-600 mb-2">
-                  {{ t('views.direct-viewer.file.title') }}
-                </h6>
-                <div class="h-[75px] flex items-center justify-center text-sm text-gray-warm-500">
-                  <p>{{ t('views.direct-viewer.file.subtitle') }}</p>
-                </div>
-                <DirectViewerButton
-                  v-for="viewer in fileViewers"
-                  :key="`${viewer.kind}-${viewer.protocol}`"
-                  :viewer="viewer"
-                  :state="viewerData?.status ?? ''"
-                  :description="viewerDescriptions[viewer.protocol]"
-                  :token="tokenStr"
-                  @help="(p) => (helpModal = p === 'spice' ? 'spice' : 'rdp')"
-                />
+              <div class="flex flex-col gap-10 max-w-[700px]">
+                <section
+                  class="p-5 rounded-md border border-gray-warm-200 shadow-md flex flex-col gap-7"
+                >
+                  <div>
+                    <div class="flex items-center gap-3 mb-3.5">
+                      <div class="w-1.5 h-4 rounded-full bg-brand-700"></div>
+                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
+                        {{ t('views.direct-viewer.access-summary') }}
+                      </h3>
+                    </div>
+                    <DomainAccessSummary
+                      :loading="true"
+                      :credentials="{ username: '', password: '' }"
+                      :fullscreen="false"
+                      :viewers="[]"
+                    />
+                  </div>
+                  <Separator />
+                  <div>
+                    <div class="flex items-center gap-3 mb-3.5">
+                      <div class="w-1.5 h-4 rounded-full bg-brand-700"></div>
+                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
+                        {{ t('views.direct-viewer.hardware-summary') }}
+                      </h3>
+                    </div>
+                    <DomainHardwareSummary :loading="true" />
+                  </div>
+                </section>
               </div>
-            </template>
+            </div>
           </div>
         </template>
-
-        <div class="text-center mt-8">
-          <a
-            href="https://www.isardvdi.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-gray-warm-600 hover:text-gray-warm-700"
+        <template v-else-if="isError">
+          <div
+            class="flex flex-col items-center gap-3 rounded-lg p-8 border border-error-300 bg-error-25"
           >
-            <i18n-t keypath="views.direct-viewer.powered-by" tag="p">
-              <template #isardvdi><strong>IsardVDI</strong></template>
-            </i18n-t>
-          </a>
-        </div>
+            <Icon name="alert-circle" stroke-color="error-600" size="lg" />
+            <h2 class="text-lg font-semibold text-error-700">
+              {{ t('views.direct-viewer.error-title') }}
+            </h2>
+            <p class="text-sm text-error-600 text-center">
+              {{ t('views.direct-viewer.error-description') }}
+            </p>
+          </div>
+        </template>
+        <template v-else-if="desktopViewer">
+          <div class="flex flex-col">
+            <div class="flex flex-col gap-1.5 items-center">
+              <p class="text-display-sm text-left font-light text-brand-700">
+                {{ t('views.direct-viewer.connecting-to') }}
+              </p>
+              <h2 class="text-display-md text-left font-semibold text-brand-700">
+                {{ desktopViewer.name }}
+              </h2>
+            </div>
+            <Separator class="pt-4 pb-5" />
+            <div class="flex gap-10 items-start">
+              <div>
+                <LoginNotification
+                  v-if="loginConfig?.notification_cover?.enabled"
+                  :config="loginConfig.notification_cover"
+                />
+                <div class="self-center">
+                  <DesktopCardBase
+                    desktop-kind="nonpersistent"
+                    :image-url="desktopViewer.image?.url ?? ''"
+                    :show-overlay="showNetworkOverlay"
+                    class="shadow-md"
+                  >
+                    <template #header-actions>
+                      <Button
+                        hierarchy="link-gray"
+                        size="sm"
+                        class="w-9! h-9! flex align-center justify-center bg-base-black/30 hover:bg-base-black/50 p-0! backdrop-blur-[4px]"
+                        icon="modem-02"
+                        icon-stroke-color="base-white"
+                        @click="showNetworkOverlay = !showNetworkOverlay"
+                      />
+                    </template>
+                    <template #ip>
+                      <DesktopCardIp :desktop-status="desktopViewer.status" :desktop-ip="null" />
+                    </template>
+                    <template #overlay>
+                      <div class="z-10 pl-[40px] pr-3 pb-2">
+                        <DesktopCardNetworksOverlay
+                          :desktop-id="desktopViewer.id"
+                          :direct-viewer-token="token"
+                          :direct-viewer-client="directViewerClient"
+                          :full-height="
+                            !(notificationText && desktopViewer.description?.trim().length !== 0)
+                          "
+                        />
+                      </div>
+                    </template>
+                    <template #header>
+                      <DesktopCardHeader
+                        :notification-text="notificationText"
+                        :name="desktopViewer.name"
+                        :description="desktopViewer.description || ''"
+                      />
+                    </template>
+                    <template #footer>
+                      <DesktopCardFooter
+                        :main-button-data="mainButtonData"
+                        :desktop-status="desktopViewer.status"
+                        :desktop-viewers="[]"
+                        :desktop-ip="null"
+                        :preferred-viewer="selectedViewerId"
+                        @main-button-click="
+                          handleDesktopAction(mainButtonData.actionButton!.action)
+                        "
+                      />
+                      <ButtonGroup v-if="viewerIds.length > 0" class="ml-auto min-w-0">
+                        <Button
+                          class="min-w-0 overflow-hidden"
+                          :icon="activeViewerLoading ? 'loading-02' : ''"
+                          :icon-class="
+                            activeViewerLoading
+                              ? 'motion-safe:animate-[spin_2s_linear_infinite]'
+                              : ''
+                          "
+                          :disabled="activeViewerLoading"
+                          @click="openViewer(activeViewer!)"
+                        >
+                          <span class="min-w-0 truncate">{{ activeViewerLabel }}</span>
+                        </Button>
+                        <template v-if="viewerIds.length > 1">
+                          <ButtonGroupSeparator color="brand-800" />
+                          <Button
+                            icon="settings-02"
+                            class="rounded-l-none"
+                            :aria-label="t('views.direct-viewer.select-viewer')"
+                            @click="isViewerChangeModalOpen = true"
+                          />
+                        </template>
+                      </ButtonGroup>
+                    </template>
+                  </DesktopCardBase>
+                </div>
+              </div>
+              <div class="flex flex-col gap-10 max-w-[700px]">
+                <section
+                  class="bg-gray-warm-50 p-5 rounded-md border border-gray-warm-200 shadow-md flex flex-col gap-7"
+                >
+                  <div>
+                    <div class="flex items-center gap-3 mb-3.5">
+                      <div class="w-1.5 h-4 rounded-full bg-brand-700 self-stretch"></div>
+                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
+                        {{ t('views.direct-viewer.access-summary') }}
+                      </h3>
+                    </div>
+                    <DomainAccessSummary
+                      :credentials="hardwareCredentials"
+                      :fullscreen="hardwareFullscreen"
+                      :viewers="hardwareViewers"
+                      :loading="isDetailsPending"
+                    />
+                  </div>
+                  <Separator />
+                  <div>
+                    <div class="flex items-center gap-3 mb-3.5">
+                      <div class="w-1.5 h-4 rounded-full bg-brand-700 self-stretch"></div>
+                      <h3 class="text-lg font-semibold text-gray-warm-900 leading-0">
+                        {{ t('views.direct-viewer.hardware-summary') }}
+                      </h3>
+                    </div>
+                    <DomainHardwareSummary
+                      :vcpu="desktopDetails?.vcpu"
+                      :memory="desktopDetails?.memory"
+                      :disk-bus="desktopDetails?.disk_bus"
+                      :disk-size="hardwareDiskSize"
+                      :boot-order="hardwareBootOrder"
+                      :videos="hardwareVideos"
+                      :isos="hardwareIsos"
+                      :floppies="hardwareFloppies"
+                      :vgpus="hardwareVgpus"
+                      :interfaces="hardwareInterfaces"
+                      :loading="isDetailsPending"
+                    />
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
-    </div>
+    </main>
+    <ChangeViewerModal
+      :open="isViewerChangeModalOpen"
+      :available-viewer-ids="viewerIds"
+      :current-viewer-id="activeViewer ?? ''"
+      @close="isViewerChangeModalOpen = false"
+      @change="(id) => (selectedViewerId = id)"
+    />
+    <img
+      src="@/assets/img/mountains.svg"
+      class="fixed bottom-0 right-0 -z-10 select-none pointer-events-none"
+    />
+    <img
+      src="@/assets/img/clouds.svg"
+      class="absolute hidden lg:block top-20 lg:left-0 xl:left-10 -z-10 select-none pointer-events-none"
+    />
 
-    <DirectViewerResetModal
+    <AlertModal
       :open="showResetModal"
-      :token="tokenStr"
-      @close="showResetModal = false"
-    />
-    <DirectViewerHelpSpice
-      :open="helpModal === 'spice'"
-      :documentation-url="viewerDocs?.viewers_documentation_url ?? ''"
-      @close="helpModal = null"
-    />
-    <DirectViewerHelpRDP
-      :open="helpModal === 'rdp'"
-      :documentation-url="viewerDocs?.viewers_documentation_url ?? ''"
-      @close="helpModal = null"
-    />
+      @update:open="showResetModal = $event"
+      level="warning"
+      size="lg"
+      :title="t('views.direct-viewer.reset-modal.title')"
+      :description="t('views.direct-viewer.reset-modal.description')"
+      :loading="isResetting"
+    >
+      <template #footer>
+        <Button
+          hierarchy="secondary-gray"
+          size="lg"
+          :disabled="isResetting"
+          @click="showResetModal = false"
+        >
+          {{ t('views.direct-viewer.reset-modal.cancel') }}
+        </Button>
+        <Button hierarchy="primary" size="lg" :disabled="isResetting" @click="resetDesktop()">
+          {{ t('views.direct-viewer.reset-modal.confirm') }}
+        </Button>
+      </template>
+    </AlertModal>
   </div>
 </template>

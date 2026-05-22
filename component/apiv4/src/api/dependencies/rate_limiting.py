@@ -57,5 +57,4 @@ ALLOWED_PROTOCOLS = {
     "browser-rdp",
     "file-spice",
     "file-rdpgw",
-    "file-rdpvpn",
 }

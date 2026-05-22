@@ -327,6 +327,7 @@ const router = createRouter({
     },
     {
       path: '/vw/:token',
+      alias: '/frontend/vw/:token',
       name: 'direct-viewer',
       component: () => import('../views/DirectViewerView.vue'),
       meta: { title: 'router.direct-viewer.title', public: true }

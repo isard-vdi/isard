@@ -10,6 +10,7 @@ export type UserDesktopWithQueue = UserDesktop & { queue?: number }
 export enum DesktopActionsEnum {
   Start = 'desktopStart',
   Stop = 'desktopStop',
+  Reset = 'desktopReset',
   AbortOperation = 'desktopAbortOperation',
   UpdateStatus = 'desktopUpdateStatus',
   // StartNow = 'desktopStartNow',
@@ -31,7 +32,11 @@ export interface DesktopActionsData {
     iconColor: string
   } | null
 }
-export const desktopActionsData = (status: string, needsBooking = false): DesktopActionsData => {
+export const desktopActionsData = (
+  status: string,
+  needsBooking = false,
+  directViewer = false
+): DesktopActionsData => {
   switch (status) {
     case DesktopStatusEnum.STOPPED:
       if (needsBooking) {
@@ -82,6 +87,18 @@ export const desktopActionsData = (status: string, needsBooking = false): Deskto
 
     case DesktopStatusEnum.STARTED:
     case DesktopStatusEnum.WAITING_IP:
+      if (directViewer) {
+        return {
+          actionButton: {
+            icon: 'refresh-cw-01',
+            hierarchy: 'destructive',
+            action: DesktopActionsEnum.Reset,
+            label: 'components.desktops.desktop-card.actions.reset'
+          },
+          viewers: true,
+          text: null
+        }
+      }
       return {
         actionButton: {
           icon: 'stop',
@@ -235,29 +252,8 @@ export const desktopNotificationText = (desktop: UserDesktopWithQueue, t, d) => 
     )
   }
 
-  if (desktop.needs_booking === true && desktop?.next_booking_start && desktop?.next_booking_end) {
-    const startDate: Date = new Date(desktop.next_booking_start)
-    const endDate: Date = new Date(desktop.next_booking_end)
-    const now: Date = new Date()
-
-    if (endDate > now && startDate < now) {
-      return t('components.desktops.desktop-card.notification-bar.booking-ends', {
-        date: d(endDate, { dateStyle: 'short' }),
-        time: d(endDate, { timeStyle: 'short' })
-      })
-    } else if (startDate > now) {
-      return t('components.desktops.desktop-card.notification-bar.next-booking', {
-        date: d(startDate, { dateStyle: 'short' }),
-        time: d(startDate, { timeStyle: 'short' })
-      })
-    } else {
-      return t('components.desktops.desktop-card.notification-bar.no-next-booking')
-    }
-  }
-
-  if (desktop.needs_booking === true && desktop.status === DesktopStatusEnum.STOPPED) {
-    return t('components.desktops.desktop-card.notification-bar.needs-booking')
-  }
+  const bookingText = desktopBookingNotificationText(desktop, t, d)
+  if (bookingText) return bookingText
 
   if (
     (
@@ -281,6 +277,47 @@ export const desktopNotificationText = (desktop: UserDesktopWithQueue, t, d) => 
     return t('components.desktops.desktop-card.notification-bar.queue-position', {
       position: desktop.queue
     })
+  }
+
+  return null
+}
+
+export interface DesktopNotificationData {
+  status: DesktopStatusEnum | string
+  needs_booking?: boolean | null
+  next_booking_start?: string | null
+  next_booking_end?: string | null
+  scheduled?: { shutdown?: string | boolean | false | null } | null
+  current_action?: string | null
+}
+
+export const desktopBookingNotificationText = (
+  desktop: DesktopNotificationData,
+  t,
+  d
+): string | null => {
+  if (desktop.needs_booking === true && desktop?.next_booking_start && desktop?.next_booking_end) {
+    const startDate: Date = new Date(desktop.next_booking_start)
+    const endDate: Date = new Date(desktop.next_booking_end)
+    const now: Date = new Date()
+
+    if (endDate > now && startDate < now) {
+      return t('components.desktops.desktop-card.notification-bar.booking-ends', {
+        date: d(endDate, { dateStyle: 'short' }),
+        time: d(endDate, { timeStyle: 'short' })
+      })
+    } else if (startDate > now) {
+      return t('components.desktops.desktop-card.notification-bar.next-booking', {
+        date: d(startDate, { dateStyle: 'short' }),
+        time: d(startDate, { timeStyle: 'short' })
+      })
+    } else {
+      return t('components.desktops.desktop-card.notification-bar.no-next-booking')
+    }
+  }
+
+  if (desktop.needs_booking === true && desktop.status === DesktopStatusEnum.STOPPED) {
+    return t('components.desktops.desktop-card.notification-bar.needs-booking')
   }
 
   return null

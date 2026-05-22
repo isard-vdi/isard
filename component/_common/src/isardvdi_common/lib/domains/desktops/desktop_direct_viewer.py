@@ -306,6 +306,7 @@ class DesktopDirectViewer(RethinkSharedConnection):
                 sched_src if isinstance(sched_src, dict) else {"shutdown": False}
             ),
             "viewers": {},
+            "image": domain.get("image"),
         }
         desktop_viewers = list(domain["guest_properties"]["viewers"].keys())
         if "file_spice" in desktop_viewers:
@@ -351,6 +352,26 @@ class DesktopDirectViewer(RethinkSharedConnection):
         return desktop
 
     @classmethod
+    def desktop_viewer_data_from_token(cls, token, viewer_type):
+        """Return the connection data for a single viewer type via share token.
+
+        Mirrors ``DesktopService.get_desktop_viewer``
+        """
+        domain = cls.desktop_from_token(token)
+        configured = list(domain["guest_properties"]["viewers"].keys())
+        protocol_key = viewer_type.replace("-", "_")
+        if protocol_key not in configured:
+            raise Error(
+                "not_found",
+                f"Viewer {viewer_type} is not configured for this desktop",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        return cls.desktop_viewer(
+            domain["id"], protocol=viewer_type, get_cookie=True, desktop=domain
+        )
+
+    @classmethod
     def reset_desktop(cls, token, request):
         """_From api/libv2/api_desktops_persistent.py ApiDesktopsPersistent.Reset()_"""
         desktop_id = cls.get_desktop_from_token(token)["id"]
@@ -359,6 +380,26 @@ class DesktopDirectViewer(RethinkSharedConnection):
         )
         DesktopEvents.desktop_reset(desktop_id)
 
+        return desktop_id
+
+    @classmethod
+    def start_desktop(cls, token, request):
+        """Start a desktop identified by its direct-viewer share token.
+
+        Only triggers an engine start when the desktop is currently stopped
+        or failed; other states are no-ops so the user isn't stuck and
+        repeat clicks stay idempotent.
+        """
+        domain = cls.get_desktop_from_token(token)
+        desktop_id = domain["id"]
+        if domain["status"] in [
+            DesktopStatusEnum.stopped.value,
+            DesktopStatusEnum.failed.value,
+        ]:
+            Logging.logs_domain_start_directviewer(desktop_id, user_request=request)
+            DesktopEvents.desktop_start(desktop_id, wait_seconds=60)
+            payload = Helpers.gen_payload_from_user(domain["user"])
+            Scheduler.add_desktop_timeouts(payload, desktop_id)
         return desktop_id
 
     @classmethod
