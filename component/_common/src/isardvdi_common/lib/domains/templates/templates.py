@@ -247,8 +247,20 @@ class TemplatesProcessed(RethinkSharedConnection):
         if not desktop_storage_id:
             raise Error(
                 "internal_server",
-                "Desktop disk has no storage_id",
+                f"Desktop {desktop_id} has no storage_id on its first disk",
                 description_code="desktop_disk_no_storage_id",
+            )
+        # Storage(...) goes through RethinkBase.__init__ which raises a
+        # generic "Document with id <id> does not exist." Reframe it so
+        # the message names both the desktop and the missing storage row
+        # — otherwise a dangling create_dict.hardware.disks[].storage_id
+        # surfaces as if the desktop itself were gone.
+        if not Storage.exists(desktop_storage_id):
+            raise Error(
+                "not_found",
+                f"Desktop {desktop_id} references storage {desktop_storage_id}, "
+                "but no such row exists in the storage table",
+                description_code="desktop_storage_missing",
             )
         desktop_storage = Storage(desktop_storage_id)
         if desktop_storage.status != "ready":
@@ -256,6 +268,29 @@ class TemplatesProcessed(RethinkSharedConnection):
                 "precondition_required",
                 f"Desktop storage is not ready (status={desktop_storage.status})",
                 description_code="desktop_storage_not_ready",
+            )
+
+        # Pre-check the source storage's pending-task state BEFORE
+        # allocating the template storage or inserting the template row.
+        # ``Storage.create_task(blocking=True)`` runs this same check
+        # later inside ``enqueue_template_creation_chain_from_desktop``;
+        # by the time it raises, the template doc + template storage row
+        # are already in the DB and never get cleaned up (orphans), so
+        # every retry hits 409 on the orphan name and no chain ever runs.
+        # Mirror the predicate here so we fail fast and leave nothing
+        # behind.
+        from isardvdi_common.models.task import Task
+
+        if (
+            desktop_storage.task
+            and Task.exists(desktop_storage.task)
+            and Task(desktop_storage.task).pending
+        ):
+            raise Error(
+                "precondition_required",
+                f"Desktop {desktop_id} has a pending storage task; "
+                "please retry once it completes",
+                description_code="storage_pending_task",
             )
 
         if Domain.exists(template_id):
@@ -375,11 +410,28 @@ class TemplatesProcessed(RethinkSharedConnection):
                 }
             ).run(cls._rdb_connection)
 
-        desktop_storage.enqueue_template_creation_chain_from_desktop(
-            desktop_id=desktop_id,
-            template_id=template_id,
-            template_storage_id=template_storage.id,
-        )
+        # Chain enqueue can still raise after the pre-check above on a
+        # tight race (e.g. another concurrent click slips a task in
+        # between). Roll back the template doc + template storage so
+        # the next user click gets a clean retry instead of a 409 on the
+        # orphan name (and an unrecoverable "Parent storage is not
+        # ready" 428 on every subsequent derive attempt).
+        try:
+            desktop_storage.enqueue_template_creation_chain_from_desktop(
+                desktop_id=desktop_id,
+                template_id=template_id,
+                template_storage_id=template_storage.id,
+            )
+        except Exception:
+            with cls._rdb_context():
+                r.table("domains").get(template_id).delete().run(cls._rdb_connection)
+                r.table("storage").get(template_storage.id).delete().run(
+                    cls._rdb_connection
+                )
+                r.table("domains").get(desktop_id).update(
+                    {"status": "Stopped", "parents": desktop.get("parents") or []}
+                ).run(cls._rdb_connection)
+            raise
 
         return template_id
 
