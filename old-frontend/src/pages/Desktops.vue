@@ -60,7 +60,7 @@
       >
         <template #title>
           <b-spinner
-            v-if="!getTemplatesLoaded"
+            v-if="currentTab === 'templates' && !getTemplatesLoaded"
             type="border"
             small
           />
@@ -129,11 +129,6 @@ export default {
     const config = computed(() => $store.getters.getConfig)
 
     watch(config, (newVal, prevVal) => {
-      if (newVal.showTemporalTab) {
-        $store.dispatch('fetchAllowedTemplates', 'all')
-      } else {
-        $store.dispatch('setTemplatesLoaded', true)
-      }
       if (newVal.canUseBastion) {
         $store.dispatch('fetchBastionTargets')
       }
