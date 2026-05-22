@@ -473,7 +473,7 @@ class Storage(RethinkCustomBase):
                     "dependents": [
                         {
                             "queue": "core",
-                            "task": "storage_domains_force_update",
+                            "task": "storage_update_parent",
                             "job_kwargs": {"kwargs": {"storage_id": self.id}},
                         }
                     ],
@@ -671,11 +671,6 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                             },
-                            {
-                                "queue": "core",
-                                "task": "storage_domains_force_update",
-                                "job_kwargs": {"kwargs": {"storage_id": self.id}},
-                            },
                         ],
                     },
                 ]
@@ -769,11 +764,6 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                             },
-                        },
-                        {
-                            "queue": "core",
-                            "task": "storage_domains_force_update",
-                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
                         },
                     ],
                 },
@@ -1520,23 +1510,34 @@ class Storage(RethinkCustomBase):
         :return: Root task ID
         :rtype: str
         """
+        # Typed ``Error`` so apiv4's exception mapper produces 404/428
+        # responses with a readable description, instead of a generic
+        # 500 from a plain ``Exception``. Import inside the function to
+        # avoid the snapshot-bind race documented in
+        # ``reference_apiv4_error_factory_race.md``.
+        from isardvdi_common.helpers.error_factory import Error
+
         if self.parent:
             if not Storage.exists(self.parent):
-                raise Exception(
+                raise Error(
                     "not_found",
                     f"Parent storage {self.parent} not found",
+                    description_code="parent_storage_not_found",
                 )
             storage_parent = Storage(self.parent)
             if storage_parent.status != "ready":
-                raise Exception(
+                raise Error(
                     "precondition_required",
-                    "Parent storage is not ready",
-                    "storage_not_ready",
+                    f"Parent storage {self.parent} is not ready "
+                    f"(status={storage_parent.status!r})",
+                    description_code="storage_not_ready",
                 )
             if storage_parent.type != self.type:
-                raise Exception(
+                raise Error(
                     "precondition_required",
-                    "Parent storage type does not match",
+                    f"Parent storage {self.parent} type ({storage_parent.type!r}) "
+                    f"does not match this storage type ({self.type!r})",
+                    description_code="parent_storage_type_mismatch",
                 )
             parent_args = {
                 "parent_path": storage_parent.path,
@@ -1544,9 +1545,10 @@ class Storage(RethinkCustomBase):
             }
         else:
             if not size:
-                raise Exception(
+                raise Error(
                     "bad_request",
                     "Scratch disk creation requires a size",
+                    description_code="scratch_size_required",
                 )
             parent_args = {}
 
@@ -1718,19 +1720,27 @@ class Storage(RethinkCustomBase):
             :meth:`rsync`).
         :return: Root task id.
         """
+        # Typed ``Error`` so apiv4 maps to 404/428 instead of falling
+        # through to 500. See the note in
+        # ``enqueue_disk_creation_chain_for_domain`` for the in-function
+        # import rationale.
+        from isardvdi_common.helpers.error_factory import Error
+
         if not Storage.exists(template_storage_id):
-            raise Exception(
+            raise Error(
                 "not_found",
                 f"Template storage {template_storage_id} not found",
+                description_code="template_storage_not_found",
             )
         template_storage = Storage(template_storage_id)
         dst_pool = template_storage.pool
         src_pool = self.pool
         if dst_pool is None or src_pool is None:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"No storage pool resolved for template {template_storage_id} "
                 f"or desktop {desktop_id}",
+                description_code="storage_no_pool",
             )
 
         # The new template storage is fresh (status="non_existing"); the
@@ -1786,6 +1796,23 @@ class Storage(RethinkCustomBase):
                                     "queue": "core",
                                     "task": "storage_update",
                                     "dependents": [
+                                        # Mirror main's post-SSH
+                                        # ``Storage(template_storage_id).find()``:
+                                        # re-resolve template_storage.parent
+                                        # from on-disk backing-filename via
+                                        # storage_update_parent. Without
+                                        # this, the new template row stays
+                                        # with parent=None even when the
+                                        # disk has a real backing file.
+                                        {
+                                            "queue": "core",
+                                            "task": "storage_update_parent",
+                                            "job_kwargs": {
+                                                "kwargs": {
+                                                    "storage_id": template_storage_id,
+                                                }
+                                            },
+                                        },
                                         {
                                             "queue": f"storage.{src_pool.id}.{priority}",
                                             "task": "qemu_img_info_backing_chain",
@@ -1800,6 +1827,23 @@ class Storage(RethinkCustomBase):
                                                     "queue": "core",
                                                     "task": "storage_update",
                                                     "dependents": [
+                                                        # Mirror main's
+                                                        # post-SSH
+                                                        # ``Storage(domain_storage_id).find()``:
+                                                        # flip the desktop
+                                                        # storage's parent
+                                                        # to the new
+                                                        # template via
+                                                        # storage_update_parent.
+                                                        {
+                                                            "queue": "core",
+                                                            "task": "storage_update_parent",
+                                                            "job_kwargs": {
+                                                                "kwargs": {
+                                                                    "storage_id": self.id,
+                                                                }
+                                                            },
+                                                        },
                                                         {
                                                             "queue": "core",
                                                             "task": "update_status",
@@ -1833,11 +1877,11 @@ class Storage(RethinkCustomBase):
                                                                     },
                                                                 },
                                                             },
-                                                        }
+                                                        },
                                                     ],
                                                 }
                                             ],
-                                        }
+                                        },
                                     ],
                                 }
                             ],
@@ -2081,7 +2125,7 @@ class Storage(RethinkCustomBase):
                                     "dependents": [
                                         {
                                             "queue": "core",
-                                            "task": "storage_domains_force_update",
+                                            "task": "storage_update_parent",
                                             "job_kwargs": {
                                                 "kwargs": {"storage_id": self.id}
                                             },
