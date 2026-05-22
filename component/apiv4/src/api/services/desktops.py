@@ -945,9 +945,10 @@ class DesktopService:
         for create_dict in create_dict_list:
             hardware = create_dict["hardware"]
             template = RethinkDomain(create_dict["template"])
-            hardware["disks"] = [
-                {"extension": "qcow2", "parent": template.hardware["disks"][0]["file"]}
-            ]
+            # Path-shaped ``parent`` lineage marker not written: see
+            # PR3. ``storage.parent`` UUID + qcow2 header are the
+            # chain representations consumed downstream.
+            hardware["disks"] = [{"extension": "qcow2"}]
             interfaces = []
             hardware["graphics"] = ["default"]
             for interface in hardware.get("interfaces"):

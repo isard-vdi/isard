@@ -30,7 +30,6 @@ from isardvdi_common.helpers.cards import Cards
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.xml_compression import compress_xml, decompress_xml
-from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.user import User
@@ -217,8 +216,6 @@ class TemplatesProcessed(RethinkSharedConnection):
                 description_code="desktop_storage_not_ready",
             )
 
-        parent_disk = resolve_parent_disk(desktop)
-
         # Resolve the desktop's existing storage row. The chain rewrites
         # its on-disk file from a base disk into an overlay backed by the
         # new template — the row stays bound to the desktop and its
@@ -318,11 +315,16 @@ class TemplatesProcessed(RethinkSharedConnection):
         # ``file`` *before* domain insert — same invariant
         # ``DesktopService.create_from_media`` enforces, so apiv4 restart
         # cleanup can trace the in-flight chain via the
-        # ``domains.storage_ids`` multi-index.
+        # ``domains.storage_ids`` multi-index. The lineage-marker
+        # ``parent`` (path string) is intentionally NOT written: nothing
+        # on this branch reads it (engine resolves the backing chain
+        # from ``storage.parent`` directly in ``domain_xml.py:1602``,
+        # the chain cascade walks ``domain.parents`` UUIDs, and the
+        # qcow2 file header is the on-disk ground truth). Leaving it
+        # unset keeps the field None per the optional Disk schema.
         hardware["disks"] = [
             {
                 "extension": "qcow2",
-                "parent": parent_disk,
                 "storage_id": template_storage.id,
                 "file": template_storage.path,
             }

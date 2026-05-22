@@ -52,7 +52,6 @@ from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
     ReservablesPlannerCompute,
 )
-from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.lib.domains.templates.templates import TemplatesProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.models.domain import Domain
@@ -493,11 +492,14 @@ class DesktopsProcessed(RethinkSharedConnection):
             create_dict["hardware"]["interfaces"]
         )
 
-        # Add the disks to the create_dict so the new qcow2 disk are created
-        parent_disk = resolve_parent_disk(template)
-        create_dict["hardware"]["disks"] = [
-            {"extension": "qcow2", "parent": parent_disk}
-        ]
+        # Add the disks to the create_dict so the new qcow2 disk are created.
+        # The path-shaped ``parent`` lineage marker is not written: nothing
+        # on this branch reads ``disks[*].parent`` (engine resolves the
+        # backing chain from ``storage.parent`` directly, the chain
+        # cascade walks ``domain.parents``, and the qcow2 header is the
+        # on-disk ground truth). See the PR3 commit description for the
+        # full audit.
+        create_dict["hardware"]["disks"] = [{"extension": "qcow2"}]
 
         # Allocate the storage row before inserting the domain so
         # ``disks[0].storage_id`` is populated at insert time. That lets

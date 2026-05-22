@@ -247,83 +247,42 @@ def test_domain_change_storage_raises_when_storage_not_ready_for_create_domain()
             domain.handle_domain_change_storage(task, domain_id="d1", storage_id="s1")
 
 
-# ``disk["parent"]`` shape: domain.create_dict.hardware.disks[*].parent
-# is consumed downstream as a backing-file PATH (engine's domain_xml /
-# qcow.create_disk_from_base_cmd / libvirt-define). ``storage.parent`` is
-# a UUID. The handler must resolve UUID -> path before writing into the
-# disk, otherwise libvirt-define sees a UUID string where a real file
-# path is required and fails. Mirrors main's
-# ``engine.services.lib.storage.insert_storage`` shape contract.
+# ``handle_domain_change_storage`` updates the domain's disks[0] with
+# the new storage's id and on-disk file path. It no longer writes
+# ``disk["parent"]`` — see PR3: the path-shaped lineage marker has no
+# runtime consumer on this branch (engine reads ``disk["file"]`` for
+# libvirt and ``storage.parent`` UUID for storage chain; the cascade
+# walks ``domain.parents``; the qcow2 header is the on-disk ground
+# truth). Tests below pin the new contract: only storage_id and file
+# are written; the field formerly populated by the handler is left
+# untouched.
 
 
-def _domain_change_storage_setup(parent_uuid, parent_storage_path):
-    """Common fixture: a Ready storage whose ``parent`` is ``parent_uuid``;
-    the parent storage row resolves to ``parent_storage_path``."""
+def test_domain_change_storage_writes_storage_id_and_file_only():
+    """Pin the post-PR3 contract: only ``storage_id`` and ``file`` are
+    written. ``disk["parent"]`` MUST NOT be touched (no consumer of the
+    path-shaped lineage marker remains)."""
+    from isardvdi_change_handler.task_results import domain
+
+    task = _task()
     fake_domain = MagicMock()
     fake_domain.status = "Stopped"
     fake_domain.create_dict = {
         "hardware": {
-            "disks": [{"storage_id": "old-storage", "file": "old.qcow2", "parent": ""}]
+            "disks": [
+                {
+                    "storage_id": "old-storage",
+                    "file": "/isard/groups/old-storage.qcow2",
+                    "parent": "stale-leftover-from-an-earlier-write",
+                }
+            ]
         }
     }
     fake_storage = MagicMock()
     fake_storage.status = "ready"
     fake_storage.path = "/isard/groups/new-storage.qcow2"
-    fake_storage.parent = parent_uuid
-    fake_parent_storage = MagicMock()
-    fake_parent_storage.path = parent_storage_path
-    return fake_domain, fake_storage, fake_parent_storage
+    fake_storage.parent = "ignored-by-this-handler-now"
 
-
-def test_domain_change_storage_writes_path_not_uuid_into_parent():
-    """When storage.parent is a UUID, the handler must resolve it to the
-    parent storage row's path before writing into ``disk["parent"]``."""
-    from isardvdi_change_handler.task_results import domain
-
-    task = _task()
-    parent_uuid = "tpl-storage-uuid-42"
-    parent_path = "/isard/templates/tpl-storage-uuid-42.qcow2"
-    fake_domain, fake_storage, fake_parent_storage = _domain_change_storage_setup(
-        parent_uuid, parent_path
-    )
-    with (
-        patch.object(domain, "Domain") as mock_domain_cls,
-        patch.object(domain, "Storage") as mock_storage_cls,
-    ):
-        mock_domain_cls.exists.return_value = True
-
-        def storage_side_effect(arg):
-            return fake_storage if arg == "new-storage" else fake_parent_storage
-
-        def exists_side_effect(arg):
-            return True
-
-        mock_storage_cls.exists.side_effect = exists_side_effect
-        mock_storage_cls.side_effect = storage_side_effect
-        mock_domain_cls.return_value = fake_domain
-
-        domain.handle_domain_change_storage(
-            task, domain_id="d1", storage_id="new-storage"
-        )
-
-    disk = fake_domain.create_dict["hardware"]["disks"][0]
-    assert disk["storage_id"] == "new-storage"
-    assert disk["file"] == "/isard/groups/new-storage.qcow2"
-    assert disk["parent"] == parent_path
-    # Reject the regression shape explicitly: the UUID must never end up
-    # in the path field, otherwise libvirt-define gets a non-path string.
-    assert disk["parent"] != parent_uuid
-
-
-def test_domain_change_storage_with_none_parent_writes_empty_string():
-    """Base-disk case: storage.parent is None, disk["parent"] must be
-    "" — matches what main's ``insert_storage`` writes for base disks."""
-    from isardvdi_change_handler.task_results import domain
-
-    task = _task()
-    fake_domain, fake_storage, _ = _domain_change_storage_setup(
-        parent_uuid=None, parent_storage_path="(unused)"
-    )
     with (
         patch.object(domain, "Domain") as mock_domain_cls,
         patch.object(domain, "Storage") as mock_storage_cls,
@@ -338,27 +297,43 @@ def test_domain_change_storage_with_none_parent_writes_empty_string():
         )
 
     disk = fake_domain.create_dict["hardware"]["disks"][0]
-    assert disk["parent"] == ""
+    assert disk["storage_id"] == "new-storage"
+    assert disk["file"] == "/isard/groups/new-storage.qcow2"
+    # Stale leftover survives — handler does not touch the field.
+    assert disk["parent"] == "stale-leftover-from-an-earlier-write"
 
 
-def test_domain_change_storage_with_missing_parent_storage_writes_empty_string():
-    """Defensive case: storage.parent is set but the parent storage row
-    was deleted. Handler must not raise — it writes "" so engine prep
-    doesn't downstream-trip on a UUID-shaped path."""
+def test_domain_change_storage_does_not_call_storage_parent_resolution():
+    """Defensive: ensure the handler does not even dereference
+    ``storage.parent`` (which would create needless rdb load on every
+    storage change). The earlier version called ``Storage.exists`` and
+    constructed ``Storage(storage.parent)`` to resolve a path; PR3
+    removed that."""
     from isardvdi_change_handler.task_results import domain
 
     task = _task()
-    parent_uuid = "deleted-parent-uuid"
-    fake_domain, fake_storage, _ = _domain_change_storage_setup(
-        parent_uuid=parent_uuid, parent_storage_path="(unused)"
-    )
+    fake_domain = MagicMock()
+    fake_domain.status = "Stopped"
+    fake_domain.create_dict = {
+        "hardware": {"disks": [{"storage_id": "old", "file": "old.qcow2"}]}
+    }
+    fake_storage = MagicMock()
+    fake_storage.status = "ready"
+    fake_storage.path = "/isard/groups/new.qcow2"
+    # If the handler tried to read storage.parent we'd see it via the
+    # mock attribute access record below.
+    fake_storage.parent = "should-not-be-read"
+
     with (
         patch.object(domain, "Domain") as mock_domain_cls,
         patch.object(domain, "Storage") as mock_storage_cls,
     ):
         mock_domain_cls.exists.return_value = True
-        # exists(new-storage)=True, exists(parent-uuid)=False
-        mock_storage_cls.exists.side_effect = lambda arg: arg != parent_uuid
+        # If the handler still tried to do Storage.exists(storage.parent)
+        # OR Storage(storage.parent), the second mock_storage_cls call
+        # would happen. Pin exists called only for the precondition
+        # check (if any) — see below.
+        mock_storage_cls.exists.return_value = True
         mock_storage_cls.return_value = fake_storage
         mock_domain_cls.return_value = fake_domain
 
@@ -366,5 +341,8 @@ def test_domain_change_storage_with_missing_parent_storage_writes_empty_string()
             task, domain_id="d1", storage_id="new-storage"
         )
 
-    disk = fake_domain.create_dict["hardware"]["disks"][0]
-    assert disk["parent"] == ""
+    # Storage(...) constructor should be called EXACTLY ONCE (for the
+    # new storage). The old behaviour also called it a second time to
+    # resolve storage.parent into a path.
+    assert mock_storage_cls.call_count == 1
+    mock_storage_cls.assert_called_once_with("new-storage")
