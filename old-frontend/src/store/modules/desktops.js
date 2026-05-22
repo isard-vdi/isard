@@ -5,7 +5,6 @@ import * as cookies from 'tiny-cookie'
 import { apiV3Segment, sessionCookieName } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
 import { DirectViewerUtils } from '../../utils/directViewerUtils'
-import { ConfigUtils } from '../../utils/configUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
 import { DateUtils } from '../../utils/dateUtils'
 import { jwtDecode } from 'jwt-decode'
@@ -475,9 +474,9 @@ export default {
     },
     getDirectViewers (context, payload) {
       axios.get(`${apiV3Segment}/direct/docs`).then(response => {
-        const config = context.getters.getConfig
+        const config = { ...context.getters.getConfig }
         config.viewersDocumentationUrl = response.data.viewers_documentation_url
-        context.commit('setConfig', ConfigUtils.parseConfig(config))
+        context.commit('setConfig', config)
       })
       return axios.get(`/api/v3/direct/${payload.token}`).then(response => {
         context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(response.data))
