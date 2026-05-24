@@ -24,7 +24,11 @@ import traceback
 from typing import Literal, Optional
 
 from api import admin_router, advanced_router, manager_router, token_router
-from api.dependencies.alloweds import allowed_deployment_action, owns_domain_id
+from api.dependencies.alloweds import (
+    allowed_deployment_action,
+    owns_deployment_id,
+    owns_domain_id,
+)
 from api.dependencies.bastion import (
     bastion_domain_verification_required,
     can_use_bastion,
@@ -871,12 +875,15 @@ async def get_desktop_images(
 @token_router.delete(
     "/item/desktop/{deployment_id}/{user_id}",
     tags=[tag],
+    # Gate deletion to deployment owners/co-owners; no service-level check exists.
+    dependencies=[Depends(owns_deployment_id())],
     response_model=DeleteResponse,
     status_code=202,
     summary="Delete user desktops from a deployment",
     description="Deletes all desktops belonging to one user inside a deployment",
     responses={
         202: {"model": DeleteResponse},
+        403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
