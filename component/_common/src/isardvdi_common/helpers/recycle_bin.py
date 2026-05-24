@@ -1010,10 +1010,12 @@ class Helpers(RethinkSharedConnection):
                 .pluck("category")["category"]
                 .run(cls._rdb_connection)
             )
+            # default(None) when the legacy category row lacks the field, so the fallback below fires
             cutoff_time = (
                 r.table("categories")
                 .get(user_category)
                 .pluck("recycle_bin_cutoff_time")["recycle_bin_cutoff_time"]
+                .default(None)
                 .run(cls._rdb_connection)
             )
         return (
