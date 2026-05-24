@@ -93,12 +93,31 @@ class Bookings(RethinkSharedConnection):
                     description_code="not_found",
                 )
 
-            # Filter out None values
+            # Filter out None values. ``create_dict`` may be empty for a
+            # deployment whose desktops haven't been spawned yet, and each
+            # item's ``reservables`` may be absent or ``None`` for Vue 3
+            # deployments without a GPU pin — both shapes raise here without
+            # the defensive ``.get``s. Mirrors the same pattern already
+            # applied to ``valid_vgpus`` in
+            # ``lib/deployments/deployments.py:1052-1056``.
             valid_vgpus = [
-                tuple(item["reservables"]["vgpus"])
-                for item in deployment["create_dict"]
-                if item["reservables"]["vgpus"] is not None
+                tuple((item.get("reservables") or {}).get("vgpus") or [])
+                for item in (deployment.get("create_dict") or [])
+                if (item.get("reservables") or {}).get("vgpus") is not None
             ]
+            # No vgpu pin anywhere in the deployment → there is no
+            # reservable to plan availability over. Match the desktop
+            # branch above (line ~75) and raise a precondition error
+            # so the frontend can omit the booking UI for this case
+            # rather than chasing 5xx cascades deep inside the planner
+            # (booking_provisioning indexes an empty resource_planner
+            # dict and IndexErrors).
+            if not valid_vgpus:
+                raise Error(
+                    "precondition_required",
+                    "Deployment has no reservables to plan availability over",
+                    description_code="no_reservables",
+                )
 
             # Check that all the gpus are the same
             if valid_vgpus and any(v != valid_vgpus[0] for v in valid_vgpus):

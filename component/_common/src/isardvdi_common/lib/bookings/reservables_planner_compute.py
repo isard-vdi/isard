@@ -595,6 +595,14 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
         priority = None
         items_priority = {}
         for k, v in reservables.items():
+            # ``_get_reservables`` returns ``{'vgpus': None}`` for
+            # deployments whose ``create_dict`` carries no vgpu pin; the
+            # generic ``for subitem in v`` then crashed with
+            # ``TypeError: 'NoneType' object is not iterable``. Skip
+            # empty/None reservable groups — there's nothing to compute a
+            # priority over.
+            if not v:
+                continue
             for subitem in v:
                 with cls._rdb_context():
                     reservable = (
@@ -621,6 +629,15 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
                 )
                 items_priority = {**items_priority, **tmp_priority["priority"]}
                 priority = tmp_priority
+        # If the loop never executed (all reservable groups were
+        # empty/None — e.g. a deployment with ``create_dict[*].reservables
+        # = {'vgpus': None}``), ``priority`` is still ``None`` and the
+        # final ``priority['priority'] = …`` would TypeError. There's no
+        # actual priority to compute in that case; return an empty
+        # priority record so the booking planner upstream treats the
+        # request as 'no reservables, fully available'.
+        if priority is None:
+            return {"priority": items_priority}
         priority["priority"] = items_priority
         log.debug("THE RESULTING PRIORITY")
         log.debug(pformat(priority))
