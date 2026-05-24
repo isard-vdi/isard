@@ -531,20 +531,13 @@ class TestPayloadPriority:
         assert result["max_time"] == 360
         assert result["max_items"] == 5
 
-    def test_empty_subitem_list_raises_typeerror(self, priority_stub):
-        """An empty reservables dict is a CALLER ERROR today — the
-        function's loop doesn't iterate, so ``priority`` stays ``None``
-        and ``priority["priority"] = items_priority`` crashes with
-        ``TypeError: 'NoneType' object does not support item assignment``.
-
-        This is a latent bug shape but it's pinned here so an
-        optimisation that "tidies up" the empty case (e.g. returning
-        ``{"priority": {}, ...}``) is a deliberate behaviour change,
-        not a silent regression. Callers (``BookingsProcessed.add``,
-        ``ReservablesPlannerProccess.existing_booking_update_fits``)
-        always pass non-empty reservables — the empty path is not
-        reachable from today's API.
+    def test_empty_subitem_list_returns_empty_priority(self, priority_stub):
+        """An empty reservables list (e.g. ``{"vgpus": []}``) is reachable
+        from booking-availability for deployments whose ``create_dict``
+        rows declare no vgpu pin. The loop now skips empty/None groups
+        and returns an empty priority record instead of TypeError-ing on
+        ``priority["priority"] = items_priority`` with ``priority=None``.
         """
         payload = _make_payload()
-        with pytest.raises(TypeError):
-            priority_stub["Cls"].payload_priority(payload, {"vgpus": []})
+        result = priority_stub["Cls"].payload_priority(payload, {"vgpus": []})
+        assert result == {"priority": {}}
