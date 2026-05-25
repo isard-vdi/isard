@@ -62,6 +62,7 @@ class DesktopStatusEnum(str, Enum):
     # ``/api/v4/items/storage/ready``) would otherwise reject the
     # value with a Pydantic enum error.
     creating_template = "CreatingTemplate"
+    creating_domain = "CreatingDomain"
     starting = "Starting"
     starting_paused = DomainStatusEnum.starting_paused.value
     starting_domain_disposable = "StartingDomainDisposable"
@@ -89,6 +90,7 @@ class DesktopStatusEnum(str, Enum):
 class TemplateStatusEnum(str, Enum):
     creating = DomainStatusEnum.creating.value
     creating_template = "CreatingTemplate"
+    creating_domain = "CreatingDomain"
     starting_paused = DomainStatusEnum.starting_paused.value
     stopped = DomainStatusEnum.stopped.value
     failed = DomainStatusEnum.failed.value
