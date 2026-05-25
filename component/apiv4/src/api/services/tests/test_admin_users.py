@@ -27,6 +27,71 @@ class TestOwnership:
         mock_owns.assert_called_once_with(JWT_PAYLOAD, "cat1")
 
 
+class TestRoleElevation:
+    """Regression tests for ``_check_role_elevation``."""
+
+    MANAGER = {"user_id": "u-mgr", "category_id": "cat-a", "role_id": "manager"}
+    ADMIN = {"user_id": "u-admin", "category_id": "default", "role_id": "admin"}
+
+    def test_no_role_field_is_noop(self):
+        AdminUsersService._check_role_elevation(
+            self.MANAGER, "u-victim", {"name": "x"}, "user"
+        )
+
+    def test_role_none_is_noop(self):
+        AdminUsersService._check_role_elevation(
+            self.MANAGER, "u-victim", {"role": None}, "user"
+        )
+
+    def test_manager_cannot_grant_admin(self):
+        with pytest.raises(Error) as exc:
+            AdminUsersService._check_role_elevation(
+                self.MANAGER, "u-victim", {"role": "admin"}, "user"
+            )
+        assert "Cannot grant role 'admin' from role 'manager'" in str(exc.value)
+
+    def test_manager_can_grant_manager(self):
+        # Equal-rank grant is allowed; only granting above the caller is blocked.
+        AdminUsersService._check_role_elevation(
+            self.MANAGER, "u-victim", {"role": "manager"}, "user"
+        )
+
+    def test_manager_can_grant_advanced(self):
+        AdminUsersService._check_role_elevation(
+            self.MANAGER, "u-victim", {"role": "advanced"}, "user"
+        )
+
+    def test_admin_can_grant_admin(self):
+        AdminUsersService._check_role_elevation(
+            self.ADMIN, "u-victim", {"role": "admin"}, "user"
+        )
+
+    def test_self_role_change_is_rejected(self):
+        with pytest.raises(Error) as exc:
+            AdminUsersService._check_role_elevation(
+                self.ADMIN, "u-admin", {"role": "manager"}, "admin"
+            )
+        assert "Cannot mutate own role" in str(exc.value)
+
+    def test_self_role_noop_value_passes(self):
+        AdminUsersService._check_role_elevation(
+            self.ADMIN, "u-admin", {"role": "admin"}, "admin"
+        )
+
+    def test_unknown_role_rejected(self):
+        with pytest.raises(Error) as exc:
+            AdminUsersService._check_role_elevation(
+                self.ADMIN, "u-victim", {"role": "superadmin"}, "user"
+            )
+        assert "Unknown role 'superadmin'" in str(exc.value)
+
+    def test_unchanged_role_is_noop(self):
+        # Re-sending the target's current role is not an elevation.
+        AdminUsersService._check_role_elevation(
+            self.MANAGER, "u-victim", {"role": "admin"}, "admin"
+        )
+
+
 class TestGetImpersonateJwt:
     @patch(
         "api.services.admin.users.CommonUsers.gen_impersonate_jwt",

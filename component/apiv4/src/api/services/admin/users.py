@@ -23,7 +23,7 @@ import json
 import logging as log
 import time
 import traceback
-from typing import Optional, Union
+from typing import Optional, Union, get_args
 from uuid import uuid4
 
 from api.services.admin.tables import AdminTablesService
@@ -62,6 +62,7 @@ from isardvdi_common.models.category import Category as RethinkCategory
 from isardvdi_common.models.group import Group as RethinkGroup
 from isardvdi_common.models.roles import Roles as RethinkRole
 from isardvdi_common.models.user import User as RethinkUser
+from isardvdi_common.schemas.user import USER_ROLE
 
 
 class AdminUsersService:
@@ -202,6 +203,47 @@ class AdminUsersService:
         data.pop("password_history", None)
         return data
 
+    # Role hierarchy derived from USER_ROLE so the two can't drift; higher rank is more privileged.
+    _ROLE_RANK = {role: rank for rank, role in enumerate(get_args(USER_ROLE))}
+
+    @staticmethod
+    def _check_role_elevation(
+        payload: dict, user_id: str, data: dict, current_role: str
+    ) -> None:
+        """Reject role mutations that elevate the target above the caller, or that change the caller's own role."""
+        if "role" not in data or data["role"] is None:
+            return
+
+        new_role = data["role"]
+        if new_role == current_role:
+            return
+        caller_role = payload.get("role_id", "")
+        caller_rank = AdminUsersService._ROLE_RANK.get(caller_role, -1)
+        new_rank = AdminUsersService._ROLE_RANK.get(new_role, -1)
+
+        if new_rank < 0:
+            raise Error(
+                "bad_request",
+                f"Unknown role '{new_role}'",
+                description_code="bad_request",
+            )
+
+        # Block granting a role above the caller's own rank.
+        if new_rank > caller_rank:
+            raise Error(
+                "forbidden",
+                f"Cannot grant role '{new_role}' from role '{caller_role}'",
+                description_code="not_enough_rights",
+            )
+
+        # Nobody may change their own role.
+        if user_id == payload.get("user_id") and new_role != caller_role:
+            raise Error(
+                "forbidden",
+                "Cannot mutate own role",
+                description_code="not_enough_rights",
+            )
+
     @staticmethod
     def update_user(payload: dict, user_id: str, data: dict) -> None:
         """Update a single user."""
@@ -211,6 +253,10 @@ class AdminUsersService:
 
         AdminUsersService.owns_user_id(payload, user_id)
         AdminUsersService.owns_category_id(payload, user["category"])
+
+        AdminUsersService._check_role_elevation(
+            payload, user_id, data, user.get("role")
+        )
 
         if data.get("secondary_groups") is not None:
             if len(data["secondary_groups"]) > 0:
@@ -274,6 +320,10 @@ class AdminUsersService:
                 CommonMigrations.enable_users_check(data["active"], payload, user=user)
             AdminUsersService.owns_user_id(payload, u_id)
             AdminUsersService.owns_category_id(payload, user["category"])
+
+            AdminUsersService._check_role_elevation(
+                payload, u_id, data, user.get("role")
+            )
 
             if data.get("secondary_groups") is not None:
                 if len(data["secondary_groups"]) > 0:
