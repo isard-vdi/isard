@@ -293,10 +293,17 @@ class DeploymentService:
             ),
         }
         for desktop in user_deployment["desktops"]:
-            desktop["viewers"] = (
-                desktop.get("guest_properties", {}).get("viewers", {}).keys()
-            )
-            del desktop["guest_properties"]["viewers"]
+            # ``guest_properties.viewers`` keys are the underscored DB form
+            # (``browser_vnc`` / ``file_spice`` / ...). The Pydantic
+            # response model (``UserDeploymentDesktop``) hyphenates on
+            # output via ``_hyphenate_viewers_for_clients`` so old- and
+            # new-frontend i18n lookups resolve.
+            viewers = (desktop.get("guest_properties") or {}).get("viewers") or {}
+            desktop["viewers"] = list(viewers.keys())
+            if "guest_properties" in desktop and "viewers" in (
+                desktop["guest_properties"] or {}
+            ):
+                del desktop["guest_properties"]["viewers"]
         return user_deployment
 
     @staticmethod
