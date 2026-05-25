@@ -2,7 +2,7 @@
 # Build phase
 #
 ARG GOLANG_BUILD_IMAGE=golang:1.25.8-alpine3.22
-ARG GOLANG_RUN_IMAGE=alpine:3.22.0
+ARG GOLANG_RUN_IMAGE=alpine:3.22
 
 FROM ${GOLANG_BUILD_IMAGE} as build
 
