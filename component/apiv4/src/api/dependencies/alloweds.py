@@ -319,3 +319,60 @@ def owns_recycle_bin_id(
     Get the recycle_bin_id from route path and check if the user has access to it.
     """
     return RecycleBinHelpers.owns_recycle_bin_id(payload, recycle_bin_id)
+
+
+## Users / Categories / Groups
+
+
+def owns_user_id(param_name: str = "user_id"):
+    """
+    Get the user_id from route path and check if the user owns it.
+    """
+
+    async def checker(
+        payload: str = Depends(has_token),
+        resource_id: str = Path(..., alias=param_name),
+    ):
+        return Helpers.owns_user_id(payload=payload, user_id=resource_id)
+
+    return checker
+
+
+def owns_category_id(param_name: str = "category_id"):
+    """
+    Get the category_id from route path and check if the user owns it.
+    """
+
+    async def checker(
+        payload: str = Depends(has_token),
+        resource_id: str = Path(..., alias=param_name),
+    ):
+        return Helpers.owns_category_id(payload=payload, category_id=resource_id)
+
+    return checker
+
+
+def owns_group_id(param_name: str = "group_id"):
+    """
+    Get the group_id from route path and check if the user owns its category.
+    """
+
+    async def checker(
+        payload: str = Depends(has_token),
+        resource_id: str = Path(..., alias=param_name),
+    ):
+        if payload["role_id"] == "admin":
+            return True
+        # Single-key get_document returns the value, not a dict.
+        parent_category = Caches.get_document(
+            "groups", resource_id, ["parent_category"]
+        )
+        if not parent_category:
+            raise Error(
+                "not_found",
+                f"Group {resource_id} not found",
+                description_code="not_found",
+            )
+        return Helpers.owns_category_id(payload=payload, category_id=parent_category)
+
+    return checker

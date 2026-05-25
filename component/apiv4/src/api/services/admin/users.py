@@ -275,9 +275,7 @@ class AdminUsersService:
         if "active" in data:
             CommonMigrations.enable_users_check(data["active"], payload, user=user)
 
-        AdminUsersService.owns_user_id(payload, user_id)
-        AdminUsersService.owns_category_id(payload, user["category"])
-
+        # Ownership is enforced by the route dependency.
         AdminUsersService._check_role_elevation(
             payload, user_id, data, user.get("role")
         )
@@ -638,7 +636,7 @@ class AdminUsersService:
 
     @staticmethod
     def get_group(group_id: str) -> dict:
-        """Get full group data."""
+        """Get full group data. Ownership is enforced by the route dependency."""
         return CommonGroups.group_get_full_data(group_id)
 
     @staticmethod
@@ -686,9 +684,8 @@ class AdminUsersService:
 
     @staticmethod
     def update_group(payload: dict, group_id: str, data: dict) -> None:
-        """Update a group."""
+        """Update a group. Ownership is enforced by the route dependency."""
         group = Caches.get_document("groups", group_id)
-        AdminUsersService.owns_category_id(payload, group["parent_category"])
         AdminUsersService._check_duplicate(
             "groups",
             data["name"],
@@ -765,9 +762,10 @@ class AdminUsersService:
         return CommonUsers.admin_list_categories(nav, category_id)
 
     @staticmethod
-    def get_category(payload: dict, category_id: str) -> dict:
-        """Get a category by ID with authentication secrets stripped."""
-        AdminUsersService.owns_category_id(payload, category_id)
+    def get_category(category_id: str) -> dict:
+        """Get a category by ID with authentication secrets stripped.
+
+        Ownership is enforced by the route dependency."""
         category = ApiAdmin.get_table_item("categories", category_id)
         if category is None:
             raise Error("not_found", f"Category {category_id} not found")
@@ -840,8 +838,7 @@ class AdminUsersService:
 
     @staticmethod
     def update_category(payload: dict, category_id: str, data: dict) -> None:
-        """Update a category."""
-        AdminUsersService.owns_category_id(payload, category_id)
+        """Update a category. Ownership is enforced by the route dependency."""
         AdminUsersService._check_duplicate(
             "categories", data["name"], item_id=data.get("id")
         )

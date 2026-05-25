@@ -23,6 +23,7 @@ import traceback
 from typing import Literal, Optional
 
 from api import admin_router, manager_router
+from api.dependencies.alloweds import owns_category_id, owns_group_id, owns_user_id
 from api.schemas.admin.users import (
     AdminAppliedQuotaResponse,
     AdminBastionDomainData,
@@ -93,7 +94,7 @@ from api.services.admin.socketio import AdminSocketioService
 from api.services.admin.users import AdminUsersService
 from api.services.error import Error
 from cachetools import TTLCache, cached
-from fastapi import BackgroundTasks, Header, Path, Query, Request
+from fastapi import BackgroundTasks, Depends, Header, Path, Query, Request
 from fastapi.responses import JSONResponse, Response
 from isardvdi_common.models.user import UserModel as UserDBModel
 from pydantic import ValidationError
@@ -193,12 +194,10 @@ async def admin_user_exists(request: Request, user_id: str):
         200: {"description": "User data retrieved"},
         500: {"model": ErrorResponse},
     },
+    dependencies=[Depends(owns_user_id())],
 )
 async def admin_get_user(request: Request, user_id: str):
     try:
-        await asyncio.to_thread(
-            AdminUsersService.owns_user_id, request.token_payload, user_id
-        )
         result = await asyncio.to_thread(AdminUsersService.get_user_full_data, user_id)
         return JSONResponse(
             # exclude_none: the generated client's nested from_dict() treats
@@ -368,6 +367,7 @@ async def admin_create_user(request: Request, data: AdminUserCreateData):
         200: {"description": "User updated"},
         500: {"model": ErrorResponse},
     },
+    dependencies=[Depends(owns_user_id())],
 )
 async def admin_update_user(request: Request, user_id: str, data: AdminUserUpdateData):
     try:
@@ -1089,6 +1089,7 @@ async def admin_list_groups_nav(
         200: {"description": "Group data retrieved"},
         500: {"model": ErrorResponse},
     },
+    dependencies=[Depends(owns_group_id())],
 )
 async def admin_get_group(request: Request, group_id: str):
     try:
@@ -1153,6 +1154,7 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
         200: {"description": "Group updated"},
         500: {"model": ErrorResponse},
     },
+    dependencies=[Depends(owns_group_id())],
 )
 async def admin_update_group(
     request: Request, group_id: str, data: AdminGroupUpdateData
@@ -1389,12 +1391,11 @@ async def admin_list_categories_nav(
         200: {"description": "Category data retrieved"},
         500: {"model": ErrorResponse},
     },
+    dependencies=[Depends(owns_category_id())],
 )
 async def admin_get_category(request: Request, category_id: str):
     try:
-        result = await asyncio.to_thread(
-            AdminUsersService.get_category, request.token_payload, category_id
-        )
+        result = await asyncio.to_thread(AdminUsersService.get_category, category_id)
         return JSONResponse(
             content=AdminCategoryDetailResponse(**result).model_dump(mode="json"),
             status_code=200,
@@ -1451,6 +1452,7 @@ async def admin_create_category(request: Request, data: AdminCategoryCreateData)
         200: {"description": "Category updated"},
         500: {"model": ErrorResponse},
     },
+    dependencies=[Depends(owns_category_id())],
 )
 async def admin_update_category(
     request: Request, category_id: str, data: AdminCategoryUpdateData
