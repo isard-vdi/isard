@@ -52,14 +52,32 @@ export default {
       set: (value) => $store.commit('setShowDeploymentLoadingModal', value)
     })
 
-    const desktopsCreatingLen = computed(() => {
-      return deployment.value.desktops.filter(d => [desktopStates.creating].includes(d.state.toLowerCase())).length
-    })
+    // ``deployment.totalDesktops`` is enriched by /videowall (apiv4
+    // service ``DeploymentService.get_deployment``: ``len(create_dict)
+    // * total_users``) and is the *expected* final count — independent
+    // of how many ``deploymentdesktop_add`` WS events have arrived.
+    // Prefer it over ``desktops.length`` so the modal shows e.g.
+    // "2 of 32" immediately, not "2 of 3" because the early WS events
+    // were dropped during the route+fetch race. Fall back to ``.length``
+    // when ``totalDesktops`` isn't present (legacy shape).
+    const desktopsTotal = computed(() =>
+      deployment.value.totalDesktops || deployment.value.desktops.length
+    )
+
+    // Count desktops that have already left the "creating" state. Until
+    // the WS events catch up, this number lags — that's intentional:
+    // the progress bar reflects what we have evidence for, the total
+    // reflects what was promised by /videowall.
+    const desktopsCreated = computed(() =>
+      deployment.value.desktops.filter(d => !d.state || ![desktopStates.creating].includes(d.state.toLowerCase())).length
+    )
+
+    const desktopsCreatingLen = computed(() => desktopsTotal.value - desktopsCreated.value)
 
     const desktopsBadge = computed(() => {
       if (desktopsCreatingLen.value !== 0) {
         return i18n.t('views.deployment.loading-modal.body.desktops-total-creating', {
-          total: deployment.value.desktops.length,
+          total: desktopsTotal.value,
           creating: desktopsCreatingLen.value
         })
       } else {

@@ -167,8 +167,19 @@ export default {
       }
     },
     socket_endCreatingDesktops (context, data) {
-      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
+      const payload = JSON.parse(data)
+      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === payload.deployment_id) {
         context.commit('setDisableRecreateButton', false)
+        // Re-fetch the deployment so the desktop list, total counts, and
+        // top-bar badges reconcile to the final state. Without this
+        // re-fetch the page only shows the desktops that arrived via
+        // ``deploymentdesktop_add`` AFTER ``fetchDeployment`` resolved —
+        // and on apiv4-integration the engine's asyncio fan-out is fast
+        // enough that most ``deploymentdesktop_add`` events fire BEFORE
+        // ``fetchDeployment`` sets ``state.deployment.id``, so the
+        // listener filter ``tag === state.deployment.id`` drops them.
+        // The result was the user seeing 3 of 32 desktops with no error.
+        context.dispatch('fetchDeployment', { id: payload.deployment_id })
       }
     },
     fetchDeployment (context, data) {
