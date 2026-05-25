@@ -972,8 +972,13 @@ class Helpers(RethinkSharedConnection):
         if payload.get("category_id") == "*":
             return True
         if payload["role_id"] == "manager":
-            user = Caches.get_document("users", user_id, ["category"])
-            if user and user.get("category") == payload["category_id"]:
+            user = Caches.get_document("users", user_id, ["category", "role"])
+            # A manager never owns an admin, even within their own category.
+            if (
+                user
+                and user.get("category") == payload["category_id"]
+                and user.get("role") != "admin"
+            ):
                 return True
         raise Error(
             "forbidden",

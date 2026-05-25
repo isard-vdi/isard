@@ -249,8 +249,12 @@ class UsersProcessed(RethinkSharedConnection):
             )
 
     @staticmethod
-    def gen_impersonate_jwt(user_id, minutes=240):
-        """_From api/libv2/api_users.py ApiUsers.Jwt()_"""
+    def gen_impersonate_jwt(user_id, minutes=30):
+        """_From api/libv2/api_users.py ApiUsers.Jwt()_
+
+        Short-lived: the token bypasses session revocation
+        (``session_id="isardvdi-service"``), so a tight TTL bounds its
+        irrevocable window."""
         return {
             "jwt": jwt.encode(
                 {
