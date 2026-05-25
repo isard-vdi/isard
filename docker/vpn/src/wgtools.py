@@ -33,7 +33,7 @@ def _get_infra_mtu():
     if vpn_mtu:
         log.warning("VPN_MTU is deprecated, use INFRASTRUCTURE_MTU instead")
         return int(vpn_mtu) + 60
-    return 1500  # default for wg+geneve
+    return 1500  # safe Ethernet default; same for both tunneling modes
 
 
 class Keys(object):
@@ -175,17 +175,19 @@ class Wg(object):
         except:
             log.info("Wireguard interface " + self.interface + " already exists")
         if self.table == "hypervisors":
+            # WG interface MTU = INFRASTRUCTURE_MTU - 60 (WireGuard overhead).
+            # Same formula in both tunneling modes; in geneve-only the WG
+            # interface is unused (wgadmin skips it) but the value is still
+            # recorded so the config file is sane if the mode flips.
+            mtu = str(_get_infra_mtu() - 60)
             geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
             if geneve_only:
-                # No WG for hypers in geneve-only mode (wgadmin skips this)
-                mtu = "9054"
                 postup = ""
             else:
-                infra_mtu = _get_infra_mtu()
-                mtu = str(infra_mtu - 60)
                 postup = "iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
         else:
-            mtu = str(_get_infra_mtu() - 60)
+            # user-WG faces the internet; cap at safe Ethernet MTU regardless of INFRASTRUCTURE_MTU
+            mtu = str(min(_get_infra_mtu() - 60, 1420))
             postup = ""
         self.config = self.server_config(mtu, postup)
         # for k,v in self.peers.items():

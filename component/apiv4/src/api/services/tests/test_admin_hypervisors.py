@@ -7,7 +7,7 @@ Tests pin the status-filter validation and a few delegate methods.
 from unittest.mock import patch
 
 import pytest
-from api.services.admin.hypervisors import AdminHypervisorsService
+from api.services.admin.hypervisors import AdminHypervisorsService, _overlay_max
 from api.services.error import Error
 
 
@@ -139,3 +139,38 @@ class TestNormalizeGpuModel:
         )
         assert result == expected
         assert "/" not in result
+
+
+class TestOverlayMax:
+    """``_overlay_max`` is the tenant-overlay guest-MTU ceiling published as
+    ``vpn.guest_mtu`` and enforced by the engine on the virtio NIC. The bash
+    twin in docker/vpn/ovs/ovs_setup.sh must stay consistent with these."""
+
+    @pytest.mark.parametrize(
+        "infra, mode, expected",
+        [
+            # default 1500 underlay, both modes
+            (1500, "wireguard+geneve", 1386),  # 1500-60-54
+            (1500, "geneve", 1446),  # 1500-54
+            # jumbo underlay -> high ceiling (dnsmasq caps to 1500 separately)
+            (9000, "geneve", 8946),  # 9000-54
+            (9000, "wireguard+geneve", 8886),  # 9000-60-54
+            (20000, "geneve", 9000),  # sane jumbo cap
+            # behind another tunnel
+            (1400, "wireguard+geneve", 1286),
+            # IPv6 floor
+            (1340, "wireguard+geneve", 1280),  # 1340-114=1226 -> 1280
+            (1300, "geneve", 1280),  # 1300-54=1246 -> 1280
+            # string coercion (env vars arrive as str)
+            ("1500", "wireguard+geneve", 1386),
+            # legacy VPN_MTU translated at call site to infra=VPN_MTU+60
+            (1440, "wireguard+geneve", 1326),
+        ],
+    )
+    def test_overlay_max(self, infra, mode, expected):
+        assert _overlay_max(infra, mode) == expected
+
+    def test_overlay_max_is_pure(self):
+        a = _overlay_max(1500, "wireguard+geneve")
+        b = _overlay_max(1500, "wireguard+geneve")
+        assert a == b == 1386

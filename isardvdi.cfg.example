@@ -617,7 +617,14 @@ HAPROXY_LOGGING=.
 ## Infrastructure MTU: physical/underlay network MTU between nodes.
 ## All internal MTU values (WireGuard, DHCP, OVS bridge) are derived from this.
 ##
-## Defaults:  1500 (wg+geneve)  /  9000 (geneve-only)
+## Default: 1500 (safe Ethernet) in every code path and tunneling mode.
+##
+## NOTE: the guest VM MTU is auto-derived from this value + the tunneling
+## mode (no jumbo required for a normal 1500 underlay) and is enforced on
+## the guest virtio NIC itself, not only via DHCP. With a jumbo underlay
+## the guest still defaults to 1500 but a user inside the desktop may
+## raise its NIC up to the derived overlay ceiling. VPN_MTU is deprecated
+## (superseded by INFRASTRUCTURE_MTU; a backward-compat warning is logged).
 ##
 ## Common values:
 ##   9000 - datacenter with jumbo frames

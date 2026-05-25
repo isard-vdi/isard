@@ -54,6 +54,35 @@ def remove_hyp_thread_status(hyp_id):
         _thread_status_ram.pop(hyp_id, None)
 
 
+def get_cluster_guest_mtu():
+    """Tenant-overlay guest MTU ceiling published by the API per hypervisor.
+
+    The cluster is homogeneous (same INFRASTRUCTURE_MTU / GENEVE_ONLY_INFRA
+    across nodes), so any Online hypervisor's ``vpn.guest_mtu`` is the
+    cluster value. Returns the int ceiling, or ``None`` when no Online
+    hypervisor publishes it (older/mixed-version cluster, fresh install,
+    or DB error) — callers must then emit unchanged XML (no regression).
+    """
+    r_conn = new_rethink_connection()
+    try:
+        out = list(
+            r.table("hypervisors")
+            .filter({"status": "Online"})
+            .filter(lambda h: h["vpn"]["guest_mtu"].default(False).ne(False))
+            .pluck({"vpn": "guest_mtu"})
+            .limit(1)
+            .run(r_conn)
+        )
+    except Exception:
+        close_rethink_connection(r_conn)
+        return None
+    close_rethink_connection(r_conn)
+    try:
+        return int(out[0]["vpn"]["guest_mtu"])
+    except (IndexError, KeyError, TypeError, ValueError):
+        return None
+
+
 def _set_hyp_thread_type_status(hyp_id, thread_type, status):
     """Atomically set a single thread_type ('worker' or 'disk_operations') for a hyp."""
     with _thread_status_lock:

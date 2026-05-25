@@ -26,6 +26,27 @@ from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 
+# GENEVE / WireGuard encapsulation overheads. Canonical arithmetic lives in
+# docker/vpn/ovs/ovs_setup.sh (it physically sizes vlan-wg/ovsbr0); this is a
+# faithful port. Keep both in sync.
+_GENEVE_OH = 54  # 20 IP + 8 UDP + 8 geneve + 14 eth + 4 VLAN
+_WG_OH = 60  # 20 IP + 8 UDP + 32 WG
+
+
+def _overlay_max(infrastructure_mtu, tunneling_mode):
+    """Maximum payload MTU a guest NIC may use on the tenant overlay.
+
+    This is the *ceiling* advertised to the guest virtio NIC (engine
+    injects it as ``<mtu size=...>``) and the size the host datapath
+    (ovsbr0/vlan-wg) is set to. dnsmasq separately serves
+    ``min(overlay_max, 1500)`` as the safe DHCP default so ordinary
+    guests stay at 1500 while a jumbo underlay lets a user raise the
+    in-guest MTU up to this ceiling. Mirrors docker/vpn/ovs/ovs_setup.sh.
+    """
+    oh = _GENEVE_OH if tunneling_mode == "geneve" else _WG_OH + _GENEVE_OH
+    raw = int(infrastructure_mtu) - oh
+    return max(1280, min(raw, 9000))  # IPv6 floor .. sane jumbo cap
+
 
 class AdminHypervisorsService:
     """
@@ -106,9 +127,13 @@ class AdminHypervisorsService:
         geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
         tunneling_mode = "geneve" if geneve_only else "wireguard+geneve"
         vpn_update = {"tunneling_mode": tunneling_mode}
-        infra_mtu = os.environ.get("INFRASTRUCTURE_MTU")
-        if infra_mtu:
-            vpn_update["infrastructure_mtu"] = int(infra_mtu)
+        # Always publish the derived tenant-overlay guest-MTU ceiling so the
+        # engine can enforce it on the guest virtio NIC (VIRTIO_NET_F_MTU);
+        # INFRASTRUCTURE_MTU defaults to 1500 when unset. guest_mtu mirrors
+        # the canonical arithmetic in docker/vpn/ovs/ovs_setup.sh.
+        infra_mtu = int(os.environ.get("INFRASTRUCTURE_MTU", "") or "1500")
+        vpn_update["infrastructure_mtu"] = infra_mtu
+        vpn_update["guest_mtu"] = _overlay_max(infra_mtu, tunneling_mode)
         HypervisorsProcessed.update_vpn_field(hyper_id, vpn_update)
         result["data"]["vpn"] = result["data"].get("vpn", {})
         result["data"]["vpn"].update(vpn_update)

@@ -91,18 +91,18 @@ class IsardVpn(RethinkSharedConnection):
                     )
             wgdata = hyper
             port = "4443"
-            geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
-            if geneve_only:
-                mtu = "9054"
+            # WG interface MTU = INFRASTRUCTURE_MTU - 60 (WireGuard overhead).
+            # Same formula in both tunneling modes; in geneve-only the WG
+            # interface is unused (wgadmin skips it) but the value is still
+            # recorded so the config file is sane if the mode flips.
+            infra = os.environ.get("INFRASTRUCTURE_MTU")
+            vpn_mtu_legacy = os.environ.get("VPN_MTU")
+            if infra:
+                mtu = str(int(infra) - 60)
+            elif vpn_mtu_legacy:
+                mtu = vpn_mtu_legacy
             else:
-                infra = os.environ.get("INFRASTRUCTURE_MTU")
-                vpn_mtu_legacy = os.environ.get("VPN_MTU")
-                if infra:
-                    mtu = str(int(infra) - 60)
-                elif vpn_mtu_legacy:
-                    mtu = vpn_mtu_legacy
-                else:
-                    mtu = "1440"
+                mtu = "1440"  # 1500 - 60
             postup = "iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
             endpoint = hyper.get("isard_hyper_vpn_host", "isard-vpn")
 

@@ -528,3 +528,44 @@ def test_remove_device_emits_no_stdout(capsys):
     assert tree.xpath("//hostdev") == []
     captured = capsys.readouterr()
     assert captured.out == ""
+
+
+def _devices_domain_xml():
+    return '<domain type="kvm"><devices></devices></domain>'
+
+
+@pytest.mark.parametrize(
+    "type_interface, net, expect_mtu",
+    [
+        ("ovs", "100", True),  # default OVS/GENEVE tenant overlay
+        ("ovs1", "100", True),  # custom ovsbr1 overlay
+        ("network", "default", False),  # NAT default — rides underlay
+        ("bridge", "default", False),  # n2m-bridge — rides underlay
+    ],
+)
+def test_add_interface_overlay_gets_virtio_mtu(
+    monkeypatch, type_interface, net, expect_mtu
+):
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: 1386
+    )
+    x = DomainXML(_devices_domain_xml())
+    x.add_interface(type_interface, "52:54:00:aa:bb:cc", "dom1", "if1", net=net)
+    mtus = _parse(x.return_xml()).xpath("/domain/devices/interface/mtu")
+    if expect_mtu:
+        assert len(mtus) == 1 and mtus[0].get("size") == "1386"
+    else:
+        assert mtus == []
+
+
+def test_add_interface_overlay_no_mtu_when_cluster_value_none(monkeypatch):
+    """None => XML unchanged (no <mtu>), interface still added: zero regression
+    on older/mixed/fresh clusters that do not publish vpn.guest_mtu yet."""
+    monkeypatch.setattr(
+        "engine.models.domain_xml.get_cluster_guest_mtu_cached", lambda: None
+    )
+    x = DomainXML(_devices_domain_xml())
+    x.add_interface("ovs", "52:54:00:aa:bb:cc", "dom1", "if1", net="100")
+    tree = _parse(x.return_xml())
+    assert tree.xpath("/domain/devices/interface/mtu") == []
+    assert len(tree.xpath("/domain/devices/interface")) == 1
