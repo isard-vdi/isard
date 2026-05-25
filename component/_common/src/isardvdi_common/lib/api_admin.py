@@ -37,6 +37,88 @@ _system_tables_lock = threading.Lock()
 _admin_table_list_cache: "TTLCache" = TTLCache(maxsize=64, ttl=5)
 
 
+# Blocklist for caller-controlled pluck on /admin/table — keeps
+# secret fields (passwords, keys, credentials) out of field-projection
+# requests. Follow-up: switch to a per-table allowlist.
+_SENSITIVE_PLUCK_FIELDS_ANY_TABLE: frozenset = frozenset(
+    {
+        "password",
+        "password_history",
+        "password_reset_token",
+        "password_last_updated",
+        "api_key",
+        "salt",
+        "secret",
+        "secrets",
+        "token",
+        "tokens",
+        "private_key",
+        "email_verification_token",
+    }
+)
+
+_SENSITIVE_PLUCK_FIELDS_BY_TABLE: dict[str, frozenset] = {
+    "users": frozenset({"vpn", "photo"}),
+    "hypervisors": frozenset({"viewer", "keys", "ssh", "sshkeys"}),
+    "domains": frozenset({"viewer"}),
+    "categories": frozenset({"authentication"}),
+    "config": frozenset({"*"}),  # deny pluck on the singleton entirely
+}
+
+
+def _pluck_field_names(pluck) -> list[str]:
+    """Flatten a nested pluck arg into the set of leaf field names."""
+    out: list[str] = []
+    if pluck is None:
+        return out
+    if isinstance(pluck, str):
+        return [pluck]
+    if isinstance(pluck, (list, tuple, set, frozenset)):
+        for item in pluck:
+            out.extend(_pluck_field_names(item))
+        return out
+    if isinstance(pluck, dict):
+        for k, v in pluck.items():
+            out.append(k)
+            out.extend(_pluck_field_names(v))
+        return out
+    # Anything else (numbers, None, weird objects) — return its repr
+    # so the blocklist can still catch obvious patterns. Most won't
+    # match; that's fine.
+    return [str(pluck)]
+
+
+def _validate_pluck_safe(table: str, pluck) -> None:
+    """Raise Error('forbidden') if pluck targets blocklisted fields."""
+    if pluck is None:
+        return
+    requested = set(_pluck_field_names(pluck))
+    if not requested:
+        return
+    table_block = _SENSITIVE_PLUCK_FIELDS_BY_TABLE.get(table, frozenset())
+    # ``"*"`` in the per-table block means deny pluck on this table
+    # entirely (e.g. ``config``). Tables without a ``"*"`` entry are
+    # only checked against the field-level intersection.
+    if "*" in table_block:
+        from isardvdi_common.helpers.error_factory import Error
+
+        raise Error(
+            "forbidden",
+            f"pluck is not allowed on table '{table}'",
+            description_code="not_enough_rights",
+        )
+    bad = requested & (_SENSITIVE_PLUCK_FIELDS_ANY_TABLE | table_block)
+    if bad:
+        from isardvdi_common.helpers.error_factory import Error
+
+        raise Error(
+            "forbidden",
+            f"pluck rejected: sensitive field(s) requested on '{table}': "
+            f"{sorted(bad)}",
+            description_code="not_enough_rights",
+        )
+
+
 def _admin_table_list_cache_seq_key(seq):
     """Render pluck/without args (list/tuple/dict/None) as a stable key.
 
@@ -285,6 +367,9 @@ class ApiAdmin(RethinkSharedConnection):
 
         cls._validate_table(table)
 
+        # Reject pluck requests for sensitive fields
+        _validate_pluck_safe(table, pluck)
+
         # 5 s TTL cache for unfiltered + no-merge calls. Single-row
         # reads (``id`` provided) bypass — they are already covered by
         # ``Caches.get_cached``. Caller-supplied merge callables bypass
@@ -461,6 +546,9 @@ class ApiAdmin(RethinkSharedConnection):
         # Define allowed tables for manager and category limited tables
 
         cls.check_category_allowed_table(table)
+
+        # Reject pluck requests for sensitive fields
+        _validate_pluck_safe(table, pluck)
         CATEGORY_LIMITED_TABLES = cls.get_category_limited_tables()
         query = r.table(table)
 
