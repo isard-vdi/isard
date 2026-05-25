@@ -161,9 +161,7 @@ class TestGetTable:
             "api.routes.admin.tables.AdminTablesService.get_table",
             staticmethod(fake_get),
         )
-        response = test_client(
-            url="/admin/table/config", jwt=MockJWT(role_id="admin")
-        )
+        response = test_client(url="/admin/table/config", jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
         body = response.json()
         assert body[0]["id"] == 1
