@@ -19,7 +19,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from api.services.error import Error
+from isardvdi_common.helpers.url_validation import validate_url_not_internal
 from isardvdi_common.helpers.user_storage import UserStorage
+
+
+def _ensure_external_url(url: str) -> None:
+    """Reject provider URLs that resolve to an internal address: UserStorage
+    opens a WebDAV connection to the configured host, so an unvalidated URL
+    lets an admin reach internal/loopback services."""
+    try:
+        validate_url_not_internal(url)
+    except Exception:
+        raise Error(
+            "bad_request",
+            "URL points to a loopback/link-local/private/multicast address.",
+            description_code="bad_request",
+        )
 
 
 class AdminUserStorageService:
@@ -32,6 +47,11 @@ class AdminUserStorageService:
         intra_docker: bool,
         verify_cert: bool,
     ) -> str:
+        # Skip the check in intra-docker mode: reaching a private address
+        # is the operator's explicit intent there.
+        if not intra_docker:
+            scheme = "https" if verify_cert else "http"
+            _ensure_external_url(f"{scheme}://{domain}")
         return UserStorage.isard_user_storage_provider_auto_register_auth(
             domain, user, password, intra_docker, verify_cert
         )
@@ -45,6 +65,7 @@ class AdminUserStorageService:
         password: str,
         verify_cert: bool,
     ) -> None:
+        _ensure_external_url(url)
         UserStorage.isard_user_storage_provider_basic_auth_test(
             provider, url, urlprefix, user, password, verify_cert
         )
@@ -84,6 +105,9 @@ class AdminUserStorageService:
         quota: object,
         verify_cert: bool,
     ) -> str:
+        # Validate at persistence time too: a stored internal URL would
+        # otherwise be dialled on every later sync.
+        _ensure_external_url(url)
         return UserStorage.isard_user_storage_provider_basic_auth_add(
             provider, name, description, url, urlprefix, access, quota, verify_cert
         )
