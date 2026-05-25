@@ -237,7 +237,35 @@ export default {
       }
     })
 
-    const desktopsCreatingLen = computed(() => deployment.value.desktops.filter(d => [desktopStates.creating].includes(d.state.toLowerCase())).length)
+    // A desktop is "still being created" any time it's NOT in a
+    // terminal state. The deployment pipeline transitions a row
+    // through several intermediate values that aren't all in
+    // ``desktopStates`` (e.g. 'CreatingDisk' → ``getState`` returns
+    // ``working``; the storage maintenance stage shows ``maintenance``)
+    // — and previously this watcher only matched ``creating``, which
+    // is the FIRST stage. That made the modal close as soon as the
+    // engine handed rows over to the storage task chain, only to
+    // reopen later when more rows transitioned back to ``creating``,
+    // producing a visible two-modal flicker the user observed.
+    //
+    // Flip the test to "not in a terminal state" so the modal stays
+    // open for the WHOLE pipeline (Creating → CreatingDisk → working
+    // → ... → Stopped) and closes once every desktop has reached
+    // ``Stopped`` / ``Started`` / ``WaitingIP`` / ``Failed``.
+    const TERMINAL_STATES = [
+      desktopStates.stopped,
+      desktopStates.started,
+      desktopStates.waitingip,
+      desktopStates.failed
+    ]
+    const desktopsCreatingLen = computed(() =>
+      deployment.value.desktops.filter(d => {
+        const s = (d.state || '').toLowerCase()
+        // Skip empty state (just-inserted rows still being parsed):
+        // treat them as "still creating" rather than terminal.
+        return !s || !TERMINAL_STATES.includes(s)
+      }).length
+    )
     const desktopsCreating = computed(() => desktopsCreatingLen.value !== 0)
 
     watch(desktopsCreating, (newVal) => {

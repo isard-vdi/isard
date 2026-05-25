@@ -64,12 +64,26 @@ export default {
       deployment.value.totalDesktops || deployment.value.desktops.length
     )
 
-    // Count desktops that have already left the "creating" state. Until
-    // the WS events catch up, this number lags — that's intentional:
-    // the progress bar reflects what we have evidence for, the total
-    // reflects what was promised by /videowall.
+    // "Created" = reached a terminal state (Stopped / Started /
+    // WaitingIP / Failed). The deployment pipeline transitions a
+    // desktop through several non-terminal intermediates — Creating,
+    // CreatingDisk, ``working``, maintenance, ... — and the user
+    // sees a smooth bar advance only when we treat every non-terminal
+    // value as "still in progress" rather than singling out
+    // ``creating`` (the early-Stage-1 substate). Matches the wider
+    // watcher in Deployment.vue which keeps the modal open across
+    // the whole Stage-1 + Stage-2 pipeline.
+    const TERMINAL_STATES = [
+      desktopStates.stopped,
+      desktopStates.started,
+      desktopStates.waitingip,
+      desktopStates.failed
+    ]
     const desktopsCreated = computed(() =>
-      deployment.value.desktops.filter(d => !d.state || ![desktopStates.creating].includes(d.state.toLowerCase())).length
+      deployment.value.desktops.filter(d => {
+        const s = (d.state || '').toLowerCase()
+        return s && TERMINAL_STATES.includes(s)
+      }).length
     )
 
     const desktopsCreatingLen = computed(() => desktopsTotal.value - desktopsCreated.value)
