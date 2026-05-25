@@ -183,7 +183,7 @@ import DesktopButton from '@/components/desktops/Button.vue'
 import DeploymentLoadingModal from '@/components/deployments/DeploymentLoadingModal.vue'
 import { mapActions, mapGetters } from 'vuex'
 import { desktopStates, status } from '@/shared/constants'
-import { computed, ref, reactive, watch } from '@vue/composition-api'
+import { computed, ref, reactive, watch, onBeforeUnmount } from '@vue/composition-api'
 import { DateUtils } from '@/utils/dateUtils'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 import { ErrorUtils } from '@/utils/errorUtils'
@@ -237,44 +237,60 @@ export default {
       }
     })
 
-    // A desktop is "still being created" any time it's NOT in a
-    // terminal state. The deployment pipeline transitions a row
-    // through several intermediate values that aren't all in
-    // ``desktopStates`` (e.g. 'CreatingDisk' → ``getState`` returns
-    // ``working``; the storage maintenance stage shows ``maintenance``)
-    // — and previously this watcher only matched ``creating``, which
-    // is the FIRST stage. That made the modal close as soon as the
-    // engine handed rows over to the storage task chain, only to
-    // reopen later when more rows transitioned back to ``creating``,
-    // producing a visible two-modal flicker the user observed.
+    // Modal-open gate uses three signals OR'd together so the dialog
+    // stays open across the WHOLE bulk-spawn pipeline without flickering:
     //
-    // Flip the test to "not in a terminal state" so the modal stays
-    // open for the WHOLE pipeline (Creating → CreatingDisk → working
-    // → ... → Stopped) and closes once every desktop has reached
-    // ``Stopped`` / ``Started`` / ``WaitingIP`` / ``Failed``.
-    const TERMINAL_STATES = [
-      desktopStates.stopped,
-      desktopStates.started,
-      desktopStates.waitingip,
-      desktopStates.failed
-    ]
-    const desktopsCreatingLen = computed(() =>
-      deployment.value.desktops.filter(d => {
-        const s = (d.state || '').toLowerCase()
-        // Skip empty state (just-inserted rows still being parsed):
-        // treat them as "still creating" rather than terminal.
-        return !s || !TERMINAL_STATES.includes(s)
-      }).length
+    //   1. ``isBulkCreating`` — true between the engine's
+    //      ``creating_desktops`` and ``end_creating_desktops`` WS events
+    //      (``new_from_templateTh.process_desktops`` brackets the loop
+    //      with those). This survives the inter-batch lulls where every
+    //      already-spawned row momentarily reaches a terminal state
+    //      before the next ``deploymentdesktop_add`` arrives — purely
+    //      state-derived gates dropped to zero there and the modal
+    //      flickered closed/open.
+    //   2. ``totalDesktops > desktops.length`` — rows still expected to
+    //      arrive (covers the case where the user reloads mid-spawn and
+    //      the WS bracket events are missed entirely).
+    //   3. Any loaded desktop in an initial-creation state
+    //      (``Creating`` / ``CreatingDisk`` / ``CreatingAndStarting``).
+    //      Restricted to creation states only so clicking start/stop on
+    //      an already-finished desktop (``Starting`` / ``Shutting-down``)
+    //      doesn't spuriously reopen the modal.
+    const CREATION_STATES = ['creating', 'creatingdisk', 'creatingandstarting']
+    const isBulkCreating = computed(() =>
+      !!deployment.value.id && $store.getters.isDeploymentBulkCreating(deployment.value.id)
     )
-    const desktopsCreating = computed(() => desktopsCreatingLen.value !== 0)
+    const desktopsCreatingLen = computed(() => {
+      const total = deployment.value.totalDesktops || deployment.value.desktops.length
+      const pending = Math.max(0, total - deployment.value.desktops.length)
+      const inCreation = deployment.value.desktops.filter(d => {
+        const s = (d.state || '').toLowerCase()
+        return s && CREATION_STATES.includes(s)
+      }).length
+      return pending + inCreation
+    })
+    const desktopsCreating = computed(() => isBulkCreating.value || desktopsCreatingLen.value > 0)
 
+    let pendingCloseTimer = null
     watch(desktopsCreating, (newVal) => {
       if (newVal) {
+        if (pendingCloseTimer) {
+          clearTimeout(pendingCloseTimer)
+          pendingCloseTimer = null
+        }
         $store.dispatch('showDeploymentLoadingModal', true)
       } else {
-        setTimeout(() => {
+        if (pendingCloseTimer) clearTimeout(pendingCloseTimer)
+        pendingCloseTimer = setTimeout(() => {
+          pendingCloseTimer = null
           $store.dispatch('showDeploymentLoadingModal', false)
         }, 2000)
+      }
+    }, { immediate: true })
+    onBeforeUnmount(() => {
+      if (pendingCloseTimer) {
+        clearTimeout(pendingCloseTimer)
+        pendingCloseTimer = null
       }
     })
 
