@@ -15,23 +15,86 @@
       class="mx-2"
     >
       <b-col cols="12">
-        <b-row
-          align-h="center"
-          class="mb-4"
-        >
-          <!-- <img
-            src=""
-            alt="loading animation"
-            style="max-height: 50vh;"
-          > -->
-        </b-row>
-
-        <h5>
+        <p class="mb-3">
           {{ $t('views.deployment.loading-modal.body.title') }}
-        </h5>
-        <p>
-          {{ desktopsBadge }}
         </p>
+
+        <!-- Stage 1: Engine fans out rows into the deployment.
+             Active between ``creating_desktops`` and ``end_creating_desktops``
+             (the engine's ``new_from_templateTh.process_desktops`` envelope)
+             OR while fewer rows have arrived than the deployment expects. -->
+        <div class="mb-3">
+          <h6 class="d-flex align-items-center mb-1">
+            <b-icon
+              v-if="stage1Done"
+              icon="check-circle-fill"
+              variant="success"
+              class="mr-2"
+            />
+            <b-spinner
+              v-else-if="stage1Active"
+              small
+              class="mr-2"
+            />
+            <b-icon
+              v-else
+              icon="circle"
+              class="text-muted mr-2"
+            />
+            <span>{{ $t('views.deployment.loading-modal.body.stage1-title') }}</span>
+          </h6>
+          <small class="text-muted">{{ stage1Status }}</small>
+          <b-progress
+            v-if="desktopsTotal > 0"
+            :max="desktopsTotal"
+            :value="stage1Value"
+            :animated="stage1Active"
+            :striped="stage1Active"
+            :variant="stage1Done ? 'success' : 'primary'"
+            height="1.2rem"
+            show-progress
+            class="mt-1"
+          />
+        </div>
+
+        <!-- Stage 2: storage tasks turn ``Creating`` rows into ``Stopped``.
+             Active whenever rows have arrived AND not all of them are
+             terminal yet. Storage tasks run in parallel with the Stage-1
+             fan-out loop, so this bar can advance before Stage 1 completes
+             — but the status text stays "pending" while desktops.length=0. -->
+        <div>
+          <h6 class="d-flex align-items-center mb-1">
+            <b-icon
+              v-if="stage2Done"
+              icon="check-circle-fill"
+              variant="success"
+              class="mr-2"
+            />
+            <b-spinner
+              v-else-if="stage2Active"
+              small
+              class="mr-2"
+            />
+            <b-icon
+              v-else
+              icon="circle"
+              class="text-muted mr-2"
+            />
+            <span>{{ $t('views.deployment.loading-modal.body.stage2-title') }}</span>
+          </h6>
+          <small class="text-muted">{{ stage2Status }}</small>
+          <b-progress
+            v-if="desktopsTotal > 0"
+            :max="desktopsTotal"
+            :value="stage2Value"
+            :animated="stage2Active"
+            :striped="stage2Active"
+            :variant="stage2Done ? 'success' : 'primary'"
+            height="1.2rem"
+            show-progress
+            class="mt-1"
+          />
+        </div>
       </b-col>
     </b-row>
   </b-modal>
@@ -40,6 +103,16 @@
 import { computed } from '@vue/composition-api'
 import i18n from '@/i18n'
 import { desktopStates } from '@/shared/constants'
+
+// Backend status values that mean "this desktop is fully provisioned".
+// Matches the gate in Deployment.vue so the two views report consistent
+// counts.
+const TERMINAL_STATES = [
+  desktopStates.stopped,
+  desktopStates.started,
+  desktopStates.waitingip,
+  desktopStates.failed
+]
 
 export default {
   setup (_, context) {
@@ -52,51 +125,77 @@ export default {
       set: (value) => $store.commit('setShowDeploymentLoadingModal', value)
     })
 
-    // ``deployment.totalDesktops`` is enriched by /videowall (apiv4
-    // service ``DeploymentService.get_deployment``: ``len(create_dict)
-    // * total_users``) and is the *expected* final count — independent
-    // of how many ``deploymentdesktop_add`` WS events have arrived.
-    // Prefer it over ``desktops.length`` so the modal shows e.g.
-    // "2 of 32" immediately, not "2 of 3" because the early WS events
-    // were dropped during the route+fetch race. Fall back to ``.length``
-    // when ``totalDesktops`` isn't present (legacy shape).
+    // ``totalDesktops`` is the expected final count, enriched by
+    // ``DeploymentService.get_deployment_videowall`` as
+    // ``len(create_dict) * total_users``. Falls back to ``desktops.length``
+    // only when genuinely absent (e.g. before fetchDeployment resolves).
     const desktopsTotal = computed(() =>
-      deployment.value.totalDesktops || deployment.value.desktops.length
+      deployment.value.totalDesktops || (deployment.value.desktops || []).length || 0
     )
-
-    // "Created" = reached a terminal state (Stopped / Started /
-    // WaitingIP / Failed). The deployment pipeline transitions a
-    // desktop through several non-terminal intermediates — Creating,
-    // CreatingDisk, ``working``, maintenance, ... — and the user
-    // sees a smooth bar advance only when we treat every non-terminal
-    // value as "still in progress" rather than singling out
-    // ``creating`` (the early-Stage-1 substate). Matches the wider
-    // watcher in Deployment.vue which keeps the modal open across
-    // the whole Stage-1 + Stage-2 pipeline.
-    const TERMINAL_STATES = [
-      desktopStates.stopped,
-      desktopStates.started,
-      desktopStates.waitingip,
-      desktopStates.failed
-    ]
-    const desktopsCreated = computed(() =>
-      deployment.value.desktops.filter(d => {
+    const desktopsArrived = computed(() =>
+      deployment.value.desktops ? deployment.value.desktops.length : 0
+    )
+    const desktopsInTerminal = computed(() =>
+      (deployment.value.desktops || []).filter(d => {
         const s = (d.state || '').toLowerCase()
         return s && TERMINAL_STATES.includes(s)
       }).length
     )
 
-    const desktopsCreatingLen = computed(() => desktopsTotal.value - desktopsCreated.value)
+    const isBulkCreating = computed(() =>
+      !!deployment.value.id && $store.getters.isDeploymentBulkCreating(deployment.value.id)
+    )
 
-    const desktopsBadge = computed(() => {
-      if (desktopsCreatingLen.value !== 0) {
-        return i18n.t('views.deployment.loading-modal.body.desktops-total-creating', {
-          total: desktopsTotal.value,
-          creating: desktopsCreatingLen.value
-        })
-      } else {
-        return i18n.t('views.deployment.loading-modal.body.desktops-created')
+    // Stage 1 — engine fan-out (DB row inserts).
+    //   active: bulk-spawn envelope OR fewer rows than expected
+    //   done:   not in bulk-spawn AND all expected rows arrived
+    const stage1Active = computed(() =>
+      desktopsTotal.value > 0 && (isBulkCreating.value || desktopsArrived.value < desktopsTotal.value)
+    )
+    const stage1Done = computed(() =>
+      desktopsTotal.value > 0 && !isBulkCreating.value && desktopsArrived.value >= desktopsTotal.value
+    )
+    const stage1Value = computed(() =>
+      Math.min(desktopsArrived.value, desktopsTotal.value)
+    )
+
+    // Stage 2 — storage provisioning (qcow creation; status: Creating → Stopped).
+    //   active: at least one row exists AND not every expected row is terminal
+    //   done:   every expected row has reached a terminal state
+    const stage2Active = computed(() =>
+      desktopsTotal.value > 0 &&
+      desktopsArrived.value > 0 &&
+      desktopsInTerminal.value < desktopsTotal.value
+    )
+    const stage2Done = computed(() =>
+      desktopsTotal.value > 0 && desktopsInTerminal.value >= desktopsTotal.value
+    )
+    const stage2Value = computed(() => desktopsInTerminal.value)
+
+    const stage1Status = computed(() => {
+      if (desktopsTotal.value === 0) {
+        return i18n.t('views.deployment.loading-modal.body.stage1-pending')
       }
+      if (stage1Done.value) {
+        return i18n.t('views.deployment.loading-modal.body.stage1-done', { total: desktopsTotal.value })
+      }
+      return i18n.t('views.deployment.loading-modal.body.stage1-progress', {
+        current: stage1Value.value,
+        total: desktopsTotal.value
+      })
+    })
+
+    const stage2Status = computed(() => {
+      if (desktopsArrived.value === 0) {
+        return i18n.t('views.deployment.loading-modal.body.stage2-pending')
+      }
+      if (stage2Done.value) {
+        return i18n.t('views.deployment.loading-modal.body.stage2-done', { total: desktopsTotal.value })
+      }
+      return i18n.t('views.deployment.loading-modal.body.stage2-progress', {
+        current: stage2Value.value,
+        total: desktopsTotal.value
+      })
     })
 
     const closeDeploymentLoadingModal = () => {
@@ -107,8 +206,15 @@ export default {
       showDeploymentLoadingModal,
       closeDeploymentLoadingModal,
       deployment,
-      desktopsBadge,
-      desktopsCreatingLen
+      desktopsTotal,
+      stage1Active,
+      stage1Done,
+      stage1Value,
+      stage1Status,
+      stage2Active,
+      stage2Done,
+      stage2Value,
+      stage2Status
     }
   }
 }
