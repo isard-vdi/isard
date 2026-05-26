@@ -841,7 +841,7 @@ class AdminRoleItem(BaseModel):
 class AdminSecretItem(BaseModel):
     """Row shape for ``GET /admin/items/secrets``.
 
-    Backed by ``ApiAdmin.admin_table_list("secrets", {})`` — the secrets
+    Backed by ``ApiAdmin.admin_table_list("secrets")`` — the secrets
     table carries the same fields the create-endpoint advertises
     (``id``/``kid``, ``category_id``, ``secret``, ``description``,
     ``role_id``)."""
