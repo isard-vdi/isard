@@ -17,6 +17,12 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 # first.
 RESET_TABLES = ["notifications_data"]
 
+# Tables that have seeded rows (kept) but may accumulate e2e-prefixed rows
+# created by tests whose afterEach cleanup failed silently. A login-trigger
+# fullpage notification left behind fires for every user on login — clean
+# these up at the start of each run without touching the seeded records.
+E2E_PREFIX_TABLES = ["notifications", "notification_tmpls"]
+
 
 def main():
     dbconn = r.connect(DB_HOST, port=DB_PORT, db=DB_NAME).repl()
@@ -28,6 +34,18 @@ def main():
             print(f"Reset table '{table_name}': {result}")
         except Exception as e:
             print(f"Error resetting '{table_name}': {e}")
+
+    for table_name in E2E_PREFIX_TABLES:
+        try:
+            result = (
+                r.table(table_name)
+                .filter(r.row["name"].match("^e2e-"))
+                .delete()
+                .run(dbconn)
+            )
+            print(f"Cleaned e2e rows from '{table_name}': {result}")
+        except Exception as e:
+            print(f"Error cleaning e2e rows from '{table_name}': {e}")
 
     for filename in os.listdir(DATA_DIR):
         if not filename.endswith(".json"):
