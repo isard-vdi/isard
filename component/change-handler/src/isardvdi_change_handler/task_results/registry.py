@@ -48,6 +48,10 @@ HANDLERS = {
     "update_status": (storage.handle_update_status, ASYNC),
     # media
     "media_update": (media.handle_media_update, SYNC),
+    "media_download_update_status": (
+        media.handle_media_download_update_status,
+        SYNC,
+    ),
     "recycle_bin_update": (media.handle_recycle_bin_update, SYNC),
     # domain
     "domain_creating_disk": (domain.handle_domain_creating_disk, SYNC),

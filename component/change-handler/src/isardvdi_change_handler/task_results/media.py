@@ -57,6 +57,30 @@ def handle_media_update(task, **media_dict):
             handle_media_update(task, **(dependency.result or {}))
 
 
+def handle_media_download_update_status(task, media_id):
+    """Set media status after a download task chain completes.
+
+    Unlike the generic :func:`storage.handle_update_status`, this handler is
+    aware of the ``DownloadAborting`` race: ``download_url`` may finish
+    successfully (curl exited 0) just as the user requested an abort,
+    leaving the media row in ``DownloadAborting`` by the time we run. In
+    that case the download is treated as failed so the media does not end
+    up stuck in ``Downloaded``.
+
+    Port of ``media_download_update_status`` from
+    ``naomi.hidalgo/fix/1171-media-fixes:c84a99e43`` — original location
+    was ``isardvdi_core_worker/task.py`` (file deleted by the core_worker
+    retirement).
+    """
+    if not Media.exists(media_id):
+        return
+    media = Media(media_id)
+    if task.depending_status == "finished" and media.status != "DownloadAborting":
+        media.status = "Downloaded"
+    else:
+        media.status = "DownloadFailed"
+
+
 def handle_recycle_bin_update(task, **recycle_bin_dict):
     """Port of core_worker.task.recycle_bin_update.
 
