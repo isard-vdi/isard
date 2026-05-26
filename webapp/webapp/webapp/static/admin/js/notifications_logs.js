@@ -75,7 +75,9 @@ function populateStatusSelect() {
     $.ajax({
         url: '/api/v4/admin/notifications/statuses',
         type: 'GET',
-        success: function (statuses) {
+        "dataSrc": 'statuses',
+        success: function (response) {
+            var statuses = Array.isArray(response) ? response : (response.statuses || []);
             statusSelect.empty();
             statusSelect.append('<option value="none" disabled selected> -- Select a notification status --</option>');
             statuses.forEach(function (status) {
@@ -97,7 +99,7 @@ function renderNotificationsLogsDatatable(table, status, user_id) {
             url: '/api/v4/admin/notifications/data/status/' + status + "/user/" + user_id,
             type: 'GET',
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "data",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
@@ -171,7 +173,7 @@ function renderNotificationUsersDatatable(status) {
             url: '/api/v4/admin/notifications/data/by_status/' + status,
             type: 'GET',
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "data",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },

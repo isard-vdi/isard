@@ -70,6 +70,7 @@ class TemplateResponse(BaseModel):
     default: Optional[str] = None
     lang: Optional[Dict[str, Any]] = None
     system: Optional[Dict[str, Any]] = None
+    vars: Optional[Dict[str, Any]] = None
 
 
 class TemplateListResponse(BaseModel):

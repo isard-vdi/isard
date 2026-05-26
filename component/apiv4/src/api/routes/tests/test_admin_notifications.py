@@ -35,9 +35,14 @@ class TestTemplateCreate:
 
     def test_admin_creates(self, monkeypatch, test_client):
         captured = {}
+
+        def fake_create(data):
+            captured["data"] = data
+            return "tmpl-new-id"
+
         monkeypatch.setattr(
             "api.routes.admin.notifications.AdminNotificationService.create_template",
-            staticmethod(lambda data: captured.update(data=data)),
+            staticmethod(fake_create),
         )
         response = test_client(
             url=self.URL,
@@ -45,7 +50,8 @@ class TestTemplateCreate:
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
         )
-        assert response.status_code == 204
+        assert response.status_code == 200
+        assert response.json() == {"id": "tmpl-new-id"}
         assert captured["data"]["language"] == "en"
 
     def test_missing_required_field_rejected(self, test_client):

@@ -277,13 +277,17 @@ class NotificationsProcessed(RethinkSharedConnection):
                                 notification["template_id"]
                             )
                         )
-                        notification_template_user_lang = notification_template_user[
-                            "lang"
-                        ].get(
-                            user_lang,
-                            notification_template_user["lang"][
-                                notification_template_user["default"]
-                            ],
+                        default_lang = notification_template_user["default"]
+                        lang_entries = notification_template_user.get("lang") or {}
+                        fallback = (
+                            notification_template_user.get("system")
+                            if default_lang == "system"
+                            else lang_entries.get(default_lang)
+                        )
+                        if fallback is None and lang_entries:
+                            fallback = next(iter(lang_entries.values()))
+                        notification_template_user_lang = lang_entries.get(
+                            user_lang, fallback
                         )
                         ordered_notifications[order][slot_key][
                             "template"

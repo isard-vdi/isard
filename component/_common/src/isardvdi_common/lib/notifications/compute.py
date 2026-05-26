@@ -86,13 +86,17 @@ class NotificationsCompute(RethinkSharedConnection):
                         notification_template_user = NotificationTemplatesProcessed.get_notification_template_by_kind(
                             "bastion_enabled_disclaimer"
                         )
-                        notification_template_user_lang = notification_template_user[
-                            "lang"
-                        ].get(
-                            lang,
-                            notification_template_user["lang"][
-                                notification_template_user["default"]
-                            ],
+                        default_lang = notification_template_user["default"]
+                        lang_entries = notification_template_user.get("lang") or {}
+                        fallback = (
+                            notification_template_user.get("system")
+                            if default_lang == "system"
+                            else lang_entries.get(default_lang)
+                        )
+                        if fallback is None and lang_entries:
+                            fallback = next(iter(lang_entries.values()))
+                        notification_template_user_lang = lang_entries.get(
+                            lang, fallback
                         )
                         notification_data = (
                             NotificationsDataProcessed.get_user_notifications_data(

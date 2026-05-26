@@ -41,7 +41,12 @@ from api.schemas.admin.notifications import (
     TemplateResponse,
     TemplateUpdateRequest,
 )
-from api.schemas.common import DeleteResponse, EmptyResponse, ErrorResponse
+from api.schemas.common import (
+    DeleteResponse,
+    EmptyResponse,
+    ErrorResponse,
+    SimpleResponse,
+)
 from api.services.admin.notifications import AdminNotificationService
 from api.services.error import Error
 from api.services.notifications import NotificationService
@@ -59,7 +64,7 @@ tag = "admin-notifications"
 @admin_router.post(
     "/admin/notifications/template",
     tags=[tag],
-    response_model=EmptyResponse,
+    response_model=SimpleResponse,
     summary="Create notification template",
     description="Creates a new notification template.",
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
@@ -69,10 +74,14 @@ async def admin_create_notification_template(
     data: TemplateCreateRequest,
 ):
     try:
-        await asyncio.to_thread(
-            AdminNotificationService.create_template, data.model_dump()
+        template_id = await asyncio.to_thread(
+            AdminNotificationService.create_template,
+            data.model_dump(exclude_none=True),
         )
-        return Response(status_code=204)
+        return JSONResponse(
+            content=SimpleResponse(id=template_id).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception:
@@ -247,7 +256,9 @@ async def admin_update_notification_template(
 ):
     try:
         await asyncio.to_thread(
-            AdminNotificationService.update_template, template_id, data.model_dump()
+            AdminNotificationService.update_template,
+            template_id,
+            data.model_dump(exclude_none=True),
         )
         return Response(status_code=204)
     except Error:
