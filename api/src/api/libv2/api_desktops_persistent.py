@@ -23,13 +23,13 @@ from ..libv2.api_desktops_common import ApiDesktopsCommon
 from ..libv2.api_logging import logs_domain_event_directviewer
 from ..libv2.api_templates import ApiTemplates
 from ..libv2.quotas import Quotas
-from ..libv2.recycle_bin import delete_dependants_recycle_bin_from_templates
+from ..libv2.recycle_bin import get_template_dependant_recycle_bin_entries
 
 templates = ApiTemplates()
 quotas = Quotas()
 
 from cachetools import TTLCache, cached
-from isardvdi_common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error, ex
 from isardvdi_common.domain import Domain
 from isardvdi_common.storage import Storage
 from rethinkdb import RethinkDB
@@ -327,7 +327,18 @@ class ApiDesktopsPersistent:
                 description_code="duplicate",
             )
 
-        ## TODO: Permanently delete children if any
+        ## Block conversion if the template has dependent items in the recycle bin
+        recycle_bin_dependants = get_template_dependant_recycle_bin_entries(
+            [data["template_id"]], "parents"
+        ) + get_template_dependant_recycle_bin_entries(
+            [data["template_id"]], "duplicate_parent_template"
+        )
+        if recycle_bin_dependants:
+            raise Error(
+                "precondition_required",
+                f"Template {data['template_id']} has dependent items in the recycle bin",
+                description_code="storage_has_recycled_children",
+            )
 
         ## TODO: Delete deployments if any
 
@@ -350,9 +361,6 @@ class ApiDesktopsPersistent:
         }
         # Merge the new data with the existing desktop_data
         desktop_data = {**desktop_data, **new_desktop_data}
-
-        # Permanently delete dependants in recycle bin
-        delete_dependants_recycle_bin_from_templates([data["template_id"]])
 
         with app.app_context():
             r.table("domains").get(data["template_id"]).update(desktop_data).run(
