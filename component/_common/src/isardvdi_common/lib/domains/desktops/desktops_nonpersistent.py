@@ -34,7 +34,6 @@ from isardvdi_common.helpers.desktop_nonpersistent_events import (
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.scheduler import Scheduler
-from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.lib.hypervisors.hypervisors import HypervisorsProcessed
 from isardvdi_common.models.domain import DomainModel
 from isardvdi_common.models.storage import Storage
@@ -125,7 +124,6 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         if not group:
             raise Error("not_found", "NewNonPersistent: group id not found.")
 
-        parent_disk = resolve_parent_disk(template)
         # Capture the template's parent storage id BEFORE the disks array
         # is replaced below — the storage-task chain needs it as backing
         # for the new storage, and overwriting first would hide it.
@@ -137,9 +135,10 @@ class DesktopsNonpersistentProcessed(RethinkSharedConnection):
         )
 
         create_dict = template["create_dict"]
-        create_dict["hardware"]["disks"] = [
-            {"extension": "qcow2", "parent": parent_disk}
-        ]
+        # Path-shaped ``parent`` lineage marker is not written: see the
+        # PR3 commit description. ``storage.parent`` UUID + qcow2 file
+        # header are the load-bearing chain representations.
+        create_dict["hardware"]["disks"] = [{"extension": "qcow2"}]
 
         # Pre-allocate the storage so disks[0] already carries
         # storage_id/file at insert time. Engine restart cleanup needs

@@ -166,6 +166,70 @@ def test_media_update_indirect_walks_check_media_existence():
 
 
 # ---------------------------------------------------------------------------
+# media.handle_media_download_update_status
+# ---------------------------------------------------------------------------
+
+
+def test_media_download_update_status_downloaded_when_no_abort():
+    """depending_status=finished + media not aborting → Downloaded."""
+    from isardvdi_change_handler.task_results import media
+
+    task = _task(depending_status="finished")
+    fake_media = MagicMock()
+    fake_media.status = "Downloading"
+    with patch.object(media, "Media") as mock_media_cls:
+        mock_media_cls.exists.return_value = True
+        mock_media_cls.return_value = fake_media
+        media.handle_media_download_update_status(task, media_id="m1")
+    assert fake_media.status == "Downloaded"
+
+
+def test_media_download_update_status_failed_when_aborting():
+    """Even if depending_status=finished, DownloadAborting → DownloadFailed.
+
+    Pins the race condition: curl may have finished successfully just as
+    the user aborted. The media row's current status is the only authority
+    here, not the chain's depending_status. From
+    naomi.hidalgo/fix/1171-media-fixes:c84a99e43.
+    """
+    from isardvdi_change_handler.task_results import media
+
+    task = _task(depending_status="finished")
+    fake_media = MagicMock()
+    fake_media.status = "DownloadAborting"
+    with patch.object(media, "Media") as mock_media_cls:
+        mock_media_cls.exists.return_value = True
+        mock_media_cls.return_value = fake_media
+        media.handle_media_download_update_status(task, media_id="m1")
+    assert fake_media.status == "DownloadFailed"
+
+
+def test_media_download_update_status_failed_when_chain_failed():
+    """depending_status=failed → DownloadFailed regardless of media row."""
+    from isardvdi_change_handler.task_results import media
+
+    task = _task(depending_status="failed")
+    fake_media = MagicMock()
+    fake_media.status = "Downloading"
+    with patch.object(media, "Media") as mock_media_cls:
+        mock_media_cls.exists.return_value = True
+        mock_media_cls.return_value = fake_media
+        media.handle_media_download_update_status(task, media_id="m1")
+    assert fake_media.status == "DownloadFailed"
+
+
+def test_media_download_update_status_skips_missing_media():
+    """Media.exists=False → no write."""
+    from isardvdi_change_handler.task_results import media
+
+    task = _task(depending_status="finished")
+    with patch.object(media, "Media") as mock_media_cls:
+        mock_media_cls.exists.return_value = False
+        media.handle_media_download_update_status(task, media_id="missing")
+    mock_media_cls.assert_not_called()  # __init__ not invoked
+
+
+# ---------------------------------------------------------------------------
 # media.handle_recycle_bin_update
 # ---------------------------------------------------------------------------
 
@@ -245,3 +309,104 @@ def test_domain_change_storage_raises_when_storage_not_ready_for_create_domain()
         mock_storage_cls.return_value = fake_storage
         with pytest.raises(Exception, match="not ready"):
             domain.handle_domain_change_storage(task, domain_id="d1", storage_id="s1")
+
+
+# ``handle_domain_change_storage`` updates the domain's disks[0] with
+# the new storage's id and on-disk file path. It no longer writes
+# ``disk["parent"]`` — see PR3: the path-shaped lineage marker has no
+# runtime consumer on this branch (engine reads ``disk["file"]`` for
+# libvirt and ``storage.parent`` UUID for storage chain; the cascade
+# walks ``domain.parents``; the qcow2 header is the on-disk ground
+# truth). Tests below pin the new contract: only storage_id and file
+# are written; the field formerly populated by the handler is left
+# untouched.
+
+
+def test_domain_change_storage_writes_storage_id_and_file_only():
+    """Pin the post-PR3 contract: only ``storage_id`` and ``file`` are
+    written. ``disk["parent"]`` MUST NOT be touched (no consumer of the
+    path-shaped lineage marker remains)."""
+    from isardvdi_change_handler.task_results import domain
+
+    task = _task()
+    fake_domain = MagicMock()
+    fake_domain.status = "Stopped"
+    fake_domain.create_dict = {
+        "hardware": {
+            "disks": [
+                {
+                    "storage_id": "old-storage",
+                    "file": "/isard/groups/old-storage.qcow2",
+                    "parent": "stale-leftover-from-an-earlier-write",
+                }
+            ]
+        }
+    }
+    fake_storage = MagicMock()
+    fake_storage.status = "ready"
+    fake_storage.path = "/isard/groups/new-storage.qcow2"
+    fake_storage.parent = "ignored-by-this-handler-now"
+
+    with (
+        patch.object(domain, "Domain") as mock_domain_cls,
+        patch.object(domain, "Storage") as mock_storage_cls,
+    ):
+        mock_domain_cls.exists.return_value = True
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.return_value = fake_storage
+        mock_domain_cls.return_value = fake_domain
+
+        domain.handle_domain_change_storage(
+            task, domain_id="d1", storage_id="new-storage"
+        )
+
+    disk = fake_domain.create_dict["hardware"]["disks"][0]
+    assert disk["storage_id"] == "new-storage"
+    assert disk["file"] == "/isard/groups/new-storage.qcow2"
+    # Stale leftover survives — handler does not touch the field.
+    assert disk["parent"] == "stale-leftover-from-an-earlier-write"
+
+
+def test_domain_change_storage_does_not_call_storage_parent_resolution():
+    """Defensive: ensure the handler does not even dereference
+    ``storage.parent`` (which would create needless rdb load on every
+    storage change). The earlier version called ``Storage.exists`` and
+    constructed ``Storage(storage.parent)`` to resolve a path; PR3
+    removed that."""
+    from isardvdi_change_handler.task_results import domain
+
+    task = _task()
+    fake_domain = MagicMock()
+    fake_domain.status = "Stopped"
+    fake_domain.create_dict = {
+        "hardware": {"disks": [{"storage_id": "old", "file": "old.qcow2"}]}
+    }
+    fake_storage = MagicMock()
+    fake_storage.status = "ready"
+    fake_storage.path = "/isard/groups/new.qcow2"
+    # If the handler tried to read storage.parent we'd see it via the
+    # mock attribute access record below.
+    fake_storage.parent = "should-not-be-read"
+
+    with (
+        patch.object(domain, "Domain") as mock_domain_cls,
+        patch.object(domain, "Storage") as mock_storage_cls,
+    ):
+        mock_domain_cls.exists.return_value = True
+        # If the handler still tried to do Storage.exists(storage.parent)
+        # OR Storage(storage.parent), the second mock_storage_cls call
+        # would happen. Pin exists called only for the precondition
+        # check (if any) — see below.
+        mock_storage_cls.exists.return_value = True
+        mock_storage_cls.return_value = fake_storage
+        mock_domain_cls.return_value = fake_domain
+
+        domain.handle_domain_change_storage(
+            task, domain_id="d1", storage_id="new-storage"
+        )
+
+    # Storage(...) constructor should be called EXACTLY ONCE (for the
+    # new storage). The old behaviour also called it a second time to
+    # resolve storage.parent into a path.
+    assert mock_storage_cls.call_count == 1
+    mock_storage_cls.assert_called_once_with("new-storage")

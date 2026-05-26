@@ -80,7 +80,17 @@ def handle_domain_change_storage(task, domain_id, storage_id):
     disk = c_dict["hardware"]["disks"][0]
     disk["storage_id"] = storage_id
     disk["file"] = storage.path
-    disk["parent"] = storage.parent
+    # ``disk["parent"]`` (path-shaped lineage marker) is intentionally
+    # NOT written. Earlier this handler resolved ``storage.parent``
+    # (UUID) into the parent storage's path and wrote it here for
+    # parity with main's ``engine.services.lib.storage.insert_storage``.
+    # PR3 audit confirmed zero readers on this branch — engine builds
+    # libvirt XML from ``disk["file"]`` only (``domain_xml.py:1763``),
+    # ``storage.parent`` is read separately for the resolved_disk
+    # ``parent`` field but goes unused in the XML loop, the cascade
+    # walks ``domain.parents`` UUIDs, and qemu reads the on-disk
+    # backing-file from the qcow2 header. Leaving the field unset
+    # avoids a stale lineage marker on every chain step.
     domain.create_dict = c_dict
 
     if domain.status in _DOMAIN_CREATE_TO_CREATING_DOMAIN:

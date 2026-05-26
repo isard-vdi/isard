@@ -30,7 +30,7 @@ from api.schemas.admin.storage import (
     AdminStorageItem,
     AdminStorageStatusCount,
 )
-from api.schemas.common import EmptyResponse, ErrorResponse
+from api.schemas.common import DeleteResponse, EmptyResponse, ErrorResponse
 from api.services.admin.storage import AdminStorageService
 from api.services.error import Error
 from fastapi import Path, Request
@@ -311,11 +311,18 @@ async def admin_media_domains(
 @manager_router.delete(
     "/admin/storage/{storage_id}",
     tags=[tag],
-    response_model=EmptyResponse,
+    response_model=DeleteResponse,
+    status_code=202,
     summary="Delete a storage",
-    description="Mark a storage for deletion.",
+    description=(
+        "Delete a storage via the canonical task chain — same chain the "
+        "user-facing ``DELETE /item/storage/{id}`` invokes. Rejects with 428 "
+        "if the storage still has child storages."
+    ),
     responses={
+        202: {"model": DeleteResponse},
         404: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -324,8 +331,19 @@ async def admin_storage_delete(
     storage_id: str = Path(..., description="Storage ID to delete"),
 ):
     try:
-        await asyncio.to_thread(AdminStorageService.delete_storage, storage_id)
-        return Response(status_code=204)
+        task_id = await asyncio.to_thread(
+            AdminStorageService.delete_storage,
+            request.token_payload,
+            storage_id,
+        )
+        return JSONResponse(
+            content=DeleteResponse(
+                message="Task to delete storage queued",
+                message_code="item.queued",
+                tasks_ids=[task_id] if isinstance(task_id, str) else None,
+            ).model_dump(mode="json"),
+            status_code=202,
+        )
     except Error:
         raise
     except Exception:

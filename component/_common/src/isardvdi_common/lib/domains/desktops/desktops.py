@@ -52,7 +52,6 @@ from isardvdi_common.lib.bookings.bookings import BookingsProcessed
 from isardvdi_common.lib.bookings.reservables_planner_compute import (
     ReservablesPlannerCompute,
 )
-from isardvdi_common.lib.domains.disk_resolver import resolve_parent_disk
 from isardvdi_common.lib.domains.templates.templates import TemplatesProcessed
 from isardvdi_common.lib.storage.storage import StorageProcessed
 from isardvdi_common.models.domain import Domain
@@ -453,6 +452,26 @@ class DesktopsProcessed(RethinkSharedConnection):
                 traceback.format_exc(),
                 description_code="not_found",
             )
+        # Reject derivation from a template that's still being built
+        # (or that previously failed). Otherwise the chain dispatch
+        # downstream raises "Parent storage is not ready", which used
+        # to surface as a 500 and is now a generic 428 — give the user
+        # an actionable message instead.
+        _UNUSABLE_TEMPLATE_STATUSES = {
+            "CreatingTemplate",
+            "Failed",
+            "Maintenance",
+            "DownloadStarting",
+            "Downloading",
+        }
+        if template.get("status") in _UNUSABLE_TEMPLATE_STATUSES:
+            raise Error(
+                "precondition_required",
+                f"Template {template_id} is not ready "
+                f"(status={template['status']!r}); wait for it to finish "
+                "or pick another template",
+                description_code="template_not_ready",
+            )
         user = Caches.get_document(
             "users", user_id, ["id", "username", "category", "group"]
         )
@@ -473,11 +492,14 @@ class DesktopsProcessed(RethinkSharedConnection):
             create_dict["hardware"]["interfaces"]
         )
 
-        # Add the disks to the create_dict so the new qcow2 disk are created
-        parent_disk = resolve_parent_disk(template)
-        create_dict["hardware"]["disks"] = [
-            {"extension": "qcow2", "parent": parent_disk}
-        ]
+        # Add the disks to the create_dict so the new qcow2 disk are created.
+        # The path-shaped ``parent`` lineage marker is not written: nothing
+        # on this branch reads ``disks[*].parent`` (engine resolves the
+        # backing chain from ``storage.parent`` directly, the chain
+        # cascade walks ``domain.parents``, and the qcow2 header is the
+        # on-disk ground truth). See the PR3 commit description for the
+        # full audit.
+        create_dict["hardware"]["disks"] = [{"extension": "qcow2"}]
 
         # Allocate the storage row before inserting the domain so
         # ``disks[0].storage_id`` is populated at insert time. That lets
@@ -1459,6 +1481,16 @@ class DesktopsProcessed(RethinkSharedConnection):
             "tag_visible": False,
             "tag_desktop_id": False,
             "booking_id": False,
+            # From-media desktops have no template ancestry, but every
+            # other writer of the ``parents`` field (new_from_template,
+            # duplicate_template, the desktop-rewrite path in
+            # new_template) sets it explicitly to a list. Initialize it
+            # here too so cascade-walking code that does
+            # ``r.table("domains").get_all(tid, index="parents")`` /
+            # ``domain["parents"]`` always sees the column present —
+            # defensive against any reader that does not use
+            # ``.get("parents", [])``.
+            "parents": [],
         }
 
         res = Quotas.limit_user_hardware_allowed(payload, domain["create_dict"])

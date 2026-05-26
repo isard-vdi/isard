@@ -96,7 +96,13 @@ class GuestProperties(BaseModel):
 
 class DiskTemplate(BaseModel):
     extension: str
-    parent: str
+    # ``parent`` was historically a path-shaped lineage marker but has no
+    # consumers post-MR-3 (engine reads disks[*].file, storage uses
+    # storage.parent UUIDs). Made Optional so the validator accepts both
+    # old rows that still carry stale path values and new rows written
+    # without the field after the writers were dropped — strict-required
+    # would break every desktop-from-template create.
+    parent: Optional[str] = None
     # ``storage_id`` and ``file`` are populated by apiv4 at desktop-insert
     # time when task-based disk creation pre-allocates the storage, so
     # engine restart cleanup can trace the in-flight task via the

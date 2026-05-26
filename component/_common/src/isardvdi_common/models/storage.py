@@ -473,7 +473,7 @@ class Storage(RethinkCustomBase):
                     "dependents": [
                         {
                             "queue": "core",
-                            "task": "storage_domains_force_update",
+                            "task": "storage_update_parent",
                             "job_kwargs": {"kwargs": {"storage_id": self.id}},
                         }
                     ],
@@ -671,11 +671,6 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                             },
-                            {
-                                "queue": "core",
-                                "task": "storage_domains_force_update",
-                                "job_kwargs": {"kwargs": {"storage_id": self.id}},
-                            },
                         ],
                     },
                 ]
@@ -769,11 +764,6 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                             },
-                        },
-                        {
-                            "queue": "core",
-                            "task": "storage_domains_force_update",
-                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
                         },
                     ],
                 },
@@ -1506,12 +1496,17 @@ class Storage(RethinkCustomBase):
         handler. The storage row must already exist (``Storage.new_dict``).
 
         Chain:
-            domain_creating_disk  (core — root)
-              -> create  (storage.{pool}.{priority})
-                -> qemu_img_info_backing_chain
-                  -> storage_update
-                    -> domain_change_storage
-                      -> update_status  (FAILED/CANCELED → "Failed")
+            create  (storage.{pool}.{priority} — root)
+              -> qemu_img_info_backing_chain
+                -> storage_update
+                  -> domain_change_storage
+                    -> update_status  (FAILED/CANCELED -> "Failed")
+
+        The pre-MR-3 root ``domain_creating_disk`` is now applied
+        inline (just a Creating/CreatingDiskFromScratch -> CreatingDisk
+        status flip) because the post-MR-3 stack has no worker on the
+        ``core`` queue — change-handler's stream consumer can only be
+        driven by ``kind=result`` events from the storage worker.
 
         Pass ``size`` as a qemu-img size string for scratch disks (no
         parent). For template-derived disks the backing file determines
@@ -1520,23 +1515,34 @@ class Storage(RethinkCustomBase):
         :return: Root task ID
         :rtype: str
         """
+        # Typed ``Error`` so apiv4's exception mapper produces 404/428
+        # responses with a readable description, instead of a generic
+        # 500 from a plain ``Exception``. Import inside the function to
+        # avoid the snapshot-bind race documented in
+        # ``reference_apiv4_error_factory_race.md``.
+        from isardvdi_common.helpers.error_factory import Error
+
         if self.parent:
             if not Storage.exists(self.parent):
-                raise Exception(
+                raise Error(
                     "not_found",
                     f"Parent storage {self.parent} not found",
+                    description_code="parent_storage_not_found",
                 )
             storage_parent = Storage(self.parent)
             if storage_parent.status != "ready":
-                raise Exception(
+                raise Error(
                     "precondition_required",
-                    "Parent storage is not ready",
-                    "storage_not_ready",
+                    f"Parent storage {self.parent} is not ready "
+                    f"(status={storage_parent.status!r})",
+                    description_code="storage_not_ready",
                 )
             if storage_parent.type != self.type:
-                raise Exception(
+                raise Error(
                     "precondition_required",
-                    "Parent storage type does not match",
+                    f"Parent storage {self.parent} type ({storage_parent.type!r}) "
+                    f"does not match this storage type ({self.type!r})",
+                    description_code="parent_storage_type_mismatch",
                 )
             parent_args = {
                 "parent_path": storage_parent.path,
@@ -1544,9 +1550,10 @@ class Storage(RethinkCustomBase):
             }
         else:
             if not size:
-                raise Exception(
+                raise Error(
                     "bad_request",
                     "Scratch disk creation requires a size",
+                    description_code="scratch_size_required",
                 )
             parent_args = {}
 
@@ -1558,75 +1565,75 @@ class Storage(RethinkCustomBase):
         if size is not None:
             create_kwargs["size"] = size
 
+        # ``domain_creating_disk`` used to be the chain root on the
+        # ``core`` queue, but post-MR-3 there is no worker that pops
+        # ``core`` — the change-handler stream consumer only fires on
+        # ``kind=result`` events from the storage worker, so a core
+        # root deadlocks immediately. Apply the same status flip
+        # inline (mirrors
+        # ``change_handler.task_results.domain.handle_domain_creating_disk``
+        # exactly) and root the chain on the first storage task.
+        from isardvdi_common.models.domain import Domain
+
+        if Domain.exists(domain_id):
+            _d = Domain(domain_id)
+            if _d.status in ("Creating", "CreatingDiskFromScratch"):
+                _d.status = "CreatingDisk"
+
         self.set_maintenance("create")
         self.create_task(
             user_id=self.user_id,
-            queue="core",
-            task="domain_creating_disk",
+            queue=f"storage.{self.pool.id}.{priority}",
+            task="create",
             retry=retry,
             retry_intervals=15,
-            job_kwargs={"kwargs": {"domain_id": domain_id}},
+            job_kwargs={"kwargs": create_kwargs},
             dependents=[
                 {
                     "queue": f"storage.{self.pool.id}.{priority}",
-                    "task": "create",
-                    "job_kwargs": {"kwargs": create_kwargs},
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
                     "dependents": [
                         {
-                            "queue": f"storage.{self.pool.id}.{priority}",
-                            "task": "qemu_img_info_backing_chain",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "storage_id": self.id,
-                                    "storage_path": self.path,
-                                }
-                            },
+                            "queue": "core",
+                            "task": "storage_update",
                             "dependents": [
                                 {
                                     "queue": "core",
-                                    "task": "storage_update",
+                                    "task": "domain_change_storage",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "domain_id": domain_id,
+                                            "storage_id": self.id,
+                                        },
+                                    },
                                     "dependents": [
                                         {
                                             "queue": "core",
-                                            "task": "domain_change_storage",
+                                            "task": "update_status",
                                             "job_kwargs": {
                                                 "kwargs": {
-                                                    "domain_id": domain_id,
-                                                    "storage_id": self.id,
-                                                },
-                                            },
-                                            "dependents": [
-                                                {
-                                                    "queue": "core",
-                                                    "task": "update_status",
-                                                    "job_kwargs": {
-                                                        "kwargs": {
-                                                            "statuses": {
-                                                                JobStatus.FAILED: {
-                                                                    "Failed": {
-                                                                        "domain": [
-                                                                            domain_id
-                                                                        ],
-                                                                        "storage": [
-                                                                            self.id
-                                                                        ],
-                                                                    },
-                                                                },
-                                                                JobStatus.CANCELED: {
-                                                                    "Failed": {
-                                                                        "domain": [
-                                                                            domain_id
-                                                                        ],
-                                                                        "storage": [
-                                                                            self.id
-                                                                        ],
-                                                                    },
-                                                                },
+                                                    "statuses": {
+                                                        JobStatus.FAILED: {
+                                                            "Failed": {
+                                                                "domain": [domain_id],
+                                                                "storage": [self.id],
+                                                            },
+                                                        },
+                                                        JobStatus.CANCELED: {
+                                                            "Failed": {
+                                                                "domain": [domain_id],
+                                                                "storage": [self.id],
                                                             },
                                                         },
                                                     },
-                                                }
-                                            ],
+                                                },
+                                            },
                                         }
                                     ],
                                 }
@@ -1718,19 +1725,27 @@ class Storage(RethinkCustomBase):
             :meth:`rsync`).
         :return: Root task id.
         """
+        # Typed ``Error`` so apiv4 maps to 404/428 instead of falling
+        # through to 500. See the note in
+        # ``enqueue_disk_creation_chain_for_domain`` for the in-function
+        # import rationale.
+        from isardvdi_common.helpers.error_factory import Error
+
         if not Storage.exists(template_storage_id):
-            raise Exception(
+            raise Error(
                 "not_found",
                 f"Template storage {template_storage_id} not found",
+                description_code="template_storage_not_found",
             )
         template_storage = Storage(template_storage_id)
         dst_pool = template_storage.pool
         src_pool = self.pool
         if dst_pool is None or src_pool is None:
-            raise Exception(
+            raise Error(
                 "precondition_required",
                 f"No storage pool resolved for template {template_storage_id} "
                 f"or desktop {desktop_id}",
+                description_code="storage_no_pool",
             )
 
         # The new template storage is fresh (status="non_existing"); the
@@ -1786,6 +1801,23 @@ class Storage(RethinkCustomBase):
                                     "queue": "core",
                                     "task": "storage_update",
                                     "dependents": [
+                                        # Mirror main's post-SSH
+                                        # ``Storage(template_storage_id).find()``:
+                                        # re-resolve template_storage.parent
+                                        # from on-disk backing-filename via
+                                        # storage_update_parent. Without
+                                        # this, the new template row stays
+                                        # with parent=None even when the
+                                        # disk has a real backing file.
+                                        {
+                                            "queue": "core",
+                                            "task": "storage_update_parent",
+                                            "job_kwargs": {
+                                                "kwargs": {
+                                                    "storage_id": template_storage_id,
+                                                }
+                                            },
+                                        },
                                         {
                                             "queue": f"storage.{src_pool.id}.{priority}",
                                             "task": "qemu_img_info_backing_chain",
@@ -1800,6 +1832,23 @@ class Storage(RethinkCustomBase):
                                                     "queue": "core",
                                                     "task": "storage_update",
                                                     "dependents": [
+                                                        # Mirror main's
+                                                        # post-SSH
+                                                        # ``Storage(domain_storage_id).find()``:
+                                                        # flip the desktop
+                                                        # storage's parent
+                                                        # to the new
+                                                        # template via
+                                                        # storage_update_parent.
+                                                        {
+                                                            "queue": "core",
+                                                            "task": "storage_update_parent",
+                                                            "job_kwargs": {
+                                                                "kwargs": {
+                                                                    "storage_id": self.id,
+                                                                }
+                                                            },
+                                                        },
                                                         {
                                                             "queue": "core",
                                                             "task": "update_status",
@@ -1833,11 +1882,11 @@ class Storage(RethinkCustomBase):
                                                                     },
                                                                 },
                                                             },
-                                                        }
+                                                        },
                                                     ],
                                                 }
                                             ],
-                                        }
+                                        },
                                     ],
                                 }
                             ],
@@ -1964,32 +2013,39 @@ class Storage(RethinkCustomBase):
             "abort", path=self.directory_path
         )
 
+        # The old ``delete_task`` chain root on ``core`` deadlocks
+        # post-MR-3 (no worker on ``core`` — change-handler's stream
+        # consumer can only be driven by ``kind=result`` events from a
+        # storage worker). Cancel the in-flight RQ Task in-process,
+        # then root the chain on the storage-side
+        # ``qemu_img_info_backing_chain`` so the consumer takes over
+        # naturally.
+        if self.task and Task.exists(self.task):
+            try:
+                Task(self.task).cancel()
+            except Exception:
+                # Best-effort — Task.cancel is itself best-effort
+                # (see Task.cancel docstring). Even if cancel raises,
+                # the post-abort qemu_img_info_backing_chain + storage_update
+                # below will reset the storage row to its real on-disk
+                # state.
+                pass
+
         self.create_task(
             user_id=user_id,
-            queue="core",
-            task="delete_task",
+            queue=f"storage.{storage_pool.id}.default",
+            task="qemu_img_info_backing_chain",
             blocking=False,
             job_kwargs={
                 "kwargs": {
-                    "task_id": self.task,
+                    "storage_id": self.id,
+                    "storage_path": self.path,
                 }
             },
             dependents=[
                 {
-                    "queue": f"storage.{storage_pool.id}.default",
-                    "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": self.id,
-                            "storage_path": self.path,
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "storage_update",
-                        }
-                    ],
+                    "queue": "core",
+                    "task": "storage_update",
                 }
             ],
         )
@@ -2032,61 +2088,56 @@ class Storage(RethinkCustomBase):
                 f"Path {new_path} is the same as the storage path",
             )
 
+        # ``storage_update_dict`` was the chain root on ``core``, but
+        # post-MR-3 the ``core`` queue has no worker. Apply the storage
+        # row update inline (mirrors
+        # ``change_handler.task_results.storage.handle_storage_update_dict``:
+        # set status, directory_path, qemu-img-info.filename) and root
+        # the chain on the first storage task (``touch``).
+        from rethinkdb import r as _r
+
+        with self._rdb_context():
+            _r.table("storage").get(self.id).update(
+                {
+                    "status": "ready",
+                    "directory_path": new_path.split("/" + self.id)[0],
+                    "qemu-img-info": {"filename": new_path},
+                }
+            ).run(self._rdb_connection)
+
         self.set_maintenance("set_path")
         self.create_task(
             blocking=True,
             user_id=user_id,
-            queue="core",
-            task="storage_update_dict",
+            queue=f"storage.{StoragePool.get_best_for_action('touch', path=new_path).id}.{priority}",
+            task="touch",
             retry=retry,
             retry_intervals=15,
-            job_kwargs={
-                "kwargs": {
-                    "id": self.id,
-                    "status": "ready",
-                    "directory_path": new_path.split("/" + self.id)[0],
-                    "qemu-img-info": {
-                        "filename": new_path,
-                    },
-                }
-            },
+            job_kwargs={"kwargs": {"path": new_path}},
             dependents=[
                 {
-                    "queue": f"storage.{StoragePool.get_best_for_action('touch', path=new_path).id}.{priority}",
-                    "task": "touch",
+                    "queue": f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.{priority}",
+                    "task": "find",
                     "job_kwargs": {
                         "kwargs": {
-                            "path": new_path,
+                            "storage_id": self.id,
+                            "storage_path": self.path,
                         }
                     },
                     "dependents": [
                         {
-                            "queue": f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.{priority}",
-                            "task": "find",
+                            "queue": "core",
+                            "task": "storage_update_pool",
                             "job_kwargs": {
                                 "kwargs": {
                                     "storage_id": self.id,
-                                    "storage_path": self.path,
                                 }
                             },
                             "dependents": [
                                 {
                                     "queue": "core",
-                                    "task": "storage_update_pool",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "storage_id": self.id,
-                                        }
-                                    },
-                                    "dependents": [
-                                        {
-                                            "queue": "core",
-                                            "task": "storage_domains_force_update",
-                                            "job_kwargs": {
-                                                "kwargs": {"storage_id": self.id}
-                                            },
-                                        }
-                                    ],
+                                    "task": "storage_update_parent",
+                                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
                                 }
                             ],
                         }

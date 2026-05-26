@@ -23,6 +23,8 @@ import shlex
 import shutil
 import signal
 import tempfile
+import threading
+from contextlib import contextmanager
 from functools import wraps
 from json import loads
 from os import environ, makedirs, remove, rename
@@ -272,14 +274,6 @@ def run_with_progress(command, extract_progress, on_progress=None, initial_check
                     queue=job.origin,
                     progress=pct,
                 )
-                _publish_task_event(
-                    job.connection,
-                    kind="progress",
-                    task_id=job.id,
-                    task_name=job.func_name.rsplit(".", 1)[-1],
-                    queue=job.origin,
-                    progress=pct,
-                )
                 if on_progress is not None:
                     try:
                         on_progress(pct)
@@ -310,6 +304,122 @@ def run_with_progress(command, extract_progress, on_progress=None, initial_check
             except Exception:
                 log.exception("run_with_progress: final on_progress callback failed")
     return process.returncode
+
+
+@contextmanager
+def task_heartbeat(task_name, interval_s=30, timeout_s=None, **extra):
+    """Emit a periodic structured log entry while a long task runs and
+    publish a matching ``kind=progress`` event to ``stream:task-results``.
+
+    Wraps the call site of long-running synchronous tasks (``sparsify``,
+    ``virt_win_reg``, ``find`` full-walk) that don't go through
+    ``run_with_progress``. For those tasks the operator gets nothing
+    between start and end of the operation — making them indistinguishable
+    from a stuck worker. This helper spawns a daemon thread that:
+
+      - emits one log line every ``interval_s`` seconds with ``task``,
+        ``job_id``, and ``elapsed_s`` fields, so Loki / log grep can show a
+        clear "still alive" signal; and
+      - publishes a ``kind=progress`` event to ``stream:task-results`` so
+        the change-handler stream consumer fans out a ``task`` SocketIO
+        event the webapp already renders as a progress bar. The
+        ``progress`` value is the elapsed-time / timeout ratio, capped at
+        ``0.95`` so the bar never reads 100% before the wrapped function
+        actually returns (RQ's post-perform code then marks the Job
+        ``FINISHED`` and ``Task.progress`` naturally returns 1.0).
+
+    Both signals are best-effort: failures inside the heartbeat thread
+    are swallowed so the wrapped operation can't be poisoned by a
+    transient Redis blip or a logging hiccup.
+
+    ``timeout_s`` defaults to the RQ job's configured timeout when not
+    supplied; pass it explicitly when a callsite knows a tighter bound
+    (e.g. an operation with an external SLA shorter than the queue
+    default).
+
+    Usage::
+
+        with task_heartbeat("sparsify", storage_path=path, timeout_s=job.timeout):
+            subprocess.run([...])
+    """
+    job = get_current_job()
+    job_id = job.id if job else None
+    if timeout_s is None and job is not None:
+        # Fall back to the RQ job's own timeout. ``rq.Queue.DEFAULT_TIMEOUT``
+        # is 180s in upstream RQ but per-callsite overrides are common
+        # (sparsify uses 12h). The publish loop just clamps to ≤ 0.95 so
+        # an under-estimated timeout caps the bar instead of skewing it.
+        timeout_s = job.timeout
+    start_t = time()
+    stop = threading.Event()
+
+    def _beat():
+        while not stop.wait(interval_s):
+            try:
+                elapsed = time() - start_t
+                log.info(
+                    "task heartbeat: %s alive (elapsed %.1fs)",
+                    task_name,
+                    elapsed,
+                    extra={
+                        "task": task_name,
+                        "job_id": job_id,
+                        "elapsed_s": round(elapsed, 1),
+                        **extra,
+                    },
+                )
+                # Surface the same "still alive" signal to the UI via the
+                # ``stream:task-results`` Redis stream consumed by
+                # change-handler. Cap ``progress`` at 0.95 so the
+                # progress bar can't read 100% before the wrapped task
+                # actually returns — real completion bumps it to 1.0
+                # through the ``kind=result`` path. If ``run_with_progress``
+                # ever wraps one of these callsites and writes a real
+                # progress meta value, defer to it.
+                #
+                # The XADD is open-coded (rather than calling the shared
+                # ``_publish_task_event`` helper that ``_publishes_result``
+                # uses) so this branch is self-contained — it lands
+                # independently of the task-results-stream-consumer MR
+                # chain. If both code paths converge later, the two XADD
+                # shapes are identical (``stream:task-results``,
+                # maxlen=10_000, approximate=True, the same field set).
+                if job is not None and timeout_s:
+                    real_progress = (job.meta or {}).get("progress", 0) or 0
+                    pseudo_progress = min(0.95, elapsed / float(timeout_s))
+                    if pseudo_progress > real_progress:
+                        try:
+                            fields = {
+                                "kind": "progress",
+                                "task_id": str(job_id or ""),
+                                "task_name": str(task_name),
+                                "queue": str(job.origin or ""),
+                                "progress": str(pseudo_progress),
+                            }
+                            job.connection.xadd(
+                                "stream:task-results",
+                                fields,
+                                maxlen=10000,
+                                approximate=True,
+                            )
+                        except Exception:
+                            # publish is best-effort: transient Redis
+                            # errors, stream-not-yet-created on first
+                            # boot, etc. — never let it surface to the
+                            # worker. Heartbeat log line above still
+                            # provides the operator signal.
+                            pass
+            except Exception:
+                # heartbeat is best-effort; never let it leak from the worker
+                pass
+
+    thread = threading.Thread(target=_beat, daemon=True, name=f"heartbeat-{task_name}")
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=1.0)
 
 
 @_publishes_result
@@ -676,20 +786,26 @@ def _run_curl_download(
                             queue=job.origin,
                             progress=pct,
                         )
-                        _publish_task_event(
-                            job.connection,
-                            kind="progress",
-                            task_id=job.id,
-                            task_name=job.func_name.rsplit(".", 1)[-1],
-                            queue=job.origin,
-                            progress=pct,
-                        )
                 continue
             line += ch
+
+        if not aborted and watcher.cancelled:
+            aborted = True
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
 
     process.wait(timeout=10)
 
     if aborted:
+        try:
+            os.unlink(dest_path)
+        except OSError:
+            pass
+        raise CalledProcessError(returncode=130, cmd=curl_cmd)
+
+    if is_aborting():
         try:
             os.unlink(dest_path)
         except OSError:
@@ -1105,17 +1221,18 @@ def virt_win_reg(storage_path, registry_patch):
         with tempfile.NamedTemporaryFile() as fp:
             fp.write(registry_patch.encode())
             fp.flush()
-            result = run(
-                [
-                    "virt-win-reg",
-                    "--merge",
-                    storage_path,
-                    fp.name,
-                ],
-                capture_output=True,  # Capture stdout and stderr
-                text=True,  # Decode output as text
-                check=True,  # Raise CalledProcessError on failure
-            )
+            with task_heartbeat("virt_win_reg", storage_path=storage_path):
+                result = run(
+                    [
+                        "virt-win-reg",
+                        "--merge",
+                        storage_path,
+                        fp.name,
+                    ],
+                    capture_output=True,  # Capture stdout and stderr
+                    text=True,  # Decode output as text
+                    check=True,  # Raise CalledProcessError on failure
+                )
             return result.returncode
     except CalledProcessError as cpe:
         # Return error details, including captured stderr
@@ -1207,31 +1324,37 @@ def find(storage_id, storage_path, full_walk=False):
             status = storage_data["status"]
         return {"id": storage_id, "status": status, "matching_files": matching_files}
 
-    # Full walk: file not at expected path, or full_walk explicitly requested
-    for root, _, files in walk(root_dir):
-        for filename in files:
-            if storage_id in filename:
-                file_path = join(root, filename)
-                try:
-                    modified_time = getmtime(file_path)
-                except OSError:
-                    modified_time = None
-                # Skip if the file is not a qcow2 file or it is a hidden file (starts with a dot)
-                if not file_path.endswith(".qcow2") or basename(file_path).startswith(
-                    "."
-                ):
-                    storage_data = None
-                else:
-                    storage_data = qemu_img_info_backing_chain(storage_id, file_path)
-                matching_files.append(
-                    {
-                        "path": file_path,
-                        "mtime": modified_time,
-                        "storage_data": storage_data,
-                    }
-                )
-                if storage_path == file_path and storage_data:
-                    status = storage_data["status"]
+    # Full walk: file not at expected path, or full_walk explicitly requested.
+    # Heartbeat surfaces "still walking" while the recursive scan runs — on
+    # large /isard trees this can take minutes and otherwise looks identical
+    # to a stuck worker in the logs.
+    with task_heartbeat("find", storage_id=storage_id, full_walk=full_walk):
+        for root, _, files in walk(root_dir):
+            for filename in files:
+                if storage_id in filename:
+                    file_path = join(root, filename)
+                    try:
+                        modified_time = getmtime(file_path)
+                    except OSError:
+                        modified_time = None
+                    # Skip if the file is not a qcow2 file or it is a hidden file (starts with a dot)
+                    if not file_path.endswith(".qcow2") or basename(
+                        file_path
+                    ).startswith("."):
+                        storage_data = None
+                    else:
+                        storage_data = qemu_img_info_backing_chain(
+                            storage_id, file_path
+                        )
+                    matching_files.append(
+                        {
+                            "path": file_path,
+                            "mtime": modified_time,
+                            "storage_data": storage_data,
+                        }
+                    )
+                    if storage_path == file_path and storage_data:
+                        status = storage_data["status"]
     return {"id": storage_id, "status": status, "matching_files": matching_files}
 
 
@@ -1297,12 +1420,13 @@ def sparsify(storage_path):
     )
 
     try:
-        result = run(
-            ["virt-sparsify", "--in-place", storage_path],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        with task_heartbeat("sparsify", storage_path=storage_path):
+            result = run(
+                ["virt-sparsify", "--in-place", storage_path],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
         if result.stderr:
             log.info(
                 "virt-sparsify stderr for %s: %s", storage_path, result.stderr.strip()
