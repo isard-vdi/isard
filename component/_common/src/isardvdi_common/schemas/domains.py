@@ -54,6 +54,15 @@ class DesktopStatusEnum(str, Enum):
     creating = DomainStatusEnum.creating.value
     creating_disk = DomainStatusEnum.creating_disk.value
     creating_and_starting = "CreatingAndStarting"
+    # During "create template from desktop" the source domain row
+    # is still ``kind=desktop`` while its ``status`` transitions
+    # through ``CreatingTemplate`` (see TemplateStatusEnum). API
+    # responses that type the row as DesktopStatusEnum (e.g.
+    # ``StorageItem.domains[].status`` in
+    # ``/api/v4/items/storage/ready``) would otherwise reject the
+    # value with a Pydantic enum error.
+    creating_template = "CreatingTemplate"
+    creating_domain = "CreatingDomain"
     starting = "Starting"
     starting_paused = DomainStatusEnum.starting_paused.value
     starting_domain_disposable = "StartingDomainDisposable"
@@ -81,6 +90,7 @@ class DesktopStatusEnum(str, Enum):
 class TemplateStatusEnum(str, Enum):
     creating = DomainStatusEnum.creating.value
     creating_template = "CreatingTemplate"
+    creating_domain = "CreatingDomain"
     starting_paused = DomainStatusEnum.starting_paused.value
     stopped = DomainStatusEnum.stopped.value
     failed = DomainStatusEnum.failed.value

@@ -145,6 +145,28 @@ class TestGetTable:
         assert "�" in body[0]["description"]
         assert "binary blob" in body[0]["description"]
 
+    def test_int_id_does_not_500(self, monkeypatch, test_client):
+        """RethinkDB's ``config`` singleton row is stored with
+        ``id=1`` (integer). The earlier ``TableItem.id: Optional[str]``
+        annotation rejected the int and 500'd every
+        ``GET /admin/table/config`` query — surfaced by pentest scans
+        against the admin surface. The model now accepts ``Union[str,
+        int]`` per the ``Pydantic model vs DB convention`` recurring
+        pattern documented in the apiv4-migration skill."""
+
+        def fake_get(table, payload, options):
+            return [{"id": 1, "version": 193}]
+
+        monkeypatch.setattr(
+            "api.routes.admin.tables.AdminTablesService.get_table",
+            staticmethod(fake_get),
+        )
+        response = test_client(url="/admin/table/config", jwt=MockJWT(role_id="admin"))
+        assert response.status_code == 200
+        body = response.json()
+        assert body[0]["id"] == 1
+        assert body[0]["version"] == 193
+
     def test_nested_bytes_in_dict_are_sanitized(self, monkeypatch, test_client):
         """Nested dicts/lists carrying bytes must also be decoded. The
         sanitizer recurses so a binary blob inside ``hardware.disks[0]``

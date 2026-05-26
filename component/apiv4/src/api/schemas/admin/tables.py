@@ -77,11 +77,19 @@ class TableItem(BaseModel):
     The shape is per-table (interfaces, graphics, qos, …) and the
     plucked field set varies with the request, so the model is
     permissive (``ConfigDict(extra="allow")``).
+
+    ``id`` accepts both ``str`` and ``int`` because RethinkDB's
+    ``config`` singleton row is stored with ``id=1`` (integer), and
+    the same admin route serves every table — see
+    ``Pydantic model vs DB convention`` recurring pattern in the
+    apiv4-migration skill: DB conventions use sentinel types
+    (``False`` / ``int`` / ``None``); Pydantic models added later
+    must accept them rather than forcing the DB to change shape.
     """
 
     model_config = {"extra": "allow"}
 
-    id: Optional[str] = None
+    id: Optional[Union[str, int]] = None
 
 
 class AllowedTermItem(BaseModel):
