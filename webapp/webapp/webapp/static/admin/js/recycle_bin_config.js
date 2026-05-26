@@ -376,7 +376,7 @@ function renderUnusedItemTimeoutsDatatable() {
             url: '/api/v4/items/recycle-bin/unused-item-timeout-rules',
             type: 'GET',
         },
-        "sAjaxDataProp": "",
+        "sAjaxDataProp": "rules",
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
