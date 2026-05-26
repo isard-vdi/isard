@@ -58,13 +58,14 @@ class RecycleBinCutoffTimeResponse(BaseModel):
 
 class RecycleBinResponse(BaseModel):
     accessed: float
-    agent_category_id: str
-    agent_category_name: str
-    agent_group_id: str
-    agent_group_name: str
+    # System/external agents have no category/group/role (helpers/recycle_bin.py:1326-1332).
+    agent_category_id: Optional[str] = None
+    agent_category_name: Optional[str] = None
+    agent_group_id: Optional[str] = None
+    agent_group_name: Optional[str] = None
     agent_id: str
     agent_name: str
-    agent_role: str
+    agent_role: Optional[str] = None
     agent_type: str
     categories: list[dict]
     deployments: list[dict]
@@ -94,24 +95,26 @@ class RecycleBinLastAction(BaseModel):
     """Last action performed on recycle bin item"""
 
     action: str
-    agent_category_id: str
-    agent_category_name: str
+    # System/external agents have no category/group/role (helpers/recycle_bin.py:1326-1332).
+    agent_category_id: Optional[str] = None
+    agent_category_name: Optional[str] = None
     agent_id: str
     agent_name: str
-    agent_role: str
+    agent_role: Optional[str] = None
     agent_type: str
     time: int
 
 
 class RecycleBinEntry(BaseModel):
     accessed: float
-    agent_category_id: str
-    agent_category_name: str
-    agent_group_id: str
-    agent_group_name: str
+    # System/external agents have no category/group/role (helpers/recycle_bin.py:1326-1332).
+    agent_category_id: Optional[str] = None
+    agent_category_name: Optional[str] = None
+    agent_group_id: Optional[str] = None
+    agent_group_name: Optional[str] = None
     agent_id: str
     agent_name: str
-    agent_role: str
+    agent_role: Optional[str] = None
     agent_type: str
     categories: int
     deployments: int
