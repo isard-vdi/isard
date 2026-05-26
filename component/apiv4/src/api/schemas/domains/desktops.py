@@ -578,12 +578,44 @@ class DomainInfoBastionResponse(BaseModel):
         default=None,
         description="Domain associated with the bastion configuration. If None, the bastion is not associated with any domain.",
     )
+    domains: list[str] = Field(
+        default_factory=list,
+        description="Custom CNAMEs configured on this bastion target.",
+    )
     http: BastionHttpConfig = Field(
         description="HTTP configuration for the bastion.",
     )
     ssh: BastionSshConfig = Field(
         description="SSH configuration for the bastion.",
     )
+    bastion_domain: str | None = Field(
+        default=None,
+        description="Global bastion domain. Used by the admin info modal to compose the per-target subdomain.",
+    )
+    ssh_port: str | None = Field(
+        default=None,
+        description="Global bastion SSH port. None when bastion is disabled.",
+    )
+
+
+class DomainOwnerResponse(BaseModel):
+    id: str = Field(description="Owner user ID.")
+    username: str | None = None
+    name: str | None = None
+    email: str | None = None
+    role_id: str | None = Field(default=None, alias="role")
+    category_id: str | None = Field(default=None, alias="category")
+    category_name: str | None = None
+    group_id: str | None = Field(default=None, alias="group")
+    group_name: str | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DomainInterfaceResponse(BaseModel):
+    id: str
+    name: str | None = None
+    mac: str | None = None
 
 
 class DomainInfoResponse(BaseModel):
@@ -597,6 +629,13 @@ class DomainInfoResponse(BaseModel):
     reservables: Reservables | None = None
     limited_hardware: dict | None = None  # TODO: check type
     bastion_target: DomainInfoBastionResponse | None = None
+    status: str | None = None
+    hyp_started: str | None = None
+    guest_ip: str | None = None
+    deployment_name: str | None = None
+    storage_id: str | None = None
+    owner: DomainOwnerResponse | None = None
+    interfaces: list[DomainInterfaceResponse] | None = None
 
 
 class DesktopImagesResponse(BaseModel):
