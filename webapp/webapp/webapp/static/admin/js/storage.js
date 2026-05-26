@@ -23,6 +23,7 @@ function getGroupParam() {
 
 $(document).ready(function () {
   $template = $(".template-storage-detail");
+  storagesMaintenance = null;
   storagesOtherTable = null;
   $('#status').attr('disabled', 'disabled')
   addCheckboxListeners();
@@ -57,13 +58,44 @@ $(document).ready(function () {
     }
   })
 
-  // Other storage status dropdown populate
+  // Storage maintenance table. Always loaded — storages with a chain in
+  // flight (sparsify / find / convert / move / increase / …) sit here so
+  // admins can see them transition without having to pick a status from
+  // the "Other status" dropdown below. The ``storage`` SocketIO event
+  // from change-handler moves rows in and out of this table as their
+  // status flips between ``ready`` (top table), ``maintenance`` (this
+  // table), and any other status (bottom table).
+  let maintenanceTableId = '#storagesMaintenance'
+  storagesMaintenance = createDatatable(maintenanceTableId, 'maintenance', function () {
+    let searchStorageId = getGroupParam()
+    if (searchStorageId) {
+      storagesMaintenance.column(4).search(searchStorageId).draw();
+      $(maintenanceTableId + ' tfoot input').eq(3).val(searchStorageId);
+    }
+  })
+  $(maintenanceTableId + " tbody").off('click').on('click', 'button', function () {
+    let tr = $(this).closest("tr")
+    let row = storagesMaintenance.row(tr)
+    switch ($(this).attr('id')) {
+      case 'btn-details':
+        showRowDetails(storagesMaintenance, tr, row);
+        break;
+      case 'btn-info':
+        var storageId = $(this).data('id');
+        openStorageSearchModal(storageId);
+        break;
+    }
+  })
+
+  // Other storage status dropdown populate.
+  // Exclude ``ready`` and ``maintenance`` — they have their own dedicated
+  // tables above, so showing them here would be redundant.
   $.ajax({
     type: "GET",
     url: "/api/v4/storage/status",
     success: function (data) {
       $('#status').removeAttr('disabled')
-      let notShownStatus = ['ready']
+      let notShownStatus = ['ready', 'maintenance']
       let status = data.filter((s) => !notShownStatus.includes(s.status))
       $.each(status, function (index, currentStatus) {
         if (currentStatus.status) {
@@ -356,7 +388,7 @@ $(document).ready(function () {
   var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
   $("#btn-search").on("click", function () {
-    var tables = [storage_ready, storagesOtherTable];
+    var tables = [storage_ready, storagesMaintenance, storagesOtherTable];
     tables.forEach(table => {
       // do for each item filter box
       $("#filter-boxes .filter-item").each(function () {
@@ -639,6 +671,9 @@ $(document).on('click', '.btn-delete-orphan', function () {
           opacity: 1,
           type: 'success'
         })
+        if (storagesMaintenance) {
+          storagesMaintenance.ajax.reload();
+        }
         if (storagesOtherTable) {
           storagesOtherTable.ajax.reload();
         }
@@ -1155,6 +1190,9 @@ $(document).on("click", ".btn-modal-delete", function() {
         if (storage_ready) {
           storage_ready.ajax.reload();
         }
+        if (storagesMaintenance) {
+          storagesMaintenance.ajax.reload();
+        }
         if (storagesOtherTable) {
           storagesOtherTable.ajax.reload();
         }
@@ -1588,75 +1626,98 @@ $("#modalDisconnect #send").on("click", function () {
 });
 
 function socketio_on() {
-  socket.on('storage', function (data) {
-    var data = JSON.parse(data);
-    if (data) {
-      let id = '#' + data.id.replaceAll("/", "_");
-      let actual_data;
-      let table;
+  socket.on('storage', function (rawData) {
+    const data = JSON.parse(rawData);
+    if (!data || !data.id) return;
+    const id = '#' + data.id.replaceAll("/", "_");
 
-      if (typeof (storage_ready.row(id).id()) != 'undefined') {
-        table = storage_ready;
-      } else if (storagesOtherTable && (typeof (storagesOtherTable.row(id).id()) != 'undefined')) {
-        table = storagesOtherTable;
+    // Locate the row across the three tables. ``storage_ready`` and
+    // ``storagesMaintenance`` are always loaded; ``storagesOtherTable``
+    // is only present once the user picks a status from the dropdown.
+    const tables = [storage_ready, storagesMaintenance];
+    if (storagesOtherTable) tables.push(storagesOtherTable);
+    let fromTable = null;
+    for (const t of tables) {
+      if (t && typeof t.row(id).id() !== 'undefined') {
+        fromTable = t;
+        break;
       }
+    }
 
-      if (table) {
-        actual_data = table.row(id).data();
-        if ("status" in data) {
-          if (data.status != 'ready') {
-            if (!$("#status #" + data.status).length) {
-              $('#status').append($('<option>', {
-                value: data.status,
-                id: data.status,
-                text: `${data.status} (1 item)`
-              }));
-            }
-            table.row(id).remove().draw();
-            if (newStatus && newStatus == data.status) {
-              storagesOtherTable.row.add({ ...actual_data, ...data }).draw();
-              if (actual_data.status != data.status) {
-                showNotification(data.status);
-              }
-            }
-          } else {
-            if (storagesOtherTable) {
-              storagesOtherTable.row(id).remove().draw();
-              if (typeof (storage_ready.row(id).id()) == 'undefined') {
-                storage_ready.row.add({ ...actual_data, ...data }).draw();
-                showNotification(data.status);
-              }
-            }
-          }
-        } else {
-          table.row(id).data({ ...actual_data, ...data }).invalidate();
-        }
-      } else if (newStatus) {
-        if (typeof (storagesOtherTable.row(id).id()) != 'undefined') {
-          actual_data = storagesOtherTable.row(id).data();
-          if ("status" in data && data.status != newStatus) {
-            storagesOtherTable.row(id).remove().draw();
-            storagesOtherTable.row.add({ ...actual_data, ...data }).draw();
-            showNotification(data.status);
-          } else {
-            storagesOtherTable.row(id).data({ ...actual_data, ...data }).invalidate();
-          }
-        } else if (newStatus == data.status) {
-          storagesOtherTable.row.add(data).draw();
+    // Data-only update (no status field in the event): refresh the row
+    // in place if it's visible somewhere. Driven by the changefeed
+    // ``StorageHandler`` when only data fields (e.g. ``qemu-img-info``,
+    // ``storages_with_uuid``) changed.
+    if (!("status" in data)) {
+      if (fromTable) {
+        const actual_data = fromTable.row(id).data();
+        fromTable.row(id).data({ ...actual_data, ...data }).invalidate();
+      }
+      return;
+    }
+
+    // Status-changed update. Route to the target table:
+    //   - ``ready``        → top table
+    //   - ``maintenance``  → middle table
+    //   - else             → bottom (Other status) table, but only if the
+    //                        user has picked that status in the dropdown
+    let toTable = null;
+    if (data.status === 'ready') {
+      toTable = storage_ready;
+    } else if (data.status === 'maintenance') {
+      toTable = storagesMaintenance;
+    } else if (storagesOtherTable && newStatus && newStatus === data.status) {
+      toTable = storagesOtherTable;
+    }
+
+    // Make sure the Other-status dropdown shows the new status's option
+    // so admins can drill into it. ``ready`` / ``maintenance`` have
+    // dedicated tables so they don't belong on this dropdown.
+    if (data.status !== 'ready' && data.status !== 'maintenance') {
+      if (!$("#status #" + data.status).length) {
+        $('#status').append($('<option>', {
+          value: data.status,
+          id: data.status,
+          text: `${data.status} (1 item)`
+        }));
+      }
+    }
+
+    if (fromTable) {
+      const actual_data = fromTable.row(id).data();
+      const status_changed = actual_data.status !== data.status;
+      if (toTable === fromTable) {
+        // Same table — update in place.
+        fromTable.row(id).data({ ...actual_data, ...data }).invalidate();
+      } else {
+        fromTable.row(id).remove().draw();
+        if (toTable) {
+          toTable.row.add({ ...actual_data, ...data }).draw();
         }
       }
-
+      if (status_changed) {
+        showNotification(data.status);
+      }
+    } else if (toTable) {
+      // Row not currently displayed; add it to the matching table.
+      toTable.row.add(data).draw();
     }
   });
   socket.on('task', function (data) {
-    if (storagesOtherTable && storagesOtherTable.selector) {
-      var data = JSON.parse(data);
-      var taskRow = $(`tr[data-task="${data.id}"]`);
-      if (taskRow.length > 0) {
-        var rowData = storagesOtherTable.row(taskRow).data();
+    var data = JSON.parse(data);
+    var taskRow = $(`tr[data-task="${data.id}"]`);
+    if (taskRow.length > 0) {
+      // The row carrying ``data-task`` could be in any of the three
+      // storage tables — pick the one that actually has it.
+      const tables = [storage_ready, storagesMaintenance];
+      if (storagesOtherTable) tables.push(storagesOtherTable);
+      for (const t of tables) {
+        if (!t || !t.selector) continue;
+        var rowData = t.row(taskRow).data();
         if (rowData) {
           rowData.progress = data.progress;
-          storagesOtherTable.row(taskRow).data(rowData).draw();
+          t.row(taskRow).data(rowData).draw();
+          break;
         }
       }
     }
@@ -1664,7 +1725,13 @@ function socketio_on() {
 }
 
 function showNotification(status) {
-  let storageTable = status === "ready" ? "ready" : "other status";
+  // Map the new status to the table the row was just moved to. Keep the
+  // table names in sync with the three ``<table>`` ids in storage.html.
+  const tableNames = {
+    'ready': 'ready storage',
+    'maintenance': 'maintenance',
+  };
+  const storageTable = tableNames[status] || 'other status';
   new PNotify({
     title: `Disk status changed to ${status}`,
     text: `Disk is now ${status} and moved to the ${storageTable} storage table`,
