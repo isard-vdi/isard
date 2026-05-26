@@ -43,7 +43,6 @@ from api.schemas.recycle_bin import (
     RecycleBinStatusResponse,
     RecycleBinSystemCutoffTimeResponse,
     RecycleBinUpdateCutoffTimeRequest,
-    RecycleBinUpdateTaskRequest,
     UnusedItemTimeoutRule,
     UnusedItemTimeoutRuleCreateRequest,
     UnusedItemTimeoutRulesResponse,
@@ -540,28 +539,6 @@ async def get_recycle_bin_admin_entries(request: Request, status: str | None = N
             request,
             "internal_server",
             "Failed to retrieve recycle bin admin entries",
-            traceback.format_exc(),
-        )
-
-
-@manager_router.put(
-    "/item/recycle-bin/update-task",
-    tags=[tag],
-    response_model=EmptyResponse,
-    summary="Update recycle bin task status",
-    description="Updates the status of a recycle bin task.",
-)
-async def update_recycle_bin_task(request: Request, data: RecycleBinUpdateTaskRequest):
-    try:
-        await asyncio.to_thread(RecycleBinService.update_task, data.model_dump())
-        return Response(status_code=204)
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to update recycle bin task",
             traceback.format_exc(),
         )
 

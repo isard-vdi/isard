@@ -225,8 +225,9 @@ class StorageQemuImgInfo(BaseModel):
 class StoragesWithUuidEntry(BaseModel):
     """Phantom-storage diagnostic entry.
 
-    Shape produced by the worker when a ``find`` task discovers extra
-    files matching a storage UUID (see ``core_worker/task.py``):
+    Shape produced when a ``find`` task discovers extra files matching
+    a storage UUID (see the ``handle_storage_update_pool`` body in
+    ``change-handler/.../task_results/storage.py``):
     ``{"status": ..., "path": ...}`` per row, with ``id`` merged in by
     the global aggregation queries (``get_storages_with_uuid``) and
     ``count`` returned instead of ``path`` by the per-status grouping

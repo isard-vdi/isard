@@ -112,10 +112,7 @@ class AdminQueuesService:
         w = []
         for worker in workers:
             try:
-                if str(worker).split(":")[2].split(".")[0].split("'")[0] not in [
-                    "core",
-                    "storage",
-                ]:
+                if str(worker).split(":")[2].split(".")[0].split("'")[0] != "storage":
                     continue
                 w.append(
                     {

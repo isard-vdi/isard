@@ -25,11 +25,9 @@ so the existing changefeed-driven SocketIO fan-out keeps emitting per
 table change exactly as today; this consumer only handles the new
 storage-worker → change-handler bridge.
 
-Gated by the ``CHANGEHANDLER_TASK_RESULTS_ENABLED`` environment
-variable so MR-1 ships dark by default and only the storage-worker
-producer side runs in production. Operators flip the flag on staging
-or in a canary to validate the dual-write before MR-2 promotes the
-consumer to canonical.
+Started unconditionally from ``__main__.main`` — this consumer is the
+canonical executor of the chain-handler bodies that used to live on
+isard-core_worker.
 """
 
 import asyncio
@@ -40,6 +38,7 @@ import redis.asyncio as aioredis
 from isardvdi_common.connections.redis_urls import rq_url
 from isardvdi_common.models.task import Task
 from redis.exceptions import ResponseError
+from rq.job import JobStatus
 
 from ..task_results.feedback import emit_task_feedback
 from ..task_results.registry import HANDLERS
@@ -94,6 +93,12 @@ async def _run_handler(redis_manager, dep_task):
     stays responsive while rethink writes happen. Async handlers
     receive the SocketIO :class:`AsyncRedisManager` as their first
     argument (they emit ``storage`` SocketIO events alongside writes).
+
+    Returns ``True`` if the handler ran to completion (or no handler is
+    registered for ``dep_task.task`` — treated as a clean no-op), and
+    ``False`` if the handler raised. Callers propagate this forward to
+    ``Job.set_status`` so downstream handlers' ``depending_status`` reads
+    reflect the real outcome.
     """
     entry = HANDLERS.get(dep_task.task)
     if entry is None:
@@ -103,7 +108,7 @@ async def _run_handler(redis_manager, dep_task):
             getattr(dep_task, "queue", "?"),
             dep_task.id,
         )
-        return
+        return True
     handler, is_async = entry
     kwargs = dep_task.kwargs or {}
     try:
@@ -111,11 +116,35 @@ async def _run_handler(redis_manager, dep_task):
             await handler(redis_manager, dep_task, **kwargs)
         else:
             await asyncio.to_thread(handler, dep_task, **kwargs)
+        return True
     except Exception:
         log.exception(
             "task_results: handler %s failed for task %s",
             dep_task.task,
             dep_task.id,
+        )
+        return False
+
+
+async def _set_job_status(dep_task, status):
+    """Best-effort RQ ``Job.set_status`` wrapper.
+
+    isard-core_worker used to mark each chain step's RQ Job ``FINISHED``
+    (or ``FAILED``) before RQ released the next dependent, which is what
+    ``task.depending_status`` reads. With change-handler as the sole
+    executor we must do that transition ourselves between in-process
+    dispatches — otherwise sibling/child handlers see the parent as
+    ``deferred``/``queued`` and the gate
+    ``if task.depending_status == "finished"`` always fails, silently
+    breaking 17 of 18 chains in the registry.
+    """
+    try:
+        await asyncio.to_thread(dep_task.job.set_status, status)
+    except Exception:
+        log.exception(
+            "task_results: could not mark %s as %s",
+            getattr(dep_task, "id", "?"),
+            status,
         )
 
 
@@ -153,9 +182,37 @@ async def _process_entry(redis_manager, fields):
         )
         return
 
+    # The storage worker publishes the stream event from within the
+    # wrapped task function, *before* RQ's own post-perform code marks
+    # the Job FINISHED. Marking it ourselves here closes that race so
+    # the first direct dependent reads ``depending_status="finished"``.
+    await _set_job_status(task, JobStatus.FINISHED)
+
     dependents = await asyncio.to_thread(lambda: list(_walk_core_dependents(task)))
     for dep_task in dependents:
-        await _run_handler(redis_manager, dep_task)
+        ok = await _run_handler(redis_manager, dep_task)
+        # Propagate the outcome onto this dep's RQ Job before the next
+        # sibling/child runs, so handlers that gate on
+        # ``task.depending_status`` see the right value (was "deferred"
+        # otherwise — no worker on the core queue ever marks it).
+        await _set_job_status(dep_task, JobStatus.FINISHED if ok else JobStatus.FAILED)
+
+    # MR-3 of the core_worker retirement: core_worker is gone, so the
+    # ``core`` queue has no consumer. RQ would otherwise move each
+    # dependent Job from DEFERRED to QUEUED when its storage parent
+    # completes, and the Job would sit on the queue forever. Now that
+    # change-handler is the sole executor, drop the Job objects after
+    # the in-process handlers have run. Done after the dispatch loop
+    # (not inline) so the recursive ``Task.dependents`` walk still
+    # finds nested dependents via each parent's ``meta["dependent_ids"]``.
+    for dep_task in dependents:
+        try:
+            await asyncio.to_thread(dep_task.job.delete)
+        except Exception:
+            log.exception(
+                "task_results: failed to drop RQ Job %s after dispatch",
+                dep_task.id,
+            )
 
 
 async def _read_and_dispatch(redis, redis_manager, consumer_name):

@@ -195,14 +195,6 @@ class RecycleBinUpdateCutoffTimeRequest(BaseModel):
     recycle_bin_cuttoff_time: int
 
 
-class RecycleBinUpdateTaskRequest(BaseModel):
-    """Request to update recycle bin cleanup task."""
-
-    recycle_bin_id: str
-    id: str
-    status: str
-
-
 class UnusedItemTimeoutRule(BaseModel):
     """A single unused item timeout rule.
 

@@ -23,9 +23,9 @@ def test_admin_queues_list(monkeypatch, test_client):
     # the response_model now enforces that.
     stub = [
         {
-            "id": "core",
-            "queued": 3,
-            "started": 1,
+            "id": "storage.default",
+            "queued": 0,
+            "started": 0,
             "finished": 0,
             "failed": 0,
             "deferred": 0,
@@ -33,8 +33,8 @@ def test_admin_queues_list(monkeypatch, test_client):
             "canceled": 0,
         },
         {
-            "id": "storage.default",
-            "queued": 0,
+            "id": "storage.high",
+            "queued": 2,
             "started": 0,
             "finished": 0,
             "failed": 0,
@@ -52,7 +52,7 @@ def test_admin_queues_list(monkeypatch, test_client):
 
     assert response.status_code == 200
     body = response.json()
-    assert {row["id"] for row in body} == {"core", "storage.default"}
+    assert {row["id"] for row in body} == {"storage.default", "storage.high"}
 
 
 def test_admin_queues_consumers(monkeypatch, test_client):
@@ -64,10 +64,10 @@ def test_admin_queues_consumers(monkeypatch, test_client):
     stub = [
         {
             "id": "worker-1",
-            "queue": "core",
-            "queue_id": None,
-            "priority_id": None,
-            "priority": None,
+            "queue": "storage",
+            "queue_id": "00000000-0000-0000-0000-000000000000",
+            "priority_id": "high",
+            "priority": 1,
             "subscribers": [],
             "status": "ok",
         },

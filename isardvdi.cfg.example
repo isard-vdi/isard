@@ -1,4 +1,4 @@
-# Isard main config v2.35.7
+# Isard main config v2.35.8
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -768,10 +768,12 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 ## IsardVDI uses four logical Redis databases on a single shared instance.
 ## DB numbers are hardcoded per service and cannot be changed from here:
-##   DB 0: RQ task queues (apiv4, core_worker, storage, notifier)
+##   DB 0: RQ task queues (apiv4, storage, notifier) and the
+##         stream:task-results bridge between isard-storage and
+##         isard-change-handler.
 ##   DB 1: Sessions (Go sessions service)
 ##   DB 2: Changefeed bus (changefeed, change-handler, engine, vpn)
-##   DB 3: Socket.io fan-out (socketio, apiv4, core_worker, change-handler)
+##   DB 3: Socket.io fan-out (socketio, apiv4, change-handler)
 ## Operators only configure the shared connection below.
 
 # Redis password
