@@ -39,6 +39,7 @@ from .handlers.media import MediaHandler
 from .handlers.recycle_bin import RecycleBinHandler
 from .handlers.resource_planner import ResourcePlannerHandler
 from .handlers.resources import ResourcesHandler
+from .handlers.storage import StorageHandler
 from .handlers.targets import TargetsHandler
 from .handlers.users import UsersHandler
 from .handlers.vgpus import VgpusHandler
@@ -112,6 +113,7 @@ handler_map = {
     "vgpus": VgpusHandler(redis_manager, "vgpus"),
     "user_storage": BaseHandler(redis_manager, "user_storage"),
     "users_migrations": BaseHandler(redis_manager, "users_migrations"),
+    "storage": StorageHandler(redis_manager, "storage"),
 }
 
 
@@ -193,33 +195,20 @@ async def listen_to_redis():
 
 
 async def main():
-    """Run the changefeed pub/sub listener and, when enabled, the new
+    """Run the changefeed pub/sub listener and the
     ``stream:task-results`` consumer concurrently.
 
-    ``CHANGEHANDLER_TASK_RESULTS_ENABLED`` defaults to ``false`` so
-    MR-1 ships dark: only the storage-worker producer side runs in
-    prod, and operators flip the flag in staging/canary to validate
-    the dual-write before MR-2 promotes the consumer to canonical.
+    The task-results consumer is the canonical emitter of the ``task``
+    SocketIO event and the canonical executor of the chain-handler
+    bodies that used to live on core_worker. It is started
+    unconditionally — the dark-mode flag introduced in MR-1 was
+    retired in MR-3 once core_worker was deleted.
     """
     _configure_logging()
-    enabled = environ.get("CHANGEHANDLER_TASK_RESULTS_ENABLED", "false").lower() in (
-        "1",
-        "true",
-        "yes",
+    await asyncio.gather(
+        listen_to_redis(),
+        task_results_consumer.run(redis_manager),
     )
-    if enabled:
-        log.warning(
-            "CHANGEHANDLER_TASK_RESULTS_ENABLED=true; starting task_results stream consumer alongside the pub/sub listener."
-        )
-        await asyncio.gather(
-            listen_to_redis(),
-            task_results_consumer.run(redis_manager),
-        )
-    else:
-        log.warning(
-            "CHANGEHANDLER_TASK_RESULTS_ENABLED is off; task_results stream consumer disabled. core_worker remains the canonical writer."
-        )
-        await listen_to_redis()
 
 
 if __name__ == "__main__":

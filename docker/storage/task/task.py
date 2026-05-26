@@ -45,7 +45,7 @@ from isardvdi_common.helpers.task_cancel import TaskCancelWatcher
 from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.media import Media
 from isardvdi_common.models.task import Task
-from rq import Queue, get_current_job
+from rq import get_current_job
 
 log = logging.getLogger(__name__)
 
@@ -260,8 +260,17 @@ def run_with_progress(command, extract_progress, on_progress=None, initial_check
                 pct = round(extract_progress(process), 2)
                 job.meta["progress"] = pct
                 job.save_meta()
-                Queue("core", connection=job.connection).enqueue(
-                    "task.feedback", task_id=job.id, result_ttl=0
+                # MR-2 of the core_worker retirement: the legacy per-tick
+                # ``Queue("core").enqueue("task.feedback", …)`` is removed
+                # — change-handler's stream consumer now emits the per-tick
+                # SocketIO ``task`` event from this ``kind=progress`` XADD.
+                _publish_task_event(
+                    job.connection,
+                    kind="progress",
+                    task_id=job.id,
+                    task_name=job.func_name.rsplit(".", 1)[-1],
+                    queue=job.origin,
+                    progress=pct,
                 )
                 _publish_task_event(
                     job.connection,
@@ -654,8 +663,18 @@ def _run_curl_download(
                         pct = progress["received_percent"] / 100.0
                         job.meta["progress"] = pct
                         job.save_meta()
-                        Queue("core", connection=job.connection).enqueue(
-                            "task.feedback", task_id=job.id, result_ttl=0
+                        # MR-2 of the core_worker retirement: the legacy
+                        # ``Queue("core").enqueue("task.feedback", …)`` is
+                        # removed — change-handler's stream consumer now
+                        # emits the per-tick SocketIO ``task`` event from
+                        # this ``kind=progress`` XADD.
+                        _publish_task_event(
+                            job.connection,
+                            kind="progress",
+                            task_id=job.id,
+                            task_name=job.func_name.rsplit(".", 1)[-1],
+                            queue=job.origin,
+                            progress=pct,
                         )
                         _publish_task_event(
                             job.connection,
