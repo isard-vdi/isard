@@ -914,12 +914,11 @@ class Helpers(RethinkSharedConnection):
     @cached(cache=_get_old_entries_config_cache)
     def get_old_entries_config(cls):
         with cls._rdb_context():
-            try:
-                return r.table("config")[0]["recycle_bin"]["old_entries"].run(
-                    cls._rdb_connection
-                )
-            except r.ReqlNonExistenceError:
-                return {"max_time": None, "action": None}
+            return (
+                r.table("config")[0]["recycle_bin"]["old_entries"]
+                .default({"max_time": None, "action": None})
+                .run(cls._rdb_connection)
+            )
 
     @classmethod
     def clear_get_old_entries_config_cache(cls):
@@ -969,12 +968,11 @@ class Helpers(RethinkSharedConnection):
     @cached(cache=_get_default_delete_cache)
     def get_default_delete(cls):
         with cls._rdb_context():
-            try:
-                return r.table("config")[0]["recycle_bin"]["default_delete"].run(
-                    cls._rdb_connection
-                )
-            except r.ReqlNonExistenceError:
-                return False
+            return (
+                r.table("config")[0]["recycle_bin"]["default_delete"]
+                .default(False)
+                .run(cls._rdb_connection)
+            )
 
     @classmethod
     def clear_get_default_delete_cache(cls):
@@ -984,12 +982,11 @@ class Helpers(RethinkSharedConnection):
     @cached(cache=_get_delete_action_cache)
     def get_delete_action(cls):
         with cls._rdb_context():
-            try:
-                return r.table("config")[0]["recycle_bin"]["delete_action"].run(
-                    cls._rdb_connection
-                )
-            except r.ReqlNonExistenceError:
-                return "delete"
+            return (
+                r.table("config")[0]["recycle_bin"]["delete_action"]
+                .default("delete")
+                .run(cls._rdb_connection)
+            )
 
     @classmethod
     def clear_get_delete_action_cache(cls):
