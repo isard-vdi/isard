@@ -383,7 +383,8 @@ class AdminGroup(BaseModel):
     uid: Optional[str] = None
     name: str
     parent_category: str
-    auto: bool = False
+    # Legacy rows persist ``auto`` as a dict from the retired auto-desktops UI.
+    auto: bool | dict = False
     description: str = ""
     # ``AdminGroupCreateData`` exposes these as Optional[str] so the
     # webapp can omit them. The response model has to accept the same
@@ -567,7 +568,7 @@ class AdminGroupNavItem(BaseModel):
     uid: Optional[str] = None
     name: str
     parent_category: str
-    auto: Optional[bool] = None
+    auto: Optional[bool | dict] = None
     description: Optional[str] = None
     external_app_id: Optional[str] = None
     external_gid: Optional[str] = None
