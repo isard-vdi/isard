@@ -90,9 +90,10 @@ $(document).ready(function() {
             {
                 "targets": 12,
                 "render": function ( data, type, full, meta ) {
-                    if (full.hasOwnProperty('user_storage')){
+                    if (full.user_storage && full.user_storage.provider_quota) {
                         return full.user_storage.provider_quota.used +' ('+full.user_storage.provider_quota.relative+'%)'
                     }
+                    return 0
                 }
             }
         ],
