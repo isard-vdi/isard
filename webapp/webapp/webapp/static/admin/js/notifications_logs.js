@@ -285,7 +285,8 @@ function addDeleteButtonListeners() {
 
 function addDetailDeleteButtonListeners() {
     $("#notifications-logs-table").find('tbody').on('click', 'button', function () {
-        var data = $(this).closest("table").DataTable().row($(this).parents('tr')).data();
+        var table = $(this).closest("table").DataTable();
+        var data = table.row($(this).parents('tr')).data();
         switch ($(this).attr('id')) {
             case "btn-delete-notification-data":
                 new PNotify({
@@ -305,7 +306,7 @@ function addDetailDeleteButtonListeners() {
                         type: 'DELETE',
                         url: `/api/v4/admin/notifications/data/${data.id}`,
                         contentType: 'application/json',
-                        success: function (data) {
+                        success: function () {
                             new PNotify({
                                 title: 'Deleted',
                                 text: `Notification deleted successfully`,
@@ -314,7 +315,7 @@ function addDetailDeleteButtonListeners() {
                                 opacity: 1,
                                 type: 'success'
                             });
-                            $("#notifications-logs-table").DataTable().row('#' + data.id).remove().draw();
+                            table.row('#' + data.id).remove().draw();
                         },
                         error: function (data) {
                             new PNotify({
