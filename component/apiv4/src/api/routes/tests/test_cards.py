@@ -27,7 +27,7 @@ def test_get_desktop_images(monkeypatch, test_client):
     )
 
     jwt = MockJWT()
-    response = test_client(url="/api/v4/images/desktops", jwt=jwt)
+    response = test_client(url="/api/v4/items/images/desktops", jwt=jwt)
 
     # ``response_model=list[CardResponse]`` (extra="allow") declares
     # ``id``/``url``/``type`` so the wire payload also includes
@@ -60,7 +60,9 @@ def test_get_desktop_images_forwards_caller_user_id(monkeypatch, test_client):
     )
 
     jwt = MockJWT(user_id="local-default-user-bob")
-    response = test_client(url="/api/v4/images/desktops?desktop_id=desk-1", jwt=jwt)
+    response = test_client(
+        url="/api/v4/items/images/desktops?desktop_id=desk-1", jwt=jwt
+    )
     assert response.status_code == 200
     assert captured == {"user_id": "local-default-user-bob", "desktop_id": "desk-1"}
 
@@ -117,5 +119,5 @@ def test_get_desktop_images_invalid_kind_rejected(test_client):
 
 def test_get_desktop_images_unauthenticated_rejected(test_client):
     """token_router rejects requests with no JWT."""
-    response = test_client(url="/api/v4/images/desktops")
+    response = test_client(url="/api/v4/items/images/desktops")
     assert response.status_code in (401, 403, 422)

@@ -26,7 +26,7 @@ def test_admin_user_exists(monkeypatch, test_client):
         staticmethod(lambda user_id: True),
     )
 
-    response = test_client(url="/admin/user/user-1/exists", jwt=jwt)
+    response = test_client(url="/admin/item/user/user-1/exists", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() is True
@@ -57,7 +57,7 @@ def test_admin_list_users(monkeypatch, test_client):
         staticmethod(fake_list),
     )
 
-    response = test_client(url="/admin/users", jwt=jwt)
+    response = test_client(url="/admin/items/users", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json()[0]["id"] == "user-1"
@@ -122,7 +122,7 @@ def test_admin_list_users_accepts_null_email_verified(monkeypatch, test_client):
         staticmethod(lambda category_id=None: stub),
     )
 
-    response = test_client(url="/admin/users", jwt=jwt)
+    response = test_client(url="/admin/items/users", jwt=jwt)
 
     assert response.status_code == 200, response.text
     body = response.json()
@@ -158,7 +158,7 @@ def test_admin_create_user(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/user",
+        url="/admin/item/user",
         method="POST",
         body={
             "username": "alice",
@@ -225,7 +225,9 @@ def test_admin_get_user_raw_roundtrips_through_generated_client(
         staticmethod(lambda user_id: _raw_user_with_nullable_nested()),
     )
 
-    response = test_client(url="/admin/user/local-default-admin-admin/raw", jwt=jwt)
+    response = test_client(
+        url="/admin/item/user/local-default-admin-admin/raw", jwt=jwt
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -257,7 +259,7 @@ def test_admin_get_user_full_data_roundtrips_through_generated_client(
         staticmethod(lambda user_id: _raw_user_with_nullable_nested()),
     )
 
-    response = test_client(url="/admin/user/local-default-admin-admin", jwt=jwt)
+    response = test_client(url="/admin/item/user/local-default-admin-admin", jwt=jwt)
 
     assert response.status_code == 200
     parsed = ClientModel.from_dict(response.json())
@@ -278,7 +280,7 @@ def test_admin_update_user(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/user/user-1",
+        url="/admin/item/user/user-1",
         method="PUT",
         body={"name": "Updated Name", "active": True},
         jwt=jwt,
@@ -360,7 +362,7 @@ def test_admin_delete_users_runs_bulk_deletion_after_response(monkeypatch, test_
     )
 
     response = test_client(
-        url="/admin/user",
+        url="/admin/items/users",
         method="DELETE",
         body={"user": ["user-a", "user-b"], "delete_user": True},
         jwt=jwt,
@@ -419,7 +421,7 @@ def test_admin_update_users_bulk_runs_after_response(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/users/bulk",
+        url="/admin/items/users/bulk",
         method="PUT",
         body={"ids": ["user-a", "user-b"], "active": False},
         jwt=jwt,
@@ -470,7 +472,7 @@ def test_admin_migrate_user_runs_migration_after_response(monkeypatch, test_clie
     )
 
     response = test_client(
-        url="/admin/user/migrate/user-src/user-dst",
+        url="/admin/item/user/migrate/user-src/user-dst",
         method="PUT",
         jwt=jwt,
     )
@@ -488,7 +490,7 @@ def test_admin_user_logout(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/user/user-1/logout",
+        url="/admin/item/user/user-1/logout",
         method="PUT",
         jwt=jwt,
     )
@@ -515,7 +517,7 @@ def test_admin_list_groups(monkeypatch, test_client):
         staticmethod(lambda payload: stub),
     )
 
-    response = test_client(url="/admin/groups", jwt=jwt)
+    response = test_client(url="/admin/items/groups", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -539,7 +541,7 @@ def test_admin_get_group(monkeypatch, test_client):
         staticmethod(lambda group_id: stub),
     )
 
-    response = test_client(url="/admin/group/group-1", jwt=jwt)
+    response = test_client(url="/admin/item/group/group-1", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -568,7 +570,7 @@ def test_admin_create_group(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/group",
+        url="/admin/item/group",
         method="POST",
         body={
             "name": "New Group",
@@ -609,7 +611,7 @@ def test_admin_create_group_accepts_null_external_ids(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/group",
+        url="/admin/item/group",
         method="POST",
         body={
             "name": "New Group",
@@ -634,7 +636,7 @@ def test_admin_delete_group(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/group/group-1",
+        url="/admin/item/group/group-1",
         method="DELETE",
         jwt=jwt,
     )
@@ -654,7 +656,7 @@ def test_admin_get_category(monkeypatch, test_client):
         staticmethod(lambda payload, category_id: stub),
     )
 
-    response = test_client(url="/admin/category/cat-1", jwt=jwt)
+    response = test_client(url="/admin/item/category/cat-1", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -677,7 +679,7 @@ def test_admin_create_category(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/category",
+        url="/admin/item/category",
         method="POST",
         body={"name": "New Cat", "description": "Desc", "frontend": True},
         jwt=jwt,
@@ -696,7 +698,7 @@ def test_admin_delete_category(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/category/cat-1",
+        url="/admin/item/category/cat-1",
         method="DELETE",
         jwt=jwt,
     )

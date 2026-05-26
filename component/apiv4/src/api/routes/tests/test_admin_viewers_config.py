@@ -13,7 +13,7 @@ from api.services.error import Error
 
 
 class TestGetViewersConfig:
-    URL = "/admin/viewers-config"
+    URL = "/admin/items/viewers-config"
 
     def test_admin_gets_config(self, monkeypatch, test_client):
         sample = [
@@ -68,7 +68,7 @@ class TestGetViewersConfig:
 
 
 class TestUpdateViewerConfig:
-    URL = "/admin/viewers-config/file_spice"
+    URL = "/admin/item/viewers-config/file_spice"
 
     def test_admin_updates_config(self, monkeypatch, test_client):
         captured = {}
@@ -171,7 +171,7 @@ class TestResetViewerConfig:
             staticmethod(fake_reset),
         )
         response = test_client(
-            url="/admin/viewers-config/reset/file_spice",
+            url="/admin/item/viewers-config/reset/file_spice",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -191,7 +191,7 @@ class TestResetViewerConfig:
             staticmethod(reject),
         )
         response = test_client(
-            url="/admin/viewers-config/reset/file_unknown",
+            url="/admin/item/viewers-config/reset/file_unknown",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -203,7 +203,7 @@ class TestResetViewerConfig:
             staticmethod(lambda v: None),
         )
         response = test_client(
-            url="/admin/viewers-config/reset/file_spice",
+            url="/admin/item/viewers-config/reset/file_spice",
             method="PUT",
             jwt=MockJWT(role_id="user"),
         )
@@ -218,7 +218,7 @@ class TestResetViewerConfig:
             staticmethod(boom),
         )
         response = test_client(
-            url="/admin/viewers-config/reset/file_spice",
+            url="/admin/item/viewers-config/reset/file_spice",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )

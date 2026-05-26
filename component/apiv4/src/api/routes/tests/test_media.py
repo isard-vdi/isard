@@ -487,7 +487,7 @@ def test_list_desktop_attached_media(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/item/desktop/desktop-1/media-list",
+        url="/admin/item/desktop/desktop-1/media-list",
         jwt=jwt,
     )
 
@@ -605,7 +605,7 @@ def test_check_media(monkeypatch, test_client):
 
     try:
         response = test_client(
-            url="/item/media/media-1/check",
+            url="/admin/item/media/media-1/check",
             method="PUT",
             jwt=jwt,
         )
@@ -639,7 +639,7 @@ def test_change_media_owner(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/item/media/media-1/change-owner/user-new",
+        url="/admin/item/media/media-1/change-owner/user-new",
         method="PUT",
         jwt=jwt,
     )

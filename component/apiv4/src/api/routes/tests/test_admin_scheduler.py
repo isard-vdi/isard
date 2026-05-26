@@ -32,7 +32,7 @@ MOCK_BOOKINGS_JOBS = [
 
 
 def test_admin_scheduler_jobs_system_returns_list(monkeypatch, test_client):
-    """GET /admin/scheduler/jobs/system returns the list of system jobs."""
+    """GET /admin/items/scheduler/jobs/system returns the list of system jobs."""
     captured_kwargs = {}
 
     def fake_admin_table_list(table, **kwargs):
@@ -46,7 +46,7 @@ def test_admin_scheduler_jobs_system_returns_list(monkeypatch, test_client):
     )
 
     jwt = MockJWT(role_id="admin")
-    response = test_client(url="/admin/scheduler/jobs/system", jwt=jwt)
+    response = test_client(url="/admin/items/scheduler/jobs/system", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() == MOCK_SYSTEM_JOBS
@@ -59,7 +59,7 @@ def test_admin_scheduler_jobs_system_returns_list(monkeypatch, test_client):
 
 
 def test_admin_scheduler_jobs_bookings_returns_list(monkeypatch, test_client):
-    """GET /admin/scheduler/jobs/bookings returns the list of bookings jobs with kwargs."""
+    """GET /admin/items/scheduler/jobs/bookings returns the list of bookings jobs with kwargs."""
     captured_kwargs = {}
 
     def fake_admin_table_list(table, **kwargs):
@@ -73,7 +73,7 @@ def test_admin_scheduler_jobs_bookings_returns_list(monkeypatch, test_client):
     )
 
     jwt = MockJWT(role_id="admin")
-    response = test_client(url="/admin/scheduler/jobs/bookings", jwt=jwt)
+    response = test_client(url="/admin/items/scheduler/jobs/bookings", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() == MOCK_BOOKINGS_JOBS
@@ -90,7 +90,7 @@ def test_admin_scheduler_jobs_system_forbidden_for_non_admin(monkeypatch, test_c
     )
 
     jwt = MockJWT(role_id="user")
-    response = test_client(url="/admin/scheduler/jobs/system", jwt=jwt)
+    response = test_client(url="/admin/items/scheduler/jobs/system", jwt=jwt)
 
     assert response.status_code == 403
 
@@ -107,7 +107,7 @@ def test_admin_scheduler_jobs_system_handles_service_error(monkeypatch, test_cli
     )
 
     jwt = MockJWT(role_id="admin")
-    response = test_client(url="/admin/scheduler/jobs/system", jwt=jwt)
+    response = test_client(url="/admin/items/scheduler/jobs/system", jwt=jwt)
 
     assert response.status_code == 500
     body = response.json()

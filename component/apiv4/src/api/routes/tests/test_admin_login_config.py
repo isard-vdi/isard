@@ -18,7 +18,7 @@ from api.services.error import Error
 
 
 class TestUpdateLoginNotification:
-    URL = "/login_config/notification"
+    URL = "/admin/item/login_config/notification"
 
     def test_admin_updates_notification(self, monkeypatch, test_client):
         captured = {}
@@ -167,7 +167,7 @@ class TestEnableLoginNotification:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/login_config/notification/cover/enable",
+            url="/admin/item/login_config/notification/cover/enable",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"enabled": True},
@@ -179,7 +179,7 @@ class TestEnableLoginNotification:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/login_config/notification/cover/enable",
+            url="/admin/item/login_config/notification/cover/enable",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"enabled": False},
@@ -191,7 +191,7 @@ class TestEnableLoginNotification:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/login_config/notification/form/enable",
+            url="/admin/item/login_config/notification/form/enable",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"enabled": True},
@@ -201,7 +201,7 @@ class TestEnableLoginNotification:
 
     def test_missing_enabled_field_rejected(self, test_client):
         response = test_client(
-            url="/login_config/notification/cover/enable",
+            url="/admin/item/login_config/notification/cover/enable",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={},
@@ -211,7 +211,7 @@ class TestEnableLoginNotification:
     def test_user_forbidden(self, monkeypatch, test_client):
         self._stub(monkeypatch, {})
         response = test_client(
-            url="/login_config/notification/form/enable",
+            url="/admin/item/login_config/notification/form/enable",
             method="PUT",
             jwt=MockJWT(role_id="user"),
             body={"enabled": True},
@@ -227,7 +227,7 @@ class TestEnableLoginNotification:
             staticmethod(boom),
         )
         response = test_client(
-            url="/login_config/notification/cover/enable",
+            url="/admin/item/login_config/notification/cover/enable",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"enabled": True},
@@ -243,7 +243,7 @@ class TestEnableLoginNotification:
             staticmethod(reject),
         )
         response = test_client(
-            url="/login_config/notification/cover/enable",
+            url="/admin/item/login_config/notification/cover/enable",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"enabled": True},
@@ -263,8 +263,8 @@ class TestAdminGetLoginConfig:
     ``AdminCategoryService.admin_get_login_config(category_id=None)``.
     """
 
-    GLOBAL_URL = "/admin/login-config"
-    CATEGORY_URL = "/admin/login-config/test-cat"
+    GLOBAL_URL = "/admin/item/login-config"
+    CATEGORY_URL = "/admin/item/login-config/test-cat"
 
     _GLOBAL_PAYLOAD = {
         "notification_cover": {"enabled": True, "title": "Hello"},

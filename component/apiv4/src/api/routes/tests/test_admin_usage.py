@@ -34,7 +34,7 @@ from api.services.error import Error
 
 
 class TestUsageConsumption:
-    URL = "/admin/usage"
+    URL = "/admin/items/usage"
 
     def test_admin_queries(self, monkeypatch, test_client):
         captured = {}
@@ -107,7 +107,7 @@ def pytest_fail(msg):
 
 
 class TestStartEndConsumption:
-    URL = "/admin/usage/start_end"
+    URL = "/admin/items/usage/start_end"
 
     def _stub_service(self, monkeypatch, captured):
         monkeypatch.setattr(
@@ -220,7 +220,7 @@ class TestUsageConsumers:
             staticmethod(lambda it: ["category", "hypervisor"]),
         )
         response = test_client(
-            url="/admin/usage/consumers/desktop", jwt=MockJWT(role_id="admin")
+            url="/admin/items/usage/consumers/desktop", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert "hypervisor" in response.json()
@@ -234,7 +234,7 @@ class TestUsageConsumers:
             staticmethod(lambda it: ["category", "hypervisor"]),
         )
         response = test_client(
-            url="/admin/usage/consumers/desktop", jwt=MockJWT(role_id="manager")
+            url="/admin/items/usage/consumers/desktop", jwt=MockJWT(role_id="manager")
         )
         assert response.status_code == 200
         body = response.json()
@@ -247,7 +247,7 @@ class TestUsageConsumers:
             staticmethod(lambda it: []),
         )
         response = test_client(
-            url="/admin/usage/consumers/desktop", jwt=MockJWT(role_id="user")
+            url="/admin/items/usage/consumers/desktop", jwt=MockJWT(role_id="user")
         )
         assert response.status_code == 403
 
@@ -265,7 +265,7 @@ class TestDistinctItems:
             staticmethod(lambda *a, **k: called.update(yes=True) or []),
         )
         response = test_client(
-            url="/admin/usage/distinct_items/hypervisor/2026-01-01/2026-01-31",
+            url="/admin/items/usage/distinct_items/hypervisor/2026-01-01/2026-01-31",
             jwt=MockJWT(role_id="manager"),
         )
         assert response.status_code == 403
@@ -284,7 +284,7 @@ class TestDistinctItems:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/usage/distinct_items/category/2026-01-01/2026-01-31",
+            url="/admin/items/usage/distinct_items/category/2026-01-01/2026-01-31",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -302,7 +302,7 @@ class TestDistinctItems:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/usage/distinct_items/category/2026-01-01/2026-01-31",
+            url="/admin/items/usage/distinct_items/category/2026-01-01/2026-01-31",
             jwt=MockJWT(role_id="manager", category_id="default"),
         )
         assert response.status_code == 200
@@ -322,7 +322,7 @@ class TestConsolidate:
             staticmethod(lambda *a, **k: called.update(args=a) or None),
         )
         response = test_client(
-            url="/admin/usage/consolidate",
+            url="/admin/items/usage/consolidate",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -336,7 +336,7 @@ class TestConsolidate:
             staticmethod(lambda item_type, days: captured.update(it=item_type, d=days)),
         )
         response = test_client(
-            url="/admin/usage/consolidate/desktop",
+            url="/admin/items/usage/consolidate/desktop",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -351,7 +351,7 @@ class TestConsolidate:
             staticmethod(lambda item_type, days: captured.update(it=item_type, d=days)),
         )
         response = test_client(
-            url="/admin/usage/consolidate/desktop/7",
+            url="/admin/items/usage/consolidate/desktop/7",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -364,7 +364,7 @@ class TestConsolidate:
             staticmethod(lambda *a, **k: None),
         )
         response = test_client(
-            url="/admin/usage/consolidate",
+            url="/admin/items/usage/consolidate",
             method="PUT",
             jwt=MockJWT(role_id="manager"),
         )
@@ -392,7 +392,7 @@ class TestParameters:
             ),
         )
         response = test_client(
-            url="/admin/usage/parameters", jwt=MockJWT(role_id="admin")
+            url="/admin/items/usage/parameters", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         body = response.json()
@@ -406,7 +406,7 @@ class TestParameters:
             staticmethod(lambda *a: []),
         )
         response = test_client(
-            url="/admin/usage/parameters", jwt=MockJWT(role_id="user")
+            url="/admin/items/usage/parameters", jwt=MockJWT(role_id="user")
         )
         assert response.status_code == 403
 
@@ -432,7 +432,7 @@ class TestParameters:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/usage/list_parameters",
+            url="/admin/items/usage/list_parameters",
             method="PUT",
             jwt=MockJWT(role_id="manager"),
             body={"ids": ["p1", "p2"]},
@@ -453,7 +453,7 @@ class TestParameters:
             staticmethod(lambda *a: called.update(yes=True) or {}),
         )
         response = test_client(
-            url="/admin/usage/list_parameters",
+            url="/admin/items/usage/list_parameters",
             method="PUT",
             jwt=MockJWT(role_id="manager"),
             body={"ids": []},
@@ -469,7 +469,7 @@ class TestParameters:
             staticmethod(lambda data: captured.update(data=data) or {"id": "new"}),
         )
         response = test_client(
-            url="/admin/usage/parameters",
+            url="/admin/item/usage/parameters",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={
@@ -487,7 +487,7 @@ class TestParameters:
 
     def test_create_missing_required_rejected(self, test_client):
         response = test_client(
-            url="/admin/usage/parameters",
+            url="/admin/item/usage/parameters",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"id": "p-new"},
@@ -501,7 +501,7 @@ class TestParameters:
             staticmethod(lambda pid: captured.update(pid=pid) or {}),
         )
         response = test_client(
-            url="/admin/usage/parameters/p-1",
+            url="/admin/item/usage/parameters/p-1",
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
@@ -534,7 +534,7 @@ class TestLimits:
             ),
         )
         response = test_client(
-            url="/admin/usage/limits",
+            url="/admin/item/usage/limits",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
@@ -544,7 +544,7 @@ class TestLimits:
 
     def test_create_missing_limits_rejected(self, test_client):
         response = test_client(
-            url="/admin/usage/limits",
+            url="/admin/item/usage/limits",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"name": "x", "desc": "y"},
@@ -557,7 +557,7 @@ class TestLimits:
             staticmethod(lambda *a: {}),
         )
         response = test_client(
-            url="/admin/usage/limits",
+            url="/admin/item/usage/limits",
             method="POST",
             jwt=MockJWT(role_id="user"),
             body=self._payload(),
@@ -582,7 +582,7 @@ class TestUsageCredits:
             staticmethod(lambda *a, **k: called.update(yes=True) or []),
         )
         response = test_client(
-            url="/admin/usage/credits/category/desktop/cat-other/g-1/2026-01-01/2026-01-31",
+            url="/admin/items/usage/credits/category/desktop/cat-other/g-1/2026-01-01/2026-01-31",
             jwt=MockJWT(role_id="manager", category_id="default"),
         )
         assert response.status_code == 403
@@ -597,7 +597,7 @@ class TestUsageCredits:
             ),
         )
         response = test_client(
-            url="/admin/usage/credits/category/desktop/default/g-1/2026-01-01/2026-01-31",
+            url="/admin/items/usage/credits/category/desktop/default/g-1/2026-01-01/2026-01-31",
             jwt=MockJWT(role_id="manager", category_id="default"),
         )
         assert response.status_code == 200
@@ -612,7 +612,7 @@ class TestUsageCredits:
             ),
         )
         response = test_client(
-            url="/admin/usage/credits/category/desktop/cat-other/g-1/2026-01-01/2026-01-31",
+            url="/admin/items/usage/credits/category/desktop/cat-other/g-1/2026-01-01/2026-01-31",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -625,7 +625,7 @@ class TestUsageCredits:
             staticmethod(lambda data: captured.update(data=data) or {"id": "c-1"}),
         )
         response = test_client(
-            url="/admin/usage/credits",
+            url="/admin/item/usage/credits",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={
@@ -647,7 +647,7 @@ class TestUsageCredits:
             staticmethod(lambda cid: captured.update(cid=cid) or {}),
         )
         response = test_client(
-            url="/admin/usage/credits/c-1",
+            url="/admin/item/usage/credits/c-1",
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
@@ -669,7 +669,7 @@ class TestResetDates:
             staticmethod(lambda *a: [datetime(2026, 1, 1), datetime(2026, 2, 1)]),
         )
         response = test_client(
-            url="/admin/usage/reset_date", jwt=MockJWT(role_id="admin")
+            url="/admin/items/usage/reset_date", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         # Dates are formatted as MM/DD/YYYY for the v3-compatible UI.
@@ -685,7 +685,7 @@ class TestResetDates:
             staticmethod(lambda *a: called.update(yes=True) or []),
         )
         response = test_client(
-            url="/admin/usage/reset_date/not-a-date/2026-12-31",
+            url="/admin/items/usage/reset_date/not-a-date/2026-12-31",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 400
@@ -698,7 +698,7 @@ class TestResetDates:
             staticmethod(lambda dates: captured.update(count=len(dates))),
         )
         response = test_client(
-            url="/admin/usage/reset_dates",
+            url="/admin/items/usage/reset_dates",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"date_list": ["01/01/2026", "02/01/2026"]},
@@ -712,7 +712,7 @@ class TestResetDates:
             staticmethod(lambda dates: None),
         )
         response = test_client(
-            url="/admin/usage/reset_dates",
+            url="/admin/items/usage/reset_dates",
             method="PUT",
             jwt=MockJWT(role_id="user"),
             body={"date_list": []},
@@ -733,7 +733,7 @@ class TestMisc:
             staticmethod(lambda iid: captured.update(iid=iid) or "Unified Name"),
         )
         response = test_client(
-            url="/admin/usage/unify/i-1/item_name",
+            url="/admin/item/usage/unify/i-1/item_name",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -756,7 +756,7 @@ class TestMisc:
             ),
         )
         response = test_client(
-            url="/admin/usage/check/overlapping/c-1/not-a-date/2026-01-31",
+            url="/admin/item/usage/check/overlapping/c-1/not-a-date/2026-01-31",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 400
@@ -768,7 +768,7 @@ class TestMisc:
 
 
 class TestUsageRetention:
-    URL = "/admin/usage/retention"
+    URL = "/admin/item/usage/retention"
 
     def test_get_returns_current_policy(self, monkeypatch, test_client):
         from isardvdi_common.schemas.usage import UsageRetentionConfig

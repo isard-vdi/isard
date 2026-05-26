@@ -249,7 +249,7 @@ def test_admin_update_login_notification(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/login_config/notification",
+        url="/admin/item/login_config/notification",
         method="PUT",
         body={"cover": {"enabled": True}, "form": {"enabled": False}},
         jwt=jwt,
@@ -274,7 +274,7 @@ def test_admin_enable_cover_login_notification(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/login_config/notification/cover/enable",
+        url="/admin/item/login_config/notification/cover/enable",
         method="PUT",
         body={"enabled": True},
         jwt=jwt,

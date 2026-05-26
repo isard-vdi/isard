@@ -14,7 +14,7 @@ from api.services.error import Error
 
 
 class TestNotifyUserDesktop:
-    URL = "/admin/notify/user/desktop"
+    URL = "/admin/item/notify/user/desktop"
 
     def test_admin_notifies_user(self, monkeypatch, test_client):
         captured = {}
@@ -125,7 +125,7 @@ class TestNotifyUserDesktop:
 
 
 class TestNotifyDesktop:
-    URL = "/admin/notify/desktop"
+    URL = "/admin/item/notify/desktop"
 
     def test_admin_notifies_desktop(self, monkeypatch, test_client):
         captured = {}
@@ -202,7 +202,7 @@ class TestNotifyDesktopQueue:
     `except json.JSONDecodeError` branch — not as 500.
     """
 
-    URL = "/admin/notify/desktops/queue/hyper-1"
+    URL = "/admin/item/notify/desktops/queue/hyper-1"
 
     def test_admin_notifies_queue(self, monkeypatch, test_client):
         captured = {}

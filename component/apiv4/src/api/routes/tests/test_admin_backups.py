@@ -20,7 +20,7 @@ from api.services.error import Error
 
 
 class TestListBackups:
-    URL = "/admin/backups"
+    URL = "/admin/items/backups"
 
     def test_admin_lists_all(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -121,7 +121,7 @@ class TestListBackups:
 
 
 class TestBackupConfig:
-    URL = "/admin/backups/config"
+    URL = "/admin/item/backups/config"
 
     def test_returns_config_not_404(self, monkeypatch, test_client):
         """Route declaration order safety: /admin/backups/config must
@@ -170,7 +170,7 @@ class TestBackupConfig:
         assert response.status_code == 200
         assert response.json()["main_schedule_hour"] == 19
         assert "yes" not in called_get_backup, (
-            "/admin/backups/config matched the {backup_id} catch-all — "
+            "/admin/item/backups/config matched the {backup_id} catch-all — "
             "declaration order regression in admin/backups.py"
         )
 
@@ -200,7 +200,7 @@ class TestBackupConfig:
 
 
 class TestGetBackup:
-    URL = "/admin/backups/b-123"
+    URL = "/admin/item/backups/b-123"
 
     def test_admin_gets_backup(self, monkeypatch, test_client):
         captured = {}
@@ -243,7 +243,7 @@ class TestGetBackup:
 
 
 class TestBackupReport:
-    URL = "/backups"
+    URL = "/admin/item/backups"
 
     def _payload(self, **overrides):
         body = {
@@ -350,7 +350,7 @@ class TestBackupReport:
 
 
 class TestBackupIntegrityToggle:
-    URL = "/admin/backups/integrity"
+    URL = "/admin/item/backups/integrity"
 
     def test_admin_gets_toggle_disabled_default(self, monkeypatch, test_client):
         monkeypatch.setattr(

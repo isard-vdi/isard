@@ -233,7 +233,7 @@ def test_admin_storage_list(monkeypatch, test_client):
         staticmethod(lambda payload, **kwargs: stub),
     )
 
-    response = test_client(url="/admin/storage", jwt=jwt)
+    response = test_client(url="/admin/items/storage", jwt=jwt)
 
     assert response.status_code == 200
     # ``response_model=list[AdminStorageItem]`` adds the declared
@@ -262,7 +262,7 @@ def test_admin_storage_list_filtered(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/storage",
+        url="/admin/items/storage",
         method="POST",
         body={"categories": ["cat-1"]},
         jwt=jwt,
@@ -287,7 +287,7 @@ def test_admin_storage_by_status(monkeypatch, test_client):
         staticmethod(fake_get),
     )
 
-    response = test_client(url="/admin/storage/by-status/orphan", jwt=jwt)
+    response = test_client(url="/admin/items/storage/by-status/orphan", jwt=jwt)
 
     assert response.status_code == 200
     assert captured == {"status": "orphan"}

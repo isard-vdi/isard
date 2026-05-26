@@ -314,8 +314,9 @@ async def admin_force_password(request: Request, policy_id: str):
 # ══════════════════════════════════════════════════════════════════════════
 
 
+# TODO: remove this. It's a duplocate of `/item/disclaimer` in routes/login.py
 @disclaimer_router.get(
-    "/item/disclaimer",
+    "/disclaimer",
     tags=[tag],
     response_model=DisclaimerResponse,
     summary="Get disclaimer template",

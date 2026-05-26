@@ -53,7 +53,7 @@ def test_admin_hypervisors_list(monkeypatch, test_client):
         staticmethod(fake_get_hypervisors),
     )
 
-    response = test_client(url="/admin/hypervisors", jwt=jwt)
+    response = test_client(url="/admin/items/hypervisors", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -74,7 +74,7 @@ def test_admin_hypervisors_list_by_status(monkeypatch, test_client):
         staticmethod(fake_get_hypervisors),
     )
 
-    response = test_client(url="/admin/hypervisors/Online", jwt=jwt)
+    response = test_client(url="/admin/items/hypervisors/Online", jwt=jwt)
 
     assert response.status_code == 200
     assert captured == {"status": "Online"}
@@ -95,7 +95,7 @@ def test_admin_hypervisor_create(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/hypervisor",
+        url="/admin/item/hypervisor",
         method="POST",
         body={
             "hyper_id": "hyper-new",
@@ -124,7 +124,7 @@ def test_admin_hypervisor_enable(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/hypervisor/hyper-1",
+        url="/admin/item/hypervisor/hyper-1",
         method="PUT",
         body={"enabled": False},
         jwt=jwt,
@@ -143,7 +143,7 @@ def test_admin_hypervisor_delete(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/hypervisor/hyper-1",
+        url="/admin/item/hypervisor/hyper-1",
         method="DELETE",
         jwt=jwt,
     )
@@ -161,7 +161,7 @@ def test_admin_hypervisor_stop_domains(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/hypervisor/stop/hyper-1",
+        url="/admin/item/hypervisor/stop/hyper-1",
         method="PUT",
         jwt=jwt,
     )
@@ -178,7 +178,7 @@ def test_admin_hypervisor_virt_pools_get(monkeypatch, test_client):
         staticmethod(lambda hyper_id: stub),
     )
 
-    response = test_client(url="/admin/hypervisor/hyper-1/virt_pools", jwt=jwt)
+    response = test_client(url="/admin/items/hypervisor/hyper-1/virt_pools", jwt=jwt)
 
     # ``response_model=list[AdminHypervisorVirtPool]`` adds the
     # declared optional ``name`` field with a None default; per-key
@@ -205,7 +205,7 @@ def test_admin_hypervisor_virt_pools_update(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/hypervisor/hyper-1/virt_pools",
+        url="/admin/items/hypervisor/hyper-1/virt_pools",
         method="PUT",
         body={"id": "pool-1", "enable_virt_pool": True},
         jwt=jwt,
@@ -227,7 +227,7 @@ def test_admin_hypervisor_mountpoints(monkeypatch, test_client):
         staticmethod(lambda hyper_id: stub),
     )
 
-    response = test_client(url="/admin/hypervisor/mountpoints/hyper-1", jwt=jwt)
+    response = test_client(url="/admin/items/hypervisor/mountpoints/hyper-1", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() == stub
@@ -241,7 +241,9 @@ def test_admin_hypervisor_started_domains(monkeypatch, test_client):
         staticmethod(lambda hyper_id: stub),
     )
 
-    response = test_client(url="/admin/hypervisor/started_domains/hyper-1", jwt=jwt)
+    response = test_client(
+        url="/admin/items/hypervisor/started_domains/hyper-1", jwt=jwt
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -262,7 +264,7 @@ def test_admin_orchestrator_managed_list(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/hypervisors/orchestrator_managed",
+        url="/admin/items/hypervisors/orchestrator_managed",
         method="POST",
         jwt=jwt,
     )
@@ -289,7 +291,7 @@ def test_admin_orchestrator_manage_unset(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/orchestrator/hypervisor/hyper-1/manage",
+        url="/admin/item/orchestrator/hypervisor/hyper-1/manage",
         method="DELETE",
         jwt=jwt,
     )
@@ -312,7 +314,7 @@ def test_admin_orchestrator_manage_set(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/orchestrator/hypervisor/hyper-1/manage",
+        url="/admin/item/orchestrator/hypervisor/hyper-1/manage",
         method="POST",
         jwt=jwt,
     )
@@ -333,7 +335,7 @@ def test_admin_register_vlans_happy_path(test_client):
     jwt = MockJWT()
 
     response = test_client(
-        url="/admin/vlans",
+        url="/admin/items/vlans",
         method="POST",
         body={"vlans": ["100", "200"]},
         jwt=jwt,
@@ -350,7 +352,7 @@ def test_admin_register_vlans_empty_list(test_client):
     jwt = MockJWT()
 
     response = test_client(
-        url="/admin/vlans",
+        url="/admin/items/vlans",
         method="POST",
         body={"vlans": []},
         jwt=jwt,
@@ -364,7 +366,7 @@ def test_admin_register_vlans_rejects_missing_field(test_client):
     jwt = MockJWT()
 
     response = test_client(
-        url="/admin/vlans",
+        url="/admin/items/vlans",
         method="POST",
         body={"not_vlans": ["100"]},
         jwt=jwt,
@@ -388,7 +390,7 @@ def test_admin_hypervisor_boot_progress_happy_path(test_client):
     jwt = MockJWT()
 
     response = test_client(
-        url="/admin/hypervisor/hyper-1/boot_progress",
+        url="/admin/item/hypervisor/hyper-1/boot_progress",
         method="PUT",
         body={
             "boot_progress": {
@@ -413,7 +415,7 @@ def test_admin_hypervisor_boot_progress_rejects_string_payload(test_client):
     jwt = MockJWT()
 
     response = test_client(
-        url="/admin/hypervisor/hyper-1/boot_progress",
+        url="/admin/item/hypervisor/hyper-1/boot_progress",
         method="PUT",
         body={"boot_progress": '{"step": 1}'},
         jwt=jwt,
@@ -427,7 +429,7 @@ def test_admin_hypervisor_boot_progress_rejects_missing_field(test_client):
     jwt = MockJWT()
 
     response = test_client(
-        url="/admin/hypervisor/hyper-1/boot_progress",
+        url="/admin/item/hypervisor/hyper-1/boot_progress",
         method="PUT",
         body={"other": 1},
         jwt=jwt,

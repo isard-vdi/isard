@@ -34,7 +34,7 @@ def test_admin_list_roles_returns_available_roles(monkeypatch, test_client):
     )
 
     jwt = MockJWT(role_id="admin")
-    response = test_client(url="/admin/roles", jwt=jwt)
+    response = test_client(url="/admin/items/roles", jwt=jwt)
 
     assert response.status_code == 200
     data = response.json()
@@ -51,7 +51,7 @@ def test_admin_list_roles_accessible_to_manager(monkeypatch, test_client):
     )
 
     jwt = MockJWT(role_id="manager")
-    response = test_client(url="/admin/roles", jwt=jwt)
+    response = test_client(url="/admin/items/roles", jwt=jwt)
 
     assert response.status_code == 200
     assert {r["id"] for r in response.json()} == {"advanced", "user"}
@@ -65,7 +65,7 @@ def test_admin_list_roles_forbidden_for_basic_user(monkeypatch, test_client):
     )
 
     jwt = MockJWT(role_id="user")
-    response = test_client(url="/admin/roles", jwt=jwt)
+    response = test_client(url="/admin/items/roles", jwt=jwt)
 
     assert response.status_code == 403
 
@@ -85,7 +85,7 @@ def test_admin_get_role_returns_single(monkeypatch, test_client):
     )
 
     jwt = MockJWT(role_id="admin")
-    response = test_client(url="/admin/role/manager", jwt=jwt)
+    response = test_client(url="/admin/item/role/manager", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json()["id"] == "manager"
@@ -106,7 +106,7 @@ def test_admin_get_role_unknown_returns_404(monkeypatch, test_client):
     )
 
     jwt = MockJWT(role_id="admin")
-    response = test_client(url="/admin/role/does-not-exist", jwt=jwt)
+    response = test_client(url="/admin/item/role/does-not-exist", jwt=jwt)
 
     assert response.status_code == 404
 
@@ -123,7 +123,7 @@ def test_admin_list_roles_handles_service_failure(monkeypatch, test_client):
     )
 
     jwt = MockJWT(role_id="admin")
-    response = test_client(url="/admin/roles", jwt=jwt)
+    response = test_client(url="/admin/items/roles", jwt=jwt)
 
     assert response.status_code == 500
     assert response.json().get("error") == "internal_server"

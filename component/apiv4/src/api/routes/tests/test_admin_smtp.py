@@ -22,7 +22,7 @@ from api.services.error import Error
 
 
 class TestGetSmtpConfig:
-    URL = "/smtp"
+    URL = "/admin/item/smtp"
 
     @pytest.mark.clear_cache
     def test_service_token_gets_full_config(self, monkeypatch, test_client):
@@ -73,7 +73,7 @@ class TestGetSmtpConfig:
 
 
 class TestUpdateSmtpConfig:
-    URL = "/smtp"
+    URL = "/admin/item/smtp"
 
     def test_admin_updates_config(self, monkeypatch, test_client):
         captured = {}
@@ -183,7 +183,7 @@ class TestUpdateSmtpConfig:
 
 
 class TestGetSmtpEnabled:
-    URL = "/smtp/enabled"
+    URL = "/admin/item/smtp/enabled"
 
     @pytest.mark.clear_cache
     def test_admin_gets_enabled(self, monkeypatch, test_client):
@@ -221,7 +221,7 @@ class TestGetSmtpEnabled:
 
 
 class TestTestSmtp:
-    URL = "/smtp/test"
+    URL = "/admin/item/smtp/test"
 
     def test_admin_test_returns_result(self, monkeypatch, test_client):
         monkeypatch.setattr(

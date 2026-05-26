@@ -26,7 +26,7 @@ from api.services.error import Error
 
 
 class TestGetStorageStatus:
-    URL = "/storage/status"
+    URL = "/admin/item/storage/status"
 
     def test_admin_gets_counts(self, monkeypatch, test_client):
         captured = {}
@@ -71,7 +71,7 @@ class TestGetStorageStatus:
 
 
 class TestListStorage:
-    URL = "/admin/storage"
+    URL = "/admin/items/storage"
 
     def test_admin_lists(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -97,7 +97,7 @@ class TestListStorage:
 
 
 class TestListStorageFiltered:
-    URL = "/admin/storage"
+    URL = "/admin/items/storage"
 
     def test_categories_forwarded(self, monkeypatch, test_client):
         captured = {}
@@ -151,7 +151,7 @@ class TestStorageByStatus:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/storage/by-status/ready", jwt=MockJWT(role_id="admin")
+            url="/admin/items/storage/by-status/ready", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert captured["status"] == "ready"
@@ -169,7 +169,7 @@ class TestStorageByStatus:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/storage/by-status/ready",
+            url="/admin/items/storage/by-status/ready",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"categories": ["cat-a"]},
@@ -202,7 +202,7 @@ class TestDomainsByStorage:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/storage/domains/abc/disk.qcow2",
+            url="/admin/items/storage/domains/abc/disk.qcow2",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -220,7 +220,7 @@ class TestDomainsByStorage:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/media/domains/m-1", jwt=MockJWT(role_id="admin")
+            url="/admin/items/media/domains/m-1", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert captured["sid"] == "m-1"
@@ -231,7 +231,7 @@ class TestDomainsByStorage:
             staticmethod(lambda *a, **k: []),
         )
         response = test_client(
-            url="/admin/storage/domains/s-1", jwt=MockJWT(role_id="user")
+            url="/admin/items/storage/domains/s-1", jwt=MockJWT(role_id="user")
         )
         assert response.status_code == 403
 
@@ -242,7 +242,7 @@ class TestDomainsByStorage:
 
 
 class TestDeleteStorage:
-    URL = "/admin/storage/s-99"
+    URL = "/admin/item/storage/s-99"
 
     def test_admin_deletes(self, monkeypatch, test_client):
         """Happy path: 202 + DeleteResponse with the cascade task_id.
@@ -342,7 +342,7 @@ class TestStorageInfoEndpoints:
             staticmethod(lambda payload, sid: {"id": sid, "format": "qcow2"}),
         )
         response = test_client(
-            url="/admin/storage/info/s-1", jwt=MockJWT(role_id="admin")
+            url="/admin/item/storage/info/s-1", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert response.json()["format"] == "qcow2"
@@ -353,7 +353,7 @@ class TestStorageInfoEndpoints:
             staticmethod(lambda payload, sid: {"id": sid, "owner": {"id": "u-1"}}),
         )
         response = test_client(
-            url="/admin/storage/search-info/s-1", jwt=MockJWT(role_id="admin")
+            url="/admin/item/storage/search-info/s-1", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert response.json()["owner"]["id"] == "u-1"
@@ -365,7 +365,7 @@ class TestStorageInfoEndpoints:
 
 
 class TestStorageByRole:
-    URL = "/admin/storage/by-role/manager"
+    URL = "/admin/items/storage/by-role/manager"
 
     def test_admin_filters_by_role(self, monkeypatch, test_client):
         captured = {}
@@ -407,6 +407,6 @@ class TestStorageByRole:
             staticmethod(reject),
         )
         response = test_client(
-            url="/admin/storage/by-role/invalid", jwt=MockJWT(role_id="admin")
+            url="/admin/items/storage/by-role/invalid", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 400
