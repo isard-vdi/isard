@@ -177,7 +177,7 @@ function renderNotificationUsersDatatable(status) {
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
-        "rowId": "item_id",
+        "rowId": "user_id",
         "searching": true,
         "footer": true,
         "deferRender": true,
@@ -234,7 +234,8 @@ function renderNotificationLogsDetailPannel(d) {
 
 function addDeleteButtonListeners() {
     $("#notifications-users-table").find('tbody').on('click', 'button', function () {
-        var data = $(this).closest("table").DataTable().row($(this).parents('tr')).data();
+        var table = $(this).closest("table").DataTable();
+        var data = table.row($(this).parents('tr')).data();
         switch ($(this).attr('id')) {
             case "btn-delete":
                 new PNotify({
@@ -252,9 +253,9 @@ function addDeleteButtonListeners() {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: 'DELETE',
-                        url: `/api/v4/admin/notifications/data/${data.user_id}`,
+                        url: `/api/v4/admin/notifications/data/user/${data.user_id}`,
                         contentType: 'application/json',
-                        success: function (data) {
+                        success: function () {
                             new PNotify({
                                 title: 'Deleted',
                                 text: `Notification data deleted successfully`,
@@ -263,7 +264,7 @@ function addDeleteButtonListeners() {
                                 opacity: 1,
                                 type: 'success'
                             });
-                            $("#notifications-logs-table").DataTable().row('#' + data.id).remove().draw();
+                            table.row('#' + data.user_id).remove().draw();
                         },
                         error: function (data) {
                             new PNotify({
