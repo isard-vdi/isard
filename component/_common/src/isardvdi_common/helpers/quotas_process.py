@@ -702,30 +702,28 @@ class QuotasProcess(RethinkCustomBase):
             )
         with cls._rdb_context():
             isos = r.table("media").count().run(cls._rdb_connection)
-        try:
-            with cls._rdb_context():
-                starteds = (
-                    r.table("domains")
-                    .get_all("Started", index="status")
-                    .pluck("create_dict")
-                    .map(
-                        lambda domain: {
-                            "count": 1,
-                            "memory": domain["create_dict"]["hardware"]["memory"],
-                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
-                        }
-                    )
-                    .reduce(
-                        lambda left, right: {
-                            "count": left["count"] + right["count"],
-                            "vcpus": left["vcpus"].add(right["vcpus"]),
-                            "memory": left["memory"].add(right["memory"]),
-                        }
-                    )
-                    .run(cls._rdb_connection)
+        with cls._rdb_context():
+            starteds = (
+                r.table("domains")
+                .get_all("Started", index="status")
+                .pluck("create_dict")
+                .map(
+                    lambda domain: {
+                        "count": 1,
+                        "memory": domain["create_dict"]["hardware"]["memory"],
+                        "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                    }
                 )
-        except r.ReqlNonExistenceError:
-            starteds = {"count": 0, "memory": 0, "vcpus": 0}
+                .reduce(
+                    lambda left, right: {
+                        "count": left["count"] + right["count"],
+                        "vcpus": left["vcpus"].add(right["vcpus"]),
+                        "memory": left["memory"].add(right["memory"]),
+                    }
+                )
+                .default({"count": 0, "memory": 0, "vcpus": 0})
+                .run(cls._rdb_connection)
+            )
         with cls._rdb_context():
             users = r.table("users").count().run(cls._rdb_connection)
         with cls._rdb_context():
