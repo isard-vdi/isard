@@ -53,7 +53,7 @@ tag = "admin_analytics"
 
 
 @manager_router.post(
-    "/analytics/storage",
+    "/admin/item/analytics/storage",
     tags=[tag],
     response_model=StorageUsageResponse,
     summary="Get storage usage analytics",
@@ -89,7 +89,7 @@ async def analytics_storage(request: Request, data: AnalyticsCategoriesRequest):
 
 
 @manager_router.post(
-    "/analytics/resources/count",
+    "/admin/item/analytics/resources/count",
     tags=[tag],
     response_model=ResourceCountResponse,
     summary="Get resource count analytics",
@@ -125,7 +125,7 @@ async def analytics_resource_count(request: Request, data: AnalyticsCategoriesRe
 
 
 @manager_router.post(
-    "/analytics/suggested_removals",
+    "/admin/items/analytics/suggested_removals",
     tags=[tag],
     response_model=SuggestedRemovalsResponse,
     summary="Get suggested removals",
@@ -173,7 +173,7 @@ async def analytics_suggested_removals(
 
 
 @manager_router.get(
-    "/analytics/graph",
+    "/admin/items/analytics/graph",
     tags=[tag],
     response_model=list[AnalyticsGraphConfigResponse],
     summary="Get all analytics graph configurations",
@@ -202,7 +202,7 @@ async def analytics_graphs_conf_list(request: Request):
 
 
 @admin_router.get(
-    "/analytics/graph/{conf_id}",
+    "/admin/item/analytics/graph/{conf_id}",
     tags=[tag],
     response_model=AnalyticsGraphConfigResponse,
     summary="Get analytics graph configuration",
@@ -235,7 +235,7 @@ async def analytics_graph_conf_get(request: Request, conf_id: str):
 
 
 @admin_router.post(
-    "/analytics/graph",
+    "/admin/item/analytics/graph",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Create analytics graph configuration",
@@ -264,7 +264,7 @@ async def analytics_graph_conf_add(request: Request, data: AnalyticsGraphCreateR
 
 
 @admin_router.put(
-    "/analytics/graph/{conf_id}",
+    "/admin/item/analytics/graph/{conf_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update analytics graph configuration",
@@ -296,7 +296,7 @@ async def analytics_graph_conf_update(
 
 
 @admin_router.delete(
-    "/analytics/graph/{conf_id}",
+    "/admin/item/analytics/graph/{conf_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete analytics graph configuration",
@@ -324,7 +324,7 @@ async def analytics_graph_conf_delete(request: Request, conf_id: str):
 
 
 @admin_router.post(
-    "/analytics/desktops/less_used",
+    "/admin/items/analytics/desktops/less_used",
     tags=[tag],
     response_model=list[DesktopAnalyticsRow],
     summary="Get least used desktops",
@@ -359,7 +359,7 @@ async def analytics_desktops_less_used(request: Request, data: DesktopAnalyticsR
 
 
 @admin_router.post(
-    "/analytics/desktops/recently_used",
+    "/admin/items/analytics/desktops/recently_used",
     tags=[tag],
     response_model=list[DesktopAnalyticsRow],
     summary="Get recently used desktops",
@@ -396,7 +396,7 @@ async def analytics_desktops_recently_used(
 
 
 @admin_router.post(
-    "/analytics/desktops/most_used",
+    "/admin/items/analytics/desktops/most_used",
     tags=[tag],
     response_model=list[DesktopAnalyticsRow],
     summary="Get most used desktops",
@@ -436,7 +436,7 @@ async def analytics_desktops_most_used(request: Request, data: DesktopAnalyticsR
 
 
 @admin_router.post(
-    "/admin/echart/daily_items",
+    "/admin/item/echart/daily_items",
     tags=[tag],
     response_model=EchartDailyItemsResponse,
     summary="Get echart daily-items data",
@@ -469,12 +469,12 @@ async def admin_echart_daily_items(
 
 
 @admin_router.post(
-    "/admin/echart/{view}",
+    "/admin/item/echart/{view}",
     tags=[tag],
     response_model=list[EchartViewResponseRow],
     summary="Get echart data",
     description="Returns chart data for the specified view type."
-    " For ``daily_items`` see ``/admin/echart/daily_items``.",
+    " For ``daily_items`` see ``/admin/item/echart/daily_items``.",
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},

@@ -43,7 +43,7 @@ class TestCategoriesScoping:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/analytics/storage",
+            url="/admin/item/analytics/storage",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"categories": ["cat-a", "cat-b"]},
@@ -55,7 +55,7 @@ class TestCategoriesScoping:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/analytics/storage",
+            url="/admin/item/analytics/storage",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"categories": None},
@@ -72,7 +72,7 @@ class TestCategoriesScoping:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/analytics/storage",
+            url="/admin/item/analytics/storage",
             method="POST",
             jwt=MockJWT(role_id="manager", category_id="default"),
             body={"categories": ["cat-other"]},
@@ -84,7 +84,7 @@ class TestCategoriesScoping:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/analytics/resources/count",
+            url="/admin/item/analytics/resources/count",
             method="POST",
             jwt=MockJWT(role_id="manager", category_id="default"),
             body={"categories": None},
@@ -95,7 +95,7 @@ class TestCategoriesScoping:
     def test_user_forbidden(self, monkeypatch, test_client):
         self._stub(monkeypatch, {})
         response = test_client(
-            url="/analytics/storage",
+            url="/admin/item/analytics/storage",
             method="POST",
             jwt=MockJWT(role_id="user"),
             body={"categories": None},
@@ -109,7 +109,7 @@ class TestCategoriesScoping:
 
 
 class TestSuggestedRemovals:
-    URL = "/analytics/suggested_removals"
+    URL = "/admin/items/analytics/suggested_removals"
 
     def test_admin_with_required_months(self, monkeypatch, test_client):
         captured = {}
@@ -177,7 +177,9 @@ class TestGraphConfig:
             "api.routes.admin.analytics.AdminAnalyticsService.get_usage_graphs_conf",
             staticmethod(lambda: [{"id": "g-1"}]),
         )
-        response = test_client(url="/analytics/graph", jwt=MockJWT(role_id="manager"))
+        response = test_client(
+            url="/admin/items/analytics/graph", jwt=MockJWT(role_id="manager")
+        )
         assert response.status_code == 200
         assert response.json()[0]["id"] == "g-1"
 
@@ -186,7 +188,9 @@ class TestGraphConfig:
             "api.routes.admin.analytics.AdminAnalyticsService.get_usage_graphs_conf",
             staticmethod(lambda: []),
         )
-        response = test_client(url="/analytics/graph", jwt=MockJWT(role_id="user"))
+        response = test_client(
+            url="/admin/items/analytics/graph", jwt=MockJWT(role_id="user")
+        )
         assert response.status_code == 403
 
     def test_get_on_admin_router(self, monkeypatch, test_client):
@@ -198,11 +202,13 @@ class TestGraphConfig:
             staticmethod(lambda cid: {"id": cid}),
         )
         # admin allowed
-        response = test_client(url="/analytics/graph/g-1", jwt=MockJWT(role_id="admin"))
+        response = test_client(
+            url="/admin/item/analytics/graph/g-1", jwt=MockJWT(role_id="admin")
+        )
         assert response.status_code == 200
         # manager blocked
         response = test_client(
-            url="/analytics/graph/g-1", jwt=MockJWT(role_id="manager")
+            url="/admin/item/analytics/graph/g-1", jwt=MockJWT(role_id="manager")
         )
         assert response.status_code == 403
 
@@ -215,7 +221,7 @@ class TestGraphConfig:
             staticmethod(fail),
         )
         response = test_client(
-            url="/analytics/graph/ghost", jwt=MockJWT(role_id="admin")
+            url="/admin/item/analytics/graph/ghost", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 404
 
@@ -226,7 +232,7 @@ class TestGraphConfig:
             staticmethod(lambda data: captured.update(data=data)),
         )
         response = test_client(
-            url="/analytics/graph",
+            url="/admin/item/analytics/graph",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"name": "Storage by month", "type": "line"},
@@ -241,7 +247,7 @@ class TestGraphConfig:
             staticmethod(lambda cid, data: captured.update(cid=cid, data=data)),
         )
         response = test_client(
-            url="/analytics/graph/g-1",
+            url="/admin/item/analytics/graph/g-1",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"name": "Renamed"},
@@ -256,7 +262,7 @@ class TestGraphConfig:
             staticmethod(lambda cid: captured.update(cid=cid)),
         )
         response = test_client(
-            url="/analytics/graph/g-1",
+            url="/admin/item/analytics/graph/g-1",
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
@@ -279,9 +285,9 @@ class TestGraphConfig:
             staticmethod(lambda cid: None),
         )
         for method, url, body in [
-            ("POST", "/analytics/graph", {"name": "x"}),
-            ("PUT", "/analytics/graph/g-1", {"name": "y"}),
-            ("DELETE", "/analytics/graph/g-1", None),
+            ("POST", "/admin/item/analytics/graph", {"name": "x"}),
+            ("PUT", "/admin/item/analytics/graph/g-1", {"name": "y"}),
+            ("DELETE", "/admin/item/analytics/graph/g-1", None),
         ]:
             response = test_client(
                 url=url,
@@ -314,7 +320,7 @@ class TestDesktopAnalytics:
             staticmethod(lambda *a, **k: called.update(yes="less") or []),
         )
         response = test_client(
-            url="/analytics/desktops/less_used",
+            url="/admin/items/analytics/desktops/less_used",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
@@ -329,7 +335,7 @@ class TestDesktopAnalytics:
             staticmethod(lambda *a, **k: called.update(yes="recent") or []),
         )
         response = test_client(
-            url="/analytics/desktops/recently_used",
+            url="/admin/items/analytics/desktops/recently_used",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
@@ -344,7 +350,7 @@ class TestDesktopAnalytics:
             staticmethod(lambda *a, **k: called.update(yes="most") or []),
         )
         response = test_client(
-            url="/analytics/desktops/most_used",
+            url="/admin/items/analytics/desktops/most_used",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),
@@ -367,7 +373,7 @@ class TestDesktopAnalytics:
             staticmethod(fake),
         )
         response = test_client(
-            url="/analytics/desktops/less_used",
+            url="/admin/items/analytics/desktops/less_used",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body=self._payload(),  # status defaults to None
@@ -381,7 +387,7 @@ class TestDesktopAnalytics:
             staticmethod(lambda *a, **k: []),
         )
         response = test_client(
-            url="/analytics/desktops/less_used",
+            url="/admin/items/analytics/desktops/less_used",
             method="POST",
             jwt=MockJWT(role_id="manager"),
             body=self._payload(),
@@ -414,7 +420,7 @@ class TestEchart:
             ),
         )
         response = test_client(
-            url="/admin/echart/daily_items",
+            url="/admin/item/echart/daily_items",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"table": "users", "date_field": "created"},
@@ -434,7 +440,7 @@ class TestEchart:
             ),
         )
         response = test_client(
-            url="/admin/echart/grouped_items",
+            url="/admin/item/echart/grouped_items",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"table": "domains", "group_field": "kind"},
@@ -454,7 +460,7 @@ class TestEchart:
             ),
         )
         response = test_client(
-            url="/admin/echart/grouped_unique_items",
+            url="/admin/item/echart/grouped_unique_items",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={
@@ -478,7 +484,7 @@ class TestEchart:
             ),
         )
         response = test_client(
-            url="/admin/echart/nested_array_grouped_items",
+            url="/admin/item/echart/nested_array_grouped_items",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={
@@ -494,7 +500,7 @@ class TestEchart:
         """The route raises Error("bad_request") for unknown views —
         not 500. Pin the typed status."""
         response = test_client(
-            url="/admin/echart/no_such_view",
+            url="/admin/item/echart/no_such_view",
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"table": "users"},
@@ -507,7 +513,7 @@ class TestEchart:
             staticmethod(lambda *a, **k: []),
         )
         response = test_client(
-            url="/admin/echart/daily_items",
+            url="/admin/item/echart/daily_items",
             method="POST",
             jwt=MockJWT(role_id="user"),
             body={"table": "users"},

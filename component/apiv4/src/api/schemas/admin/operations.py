@@ -28,8 +28,8 @@ class OperationsHypervisorResponse(BaseModel):
 
 
 class HypervisorActionResponse(BaseModel):
-    """Result of ``PUT /admin/operations/hypervisor/{id}`` (start) and
-    ``DELETE /admin/operations/hypervisor/{id}`` (stop). The fields
+    """Result of ``PUT /admin/item/operations/hypervisor/{id}`` (start) and
+    ``DELETE /admin/item/operations/hypervisor/{id}`` (stop). The fields
     come straight from the operations gRPC ``CreateHypervisorResponse``
     / ``DestroyHypervisorResponse`` proto.
     """

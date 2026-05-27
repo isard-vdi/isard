@@ -28,7 +28,7 @@ from api.services.error import Error
 
 
 class TestGetTable:
-    URL = "/admin/table/users"
+    URL = "/admin/items/table/users"
 
     def test_admin_reads_table(self, monkeypatch, test_client):
         captured = {}
@@ -106,7 +106,7 @@ class TestGetTable:
             staticmethod(fail),
         )
         response = test_client(
-            url="/admin/table/no_such_table", jwt=MockJWT(role_id="admin")
+            url="/admin/items/table/no_such_table", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 404
 
@@ -203,7 +203,7 @@ class TestGetTable:
 
 
 class TestListTableWithFilters:
-    URL = "/admin/table/users"
+    URL = "/admin/items/table/users"
 
     def test_admin_filters(self, monkeypatch, test_client):
         captured = {}
@@ -279,7 +279,7 @@ class TestListTableWithFilters:
 
 
 class TestInsertTableItem:
-    URL = "/admin/table/add/users"
+    URL = "/admin/item/table/add/users"
 
     def test_admin_inserts(self, monkeypatch, test_client):
         captured = {}
@@ -356,7 +356,7 @@ class TestInsertTableItem:
 
 
 class TestUpdateTableItem:
-    URL = "/admin/table/update/users"
+    URL = "/admin/item/table/update/users"
 
     def test_admin_updates(self, monkeypatch, test_client):
         captured = {}
@@ -414,7 +414,7 @@ class TestUpdateTableItem:
 
 
 class TestDeleteTableItem:
-    URL = "/admin/table/users/u-99"
+    URL = "/admin/item/table/users/u-99"
 
     def test_admin_deletes(self, monkeypatch, test_client):
         captured = {}

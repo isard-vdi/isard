@@ -23,7 +23,7 @@ tag = "admin_socketio"
 
 
 @admin_router.post(
-    "/admin/socketio",
+    "/admin/items/socketio",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Emit socketio events",

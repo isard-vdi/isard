@@ -89,7 +89,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: "/api/v4/admin/notifications/template/" + id,
+                    url: "/api/v4/admin/item/notifications/template/" + id,
                     contentType: 'application/json',
                     success: function () {
                         new PNotify({
@@ -121,7 +121,7 @@ $(document).ready(function () {
             renderModal(modal, "edit");
             $.ajax({
                 type: 'GET',
-                url: `/api/v4/admin/notifications/template/${id}`,
+                url: `/api/v4/admin/item/notifications/template/${id}`,
                 contentType: 'application/json',
                 success: function (data) {
                     var lang = data.lang || {};
@@ -169,7 +169,7 @@ $(document).ready(function () {
                 if ($(this).data("action") == "edit") {
                     $.ajax({
                         type: 'PUT',
-                        url: '/api/v4/admin/notifications/template/' + pk,
+                        url: '/api/v4/admin/item/notifications/template/' + pk,
                         data: JSON.stringify(data),
                         contentType: "application/json",
                         success: function (data) {
@@ -202,7 +202,7 @@ $(document).ready(function () {
                     data.default = data.language;
                     $.ajax({
                         type: 'POST',
-                        url: '/api/v4/admin/notifications/template/',
+                        url: '/api/v4/admin/item/notifications/template/',
                         data: JSON.stringify(data),
                         contentType: "application/json",
                         success: function (data) {
@@ -289,7 +289,7 @@ function showParameters(modal, parameterList) {
 function changeBodyLanguage(modal, language) {
     if ($(modal).hasClass("editModal")) {
         $.ajax({
-            url: "/api/v4/admin/notifications/template/" + $(modal + " #id").val(),
+            url: "/api/v4/admin/item/notifications/template/" + $(modal + " #id").val(),
             type: "GET",
             contentType: 'application/json',
             success: function (data) {
@@ -366,7 +366,7 @@ function populateLanguage(modal, availableLanguageList, defaultLang) {
 function renderTableNotificationTemplates() {
     custom_notification_tmpls_table = $('#custom-notification-tmpls-table').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/notifications/templates/custom",
+            "url": "/api/v4/admin/items/notifications/templates/custom",
             "contentType": "application/json",
             "type": 'GET',
         },
@@ -405,7 +405,7 @@ function renderTableNotificationTemplates() {
 
     system_notification_tmpls_table = $('#system-notification-tmpls-table').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/notifications/templates/system",
+            "url": "/api/v4/admin/items/notifications/templates/system",
             "contentType": "application/json",
             "type": 'GET',
         },
@@ -483,7 +483,7 @@ function applyMessage() {
         if (form.parsley().isValid()) {
             togglePreviewMode('#modalNotificationTemplate', false)
             $.ajax({
-                url: "/api/v4/admin/notifications/template/" + data.id,
+                url: "/api/v4/admin/item/notifications/template/" + data.id,
                 type: "PUT",
                 data: JSON.stringify(data),
                 contentType: 'application/json',

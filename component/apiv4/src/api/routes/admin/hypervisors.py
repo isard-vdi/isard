@@ -65,7 +65,7 @@ tag = "admin_hypervisors"
 
 
 @admin_router.get(
-    "/admin/hypervisors",
+    "/admin/items/hypervisors",
     tags=[tag],
     response_model=list[AdminHypervisor],
     summary="List all hypervisors",
@@ -99,7 +99,7 @@ async def admin_hypervisors_list(
 
 
 @admin_router.get(
-    "/admin/hypervisors/{status}",
+    "/admin/items/hypervisors/{status}",
     tags=[tag],
     response_model=list[AdminHypervisor],
     summary="List hypervisors by status",
@@ -140,7 +140,7 @@ async def admin_hypervisors_list_by_status(
 
 
 @admin_router.get(
-    "/admin/hypervisor/status/{hyper_id}",
+    "/admin/item/hypervisor/status/{hyper_id}",
     tags=[tag],
     response_model=AdminHypervisorStatusResponse,
     summary="Get hypervisor status",
@@ -179,7 +179,7 @@ async def admin_hypervisor_status(
 
 
 @admin_router.post(
-    "/admin/hypervisor",
+    "/admin/item/hypervisor",
     tags=[tag],
     response_model=AdminHypervisorCreateResponse,
     summary="Create or register a hypervisor",
@@ -223,7 +223,7 @@ async def admin_hypervisor_create(
 
 
 @admin_router.put(
-    "/admin/hypervisor/{hyper_id}",
+    "/admin/item/hypervisor/{hyper_id}",
     tags=[tag],
     response_model=AdminHypervisorEnableResponse,
     summary="Enable or disable a hypervisor",
@@ -273,7 +273,7 @@ async def admin_hypervisor_enable(
 
 
 @admin_router.delete(
-    "/admin/hypervisor/{hyper_id}",
+    "/admin/item/hypervisor/{hyper_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Remove a hypervisor",
@@ -306,7 +306,7 @@ async def admin_hypervisor_delete(
 
 
 @admin_router.put(
-    "/admin/hypervisor/stop/{hyper_id}",
+    "/admin/item/hypervisor/stop/{hyper_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Stop all domains on a hypervisor",
@@ -337,7 +337,7 @@ async def admin_hypervisor_stop_domains(
 
 
 @admin_router.get(
-    "/admin/hypervisor_vpn/{hyper_id}",
+    "/admin/item/hypervisor_vpn/{hyper_id}",
     tags=[tag],
     response_model=AdminHypervisorVpnResponse,
     summary="Get hypervisor VPN config",
@@ -379,7 +379,7 @@ async def admin_hypervisor_vpn(
 
 
 @admin_router.post(
-    "/admin/hypervisor/vm/wg_addr",
+    "/admin/item/hypervisor/vm/wg_addr",
     tags=[tag],
     response_model=AdminHypervisorWgAddrResponse,
     summary="Update wireguard guest address",
@@ -422,7 +422,7 @@ async def admin_hypervisor_wg_addr(
 
 
 @admin_router.post(
-    "/admin/hypervisor/media_found",
+    "/admin/item/hypervisor/media_found",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Report media found on hypervisor",
@@ -450,7 +450,7 @@ async def admin_hypervisor_media_found(
 
 
 @admin_router.post(
-    "/admin/hypervisor/disks_found",
+    "/admin/item/hypervisor/disks_found",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Report disks found on hypervisor",
@@ -478,7 +478,7 @@ async def admin_hypervisor_disks_found(
 
 
 @admin_router.post(
-    "/admin/hypervisor/media_delete",
+    "/admin/item/hypervisor/media_delete",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete media by paths",
@@ -509,7 +509,7 @@ async def admin_hypervisor_media_delete(
 
 
 @admin_router.put(
-    "/admin/hypervisors/gpus",
+    "/admin/items/hypervisors/gpus",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Assign GPUs to hypervisors",
@@ -539,7 +539,7 @@ async def admin_hypervisors_assign_gpus(
 
 
 @admin_router.get(
-    "/admin/orchestrator/hypervisors",
+    "/admin/items/orchestrator/hypervisors",
     tags=[tag],
     response_model=list[OrchestratorHypervisor],
     summary="List orchestrator hypervisors",
@@ -573,7 +573,7 @@ async def admin_orchestrator_hypervisors_list(
 
 
 @admin_router.get(
-    "/admin/orchestrator/hypervisor/{hypervisor_id}",
+    "/admin/item/orchestrator/hypervisor/{hypervisor_id}",
     tags=[tag],
     response_model=OrchestratorHypervisor,
     summary="Get orchestrator hypervisor details",
@@ -610,7 +610,7 @@ async def admin_orchestrator_hypervisor_get(
 
 
 @admin_router.post(
-    "/admin/hypervisors/orchestrator_managed",
+    "/admin/items/hypervisors/orchestrator_managed",
     tags=[tag],
     response_model=list[OrchestratorManagedHypervisor],
     summary="List orchestrator-managed hypervisors",
@@ -648,7 +648,7 @@ async def admin_orchestrator_managed_list(
 
 
 @admin_router.post(
-    "/admin/orchestrator/hypervisor/{hypervisor_id}/dead_row",
+    "/admin/item/orchestrator/hypervisor/{hypervisor_id}/dead_row",
     tags=[tag],
     response_model=DeadRowSetResponse,
     summary="Set hypervisor dead row timeout",
@@ -683,7 +683,7 @@ async def admin_orchestrator_dead_row_set(
 
 
 @admin_router.delete(
-    "/admin/orchestrator/hypervisor/{hypervisor_id}/dead_row",
+    "/admin/item/orchestrator/hypervisor/{hypervisor_id}/dead_row",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Reset hypervisor dead row timeout",
@@ -718,7 +718,7 @@ async def admin_orchestrator_dead_row_reset(
 
 
 @admin_router.delete(
-    "/admin/orchestrator/hypervisor/{hypervisor_id}/desktops",
+    "/admin/items/orchestrator/hypervisor/{hypervisor_id}/desktops",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Stop hypervisor desktops (orchestrator)",
@@ -751,7 +751,7 @@ async def admin_orchestrator_stop_desktops(
 
 
 @admin_router.post(
-    "/admin/orchestrator/hypervisor/{hypervisor_id}/manage",
+    "/admin/item/orchestrator/hypervisor/{hypervisor_id}/manage",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Mark hypervisor for orchestrator management",
@@ -782,7 +782,7 @@ async def admin_orchestrator_manage_set(
 
 
 @admin_router.delete(
-    "/admin/orchestrator/hypervisor/{hypervisor_id}/manage",
+    "/admin/item/orchestrator/hypervisor/{hypervisor_id}/manage",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Unmark hypervisor from orchestrator management",
@@ -818,7 +818,7 @@ async def admin_orchestrator_manage_unset(
 
 
 @admin_router.get(
-    "/admin/hypervisor/{hyper_id}/virt_pools",
+    "/admin/items/hypervisor/{hyper_id}/virt_pools",
     tags=[tag],
     response_model=list[AdminHypervisorVirtPool],
     summary="Get hypervisor virt pools",
@@ -855,7 +855,7 @@ async def admin_hypervisor_virt_pools_get(
 
 
 @admin_router.put(
-    "/admin/hypervisor/{hyper_id}/virt_pools",
+    "/admin/items/hypervisor/{hyper_id}/virt_pools",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update hypervisor virt pool assignment",
@@ -891,7 +891,7 @@ async def admin_hypervisor_virt_pools_update(
 
 
 @admin_router.get(
-    "/admin/hypervisor/mountpoints/{hyper_id}",
+    "/admin/items/hypervisor/mountpoints/{hyper_id}",
     tags=[tag],
     response_model=list[AdminHypervisorMountpoint],
     summary="Get hypervisor mountpoints",
@@ -931,7 +931,7 @@ async def admin_hypervisor_mountpoints(
 
 
 @admin_router.get(
-    "/admin/hypervisor/started_domains/{hyper_id}",
+    "/admin/items/hypervisor/started_domains/{hyper_id}",
     tags=[tag],
     response_model=list[AdminHypervisorStartedDomain],
     summary="Get started domains on a hypervisor",
@@ -968,7 +968,7 @@ async def admin_hypervisor_started_domains(
 
 
 @admin_router.post(
-    "/admin/vlans",
+    "/admin/items/vlans",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Register VLANs from hypervisor",
@@ -991,7 +991,7 @@ async def admin_register_vlans(request: Request, data: AdminRegisterVlansRequest
 
 
 @admin_router.put(
-    "/admin/hypervisor/{hyper_id}/boot_progress",
+    "/admin/item/hypervisor/{hyper_id}/boot_progress",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update hypervisor boot progress",

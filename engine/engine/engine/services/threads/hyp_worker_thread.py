@@ -2081,7 +2081,7 @@ class HypWorkerThread(threading.Thread):
                 with build_client("isard-engine") as client:
                     client.get_httpx_client().request(
                         "PUT",
-                        f"/api/v4/admin/notify/desktops/queue/{self.hyp_id}",
+                        f"/api/v4/admin/item/notify/desktops/queue/{self.hyp_id}",
                         json=positioned_items,
                         timeout=0.0000000001,  # Very small timeout as in original code
                     )

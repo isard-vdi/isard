@@ -45,7 +45,7 @@ class BackupIntegritySetRequest(BaseModel):
 
 
 class BackupItem(BaseModel):
-    """One row of ``GET /admin/backups``.
+    """One row of ``GET /admin/items/backups``.
 
     Permissive (``ConfigDict(extra="allow")``) because legacy backup
     rows carry assorted free-form metadata in ``details`` that the
@@ -66,7 +66,7 @@ class BackupItem(BaseModel):
 
 
 class BackupIntegrityResponse(BaseModel):
-    """Response shape for ``GET /admin/backups/integrity`` and the matching PUT."""
+    """Response shape for ``GET /admin/item/backups/integrity`` and the matching PUT."""
 
     integrity_enabled: bool
 
@@ -92,7 +92,7 @@ class BackupConfigEnabled(BaseModel):
 
 
 class BackupConfigResponse(BaseModel):
-    """Response shape for ``GET /admin/backups/config``.
+    """Response shape for ``GET /admin/item/backups/config``.
 
     Mirrors the dict returned by ``AdminBackupsService.get_backup_config``.
     """

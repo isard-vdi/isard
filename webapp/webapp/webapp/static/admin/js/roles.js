@@ -9,7 +9,7 @@ $(document).ready(function () {
     $template_role = $(".template-detail-roles");
     var table = $('#roles').DataTable({
         "ajax": {
-            "url": "/api/v4/admin/roles",
+            "url": "/api/v4/admin/items/roles",
             "dataSrc": "",
             "type": "GET",
         },
@@ -79,7 +79,7 @@ function actionsRolDetail() {
 
         $.ajax({
             type: "GET",
-            url: "/api/v4/admin/role/" + pk,
+            url: "/api/v4/admin/item/role/" + pk,
             contentType: "application/json",
             success: function (role) {
                 $('#modalEditRoleForm #id').val(pk);
@@ -101,7 +101,7 @@ function actionsRolDetail() {
                 })
                 $.ajax({
                     type: "PUT",
-                    url: "/api/v4/admin/role/" + data['id'],
+                    url: "/api/v4/admin/item/role/" + data['id'],
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {

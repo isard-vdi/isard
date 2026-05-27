@@ -9,7 +9,7 @@ $(document).ready(function() {
   $deployments_detail = $(".template-deployments-detail");
   deployments=$('#deployments').DataTable({
     "ajax": {
-      "url": "/api/v4/admin/table/deployments",
+      "url": "/api/v4/admin/items/table/deployments",
       "contentType": "application/json",
       "type": 'GET',
       data: function (d) {
@@ -286,7 +286,7 @@ function actionsDomainDetail() {
       dropdownParent: $('#modalChangeOwnerDomain'),
       ajax: {
         type: "POST",
-        url: '/api/v4/admin/users/search',
+        url: '/api/v4/admin/items/users/search',
         dataType: 'json',
         contentType: "application/json",
         delay: 250,
@@ -328,7 +328,7 @@ function actionsDomainDetail() {
       dropdownParent: $('#modalChangeCoOwnersDeployment'),
       ajax: {
         type: "POST",
-        url: '/api/v4/admin/users/search',
+        url: '/api/v4/admin/items/users/search',
         dataType: 'json',
         contentType: "application/json",
         delay: 250,

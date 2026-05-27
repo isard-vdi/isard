@@ -66,7 +66,7 @@ tag = "admin_usage"
 
 
 @manager_router.put(
-    "/admin/usage",
+    "/admin/items/usage",
     tags=[tag],
     response_model=list[UsageItemConsumption],
     summary="Get usage consumption between dates",
@@ -110,7 +110,7 @@ async def admin_usage_consumption(request: Request, data: UsageConsumptionReques
 
 
 @manager_router.put(
-    "/admin/usage/start_end",
+    "/admin/items/usage/start_end",
     tags=[tag],
     response_model=list[UsageStartEndItemResponse],
     summary="Get start/end consumption",
@@ -162,7 +162,7 @@ async def admin_usage_start_end(request: Request, data: UsageStartEndRequest):
 
 
 @manager_router.get(
-    "/admin/usage/consumers/{item_type}",
+    "/admin/items/usage/consumers/{item_type}",
     tags=[tag],
     response_model=list[str],
     summary="Get usage consumers for item type",
@@ -191,7 +191,7 @@ async def admin_usage_consumers(request: Request, item_type: str):
 
 
 @admin_router.get(
-    "/admin/usage/consumers",
+    "/admin/item/usage/consumers",
     tags=[tag],
     response_model=UsageConsumersCountResponse,
     summary="Count usage consumers",
@@ -219,7 +219,7 @@ async def admin_usage_consumers_count(request: Request):
 
 
 @manager_router.get(
-    "/admin/usage/distinct_items/{item_consumer}/{start}/{end}",
+    "/admin/items/usage/distinct_items/{item_consumer}/{start}/{end}",
     tags=[tag],
     response_model=list[UsageDistinctItemResponse],
     summary="Get distinct usage items",
@@ -265,7 +265,7 @@ async def admin_usage_distinct_items(
 
 
 @admin_router.put(
-    "/admin/usage/consolidate",
+    "/admin/items/usage/consolidate",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Consolidate all consumption data",
@@ -293,7 +293,7 @@ async def admin_usage_consolidate(request: Request):
 
 
 @admin_router.put(
-    "/admin/usage/consolidate/{item_type}/{days}",
+    "/admin/items/usage/consolidate/{item_type}/{days}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Consolidate consumption for item type with days",
@@ -323,7 +323,7 @@ async def admin_usage_consolidate_item_days(
 
 
 @admin_router.put(
-    "/admin/usage/consolidate/{item_type}",
+    "/admin/items/usage/consolidate/{item_type}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Consolidate consumption for item type",
@@ -357,7 +357,7 @@ async def admin_usage_consolidate_item(
 
 
 @admin_router.get(
-    "/admin/usage/retention",
+    "/admin/item/usage/retention",
     tags=[tag],
     response_model=UsageRetentionConfig,
     summary="Get usage retention policy",
@@ -387,7 +387,7 @@ async def admin_usage_retention_get(request: Request):
 
 
 @admin_router.put(
-    "/admin/usage/retention",
+    "/admin/item/usage/retention",
     tags=[tag],
     response_model=UsageRetentionConfig,
     summary="Update usage retention policy",
@@ -428,7 +428,7 @@ async def admin_usage_retention_update(request: Request, data: UsageRetentionCon
 
 
 @admin_router.get(
-    "/admin/usage/parameters",
+    "/admin/items/usage/parameters",
     tags=[tag],
     response_model=list[UsageParameterResponse],
     summary="Get all usage parameters",
@@ -457,7 +457,7 @@ async def admin_usage_parameters_list(request: Request):
 
 
 @manager_router.put(
-    "/admin/usage/list_parameters",
+    "/admin/items/usage/list_parameters",
     tags=[tag],
     response_model=list[UsageParameterResponse] | dict,
     summary="Get usage parameters by IDs",
@@ -493,7 +493,7 @@ async def admin_usage_list_parameters(request: Request, data: UsageParameterIdsR
 
 
 @admin_router.post(
-    "/admin/usage/parameters",
+    "/admin/item/usage/parameters",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Create usage parameter",
@@ -523,7 +523,7 @@ async def admin_usage_parameters_add(
 
 
 @admin_router.put(
-    "/admin/usage/parameters/{parameter_id}",
+    "/admin/item/usage/parameters/{parameter_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update usage parameter",
@@ -556,7 +556,7 @@ async def admin_usage_parameters_update(
 
 
 @admin_router.delete(
-    "/admin/usage/parameters/{parameter_id}",
+    "/admin/item/usage/parameters/{parameter_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete usage parameter",
@@ -590,7 +590,7 @@ async def admin_usage_parameters_delete(
 
 
 @admin_router.get(
-    "/admin/usage/limits",
+    "/admin/items/usage/limits",
     tags=[tag],
     response_model=list[UsageLimitResponse],
     summary="Get all usage limits",
@@ -619,7 +619,7 @@ async def admin_usage_limits_list(request: Request):
 
 
 @admin_router.post(
-    "/admin/usage/limits",
+    "/admin/item/usage/limits",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Create usage limit",
@@ -650,7 +650,7 @@ async def admin_usage_limits_add(request: Request, data: UsageLimitCreateRequest
 
 
 @admin_router.put(
-    "/admin/usage/limits/{limit_id}",
+    "/admin/item/usage/limits/{limit_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update usage limit",
@@ -686,7 +686,7 @@ async def admin_usage_limits_update(
 
 
 @admin_router.delete(
-    "/admin/usage/limits/{limit_id}",
+    "/admin/item/usage/limits/{limit_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete usage limit",
@@ -720,7 +720,7 @@ async def admin_usage_limits_delete(
 
 
 @admin_router.get(
-    "/admin/usage/groupings",
+    "/admin/items/usage/groupings",
     tags=[tag],
     response_model=list[UsageGroupingResponse],
     summary="Get all usage groupings",
@@ -749,7 +749,7 @@ async def admin_usage_groupings_list(request: Request):
 
 
 @manager_router.get(
-    "/admin/usage/groupings_dropdown",
+    "/admin/items/usage/groupings_dropdown",
     tags=[tag],
     response_model=UsageGroupingsDropdownResponse,
     summary="Get usage groupings dropdown",
@@ -779,7 +779,7 @@ async def admin_usage_groupings_dropdown(request: Request):
 
 
 @manager_router.get(
-    "/admin/usage/grouping/{grouping_id}",
+    "/admin/item/usage/grouping/{grouping_id}",
     tags=[tag],
     response_model=UsageGroupingResponse,
     summary="Get usage grouping by ID",
@@ -810,7 +810,7 @@ async def admin_usage_grouping_get(request: Request, grouping_id: str):
 
 
 @admin_router.post(
-    "/admin/usage/groupings",
+    "/admin/item/usage/groupings",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Create usage grouping",
@@ -836,7 +836,7 @@ async def admin_usage_groupings_add(request: Request, data: UsageGroupingCreateR
 
 
 @admin_router.put(
-    "/admin/usage/groupings/{grouping_id}",
+    "/admin/item/usage/groupings/{grouping_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update usage grouping",
@@ -868,7 +868,7 @@ async def admin_usage_groupings_update(
 
 
 @admin_router.delete(
-    "/admin/usage/groupings/{grouping_id}",
+    "/admin/item/usage/groupings/{grouping_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete usage grouping",
@@ -902,7 +902,7 @@ async def admin_usage_groupings_delete(
 
 
 @admin_router.get(
-    "/admin/usage/category_credits",
+    "/admin/items/usage/category_credits",
     tags=[tag],
     response_model=list[UsageCreditResponse],
     summary="Get all usage credits",
@@ -931,7 +931,7 @@ async def admin_usage_all_credits(request: Request):
 
 
 @admin_router.get(
-    "/admin/usage/category_credits/{category_credit_id}",
+    "/admin/item/usage/category_credits/{category_credit_id}",
     tags=[tag],
     response_model=UsageCreditResponse,
     summary="Get usage credit by ID",
@@ -962,7 +962,7 @@ async def admin_usage_credits_by_id(request: Request, category_credit_id: str):
 
 
 @manager_router.get(
-    "/admin/usage/credits/{consumer}/{item_type}/{item_id}/{grouping_id}/{start_date}/{end_date}",
+    "/admin/items/usage/credits/{consumer}/{item_type}/{item_id}/{grouping_id}/{start_date}/{end_date}",
     tags=[tag],
     response_model=list[UsageCreditIntervalResponse],
     summary="Get usage credits for item",
@@ -1016,7 +1016,7 @@ async def admin_usage_credits(
 
 
 @admin_router.post(
-    "/admin/usage/credits",
+    "/admin/item/usage/credits",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Create usage credit",
@@ -1043,7 +1043,7 @@ async def admin_usage_credits_add(request: Request, data: UsageCreditCreateReque
 
 
 @admin_router.put(
-    "/admin/usage/credits/{credit_id}",
+    "/admin/item/usage/credits/{credit_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update usage credit",
@@ -1078,7 +1078,7 @@ async def admin_usage_credits_update(
 
 
 @admin_router.delete(
-    "/admin/usage/credits/{credit_id}",
+    "/admin/item/usage/credits/{credit_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete usage credit",
@@ -1112,7 +1112,7 @@ async def admin_usage_credits_delete(
 
 
 @admin_router.put(
-    "/admin/usage/unify/{item_id}/item_name",
+    "/admin/item/usage/unify/{item_id}/item_name",
     tags=[tag],
     response_model=UsageUnifyItemNameResponse,
     summary="Unify item name in consumption records",
@@ -1138,7 +1138,7 @@ async def admin_usage_unify_item_name(request: Request, item_id: str):
 
 
 @manager_router.get(
-    "/admin/usage/reset_date",
+    "/admin/items/usage/reset_date",
     tags=[tag],
     response_model=list[str],
     summary="Get all reset dates",
@@ -1164,7 +1164,7 @@ async def admin_usage_reset_dates_all(request: Request):
 
 
 @manager_router.get(
-    "/admin/usage/reset_date/{start_date}/{end_date}",
+    "/admin/items/usage/reset_date/{start_date}/{end_date}",
     tags=[tag],
     response_model=list[str],
     summary="Get reset dates in range",
@@ -1207,7 +1207,7 @@ async def admin_usage_reset_dates_range(
 
 
 @admin_router.put(
-    "/admin/usage/reset_dates",
+    "/admin/items/usage/reset_dates",
     tags=[tag],
     response_model=list[str],
     summary="Set usage reset dates",
@@ -1240,7 +1240,7 @@ async def admin_usage_reset_dates_add(request: Request, data: UsageResetDatesReq
 
 
 @admin_router.delete(
-    "/admin/usage/delete_data",
+    "/admin/items/usage/delete_data",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete all consumption data",
@@ -1266,7 +1266,7 @@ async def admin_usage_delete_consumption_data(request: Request):
 
 
 @admin_router.get(
-    "/admin/usage/check/overlapping/{credit_id}/{start_date}/{end_date}",
+    "/admin/item/usage/check/overlapping/{credit_id}/{start_date}/{end_date}",
     tags=[tag],
     response_model=UsageOverlappingResponse,
     summary="Check overlapping credits",

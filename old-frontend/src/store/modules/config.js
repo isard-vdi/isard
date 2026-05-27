@@ -148,7 +148,7 @@ export default {
       return rsp.data
     },
     async fetchStatusBarNotification ({ commit }) {
-      const rsp = await axios.get(`${apiV3Segment}/notifications/status-bar`)
+      const rsp = await axios.get(`${apiV3Segment}/items/notifications/status-bar`)
       commit('setStatusBarNotification', rsp.data)
     }
   }

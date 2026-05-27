@@ -27,7 +27,7 @@ tag = "admin_notify"
 
 
 @admin_router.post(
-    "/admin/notify/user/desktop",
+    "/admin/item/notify/user/desktop",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Notify user about desktop",
@@ -56,7 +56,7 @@ async def admin_notify_user_desktop(request: Request, data: NotifyUserDesktopReq
 
 
 @admin_router.post(
-    "/admin/notify/desktop",
+    "/admin/item/notify/desktop",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Notify a desktop",
@@ -85,7 +85,7 @@ async def admin_notify_desktop(request: Request, data: NotifyDesktopRequest):
 
 
 @admin_router.put(
-    "/admin/notify/desktops/queue/{hyp_id}",
+    "/admin/item/notify/desktops/queue/{hyp_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Notify desktop queue",

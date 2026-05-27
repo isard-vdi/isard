@@ -359,7 +359,7 @@ $(document).ready(function () {
     booking_scheduler_table=$('#table-booking-scheduler').DataTable({
         "ajax": {
             "type": "GET",
-            "url": "/api/v4/admin/scheduler/jobs/bookings",
+            "url": "/api/v4/admin/items/scheduler/jobs/bookings",
         },
         "sAjaxDataProp": "",
         "language": {

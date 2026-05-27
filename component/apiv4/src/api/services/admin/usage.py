@@ -317,7 +317,7 @@ class AdminUsageService:
     def consolidate_consumptions(item_type=None, total_days=2):
         """Trigger consumption consolidation.
 
-        Called by the scheduler via PUT /admin/usage/consolidate.
+        Called by the scheduler via PUT /admin/items/usage/consolidate.
         """
         from api.services.usage.desktop import ConsolidateDesktopConsumption
         from api.services.usage.media import ConsolidateMediaConsumption

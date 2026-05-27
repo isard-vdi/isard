@@ -202,7 +202,7 @@ export default {
     fetchDesktopImages (context) {
       const itemId = context.getters.getEditDomainId
       const data = { params: { desktop_id: itemId } }
-      axios.get(`${apiV3Segment}/images/desktops`, data).then(response => {
+      axios.get(`${apiV3Segment}/items/images/desktops`, data).then(response => {
         context.commit('setImages', ImageUtils.parseImages(orderBy(orderBy(response.data, ['id'], ['desc']), ['type'], ['desc'])))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

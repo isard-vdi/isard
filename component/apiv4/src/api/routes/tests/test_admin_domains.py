@@ -22,7 +22,7 @@ def test_admin_domain_details(monkeypatch, test_client):
         staticmethod(lambda payload, domain_id: stub),
     )
 
-    response = test_client(url="/admin/domain/desktop-1/details", jwt=jwt)
+    response = test_client(url="/admin/item/domain/desktop-1/details", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() == stub
@@ -42,7 +42,7 @@ def test_admin_domain_viewer_data(monkeypatch, test_client):
         staticmethod(lambda payload, domain_id: stub),
     )
 
-    response = test_client(url="/admin/domain/desktop-1/viewer_data", jwt=jwt)
+    response = test_client(url="/admin/item/domain/desktop-1/viewer_data", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -69,7 +69,7 @@ def test_admin_domain_storage(monkeypatch, test_client):
         staticmethod(lambda payload, domain_id: stub),
     )
 
-    response = test_client(url="/admin/domain/storage/desktop-1", jwt=jwt)
+    response = test_client(url="/admin/item/domain/storage/desktop-1", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -88,7 +88,7 @@ def test_admin_domains_by_status(monkeypatch, test_client):
         staticmethod(lambda payload, status: stub),
     )
 
-    response = test_client(url="/admin/domains_status/Failed", jwt=jwt)
+    response = test_client(url="/admin/item/domains_status/Failed", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -117,7 +117,7 @@ def test_admin_find_storages_by_domain_status(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/domains/status/Failed/find_storages",
+        url="/admin/items/domains/status/Failed/find_storages",
         method="PUT",
         jwt=jwt,
     )
@@ -157,7 +157,7 @@ def test_admin_virt_install_xml_sections_get(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/virt_install/xml_sections/vi-1",
+        url="/admin/item/virt_install/xml_sections/vi-1",
         jwt=jwt,
     )
     assert response.status_code == 200
@@ -184,7 +184,7 @@ def test_admin_virt_install_xml_sections_save(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/virt_install/xml_sections/vi-1",
+        url="/admin/item/virt_install/xml_sections/vi-1",
         method="POST",
         body={"sections": [{"key": "memory", "xml": "<memory>4096</memory>"}]},
         jwt=jwt,
@@ -212,7 +212,7 @@ def test_admin_domains_save_as_virt_install(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/domains/xml_sections/desktop-1/save_virt_install",
+        url="/admin/item/domains/xml_sections/desktop-1/save_virt_install",
         method="POST",
         body={
             "sections": [{"key": "memory", "xml": "<memory>2048</memory>"}],
@@ -280,7 +280,7 @@ def test_admin_logs_desktops_delete_runs_batch_after_response(monkeypatch, test_
     captured = _stub_log_delete_dependencies(monkeypatch)
 
     response = test_client(
-        url="/logs_desktops/old_entries/delete",
+        url="/admin/items/logs_desktops/old_entries/delete",
         method="PUT",
         jwt=jwt,
     )
@@ -306,7 +306,7 @@ def test_admin_logs_desktops_delete_all_runs_batch_after_response(
     captured = _stub_log_delete_dependencies(monkeypatch)
 
     response = test_client(
-        url="/logs_desktops/old_entries/delete/all",
+        url="/admin/items/logs_desktops/old_entries/delete/all",
         method="DELETE",
         jwt=jwt,
     )
@@ -323,7 +323,7 @@ def test_admin_logs_users_delete_runs_batch_after_response(monkeypatch, test_cli
     captured = _stub_log_delete_dependencies(monkeypatch)
 
     response = test_client(
-        url="/logs_users/old_entries/delete",
+        url="/admin/items/logs_users/old_entries/delete",
         method="PUT",
         jwt=jwt,
     )
@@ -345,7 +345,7 @@ def test_admin_logs_users_delete_all_runs_batch_after_response(
     captured = _stub_log_delete_dependencies(monkeypatch)
 
     response = test_client(
-        url="/logs_users/old_entries/delete/all",
+        url="/admin/items/logs_users/old_entries/delete/all",
         method="DELETE",
         jwt=jwt,
     )
@@ -381,7 +381,7 @@ def test_admin_multiple_actions_runs_bulk_action_after_response(
     )
 
     response = test_client(
-        url="/admin/multiple_actions",
+        url="/admin/items/multiple_actions",
         method="POST",
         body={"action": "toggle", "ids": ["d-1", "d-2"]},
         jwt=jwt,
@@ -416,7 +416,7 @@ def test_admin_logs_desktops_allows_manager_with_category_scope(
     )
 
     response = test_client(
-        url="/admin/logs_desktops",
+        url="/admin/items/logs_desktops",
         method="POST",
         body={"draw": 1, "start": 0, "length": 25, "columns": []},
         jwt=jwt,
@@ -445,7 +445,7 @@ def test_admin_logs_users_allows_manager_with_category_scope(monkeypatch, test_c
     )
 
     response = test_client(
-        url="/admin/logs_users",
+        url="/admin/items/logs_users",
         method="POST",
         body={"draw": 1, "start": 0, "length": 25, "columns": []},
         jwt=jwt,

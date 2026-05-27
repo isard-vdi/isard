@@ -72,7 +72,7 @@ class AllowedGetRequest(BaseModel):
 
 
 class TableItem(BaseModel):
-    """Generic admin-table item used by ``GET`` / ``POST`` /admin/table.
+    """Generic admin-table item used by ``GET`` / ``POST`` /admin/items/table.
 
     The shape is per-table (interfaces, graphics, qos, …) and the
     plucked field set varies with the request, so the model is

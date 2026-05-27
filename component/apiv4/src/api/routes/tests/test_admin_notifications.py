@@ -20,7 +20,7 @@ from api.services.error import Error
 
 
 class TestTemplateCreate:
-    URL = "/admin/notifications/template"
+    URL = "/admin/item/notifications/template"
 
     def _payload(self, **overrides):
         body = {
@@ -97,7 +97,7 @@ class TestTemplateList:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/admin/notifications/templates", jwt=MockJWT(role_id="admin")
+            url="/admin/items/notifications/templates", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         # The all-templates handler calls `get_templates()` with no arg.
@@ -108,7 +108,7 @@ class TestTemplateList:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/admin/notifications/templates/custom",
+            url="/admin/items/notifications/templates/custom",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -118,7 +118,7 @@ class TestTemplateList:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/admin/notifications/templates/system",
+            url="/admin/items/notifications/templates/system",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -127,13 +127,13 @@ class TestTemplateList:
     def test_user_forbidden(self, monkeypatch, test_client):
         self._stub(monkeypatch, {})
         response = test_client(
-            url="/admin/notifications/templates", jwt=MockJWT(role_id="user")
+            url="/admin/items/notifications/templates", jwt=MockJWT(role_id="user")
         )
         assert response.status_code == 403
 
 
 class TestTemplateGet:
-    URL = "/admin/notifications/template/t-123"
+    URL = "/admin/item/notifications/template/t-123"
 
     def test_admin_gets_template(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -157,7 +157,7 @@ class TestTemplateGet:
 
 
 class TestTemplatePreview:
-    URL = "/admin/notifications/template/preview"
+    URL = "/admin/item/notifications/template/preview"
 
     def test_admin_previews(self, monkeypatch, test_client):
         captured = {}
@@ -215,7 +215,7 @@ class TestTemplatePreview:
 
 
 class TestTemplateUpdate:
-    URL = "/admin/notifications/template/t-123"
+    URL = "/admin/item/notifications/template/t-123"
 
     def test_admin_updates(self, monkeypatch, test_client):
         captured = {}
@@ -253,7 +253,7 @@ class TestTemplateUpdate:
 
 
 class TestTemplateDelete:
-    URL = "/admin/notifications/template/t-123"
+    URL = "/admin/item/notifications/template/t-123"
 
     def test_admin_deletes(self, monkeypatch, test_client):
         captured = {}
@@ -288,8 +288,8 @@ class TestTemplateDelete:
 
 
 class TestNotificationCRUD:
-    LIST_URL = "/admin/notifications"
-    CREATE_URL = "/admin/notification"
+    LIST_URL = "/admin/items/notifications"
+    CREATE_URL = "/admin/item/notification"
 
     def test_list(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -320,7 +320,7 @@ class TestNotificationCRUD:
             staticmethod(lambda nid: {"id": nid, "name": "myn", "ignore_after": None}),
         )
         response = test_client(
-            url="/admin/notification/n-1", jwt=MockJWT(role_id="admin")
+            url="/admin/item/notification/n-1", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         # NotificationDetailResponse is a RootModel — body is the row itself.
@@ -335,7 +335,7 @@ class TestNotificationCRUD:
             staticmethod(not_found),
         )
         response = test_client(
-            url="/admin/notification/ghost", jwt=MockJWT(role_id="admin")
+            url="/admin/item/notification/ghost", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 404
 
@@ -346,7 +346,7 @@ class TestNotificationCRUD:
             staticmethod(lambda nid, data: captured.update(nid=nid, data=data)),
         )
         response = test_client(
-            url="/admin/notification/n-1",
+            url="/admin/item/notification/n-1",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"name": "renamed"},
@@ -368,7 +368,7 @@ class TestNotificationCRUD:
             staticmethod(fake_delete),
         )
         response = test_client(
-            url="/admin/notification/n-1",
+            url="/admin/item/notification/n-1",
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
             body={"delete_logs": False},
@@ -391,7 +391,7 @@ class TestNotificationCRUD:
 
 
 class TestNotificationActions:
-    URL = "/admin/notification/actions"
+    URL = "/admin/items/notification/actions"
 
     def test_list_actions(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -422,7 +422,7 @@ class TestNotificationData:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/notifications/data/status/pending/user/u-1",
+            url="/admin/items/notifications/data/status/pending/user/u-1",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -435,7 +435,7 @@ class TestNotificationData:
             staticmethod(lambda: ["pending", "ack"]),
         )
         response = test_client(
-            url="/admin/notifications/statuses", jwt=MockJWT(role_id="admin")
+            url="/admin/items/notifications/statuses", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert response.json()["statuses"] == ["pending", "ack"]
@@ -452,7 +452,7 @@ class TestNotificationData:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/notifications/data/by_status/pending",
+            url="/admin/items/notifications/data/by_status/pending",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -465,7 +465,7 @@ class TestNotificationData:
             staticmethod(lambda uid: captured.update(user_id=uid)),
         )
         response = test_client(
-            url="/admin/notifications/data/user/u-1",
+            url="/admin/items/notifications/data/user/u-1",
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
@@ -479,7 +479,7 @@ class TestNotificationData:
             staticmethod(lambda nid: captured.update(nid=nid)),
         )
         response = test_client(
-            url="/admin/notifications/data/nd-99",
+            url="/admin/item/notifications/data/nd-99",
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
@@ -493,7 +493,7 @@ class TestNotificationData:
             staticmethod(lambda: called.update(yes=True)),
         )
         response = test_client(
-            url="/admin/notifications/data",
+            url="/admin/items/notifications/data",
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
@@ -506,7 +506,7 @@ class TestNotificationData:
             staticmethod(lambda: None),
         )
         response = test_client(
-            url="/admin/notifications/data",
+            url="/admin/items/notifications/data",
             method="DELETE",
             jwt=MockJWT(role_id="user"),
         )
@@ -532,7 +532,7 @@ class TestAdminUserDisplays:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/notifications/user/displays/u-1/login",
+            url="/admin/items/notifications/user/displays/u-1/login",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -545,7 +545,7 @@ class TestAdminUserDisplays:
             staticmethod(lambda uid, trig: []),
         )
         response = test_client(
-            url="/admin/notifications/user/displays/u-1/login",
+            url="/admin/items/notifications/user/displays/u-1/login",
             jwt=MockJWT(role_id="user"),
         )
         assert response.status_code == 403

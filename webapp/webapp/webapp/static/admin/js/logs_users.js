@@ -236,7 +236,7 @@ function raw_table(){
         autoWidth: false,
         searching: false,
         ajax: $.fn.dataTable.pipeline({
-            url: "/api/v4/admin/logs_users",
+            url: "/api/v4/admin/items/logs_users",
             pages: 5, // number of pages to cache
             method: 'POST',
         }),
@@ -374,7 +374,7 @@ function user_table(){
         processing: true,
         searching: false,
         ajax: $.fn.dataTable.pipeline({
-            url: "/api/v4/admin/logs_users/user_grouping",
+            url: "/api/v4/admin/items/logs_users/user_grouping",
             pages: 5, // number of pages to cache
             method: 'POST',
         }),
@@ -447,7 +447,7 @@ function category_table(){
         processing: true,
         searching: false,
         ajax: $.fn.dataTable.pipeline({
-            url: "/api/v4/admin/logs_users/category_grouping",
+            url: "/api/v4/admin/items/logs_users/category_grouping",
             pages: 5, // number of pages to cache
             method: 'POST',
         }),

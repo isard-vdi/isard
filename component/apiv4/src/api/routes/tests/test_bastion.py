@@ -305,7 +305,7 @@ def test_get_admin_bastion_config(monkeypatch, test_client):
         staticmethod(lambda: stub),
     )
 
-    response = test_client(url="/bastion", jwt=jwt)
+    response = test_client(url="/admin/item/config/bastion", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -329,7 +329,7 @@ def test_update_bastion_config(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/bastion/config",
+        url="/admin/item/config/bastion",
         method="PUT",
         body={
             "enabled": True,
@@ -360,7 +360,7 @@ def test_remove_disallowed_bastion_targets(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/bastion/disallowed",
+        url="/admin/items/bastion/disallowed",
         method="DELETE",
         jwt=jwt,
     )

@@ -194,7 +194,7 @@
             autoWidth: false,
             searching: false,
             ajax: {
-                url: '/api/v4/admin/logs_desktops',
+                url: '/api/v4/admin/items/logs_desktops',
                 type: 'POST',
                 data: function(d) {
                     d.filter_field = 'desktop_id';
@@ -289,7 +289,7 @@
         });
 
         $.ajax({
-            url: '/api/v4/admin/logs_desktops',
+            url: '/api/v4/admin/items/logs_desktops',
             type: 'POST',
             data: formData,
             success: function(resp) {
@@ -358,7 +358,7 @@
         });
 
         $.ajax({
-            url: '/api/v4/admin/logs_desktops',
+            url: '/api/v4/admin/items/logs_desktops',
             type: 'POST',
             data: formData,
             success: function(resp) {

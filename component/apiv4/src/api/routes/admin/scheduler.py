@@ -33,7 +33,7 @@ tag = "admin_scheduler"
 
 
 @admin_router.get(
-    "/admin/scheduler/jobs/system",
+    "/admin/items/scheduler/jobs/system",
     tags=[tag],
     response_model=list[SchedulerSystemJob],
     summary="Get system scheduler jobs",
@@ -61,7 +61,7 @@ async def admin_scheduler_jobs_system(request: Request):
 
 
 @admin_router.get(
-    "/admin/scheduler/jobs/bookings",
+    "/admin/items/scheduler/jobs/bookings",
     tags=[tag],
     response_model=list[SchedulerBookingsJob],
     summary="Get bookings scheduler jobs",

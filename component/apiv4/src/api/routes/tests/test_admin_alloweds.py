@@ -21,7 +21,7 @@ from api.services.error import Error
 
 
 class TestAlloweds_TermSearch:
-    URL = "/admin/allowed/term/users"
+    URL = "/items/alloweds/term/users"
 
     def test_admin_searches(self, monkeypatch, test_client):
         captured = {}
@@ -146,7 +146,7 @@ class TestAlloweds_TermSearch:
 
 
 class TestAlloweds_Update:
-    URL = "/admin/allowed/update/media"
+    URL = "/item/allowed/update/media"
 
     def test_admin_updates(self, monkeypatch, test_client):
         captured = {}
@@ -246,7 +246,7 @@ class TestAlloweds_Update:
 
 
 class TestAlloweds_GetTable:
-    URL = "/allowed/table/media"
+    URL = "/item/allowed/table/media"
 
     def test_admin_gets_allowed_list(self, monkeypatch, test_client):
         captured = {}

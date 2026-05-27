@@ -659,7 +659,9 @@ def test_recycle_bin_add_unused_items_invokes_service(monkeypatch, test_client):
         staticmethod(fake_recycle_unused_items),
     )
 
-    response = test_client(url="/recycle-bin/unused-items", method="POST", jwt=jwt)
+    response = test_client(
+        url="/items/recycle-bin/unused-items", method="POST", jwt=jwt
+    )
 
     assert response.status_code == 204
     assert calls == {"count": 1}
@@ -680,6 +682,8 @@ def test_recycle_bin_add_unused_items_surfaces_errors(monkeypatch, test_client):
         staticmethod(fake_recycle_unused_items),
     )
 
-    response = test_client(url="/recycle-bin/unused-items", method="POST", jwt=jwt)
+    response = test_client(
+        url="/items/recycle-bin/unused-items", method="POST", jwt=jwt
+    )
 
     assert response.status_code == 500

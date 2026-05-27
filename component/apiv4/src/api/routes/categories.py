@@ -58,11 +58,13 @@ def clear_category_users_search_cache() -> None:
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
+    deprecated=True,
 )
 async def search_users_in_category(
     request: Request,
     search: str = Query(..., description="String to search for users"),
 ):
+    # TODO@: probably not in use
     try:
         return JSONResponse(
             content=CategoriesUsersSearchResponse(

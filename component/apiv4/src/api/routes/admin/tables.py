@@ -55,7 +55,7 @@ def _sanitize_bytes(obj):
 
 
 @manager_router.get(
-    "/admin/table/{table}",
+    "/admin/items/table/{table}",
     tags=[tag],
     response_model=Union[TableItem, list[TableItem]],
     summary="Get items from a table",
@@ -98,7 +98,7 @@ async def admin_table_get(
 
 
 @manager_router.post(
-    "/admin/table/{table}",
+    "/admin/items/table/{table}",
     tags=[tag],
     response_model=Union[TableItem, list[TableItem]],
     summary="List table items with filters",
@@ -142,7 +142,7 @@ async def admin_table_list(
 
 
 @admin_router.post(
-    "/admin/table/add/{table}",
+    "/admin/item/table/add/{table}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Insert a new item into a table",
@@ -174,7 +174,7 @@ async def admin_table_insert(
 
 
 @admin_router.put(
-    "/admin/table/update/{table}",
+    "/admin/item/table/update/{table}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update an item in a table",
@@ -206,7 +206,7 @@ async def admin_table_update(
 
 
 @admin_router.delete(
-    "/admin/table/{table}/{item_id}",
+    "/admin/item/table/{table}/{item_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete an item from a table",

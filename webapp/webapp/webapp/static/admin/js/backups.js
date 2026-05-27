@@ -78,7 +78,7 @@ $(document).ready(function () {
     // Initialize DataTable with standard IsardVDI pattern
     var backupsTable = $('#backups-table').DataTable({
         ajax: {
-            url: '/api/v4/admin/backups',
+            url: '/api/v4/admin/items/backups',
             type: 'GET',
             dataSrc: ""
         },
@@ -242,7 +242,7 @@ $(document).ready(function () {
     // Integrity check toggle
     function loadIntegrityToggle() {
         $.ajax({
-            url: '/api/v4/admin/backups/integrity',
+            url: '/api/v4/admin/item/backups/integrity',
             type: 'GET',
             success: function (data) {
                 $('#integrity-enabled').prop('checked', !!(data && data.integrity_enabled));
@@ -254,7 +254,7 @@ $(document).ready(function () {
     $('#integrity-save').on('click', function () {
         var enabled = $('#integrity-enabled').is(':checked');
         $.ajax({
-            url: '/api/v4/admin/backups/integrity',
+            url: '/api/v4/admin/item/backups/integrity',
             type: 'PUT',
             data: JSON.stringify({ integrity_enabled: enabled }),
             contentType: 'application/json',
@@ -307,7 +307,7 @@ $(document).ready(function () {
 
     function showBackupDetails(backupId) {
         $.ajax({
-            url: '/api/v4/admin/backups/' + backupId,
+            url: '/api/v4/admin/item/backups/' + backupId,
             type: 'GET',
             success: function (data) {
                 var content = '<div class="row">';
@@ -683,7 +683,7 @@ function loadBackupDashboard() {
 
 function loadLatestBackupStatus() {
     $.ajax({
-        url: '/api/v4/admin/backups',
+        url: '/api/v4/admin/items/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {
@@ -751,7 +751,7 @@ function loadLatestBackupStatus() {
 
 function loadStorageStatus() {
     $.ajax({
-        url: '/api/v4/admin/backups',
+        url: '/api/v4/admin/items/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {
@@ -813,7 +813,7 @@ function loadStorageStatus() {
 
 function loadBackupScheduleStatus() {
     $.ajax({
-        url: '/api/v4/admin/backups',
+        url: '/api/v4/admin/items/backups',
         type: 'GET',
         success: function (data) {
             if (data && data.length > 0) {

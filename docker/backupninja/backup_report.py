@@ -4,7 +4,7 @@ BackupNinja Report Sender
 
 Parses the backupninja log of the most recent completed backup session,
 shapes it into a JSON report and POSTs it to the IsardVDI API at
-POST /api/v4/backups via the generated apiv4 Python client (with a
+POST /api/v4/admin/item/backups via the generated apiv4 Python client (with a
 service-signed JWT).
 
 Design notes:

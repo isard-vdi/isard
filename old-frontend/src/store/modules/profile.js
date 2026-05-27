@@ -244,7 +244,7 @@ export default {
         })
     },
     fetchShowExportUserButton (context, providerId) {
-      axios.get(`${apiV3Segment}/authentication/export/${providerId}`)
+      axios.get(`${apiV3Segment}/item/provider/export/${providerId}`)
         .then(response => {
           context.commit('setShowExportUserButton', response.data.enabled)
         })
@@ -253,7 +253,7 @@ export default {
         })
     },
     fetchShowImportUserButton (context, providerId) {
-      axios.get(`${apiV3Segment}/authentication/import/${providerId}`)
+      axios.get(`${apiV3Segment}/item/provider/import/${providerId}`)
         .then(response => {
           context.commit('setShowImportUserButton', response.data.enabled)
         })

@@ -133,7 +133,7 @@ class MediaQuotaCheckResponse(BaseModel):
 class DesktopAttachedMediaItem(BaseModel):
     """Single media item attached to a desktop's hardware (iso or floppy).
 
-    Returned by ``GET /item/desktop/{id}/media-list`` (replaces the v3
+    Returned by ``GET /admin/item/desktop/{id}/media-list`` (replaces the v3
     ``POST /desktops/media_list`` shim). Mirrors the v3
     ``api_media.List()`` shape.
     """

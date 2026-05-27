@@ -30,7 +30,7 @@ BUCKET_B_ALLOWLIST: set[tuple[str, str]] = {
     ("PUT", "/api/v4/item/deployment/{deployment_id}/stop"),
     ("PUT", "/api/v4/item/deployment/{deployment_id}/user/{user_id}/stop"),
     ("PUT", "/api/v4/item/deployment/{deployment_id}/start"),
-    ("GET", "/api/v4/storage_pools/check-create-availability"),
+    ("GET", "/api/v4/storage-pools/check-create-availability"),
     ("GET", "/api/v4/quota/media/new"),
     ("GET", "/api/v4/quota/desktop/new"),
     ("GET", "/api/v4/quota/template/new"),

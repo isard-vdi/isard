@@ -3,7 +3,7 @@ $(document).ready(function () {
 
     $("#table-chart").DataTable({
         "ajax": {
-            "url": "/api/v4/analytics/graph",
+            "url": "/api/v4/admin/items/analytics/graph",
             "contentType": "application/json",
             "type": 'GET',
         },
@@ -43,7 +43,7 @@ $(document).ready(function () {
             form.parsley().validate();
             if (form.parsley().isValid()) {
                 $.ajax({
-                    url: "/api/v4/analytics/graph/",
+                    url: "/api/v4/admin/item/analytics/graph/",
                     type: 'POST',
                     data: JSON.stringify(data),
                     contentType: "application/json",
@@ -79,7 +79,7 @@ $(document).ready(function () {
             form.parsley().validate();
             if (form.parsley().isValid()) {
                 $.ajax({
-                    url: "/api/v4/analytics/graph/" + data["id"],
+                    url: "/api/v4/admin/item/analytics/graph/" + data["id"],
                     type: 'PUT',
                     data: JSON.stringify(data),
                     contentType: "application/json",
@@ -130,7 +130,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: "/api/v4/analytics/graph/" + id,
+                    url: "/api/v4/admin/item/analytics/graph/" + id,
                     contentType: 'application/json',
                     success: function (data) {
                         new PNotify({
@@ -162,7 +162,7 @@ $(document).ready(function () {
             var modal = "#modalAnalyticsUsageGraph"
             $.ajax({
                 type: 'GET',
-                url: `/api/v4/analytics/graph/${id}`,
+                url: `/api/v4/admin/item/analytics/graph/${id}`,
                 contentType: 'application/json',
                 success: function (data) {
                     $(modal + ' #id').val(id);
@@ -183,7 +183,7 @@ $(document).ready(function () {
 
 function populateGroupingSelect(modal) {
     $.ajax({
-        url: "/api/v4/admin/usage/groupings",
+        url: "/api/v4/admin/items/usage/groupings",
         type: "GET",
         contentType: "application/json"
     }).then(function (groupings) {

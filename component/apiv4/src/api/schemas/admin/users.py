@@ -76,8 +76,8 @@ class AdminBulkUserCreateData(BaseModel):
 
 
 class AdminCSVUserEditRow(BaseModel):
-    """One row of PUT ``/admin/users/csv`` — an enriched user record
-    returned by ``/admin/users/csv/validate`` (PUT). Webapp/k6
+    """One row of PUT ``/admin/items/users/csv`` — an enriched user record
+    returned by ``/admin/items/users/csv/validate`` (PUT). Webapp/k6
     round-trip the validate output back into the edit endpoint; ``id``
     is the only load-bearing field. Anything else is optional so a
     minimal rename ``{"id": "...", "name": "new"}`` is also accepted.
@@ -105,14 +105,14 @@ class AdminCSVUserEditRow(BaseModel):
 
 
 class AdminCSVUserEditData(BaseModel):
-    """Request body for editing users via CSV (PUT ``/admin/users/csv``)."""
+    """Request body for editing users via CSV (PUT ``/admin/items/users/csv``)."""
 
     users: List[AdminCSVUserEditRow]
 
 
 class AdminCSVUserImportData(BaseModel):
     """Request body for importing new users from CSV (POST
-    ``/admin/users/csv``). Rows here have no ``id`` yet — that's
+    ``/admin/items/users/csv``). Rows here have no ``id`` yet — that's
     assigned by ``CommonUsers.generate_users``. Kept as ``List[dict]``
     so the upstream validate-create flow's permissive shape still
     applies."""
@@ -350,7 +350,7 @@ class AdminUser(BaseModel):
     # verified. The same field can land in the DB as ``None`` for users
     # created via paths that skipped the input Pydantic validation
     # (SAML auto-register, user-migration, direct seeds). Without
-    # ``None`` in the response union, ``GET /api/v4/admin/users`` 500s
+    # ``None`` in the response union, ``GET /api/v4/admin/items/users`` 500s
     # on the first such row — the route's ``except Exception`` swallows
     # the ResponseValidationError into "Failed to list users".
     # Tracked as Bug 37 in APIV4_LOAD_TESTING_BUGS_FOUND.md.
@@ -406,7 +406,7 @@ class AdminTemplateItem(BaseModel):
 
 
 class AdminUserImpersonateJwtResponse(BaseModel):
-    """Response for ``GET /admin/jwt/{user_id}`` — a single signed JWT."""
+    """Response for ``GET /admin/item/jwt/{user_id}`` — a single signed JWT."""
 
     jwt: str
 
@@ -420,7 +420,7 @@ class AdminSecondaryGroupRef(BaseModel):
 
 
 class AdminUserFullDataResponse(AdminUser):
-    """Response for ``GET /admin/user/{user_id}`` and ``/raw``.
+    """Response for ``GET /admin/item/user/{user_id}`` and ``/raw``.
 
     ``UsersProcessed.get_user_full_data`` enriches the cached user row with
     ``category_name``, ``group_name`` and ``secondary_groups_data``. Inherits
@@ -435,7 +435,7 @@ class AdminUserFullDataResponse(AdminUser):
 
 
 class AdminUserNavItem(BaseModel):
-    """Row shape for ``GET /admin/users/{nav}/users``.
+    """Row shape for ``GET /admin/items/users/{nav}/users``.
 
     ``UsersProcessed.admin_list_users`` plucks the ``AdminUser`` fields and,
     depending on ``nav``, merges either the ``*_name`` lookups
@@ -473,7 +473,7 @@ class AdminUserNavItem(BaseModel):
 
 
 class AdminUserSearchItem(BaseModel):
-    """Row shape for ``POST /admin/users/search``.
+    """Row shape for ``POST /admin/items/users/search``.
 
     ``Alloweds.get_table_term`` plucks ``id``/``name``/``uid`` for admins
     and adds ``category`` for managers. Both fields kept optional so a
@@ -486,7 +486,7 @@ class AdminUserSearchItem(BaseModel):
 
 
 class AdminCSVValidateCreateResponse(BaseModel):
-    """Response for ``POST /admin/users/csv/validate`` — the bulk-create
+    """Response for ``POST /admin/items/users/csv/validate`` — the bulk-create
     pre-flight. Service returns the enriched row list under ``users`` and
     a parallel ``errors`` list of human-readable strings for the rows that
     were skipped. Rows are kept as ``list[dict]`` because each row mirrors
@@ -498,7 +498,7 @@ class AdminCSVValidateCreateResponse(BaseModel):
 
 
 class AdminCSVImportResponse(BaseModel):
-    """Response for ``POST /admin/users/csv`` and ``/admin/bulk/user``.
+    """Response for ``POST /admin/items/users/csv`` and ``/admin/items/bulk/user``.
 
     The route reshapes the service's ``{users, errors}`` into a count +
     error list — keeping the shape so the OAS documents the same payload
@@ -509,7 +509,7 @@ class AdminCSVImportResponse(BaseModel):
 
 
 class AdminPasswordPolicyResponse(BaseModel):
-    """Response for ``GET /admin/user/password-policy/{user_id}``.
+    """Response for ``GET /admin/item/user/password-policy/{user_id}``.
 
     ``UserPolicies.get_user_policy(subtype="password", ...)`` returns the
     policy dict (or ``False`` when no policy applies). The route only ever
@@ -530,7 +530,7 @@ class AdminPasswordPolicyResponse(BaseModel):
 
 
 class AdminGroupListItem(AdminGroup):
-    """Row shape for ``GET /admin/groups``.
+    """Row shape for ``GET /admin/items/groups``.
 
     ``GroupsProcessed.admin_get_groups`` returns the full ``groups`` row
     merged with ``linked_groups_data`` (a denormalised array of
@@ -554,7 +554,7 @@ class AdminLinkedGroupNamed(BaseModel):
 
 
 class AdminGroupNavItem(BaseModel):
-    """Row shape for ``GET /admin/users/{nav}/groups``.
+    """Row shape for ``GET /admin/items/users/{nav}/groups``.
 
     ``UsersProcessed.admin_list_groups`` returns the full groups row with
     extra merges: ``management`` adds ``linked_groups_data``
@@ -582,7 +582,7 @@ class AdminGroupNavItem(BaseModel):
 
 
 class AdminGroupFullDataResponse(AdminGroup):
-    """Response for ``GET /admin/group/{group_id}``.
+    """Response for ``GET /admin/item/group/{group_id}``.
 
     ``GroupsProcessed.group_get_full_data`` returns the row merged with
     ``linked_groups_data``. Inherits ``AdminGroup`` and adds the two
@@ -595,7 +595,7 @@ class AdminGroupFullDataResponse(AdminGroup):
 
 
 class AdminGroupUserItem(BaseModel):
-    """Row shape for ``GET /admin/group/{group_id}/users``.
+    """Row shape for ``GET /admin/items/group/{group_id}/users``.
 
     ``GroupsProcessed.get_users_in_group`` plucks ``id``, ``name``,
     ``username`` and ``photo`` only."""
@@ -607,7 +607,7 @@ class AdminGroupUserItem(BaseModel):
 
 
 class AdminGroupEnrollmentResponse(BaseModel):
-    """Response for ``POST /admin/group/enrollment``.
+    """Response for ``POST /admin/item/group/enrollment``.
 
     ``UserEnrollment.enrollment_action`` returns either ``True`` (for
     ``disable``) or a 6-char alphanumeric code. The route currently
@@ -621,7 +621,7 @@ class AdminGroupEnrollmentResponse(BaseModel):
 
 
 class AdminCategoryItem(BaseModel):
-    """Row shape for ``GET /admin/categories``.
+    """Row shape for ``GET /admin/items/categories``.
 
     ``UsersProcessed.categories_get`` plucks ``id``/``name``/``frontend``
     only. Kept tight — the admin categories panel does not consume
@@ -633,7 +633,7 @@ class AdminCategoryItem(BaseModel):
 
 
 class AdminCategoryFrontendItem(BaseModel):
-    """Row shape for ``GET /admin/categories/{frontend}``.
+    """Row shape for ``GET /admin/items/categories/{frontend}``.
 
     Mirrors ``CategoriesProcessed.get_categories_frontend`` — pluck of
     ``id``, ``name``, ``custom_url_name`` (and ``frontend`` on the
@@ -647,7 +647,7 @@ class AdminCategoryFrontendItem(BaseModel):
 
 
 class AdminCategoryNavItem(BaseModel):
-    """Row shape for ``GET /admin/users/{nav}/categories``.
+    """Row shape for ``GET /admin/items/users/{nav}/categories``.
 
     ``UsersProcessed.admin_list_categories`` returns the categories row
     (with ``quota``/``limits`` stripped on ``management``) and merges
@@ -670,7 +670,7 @@ class AdminCategoryNavItem(BaseModel):
 
 
 class AdminCategoryDetailResponse(BaseModel):
-    """Response for ``GET /admin/category/{category_id}`` and the create
+    """Response for ``GET /admin/item/category/{category_id}`` and the create
     endpoint.
 
     ``ApiAdmin.get_table_item("categories", ...)`` returns the full row;
@@ -695,7 +695,7 @@ class AdminCategoryDetailResponse(BaseModel):
 
 
 class AdminCategoryUserItem(BaseModel):
-    """Row shape for ``GET /admin/category/{category_id}/users``.
+    """Row shape for ``GET /admin/items/category/{category_id}/users``.
 
     ``UsersProcessed.list_by_category`` returns the user row enriched with
     role/group/category names + a denormalised ``secondary_groups_data``
@@ -798,7 +798,7 @@ class AdminDeleteChecksResponse(BaseModel):
 
 
 class AdminUserTemplateItem(BaseModel):
-    """Row shape for ``GET /admin/user/{user_id}/templates``.
+    """Row shape for ``GET /admin/items/user/{user_id}/templates``.
 
     The service builds each row as ``{id, name, icon, image,
     description}`` from a ``DomainsProcessed.list_by_kind_user`` pluck.
@@ -812,7 +812,7 @@ class AdminUserTemplateItem(BaseModel):
 
 
 class AdminUserDesktopItem(BaseModel):
-    """Row shape for ``GET /admin/user/{user_id}/desktops``.
+    """Row shape for ``GET /admin/items/user/{user_id}/desktops``.
 
     ``DomainsProcessed.list_by_kind_user("desktop", ...)`` plucks the
     listed fields. ``status`` may be missing on freshly-created
@@ -827,7 +827,7 @@ class AdminUserDesktopItem(BaseModel):
 
 
 class AdminRoleItem(BaseModel):
-    """Row shape for ``GET /admin/roles``.
+    """Row shape for ``GET /admin/items/roles``.
 
     ``UsersProcessed.get_roles`` plucks ``id``, ``name``,
     ``description`` (and orders by ``sortorder``)."""
@@ -838,7 +838,7 @@ class AdminRoleItem(BaseModel):
 
 
 class AdminSecretItem(BaseModel):
-    """Row shape for ``GET /admin/secrets``.
+    """Row shape for ``GET /admin/items/secrets``.
 
     Backed by ``ApiAdmin.admin_table_list("secrets", {})`` — the secrets
     table carries the same fields the create-endpoint advertises
@@ -854,7 +854,7 @@ class AdminSecretItem(BaseModel):
 
 
 class AdminSecretCreateResponse(BaseModel):
-    """Response for ``POST /admin/secret``.
+    """Response for ``POST /admin/item/secret``.
 
     Service returns ``{secret: <raw>}`` only — the JWT-signing key is
     surfaced once and never read back."""
@@ -953,7 +953,7 @@ class AdminQuotaCategoryLimits(BaseModel):
 
 
 class AdminQuotasResponse(BaseModel):
-    """Response for ``GET /admin/quotas``.
+    """Response for ``GET /admin/items/quotas``.
 
     ``QuotasProcess.get`` always returns a ``user`` block and adds either
     ``limits`` (managers) or ``global`` (admins)."""
@@ -966,7 +966,7 @@ class AdminQuotasResponse(BaseModel):
 
 
 class AdminAppliedQuotaResponse(BaseModel):
-    """Response for ``GET /admin/user/appliedquota/{user_id}``.
+    """Response for ``GET /admin/item/user/appliedquota/{user_id}``.
 
     ``Quotas.get_applied_quota`` returns ``{quota, restriction_applied}``
     where ``quota`` is either ``False`` or the quota dict and
@@ -978,7 +978,7 @@ class AdminAppliedQuotaResponse(BaseModel):
 
 
 class AdminUserIdResponse(BaseModel):
-    """Response for ``GET /admin/user/email-category/{email}/{category}``.
+    """Response for ``GET /admin/item/user/email-category/{email}/{category}``.
 
     Returns ``{id: <user-id-or-None>}`` — service may return ``None`` when
     no user matches."""
@@ -987,7 +987,7 @@ class AdminUserIdResponse(BaseModel):
 
 
 class AdminMigrationStartedResponse(BaseModel):
-    """Response for ``PUT /admin/user/migrate/{user_id}/{target_user_id}``.
+    """Response for ``PUT /admin/item/user/migrate/{user_id}/{target_user_id}``.
 
     On success the service returns ``({}, 200)``; on validation failure it
     returns ``({"errors": [...]}, 428)``. Both shapes serialise through a
@@ -997,7 +997,7 @@ class AdminMigrationStartedResponse(BaseModel):
 
 
 class AdminMigrationErrorsResponse(BaseModel):
-    """Response for ``GET /admin/user/migrate/check/{user_id}/{target_user_id}``.
+    """Response for ``GET /admin/item/user/migrate/check/{user_id}/{target_user_id}``.
 
     Service returns the raw error list; the route wraps it as
     ``{"errors": [...]}``."""
@@ -1006,7 +1006,7 @@ class AdminMigrationErrorsResponse(BaseModel):
 
 
 class AdminCheckMigratedResponse(BaseModel):
-    """Response for ``POST /admin/user/check/migrated``.
+    """Response for ``POST /admin/item/user/check/migrated``.
 
     Service returns a single boolean; the route wraps it as
     ``{"migrated": <bool>}``."""
@@ -1015,7 +1015,7 @@ class AdminCheckMigratedResponse(BaseModel):
 
 
 class AdminBastionDomainResponse(BaseModel):
-    """Response for the two ``/admin/category/{category_id}/bastion_domain``
+    """Response for the two ``/admin/item/category/{category_id}/bastion_domain``
     endpoints.
 
     GET returns ``{bastion_domain: <str|False|None>}`` — string when set,

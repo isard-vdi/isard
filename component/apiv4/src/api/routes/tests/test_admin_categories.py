@@ -87,7 +87,7 @@ class TestGetCategoryBranding:
     def test_admin_gets_branding(self, test_client):
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/branding",
+            url="/admin/item/category/test-cat/branding",
             jwt=jwt,
             db_tables_data=_db(),
         )
@@ -99,7 +99,7 @@ class TestGetCategoryBranding:
     def test_manager_with_permission_gets_branding(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/branding",
+            url="/admin/item/category/test-cat/branding",
             jwt=jwt,
             db_tables_data=_db(),
         )
@@ -108,7 +108,7 @@ class TestGetCategoryBranding:
     def test_manager_without_permission_is_forbidden(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/branding",
+            url="/admin/item/category/test-cat/branding",
             jwt=jwt,
             db_tables_data=_db(manager_permissions={"branding": False}),
         )
@@ -117,7 +117,7 @@ class TestGetCategoryBranding:
     def test_user_role_is_forbidden(self, test_client):
         jwt = MockJWT(role_id="user")
         response = test_client(
-            url="/admin/category/test-cat/branding",
+            url="/admin/item/category/test-cat/branding",
             jwt=jwt,
             db_tables_data=_db(),
         )
@@ -134,7 +134,7 @@ class TestUpdateCategoryBranding:
     def test_admin_updates_branding(self, test_client):
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/branding",
+            url="/admin/item/category/test-cat/branding",
             method="PUT",
             jwt=jwt,
             body={"domain": {"enabled": False, "name": "test.example.com"}},
@@ -145,7 +145,7 @@ class TestUpdateCategoryBranding:
     def test_manager_without_permission_cannot_update(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/branding",
+            url="/admin/item/category/test-cat/branding",
             method="PUT",
             jwt=jwt,
             body={"domain": {"enabled": False}},
@@ -193,7 +193,7 @@ class TestUpdateCategoryBranding:
 
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/branding",
+            url="/admin/item/category/test-cat/branding",
             method="PUT",
             jwt=jwt,
             body={
@@ -231,7 +231,7 @@ class TestUpdateCategoryBranding:
 
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/branding",
+            url="/admin/item/category/test-cat/branding",
             method="PUT",
             jwt=jwt,
             body={
@@ -255,7 +255,7 @@ class TestGetCategoryAuthentication:
     def test_admin_gets_auth_with_secrets_stripped(self, test_client):
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             jwt=jwt,
             db_tables_data=_db(),
         )
@@ -277,7 +277,7 @@ class TestGetCategoryAuthentication:
     def test_manager_with_permission_gets_auth(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             jwt=jwt,
             db_tables_data=_db(),
         )
@@ -286,7 +286,7 @@ class TestGetCategoryAuthentication:
     def test_manager_without_auth_permission_is_forbidden(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             jwt=jwt,
             db_tables_data=_db(manager_permissions={"authentication": False}),
         )
@@ -338,7 +338,7 @@ class TestUpdateCategoryAuthentication:
     def test_admin_updates_authentication(self, test_client):
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body=self._payload(),
@@ -349,7 +349,7 @@ class TestUpdateCategoryAuthentication:
     def test_manager_with_permission_updates_authentication(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body=self._payload(),
@@ -360,7 +360,7 @@ class TestUpdateCategoryAuthentication:
     def test_manager_without_permission_is_forbidden(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body=self._payload(),
@@ -373,7 +373,7 @@ class TestUpdateCategoryAuthentication:
         key entirely must also be rejected, not silently allowed."""
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body=self._payload(),
@@ -386,7 +386,7 @@ class TestUpdateCategoryAuthentication:
     def test_user_role_is_forbidden(self, test_client):
         jwt = MockJWT(role_id="user")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body=self._payload(),
@@ -400,7 +400,7 @@ class TestUpdateCategoryAuthentication:
         """Payload without the required `authentication` top-level key is rejected."""
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body={"wrong_field": {}},
@@ -415,7 +415,7 @@ class TestUpdateCategoryAuthentication:
         """PUT with an empty ldap password must keep the existing one in DB."""
         jwt = MockJWT(role_id="admin")
         update_response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body=self._payload(ldap={"ldap_config": {"password": ""}}),
@@ -424,7 +424,7 @@ class TestUpdateCategoryAuthentication:
         assert update_response.status_code == 204
 
         get_response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             jwt=jwt,
             db_tables_data=_db(),
         )
@@ -439,7 +439,7 @@ class TestUpdateCategoryAuthentication:
         """PUT without the google client_secret key must keep the existing one."""
         jwt = MockJWT(role_id="admin")
         update_response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             # google_config is an empty dict: the secret key is absent entirely
@@ -449,7 +449,7 @@ class TestUpdateCategoryAuthentication:
         assert update_response.status_code == 204
 
         get_response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             jwt=jwt,
             db_tables_data=_db(),
         )
@@ -464,7 +464,7 @@ class TestUpdateCategoryAuthentication:
         """PUT with a new non-empty ldap password is accepted and the field remains set."""
         jwt = MockJWT(role_id="admin")
         update_response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body=self._payload(ldap={"ldap_config": {"password": "new-ldap-pass"}}),
@@ -473,7 +473,7 @@ class TestUpdateCategoryAuthentication:
         assert update_response.status_code == 204
 
         get_response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             jwt=jwt,
             db_tables_data=_db(),
         )
@@ -498,7 +498,7 @@ class TestUpdateCategoryAuthentication:
             "saml": _DEFAULT_AUTH["saml"],
         }
         response = test_client(
-            url="/admin/category/test-cat/authentication",
+            url="/admin/item/category/test-cat/authentication",
             method="PUT",
             jwt=jwt,
             body=self._payload(ldap={"ldap_config": {"password": ""}}),
@@ -516,7 +516,7 @@ class TestCategoryLoginNotification:
     def test_admin_updates_login_notification(self, test_client):
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/login_notification",
+            url="/admin/item/category/test-cat/login_notification",
             method="PUT",
             jwt=jwt,
             body={"cover": {"enabled": True, "title": "Updated"}},
@@ -527,7 +527,7 @@ class TestCategoryLoginNotification:
     def test_manager_without_permission_cannot_update(self, test_client):
         jwt = MockJWT(role_id="manager", category_id="test-cat")
         response = test_client(
-            url="/admin/category/test-cat/login_notification",
+            url="/admin/item/category/test-cat/login_notification",
             method="PUT",
             jwt=jwt,
             body={"cover": {"enabled": True}},
@@ -538,7 +538,7 @@ class TestCategoryLoginNotification:
     def test_enable_cover_notification(self, test_client):
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/login_notification/cover/enable",
+            url="/admin/item/category/test-cat/login_notification/cover/enable",
             method="PUT",
             jwt=jwt,
             body={"enabled": True},
@@ -550,7 +550,7 @@ class TestCategoryLoginNotification:
         """Invalid notification type returns 400 (Literal validation)."""
         jwt = MockJWT(role_id="admin")
         response = test_client(
-            url="/admin/category/test-cat/login_notification/invalid/enable",
+            url="/admin/item/category/test-cat/login_notification/invalid/enable",
             method="PUT",
             jwt=jwt,
             body={"enabled": True},
@@ -746,7 +746,7 @@ def test_update_branding_does_not_block_on_grpc(test_client):
     jwt = MockJWT(role_id="admin")
     start = time.monotonic()
     response = test_client(
-        url="/admin/category/test-cat/branding",
+        url="/admin/item/category/test-cat/branding",
         method="PUT",
         jwt=jwt,
         body={"domain": {"enabled": False, "name": "test.example.com"}},

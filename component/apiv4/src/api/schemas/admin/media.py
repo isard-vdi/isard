@@ -37,7 +37,7 @@ class AdminMediaStatusCount(BaseModel):
 
 
 class AdminMediaItem(BaseModel):
-    """One row of ``GET /admin/media`` and ``GET /admin/media/{status}``.
+    """One row of ``GET /admin/items/media`` and ``GET /admin/items/media/{status}``.
 
     The service returns the raw media doc merged with display-friendly
     joined fields (category_name, group_name, user_name, domains

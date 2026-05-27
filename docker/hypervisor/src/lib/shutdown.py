@@ -37,7 +37,7 @@ DESTROY_MAX_WORKERS = 16
 
 
 def api_unregister():
-    """Fire DELETE /api/v4/admin/hypervisor/<id> with a short timeout. Best effort.
+    """Fire DELETE /api/v4/admin/item/hypervisor/<id> with a short timeout. Best effort.
 
     The API handler writes the important DB flags (enabled=False,
     status=Deleting, forced_hyp=True, all-domain stop) in the first few

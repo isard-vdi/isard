@@ -43,7 +43,7 @@ tag = "admin-login-config"
 
 
 @manager_router.get(
-    "/admin/login-config",
+    "/admin/item/login-config",
     tags=[tag],
     response_model=AdminLoginConfigResponse,
     summary="Get global login config (raw)",
@@ -75,7 +75,7 @@ async def admin_login_config_get(request: Request):
 
 
 @manager_router.get(
-    "/admin/login-config/{category_id}",
+    "/admin/item/login-config/{category_id}",
     tags=[tag],
     response_model=AdminLoginConfigResponse,
     summary="Get per-category login config (raw)",
@@ -120,7 +120,7 @@ async def admin_login_config_by_category(
 
 
 @admin_router.put(
-    "/login_config/notification",
+    "/admin/item/login_config/notification",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update login notification",
@@ -162,7 +162,7 @@ async def admin_login_notification_update(
 
 
 @admin_router.put(
-    "/login_config/notification/cover/enable",
+    "/admin/item/login_config/notification/cover/enable",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Enable/disable cover login notification",
@@ -192,7 +192,7 @@ async def admin_login_notification_cover_enable(
 
 
 @admin_router.put(
-    "/login_config/notification/form/enable",
+    "/admin/item/login_config/notification/form/enable",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Enable/disable form login notification",

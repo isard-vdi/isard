@@ -21,7 +21,7 @@ from api.services.error import Error
 
 
 class TestEmitHappyPath:
-    URL = "/admin/socketio"
+    URL = "/admin/items/socketio"
 
     def test_admin_emits_events(self, monkeypatch, test_client):
         captured = {}
@@ -74,7 +74,7 @@ class TestEmitHappyPath:
 
 
 class TestEmitInvalidBody:
-    URL = "/admin/socketio"
+    URL = "/admin/items/socketio"
 
     def test_non_list_body_returns_400(self, monkeypatch, test_client):
         """Body must be a JSON array. The typed ``RootModel[List[...]]``
@@ -103,7 +103,7 @@ class TestEmitInvalidBody:
 
 
 class TestEmitAuth:
-    URL = "/admin/socketio"
+    URL = "/admin/items/socketio"
 
     def test_manager_forbidden(self, monkeypatch, test_client):
         """admin_router endpoint — managers can NOT emit cross-cutting
@@ -141,7 +141,7 @@ class TestEmitAuth:
 
 
 class TestEmitErrorPropagation:
-    URL = "/admin/socketio"
+    URL = "/admin/items/socketio"
 
     def test_typed_error_propagates(self, monkeypatch, test_client):
         def reject(events):

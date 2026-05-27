@@ -13,7 +13,7 @@ $(document).ready(function () {
 
   $.ajax({
     type: 'GET',
-    url: '/api/v4/admin/usage/consumers',
+    url: '/api/v4/admin/item/usage/consumers',
     contentType: "application/json",
     success: function (consumer) {
       if (consumer==0) {
@@ -173,7 +173,7 @@ $(document).ready(function () {
     if (data['end_date'] == null || moment(data['end_date']).isAfter(data['start_date'])) {
     $.ajax({
       type: 'GET',
-      url: `/api/v4/admin/usage/check/overlapping/${data["id"]}/${data["start_date"]}/${data["end_date"]}`,
+      url: `/api/v4/admin/item/usage/check/overlapping/${data["id"]}/${data["start_date"]}/${data["end_date"]}`,
       contentType: 'application/json',
       success: function (xhr) {
         if (xhr) {
@@ -460,7 +460,7 @@ function render_table_credits() {
 
   table_credits = $('#table-credit').DataTable({
     "ajax": {
-      "url": "/api/v4/admin/usage/category_credits",
+      "url": "/api/v4/admin/items/usage/category_credits",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -566,7 +566,7 @@ function render_table_credits() {
 function render_table_limits() {
   table_limits = $('#table_limits').DataTable({
     "ajax": {
-      "url": "/api/v4/admin/usage/limits",
+      "url": "/api/v4/admin/items/usage/limits",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -618,7 +618,7 @@ function render_table_limits() {
 function render_table_parameters() {
   table_parameters = $('#table_parameters').DataTable({
     "ajax": {
-      "url": "/api/v4/admin/usage/parameters",
+      "url": "/api/v4/admin/items/usage/parameters",
       "contentType": "application/json",
       "type": 'GET',
       "data": function(d){return JSON.stringify({})}
@@ -697,7 +697,7 @@ function render_table_parameters() {
 function render_table_groupings() {
   table_groupings = $('#table_groupings').DataTable({
     "ajax": {
-      "url": "/api/v4/admin/usage/groupings",
+      "url": "/api/v4/admin/items/usage/groupings",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -751,7 +751,7 @@ function render_table_groupings() {
 function fetchAvailableParameters(modal) {
   $.ajax({
     type: 'GET',
-    url: '/api/v4/admin/table/usage_parameter',
+    url: '/api/v4/admin/items/table/usage_parameter',
     success: function (parameter) {
       $(modal + ' #item_type').on("change", function () {
         $(modal + ' #available-parameters').empty();
@@ -795,7 +795,7 @@ function fetchAvailableParameters(modal) {
 function populateLimits(modal) {
   $.ajax({
     type: 'GET',
-    url: '/api/v4/admin/usage/limits',
+    url: '/api/v4/admin/items/usage/limits',
     contentType: "application/json",
     success: function (limit) {
       $.each(limit, function (key, value) {
@@ -858,7 +858,7 @@ function selectParameterList(modal, row) {
 
   $.ajax({
     type: 'GET',
-    url: '/api/v4/admin/table/usage_parameter',
+    url: '/api/v4/admin/items/table/usage_parameter',
     success: function (parameter) {
       $.each(parameter, function (key, value) {
         $(modal + ' #parameters').append(`<option title="${value.desc}" value="${value.id}">${value.name}</option>`)
@@ -875,7 +875,7 @@ function selectParameterList(modal, row) {
 }
 
 function addItem(kind, data, datatable) {
-  url = `/api/v4/admin/usage/${kind}s`;
+  url = `/api/v4/admin/item/usage/${kind}s`;
 
   $.ajax({
     type: 'POST',
@@ -910,7 +910,7 @@ function addItem(kind, data, datatable) {
 }
 
 function editItem(kind, data, datatable) {
-  url = `/api/v4/admin/usage/${kind}s/${data.id}`;
+  url = `/api/v4/admin/item/usage/${kind}s/${data.id}`;
 
   $.ajax({
     type: 'PUT',
@@ -945,7 +945,7 @@ function editItem(kind, data, datatable) {
 }
 
 function deleteItem(kind, id, datatable) {
-  url = `/api/v4/admin/usage/${kind}s/${id}`;
+  url = `/api/v4/admin/item/usage/${kind}s/${id}`;
 
   new PNotify({
     title: 'Confirmation Needed',
@@ -1006,7 +1006,7 @@ $('tbody').on('click', 'button', function () {
 
     $.ajax({
       type: 'GET',
-      url: `/api/v4/admin/usage/category_credits/${id}`,
+      url: `/api/v4/admin/item/usage/category_credits/${id}`,
       contentType: 'application/json',
       success: function (data) {
         $(modal + ' #id').val(id);
@@ -1101,7 +1101,7 @@ $('tbody').on('click', 'button', function () {
 // CONSOLIDATE
 
 function consolidate(item_type, days) {
-  url = days ? `/api/v4/admin/usage/consolidate/${item_type}/${days}` : `/api/v4/admin/usage/consolidate/${item_type}`
+  url = days ? `/api/v4/admin/items/usage/consolidate/${item_type}/${days}` : `/api/v4/admin/items/usage/consolidate/${item_type}`
   $.ajax({
     type: "PUT",
     url: url,
@@ -1129,7 +1129,7 @@ function consolidate(item_type, days) {
 function deleteAllUsageConsumption() {
   $.ajax({
     type: "DELETE",
-    url: "/api/v4/admin/usage/delete_data/",
+    url: "/api/v4/admin/items/usage/delete_data/",
     accept: "application/json",
   }).done(() => {
     new PNotify({
@@ -1159,7 +1159,7 @@ function deleteAllUsageConsumption() {
 function load_retention_policy() {
   $.ajax({
     type: 'GET',
-    url: '/api/v4/admin/usage/retention',
+    url: '/api/v4/admin/item/usage/retention',
     contentType: 'application/json',
     success: function (cfg) {
       $('#retention_daily_months').val(cfg.daily_months);
@@ -1191,7 +1191,7 @@ function bind_retention_form() {
     $('#retention-save-msg').text('Saving...').css('color', '#888');
     $.ajax({
       type: 'PUT',
-      url: '/api/v4/admin/usage/retention',
+      url: '/api/v4/admin/item/usage/retention',
       contentType: 'application/json',
       data: JSON.stringify(payload),
       success: function (cfg) {

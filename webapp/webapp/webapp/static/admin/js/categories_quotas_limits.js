@@ -19,7 +19,7 @@ $(document).ready(function() {
             }
         },
         "ajax": {
-            "url": "/api/v4/admin/users/quotas_limits/categories",
+            "url": "/api/v4/admin/items/users/quotas_limits/categories",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
@@ -242,7 +242,7 @@ function actionsCategoryDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v4/admin/quota/category/"+pk ,
+                url:"/api/v4/admin/item/quota/category/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)
@@ -314,7 +314,7 @@ function actionsCategoryDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v4/admin/limits/category/"+pk ,
+                url:"/api/v4/admin/item/limits/category/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)

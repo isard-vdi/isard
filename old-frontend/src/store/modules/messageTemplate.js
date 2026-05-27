@@ -35,7 +35,7 @@ export default {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
       } else {
-        axios.get(`${apiV3Segment}/admin/notifications/template/` + messageTemplateId).then(response => {
+        axios.get(`${apiV3Segment}/admin/item/notifications/template/` + messageTemplateId).then(response => {
           context.commit(
             'setMessageTemplate',
             response.data.messageTemplate

@@ -62,7 +62,7 @@ tag = "admin-notifications"
 
 
 @admin_router.post(
-    "/admin/notifications/template",
+    "/admin/item/notifications/template",
     tags=[tag],
     response_model=SimpleResponse,
     summary="Create notification template",
@@ -94,7 +94,7 @@ async def admin_create_notification_template(
 
 
 @admin_router.get(
-    "/admin/notifications/templates",
+    "/admin/items/notifications/templates",
     tags=[tag],
     response_model=TemplateListResponse,
     summary="List all notification templates",
@@ -120,7 +120,7 @@ async def admin_list_notification_templates(request: Request):
 
 
 @admin_router.get(
-    "/admin/notifications/templates/custom",
+    "/admin/items/notifications/templates/custom",
     tags=[tag],
     response_model=TemplateListResponse,
     summary="List custom notification templates",
@@ -148,7 +148,7 @@ async def admin_list_custom_notification_templates(request: Request):
 
 
 @admin_router.get(
-    "/admin/notifications/templates/system",
+    "/admin/items/notifications/templates/system",
     tags=[tag],
     response_model=TemplateListResponse,
     summary="List system notification templates",
@@ -176,7 +176,7 @@ async def admin_list_system_notification_templates(request: Request):
 
 
 @admin_router.get(
-    "/admin/notifications/template/{template_id}",
+    "/admin/item/notifications/template/{template_id}",
     tags=[tag],
     response_model=TemplateResponse,
     summary="Get notification template",
@@ -204,7 +204,7 @@ async def admin_get_notification_template(request: Request, template_id: str):
 
 
 @admin_router.put(
-    "/admin/notifications/template/preview",
+    "/admin/item/notifications/template/preview",
     tags=[tag],
     response_model=TemplatePreviewResponse,
     summary="Preview template rendering",
@@ -238,7 +238,7 @@ async def admin_preview_notification_template(
 
 
 @admin_router.put(
-    "/admin/notifications/template/{template_id}",
+    "/admin/item/notifications/template/{template_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update notification template",
@@ -273,7 +273,7 @@ async def admin_update_notification_template(
 
 
 @admin_router.delete(
-    "/admin/notifications/template/{template_id}",
+    "/admin/item/notifications/template/{template_id}",
     tags=[tag],
     response_model=DeleteResponse,
     summary="Delete notification template",
@@ -311,7 +311,7 @@ async def admin_delete_notification_template(request: Request, template_id: str)
 
 
 @admin_router.get(
-    "/admin/notifications",
+    "/admin/items/notifications",
     tags=[tag],
     response_model=NotificationListResponse,
     summary="List all notifications",
@@ -341,7 +341,7 @@ async def admin_list_notifications(request: Request):
 
 
 @admin_router.post(
-    "/admin/notification",
+    "/admin/item/notification",
     tags=[tag],
     response_model=NotificationResponse,
     summary="Create notification",
@@ -373,7 +373,7 @@ async def admin_create_notification(
 
 
 @admin_router.get(
-    "/admin/notification/actions",
+    "/admin/items/notification/actions",
     tags=[tag],
     response_model=NotificationActionsResponse,
     summary="List notification actions",
@@ -403,7 +403,7 @@ async def admin_list_notification_actions(request: Request):
 
 
 @admin_router.get(
-    "/admin/notification/{notification_id}",
+    "/admin/item/notification/{notification_id}",
     tags=[tag],
     response_model=NotificationDetailResponse,
     summary="Get notification",
@@ -431,7 +431,7 @@ async def admin_get_notification(request: Request, notification_id: str):
 
 
 @admin_router.put(
-    "/admin/notification/{notification_id}",
+    "/admin/item/notification/{notification_id}",
     tags=[tag],
     response_model=NotificationResponse,
     summary="Update notification",
@@ -469,7 +469,7 @@ async def admin_update_notification(
 
 
 @admin_router.delete(
-    "/admin/notification/{notification_id}",
+    "/admin/item/notification/{notification_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete notification",
@@ -505,7 +505,7 @@ async def admin_delete_notification(
 
 
 @admin_router.get(
-    "/admin/notifications/data/status/{status}/user/{user_id}",
+    "/admin/items/notifications/data/status/{status}/user/{user_id}",
     tags=[tag],
     response_model=NotificationDataListResponse,
     summary="Get user notification data by status",
@@ -535,7 +535,7 @@ async def admin_get_notifications_data_by_status(
 
 
 @admin_router.get(
-    "/admin/notifications/statuses",
+    "/admin/items/notifications/statuses",
     tags=[tag],
     response_model=NotificationStatusesResponse,
     summary="Get available notification statuses",
@@ -565,7 +565,7 @@ async def admin_get_notification_statuses(request: Request):
 
 
 @admin_router.get(
-    "/admin/notifications/data/by_status/{status}",
+    "/admin/items/notifications/data/by_status/{status}",
     tags=[tag],
     response_model=NotificationGroupedDataResponse,
     summary="Get notifications grouped by status",
@@ -595,7 +595,7 @@ async def admin_get_notifications_grouped_by_status(
 
 
 @admin_router.delete(
-    "/admin/notifications/data/user/{user_id}",
+    "/admin/items/notifications/data/user/{user_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete user notification data",
@@ -620,7 +620,7 @@ async def admin_delete_user_notification_data(request: Request, user_id: str):
 
 
 @admin_router.delete(
-    "/admin/notifications/data/{notification_data_id}",
+    "/admin/item/notifications/data/{notification_data_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete specific notification data",
@@ -645,7 +645,7 @@ async def admin_delete_notification_data(request: Request, notification_data_id:
 
 
 @admin_router.delete(
-    "/admin/notifications/data",
+    "/admin/items/notifications/data",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete all notification data",
@@ -673,7 +673,7 @@ async def admin_delete_all_notification_data(request: Request):
 
 
 @admin_router.get(
-    "/admin/notifications/user/displays/{user_id}/{trigger}",
+    "/admin/items/notifications/user/displays/{user_id}/{trigger}",
     tags=[tag],
     response_model=AdminUserDisplaysResponse,
     summary="Get user notification displays",
@@ -719,7 +719,7 @@ async def admin_get_user_notification_displays(
 
 
 @admin_router.delete(
-    "/items/notifications/expired",
+    "/admin/items/notifications/expired",
     tags=[tag],
     response_model=DeleteResponse,
     summary="Delete expired user notifications data",

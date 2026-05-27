@@ -24,7 +24,7 @@ def _enable(monkeypatch, enabled=True):
 
 
 class TestListHypervisors:
-    URL = "/admin/operations/hypervisors"
+    URL = "/admin/items/operations/hypervisors"
 
     def test_admin_lists_hypervisors(self, monkeypatch, test_client):
         _enable(monkeypatch)
@@ -104,7 +104,7 @@ class TestListHypervisors:
 
 
 class TestStartHypervisor:
-    URL = "/admin/operations/hypervisor/h-42"
+    URL = "/admin/item/operations/hypervisor/h-42"
 
     def test_admin_starts(self, monkeypatch, test_client):
         _enable(monkeypatch)
@@ -156,7 +156,7 @@ class TestStartHypervisor:
 
 
 class TestStopHypervisor:
-    URL = "/admin/operations/hypervisor/h-42"
+    URL = "/admin/item/operations/hypervisor/h-42"
 
     def test_admin_stops(self, monkeypatch, test_client):
         _enable(monkeypatch)

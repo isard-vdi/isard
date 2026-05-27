@@ -15,7 +15,7 @@ from api.services.error import Error
 
 
 class TestGetMediaStatus:
-    URL = "/media/status"
+    URL = "/admin/item/media/status"
 
     def test_admin_gets_status_counts(self, monkeypatch, test_client):
         captured = {}
@@ -89,7 +89,7 @@ class TestGetMediaStatus:
 
 
 class TestListAllMedia:
-    URL = "/admin/media"
+    URL = "/admin/items/media"
 
     def test_admin_lists_media(self, monkeypatch, test_client):
         captured = {}
@@ -156,7 +156,7 @@ class TestListMediaByStatus:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/media/Downloaded", jwt=MockJWT(role_id="admin")
+            url="/admin/items/media/Downloaded", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert captured["status"] == "Downloaded"
@@ -167,7 +167,7 @@ class TestListMediaByStatus:
             staticmethod(lambda payload, status=None: []),
         )
         response = test_client(
-            url="/admin/media/Downloaded", jwt=MockJWT(role_id="manager")
+            url="/admin/items/media/Downloaded", jwt=MockJWT(role_id="manager")
         )
         assert response.status_code == 200
 
@@ -177,7 +177,7 @@ class TestListMediaByStatus:
             staticmethod(lambda payload, status=None: []),
         )
         response = test_client(
-            url="/admin/media/Downloaded", jwt=MockJWT(role_id="user")
+            url="/admin/items/media/Downloaded", jwt=MockJWT(role_id="user")
         )
         assert response.status_code == 403
 
@@ -194,6 +194,6 @@ class TestListMediaByStatus:
             staticmethod(reject),
         )
         response = test_client(
-            url="/admin/media/no_such_status", jwt=MockJWT(role_id="admin")
+            url="/admin/items/media/no_such_status", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 400

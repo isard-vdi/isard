@@ -28,7 +28,7 @@ $(document).ready(function () {
         var max_time = ($(this).val());
         $.ajax({
             type: "PUT",
-            url: "/api/v4/logs_users/config/old_entries/max_time/" + max_time,
+            url: "/api/v4/admin/item/logs_users/config/old_entries/max_time/" + max_time,
             accept: "application/json",
         }).done(() => {
             new PNotify({
@@ -65,7 +65,7 @@ $(document).ready(function () {
                         text: 'Delete', click: function (notice) {
                             $.ajax({
                                 type: "DELETE",
-                                url: "/api/v4/logs_users/old_entries/delete/all",
+                                url: "/api/v4/admin/items/logs_users/old_entries/delete/all",
                                 accept: "application/json",
                             }).done(() => {
                                 new PNotify({
@@ -108,7 +108,7 @@ $(document).ready(function () {
 function toggleOldEntriesAction(action) {
     $.ajax({
         type: "PUT",
-        url: "/api/v4/logs_users/config/old_entries/action/" + action,
+        url: "/api/v4/admin/item/logs_users/config/old_entries/action/" + action,
         accept: "application/json",
     }).done(() => {
         updateSchedulerJob(action);
@@ -118,7 +118,7 @@ function toggleOldEntriesAction(action) {
 function checkOldEntriesAction() {
     $.ajax({
         type: "GET",
-        url: "/api/v4/logs_users/config/old_entries",
+        url: "/api/v4/admin/item/logs_users/config/old_entries",
         accept: "application/json",
     }).done(function (oldEntriesConfig) {
         $('#archive-delete_wrapper input[name="archive-delete-action"][value="' + oldEntriesConfig.action + '"]').prop("checked", true).iCheck('update')

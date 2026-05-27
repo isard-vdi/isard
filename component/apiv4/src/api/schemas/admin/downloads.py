@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class DownloadsOverviewResponse(BaseModel):
-    """Response shape for ``GET /admin/downloads``.
+    """Response shape for ``GET /admin/items/downloads``.
 
     The service returns ``{}`` after the registration check passes;
     keeping a typed empty model documents the contract explicitly so
@@ -35,7 +35,7 @@ class DownloadsOverviewResponse(BaseModel):
 
 
 class DownloadItem(BaseModel):
-    """One row of ``GET /admin/downloads/{kind}``.
+    """One row of ``GET /admin/items/downloads/{kind}``.
 
     The shape varies per kind (domains/media merge in registry rows,
     virt_install/videos/viewers come straight from the upstream

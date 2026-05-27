@@ -131,7 +131,7 @@ function populateSelect(item, divId) {
   elem.attr("index", item.value);
   switch (item.value) {
     case ("grouping"):
-      $.ajax({ url: '/api/v4/admin/usage/groupings_dropdown', type: 'GET'})
+      $.ajax({ url: '/api/v4/admin/items/usage/groupings_dropdown', type: 'GET'})
         .then(function (f) {
           $.each(f, function (key, type) {
             elem.append('<optgroup class="l1" label=' + key.charAt(0).toUpperCase() + key.slice(1) + '>');
@@ -218,7 +218,7 @@ function generate_change_events (divId) {
 
 function fetchConsumers (divId, callback) {
   $.ajax({
-    url: '/api/v4/admin/usage/consumers/' + itemType,
+    url: '/api/v4/admin/items/usage/consumers/' + itemType,
     type: 'GET',
   }).then(function (d) {
     $(divId + " #consumer").find('option').remove();
@@ -232,7 +232,7 @@ function fetchConsumers (divId, callback) {
 
 function fetchConsumerItems (divId, callback) {
   $.ajax({
-    url: '/api/v4/admin/usage/distinct_items/' + consumer + "/" + startDate + "/" + endDate,
+    url: '/api/v4/admin/items/usage/distinct_items/' + consumer + "/" + startDate + "/" + endDate,
     type: 'GET',
   }).then(function (items) {
     $(divId + " #" + consumer).find('option').remove();

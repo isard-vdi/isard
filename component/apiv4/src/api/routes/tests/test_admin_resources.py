@@ -36,7 +36,7 @@ class TestRemoteVpn:
             staticmethod(fake),
         )
         response = test_client(
-            url="/remote_vpn/v-1/install/linux", jwt=MockJWT(role_id="admin")
+            url="/admin/item/remote_vpn/v-1/install/linux", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert captured == {"vpn_id": "v-1", "kind": "install", "os": "linux"}
@@ -56,7 +56,7 @@ class TestRemoteVpn:
             staticmethod(fake),
         )
         response = test_client(
-            url="/remote_vpn/v-1/config", jwt=MockJWT(role_id="admin")
+            url="/admin/item/remote_vpn/v-1/config", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert captured["os"] is None
@@ -67,7 +67,7 @@ class TestRemoteVpn:
             staticmethod(lambda *a, **k: {}),
         )
         response = test_client(
-            url="/remote_vpn/v-1/config", jwt=MockJWT(role_id="user")
+            url="/admin/item/remote_vpn/v-1/config", jwt=MockJWT(role_id="user")
         )
         assert response.status_code == 403
 
@@ -77,7 +77,7 @@ class TestRemoteVpn:
             staticmethod(lambda *a, **k: {}),
         )
         response = test_client(
-            url="/remote_vpn/v-1/config", jwt=MockJWT(role_id="manager")
+            url="/admin/item/remote_vpn/v-1/config", jwt=MockJWT(role_id="manager")
         )
         assert response.status_code == 403
 
@@ -90,7 +90,7 @@ class TestRemoteVpn:
             staticmethod(reject),
         )
         response = test_client(
-            url="/remote_vpn/v-1/no_such_kind",
+            url="/admin/item/remote_vpn/v-1/no_such_kind",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 400
@@ -102,7 +102,7 @@ class TestRemoteVpn:
 
 
 class TestQosDiskAdd:
-    URL = "/qos_disk"
+    URL = "/admin/item/qos_disk"
 
     def _payload(self, **overrides):
         body = {
@@ -189,7 +189,7 @@ class TestQosDiskAdd:
 
 
 class TestQosDiskUpdate:
-    URL = "/qos_disk"
+    URL = "/admin/item/qos_disk"
 
     def test_admin_updates(self, monkeypatch, test_client):
         captured = {}

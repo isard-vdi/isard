@@ -255,7 +255,7 @@ class Actions:
                 "element": "select2",
                 "ajax": {
                     "type": "POST",
-                    "url": "/admin/allowed/term/domains",
+                    "url": "/items/alloweds/term/domains",
                     "url_id": None,
                     "data": {"pluck": ["id", "name"]},
                     "ids": "id",
@@ -285,7 +285,7 @@ class Actions:
                 "element": "select2",
                 "ajax": {
                     "type": "POST",
-                    "url": "/admin/allowed/term/deployments",
+                    "url": "/items/alloweds/term/deployments",
                     "url_id": None,
                     "data": {"pluck": ["id", "name"]},
                     "ids": "id",

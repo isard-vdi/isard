@@ -116,7 +116,7 @@ def clear_admin_user_full_data_cache():
 
 
 @manager_router.get(
-    "/admin/jwt/{user_id}",
+    "/admin/item/jwt/{user_id}",
     tags=[tag],
     response_model=AdminUserImpersonateJwtResponse,
     summary="Get impersonation JWT for user",
@@ -148,7 +148,7 @@ async def admin_get_jwt(request: Request, user_id: str):
 
 
 @manager_router.get(
-    "/admin/user/{user_id}/exists",
+    "/admin/item/user/{user_id}/exists",
     tags=[tag],
     response_model=bool,
     summary="Check if user exists",
@@ -182,7 +182,7 @@ async def admin_user_exists(request: Request, user_id: str):
 
 @cached(cache=admin_user_full_data_cache)
 @manager_router.get(
-    "/admin/user/{user_id}",
+    "/admin/item/user/{user_id}",
     tags=[tag],
     response_model=AdminUserFullDataResponse,
     summary="Get user full data",
@@ -218,7 +218,7 @@ async def admin_get_user(request: Request, user_id: str):
 
 
 @manager_router.get(
-    "/admin/user/{user_id}/raw",
+    "/admin/item/user/{user_id}/raw",
     tags=[tag],
     response_model=AdminUserFullDataResponse,
     summary="Get user raw data",
@@ -254,7 +254,7 @@ async def admin_get_user_raw(request: Request, user_id: str):
 
 
 @manager_router.get(
-    "/admin/users",
+    "/admin/items/users",
     tags=[tag],
     summary="List users",
     description="Returns list of users. Admins see all, managers see their category.",
@@ -290,7 +290,7 @@ async def admin_list_users(request: Request):
 
 
 @manager_router.get(
-    "/admin/users/{nav}/users",
+    "/admin/items/users/{nav}/users",
     tags=[tag],
     response_model=list[AdminUserNavItem],
     summary="List users by navigation context",
@@ -325,7 +325,7 @@ async def admin_list_users_nav(
 
 
 @manager_router.post(
-    "/admin/user",
+    "/admin/item/user",
     tags=[tag],
     summary="Create user",
     description="Creates a new user.",
@@ -357,7 +357,7 @@ async def admin_create_user(request: Request, data: AdminUserCreateData):
 
 
 @manager_router.put(
-    "/admin/user/{user_id}",
+    "/admin/item/user/{user_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update user",
@@ -388,7 +388,7 @@ async def admin_update_user(request: Request, user_id: str, data: AdminUserUpdat
 
 
 @manager_router.put(
-    "/admin/users/bulk",
+    "/admin/items/users/bulk",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Bulk update users",
@@ -423,7 +423,7 @@ async def admin_update_users_bulk(
 
 
 @manager_router.delete(
-    "/admin/user",
+    "/admin/items/users",
     tags=[tag],
     summary="Delete users",
     description="Deletes one or more users.",
@@ -462,7 +462,7 @@ async def admin_delete_users(
 
 
 @manager_router.put(
-    "/admin/user/{user_id}/logout",
+    "/admin/item/user/{user_id}/logout",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Force logout user",
@@ -490,7 +490,7 @@ async def admin_user_logout(request: Request, user_id: str):
 
 
 @manager_router.post(
-    "/admin/users/search",
+    "/admin/items/users/search",
     tags=[tag],
     response_model=list[AdminUserSearchItem],
     summary="Search users",
@@ -528,7 +528,7 @@ async def admin_search_users(request: Request, data: AdminUserSearchData):
 
 
 @manager_router.post(
-    "/admin/users/csv/validate",
+    "/admin/items/users/csv/validate",
     tags=[tag],
     response_model=AdminCSVValidateCreateResponse,
     summary="Validate CSV for user creation",
@@ -564,7 +564,7 @@ async def admin_validate_csv_users(request: Request, user_list: list[dict]):
 
 
 @manager_router.put(
-    "/admin/users/csv/validate",
+    "/admin/items/users/csv/validate",
     tags=[tag],
     response_model=list[AdminCSVUserEditRow],
     summary="Validate CSV for user editing",
@@ -598,7 +598,7 @@ async def admin_validate_csv_users_edit(request: Request, user_list: list[dict])
 
 
 @manager_router.post(
-    "/admin/users/csv",
+    "/admin/items/users/csv",
     tags=[tag],
     response_model=AdminCSVImportResponse,
     summary="Import users from CSV",
@@ -635,7 +635,7 @@ async def admin_import_csv_users(request: Request, data: AdminCSVUserImportData)
 
 
 @manager_router.put(
-    "/admin/users/csv",
+    "/admin/items/users/csv",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Edit users from CSV",
@@ -668,7 +668,7 @@ async def admin_edit_csv_users(request: Request, data: AdminCSVUserEditData):
 
 
 @manager_router.post(
-    "/admin/bulk/user",
+    "/admin/items/bulk/user",
     tags=[tag],
     response_model=AdminCSVImportResponse,
     summary="Bulk create users",
@@ -712,7 +712,7 @@ async def admin_bulk_create_users(request: Request, data: AdminBulkUserCreateDat
 
 
 @manager_router.put(
-    "/admin/user/secondary-groups/add",
+    "/admin/item/user/secondary-groups/add",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Add secondary groups",
@@ -743,7 +743,7 @@ async def admin_secondary_groups_add(request: Request, data: AdminSecondaryGroup
 
 
 @manager_router.put(
-    "/admin/user/secondary-groups/overwrite",
+    "/admin/item/user/secondary-groups/overwrite",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Overwrite secondary groups",
@@ -776,7 +776,7 @@ async def admin_secondary_groups_overwrite(
 
 
 @manager_router.put(
-    "/admin/user/secondary-groups/delete",
+    "/admin/item/user/secondary-groups/delete",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Remove secondary groups",
@@ -814,7 +814,7 @@ async def admin_secondary_groups_delete(
 
 
 @manager_router.get(
-    "/admin/user/password-policy/{user_id}",
+    "/admin/item/user/password-policy/{user_id}",
     tags=[tag],
     response_model=AdminPasswordPolicyResponse,
     summary="Get user password policy",
@@ -849,11 +849,11 @@ async def admin_get_password_policy(request: Request, user_id: str):
 
 
 @admin_router.put(
-    # NOTE: /admin/users/ (plural) so the path is not shadowed by the
-    # /admin/user/{user_id} PUT catch-all on manager_router (defined above
+    # NOTE: /admin/items/users/ (plural) so the path is not shadowed by the
+    # /admin/item/user/{user_id} PUT catch-all on manager_router (defined above
     # in this file), which is registered earlier because manager_router is
     # included before admin_router in api/__init__.py.
-    "/admin/users/reset-password",
+    "/admin/items/users/reset-password",
     tags=[tag],
     summary="Reset user password",
     description="Admin resets a user's password.",
@@ -879,7 +879,7 @@ async def admin_reset_password(request: Request, data: AdminPasswordResetData):
 
 
 @admin_router.get(
-    "/admin/user/required/password-reset/{user_id}",
+    "/admin/item/user/required/password-reset/{user_id}",
     tags=[tag],
     summary="Check password reset required",
     description="Check if a user needs to reset their password.",
@@ -911,7 +911,7 @@ async def admin_check_password_reset_required(request: Request, user_id: str):
 
 
 @admin_router.get(
-    "/admin/user/required/email-verification/{user_id}",
+    "/admin/item/user/required/email-verification/{user_id}",
     tags=[tag],
     summary="Check email verification required",
     description="Check if a user needs to verify their email.",
@@ -943,7 +943,7 @@ async def admin_check_email_verification(request: Request, user_id: str):
 
 
 @admin_router.get(
-    "/admin/user/required/disclaimer-acknowledgement/{user_id}",
+    "/admin/item/user/required/disclaimer-acknowledgement/{user_id}",
     tags=[tag],
     summary="Check disclaimer acknowledgement",
     description="Check if a user has acknowledged the disclaimer.",
@@ -975,7 +975,7 @@ async def admin_check_disclaimer(request: Request, user_id: str):
 
 
 @manager_router.put(
-    "/admin/user/reset-vpn/{user_id}",
+    "/admin/item/user/reset-vpn/{user_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Reset user VPN",
@@ -1008,7 +1008,7 @@ async def admin_reset_vpn(request: Request, user_id: str):
 
 
 @manager_router.get(
-    "/admin/groups",
+    "/admin/items/groups",
     tags=[tag],
     response_model=list[AdminGroupListItem],
     summary="List groups",
@@ -1041,7 +1041,7 @@ async def admin_list_groups(request: Request):
 
 
 @manager_router.get(
-    "/admin/users/{nav}/groups",
+    "/admin/items/users/{nav}/groups",
     tags=[tag],
     response_model=list[AdminGroupNavItem],
     summary="List groups by navigation context",
@@ -1076,7 +1076,7 @@ async def admin_list_groups_nav(
 
 
 @manager_router.get(
-    "/admin/group/{group_id}",
+    "/admin/item/group/{group_id}",
     tags=[tag],
     response_model=AdminGroupFullDataResponse,
     summary="Get group",
@@ -1105,7 +1105,7 @@ async def admin_get_group(request: Request, group_id: str):
 
 
 @manager_router.post(
-    "/admin/group",
+    "/admin/item/group",
     tags=[tag],
     summary="Create group",
     description="Creates a new group.",
@@ -1136,7 +1136,7 @@ async def admin_create_group(request: Request, data: AdminGroupCreateData):
 
 
 @manager_router.put(
-    "/admin/group/{group_id}",
+    "/admin/item/group/{group_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update group",
@@ -1169,7 +1169,7 @@ async def admin_update_group(
 
 
 @manager_router.delete(
-    "/admin/group/{group_id}",
+    "/admin/item/group/{group_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete group",
@@ -1197,7 +1197,7 @@ async def admin_delete_group(request: Request, group_id: str):
 
 
 @manager_router.get(
-    "/admin/group/{group_id}/users",
+    "/admin/items/group/{group_id}/users",
     tags=[tag],
     response_model=list[AdminGroupUserItem],
     summary="Get users in group",
@@ -1230,7 +1230,7 @@ async def admin_get_group_users(request: Request, group_id: str):
 
 
 @manager_router.post(
-    "/admin/group/enrollment",
+    "/admin/item/group/enrollment",
     tags=[tag],
     response_model=AdminGroupEnrollmentResponse,
     summary="Update group enrollment",
@@ -1277,7 +1277,7 @@ async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentDat
 
 
 @admin_router.get(
-    "/admin/categories",
+    "/admin/items/categories",
     tags=[tag],
     response_model=list[AdminCategoryItem],
     summary="List categories",
@@ -1310,7 +1310,7 @@ async def admin_list_categories(request: Request):
 
 
 @admin_router.get(
-    "/admin/categories/{frontend}",
+    "/admin/items/categories/{frontend}",
     tags=[tag],
     response_model=list[AdminCategoryFrontendItem],
     summary="List frontend categories",
@@ -1344,7 +1344,7 @@ async def admin_list_categories_frontend(request: Request, frontend: str):
 
 
 @manager_router.get(
-    "/admin/users/{nav}/categories",
+    "/admin/items/users/{nav}/categories",
     tags=[tag],
     response_model=list[AdminCategoryNavItem],
     summary="List categories by navigation context",
@@ -1380,7 +1380,7 @@ async def admin_list_categories_nav(
 
 
 @admin_router.get(
-    "/admin/category/{category_id}",
+    "/admin/item/category/{category_id}",
     tags=[tag],
     response_model=AdminCategoryDetailResponse,
     summary="Get category",
@@ -1411,7 +1411,7 @@ async def admin_get_category(request: Request, category_id: str):
 
 
 @admin_router.post(
-    "/admin/category",
+    "/admin/item/category",
     tags=[tag],
     response_model=AdminCategoryDetailResponse,
     summary="Create category",
@@ -1442,7 +1442,7 @@ async def admin_create_category(request: Request, data: AdminCategoryCreateData)
 
 
 @admin_router.put(
-    "/admin/category/{category_id}",
+    "/admin/item/category/{category_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update category",
@@ -1475,7 +1475,7 @@ async def admin_update_category(
 
 
 @admin_router.delete(
-    "/admin/category/{category_id}",
+    "/admin/item/category/{category_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete category",
@@ -1506,7 +1506,7 @@ async def admin_delete_category(request: Request, category_id: str):
 
 
 @manager_router.get(
-    "/admin/category/{category_id}/users",
+    "/admin/items/category/{category_id}/users",
     tags=[tag],
     response_model=list[AdminCategoryUserItem],
     summary="Get users in category",
@@ -1540,7 +1540,7 @@ async def admin_get_category_users(request: Request, category_id: str):
 
 
 @manager_router.get(
-    "/admin/category/get/{category_name}",
+    "/admin/item/category/get/{category_name}",
     tags=[tag],
     response_model=str,
     summary="Get category by name",
@@ -1569,7 +1569,7 @@ async def admin_get_category_by_name(request: Request, category_name: str):
 
 
 @manager_router.get(
-    "/admin/group/get/{category_name}/{group_name}",
+    "/admin/item/group/get/{category_name}/{group_name}",
     tags=[tag],
     response_model=str,
     summary="Get group by category and name",
@@ -1605,7 +1605,7 @@ async def admin_get_group_by_name_category(
 
 
 @manager_router.put(
-    "/admin/quota/group/{group_id}",
+    "/admin/item/quota/group/{group_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update group quota",
@@ -1638,7 +1638,7 @@ async def admin_update_group_quota(
 
 
 @admin_router.put(
-    "/admin/quota/category/{category_id}",
+    "/admin/item/quota/category/{category_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update category quota",
@@ -1671,7 +1671,7 @@ async def admin_update_category_quota(
 
 
 @manager_router.put(
-    "/admin/limits/group/{group_id}",
+    "/admin/item/limits/group/{group_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update group limits",
@@ -1704,7 +1704,7 @@ async def admin_update_group_limits(
 
 
 @admin_router.put(
-    "/admin/limits/category/{category_id}",
+    "/admin/item/limits/category/{category_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update category limits",
@@ -1742,7 +1742,7 @@ async def admin_update_category_limits(
 
 
 @manager_router.post(
-    "/admin/user/delete/check",
+    "/admin/item/user/delete/check",
     tags=[tag],
     response_model=AdminDeleteChecksResponse,
     summary="Check user deletion dependencies",
@@ -1774,7 +1774,7 @@ async def admin_user_delete_check(request: Request, data: AdminDeleteChecksData)
 
 
 @manager_router.post(
-    "/admin/group/delete/check",
+    "/admin/item/group/delete/check",
     tags=[tag],
     response_model=AdminDeleteChecksResponse,
     summary="Check group deletion dependencies",
@@ -1806,7 +1806,7 @@ async def admin_group_delete_check(request: Request, data: AdminDeleteChecksData
 
 
 @manager_router.post(
-    "/admin/category/delete/check",
+    "/admin/item/category/delete/check",
     tags=[tag],
     response_model=AdminDeleteChecksResponse,
     summary="Check category deletion dependencies",
@@ -1838,7 +1838,7 @@ async def admin_category_delete_check(request: Request, data: AdminDeleteChecksD
 
 
 @manager_router.post(
-    "/admin/check/group/category",
+    "/admin/item/check/group/category",
     tags=[tag],
     response_model=list[dict],
     summary="Check group/category association",
@@ -1876,7 +1876,7 @@ async def admin_check_group_category(
 
 
 @manager_router.get(
-    "/admin/templates",
+    "/admin/items/templates",
     tags=[tag],
     summary="Get admin templates",
     description="Returns templates allowed for the admin/manager.",
@@ -1907,7 +1907,7 @@ async def admin_get_templates(request: Request):
 
 
 @manager_router.get(
-    "/admin/user/{user_id}/templates",
+    "/admin/items/user/{user_id}/templates",
     tags=[tag],
     response_model=list[AdminUserTemplateItem],
     summary="Get user templates",
@@ -1941,7 +1941,7 @@ async def admin_get_user_templates(request: Request, user_id: str):
 
 
 @manager_router.get(
-    "/admin/user/{user_id}/desktops",
+    "/admin/items/user/{user_id}/desktops",
     tags=[tag],
     response_model=list[AdminUserDesktopItem],
     summary="Get user desktops",
@@ -1975,7 +1975,7 @@ async def admin_get_user_desktops(request: Request, user_id: str):
 
 
 @manager_router.get(
-    "/admin/roles",
+    "/admin/items/roles",
     tags=[tag],
     response_model=list[AdminRoleItem],
     summary="List available roles",
@@ -2008,7 +2008,7 @@ async def admin_get_roles(request: Request):
 
 
 @admin_router.put(
-    "/admin/role/{role_id}",
+    "/admin/item/role/{role_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update role",
@@ -2039,7 +2039,7 @@ async def admin_update_role(request: Request, role_id: str, data: AdminRoleUpdat
 
 
 @admin_router.get(
-    "/admin/secrets",
+    "/admin/items/secrets",
     tags=[tag],
     response_model=list[AdminSecretItem],
     summary="Get admin secrets",
@@ -2071,7 +2071,7 @@ async def admin_get_secrets(request: Request):
 
 
 @admin_router.post(
-    "/admin/secret",
+    "/admin/item/secret",
     tags=[tag],
     response_model=AdminSecretCreateResponse,
     summary="Create admin secret",
@@ -2102,7 +2102,7 @@ async def admin_create_secret(request: Request, data: AdminSecretCreateData):
 
 
 @admin_router.delete(
-    "/admin/secret/{kid}",
+    "/admin/item/secret/{kid}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete admin secret",
@@ -2128,7 +2128,7 @@ async def admin_delete_secret(request: Request, kid: str):
 
 
 @manager_router.get(
-    "/admin/user/{user_id}/vpn/{kind}/{os}",
+    "/admin/item/user/{user_id}/vpn/{kind}/{os}",
     tags=[tag],
     response_model=AdminUserVpnFileResponse,
     summary="Get user VPN config with OS",
@@ -2164,7 +2164,7 @@ async def admin_get_user_vpn_with_os(
 
 
 @manager_router.get(
-    "/admin/user/{user_id}/vpn/{kind}",
+    "/admin/item/user/{user_id}/vpn/{kind}",
     tags=[tag],
     response_model=AdminUserVpnFileResponse,
     summary="Get user VPN config",
@@ -2197,7 +2197,7 @@ async def admin_get_user_vpn(
 
 
 @manager_router.get(
-    "/admin/userschema",
+    "/admin/item/userschema",
     tags=[tag],
     response_model=AdminUserSchemaResponse,
     summary="Get user schema",
@@ -2228,7 +2228,7 @@ async def admin_get_user_schema(request: Request):
 
 
 @manager_router.get(
-    "/admin/quotas",
+    "/admin/items/quotas",
     tags=[tag],
     response_model=AdminQuotasResponse,
     summary="Get admin quotas",
@@ -2261,7 +2261,7 @@ async def admin_get_quotas(request: Request):
 
 
 @manager_router.get(
-    "/admin/user/appliedquota/{user_id}",
+    "/admin/item/user/appliedquota/{user_id}",
     tags=[tag],
     response_model=AdminAppliedQuotaResponse,
     summary="Get user applied quota",
@@ -2292,7 +2292,7 @@ async def admin_get_user_applied_quota(request: Request, user_id: str):
 
 
 @admin_router.get(
-    "/admin/user/email-category/{email}/{category}",
+    "/admin/item/user/email-category/{email}/{category}",
     tags=[tag],
     response_model=AdminUserIdResponse,
     summary="Get user by email and category",
@@ -2328,7 +2328,7 @@ async def admin_get_user_by_email_category(request: Request, email: str, categor
 
 
 @admin_router.post(
-    "/admin/user/auto-register",
+    "/admin/item/user/auto-register",
     tags=[tag],
     summary="Auto register user",
     description="Auto-registers a user based on token payload.",
@@ -2366,7 +2366,7 @@ async def admin_auto_register(request: Request, data: AutoRegisterRequest):
 
 
 @manager_router.put(
-    "/admin/user/migrate/{user_id}/{target_user_id}",
+    "/admin/item/user/migrate/{user_id}/{target_user_id}",
     tags=[tag],
     response_model=AdminMigrationStartedResponse,
     summary="Migrate user",
@@ -2408,7 +2408,7 @@ async def admin_migrate_user(
 
 
 @manager_router.get(
-    "/admin/user/migrate/check/{user_id}/{target_user_id}",
+    "/admin/item/user/migrate/check/{user_id}/{target_user_id}",
     tags=[tag],
     response_model=AdminMigrationErrorsResponse,
     summary="Check user migration",
@@ -2444,7 +2444,7 @@ async def admin_check_migration(request: Request, user_id: str, target_user_id: 
 
 
 @manager_router.put(
-    "/admin/user/migrate/resource/desktop/{user_id}/{target_user_id}",
+    "/admin/item/user/migrate/resource/desktop/{user_id}/{target_user_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Migrate user desktops",
@@ -2478,7 +2478,7 @@ async def admin_migrate_user_desktops(
 
 
 @manager_router.put(
-    "/admin/user/migrate/resource/template/{user_id}/{target_user_id}",
+    "/admin/item/user/migrate/resource/template/{user_id}/{target_user_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Migrate user templates",
@@ -2512,7 +2512,7 @@ async def admin_migrate_user_templates(
 
 
 @manager_router.put(
-    "/admin/user/migrate/resource/media/{user_id}/{target_user_id}",
+    "/admin/item/user/migrate/resource/media/{user_id}/{target_user_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Migrate user media",
@@ -2544,7 +2544,7 @@ async def admin_migrate_user_media(request: Request, user_id: str, target_user_i
 
 
 @manager_router.put(
-    "/admin/user/migrate/resource/deployments/{user_id}/{target_user_id}",
+    "/admin/item/user/migrate/resource/deployments/{user_id}/{target_user_id}",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Migrate user deployments",
@@ -2578,7 +2578,7 @@ async def admin_migrate_user_deployments(
 
 
 @manager_router.post(
-    "/admin/user/check/migrated",
+    "/admin/item/user/check/migrated",
     tags=[tag],
     response_model=AdminCheckMigratedResponse,
     summary="Check migrated users",
@@ -2616,7 +2616,7 @@ async def admin_check_migrated(request: Request, data: AdminCheckMigratedData):
 
 
 @manager_router.get(
-    "/admin/category/{category_id}/bastion_domain",
+    "/admin/item/category/{category_id}/bastion_domain",
     tags=[tag],
     response_model=AdminBastionDomainResponse,
     summary="Get category bastion domain",
@@ -2651,7 +2651,7 @@ async def admin_get_bastion_domain(request: Request, category_id: str):
 
 
 @manager_router.put(
-    "/admin/category/{category_id}/bastion_domain",
+    "/admin/item/category/{category_id}/bastion_domain",
     tags=[tag],
     response_model=AdminBastionDomainResponse,
     summary="Update category bastion domain",
@@ -2697,7 +2697,7 @@ async def admin_update_bastion_domain(
 
 
 @admin_router.post(
-    "/admin/socketio/broadcast",
+    "/admin/item/socketio/broadcast",
     tags=[tag],
     response_model=EmptyResponse,
     summary="Broadcast admin message",

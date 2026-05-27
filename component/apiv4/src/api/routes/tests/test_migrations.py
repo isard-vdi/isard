@@ -15,7 +15,7 @@ def test_get_admin_migration_config(monkeypatch, test_client):
         staticmethod(lambda: {"check_quotas": True}),
     )
     response = test_client(
-        url="/admin/config/user-migration",
+        url="/admin/item/config/user-migration",
         jwt=jwt,
     )
     assert response.status_code == 200
@@ -29,7 +29,7 @@ def test_get_admin_migration_config_admin_only(monkeypatch, test_client):
         staticmethod(lambda: {"export_enabled": True, "import_enabled": True}),
     )
     jwt = MockJWT(role_id="user")
-    response = test_client(url="/admin/config/user-migration", jwt=jwt)
+    response = test_client(url="/admin/item/config/user-migration", jwt=jwt)
     assert response.status_code == 403
 
 
@@ -52,7 +52,7 @@ def test_update_admin_migration_config(monkeypatch, test_client):
     jwt = MockJWT()
     response = test_client(
         method="PUT",
-        url="/admin/config/user-migration",
+        url="/admin/item/config/user-migration",
         body={"check_quotas": True},
         jwt=jwt,
     )
@@ -132,7 +132,7 @@ def test_provider_export_enabled_with_login_token(monkeypatch, test_client):
         staticmethod(lambda pid: {"migration": {"export": True, "import": False}}),
     )
     jwt = MockJWT()
-    response = test_client(url="/authentication/export/local", jwt=jwt)
+    response = test_client(url="/item/provider/export/local", jwt=jwt)
     assert response.status_code == 200
     assert response.json() == {"enabled": True}
 
@@ -146,7 +146,7 @@ def test_provider_export_enabled_with_migration_token(monkeypatch, test_client):
         staticmethod(lambda pid: {"migration": {"export": True, "import": False}}),
     )
     jwt = MockJWT(token_type="user-migration-required")
-    response = test_client(url="/authentication/export/local", jwt=jwt)
+    response = test_client(url="/item/provider/export/local", jwt=jwt)
     assert response.status_code == 200
     assert response.json() == {"enabled": True}
 
@@ -159,7 +159,7 @@ def test_provider_export_defaults_to_false_when_unconfigured(monkeypatch, test_c
         staticmethod(lambda pid: {}),
     )
     jwt = MockJWT()
-    response = test_client(url="/authentication/export/local", jwt=jwt)
+    response = test_client(url="/item/provider/export/local", jwt=jwt)
     assert response.status_code == 200
     assert response.json() == {"enabled": False}
 
@@ -171,7 +171,7 @@ def test_provider_import_enabled_with_login_token(monkeypatch, test_client):
         staticmethod(lambda pid: {"migration": {"export": False, "import": True}}),
     )
     jwt = MockJWT()
-    response = test_client(url="/authentication/import/google", jwt=jwt)
+    response = test_client(url="/item/provider/import/google", jwt=jwt)
     assert response.status_code == 200
     assert response.json() == {"enabled": True}
 
@@ -183,7 +183,7 @@ def test_provider_import_enabled_with_migration_token(monkeypatch, test_client):
         staticmethod(lambda pid: {"migration": {"export": False, "import": True}}),
     )
     jwt = MockJWT(token_type="user-migration-required")
-    response = test_client(url="/authentication/import/google", jwt=jwt)
+    response = test_client(url="/item/provider/import/google", jwt=jwt)
     assert response.status_code == 200
     assert response.json() == {"enabled": True}
 
@@ -197,5 +197,5 @@ def test_provider_export_rejects_other_token_types(monkeypatch, test_client):
         staticmethod(lambda pid: {"migration": {"export": True}}),
     )
     jwt = MockJWT(token_type="direct-viewer")
-    response = test_client(url="/authentication/export/local", jwt=jwt)
+    response = test_client(url="/item/provider/export/local", jwt=jwt)
     assert response.status_code == 403

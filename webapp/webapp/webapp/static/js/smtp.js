@@ -22,7 +22,7 @@
 
 function fillSMTPForms() {
     $.ajax({
-        url: "/api/v4/smtp",
+        url: "/api/v4/admin/item/smtp",
     }).done((data) => {
         $.each(data, (key, value) => {
             element = $(`.form-smtp [name="${key}"]`)
@@ -73,7 +73,7 @@ $(document).ready(() => {
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v4/smtp" ,
+                url:"/api/v4/admin/item/smtp" ,
                 data: data,
                 contentType: "application/json"
             }).fail((data) => {
@@ -105,7 +105,7 @@ $(document).ready(() => {
             })
             $.ajax({
                 type: "POST",
-                url:"/api/v4/smtp/test" ,
+                url:"/api/v4/admin/item/smtp/test" ,
                 data: data,
                 contentType: "application/json"
             }).fail((data) => {

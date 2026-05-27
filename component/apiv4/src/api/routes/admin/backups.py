@@ -46,7 +46,7 @@ tag = "admin_backups"
 
 
 @admin_router.get(
-    "/admin/backups",
+    "/admin/items/backups",
     tags=[tag],
     response_model=Union[BackupItem, list[BackupItem]],
     summary="List backups",
@@ -105,7 +105,7 @@ async def admin_backups_list(request: Request):
 
 
 @admin_router.get(
-    "/admin/backups/integrity",
+    "/admin/item/backups/integrity",
     tags=[tag],
     response_model=BackupIntegrityResponse,
     summary="Get weekly borg integrity check toggle",
@@ -137,7 +137,7 @@ async def admin_backup_integrity_get(request: Request):
 
 
 @admin_router.put(
-    "/admin/backups/integrity",
+    "/admin/item/backups/integrity",
     tags=[tag],
     response_model=BackupIntegrityResponse,
     summary="Enable or disable weekly borg integrity check",
@@ -173,10 +173,11 @@ async def admin_backup_integrity_set(
         )
 
 
-# NOTE: /admin/backups/config MUST be declared before /admin/backups/{backup_id}
-# — otherwise the catch-all matches "config" as the backup_id.
+# NOTE: /admin/item/backups/config MUST be declared before
+# /admin/item/backups/{backup_id} — otherwise the catch-all matches
+# "config" as the backup_id.
 @admin_router.get(
-    "/admin/backups/config",
+    "/admin/item/backups/config",
     tags=[tag],
     response_model=BackupConfigResponse,
     summary="Get backup configuration",
@@ -202,7 +203,7 @@ async def admin_backup_config(request: Request):
 
 
 @admin_router.get(
-    "/admin/backups/{backup_id}",
+    "/admin/item/backups/{backup_id}",
     tags=[tag],
     response_model=BackupItem,
     summary="Get a specific backup",
@@ -239,7 +240,7 @@ async def admin_backup_get(
 
 
 @admin_router.post(
-    "/backups",
+    "/admin/item/backups",
     tags=[tag],
     response_model=BackupReportInsertResponse,
     summary="Submit backup report",

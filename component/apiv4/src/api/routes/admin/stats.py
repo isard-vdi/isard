@@ -23,11 +23,11 @@
 # under a given prefix must be declared BEFORE any sibling catch-all
 # /{param} route in the same file, otherwise the catch-all shadows them.
 # In this file:
-#   - /stats/categories, /stats/categories/limits, /stats/categories/deployments
-#     must come BEFORE /stats/categories/{kind} and /stats/{kind}
-#   - /stats/domains/status and /stats/category/status must come BEFORE
-#     /stats/{kind} (they don't actually collide because they have two
-#     segments after /stats/, but we keep the defensive order for clarity)
+#   - /admin/item/stats/categories, /admin/item/stats/categories/limits,
+#     /admin/item/stats/categories/deployments must come BEFORE
+#     /admin/item/stats/categories/{kind}
+#   - /admin/item/stats/domains/status and /admin/item/stats/category/status
+#     come BEFORE per-kind paths (defensive ordering for clarity)
 
 import asyncio
 import traceback
@@ -59,7 +59,7 @@ tag = "admin_stats"
 
 
 @admin_router.get(
-    "/stats",
+    "/admin/item/stats",
     tags=[tag],
     summary="Get general statistics",
     description="Returns general statistics including users, desktops, and templates.",
@@ -85,7 +85,7 @@ async def stats_general(request: Request):
 
 
 @admin_router.get(
-    "/stats/desktops/status",
+    "/admin/item/stats/desktops/status",
     tags=[tag],
     summary="Get desktop status statistics",
     description="Returns desktop statistics grouped by status.",
@@ -117,7 +117,7 @@ async def stats_desktops_status(request: Request):
 
 
 @admin_router.get(
-    "/stats/domains/status",
+    "/admin/item/stats/domains/status",
     tags=[tag],
     response_model=StatsDomainsStatusResponse,
     summary="Get domains status statistics",
@@ -143,7 +143,7 @@ async def stats_domains_status(request: Request):
 
 
 @admin_router.get(
-    "/stats/category/status",
+    "/admin/item/stats/category/status",
     tags=[tag],
     summary="Get category status statistics",
     description="Returns category-level status statistics showing wrong-status desktops and templates.",
@@ -171,13 +171,12 @@ async def stats_category_status(request: Request):
 
 
 # -----------------------------------------------------------------------------
-# CATEGORY STATS — literal sub-paths MUST come before /stats/categories/{kind}
-# and before the top-level /stats/{kind} catch-all.
+# CATEGORY STATS — literal sub-paths MUST come before /admin/item/stats/categories/{kind}.
 # -----------------------------------------------------------------------------
 
 
 @admin_router.get(
-    "/stats/categories",
+    "/admin/item/stats/categories",
     tags=[tag],
     response_model=StatsCategoriesResponse,
     summary="Get grouped category statistics",
@@ -207,7 +206,7 @@ async def stats_categories(request: Request):
 
 
 @admin_router.get(
-    "/stats/categories/limits",
+    "/admin/item/stats/categories/limits",
     tags=[tag],
     summary="Get category limits and hardware statistics",
     description="Returns category-level hardware limits and running resource statistics.",
@@ -237,7 +236,7 @@ async def stats_categories_limits(request: Request):
 
 
 @admin_router.get(
-    "/stats/categories/deployments",
+    "/admin/item/stats/categories/deployments",
     tags=[tag],
     response_model=StatsCategoriesDeploymentsResponse,
     summary="Get category deployments statistics",
@@ -269,7 +268,7 @@ async def stats_categories_deployments(request: Request):
 
 
 @admin_router.get(
-    "/stats/categories/{kind}/{state}",
+    "/admin/item/stats/categories/{kind}/{state}",
     tags=[tag],
     response_model=StatsGenericResponse,
     summary="Get category statistics by kind and state",
@@ -301,7 +300,7 @@ async def stats_categories_kind_state(
 
 
 @admin_router.get(
-    "/stats/categories/{kind}",
+    "/admin/item/stats/categories/{kind}",
     tags=[tag],
     response_model=StatsGenericResponse,
     summary="Get category statistics by kind",
@@ -336,7 +335,7 @@ async def stats_categories_kind(request: Request, kind: Literal["desktop", "temp
 
 
 @admin_router.get(
-    "/stats/users",
+    "/admin/items/stats/users",
     tags=[tag],
     response_model=list[StatsKindUser],
     summary="Get user statistics",
@@ -374,7 +373,7 @@ async def stats_users(request: Request):
 
 
 @admin_router.get(
-    "/stats/desktops",
+    "/admin/items/stats/desktops",
     tags=[tag],
     response_model=list[StatsKindDesktop],
     summary="Get desktop statistics",
@@ -400,7 +399,7 @@ async def stats_desktops(request: Request):
 
 
 @admin_router.get(
-    "/stats/templates",
+    "/admin/items/stats/templates",
     tags=[tag],
     response_model=list[StatsKindTemplate],
     summary="Get template statistics",
@@ -426,7 +425,7 @@ async def stats_templates(request: Request):
 
 
 @admin_router.get(
-    "/stats/hypervisors",
+    "/admin/items/stats/hypervisors",
     tags=[tag],
     response_model=list[StatsKindHypervisor],
     summary="Get hypervisor statistics",
@@ -452,11 +451,11 @@ async def stats_hypervisors(request: Request):
 
 
 @admin_router.get(
-    # NOTE: 3-segment path (under /api/v4/admin/domains/) cannot collide
-    # with the 4-segment /admin/domains/{field}/{kind} catch-all declared
-    # on manager_router (admin/domains.py) which is registered earlier
-    # because manager_router < admin_router in include order.
-    "/admin/domains/started-count",
+    # NOTE: this 4-segment path (under /api/v4/admin/items/domains/) cannot
+    # collide with the 4-segment /admin/items/domains/{field}/{kind} catch-all
+    # declared on manager_router (admin/domains.py) which is registered
+    # earlier because manager_router < admin_router in include order.
+    "/admin/items/domains/started-count",
     tags=[tag],
     summary="Get started domains count by category",
     description="Returns the count of started desktop domains grouped by category.",

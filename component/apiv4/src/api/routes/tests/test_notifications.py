@@ -105,7 +105,7 @@ def test_get_status_bar(monkeypatch, test_client):
 
     response = test_client(
         method="GET",
-        url="/notifications/status-bar",
+        url="/items/notifications/status-bar",
         jwt=jwt,
     )
 
@@ -136,7 +136,7 @@ def test_admin_get_notification_template(monkeypatch, test_client):
         staticmethod(lambda template_id: stub),
     )
 
-    response = test_client(url="/admin/notifications/template/tmpl-1", jwt=jwt)
+    response = test_client(url="/admin/item/notifications/template/tmpl-1", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -158,7 +158,7 @@ def test_admin_list_notification_actions(monkeypatch, test_client):
         staticmethod(lambda: stub),
     )
 
-    response = test_client(url="/admin/notification/actions", jwt=jwt)
+    response = test_client(url="/admin/items/notification/actions", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() == {"actions": stub}
@@ -179,7 +179,7 @@ def test_admin_create_notification_template(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/notifications/template",
+        url="/admin/item/notifications/template",
         method="POST",
         body={
             "language": "en",
@@ -204,7 +204,7 @@ def test_admin_list_notification_templates(monkeypatch, test_client):
         staticmethod(lambda kind=None: stub),
     )
 
-    response = test_client(url="/admin/notifications/templates", jwt=jwt)
+    response = test_client(url="/admin/items/notifications/templates", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() == {"templates": stub}
@@ -219,7 +219,7 @@ def test_admin_delete_notification_template(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/notifications/template/tmpl-1",
+        url="/admin/item/notifications/template/tmpl-1",
         method="DELETE",
         jwt=jwt,
     )
@@ -331,7 +331,7 @@ def test_admin_notify_desktop_queue_happy_path(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/notify/desktops/queue/hyper-1",
+        url="/admin/item/notify/desktops/queue/hyper-1",
         method="PUT",
         body=[
             {
@@ -383,7 +383,7 @@ def test_admin_notify_desktop_queue_empty_list(monkeypatch, client):
 
     response = client.request(
         "PUT",
-        "/api/v4/admin/notify/desktops/queue/hyper-1",
+        "/api/v4/admin/item/notify/desktops/queue/hyper-1",
         headers=jwt.header,
         json=[],
     )
@@ -403,7 +403,7 @@ def test_admin_notify_desktop_queue_rejects_missing_desktop_id(
     )
 
     response = test_client(
-        url="/admin/notify/desktops/queue/hyper-1",
+        url="/admin/item/notify/desktops/queue/hyper-1",
         method="PUT",
         body=[{"priority": 1}],
         jwt=jwt,
@@ -427,7 +427,7 @@ def test_admin_notify_desktop_queue_rejects_unknown_field(monkeypatch, test_clie
     )
 
     response = test_client(
-        url="/admin/notify/desktops/queue/hyper-1",
+        url="/admin/item/notify/desktops/queue/hyper-1",
         method="PUT",
         body=[
             {

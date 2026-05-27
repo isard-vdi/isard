@@ -20,7 +20,7 @@ class TestListing:
             "api.routes.admin.queues.AdminQueuesService.get_queues",
             staticmethod(lambda: [{"id": "default", "queued": 3}]),
         )
-        response = test_client(url="/admin/queues", jwt=MockJWT(role_id="admin"))
+        response = test_client(url="/admin/items/queues", jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
         assert response.json()[0]["id"] == "default"
 
@@ -30,7 +30,7 @@ class TestListing:
             staticmethod(lambda: [{"id": "w-1", "queue": "default"}]),
         )
         response = test_client(
-            url="/admin/queues/consumers", jwt=MockJWT(role_id="admin")
+            url="/admin/items/queues/consumers", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert response.json()[0]["id"] == "w-1"
@@ -40,7 +40,7 @@ class TestListing:
             "api.routes.admin.queues.AdminQueuesService.get_queues",
             staticmethod(lambda: []),
         )
-        response = test_client(url="/admin/queues", jwt=MockJWT(role_id="user"))
+        response = test_client(url="/admin/items/queues", jwt=MockJWT(role_id="user"))
         assert response.status_code == 403
 
     def test_manager_forbidden(self, monkeypatch, test_client):
@@ -48,7 +48,9 @@ class TestListing:
             "api.routes.admin.queues.AdminQueuesService.get_queues",
             staticmethod(lambda: []),
         )
-        response = test_client(url="/admin/queues", jwt=MockJWT(role_id="manager"))
+        response = test_client(
+            url="/admin/items/queues", jwt=MockJWT(role_id="manager")
+        )
         assert response.status_code == 403
 
 
@@ -72,7 +74,7 @@ class TestOldTasksRead:
             ),
         )
         response = test_client(
-            url="/admin/queues/old_tasks/config",
+            url="/admin/item/queues/old_tasks/config",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -92,7 +94,7 @@ class TestOldTasksRead:
             staticmethod(fake),
         )
         response = test_client(
-            url="/admin/queues/old_tasks/86400",
+            url="/admin/items/queues/old_tasks/86400",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -102,7 +104,7 @@ class TestOldTasksRead:
 
     def test_non_int_older_than_rejected(self, test_client):
         response = test_client(
-            url="/admin/queues/old_tasks/not-a-number",
+            url="/admin/items/queues/old_tasks/not-a-number",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code in (400, 422)
@@ -114,7 +116,7 @@ class TestOldTasksRead:
 
 
 class TestManualDeleteOldTasks:
-    URL = "/admin/queues/old_tasks"
+    URL = "/admin/items/queues/old_tasks"
 
     def test_admin_deletes(self, monkeypatch, test_client):
         captured = {}
@@ -187,7 +189,7 @@ class TestSetMaxTime:
             staticmethod(lambda mt: captured.update(max_time=mt) or {"older_than": mt}),
         )
         response = test_client(
-            url="/admin/queues/old_tasks/config/max_time/172800",
+            url="/admin/item/queues/old_tasks/config/max_time/172800",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -202,7 +204,7 @@ class TestSetMaxTime:
 
 
 class TestSetQueueRegistries:
-    URL = "/admin/queues/old_tasks/config/queue_registries"
+    URL = "/admin/item/queues/old_tasks/config/queue_registries"
 
     def test_admin_sets_registries(self, monkeypatch, test_client):
         captured = {}
@@ -253,7 +255,7 @@ class TestSetQueueRegistries:
 
 
 class TestSetEnabled:
-    URL = "/admin/queues/old_tasks/config/enabled"
+    URL = "/admin/item/queues/old_tasks/config/enabled"
 
     def test_enable(self, monkeypatch, test_client):
         captured = {}
@@ -308,7 +310,7 @@ class TestSetEnabled:
 
 
 class TestAutoDelete:
-    URL = "/admin/queues/old_tasks/auto"
+    URL = "/admin/items/queues/old_tasks/auto"
 
     def test_admin_runs_auto_delete(self, monkeypatch, test_client):
         called = {}

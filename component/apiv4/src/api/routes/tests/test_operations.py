@@ -28,7 +28,7 @@ def test_admin_operations_hypervisors_list(monkeypatch, test_client):
         staticmethod(lambda: stub),
     )
 
-    response = test_client(url="/admin/operations/hypervisors", jwt=jwt)
+    response = test_client(url="/admin/items/operations/hypervisors", jwt=jwt)
 
     # response_model=list[OperationsHypervisorResponse] fills the
     # remaining fields with None defaults; assert per-key on what the
@@ -48,7 +48,7 @@ def test_admin_operations_hypervisors_disabled_is_forbidden(monkeypatch, test_cl
         staticmethod(lambda: False),
     )
 
-    response = test_client(url="/admin/operations/hypervisors", jwt=jwt)
+    response = test_client(url="/admin/items/operations/hypervisors", jwt=jwt)
 
     assert response.status_code == 403
 
@@ -69,7 +69,7 @@ def test_admin_operations_hypervisor_start(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/operations/hypervisor/hyper-1",
+        url="/admin/item/operations/hypervisor/hyper-1",
         method="PUT",
         jwt=jwt,
     )
@@ -94,7 +94,7 @@ def test_admin_operations_hypervisor_stop(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/operations/hypervisor/hyper-1",
+        url="/admin/item/operations/hypervisor/hyper-1",
         method="DELETE",
         jwt=jwt,
     )

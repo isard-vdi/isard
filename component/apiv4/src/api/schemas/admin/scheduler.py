@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 
 
 class SchedulerSystemJob(BaseModel):
-    """One row of ``GET /admin/scheduler/jobs/system``.
+    """One row of ``GET /admin/items/scheduler/jobs/system``.
 
     Plucked from the ``scheduler_jobs`` table by
     ``AdminSchedulerService.get_system_jobs``.
@@ -40,7 +40,7 @@ class SchedulerSystemJob(BaseModel):
 
 
 class SchedulerBookingsJob(SchedulerSystemJob):
-    """One row of ``GET /admin/scheduler/jobs/bookings``.
+    """One row of ``GET /admin/items/scheduler/jobs/bookings``.
 
     Same shape as ``SchedulerSystemJob`` plus the ``kwargs`` blob the
     bookings scheduler stores per job.

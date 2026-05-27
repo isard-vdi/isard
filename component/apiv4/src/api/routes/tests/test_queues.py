@@ -48,7 +48,7 @@ def test_admin_queues_list(monkeypatch, test_client):
         staticmethod(lambda: stub),
     )
 
-    response = test_client(url="/admin/queues", jwt=jwt)
+    response = test_client(url="/admin/items/queues", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -86,7 +86,7 @@ def test_admin_queues_consumers(monkeypatch, test_client):
         staticmethod(lambda: stub),
     )
 
-    response = test_client(url="/admin/queues/consumers", jwt=jwt)
+    response = test_client(url="/admin/items/queues/consumers", jwt=jwt)
 
     assert response.status_code == 200
     body = response.json()
@@ -105,7 +105,7 @@ def test_admin_queues_get_old_tasks_config(monkeypatch, test_client):
         staticmethod(lambda: stub),
     )
 
-    response = test_client(url="/admin/queues/old_tasks/config", jwt=jwt)
+    response = test_client(url="/admin/item/queues/old_tasks/config", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() == stub
@@ -125,7 +125,7 @@ def test_admin_queues_set_old_tasks_max_time(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/queues/old_tasks/config/max_time/1209600",
+        url="/admin/item/queues/old_tasks/config/max_time/1209600",
         method="PUT",
         jwt=jwt,
     )
@@ -149,7 +149,7 @@ def test_admin_queues_set_queue_registries(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/queues/old_tasks/config/queue_registries",
+        url="/admin/item/queues/old_tasks/config/queue_registries",
         method="PUT",
         body={"queue_registries": ["failed", "finished"]},
         jwt=jwt,
@@ -173,7 +173,7 @@ def test_admin_queues_set_old_tasks_enabled(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/queues/old_tasks/config/enabled",
+        url="/admin/item/queues/old_tasks/config/enabled",
         method="PUT",
         body={"enabled": False},
         jwt=jwt,

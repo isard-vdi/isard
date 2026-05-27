@@ -28,9 +28,9 @@ var xmlSectionsMode = 'domain'; // 'domain' or 'virt_install'
 
 function xmlSectionsApiUrl(id) {
     if (xmlSectionsMode === 'virt_install') {
-        return '/api/v4/admin/virt_install/xml_sections/' + id;
+        return '/api/v4/admin/item/virt_install/xml_sections/' + id;
     }
-    return '/api/v4/admin/domains/xml_sections/' + id;
+    return '/api/v4/admin/item/domains/xml_sections/' + id;
 }
 
 function openXmlSections(domainId, mode) {
@@ -50,7 +50,7 @@ function openXmlSections(domainId, mode) {
     // Fetch sections and capabilities in parallel
     $.when(
         $.ajax({type: "GET", url: xmlSectionsApiUrl(domainId)}),
-        $.ajax({type: "GET", url: "/api/v4/admin/domains/xml_capabilities"})
+        $.ajax({type: "GET", url: "/api/v4/admin/item/domains/xml_capabilities"})
     ).done(function(sectionsResp, capsResp) {
         renderXmlSections(sectionsResp[0].sections, capsResp[0]);
     }).fail(function(data) {
@@ -316,7 +316,7 @@ $(document).on('change', '#xmlUploadFile', function(e) {
 
         $.ajax({
             type: 'POST',
-            url: '/api/v4/admin/domains/xml_sections/parse',
+            url: '/api/v4/admin/item/domains/xml_sections/parse',
             data: JSON.stringify({xml: xmlContent}),
             contentType: 'application/json',
             success: function(resp) {
@@ -575,7 +575,7 @@ $(document).on('click', '#virtInstallNameConfirm', function() {
 
     $.ajax({
         type: 'POST',
-        url: '/api/v4/admin/domains/xml_sections/' + domainId + '/save_virt_install',
+        url: '/api/v4/admin/item/domains/xml_sections/' + domainId + '/save_virt_install',
         data: JSON.stringify(data),
         contentType: 'application/json',
         success: function(resp) {

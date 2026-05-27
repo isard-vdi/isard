@@ -769,7 +769,7 @@ function populateQosDisk(modal, qos_disk_id) {
   );
   $.ajax({
     type: "GET",
-    url: "/api/v4/admin/table/qos_disk",
+    url: "/api/v4/admin/items/table/qos_disk",
     cache: false,
     success: function (qos_disk) {
       $.each(qos_disk, function (key, value) {
@@ -788,7 +788,7 @@ function populateCategory(modal, category_id) {
   $(modal + " #category").empty();
   $.ajax({
     type: "GET",
-    url: "/api/v4/admin/categories",
+    url: "/api/v4/admin/items/categories",
     cache: false,
     success: function (category) {
       $.each(category, function (key, value) {

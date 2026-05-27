@@ -101,7 +101,7 @@ $(document).ready(function() {
 
     $.ajax({
         type: "GET",
-        url: "/api/v4/media/status",
+        url: "/api/v4/admin/item/media/status",
         success: function (data) {
             $('#status').removeAttr('disabled')
             let notShownStatus = ['Downloaded']
@@ -159,7 +159,7 @@ $(document).ready(function() {
         let pk = $('#modalChangeOwnerMediaForm #id').val()
         $.ajax({
             type: "PUT",
-            url:`/api/v4/item/media/${pk}/change-owner/${data['new_owner']}`,
+            url:`/api/v4/admin/item/media/${pk}/change-owner/${data['new_owner']}`,
             contentType: 'application/json',
             success: function(data)
             {
@@ -372,7 +372,7 @@ $(document).ready(function() {
 function createDatatable(tableId, status, initCompleteFn = null) {
     return $(tableId).DataTable({
         ajax: {
-            url: `/api/v4/admin/media/${status}`,
+            url: `/api/v4/admin/items/media/${status}`,
             contentType: 'application/json',
             type: 'GET',
         },
@@ -513,7 +513,7 @@ function showRowDetails(table, tr, row) {
         childTable = $('#cl' + id).DataTable({
             dom: "t",
             ajax: {
-                url: "/api/v4/admin/media/domains/" + id,
+                url: "/api/v4/admin/items/media/domains/" + id,
                 contentType: "application/json",
                 type: "GET",
             },
@@ -564,7 +564,7 @@ function showActions(table ,tr, row, button) {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: "PUT",
-                    url: '/api/v4/item/media/' + data['id'] + '/check',
+                    url: '/api/v4/admin/item/media/' + data['id'] + '/check',
                     error: function (data) {
                         new PNotify({
                             title: "ERROR checking the media status",
@@ -754,7 +754,7 @@ function showActions(table ,tr, row, button) {
                 dropdownParent: $('#modalChangeOwnerMedia'),
                 ajax: {
                     type: "POST",
-                    url: '/api/v4/admin/allowed/term/users',
+                    url: '/api/v4/items/alloweds/term/users',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,

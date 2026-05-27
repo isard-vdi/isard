@@ -23,7 +23,7 @@ def test_admin_downloads_overview(monkeypatch, test_client):
         staticmethod(lambda: called.append("yes") or {}),
     )
 
-    response = test_client(url="/admin/downloads", jwt=jwt)
+    response = test_client(url="/admin/items/downloads", jwt=jwt)
 
     assert response.status_code == 200
     assert called == ["yes"]
@@ -48,7 +48,7 @@ def test_admin_downloads_by_kind(monkeypatch, test_client):
         staticmethod(fake_get_kind),
     )
 
-    response = test_client(url="/admin/downloads/domains", jwt=jwt)
+    response = test_client(url="/admin/items/downloads/domains", jwt=jwt)
 
     assert response.status_code == 200
     # ``response_model=list[DownloadItem]`` adds None defaults for the
@@ -70,7 +70,7 @@ def test_admin_downloads_register(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/downloads/register",
+        url="/admin/item/downloads/register",
         method="POST",
         jwt=jwt,
     )
@@ -96,7 +96,7 @@ def test_admin_downloads_action_for_all(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/downloads/download/domains",
+        url="/admin/item/downloads/download/domains",
         method="POST",
         jwt=jwt,
     )
@@ -127,7 +127,7 @@ def test_admin_downloads_action_for_item(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/admin/downloads/abort/media/media-1",
+        url="/admin/item/downloads/abort/media/media-1",
         method="POST",
         jwt=jwt,
     )

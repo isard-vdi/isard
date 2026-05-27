@@ -26,7 +26,7 @@ from api.services.error import Error
 
 
 class TestPolicyCreate:
-    URL = "/admin/authentication/policy"
+    URL = "/admin/item/authentication/policy"
 
     def _payload(self, **overrides):
         body = {
@@ -153,7 +153,7 @@ class TestPolicyCreate:
 
 
 class TestPolicyList:
-    URL = "/admin/authentication/policies"
+    URL = "/admin/items/authentication/policies"
 
     def test_admin_lists_policies(self, monkeypatch, test_client):
         sample = [
@@ -204,7 +204,7 @@ class TestPolicyList:
 
 
 class TestPolicyGet:
-    URL = "/admin/authentication/policy/p-123"
+    URL = "/admin/item/authentication/policy/p-123"
 
     def test_admin_gets_policy(self, monkeypatch, test_client):
         captured = {}
@@ -235,7 +235,7 @@ class TestPolicyGet:
 
 
 class TestPolicyEdit:
-    URL = "/admin/authentication/policy/p-123"
+    URL = "/admin/item/authentication/policy/p-123"
 
     def test_admin_edits_policy(self, monkeypatch, test_client):
         captured = {}
@@ -274,7 +274,7 @@ class TestPolicyEdit:
 
 
 class TestPolicyDelete:
-    URL = "/admin/authentication/policy/p-123"
+    URL = "/admin/item/authentication/policy/p-123"
 
     def test_admin_deletes_policy(self, monkeypatch, test_client):
         captured = {}
@@ -312,7 +312,7 @@ class TestPolicyDelete:
 
 
 class TestProvidersList:
-    URL = "/admin/authentication/providers"
+    URL = "/admin/items/authentication/providers"
 
     def test_admin_lists_providers(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -366,7 +366,7 @@ class TestForceValidate:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/admin/authentication/force_validate/email/p-1",
+            url="/admin/item/authentication/force_validate/email/p-1",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -377,7 +377,7 @@ class TestForceValidate:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/admin/authentication/force_validate/disclaimer/p-2",
+            url="/admin/item/authentication/force_validate/disclaimer/p-2",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -388,7 +388,7 @@ class TestForceValidate:
         captured = {}
         self._stub(monkeypatch, captured)
         response = test_client(
-            url="/admin/authentication/force_validate/password/p-3",
+            url="/admin/item/authentication/force_validate/password/p-3",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
         )
@@ -398,7 +398,7 @@ class TestForceValidate:
     def test_user_forbidden(self, monkeypatch, test_client):
         self._stub(monkeypatch, {})
         response = test_client(
-            url="/admin/authentication/force_validate/email/p-1",
+            url="/admin/item/authentication/force_validate/email/p-1",
             method="PUT",
             jwt=MockJWT(role_id="user"),
         )
@@ -470,7 +470,8 @@ class TestProviderConfig:
             staticmethod(lambda p: {"migration": {"export": False}}),
         )
         response = test_client(
-            url="/authentication/provider/google", jwt=MockJWT(role_id="admin")
+            url="/admin/item/authentication/provider/google",
+            jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
         # Note: the GET surface relies on the service to strip secrets;
@@ -483,7 +484,8 @@ class TestProviderConfig:
             staticmethod(lambda p: {}),
         )
         response = test_client(
-            url="/authentication/provider/google", jwt=MockJWT(role_id="user")
+            url="/admin/item/authentication/provider/google",
+            jwt=MockJWT(role_id="user"),
         )
         assert response.status_code == 403
 
@@ -499,7 +501,7 @@ class TestProviderConfig:
             staticmethod(fake_update),
         )
         response = test_client(
-            url="/authentication/provider/google",
+            url="/admin/item/authentication/provider/google",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
             body={"migration": {"export": True}},
@@ -514,7 +516,7 @@ class TestProviderConfig:
             staticmethod(lambda *a, **k: None),
         )
         response = test_client(
-            url="/authentication/provider/google",
+            url="/admin/item/authentication/provider/google",
             method="PUT",
             jwt=MockJWT(role_id="user"),
             body={},
@@ -528,7 +530,9 @@ class TestProviderConfig:
 
 
 class TestMigrationExceptions:
-    LIST_URL = "/authentication/migrations/exceptions"
+    LIST_URL = "/admin/items/authentication/migrations/exceptions"
+    # POST add / DELETE live on the singular sibling under admin_router.
+    ITEM_URL = "/admin/item/authentication/migrations/exceptions"
 
     def test_admin_lists_exceptions(self, monkeypatch, test_client):
         monkeypatch.setattr(
@@ -571,7 +575,7 @@ class TestMigrationExceptions:
             staticmethod(fake_add),
         )
         response = test_client(
-            url=self.LIST_URL,
+            url=self.ITEM_URL,
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"item_type": "categories", "item_ids": ["c1", "c2"]},
@@ -584,7 +588,7 @@ class TestMigrationExceptions:
 
     def test_add_missing_field_rejected(self, test_client):
         response = test_client(
-            url=self.LIST_URL,
+            url=self.ITEM_URL,
             method="POST",
             jwt=MockJWT(role_id="admin"),
             body={"item_type": "categories"},  # missing item_ids
@@ -602,7 +606,7 @@ class TestMigrationExceptions:
             staticmethod(fake_delete),
         )
         response = test_client(
-            url=f"{self.LIST_URL}/e-99",
+            url=f"{self.ITEM_URL}/e-99",
             method="DELETE",
             jwt=MockJWT(role_id="admin"),
         )
@@ -615,7 +619,7 @@ class TestMigrationExceptions:
             staticmethod(lambda eid: None),
         )
         response = test_client(
-            url=f"{self.LIST_URL}/e-99",
+            url=f"{self.ITEM_URL}/e-99",
             method="DELETE",
             jwt=MockJWT(role_id="user"),
         )

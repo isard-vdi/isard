@@ -31,7 +31,7 @@ $(document).ready(function () {
         $.ajax({
           type: "PUT",
           url:
-            "/api/v4/admin/hypervisors/gpus",
+            "/api/v4/admin/items/hypervisors/gpus",
           data: JSON.stringify({}),
           contentType: "application/json",
           success: function (data) {
@@ -245,7 +245,7 @@ $(document).ready(function () {
 
     $.ajax({
       type: "POST",
-      url: "/api/v4/admin/domains",
+      url: "/api/v4/admin/items/domains",
       contentType: "application/json",
       data: JSON.stringify({
         kind: "desktop",
@@ -560,7 +560,7 @@ $(document).ready(function () {
             var item_id = data.id;
             $.ajax({
                 type: 'PUT',
-                url: '/api/v4/admin/reservables/gpus/' + item_id,
+                url: '/api/v4/admin/items/reservables/gpus/' + item_id,
                 data: JSON.stringify({ name: data.name, description: data.description }),
                 contentType: 'application/json',
                 success: function(data) {
@@ -832,7 +832,7 @@ function GpuEnabledProfilesDropdown(gpu_id) {
   $.ajax({
     method: "POST",
     async: false,
-    url: "/api/v4/admin/table/gpus",
+    url: "/api/v4/admin/items/table/gpus",
     data: JSON.stringify({"id": gpu_id}),
     contentType: "application/json",
     accept: "application/json",

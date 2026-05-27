@@ -49,7 +49,7 @@ class BrandingUpdateData(BaseModel):
 
 
 class BrandingResponse(BaseModel):
-    """Response shape for ``GET /admin/category/{id}/branding``.
+    """Response shape for ``GET /admin/item/category/{id}/branding``.
 
     Mirrors the request shape — ``BrandingUpdateData`` — but is a
     distinct class because the response side of branding is the
@@ -64,7 +64,7 @@ class BrandingResponse(BaseModel):
 
 
 class CategoryAuthenticationResponse(BaseModel):
-    """Response shape for ``GET /admin/category/{id}/authentication``.
+    """Response shape for ``GET /admin/item/category/{id}/authentication``.
 
     Permissive (``ConfigDict(extra="allow")``) because the underlying
     ``Category.authentication`` blob is provider-specific freeform

@@ -20,7 +20,7 @@ $(document).ready(function () {
     $("#modalAddHyper #hypervisors_pools_dropdown").find('option').remove();
 
     $.ajax({
-      url: "/api/v4/admin/table/hypervisors_pools",
+      url: "/api/v4/admin/items/table/hypervisors_pools",
       type: "POST",
       data: JSON.stringify({ 'order_by': 'name' }),
       contentType: "application/json",
@@ -85,7 +85,7 @@ $(document).ready(function () {
         $("#checkbox_edit_error").hide();
         $.ajax({
           type: "POST",
-          url: "/api/v4/admin/hypervisor",
+          url: "/api/v4/admin/item/hypervisor",
           data: form,
           processData: false,
           contentType: false,
@@ -123,7 +123,7 @@ $(document).ready(function () {
 
   table = $('#hypervisors').DataTable({
     "ajax": {
-      "url": "/api/v4/admin/hypervisors",
+      "url": "/api/v4/admin/items/hypervisors",
       "contentType": "application/json",
       "type": 'GET'
     },
@@ -531,14 +531,14 @@ $(document).ready(function () {
       width: '550'
     }).get().on('pnotify.confirm', function () {
       $.ajax({
-        url: '/api/v4/admin/table/update/hypervisors',
+        url: '/api/v4/admin/item/table/update/hypervisors',
         type: 'PUT',
         data: JSON.stringify({ id: pk, enabled: !data.enabled }),
         contentType: 'application/json',
         success: function () {
           if (data.enabled && data.orchestrator_managed) {
             $.ajax({
-              url: '/api/v4/admin/orchestrator/hypervisor/' + pk + '/manage',
+              url: '/api/v4/admin/item/orchestrator/hypervisor/' + pk + '/manage',
               type: 'DELETE',
               contentType: 'application/json'
             });
@@ -558,7 +558,7 @@ $(document).ready(function () {
     var pk = $btn.closest('.actions-buttons').attr('data-pk');
     var data = table.row('#' + pk).data();
     $.ajax({
-      url: '/api/v4/admin/table/update/hypervisors',
+      url: '/api/v4/admin/item/table/update/hypervisors',
       type: 'PUT',
       data: JSON.stringify({ id: pk, only_forced: !data.only_forced }),
       contentType: 'application/json',
@@ -582,7 +582,7 @@ $(document).ready(function () {
     var pk = $btn.closest('.actions-buttons').attr('data-pk');
     var data = table.row('#' + pk).data();
     $.ajax({
-      url: '/api/v4/admin/table/update/hypervisors',
+      url: '/api/v4/admin/item/table/update/hypervisors',
       type: 'PUT',
       data: JSON.stringify({ id: pk, gpu_only: !data.gpu_only }),
       contentType: 'application/json',
@@ -606,7 +606,7 @@ $(document).ready(function () {
     var pk = $btn.closest('.actions-buttons').attr('data-pk');
     var data = table.row('#' + pk).data();
     $.ajax({
-      url: '/api/v4/admin/orchestrator/hypervisor/' + pk + '/manage',
+      url: '/api/v4/admin/item/orchestrator/hypervisor/' + pk + '/manage',
       type: data.orchestrator_managed ? 'DELETE' : 'POST',
       contentType: 'application/json',
       complete: function () {
@@ -847,7 +847,7 @@ function actionsHyperDetail() {
 
     }).get().on('pnotify.confirm', function () {
       $.ajax({
-        url: "/api/v4/admin/table/update/hypervisors",
+        url: "/api/v4/admin/item/table/update/hypervisors",
         type: "PUT",
         accept: "application/json",
         data: JSON.stringify({ 'id': pk, 'enabled': !data.enabled }),
@@ -855,7 +855,7 @@ function actionsHyperDetail() {
         success: function (hyp) {
           if (data["enabled"] && data["orchestrator_managed"]) {
             $.ajax({
-              url: "/api/v4/admin/orchestrator/hypervisor/" + pk + "/manage",
+              url: "/api/v4/admin/item/orchestrator/hypervisor/" + pk + "/manage",
               type: "DELETE",
               accept: "application/json",
               contentType: "application/json",
@@ -882,7 +882,7 @@ function actionsHyperDetail() {
               },
             });
             $.ajax({
-              url: "/api/v4/admin/orchestrator/hypervisor/" + pk + "/manage",
+              url: "/api/v4/admin/item/orchestrator/hypervisor/" + pk + "/manage",
               type: "DELETE",
               accept: "application/json",
               contentType: "application/json",
@@ -916,7 +916,7 @@ function actionsHyperDetail() {
 
     }).get().on('pnotify.confirm', function () {
       $.ajax({
-        url: "/api/v4/admin/hypervisor/" + pk,
+        url: "/api/v4/admin/item/hypervisor/" + pk,
         type: "DELETE",
         accept: "application/json",
         contentType: "application/json",
@@ -968,7 +968,7 @@ function actionsHyperDetail() {
 
     }).get().on('pnotify.confirm', function () {
       $.ajax({
-        url: "/api/v4/admin/hypervisor/stop/" + pk,
+        url: "/api/v4/admin/item/hypervisor/stop/" + pk,
         type: "PUT",
         accept: "application/json",
         contentType: "application/json",
@@ -1009,7 +1009,7 @@ function actionsHyperDetail() {
     }).modal('show');
 
     $.ajax({
-      url: "/api/v4/admin/table/hypervisors",
+      url: "/api/v4/admin/items/table/hypervisors",
       type: "POST",
       data: JSON.stringify({ 'order_by': 'id' }),
       contentType: "application/json",
@@ -1040,7 +1040,7 @@ function actionsHyperDetail() {
     });
 
     $.ajax({
-      url: "/api/v4/admin/table/hypervisors_pools",
+      url: "/api/v4/admin/items/table/hypervisors_pools",
       type: "POST",
       data: JSON.stringify({ 'order_by': 'name' }),
       contentType: "application/json",
@@ -1111,7 +1111,7 @@ function actionsHyperDetail() {
 
           $.ajax({
             type: "PUT",
-            url: "/api/v4/admin/table/update/hypervisors",
+            url: "/api/v4/admin/item/table/update/hypervisors",
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
@@ -1155,7 +1155,7 @@ function actionsHyperDetail() {
 
     }).get().on('pnotify.confirm', function () {
       $.ajax({
-        url: "/api/v4/admin/table/update/hypervisors",
+        url: "/api/v4/admin/item/table/update/hypervisors",
         type: "PUT",
         data: JSON.stringify({ 'id': pk, 'only_forced': !data.only_forced }),
         contentType: "application/json",
@@ -1183,7 +1183,7 @@ function actionsHyperDetail() {
       });
       if (!data["only_forced"] && data["orchestrator_managed"]) {
         $.ajax({
-          url: "/api/v4/admin/orchestrator/hypervisor/" + pk + "/manage",
+          url: "/api/v4/admin/item/orchestrator/hypervisor/" + pk + "/manage",
           type: "DELETE",
           accept: "application/json",
           success: function (data) {
@@ -1238,7 +1238,7 @@ function actionsHyperDetail() {
 
     }).get().on('pnotify.confirm', function () {
       $.ajax({
-        url: "/api/v4/admin/table/update/hypervisors",
+        url: "/api/v4/admin/item/table/update/hypervisors",
         type: "PUT",
         data: JSON.stringify({ 'id': pk, 'gpu_only': !gpu_only }),
         contentType: "application/json",
@@ -1296,7 +1296,7 @@ function actionsHyperDetail() {
       type = ""
       type = data["orchestrator_managed"] ? "DELETE" : "POST";
       $.ajax({
-        url: "/api/v4/admin/orchestrator/hypervisor/" + pk + "/manage",
+        url: "/api/v4/admin/item/orchestrator/hypervisor/" + pk + "/manage",
         type: type,
         contentType: "application/json",
         success: function (data) {

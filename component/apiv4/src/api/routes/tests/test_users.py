@@ -661,7 +661,7 @@ def test_admin_check_migration(monkeypatch, test_client):
         staticmethod(fake_check),
     )
 
-    response = test_client(url="/admin/user/migrate/check/user-1/user-2", jwt=jwt)
+    response = test_client(url="/admin/item/user/migrate/check/user-1/user-2", jwt=jwt)
 
     assert response.status_code == 200
     assert response.json() == {"errors": []}

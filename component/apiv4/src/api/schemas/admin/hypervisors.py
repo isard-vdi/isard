@@ -270,7 +270,7 @@ class AdminHypervisor(BaseModel):
 
 
 class AdminRegisterVlansRequest(BaseModel):
-    """Body for ``POST /admin/vlans``.
+    """Body for ``POST /admin/items/vlans``.
 
     Sent by ``docker/hypervisor/src/vlans/vlans-db.py``: the hypervisor
     reports the set of VLAN identifiers it has discovered so the API
@@ -281,7 +281,7 @@ class AdminRegisterVlansRequest(BaseModel):
 
 
 class AdminBootProgressRequest(BaseModel):
-    """Body for ``PUT /admin/hypervisor/{hyper_id}/boot_progress``.
+    """Body for ``PUT /admin/item/hypervisor/{hyper_id}/boot_progress``.
 
     Carries a structured ``{step, total, label, error, timestamp}``
     payload. Stored verbatim in RethinkDB (``hypervisors.boot_progress``)
@@ -292,34 +292,34 @@ class AdminBootProgressRequest(BaseModel):
 
 
 class AdminHypervisorWgAddrResponse(BaseModel):
-    """Response for ``GET /admin/hypervisor/vm/wg_addr`` — the wireguard
+    """Response for ``GET /admin/item/hypervisor/vm/wg_addr`` — the wireguard
     table lookup result for the hypervisor host."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminHypervisorMediaFoundResponse(BaseModel):
-    """Response for ``POST /admin/hypervisor/media_found`` — the
+    """Response for ``POST /admin/item/hypervisor/media_found`` — the
     matched media list returned to the hypervisor."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminHypervisorDisksFoundResponse(BaseModel):
-    """Response for ``POST /admin/hypervisor/disks_found`` — the
+    """Response for ``POST /admin/item/hypervisor/disks_found`` — the
     matched disks list returned to the hypervisor."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminHypervisorMediaDeleteResponse(BaseModel):
-    """Response for ``POST /admin/hypervisor/media_delete``."""
+    """Response for ``POST /admin/item/hypervisor/media_delete``."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminHypervisorVirtPool(BaseModel):
-    """One row of ``GET /admin/hypervisor/{hyper_id}/virt_pools``."""
+    """One row of ``GET /admin/items/hypervisor/{hyper_id}/virt_pools``."""
 
     model_config = {"extra": "allow"}
 
@@ -329,13 +329,13 @@ class AdminHypervisorVirtPool(BaseModel):
 
 
 class AdminHypervisorMountpoint(BaseModel):
-    """One row of ``GET /admin/hypervisor/mountpoints/{hyper_id}``."""
+    """One row of ``GET /admin/items/hypervisor/mountpoints/{hyper_id}``."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminHypervisorStartedDomain(BaseModel):
-    """One row of ``GET /admin/hypervisor/started_domains/{hyper_id}``."""
+    """One row of ``GET /admin/items/hypervisor/started_domains/{hyper_id}``."""
 
     model_config = {"extra": "allow"}
 
@@ -345,7 +345,7 @@ class AdminHypervisorStartedDomain(BaseModel):
 
 
 class AdminHypervisorGpu(BaseModel):
-    """One row of ``GET /admin/hypervisors/gpus``."""
+    """One row of ``GET /admin/items/hypervisors/gpus``."""
 
     model_config = {"extra": "allow"}
 
@@ -353,19 +353,19 @@ class AdminHypervisorGpu(BaseModel):
 
 
 class AdminVlanRegistration(BaseModel):
-    """Response for ``POST /admin/vlans`` — interface upsert result."""
+    """Response for ``POST /admin/items/vlans`` — interface upsert result."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminBootProgressResponse(BaseModel):
-    """Response for ``PUT /admin/hypervisor/{hyper_id}/boot_progress``."""
+    """Response for ``PUT /admin/item/hypervisor/{hyper_id}/boot_progress``."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminHypervisorStatusResponse(BaseModel):
-    """Response for ``GET /admin/hypervisor/status/{hyper_id}`` —
+    """Response for ``GET /admin/item/hypervisor/status/{hyper_id}`` —
     the trimmed status row (id, status, only_forced).
     """
 
@@ -377,18 +377,18 @@ class AdminHypervisorStatusResponse(BaseModel):
 
 
 class AdminHypervisorCreateResponse(BaseModel):
-    """Response for ``POST /admin/hypervisor``."""
+    """Response for ``POST /admin/item/hypervisor``."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminHypervisorEnableResponse(BaseModel):
-    """Response for ``PUT /admin/hypervisor/{hyper_id}``."""
+    """Response for ``PUT /admin/item/hypervisor/{hyper_id}``."""
 
     model_config = {"extra": "allow"}
 
 
 class AdminHypervisorVpnResponse(BaseModel):
-    """Response for ``GET /admin/hypervisor_vpn/{hyper_id}``."""
+    """Response for ``GET /admin/item/hypervisor_vpn/{hyper_id}``."""
 
     model_config = {"extra": "allow"}

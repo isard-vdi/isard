@@ -48,7 +48,7 @@ class DesktopQueueItem(BaseModel):
 
 
 class AdminNotifyDesktopsQueueRequest(RootModel[List[DesktopQueueItem]]):
-    """Top-level JSON array body for ``PUT /admin/notify/desktops/queue/{hyp_id}``."""
+    """Top-level JSON array body for ``PUT /admin/item/notify/desktops/queue/{hyp_id}``."""
 
     pass
 
@@ -63,6 +63,6 @@ class SocketioEmitRequest(BaseModel):
 
 
 class AdminSocketioEmitRequest(RootModel[List[SocketioEmitRequest]]):
-    """Top-level JSON array body for ``POST /admin/socketio``."""
+    """Top-level JSON array body for ``POST /admin/items/socketio``."""
 
     pass

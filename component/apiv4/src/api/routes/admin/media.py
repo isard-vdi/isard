@@ -41,7 +41,7 @@ tag = "admin_media"
 
 
 @manager_router.get(
-    "/media/status",
+    "/admin/item/media/status",
     tags=[tag],
     response_model=list[AdminMediaStatusCount],
     summary="Get media status counts",
@@ -78,7 +78,7 @@ async def admin_media_status(request: Request):
 
 
 @manager_router.get(
-    "/admin/media",
+    "/admin/items/media",
     tags=[tag],
     response_model=list[AdminMediaItem],
     summary="Get all media",
@@ -108,7 +108,7 @@ async def admin_media_list(request: Request):
 
 
 @manager_router.get(
-    "/admin/media/{status}",
+    "/admin/items/media/{status}",
     tags=[tag],
     response_model=list[AdminMediaItem],
     summary="Get media by status",
@@ -149,7 +149,7 @@ async def admin_media_by_status(
 
 
 @manager_router.get(
-    "/item/desktop/{desktop_id}/media-list",
+    "/admin/item/desktop/{desktop_id}/media-list",
     tags=[tag],
     response_model=list[DesktopAttachedMediaItem],
     summary="List media attached to a desktop",
@@ -184,7 +184,7 @@ async def list_desktop_attached_media(request: Request, desktop_id: str):
 
 
 @manager_router.put(
-    "/item/media/{media_id}/change-owner/{user_id}",
+    "/admin/item/media/{media_id}/change-owner/{user_id}",
     summary="Change media owner",
     tags=[tag],
     response_model=SimpleResponse,
@@ -227,7 +227,7 @@ async def change_media_owner(
 
 
 @manager_router.put(
-    "/item/media/{media_id}/check",
+    "/admin/item/media/{media_id}/check",
     summary="Check media file existence on disk",
     tags=[tag],
     response_model=MediaCheckResponse,

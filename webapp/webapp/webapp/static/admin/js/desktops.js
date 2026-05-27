@@ -533,7 +533,7 @@ $(document).ready(function() {
 
     domains_table = $("#domains").DataTable({
       ajax: {
-        url: "/api/v4/admin/domains",
+        url: "/api/v4/admin/items/domains",
         type: "POST",
         contentType: 'application/json',
         dataSrc : "",
@@ -767,7 +767,7 @@ $(document).ready(function() {
                 var notify = new PNotify();
                $.ajax({
                     type: "POST",
-                    url:"/api/v4/admin/multiple_actions",
+                    url:"/api/v4/admin/items/multiple_actions",
                     data: JSON.stringify({'ids':ids, 'action':action}),
                     contentType: "application/json",
                     accept: "application/json",
@@ -825,7 +825,7 @@ $(document).ready(function() {
                                     var notify = new PNotify()
                                     $.ajax({
                                         type: "POST",
-                                        url:"/api/v4/admin/multiple_actions",
+                                        url:"/api/v4/admin/items/multiple_actions",
                                         data: JSON.stringify({'ids':ids, 'action':action}),
                                         contentType: "application/json",
                                         accept: "application/json",
@@ -923,7 +923,7 @@ $(document).ready(function() {
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 $.ajax({
                     type: "GET",
-                    url:"/api/v4/admin/domain/" + domain_id+ "/details",
+                    url:"/api/v4/admin/item/domain/" + domain_id+ "/details",
                     success: function (data) {
                         $('#status-detail-'+domain_id).text(data.detail.replace(/\"/g,''));
                         $('#description-'+domain_id).text(data.description);
@@ -984,7 +984,7 @@ $(document).ready(function() {
                 }else{
                     $.ajax({
                         type: "GET",
-                        url:"/api/v4/admin/domain/" + data['id'] + "/viewer_data",
+                        url:"/api/v4/admin/item/domain/" + data['id'] + "/viewer_data",
                         success: function (resp) {
                             checkReservablesAndStart(resp.create_dict.reservables, data['id'], data['booking_id'])
                         }
@@ -1079,7 +1079,7 @@ $(document).ready(function() {
                 }).get().on('pnotify.confirm', function () {
                     $.ajax({
                         type: "GET",
-                        url: '/api/v4/admin/domain/storage/' + data["id"],
+                        url: '/api/v4/admin/item/domain/storage/' + data["id"],
                         contentType: "application/json",
                         cache: false,
                         error: function (data) {
@@ -1140,7 +1140,7 @@ $(document).ready(function() {
 })
 
 // Fetch the storage IDs attached to the desktop and render the per-row
-// Desktop Storage modal. Reuses ``GET /api/v4/admin/domain/storage/<id>``
+// Desktop Storage modal. Reuses ``GET /api/v4/admin/item/domain/storage/<id>``
 // — the same endpoint the Maintenance ``btn-cancel`` flow already uses,
 // so admin/manager scoping is identical.
 function openDesktopStorageModal(desktop) {
@@ -1151,7 +1151,7 @@ function openDesktopStorageModal(desktop) {
 
     $.ajax({
         type: 'GET',
-        url: '/api/v4/admin/domain/storage/' + desktop.id,
+        url: '/api/v4/admin/item/domain/storage/' + desktop.id,
         contentType: 'application/json',
         cache: false,
         error: function (xhr) {
@@ -1343,7 +1343,7 @@ function socketio_on(){
 }
 function setDesktopTemplateTree(desktop_id) {
     $.ajax({
-        url: "/api/v4/admin/domain/template_tree/" + desktop_id,
+        url: "/api/v4/admin/item/domain/template_tree/" + desktop_id,
         type: 'GET',
         contentType: 'application/json',
         success: function(data) {
@@ -1409,7 +1409,7 @@ function actionsDomainDetail(){
         });
         $.ajax({
             type: "POST",
-            url:"/api/v4/admin/table/domains",
+            url:"/api/v4/admin/items/table/domains",
             data: JSON.stringify({
                 'id': pk,
                 'pluck': ["server", "server_autostart"]
@@ -1448,7 +1448,7 @@ function actionsDomainDetail(){
             dropdownParent: $('#modalChangeOwnerDomain'),
             ajax: {
                 type: "POST",
-                url: '/api/v4/admin/allowed/term/users',
+                url: '/api/v4/items/alloweds/term/users',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -1710,7 +1710,7 @@ function actionsDomainDetail(){
         }).modal('show');
         $.ajax({
             type: "POST",
-            url:"/api/v4/admin/table/domains",
+            url:"/api/v4/admin/items/table/domains",
             data: JSON.stringify({
                 'id': pk,
                 'pluck': "forced_hyp"
@@ -1740,7 +1740,7 @@ function actionsDomainDetail(){
             pk=$('#modalForcedhypForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v4/admin/table/domains",
+                url:"/api/v4/admin/items/table/domains",
                 data: JSON.stringify({
                     'id': pk,
                     'pluck': "forced_hyp"
@@ -1820,7 +1820,7 @@ function actionsDomainDetail(){
         }).modal('show');
         $.ajax({
             type: "POST",
-            url:"/api/v4/admin/table/domains",
+            url:"/api/v4/admin/items/table/domains",
             data: JSON.stringify({
                 'id': pk,
                 'pluck': "favourite_hyp"
@@ -1847,7 +1847,7 @@ function actionsDomainDetail(){
             pk=$('#modalFavouriteHypForm #id').val();
             $.ajax({
                 type: "POST",
-                url:"/api/v4/admin/table/domains",
+                url:"/api/v4/admin/items/table/domains",
                 data: JSON.stringify({
                     'id': pk,
                     'pluck': "favourite_hyp"
@@ -1963,7 +1963,7 @@ function HypervisorsDropdown(selected) {
     $("#modalForcedhypForm #forced_hyp").empty();
     $.ajax({
         type: "POST",
-        url:"/api/v4/admin/table/hypervisors",
+        url:"/api/v4/admin/items/table/hypervisors",
         data: JSON.stringify({
             'pluck':['id','hostname']
         }),
@@ -1985,7 +1985,7 @@ function HypervisorsFavDropdown(selected) {
     $("#modalFavouriteHypForm #favourite_hyp").empty();
     $.ajax({
         type: "POST",
-        url:"/api/v4/admin/table/hypervisors",
+        url:"/api/v4/admin/items/table/hypervisors",
         data: JSON.stringify({
             'pluck':['id','hostname']
         }),
@@ -2270,7 +2270,7 @@ function renderStorageActionsButton(data) {
                 dropdownparent: $("#modalDuplicateTemplateForm"),
                 ajax: {
                     type: "POST",
-                    url: '/api/v4/admin/allowed/term/users',
+                    url: '/api/v4/items/alloweds/term/users',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -2374,7 +2374,7 @@ function renderStorageActionsButton(data) {
             $.ajax({
                 type: "GET",
                 async: false,
-                url:"/api/v4/admin/userschema",
+                url:"/api/v4/admin/item/userschema",
                 success: function (data) {
                     return data.category
                 }
@@ -2391,7 +2391,7 @@ function renderStorageActionsButton(data) {
                     $.ajax({
                         type: "GET",
                         async: false,
-                        url:"/api/v4/admin/userschema",
+                        url:"/api/v4/admin/item/userschema",
                         success: function (d) {
                             $.each(d[item], function(pos, it) {
                                 if (item=='category') { var value = it.id } else { var value = it.name }
@@ -2415,7 +2415,7 @@ function renderStorageActionsButton(data) {
                     $.ajax({
                         type: "GET",
                         async: false,
-                        url:"/api/v4/admin/domains/"+item+"/desktop",
+                        url:"/api/v4/admin/items/domains/"+item+"/desktop",
                         contentType: 'application/json',
                         success: function (data) {
                             data = JSON.parse(data)
@@ -2435,7 +2435,7 @@ function renderStorageActionsButton(data) {
                     $.ajax({
                         type: "POST",
                         async: false,
-                        url:"/api/v4/admin/table/hypervisors",
+                        url:"/api/v4/admin/items/table/hypervisors",
                         data: JSON.stringify({
                             'pluck':['id','hostname']
                         }),
@@ -2467,7 +2467,7 @@ function renderStorageActionsButton(data) {
                     $.ajax({
                         type: "GET",
                         async: false,
-                        url:"/api/v4/admin/domains/"+item+"/desktop",
+                        url:"/api/v4/admin/items/domains/"+item+"/desktop",
                         success: function (data) {
                             data = JSON.parse(data)
                             $.each(data, function(pos, field) {

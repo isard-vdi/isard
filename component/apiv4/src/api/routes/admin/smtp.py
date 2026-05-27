@@ -54,7 +54,7 @@ def clear_smtp_caches():
 
 
 @admin_router.get(
-    "/smtp",
+    "/admin/item/smtp",
     tags=[tag],
     response_model=SmtpConfigResponse,
     response_model_exclude_none=True,
@@ -87,7 +87,7 @@ async def admin_smtp_get(request: Request):
 
 
 @admin_router.put(
-    "/smtp",
+    "/admin/item/smtp",
     tags=[tag],
     response_model=SmtpConfigResponse,
     response_model_exclude_none=True,
@@ -128,7 +128,7 @@ async def admin_smtp_put(request: Request, data: SmtpConfigRequest):
 
 @cached(cache=smtp_enabled_cache)
 @admin_router.get(
-    "/smtp/enabled",
+    "/admin/item/smtp/enabled",
     tags=[tag],
     response_model=bool,
     summary="Get SMTP enabled status",
@@ -151,7 +151,7 @@ async def admin_smtp_enabled_get(request: Request):
 
 
 @admin_router.post(
-    "/smtp/test",
+    "/admin/item/smtp/test",
     tags=[tag],
     response_model=SmtpTestResponse,
     summary="Test SMTP configuration",

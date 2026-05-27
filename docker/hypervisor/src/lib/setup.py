@@ -208,7 +208,7 @@ def SetupHypervisor():
                 continue
         except ApiV4Error as e:
             # Log the typed apiv4 error: status code + body. Surfaces
-            # 4xx/5xx from /admin/hypervisor (e.g. KeyError on partial
+            # 4xx/5xx from /admin/item/hypervisor (e.g. KeyError on partial
             # rows, schema validation 422, ssh-keyscan 500) instead of
             # the misleading "Could not contact api" — which only used
             # to be true when the apiv4 socket itself was unreachable.

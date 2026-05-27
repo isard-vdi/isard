@@ -28,7 +28,7 @@ function tableHypervisorDomains(hyp) {
       "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
     },
     "ajax": {
-      "url": "/api/v4/admin/hypervisor/started_domains/" + hyp,
+      "url": "/api/v4/admin/items/hypervisor/started_domains/" + hyp,
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -87,7 +87,7 @@ function setMountpoints(id) {
       "loadingRecords": "Mountpoints information still not available"
     },
     "ajax": {
-      "url": "/api/v4/admin/hypervisor/mountpoints/" + id,
+      "url": "/api/v4/admin/items/hypervisor/mountpoints/" + id,
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -135,7 +135,7 @@ function setVirtPoolsTable(id) {
       "loadingRecords": "Virtualization pools information still not available"
     },
     "ajax": {
-      "url": "/api/v4/admin/hypervisor/" + id + "/virt_pools",
+      "url": "/api/v4/admin/items/hypervisor/" + id + "/virt_pools",
       "contentType": "application/json",
       "type": 'GET',
     },
@@ -204,7 +204,7 @@ function setVirtPoolsTable(id) {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "PUT",
-            "url": "/api/v4/admin/hypervisor/" + id + "/virt_pools",
+            "url": "/api/v4/admin/items/hypervisor/" + id + "/virt_pools",
             data: JSON.stringify({ 'id': row.data().id, 'enable_virt_pool': !row.data().enabled_virt_pool }),
             contentType: "application/json",
             success: function (data) {

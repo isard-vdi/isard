@@ -101,7 +101,7 @@ def test_desktops_js_open_modal_uses_admin_storage_endpoint(
     category-scoping is enforced server-side, matching the existing
     Maintenance-row btn-cancel flow."""
     open_fn = _slice(desktops_js, "function openDesktopStorageModal(")
-    assert "/api/v4/admin/domain/storage/" in open_fn
+    assert "/api/v4/admin/item/domain/storage/" in open_fn
     assert "modalDesktopStorage" in open_fn
 
 

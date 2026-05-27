@@ -27,7 +27,7 @@ class TestGeneralStats:
             "api.routes.admin.stats.AdminStatsService.get_general_stats",
             staticmethod(lambda: {"users": 10, "desktops": 50}),
         )
-        response = test_client(url="/stats", jwt=MockJWT(role_id="admin"))
+        response = test_client(url="/admin/item/stats", jwt=MockJWT(role_id="admin"))
         assert response.status_code == 200
         assert response.json()["users"] == 10
 
@@ -36,7 +36,7 @@ class TestGeneralStats:
             "api.routes.admin.stats.AdminStatsService.get_general_stats",
             staticmethod(lambda: {}),
         )
-        response = test_client(url="/stats", jwt=MockJWT(role_id="user"))
+        response = test_client(url="/admin/item/stats", jwt=MockJWT(role_id="user"))
         assert response.status_code == 403
 
     def test_manager_forbidden(self, monkeypatch, test_client):
@@ -44,7 +44,7 @@ class TestGeneralStats:
             "api.routes.admin.stats.AdminStatsService.get_general_stats",
             staticmethod(lambda: {}),
         )
-        response = test_client(url="/stats", jwt=MockJWT(role_id="manager"))
+        response = test_client(url="/admin/item/stats", jwt=MockJWT(role_id="manager"))
         assert response.status_code == 403
 
     def test_unexpected_exception_returns_500(self, monkeypatch, test_client):
@@ -55,7 +55,7 @@ class TestGeneralStats:
             "api.routes.admin.stats.AdminStatsService.get_general_stats",
             staticmethod(boom),
         )
-        response = test_client(url="/stats", jwt=MockJWT(role_id="admin"))
+        response = test_client(url="/admin/item/stats", jwt=MockJWT(role_id="admin"))
         assert response.status_code == 500
 
 
@@ -76,7 +76,7 @@ class TestStatusEndpoints:
             staticmethod(lambda: {"total": 3, "status": {"Started": 3}}),
         )
         response = test_client(
-            url="/stats/desktops/status", jwt=MockJWT(role_id="admin")
+            url="/admin/item/stats/desktops/status", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         body = response.json()
@@ -94,7 +94,7 @@ class TestStatusEndpoints:
             ),
         )
         response = test_client(
-            url="/stats/domains/status", jwt=MockJWT(role_id="admin")
+            url="/admin/item/stats/domains/status", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert response.json()["desktop"] == {"Started": 1}
@@ -106,7 +106,7 @@ class TestStatusEndpoints:
             staticmethod(lambda: [{"id": "cat-a", "wrong": 0}]),
         )
         response = test_client(
-            url="/stats/category/status", jwt=MockJWT(role_id="admin")
+            url="/admin/item/stats/category/status", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         # The handler wraps in {"categories": ...}.
@@ -151,7 +151,9 @@ class TestStatsCategories:
                 }
             ),
         )
-        response = test_client(url="/stats/categories", jwt=MockJWT(role_id="admin"))
+        response = test_client(
+            url="/admin/item/stats/categories", jwt=MockJWT(role_id="admin")
+        )
         assert response.status_code == 200
         assert "cat-a" in response.json()["category"]
 
@@ -162,7 +164,7 @@ class TestStatsCategories:
             staticmethod(lambda: [{"id": "cat-a", "hardware": {}}]),
         )
         response = test_client(
-            url="/stats/categories/limits", jwt=MockJWT(role_id="admin")
+            url="/admin/item/stats/categories/limits", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
 
@@ -173,7 +175,7 @@ class TestStatsCategories:
             staticmethod(lambda: {"cat-a": 3}),
         )
         response = test_client(
-            url="/stats/categories/deployments", jwt=MockJWT(role_id="admin")
+            url="/admin/item/stats/categories/deployments", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert response.json()["categories"] == {"cat-a": 3}
@@ -191,7 +193,7 @@ class TestStatsCategories:
             staticmethod(fake),
         )
         response = test_client(
-            url="/stats/categories/desktop", jwt=MockJWT(role_id="admin")
+            url="/admin/item/stats/categories/desktop", jwt=MockJWT(role_id="admin")
         )
         assert response.status_code == 200
         assert captured == {"kind": "desktop", "state": None}
@@ -205,7 +207,7 @@ class TestStatsCategories:
             ),
         )
         response = test_client(
-            url="/stats/categories/desktop/Started",
+            url="/admin/item/stats/categories/desktop/Started",
             jwt=MockJWT(role_id="admin"),
         )
         assert response.status_code == 200
@@ -227,7 +229,9 @@ class TestStatsKind:
                 or [{"id": "h1", "status": "Started", "only_forced": False}]
             ),
         )
-        response = test_client(url="/stats/hypervisors", jwt=MockJWT(role_id="admin"))
+        response = test_client(
+            url="/admin/items/stats/hypervisors", jwt=MockJWT(role_id="admin")
+        )
         assert response.status_code == 200
         assert captured["kind"] == "hypervisors"
 
@@ -239,7 +243,9 @@ class TestStatsKind:
             "api.routes.admin.stats.AdminStatsService.get_kind",
             staticmethod(reject),
         )
-        response = test_client(url="/stats/hypervisors", jwt=MockJWT(role_id="admin"))
+        response = test_client(
+            url="/admin/items/stats/hypervisors", jwt=MockJWT(role_id="admin")
+        )
         assert response.status_code == 400
 
     def test_user_forbidden(self, monkeypatch, test_client):
@@ -247,7 +253,9 @@ class TestStatsKind:
             "api.routes.admin.stats.AdminStatsService.get_kind",
             staticmethod(lambda kind: {}),
         )
-        response = test_client(url="/stats/users", jwt=MockJWT(role_id="user"))
+        response = test_client(
+            url="/admin/items/stats/users", jwt=MockJWT(role_id="user")
+        )
         assert response.status_code == 403
 
 
@@ -257,7 +265,7 @@ class TestStatsKind:
 
 
 class TestAdminDomainsStartedCount:
-    URL = "/admin/domains/started-count"
+    URL = "/admin/items/domains/started-count"
 
     def test_admin_gets_count(self, monkeypatch, test_client):
         """The route header note explicitly says this 3-segment path

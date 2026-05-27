@@ -439,7 +439,7 @@ async def delete_reservable_item(
 
 
 @admin_router.put(
-    "/admin/reservables/{reservable_type}/{item_id}",
+    "/admin/items/reservables/{reservable_type}/{item_id}",
     tags=[tag],
     response_model=SimpleResponse,
     summary="Update reservable item",
