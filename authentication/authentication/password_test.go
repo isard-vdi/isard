@@ -201,7 +201,7 @@ func TestResetPassword(t *testing.T) {
 		},
 		"should return an API error if there's an error calling the API": {
 			PrepareAPI: func(c *apiv4.MockInvoker) {
-				c.On("AdminResetPassword", mock.AnythingOfType("*context.cancelCtx"), &apiv4.AdminPasswordResetData{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Password: "weak password :3"}).Return(&apiv4.ErrorResponse{
+				c.On("AdminResetPassword", mock.AnythingOfType("*context.cancelCtx"), &apiv4.AdminPasswordResetData{UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", Password: "weak password :3"}).Return(&apiv4.AdminResetPasswordBadRequest{
 					Error:           "bad_request",
 					Msg:             "Bad request",
 					DescriptionCode: "password_special_characters",
@@ -223,7 +223,7 @@ func TestResetPassword(t *testing.T) {
 				return ss
 			},
 			Password:    "weak password :3",
-			ExpectedErr: "ogen 500 bad_request: Password must have at least 1 special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/? [password_special_characters]",
+			ExpectedErr: "ogen 400 bad_request: Password must have at least 1 special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/? [password_special_characters]",
 		},
 	}
 

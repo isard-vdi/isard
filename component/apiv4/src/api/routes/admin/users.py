@@ -860,6 +860,8 @@ async def admin_get_password_policy(request: Request, user_id: str):
     response_model=EmptyResponse,
     responses={
         200: {"description": "Password reset"},
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -1112,6 +1114,10 @@ async def admin_get_group(request: Request, group_id: str):
     response_model=AdminGroup,
     responses={
         200: {"description": "Group created"},
+        400: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -2335,6 +2341,8 @@ async def admin_get_user_by_email_category(request: Request, email: str, categor
     response_model=AutoRegisterResponse,
     responses={
         200: {"description": "User auto-registered"},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
