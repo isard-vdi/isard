@@ -5,8 +5,10 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"regexp"
 	"slices"
+	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
@@ -16,6 +18,10 @@ import (
 	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
+
+// Bound the LDAP dial so an unreachable host can't block on the
+// kernel TCP keepalive (~2 h) and stall Form.Login holding f.mux.
+const ldapDialTimeout = 5 * time.Second
 
 var _ ConfigurableProvider[model.LDAPConfig] = &LDAP{}
 
@@ -203,7 +209,9 @@ func (l *LDAP) newConn() (*ldap.Conn, error) {
 
 	url := fmt.Sprintf("%s://%s:%d", cfg.Protocol, cfg.Host, cfg.Port)
 
-	var opts []ldap.DialOpt
+	opts := []ldap.DialOpt{
+		ldap.DialWithDialer(&net.Dialer{Timeout: ldapDialTimeout}),
+	}
 	if cfg.AllowInsecureTLS && cfg.Protocol == "ldaps" {
 		opts = append(opts, ldap.DialWithTLSConfig(&tls.Config{
 			InsecureSkipVerify: true,
