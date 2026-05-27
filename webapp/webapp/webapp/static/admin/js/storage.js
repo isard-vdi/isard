@@ -299,7 +299,7 @@ $(document).ready(function () {
   // storagesDuplicatedUUID status dropdown populate
   $.ajax({
     type: "GET",
-    url: "/api/v4/admin/items/table/storage",
+    url: "/api/v4/items/storage/storages_with_uuid/status",
     success: function (data) {
       $('#uuid_status').removeAttr('disabled')
       let notShownStatus = []
@@ -330,9 +330,12 @@ $(document).ready(function () {
       $(tableId).empty()
     }
 
+    let uuidUrl = newStatus === 'all'
+      ? '/api/v4/items/storage/storages_with_uuid'
+      : `/api/v4/items/storage/storages_with_uuid/${encodeURIComponent(newStatus)}`
     storagesUUID = $(tableId).DataTable({
       ajax: {
-        url: `/api/v4/admin/items/table/storage`,
+        url: uuidUrl,
         contentType: 'application/json',
         type: 'GET',
       },
