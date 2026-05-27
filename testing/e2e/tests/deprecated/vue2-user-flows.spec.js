@@ -28,7 +28,9 @@
 // navigation here; the card-action click path is covered by Card.vue's own
 // route push behaviour and lives outside the e2e regression net.
 
-import { test, expect } from '../fixtures/login.js'
+import { test, expect } from '../../fixtures/login.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 function consoleCollector(page) {
   const errors = []

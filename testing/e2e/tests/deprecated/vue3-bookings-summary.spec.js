@@ -1,5 +1,7 @@
-import { test, expect } from '../fixtures/login.js'
-import { commonHelpers } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/login.js'
+import { commonHelpers } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 // Vue 3 bookings summary view — /frontend/bookings/summary
 //

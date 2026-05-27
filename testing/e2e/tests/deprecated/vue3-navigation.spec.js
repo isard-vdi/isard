@@ -1,5 +1,7 @@
-import { test, expect } from '../fixtures/login.js'
-import { commonHelpers } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/login.js'
+import { commonHelpers } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 // Navigation smoke for every authenticated Vue 3 view.
 // Each test logs in once as admin, navigates to the route, and checks:

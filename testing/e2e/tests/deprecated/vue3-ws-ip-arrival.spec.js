@@ -26,7 +26,9 @@
 //   * Assert ``pageerror`` count stays zero so we pin the queryKey
 //     fix (the broken queryKey throws on every page load).
 
-import { test, expect } from '../fixtures/login.js'
+import { test, expect } from '../../fixtures/login.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 const FIXTURE_ID = 'ws-ip-arrival-fixture-0001'
 const FIXTURE_IP = '10.99.99.43'

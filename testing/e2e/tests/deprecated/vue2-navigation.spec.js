@@ -20,7 +20,9 @@
 // surface; backend smoke for what stays on Vue 2). This spec is the
 // regression net for "did the route silently 5xx after a refactor".
 
-import { test, expect } from '../fixtures/login.js'
+import { test, expect } from '../../fixtures/login.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 const ROUTES = [
   { path: '/desktops', label: 'desktops' },

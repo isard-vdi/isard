@@ -1,5 +1,7 @@
-import { test, expect } from '../fixtures/login.js'
-import { commonHelpers } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/login.js'
+import { commonHelpers } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 // Smoke coverage for the Vue 3 /vw/:token route, served by
 // DirectViewerView.vue. The route is `meta.public: true` — no JWT

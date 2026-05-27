@@ -1,5 +1,7 @@
-import { test, expect } from '../fixtures/desktops.js'
-import { commonHelpers } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/desktops.js'
+import { commonHelpers } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 const desktopsURL = '/frontend/desktops';
 

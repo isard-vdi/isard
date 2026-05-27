@@ -1,5 +1,7 @@
-import { test, expect } from '../fixtures/login.js'
-import { commonHelpers } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/login.js'
+import { commonHelpers } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 // Smoke coverage for the Vue 3 /notifications/:trigger route, served
 // by NotificationsView.vue. The route resolves the user's notification

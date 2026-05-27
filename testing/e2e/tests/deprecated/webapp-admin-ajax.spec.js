@@ -16,8 +16,10 @@
 // assertions are flaky against a dev DB. Network status is enough to
 // catch the regression we care about.
 
-import { test, expect } from '../fixtures/login.js'
-import { bridgeAdminSession } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/login.js'
+import { bridgeAdminSession } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 function captureXhr(page, predicate) {
   const matched = []
