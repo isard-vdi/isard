@@ -660,18 +660,25 @@ class ToggleVisibilityRequest(BaseModel):
     stop_started_domains: bool = True
 
 
+class DeploymentInterface(BaseModel):
+    id: str
+    name: Optional[str] = None
+
+
+class DeploymentHardware(Hardware):
+    interfaces: list[DeploymentInterface]
+
+
 class DeploymentHardwareResponse(BaseModel):
     """Response model for ``GET /item/deployment/{id}/hardware``.
 
-    The service returns ``deployment.create_dict[0]`` enriched with
-    computed ``video_name``/``boot_name``/``reservable_name`` arrays
-    and with ``hardware.interfaces``/``isos``/``floppies`` resolved to
-    ``{id, name}`` entries. ``Hardware`` already accepts both id-only
-    and id+name shapes, so it can model the resolved payload as-is.
+    ``hardware.interfaces``/``isos``/``floppies`` are resolved by
+    ``get_deployment_details_hardware`` to ``{id, name}`` entries, so the
+    response uses ``DeploymentHardware`` instead of the raw ``Hardware``.
     """
 
     guest_properties: GuestProperties
-    hardware: Hardware
+    hardware: DeploymentHardware
     image: Image
     name: str
     description: Optional[str] = None
@@ -694,7 +701,7 @@ class DeploymentInfoResponse(BaseModel):
 
     id: str
     guest_properties: GuestProperties
-    hardware: Hardware
+    hardware: DeploymentHardware
     image: Image
     name: str
     description: Optional[str] = None
