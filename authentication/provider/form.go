@@ -88,12 +88,17 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	}
 
+	// Snapshot providers and release the lock before invoking Login;
+	// holding RLock across the LDAP dial would queue pending writers
+	// (EnableProvider/LoadConfig) and stall all concurrent form logins.
 	f.mux.RLock()
-	defer f.mux.RUnlock()
+	local, hasLocal := f.providers[types.ProviderLocal]
+	ldap, hasLdap := f.providers[types.ProviderLDAP]
+	f.mux.RUnlock()
 
 	var invCreds *ProviderError
 
-	if local, ok := f.providers[types.ProviderLocal]; ok {
+	if hasLocal {
 		g, secondary, u, redirect, ss, err := local.Login(ctx, categoryID, args)
 		if err == nil {
 			if f.limits != nil {
@@ -112,7 +117,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		invCreds.Detail = fmt.Errorf("local: %w", invCreds.Detail)
 	}
 
-	if ldap, ok := f.providers[types.ProviderLDAP]; ok {
+	if hasLdap {
 		g, secondary, u, redirect, ss, err := ldap.Login(ctx, categoryID, args)
 		// Clean the user rate limits record because the user has logged in correctly
 		if err == nil {
