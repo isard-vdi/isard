@@ -121,16 +121,18 @@ class RecycleBinEntry(BaseModel):
     desktops: int
     groups: int
     id: str
-    item_name: str
+    # Owner fields can be None when the owning user/group/category has been
+    # deleted before the recycle-bin entry itself.
+    item_name: Optional[str] = None
     item_type: str
     last: Optional[RecycleBinLastAction]
-    owner_category_id: str
-    owner_category_name: str
-    owner_group_id: str
-    owner_group_name: str
-    owner_id: str
-    owner_name: str
-    owner_role: str
+    owner_category_id: Optional[str] = None
+    owner_category_name: Optional[str] = None
+    owner_group_id: Optional[str] = None
+    owner_group_name: Optional[str] = None
+    owner_id: Optional[str] = None
+    owner_name: Optional[str] = None
+    owner_role: Optional[str] = None
     size: int
     status: RecycleBinStatusEnum
     storages: int
