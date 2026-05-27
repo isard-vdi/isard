@@ -290,8 +290,10 @@ function addTemplatePreviewListener(modal) {
             url: '/api/v4/admin/notifications/template/' + templateId,
             type: 'GET',
             success: function (template) {
-                var template_title = template.lang[template.default] ? template.lang[template.default].title : template.system.title;
-                var template_body = template.lang[template.default] ? template.lang[template.default].body : template.system.body;
+                var langEntry = (template.lang && template.default) ? template.lang[template.default] : null;
+                var source = langEntry || template.system || {};
+                var template_title = source.title || '';
+                var template_body = source.body || '';
 
                 $(modal + " #preview-panel").empty().html(`
                 <h4>${template_title}</h4>

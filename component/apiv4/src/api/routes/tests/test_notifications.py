@@ -171,6 +171,7 @@ def test_admin_create_notification_template(monkeypatch, test_client):
     def fake_create(data):
         captured["language"] = data["language"]
         captured["title"] = data["title"]
+        return "tmpl-1"
 
     monkeypatch.setattr(
         "api.services.admin.notifications.AdminNotificationService.create_template",
@@ -190,7 +191,8 @@ def test_admin_create_notification_template(monkeypatch, test_client):
         jwt=jwt,
     )
 
-    assert response.status_code == 204
+    assert response.status_code == 200
+    assert response.json() == {"id": "tmpl-1"}
     assert captured == {"language": "en", "title": "Welcome"}
 
 

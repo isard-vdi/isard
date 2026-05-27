@@ -87,7 +87,10 @@ class NotificationTemplatesProcessed(RethinkSharedConnection):
             "footer": cls.sanitizer.sanitize(texts["footer"]),
         }
         with cls._rdb_context():
-            r.table(cls._rdb_table).insert(template_data).run(cls._rdb_connection)
+            result = (
+                r.table(cls._rdb_table).insert(template_data).run(cls._rdb_connection)
+            )
+        return result["generated_keys"][0]
 
     @classmethod
     def get_notification_templates(cls, kind=None):

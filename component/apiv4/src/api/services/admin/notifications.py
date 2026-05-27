@@ -44,7 +44,7 @@ class AdminNotificationService:
     # --- Templates ---
 
     @staticmethod
-    def create_template(data: dict) -> None:
+    def create_template(data: dict) -> str:
         body_lower = data.get("body", "").lower()
         footer_lower = data.get("footer", "").lower()
         for tag in FORBIDDEN_TAGS:
@@ -55,15 +55,16 @@ class AdminNotificationService:
                     description_code="bad_request",
                 )
 
+        language = data.pop("language")
         data["lang"] = {
-            data["language"]: {
-                "title": data["title"],
-                "body": data["body"],
-                "footer": data["footer"],
+            language: {
+                "title": data.pop("title"),
+                "body": data.pop("body"),
+                "footer": data.pop("footer"),
             }
         }
 
-        NotificationTemplatesProcessed.add_notification_template(data)
+        return NotificationTemplatesProcessed.add_notification_template(data)
 
     @staticmethod
     def get_templates(kind: Optional[str] = None) -> list:
@@ -85,11 +86,12 @@ class AdminNotificationService:
                     description_code="bad_request",
                 )
 
+        language = data.pop("language")
         data["lang"] = {
-            data["language"]: {
-                "title": data["title"],
-                "body": data["body"],
-                "footer": data["footer"],
+            language: {
+                "title": data.pop("title"),
+                "body": data.pop("body"),
+                "footer": data.pop("footer"),
             }
         }
 

@@ -293,20 +293,22 @@ function changeBodyLanguage(modal, language) {
             type: "GET",
             contentType: 'application/json',
             success: function (data) {
-                if (data.lang[language]) {
+                var lang = data.lang || {};
+                if (lang[language]) {
                     if (data.default == language) {
                         $(modal + " #default-lang").iCheck('check').iCheck('update');
                     } else {
                         $(modal + " #default-lang").iCheck('uncheck').iCheck('update');
                     }
-                    $(modal + " #title").val(data.lang[language].title);
-                    $(modal + " #body").val(data.lang[language].body);
-                    $(modal + " #footer").val(data.lang[language].footer);
+                    $(modal + " #title").val(lang[language].title);
+                    $(modal + " #body").val(lang[language].body);
+                    $(modal + " #footer").val(lang[language].footer);
                 } else {
                     $(modal + " #default-lang").iCheck('uncheck').iCheck('update');
-                    $(modal + " #title").val(data.system.title);
-                    $(modal + " #body").val(data.system.body);
-                    $(modal + " #footer").val(data.system.footer);
+                    var source = data.system || {};
+                    $(modal + " #title").val(source.title || '');
+                    $(modal + " #body").val(source.body || '');
+                    $(modal + " #footer").val(source.footer || '');
                 }
                 togglePreviewMode(modal, false);
             }
