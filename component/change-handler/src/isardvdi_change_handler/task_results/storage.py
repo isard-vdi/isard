@@ -203,9 +203,19 @@ async def handle_storage_update(redis_manager, task, **storage_dict):
             "qemu_img_info",
             "qemu_img_info_backing_chain",
         ):
+            # R-7: a dependency that finished with no result payload yields
+            # ``dependency.result is None``; ``**None`` raised
+            # ``TypeError: argument after ** must be a mapping`` and crashed
+            # the whole handler, silently dropping the storage state change.
+            # Skip it (NOT ``or {}`` — an empty storage_dict makes
+            # handle_storage_update re-walk the dependencies and recurse).
+            if dependency.result is None:
+                continue
             await handle_storage_update(redis_manager, task, **dependency.result)
         if dependency.task == "check_backing_filename":
             for result in dependency.result or []:
+                if result is None:
+                    continue
                 await handle_storage_update(redis_manager, task, **result)
 
 
