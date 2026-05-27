@@ -149,10 +149,10 @@ class TestGetTable:
         """RethinkDB's ``config`` singleton row is stored with
         ``id=1`` (integer). The earlier ``TableItem.id: Optional[str]``
         annotation rejected the int and 500'd every
-        ``GET /admin/table/config`` query — surfaced by pentest scans
-        against the admin surface. The model now accepts ``Union[str,
-        int]`` per the ``Pydantic model vs DB convention`` recurring
-        pattern documented in the apiv4-migration skill."""
+        ``GET /admin/items/table/config`` query — surfaced by pentest
+        scans against the admin surface. The model now accepts
+        ``Union[str, int]`` per the ``Pydantic model vs DB convention``
+        recurring pattern documented in the apiv4-migration skill."""
 
         def fake_get(table, payload, options):
             return [{"id": 1, "version": 193}]
@@ -161,7 +161,9 @@ class TestGetTable:
             "api.routes.admin.tables.AdminTablesService.get_table",
             staticmethod(fake_get),
         )
-        response = test_client(url="/admin/table/config", jwt=MockJWT(role_id="admin"))
+        response = test_client(
+            url="/admin/items/table/config", jwt=MockJWT(role_id="admin")
+        )
         assert response.status_code == 200
         body = response.json()
         assert body[0]["id"] == 1
