@@ -71,6 +71,79 @@ from .helpers import (
 from .load_validator_schemas import IsardValidator
 from .validators import _validate_item, _validate_table
 
+# Blocklist for caller-controlled pluck on /admin/table — keeps
+# secret fields (passwords, keys, credentials) out of field-projection
+# requests. Follow-up: switch to a per-table allowlist.
+_SENSITIVE_PLUCK_FIELDS_ANY_TABLE = frozenset(
+    {
+        "password",
+        "password_history",
+        "password_reset_token",
+        "password_last_updated",
+        "api_key",
+        "salt",
+        "secret",
+        "secrets",
+        "token",
+        "tokens",
+        "private_key",
+        "email_verification_token",
+    }
+)
+
+_SENSITIVE_PLUCK_FIELDS_BY_TABLE = {
+    "users": frozenset({"vpn", "photo"}),
+    "hypervisors": frozenset({"viewer", "keys", "ssh", "sshkeys"}),
+    "domains": frozenset({"viewer"}),
+    "categories": frozenset({"authentication"}),
+    "config": frozenset({"*"}),  # deny pluck on the singleton entirely
+}
+
+
+def _pluck_field_names(pluck):
+    """Flatten a nested pluck arg into the set of leaf field names."""
+    out = []
+    if pluck is None:
+        return out
+    if isinstance(pluck, str):
+        return [pluck]
+    if isinstance(pluck, (list, tuple, set, frozenset)):
+        for item in pluck:
+            out.extend(_pluck_field_names(item))
+        return out
+    if isinstance(pluck, dict):
+        for k, v in pluck.items():
+            out.append(k)
+            out.extend(_pluck_field_names(v))
+        return out
+    return [str(pluck)]
+
+
+def _validate_pluck_safe(table, pluck):
+    """Raise Error('forbidden') if pluck targets blocklisted fields."""
+    if pluck is None:
+        return
+    requested = set(_pluck_field_names(pluck))
+    if not requested:
+        return
+    table_block = _SENSITIVE_PLUCK_FIELDS_BY_TABLE.get(table, frozenset())
+    if "*" in table_block:
+        raise Error(
+            "forbidden",
+            "pluck is not allowed on table '" + table + "'",
+            description_code="not_enough_rights",
+        )
+    bad = requested & (_SENSITIVE_PLUCK_FIELDS_ANY_TABLE | table_block)
+    if bad:
+        raise Error(
+            "forbidden",
+            "pluck rejected: sensitive field(s) requested on '"
+            + table
+            + "': "
+            + str(sorted(bad)),
+            description_code="not_enough_rights",
+        )
+
 
 def admin_table_list(
     table, order_by=None, pluck=None, without=None, id=None, index=None, merge=None
@@ -83,6 +156,8 @@ def admin_table_list(
     # Check if table exists
 
     _validate_table(table)
+
+    _validate_pluck_safe(table, pluck)
 
     query = r.table(table)
 
@@ -201,6 +276,9 @@ def manager_table_list(
     # Define allowed tables for manager and category limited tables
 
     check_category_allowed_table(table)
+
+    _validate_pluck_safe(table, pluck)
+
     CATEGORY_LIMITED_TABLES = get_category_limited_tables()
     query = r.table(table)
 
@@ -416,6 +494,7 @@ def admin_table_update(table, data, payload=False):
 
 def admin_table_get(table, id, pluck=None):
     _validate_table(table)
+    _validate_pluck_safe(table, pluck)
     query = r.table(table).get(id)
     if table == "users":
         query = query.without(*USER_SENSITIVE_FIELDS)
@@ -435,6 +514,7 @@ def admin_table_get(table, id, pluck=None):
 
 def manager_table_get(table, category, id, pluck=None):
     check_category_allowed_table(table)
+    _validate_pluck_safe(table, pluck)
     CATEGORY_LIMITED_TABLES = get_category_limited_tables()
 
     query = r.table(table).get(id)
