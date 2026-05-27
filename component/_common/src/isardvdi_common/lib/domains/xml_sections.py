@@ -121,3 +121,15 @@ class XmlSectionsProcessed(RethinkSharedConnection):
         """
         with cls._rdb_context():
             r.table("virt_install").insert(record).run(cls._rdb_connection)
+
+    @classmethod
+    def list_virt_installs(cls) -> list[dict]:
+        """Return all virt_install rows ordered by name, plucking only the
+        fields needed for the media-install selector."""
+        with cls._rdb_context():
+            return list(
+                r.table("virt_install")
+                .pluck("id", "name", "description", "vers")
+                .order_by("name")
+                .run(cls._rdb_connection)
+            )

@@ -250,3 +250,20 @@ class UserAllowedMediaPaginationResponse(PaginationResponseList[UserSharedMedia]
     rows: list[UserSharedMedia] = Field(
         description="List of allowed media for the current page"
     )
+
+
+class VirtInstallItem(BaseModel):
+    """OS template (virt_install XML) item"""
+
+    id: str = Field(description="ID of the virt_install template")
+    name: str = Field(description="Name of the OS template")
+    description: str = Field(default="", description="Description of the OS template")
+    vers: str = Field(default="", description="Version of the OS template")
+
+
+class VirtInstallListResponse(BaseModel):
+    """Response containing list of available OS templates for media installs"""
+
+    installs: list[VirtInstallItem] = Field(
+        description="List of available OS templates"
+    )

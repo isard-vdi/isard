@@ -97,7 +97,7 @@
               class="d-flex align-items-center"
             >
               <b-button
-                v-if="!['DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.kind === 'iso'"
+                v-if="data.item.status === 'Downloaded' && data.item.kind === 'iso'"
                 class="rounded-circle px-2 mr-2 btn-green"
                 :title="$t('views.media.buttons.new-desktop.title')"
                 @click="onClickGoToNewFromMedia(data.item)"
@@ -200,7 +200,7 @@
           </template>
           <template #cell(user)="data">
             <p class="text-dark-gray m-0">
-              {{ data.item.userName }}
+              {{ data.item.userName || (data.item.user && data.item.user.name) || '' }}
             </p>
           </template>
           <template #cell(category)="data">
@@ -259,7 +259,7 @@
           </template>
           <template #cell(actions)="data">
             <b-button
-              v-if="!['Downloading', 'maintenance', 'DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.kind === 'iso'"
+              v-if="data.item.status === 'Downloaded' && data.item.kind === 'iso'"
               class="rounded-circle px-2 mr-2 btn-green"
               :title="$t('views.media.buttons.new-desktop.title')"
               @click="onClickGoToNewFromMedia(data.item)"

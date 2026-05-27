@@ -19,7 +19,7 @@ export class MediaUtils {
       description,
       status,
       user,
-      user_name: userName,
+      user_name: userNameRaw,
       category,
       category_name: categoryName,
       group,
@@ -29,6 +29,7 @@ export class MediaUtils {
       kind,
       editable
     } = item
+    const userName = userNameRaw ?? (user && typeof user === 'object' ? user.name : undefined)
     const out = {
       id,
       name,
@@ -62,8 +63,9 @@ export class MediaUtils {
       kind,
       status,
       user,
-      user_name: userName
+      user_name: userNameRaw
     } = item
+    const userName = userNameRaw ?? (user && typeof user === 'object' ? user.name : undefined)
     return {
       id,
       name,

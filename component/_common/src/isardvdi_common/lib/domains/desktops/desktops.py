@@ -860,6 +860,26 @@ class DesktopsProcessed(RethinkSharedConnection):
                 else:
                     new_data["hardware"].pop("interfaces", None)
 
+            if new_data["hardware"].get("isos"):
+                # Convert to list of dicts
+                new_isos = []
+                for iso in new_data["hardware"]["isos"]:
+                    if isinstance(iso, dict):
+                        new_isos.append(iso)
+                    else:
+                        new_isos.append({"id": iso})
+                new_data["hardware"]["isos"] = new_isos
+
+            if new_data["hardware"].get("floppies"):
+                # Convert to list of dicts
+                new_floppies = []
+                for floppy in new_data["hardware"]["floppies"]:
+                    if isinstance(floppy, dict):
+                        new_floppies.append(floppy)
+                    else:
+                        new_floppies.append({"id": floppy})
+                new_data["hardware"]["floppies"] = new_floppies
+
             new_domain = {
                 **new_domain,
                 **{
@@ -1560,8 +1580,9 @@ class DesktopsProcessed(RethinkSharedConnection):
                     "hardware": desktop["hardware"],
                 }
 
+            # TODO: use cls.update_document() to use the pydantic model
             with cls._rdb_context():
-                r.table("domains").get(d).update(update_payload).run(
+                r.table(cls._rdb_table).get(d).update(update_payload).run(
                     cls._rdb_connection
                 )
 
