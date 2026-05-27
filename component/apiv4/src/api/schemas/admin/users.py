@@ -752,7 +752,7 @@ class AdminDeleteCheckDesktop(BaseModel):
     status: Optional[str] = None
     parents: Optional[list[str]] = None
     persistent: Optional[bool] = None
-    duplicate_parent_template: Optional[str] = None
+    duplicate_parent_template: Optional[Union[str, bool]] = None
 
 
 class AdminDeleteCheckTemplate(BaseModel):
@@ -764,7 +764,7 @@ class AdminDeleteCheckTemplate(BaseModel):
     username: Optional[str] = None
     category: Optional[str] = None
     group: Optional[str] = None
-    duplicate_parent_template: Optional[str] = None
+    duplicate_parent_template: Optional[Union[str, bool]] = None
 
 
 class AdminDeleteCheckMedia(BaseModel):
