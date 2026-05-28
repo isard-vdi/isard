@@ -182,7 +182,7 @@ class StoragePoolsProcessed(RethinkSharedConnection):
             cls.remove_common_categories_from_other_pools(data["categories"])
         with cls._rdb_context():
             r.table("storage_pool").get(storage_pool_id).update(data).run(
-                cls._rdb_context
+                cls._rdb_connection
             )
 
     @classmethod
@@ -191,7 +191,9 @@ class StoragePoolsProcessed(RethinkSharedConnection):
         if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
             raise Error("bad_request", "Default pool can't be removed")
         with cls._rdb_context():
-            r.table("storage_pool").get(storage_pool_id).delete().run(cls._rdb_context)
+            r.table("storage_pool").get(storage_pool_id).delete().run(
+                cls._rdb_connection
+            )
         with cls._rdb_context():
             r.table("hypervisors").update(
                 lambda hyper: {
@@ -208,7 +210,7 @@ class StoragePoolsProcessed(RethinkSharedConnection):
                         lambda pool: pool != storage_pool_id
                     ),
                 }
-            ).run(cls._rdb_context)
+            ).run(cls._rdb_connection)
 
     @classmethod
     def remove_category_from_storage_pool(cls, category_id):
