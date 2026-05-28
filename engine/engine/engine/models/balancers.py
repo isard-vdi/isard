@@ -4,15 +4,8 @@ import threading
 import time
 
 from engine.services.db import get_table_field
-from engine.services.db.hypervisors import (
-    get_diskopts_online,
-    get_hypers_gpu_online,
-    get_hypers_online,
-)
-from engine.services.lib.functions import (
-    get_diskoperations_pools_threads_running,
-    get_pools_threads_running,
-)
+from engine.services.db.hypervisors import get_hypers_gpu_online, get_hypers_online
+from engine.services.lib.functions import get_pools_threads_running
 from engine.services.log import logs
 
 """ 
@@ -168,10 +161,6 @@ class BalancerInterface:
     # NOTE: Now domain and it's storage belong to the same category. If we decide could not,
     # we should change the way to get the pool_id from the storage user owner category
 
-    # Disk operations uses the domain category to decide the pool:
-    # pool_id = get_category_storage_pool_id(dict_domain.get("category"))
-    # To call the balancer for get_next_diskoperations
-
     def __init__(self, id_pool="default", balancer_type="round_robin"):
         if balancer_type not in BALANCERS:
             logs.hmlog.error(f"Balancer type {balancer_type} not found in {BALANCERS}")
@@ -277,45 +266,6 @@ class BalancerInterface:
             return False, {}
 
         return hypervisor, extra
-
-    def get_next_diskoperations(self, forced_hyp=None, favourite_hyp=None):
-        hypers = get_diskopts_online(self.id_pool, forced_hyp, favourite_hyp)
-        hypers_w_threads = get_diskoperations_pools_threads_running(hypers)
-        if len(hypers) != len(hypers_w_threads):
-            logs.main.error("####################### BALANCER #######################")
-            logs.main.error(
-                "Some disk operations hypervisors are not online in pool %s."
-                % self.id_pool
-            )
-            logs.main.error(
-                "Hypervisors online: %s. Hypervisors with disks threads running: %s."
-                % (
-                    [h["id"] for h in hypers],
-                    [h["id"] for h in hypers_w_threads],
-                )
-            )
-
-        if len(hypers_w_threads) == 0:
-            logs.main.error("####################### BALANCER #######################")
-            logs.main.error(
-                "No disk operations online to execute next diskopts action in pool %s."
-                % self.id_pool
-            )
-            return False
-        if len(hypers_w_threads) == 1:
-            logs.main.debug("####################### BALANCER #######################")
-            logs.main.debug(
-                "Executing next disk operations action in the only diskopts available: %s in pool %s."
-                % (hypers_w_threads[0]["id"], self.id_pool)
-            )
-            return hypers[0]["id"]
-        hyper_selected = self._balancer._balancer(hypers_w_threads)["id"]
-        logs.main.debug("####################### BALANCER #######################")
-        logs.main.debug(
-            "Executing next disk operations action in hypervisor: %s (current hypers avail: %s) in pool %s"
-            % (hyper_selected, [h["id"] for h in hypers_w_threads], self.id_pool)
-        ),
-        return hyper_selected
 
     def _get_next_capabilities_virt(
         self,

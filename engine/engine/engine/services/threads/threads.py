@@ -3,18 +3,11 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-import pprint
 import threading
 
-from isardvdi_common.models.storage import Storage
-
 from engine.models.hyp import hyp
-from engine.services.db import (
-    get_domain,
-    get_domains_started_in_hyp,
-    update_all_domains_status,
-)
-from engine.services.db.domains import get_domain_status, update_domain_status
+from engine.services.db import get_domains_started_in_hyp, update_all_domains_status
+from engine.services.db.domains import update_domain_status
 from engine.services.db.hypervisors import (
     get_hyp_hostname_from_id,
     update_hyp_status,
@@ -23,7 +16,6 @@ from engine.services.db.hypervisors import (
 from engine.services.lib.functions import (
     PriorityQueueIsard,
     dict_domain_libvirt_state_to_isard_state,
-    execute_commands,
     state_and_cause_to_str,
 )
 from engine.services.log import *
@@ -43,73 +35,6 @@ def threading_enumerate():
     for i in l:
         logs.main.debug("Thread running: {}".format(i))
     return e
-
-
-def launch_disk_operations_thread(
-    hyp_id, hostname, user="root", port=22, q_orchestrator=None
-):
-    if hyp_id is False:
-        return False, False
-
-    update_hyp_thread_status("disk_operations", hyp_id, "Starting")
-
-    queue_disk_operation = PriorityQueueIsard()
-    # thread_disk_operation = threading.Thread(name='disk_op_'+id,target=disk_operations_thread, args=(host_disk_operations,queue_disk_operation))
-    thread_disk_operation = DiskOperationsThread(
-        name="diskop_" + hyp_id,
-        hyp_id=hyp_id,
-        hostname=hostname,
-        queue_actions=queue_disk_operation,
-        user=user,
-        port=port,
-        queue_master=q_orchestrator,
-    )
-    thread_disk_operation.daemon = True
-    thread_disk_operation.start()
-    return thread_disk_operation, queue_disk_operation
-
-
-def launch_delete_disk_action(action, hostname, user, port):
-    # disk_path = action["disk_path"]
-    # id_domain = action["domain"]
-    array_out_err = execute_commands(
-        hostname, ssh_commands=action["ssh_commands"], user=user, port=port
-    )
-    # TODO or TOREMOVE
-
-
-def launch_action_delete_disk(action, hostname, user, port):
-    disk_path = action["disk_path"]
-    id_domain = action["domain"]
-    array_out_err = execute_commands(
-        hostname, ssh_commands=action["ssh_commands"], user=user, port=port
-    )
-    # last ls must fail
-    if len([k["err"] for k in array_out_err if len(k["err"]) == 1]):
-        log.debug(
-            "all operations deleting  disk {} for domain {} runned ok".format(
-                disk_path, id_domain
-            )
-        )
-
-
-def launch_killall_curl(hostname, user, port):
-    ssh_commands = ["killall curl"]
-    try:
-        array_out_err = execute_commands(
-            hostname, ssh_commands=ssh_commands, user=user, port=port
-        )
-        out = array_out_err[0]["out"]
-        err = array_out_err[0]["err"]
-        logs.downloads.info(
-            f"kill al curl process in hypervisor {hostname}: {out} {err}"
-        )
-        return True
-    except Exception as e:
-        logs.exception_id.debug("0068")
-        logs.downloads.error(
-            f"Kill all curl process in hypervisor {hostname} fail: {e}"
-        )
 
 
 def launch_thread_worker(hyp_id, q_event_register, queue_master):
@@ -205,5 +130,4 @@ def set_domains_coherence(dict_hyps_ready):
 
 
 # IMPORT Thread Classes HERE
-from engine.services.threads.disk_operations_thread import DiskOperationsThread
 from engine.services.threads.hyp_worker_thread import HypWorkerThread

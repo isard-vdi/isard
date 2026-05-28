@@ -42,10 +42,7 @@ from engine.services.db.hypervisors import (
 )
 from engine.services.lib.functions import PriorityQueueIsard, get_tid, try_socket
 from engine.services.log import logs
-from engine.services.threads.threads import (
-    launch_disk_operations_thread,
-    launch_thread_worker,
-)
+from engine.services.threads.threads import launch_thread_worker
 
 # virtio_test_disk_relative_path = 'admin/admin/admin/virtio_testdisk.qcow2'
 # ui.creating_test_disk(test_disk_relative_route=virtio_test_disk_relative_path)
@@ -142,8 +139,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         t_workers,
         queues_object,
         t_events,
-        t_disk_operations,
-        q_disk_operations,
         manager=None,
         polling_interval=10,
     ):
@@ -152,8 +147,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         self.t_workers = t_workers
         self.t_events = t_events
         self.q_actions = PriorityQueueIsard()
-        self.t_disk_operations = t_disk_operations
-        self.q_disk_operations = q_disk_operations
         self.manager = manager
         self.name = name
         self.stop = False
@@ -165,7 +158,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         self.hypers_online = {}
         self.hypers_unknown = {}
         self.d_queues = {
-            "disk_operations": self.q_disk_operations,
             "workers": self.q.workers,
         }
         self.socket_tries = {}
@@ -192,9 +184,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
                     hyp_id = action["hyp_id"]
                     # TRANSFER ACTIONS TO OTHER QUEUE IF AVAILABLE ELSE DELETE
                     self.set_hyp_thread_dead(hyp_id)
-                if action["type"] == "thread_disk_operations_dead":
-                    hyp_id = action["hyp_id"]
-                    self.set_disk_worker_dead(hyp_id)
 
                 if action["type"] == "new_hyper_in_db":
                     pass
@@ -293,24 +282,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         del t_old
         del q_old
         update_hyp_thread_status("worker", hyp_id, "Stopped")
-        # if hyp_id in self.t_disk_operations.keys():
-        #     self.t_disk_operations[hyp_id].stop = True
-        #     self.q_disk_operations[hyp_id].put({'type':'stop_thread'})
-        # if hyp_id in self.t_long_operations.keys():
-        #     self.t_long_operations[hyp_id].stop = True
-        #     self.q_long_operations[hyp_id].put({'type':'stop_thread'})
-
-    def set_disk_worker_dead(self, hyp_id):
-        if self.q_disk_operations[hyp_id].empty() is False:
-            d = {"disk_operations": self.q_disk_operations}
-            move_actions_to_others_hypers(
-                hyp_id, d, remove_stopping=True, remove_if_no_more_hyps=True
-            )
-        q_old = self.q_disk_operations.pop(hyp_id)
-        t_old = self.t_disk_operations.pop(hyp_id)
-        del t_old
-        del q_old
-        update_hyp_thread_status("disk_operations", hyp_id, "Stopped")
 
     def disable_hyper(self, hyp_id, capabilities, status, thread_status):
         # status = get_hyp_status(hyp_id)
@@ -326,13 +297,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 action = {"type": "stop_thread"}
                 self.q.workers[hyp_id].put(action)
 
-        if hyp_id in self.t_disk_operations.keys():
-            if thread_status["disk_operations"] == "Started":
-                update_hyp_thread_status("disk_operations", hyp_id, "Stopping")
-                self.t_disk_operations[hyp_id].stop = True
-                action = {"type": "stop_thread"}
-                self.q_disk_operations[hyp_id].put(action)
-
     def _recover_stuck_stopping_threads(self, hyp_id, thread_status):
         """Check for and recover threads stuck in 'Stopping' state.
 
@@ -342,64 +306,50 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
         Args:
             hyp_id: The hypervisor ID
-            thread_status: Dict with worker/disk_operations thread states
+            thread_status: Dict with worker thread state
 
         Returns:
             Updated thread_status dict with stuck threads reset to 'Stopped'
         """
         current_time = time.time()
-        updated = False
 
-        for thread_type in ["worker", "disk_operations"]:
-            status = thread_status.get(thread_type, "Stopped")
-            if status == "Stopping":
-                # Track when we first saw this thread in Stopping state
-                key = f"{hyp_id}_{thread_type}"
-                if key not in self.stopping_timestamps:
-                    self.stopping_timestamps[key] = current_time
-                    logs.main.debug(
-                        f"[{hyp_id}] Thread {thread_type} entered Stopping state"
-                    )
-                else:
-                    elapsed = current_time - self.stopping_timestamps[key]
-                    if elapsed > self.STUCK_THREAD_TIMEOUT:
-                        logs.main.warning(
-                            f"[{hyp_id}] Thread {thread_type} stuck in 'Stopping' state "
-                            f"for {elapsed:.0f}s (>{self.STUCK_THREAD_TIMEOUT}s). "
-                            f"Forcing transition to 'Stopped'."
-                        )
-                        update_hyp_thread_status(thread_type, hyp_id, "Stopped")
-                        thread_status[thread_type] = "Stopped"
-                        del self.stopping_timestamps[key]
-                        updated = True
-
-                        # Clean up thread resources if they exist
-                        if thread_type == "worker" and hyp_id in self.t_workers:
-                            try:
-                                self.t_workers[hyp_id].stop = True
-                                self.t_workers.pop(hyp_id, None)
-                                self.q.workers.pop(hyp_id, None)
-                            except Exception as e:
-                                logs.main.error(
-                                    f"[{hyp_id}] Error cleaning up stuck worker thread: {e}"
-                                )
-                        elif (
-                            thread_type == "disk_operations"
-                            and hyp_id in self.t_disk_operations
-                        ):
-                            try:
-                                self.t_disk_operations[hyp_id].stop = True
-                                self.t_disk_operations.pop(hyp_id, None)
-                                self.q_disk_operations.pop(hyp_id, None)
-                            except Exception as e:
-                                logs.main.error(
-                                    f"[{hyp_id}] Error cleaning up stuck disk_operations thread: {e}"
-                                )
+        thread_type = "worker"
+        status = thread_status.get(thread_type, "Stopped")
+        if status == "Stopping":
+            # Track when we first saw this thread in Stopping state
+            key = f"{hyp_id}_{thread_type}"
+            if key not in self.stopping_timestamps:
+                self.stopping_timestamps[key] = current_time
+                logs.main.debug(
+                    f"[{hyp_id}] Thread {thread_type} entered Stopping state"
+                )
             else:
-                # Thread is not in Stopping state, clear any tracking
-                key = f"{hyp_id}_{thread_type}"
-                if key in self.stopping_timestamps:
+                elapsed = current_time - self.stopping_timestamps[key]
+                if elapsed > self.STUCK_THREAD_TIMEOUT:
+                    logs.main.warning(
+                        f"[{hyp_id}] Thread {thread_type} stuck in 'Stopping' state "
+                        f"for {elapsed:.0f}s (>{self.STUCK_THREAD_TIMEOUT}s). "
+                        f"Forcing transition to 'Stopped'."
+                    )
+                    update_hyp_thread_status(thread_type, hyp_id, "Stopped")
+                    thread_status[thread_type] = "Stopped"
                     del self.stopping_timestamps[key]
+
+                    # Clean up thread resources if they exist
+                    if hyp_id in self.t_workers:
+                        try:
+                            self.t_workers[hyp_id].stop = True
+                            self.t_workers.pop(hyp_id, None)
+                            self.q.workers.pop(hyp_id, None)
+                        except Exception as e:
+                            logs.main.error(
+                                f"[{hyp_id}] Error cleaning up stuck worker thread: {e}"
+                            )
+        else:
+            # Thread is not in Stopping state, clear any tracking
+            key = f"{hyp_id}_{thread_type}"
+            if key in self.stopping_timestamps:
+                del self.stopping_timestamps[key]
 
         return thread_status
 
@@ -465,31 +415,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
             and thread_status.get("worker", "Stopped") == "Stopped"
         ):
             self.activate_hyp(hyp_id)
-        if (
-            capabilities.get("disk_operations", False) is True
-            and thread_status.get("disk_operations", "Stopped") == "Stopped"
-        ):
-            self.activate_disk_operations(hyp_id)
-
-    def activate_disk_operations(self, hyp_id, timeout=10):
-        d = get_hyp_hostname_user_port_from_id(hyp_id)
-
-        launch_disk_operations = True
-        if hyp_id in self.t_disk_operations.keys():
-            if self.t_disk_operations[hyp_id].is_alive():
-                launch_disk_operations = False
-            else:
-                self.t_disk_operations.pop(hyp_id)
-                self.q_disk_operations.pop(hyp_id)
-        if launch_disk_operations is True:
-            (
-                self.t_disk_operations[hyp_id],
-                self.q_disk_operations[hyp_id],
-            ) = launch_disk_operations_thread(
-                hyp_id, d["hostname"], d["user"], d["port"], self.q_actions
-            )
-
-        return True
 
     def activate_hyp(self, hyp_id, timeout=10):
         t_worker, q_worker = launch_thread_worker(

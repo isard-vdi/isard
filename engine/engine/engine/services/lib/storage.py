@@ -26,7 +26,6 @@ from engine.services.db import (
     get_dict_from_item_in_table,
     insert_table_dict,
     update_table_dict,
-    update_table_field,
 )
 
 
@@ -54,8 +53,3 @@ def update_storage_status(storage_id, status):
             ),
         }
         update_table_dict("storage", storage_id, data)
-
-
-def update_storage_deleted_domain(storage_id, domain=None):
-    if storage_id:
-        update_table_field("storage", storage_id, "last_domain_attached", domain)
