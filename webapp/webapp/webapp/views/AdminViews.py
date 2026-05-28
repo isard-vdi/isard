@@ -106,6 +106,7 @@ def login(category="default"):
 
 
 @app.route("/isard-admin/logout/remote")
+@login_required
 def remote_logout():
     logout_user()
     return jsonify(success=True)
