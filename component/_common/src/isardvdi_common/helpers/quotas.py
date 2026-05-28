@@ -673,56 +673,46 @@ class Quotas(RethinkCustomBase):
             "Shutting-down",
         ]
 
-        started_desktops = {
-            "count": 0,
-            "vcpus": 0,
-            "memory": 0,
-        }
-
-        try:
-            with cls._rdb_context():
-                started_desktops = (
-                    r.table("domains")
-                    .get_all(
-                        [
-                            "desktop",
-                            query_id,
-                        ],
-                        index=query_index,
-                    )
-                    .filter(
-                        lambda desktop: r.expr(started_status).contains(
-                            desktop["status"]
-                        )
-                    )
-                    .eq_join("start_logs_id", r.table("logs_desktops"))
-                    .pluck({"right": ["starting_by"]}, "left")
-                    .zip()
-                    .filter(
-                        lambda desktop: (
-                            desktop.get_field("starting_by").eq("desktop-owner")
-                            if owner_only
-                            else True
-                        )
-                    )
-                    .map(
-                        lambda domain: {
-                            "count": 1,
-                            "memory": domain["create_dict"]["hardware"]["memory"],
-                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
-                        }
-                    )
-                    .reduce(
-                        lambda left, right: {
-                            "count": left["count"] + right["count"],
-                            "vcpus": left["vcpus"].add(right["vcpus"]),
-                            "memory": left["memory"].add(right["memory"]),
-                        }
-                    )
-                    .run(cls._rdb_connection)
+        with cls._rdb_context():
+            started_desktops = (
+                r.table("domains")
+                .get_all(
+                    [
+                        "desktop",
+                        query_id,
+                    ],
+                    index=query_index,
                 )
-        except ReqlNonExistenceError:
-            pass
+                .filter(
+                    lambda desktop: r.expr(started_status).contains(desktop["status"])
+                )
+                .eq_join("start_logs_id", r.table("logs_desktops"))
+                .pluck({"right": ["starting_by"]}, "left")
+                .zip()
+                .filter(
+                    lambda desktop: (
+                        desktop.get_field("starting_by").eq("desktop-owner")
+                        if owner_only
+                        else True
+                    )
+                )
+                .map(
+                    lambda domain: {
+                        "count": 1,
+                        "memory": domain["create_dict"]["hardware"]["memory"],
+                        "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                    }
+                )
+                .reduce(
+                    lambda left, right: {
+                        "count": left["count"] + right["count"],
+                        "vcpus": left["vcpus"].add(right["vcpus"]),
+                        "memory": left["memory"].add(right["memory"]),
+                    }
+                )
+                .default({"count": 0, "memory": 0, "vcpus": 0})
+                .run(cls._rdb_connection)
+            )
 
         started_desktops["memory"] = started_desktops["memory"] / 1048576
 

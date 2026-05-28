@@ -35,7 +35,8 @@ from .log import *
 """
 Update to new database release version when new code version release
 """
-release_version = 193
+release_version = 194
+# release 194: Normalize legacy media status "Deleted"/"FailedDeleted" to "deleted"
 # release 193: Add unused_deployment_desktops notification kinds, default rule, and matching notifications/action entries (port of main 7df258e32)
 # release 192: Add config.usage_retention defaults (daily_months=3, weekly_months=6, total_months=None)
 # release 191: Add domains.kind_user_accessed compound index for apiv4 pagination
@@ -4325,6 +4326,11 @@ password:s:%s"""
                 r.table(table).index_wait("status_accessed").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 194:
+            r.table(table).get_all(
+                r.args(["Deleted", "FailedDeleted"]), index="status"
+            ).update({"status": "deleted"}).run(self.conn)
 
         return True
 

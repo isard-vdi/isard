@@ -58,6 +58,11 @@ class ReservableService:
     def _format_item(
         item: dict, reservables: Reservables, reservable_type: str
     ) -> dict:
+        # engine writes ``False`` to vgpus.changing_to_profile to clear it
+        # normalize to None for the str schema.
+        changing_to_profile = item.get("changing_to_profile")
+        if not isinstance(changing_to_profile, str) or not changing_to_profile:
+            changing_to_profile = None
         return {
             "id": item["id"],
             "name": item["name"],
@@ -67,7 +72,7 @@ class ReservableService:
             "memory": item["memory"],
             "architecture": item["architecture"],
             "active_profile": item.get("active_profile"),
-            "changing_to_profile": item.get("changing_to_profile"),
+            "changing_to_profile": changing_to_profile,
             "physical_device": item.get("physical_device"),
             "profiles_enabled": item.get("profiles_enabled", []),
             "plans": ReservableService._get_item_plans(

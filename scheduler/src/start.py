@@ -18,18 +18,30 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from gevent import monkey
-
-monkey.patch_all()
-
 import os
-
-from flask import Flask
-
-from scheduler import app, socketio
 
 reload_enabled = os.environ.get("USAGE", "production") == "devel"
 debug_enabled = os.environ.get("LOG_LEVEL", "INFO") == "DEBUG"
+_is_reloader_supervisor = (
+    reload_enabled and os.environ.get("WERKZEUG_RUN_MAIN") != "true"
+)
+
+# In devel the Werkzeug reloader spawns the real server as a subprocess
+# (WERKZEUG_RUN_MAIN=true). Skip gevent monkey-patching and scheduler init
+# in the supervisor: APScheduler would otherwise run in both processes and
+# double-fire every cron, and on Python 3.13 the supervisor's subprocess
+# fork trips gevent's after_fork_in_child assertion.
+if _is_reloader_supervisor and __name__ == "__main__":
+    from werkzeug._reloader import run_with_reloader
+
+    run_with_reloader(lambda: None)
+    raise SystemExit(0)
+
+from gevent import monkey  # noqa: E402
+
+monkey.patch_all()
+
+from scheduler import app, socketio  # noqa: E402
 
 if __name__ == "__main__":
     socketio.run(

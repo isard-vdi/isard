@@ -383,7 +383,8 @@ class AdminGroup(BaseModel):
     uid: Optional[str] = None
     name: str
     parent_category: str
-    auto: bool = False
+    # Legacy rows persist ``auto`` as a dict from the retired auto-desktops UI.
+    auto: bool | dict = False
     description: str = ""
     # ``AdminGroupCreateData`` exposes these as Optional[str] so the
     # webapp can omit them. The response model has to accept the same
@@ -567,7 +568,7 @@ class AdminGroupNavItem(BaseModel):
     uid: Optional[str] = None
     name: str
     parent_category: str
-    auto: Optional[bool] = None
+    auto: Optional[bool | dict] = None
     description: Optional[str] = None
     external_app_id: Optional[str] = None
     external_gid: Optional[str] = None
@@ -751,7 +752,7 @@ class AdminDeleteCheckDesktop(BaseModel):
     status: Optional[str] = None
     parents: Optional[list[str]] = None
     persistent: Optional[bool] = None
-    duplicate_parent_template: Optional[str] = None
+    duplicate_parent_template: Optional[Union[str, bool]] = None
 
 
 class AdminDeleteCheckTemplate(BaseModel):
@@ -763,7 +764,7 @@ class AdminDeleteCheckTemplate(BaseModel):
     username: Optional[str] = None
     category: Optional[str] = None
     group: Optional[str] = None
-    duplicate_parent_template: Optional[str] = None
+    duplicate_parent_template: Optional[Union[str, bool]] = None
 
 
 class AdminDeleteCheckMedia(BaseModel):
@@ -840,7 +841,7 @@ class AdminRoleItem(BaseModel):
 class AdminSecretItem(BaseModel):
     """Row shape for ``GET /admin/items/secrets``.
 
-    Backed by ``ApiAdmin.admin_table_list("secrets", {})`` — the secrets
+    Backed by ``ApiAdmin.admin_table_list("secrets")`` — the secrets
     table carries the same fields the create-endpoint advertises
     (``id``/``kid``, ``category_id``, ``secret``, ``description``,
     ``role_id``)."""

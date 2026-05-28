@@ -294,7 +294,10 @@ $(document).ready(function () {
       },
       {
         "data": "owner_name",
-        "title": "Owner name"
+        "title": "Owner name",
+        render: function (owner_name) {
+          return owner_name ?? '<i class="text-muted">(deleted)</i>'
+        }
       },
       {
         "data": "item_type",
@@ -667,11 +670,11 @@ $(document).ready(function () {
     url: "/api/v4/items/recycle-bin/status",
     success: function (data) {
       let notShownStatus = ['recycled', 'deleting']
-      let status = data.filter((s) => !notShownStatus.includes(s.status))
-      $.each(status, function (index, currentStatus) {
+      $.each(data.by_status || {}, function (status, count) {
+        if (notShownStatus.includes(status)) return;
         $('#status').append($('<option>', {
-          value: currentStatus.status,
-          text: `${currentStatus.status} (${currentStatus.count} items)`
+          value: status,
+          text: `${status} (${count} items)`
         }));
       })
     }
@@ -723,7 +726,10 @@ $(document).ready(function () {
         },
         {
           "data": "owner_name",
-          "title": "Owner name"
+          "title": "Owner name",
+          render: function (owner_name) {
+            return owner_name ?? '<i class="text-muted">(deleted)</i>'
+          }
         },
         {
           "data": "item_type",

@@ -569,11 +569,13 @@ class DomainsProcessed(RethinkSharedConnection):
             with cls._rdb_context():
                 parents_ids = (
                     r.table("domains")
-                    .get(domain_id)
-                    .pluck("parents")["parents"]
+                    .get(domain_id)["parents"]
+                    .default([])
                     .run(cls._rdb_connection)
                 )
         except Exception:
+            return []
+        if not parents_ids:
             return []
 
         with cls._rdb_context():

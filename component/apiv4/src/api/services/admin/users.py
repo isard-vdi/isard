@@ -955,7 +955,7 @@ class AdminUsersService:
     @staticmethod
     def get_secrets() -> list[dict]:
         """Get admin secrets."""
-        return ApiAdmin.admin_table_list("secrets", {})
+        return ApiAdmin.admin_table_list("secrets")
 
     @staticmethod
     def create_secret(data: dict) -> dict:

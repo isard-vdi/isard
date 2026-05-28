@@ -218,14 +218,15 @@ class DesktopDomainHandler:
 
         Caller (`DomainsHandler._delegate`) guarantees `new_val.additional_properties`
         is populated from the RethinkDB row and is a plain dict when present.
-        This handler enriches it with `group_name` / `category_name` via
-        `DesktopsProcessed.get_domain_group_and_category_name` and strips the
+        This handler enriches it with `group_name` / `category_name` /
+        `user_name` / `role` via
+        `DesktopsProcessed.get_domain_enrichment` and strips the
         `progress` key when unchanged to avoid client-side flicker.
         """
         old_progress = (old_val.additional_properties or {}).get("progress")
         new_progress = (new_val.additional_properties or {}).get("progress")
         extra = await asyncio.to_thread(
-            DesktopsProcessed.get_domain_group_and_category_name, new_val.id
+            DesktopsProcessed.get_domain_enrichment, new_val.id
         )
 
         ap = dict(new_val.additional_properties or {})

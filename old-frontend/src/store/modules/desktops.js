@@ -510,6 +510,10 @@ export default {
       if (currentTab === 'sharedTemplates' && !context.getters.getSharedTemplatesLoaded) {
         context.dispatch('fetchAllowedTemplates', 'shared')
       }
+      // Temporal tab templates are fetched lazily, only the first time the tab is opened
+      if (currentTab === 'templates' && !context.getters.getTemplatesLoaded) {
+        context.dispatch('fetchAllowedTemplates', 'all')
+      }
       context.commit('setCurrentTab', currentTab)
     },
     fetchDirectLink (context, domainId) {

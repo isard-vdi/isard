@@ -52,8 +52,11 @@ Scheduler
 """
 from .lib.scheduler import Scheduler
 
-log.info("Starting scheduler")
-app.scheduler = Scheduler()
+# Skip in the Werkzeug reloader parent (devel) so the cron jobstore isn't attached twice.
+_reloader_enabled = os.environ.get("USAGE", "production") == "devel"
+if not _reloader_enabled or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    log.info("Starting scheduler")
+    app.scheduler = Scheduler()
 
 """
 Request logging middleware

@@ -69,6 +69,7 @@ from api.schemas.domains.desktops import (
     NewNonpersistentDesktopRequest,
     UserDesktopsResponse,
 )
+from api.services.bastion import BastionService
 from api.services.cards import CardService
 from api.services.deployments import DeploymentService
 from api.services.desktops import DesktopService
@@ -1173,11 +1174,21 @@ async def get_desktop_info(
         )
 
         try:
-            desktop_data["bastion_target"] = await asyncio.to_thread(
+            bastion_target = await asyncio.to_thread(
                 DesktopService.get_desktop_bastion, desktop_id
             )
         except Error:
-            desktop_data["bastion_target"] = None
+            bastion_target = None
+
+        if bastion_target:
+            # Merge global bastion config so the modal can compose SSH/URL links.
+            bastion_config = await asyncio.to_thread(
+                BastionService.get_admin_bastion_config
+            )
+            bastion_target["bastion_domain"] = bastion_config.get("bastion_domain")
+            bastion_target["ssh_port"] = bastion_config.get("bastion_ssh_port")
+
+        desktop_data["bastion_target"] = bastion_target
 
         return JSONResponse(
             content=DomainInfoResponse(**desktop_data).model_dump(mode="json"),
@@ -1189,7 +1200,7 @@ async def get_desktop_info(
         raise await Error.create(
             request,
             "internal_server",
-            "Failed to retrieve template information",
+            "Failed to retrieve desktop information",
             traceback.format_exc(),
         )
 
