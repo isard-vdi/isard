@@ -475,10 +475,10 @@ export default {
     },
     getDefaultViewer (desktop) {
       if (desktop.viewers !== undefined) {
-        if (this.getViewers[desktop.id] !== undefined && desktop.viewers.includes(this.getViewers[desktop.id])) {
-          return this.getViewers[desktop.id]
+        if (this.getViewers[desktop.id] !== undefined && desktop.viewers.map(s => s.replaceAll('_', '-')).includes(this.getViewers[desktop.id])) {
+          return this.getViewers[desktop.id].replaceAll('_', '-')
         } else if (desktop.viewers.length > 0) {
-          return desktop.viewers.includes('browser-vnc') ? 'browser-vnc' : desktop.viewers[0]
+          return desktop.viewers.map(s => s.replaceAll('_', '-')).includes('browser-vnc') ? 'browser-vnc' : desktop.viewers[0].replaceAll('_', '-')
         }
       }
       return ''
