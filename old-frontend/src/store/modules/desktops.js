@@ -275,6 +275,16 @@ export default {
     socket_desktopAdd (context, data) {
       const desktop = DesktopUtils.parseDesktop(JSON.parse(data))
       context.commit('add_desktop', desktop)
+      // Refresh the storage cache so the new desktop's storage row is
+      // available for the increase-disk modal. change-handler emits
+      // storage events on the ``/administrators`` namespace only, so
+      // the user-facing /userspace socket never receives them and the
+      // ``state.storage`` array stays stale between reloads. Without
+      // this re-fetch, ``Card.vue::onClickIncreaseStorage`` does
+      // ``getStorage.find(stg => stg.id === desktop.storage[0])`` and
+      // returns undefined → the modal silently does nothing (the user
+      // had to F5 to populate the cache).
+      context.dispatch('fetchStorage')
     },
     socket_desktopUpdate (context, data) {
       // change-handler emits with ``model_dump(exclude_none=True)`` so
