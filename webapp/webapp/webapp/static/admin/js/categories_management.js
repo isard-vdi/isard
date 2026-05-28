@@ -5,6 +5,17 @@
 * License: AGPLv3
 */
 
+// Sanitize string for insertion in HTML
+function htmlEscape(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function ajaxPutWithNotice(url, data, entityName, onSuccess) {
     var notice = new PNotify({
         text: 'Updating ' + entityName + '...',
@@ -511,7 +522,10 @@ function renderCategoriesDetailPannel(d) {
     }
     $newPanel = $template_category.clone();
     $newPanel.html(function (i, oldHtml) {
-        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
+        return oldHtml
+            .replace(/d.id/g, htmlEscape(d.id))
+            .replace(/d.name/g, htmlEscape(d.name))
+            .replace(/d.description/g, htmlEscape(d.description));
     });
     return $newPanel
 }
