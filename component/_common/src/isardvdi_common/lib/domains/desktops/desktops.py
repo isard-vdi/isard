@@ -69,7 +69,7 @@ from ....schemas.domains import DesktopFromTemplate, DesktopStatusEnum, DomainSt
 
 socketio = RedisManager(socketio_url(), write_only=True)
 
-_get_domain_group_and_category_name_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
+_get_domain_enrichment_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
 
 
 class DesktopsProcessed(RethinkSharedConnection):
@@ -917,28 +917,30 @@ class DesktopsProcessed(RethinkSharedConnection):
         return new_domain
 
     @classmethod
-    @cached(cache=_get_domain_group_and_category_name_cache)
-    def get_domain_group_and_category_name(cls, domain_id):
+    @cached(cache=_get_domain_enrichment_cache)
+    def get_domain_enrichment(cls, domain_id):
         with cls._rdb_context():
-            group_and_category_names = (
+            enrichment = (
                 r.table(cls._rdb_table)
                 .get(domain_id)
-                .pluck("group", "category")
+                .pluck("group", "category", "user")
                 .merge(
                     lambda domain: {
                         "group_name": r.table("groups").get(domain["group"])["name"],
                         "category_name": r.table("categories").get(domain["category"])[
                             "name"
                         ],
+                        "user_name": r.table("users").get(domain["user"])["name"],
+                        "role": r.table("users").get(domain["user"])["role"],
                     }
                 )
                 .run(cls._rdb_connection)
             )
-        return group_and_category_names
+        return enrichment
 
     @classmethod
-    def clear_get_domain_group_and_category_name_cache(cls):
-        _get_domain_group_and_category_name_cache.clear()
+    def clear_get_domain_enrichment_cache(cls):
+        _get_domain_enrichment_cache.clear()
 
     @classmethod
     def get_user_desktops(

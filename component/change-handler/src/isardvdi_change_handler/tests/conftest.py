@@ -219,7 +219,7 @@ def pinned_helper_returns(monkeypatch, request):
             staticmethod(lambda _id: None),
         ),
         (
-            "isardvdi_common.lib.domains.desktops.desktops.DesktopsProcessed.get_domain_group_and_category_name",
+            "isardvdi_common.lib.domains.desktops.desktops.DesktopsProcessed.get_domain_enrichment",
             staticmethod(lambda _id: {}),
         ),
     ]
