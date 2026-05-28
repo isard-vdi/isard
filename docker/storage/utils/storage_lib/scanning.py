@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 from .formatting import format_size, log
+from .qcow import is_file_in_use
 
 ISARD_DIRS = ["groups", "templates", "volatile", "storage_pools"]
 
@@ -59,18 +60,44 @@ def scan_isard_dirs(base_path="/isard"):
 
 
 def get_volatile_storages(base_path="/isard"):
-    """Get all file paths in the volatile directory.
+    """Get file paths in the volatile directory that are safe to delete.
 
-    Excludes the to_delete subdirectory (used by cleanup --move).
+    Excludes:
+      - the to_delete subdirectory (used by cleanup --move)
+      - any .qcow2 file currently locked by a running hypervisor (live
+        desktop). The volatile dir holds per-domain ephemeral state; while
+        a desktop is running, the canonical qemu-img write lock is held
+        on its volatile qcow2 and the file MUST NOT be removed.
+
+    Non-qcow2 files are returned without a lock check (qemu-img's lock
+    test only meaningfully applies to qcow2).
     """
     volatile = Path(base_path) / "volatile"
     if not volatile.is_dir():
         return []
-    return [
-        str(f)
-        for f in volatile.rglob("*")
-        if f.is_file() and "/to_delete/" not in str(f)
-    ]
+
+    safe = []
+    skipped_in_use = []
+    for f in volatile.rglob("*"):
+        if not f.is_file() or "/to_delete/" in str(f):
+            continue
+        f_str = str(f)
+        if f.suffix == ".qcow2":
+            in_use, _ = is_file_in_use(f_str)
+            if in_use:
+                skipped_in_use.append(f_str)
+                continue
+        safe.append(f_str)
+
+    if skipped_in_use:
+        log(
+            f"  get_volatile_storages: skipped {len(skipped_in_use)} "
+            f"qcow2 file(s) currently locked by a running hypervisor"
+        )
+        for path in skipped_in_use:
+            log(f"    in-use: {path}")
+
+    return safe
 
 
 def count_templates(file_list):
