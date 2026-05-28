@@ -88,11 +88,15 @@ class DeploymentService:
 
     @staticmethod
     def create_deployment(data: dict, payload: dict) -> str:
+        allowed = dict(data.get("allowed") or {})
+        for _k in ("groups", "users", "categories", "roles"):
+            allowed.setdefault(_k, False)
+
         deployment_id = CommonDeployments.create(
             payload=payload,
             name=data["name"],
             description=data.get("description"),
-            selected=data["allowed"],
+            selected=allowed,
             desktops=data["desktops"],
             co_owners=data.get("co_owners", []),
             visible=data.get("visible", False),
