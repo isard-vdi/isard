@@ -588,6 +588,32 @@ class UserDeploymentDesktop(BaseModel):
             return value
         return [v.replace("-", "_") if isinstance(v, str) else v for v in value]
 
+    @field_serializer("viewers")
+    def _hyphenate_viewers_for_clients(self, value):
+        # ``DomainViewerEnum`` uses underscored canonical values (the DB
+        # convention: ``guest_properties.viewers`` keys are ``browser_vnc``,
+        # ``file_spice``, ...). Both the old (Vue 2) and new (Vue 3)
+        # frontends consume the hyphenated form (``browser-vnc``,
+        # ``file-spice``) — the i18n key path
+        # ``views.select-template.viewer-name.<viewer>`` is registered with
+        # hyphens, and ``DesktopUtils.viewerNeedsIp`` /
+        # ``IsardDropdown.getDefaultViewer`` test for ``browser-vnc``
+        # specifically. Without this serializer the videowall response
+        # emits the enum value as-is and freshly-created stopped desktops
+        # show the raw i18n path (``views.select-template.viewer-name.
+        # browser_vnc``) in the viewer button until a subsequent WS update
+        # (which bypasses this schema and uses the hyphenated
+        # ``_parse_desktop`` output) overwrites the row.
+        out = []
+        for v in value or []:
+            if hasattr(v, "value"):
+                out.append(str(v.value).replace("_", "-"))
+            elif isinstance(v, str):
+                out.append(v.replace("_", "-"))
+            else:
+                out.append(v)
+        return out
+
 
 class UserDeploymentResponse(BaseModel):
     """List of user deployment desktops response model"""
