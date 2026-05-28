@@ -76,10 +76,15 @@ func (a *Authentication) GenerateUserToken(ctx context.Context, tkn string, user
 		return "", ErrUserNotEnabled
 	}
 
-	// If the token is manager the user must be from the same category
+	// Managers can only generate tokens for users in the same category and with a less privileged role. Admins can generate tokens for any user.
 	if tknRole.HasEqualPrivileges(model.RoleManager) {
 		if categoryID != u.Category {
 			return "", token.ErrInvalidTokenCategory
+		}
+
+		targetRole := model.Role(u.Role)
+		if targetRole.HasEqualOrMorePrivileges(model.RoleManager) {
+			return "", token.ErrInvalidTokenRole
 		}
 	}
 
