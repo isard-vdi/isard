@@ -974,6 +974,16 @@ class UsersProcessed(RethinkSharedConnection):
     @classmethod
     def change_password(cls, password, user_id):
         """_From api/libv2/api_users.py ApiUsers.change_password()_"""
+        # Log user password changes with relevant metadata for auditing purposes.
+        logger.info(
+            "password_mutation",
+            extra={
+                "audit_event": "users.password.changed",
+                "target_user_id": user_id,
+                "ts": int(time.time()),
+            },
+        )
+
         with cls._rdb_context():
             raw = r.table("users").get(user_id).default(None).run(cls._rdb_connection)
         if raw is None:
