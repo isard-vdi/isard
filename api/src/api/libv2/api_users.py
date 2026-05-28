@@ -20,6 +20,7 @@
 
 import base64
 import glob
+import logging as log
 import os
 import time
 import traceback
@@ -2602,6 +2603,16 @@ class ApiUsers:
         )
 
     def change_password(self, password, user_id):
+        # Log user password changes with relevant metadata for auditing purposes.
+        log.info(
+            "password_mutation",
+            extra={
+                "audit_event": "users.password.changed",
+                "target_user_id": user_id,
+                "ts": int(time.time()),
+            },
+        )
+
         with app.app_context():
             user = (
                 r.table("users")
