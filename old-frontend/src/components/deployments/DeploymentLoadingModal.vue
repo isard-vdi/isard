@@ -127,10 +127,26 @@ export default {
 
     // ``totalDesktops`` is the expected final count, enriched by
     // ``DeploymentService.get_deployment_videowall`` as
-    // ``len(create_dict) * total_users``. Falls back to ``desktops.length``
-    // only when genuinely absent (e.g. before fetchDeployment resolves).
+    // ``len(create_dict) * total_users`` and delivered through
+    // ``fetchDeployment``. The change-handler's ``deployment_update``
+    // WS emit does NOT carry it — ``DeploymentModel`` only contains
+    // the DB-row columns (``total_desktops`` is computed on fetch).
+    //
+    // So the fallback to ``desktops.length`` is unsafe: on a fresh
+    // bulk-spawn the WS pipeline (``creating_desktops`` →
+    // ``deployment_update`` → ``deploymentdesktop_add`` × N) drives
+    // ``desktops.length`` above zero BEFORE the in-flight
+    // ``fetchDeployment`` resolves. The modal would then open with
+    // ``totalDesktops`` still undefined, fall back to
+    // ``desktops.length``, and render the Stage-1 bar at 100% (K of
+    // K). When ``setDeployment`` finally overwrote the state with the
+    // ``/videowall`` snapshot the bar "reset" to 0 of the real total
+    // (the snapshot was often empty because the bulk fan-out had
+    // just started). Keep 0 here — the ``v-if="desktopsTotal > 0"``
+    // gates hide both bars and the ``stage{1,2}-pending`` status
+    // line is shown until the real total arrives.
     const desktopsTotal = computed(() =>
-      deployment.value.totalDesktops || (deployment.value.desktops || []).length || 0
+      deployment.value.totalDesktops || 0
     )
     const desktopsArrived = computed(() =>
       deployment.value.desktops ? deployment.value.desktops.length : 0
@@ -186,7 +202,13 @@ export default {
     })
 
     const stage2Status = computed(() => {
-      if (desktopsArrived.value === 0) {
+      // Guard on ``desktopsTotal`` too so the status line stays
+      // ``-pending`` while the modal is open without a known total
+      // (Stage-1 already gates on this; mirror the gate so the two
+      // rows are visually consistent during the brief race window
+      // between the WS pipeline starting and ``fetchDeployment``
+      // resolving — see the ``desktopsTotal`` comment above).
+      if (desktopsTotal.value === 0 || desktopsArrived.value === 0) {
         return i18n.t('views.deployment.loading-modal.body.stage2-pending')
       }
       if (stage2Done.value) {
