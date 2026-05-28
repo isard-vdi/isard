@@ -967,9 +967,23 @@
             "loading-modal": {
                 "title": "Creating desktops for '{name}'",
                 "body": {
+<<<<<<< HEAD
                     "title": "Please wait while we create your desktops.",
                     "desktops-total-creating": "{total} total desktops, with {creating} currently being created",
                     "desktops-created": "Your desktops have been created successfully"
+=======
+                    "title": "Your desktops are being provisioned in two stages. They will not be usable until both stages finish.",
+                    "desktops-created-of-total": "{created} of {total} desktops created",
+                    "desktops-created": "Your {total} desktops are ready",
+                    "stage1-title": "Stage 1 — Adding desktops to the deployment",
+                    "stage1-progress": "{current} of {total} desktops added",
+                    "stage1-pending": "Waiting for the engine to start spawning desktops...",
+                    "stage1-done": "{total} of {total} desktops added",
+                    "stage2-title": "Stage 2 — Provisioning storage",
+                    "stage2-progress": "{current} of {total} desktops provisioned",
+                    "stage2-pending": "Waiting for Stage 1 to finish before storage can be provisioned",
+                    "stage2-done": "{total} of {total} desktops provisioned"
+>>>>>>> b2b09a0484 (fix(old-frontend): split deployment loading modal into 2 explicit stages)
                 }
             }
         },

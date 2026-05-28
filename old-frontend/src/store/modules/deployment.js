@@ -33,7 +33,15 @@ const getDefaultState = () => {
     },
     permissions: [],
     recreateButtonDisabled: false,
-    showDeploymentLoadingModal: false
+    showDeploymentLoadingModal: false,
+    // Deployment ids currently in the engine's bulk-spawn loop. Bracketed by the
+    // ``creating_desktops`` / ``end_creating_desktops`` WS events from
+    // ``DesktopsProcessed.new_from_templateTh.process_desktops``. The detail
+    // page reads this to keep the loading modal open across the whole spawn
+    // pipeline — purely deriving from per-desktop states flickers between
+    // batches because every loaded desktop momentarily reaches a terminal
+    // state before the next ``deploymentdesktop_add`` arrives.
+    bulkCreatingDeployments: []
   }
 }
 
@@ -68,11 +76,19 @@ export default {
     },
     getShowDeploymentLoadingModal: state => {
       return state.showDeploymentLoadingModal
-    }
+    },
+    isDeploymentBulkCreating: state => id => state.bulkCreatingDeployments.includes(id)
   },
   mutations: {
     resetDeploymentState: (state) => {
+      // Preserve ``bulkCreatingDeployments`` across page navigation. It
+      // tracks engine bulk-spawn operations that are scoped to the
+      // session, not to whatever deployment row the user is currently
+      // viewing — clearing it on every ``destroyed`` hook would lose the
+      // open/close gate if the user briefly navigates away mid-spawn.
+      const preserved = state.bulkCreatingDeployments
       Object.assign(state, getDefaultState())
+      state.bulkCreatingDeployments = preserved
     },
     setDeployment: (state, deployment) => {
       state.deployment = deployment
@@ -127,6 +143,14 @@ export default {
     },
     setShowDeploymentLoadingModal (state, value) {
       state.showDeploymentLoadingModal = value
+    },
+    addBulkCreatingDeployment (state, id) {
+      if (!state.bulkCreatingDeployments.includes(id)) {
+        state.bulkCreatingDeployments = [...state.bulkCreatingDeployments, id]
+      }
+    },
+    removeBulkCreatingDeployment (state, id) {
+      state.bulkCreatingDeployments = state.bulkCreatingDeployments.filter(d => d !== id)
     }
   },
   actions: {
@@ -162,13 +186,30 @@ export default {
       }
     },
     socket_creatingDesktops (context, data) {
-      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
+      const payload = JSON.parse(data)
+      // Track this regardless of route so the modal gate is correct even
+      // when the event arrives BEFORE the detail page has mounted (engine
+      // fires ``creating_desktops`` as soon as the POST returns).
+      context.commit('addBulkCreatingDeployment', payload.deployment_id)
+      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === payload.deployment_id) {
         context.commit('setDisableRecreateButton', true)
       }
     },
     socket_endCreatingDesktops (context, data) {
-      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
+      const payload = JSON.parse(data)
+      context.commit('removeBulkCreatingDeployment', payload.deployment_id)
+      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === payload.deployment_id) {
         context.commit('setDisableRecreateButton', false)
+        // Re-fetch the deployment so the desktop list, total counts, and
+        // top-bar badges reconcile to the final state. Without this
+        // re-fetch the page only shows the desktops that arrived via
+        // ``deploymentdesktop_add`` AFTER ``fetchDeployment`` resolved —
+        // and on apiv4-integration the engine's asyncio fan-out is fast
+        // enough that most ``deploymentdesktop_add`` events fire BEFORE
+        // ``fetchDeployment`` sets ``state.deployment.id``, so the
+        // listener filter ``tag === state.deployment.id`` drops them.
+        // The result was the user seeing 3 of 32 desktops with no error.
+        context.dispatch('fetchDeployment', { id: payload.deployment_id })
       }
     },
     fetchDeployment (context, data) {
