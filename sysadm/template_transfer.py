@@ -1159,11 +1159,12 @@ def transfer_one(meta, remote_host, remote_user, cfg):
         )
         if not res.get("ok"):
             return (did, False, "restore: " + str(res.get("error")))
-        if res.get("pruned"):
+        meta["_pruned"] = res.get("pruned") or {}
+        if meta["_pruned"]:
             logger.warning(
                 "[%s] pruned/defaulted refs missing on destination: %s",
                 meta["name"],
-                res["pruned"],
+                meta["_pruned"],
             )
 
         if not cfg.get("keep_converted") and converted.exists():
@@ -1215,6 +1216,115 @@ def _verify_source_untouched(metas, want_hash=False):
     for name, why in changed:
         logger.error("O1 VIOLATION: source disk modified for %s (%s)", name, why)
     return not changed
+
+
+_REVIEW_LABELS = {
+    "interfaces": "interfaces/networks NOT mapped (no destination network with that name) -> REMOVED from template",
+    "interfaces_remapped": "interfaces remapped by name to destination ids [name, src_id, dst_id]",
+    "media": "media (ISO/floppy) not on destination -> DETACHED",
+    "vgpus": "vGPU profiles not on destination -> DROPPED",
+    "graphics": "graphics not on destination -> DROPPED",
+    "videos": "videos not on destination -> DROPPED",
+    "hypervisors_pools": "hypervisor pools not on destination -> RESET to default",
+}
+
+
+def _confirm_or_abort(passed, blocked, bad, verdicts, assume_yes):
+    """Safety gate before the destructive phase. Returns True to proceed.
+
+    With --yes this is non-interactive (logs a one-line note). Without it, prints a
+    warning that summarises what WILL be auto-resolved on import (networks that will
+    not map, refs that will be pruned/defaulted) and prompts for explicit confirmation.
+    """
+    if assume_yes:
+        logger.info("--yes set: skipping interactive confirmation.")
+        return True
+
+    logger.warning("=" * 78)
+    logger.warning("WARNING: about to MODIFY the destination install (no --yes given).")
+    logger.warning(
+        "  %d template(s) will be copied and inserted into the destination DB"
+        "  |  %d blocked  |  %d metadata-failed.",
+        len(passed),
+        len(blocked),
+        len(bad),
+    )
+    flagged = [
+        (m["name"], verdicts[m["domain_id"]]["warn"])
+        for m in passed
+        if verdicts[m["domain_id"]]["warn"]
+    ]
+    if flagged:
+        logger.warning(
+            "  The following will be auto-pruned/defaulted on import"
+            " (a manual-review report is printed at the end):"
+        )
+        for name, warns in flagged:
+            for w in warns:
+                logger.warning("    %-40s %s", name, w)
+    logger.warning("=" * 78)
+
+    if not sys.stdin.isatty():
+        logger.error(
+            "Refusing to proceed: not an interactive terminal and --yes was not given. "
+            "Re-run with --yes to confirm non-interactively."
+        )
+        return False
+    try:
+        ans = (
+            input("Proceed with the transfer? Type 'yes' to continue: ").strip().lower()
+        )
+    except EOFError:
+        ans = ""
+    if ans not in ("y", "yes"):
+        logger.error("Aborted by operator (no confirmation).")
+        return False
+    return True
+
+
+def _print_manual_review(passed, blocked, bad, results, verdicts):
+    """End-of-run report of everything auto-resolved that a human should verify."""
+    reviewed = [(m["name"], m["_pruned"]) for m in passed if m.get("_pruned")]
+    failed = [(d, msg) for d, good, msg in results if not good]
+
+    if not (reviewed or blocked or bad or failed):
+        logger.info(
+            "MANUAL REVIEW: none — every template imported with all references mapped."
+        )
+        return
+
+    logger.info("=" * 78)
+    logger.info("MANUAL REVIEW REQUIRED — verify the following on the destination:")
+    for name, pr in reviewed:
+        logger.info("  %s:", name)
+        for key in (
+            "interfaces",
+            "interfaces_remapped",
+            "media",
+            "vgpus",
+            "graphics",
+            "videos",
+            "hypervisors_pools",
+        ):
+            if pr.get(key):
+                logger.info("    - %s: %s", _REVIEW_LABELS.get(key, key), pr[key])
+    if blocked:
+        logger.info("  BLOCKED (not transferred):")
+        for m in blocked:
+            logger.info(
+                "    - %-40s %s",
+                m["name"],
+                "; ".join(verdicts[m["domain_id"]]["block"]),
+            )
+    if failed:
+        logger.info("  TRANSFER FAILED (left no destination record):")
+        for did, msg in failed:
+            logger.info("    - %s  %s", did, msg)
+    if bad:
+        logger.info("  METADATA-FAILED (could not be read on source):")
+        for did, msg in bad:
+            logger.info("    - %s  %s", did, msg)
+    logger.info("=" * 78)
 
 
 def run_transfer(domain_ids, remote_host, remote_user, cfg, dry_run=False):
@@ -1290,6 +1400,9 @@ def run_transfer(domain_ids, remote_host, remote_user, cfg, dry_run=False):
             "%d template(s) blocked by gates and will be skipped", len(blocked)
         )
 
+    if not _confirm_or_abort(passed, blocked, bad, verdicts, cfg.get("assume_yes")):
+        return False
+
     for m in passed:
         _snapshot_source(m, want_hash=cfg.get("verify_source_hash"))
 
@@ -1318,6 +1431,8 @@ def run_transfer(domain_ids, remote_host, remote_user, cfg, dry_run=False):
         len(bad),
     )
     logger.info("=" * 78)
+
+    _print_manual_review(passed, blocked, bad, results, verdicts)
     return len(ok) == len(passed) and not blocked and not bad
 
 
@@ -1500,6 +1615,13 @@ Examples:
         "--dry-run", action="store_true", help="Run all gates, change nothing"
     )
     t.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Skip the interactive pre-transfer confirmation (non-interactive use). "
+        "Without it, the tool warns and prompts before modifying the destination.",
+    )
+    t.add_argument(
         "--remote-db-container",
         default="isard-storage",
         help="Container used for DB/qemu ops on both sides (default: isard-storage)",
@@ -1618,6 +1740,7 @@ Examples:
 
         cfg = {
             "workers": args.workers,
+            "assume_yes": args.yes,
             "keep_converted": args.keep_converted,
             "fast": args.fast,
             "compress": args.compress,

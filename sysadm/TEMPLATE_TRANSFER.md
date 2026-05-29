@@ -63,6 +63,16 @@ nothing. Blocking failures abort that template; nothing is partially applied.
 - An interrupted transfer **resumes**: rsync continues the partial file, and a valid
   already-converted copy is reused instead of being regenerated.
 
+**Operator confirmation & manual-review report**
+- Before the destructive phase the tool prints a **warning** summarising what will be
+  written and which references will be auto-pruned/defaulted on import, then **prompts
+  for confirmation**. Pass `-y`/`--yes` to skip the prompt (non-interactive use); with
+  no `--yes` on a non-interactive terminal it refuses rather than guessing.
+- At the end it prints a **MANUAL REVIEW REQUIRED** report listing, per template, what
+  a human should verify: networks that could not be mapped (removed), interfaces
+  remapped by name, dropped media/vGPUs/etc., plus blocked, failed and metadata-failed
+  templates. A fully clean run prints `MANUAL REVIEW: none`.
+
 ## Domain reimport: schema & missing resources
 
 The `domains` document is portable on current IsardVDI: the disk is referenced by
@@ -82,7 +92,7 @@ warning, so the template still imports and works:
 
 | Reference            | If missing on destination                                   |
 |----------------------|-------------------------------------------------------------|
-| `interfaces`         | dropped (no NIC); `--reset-network` forces the default NIC  |
+| `interfaces`         | matched to the destination network with the **same name** (ids differ per install); only names with no destination match are dropped; `--reset-network` forces the default NIC |
 | `graphics`/`videos`  | dropped; falls back to stock `default` if it would be empty |
 | `media` (ISOs/flop.) | dropped (boots without it); `--clear-media` drops all       |
 | `reservables.vgpus`  | dropped; `None` if it would be empty; `--clear-vgpu` clears |
@@ -125,10 +135,10 @@ sysadm/template_transfer.py transfer-templates \
     --domains UUID1 --remote-host root@host --remote-user U --sparsify --compress
 ```
 
-Other options: `--remote-db-container NAME` (default `isard-storage`),
-`--secure-ssh` (verify host keys instead of disabling), `--verify-source-hash`, and
-the normalisation flags `--reset-network` / `--clear-vgpu` / `--clear-media` /
-`--keep-hyp-pools`.
+Other options: `-y`/`--yes` (skip the interactive pre-transfer confirmation),
+`--remote-db-container NAME` (default `isard-storage`), `--secure-ssh` (verify host
+keys instead of disabling), `--verify-source-hash`, and the normalisation flags
+`--reset-network` / `--clear-vgpu` / `--clear-media` / `--keep-hyp-pools`.
 
 ## Limitations
 
