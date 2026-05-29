@@ -89,6 +89,11 @@ const users = {
   // E2E manager user — reserved for future manager-role vue2 specs
   manager_e2e_01: { username: 'manager_e2e_01', password: 'IsardTest1!', category: 'default' },
 
+  // E2E managers seeded inside the dedicated `qle2e` test category for the
+  // quotas/limits manager scenarios (own-category edits + the self-edit logout).
+  qle2e_manager: { username: 'qle2e-manager', password: 'IsardTest1!', category: 'qle2e' },
+  qle2e_logout_mgr: { username: 'qle2e-logout-mgr', password: 'IsardTest1!', category: 'qle2e' },
+
   // LDAP test users (from planetexpress.com test server)
   ldap_fry: { username: 'fry', password: 'fry', category: 'default' },
   ldap_leela: { username: 'leela', password: 'leela', category: 'default' },
@@ -160,6 +165,13 @@ const categories = {
     id: '0519250f-e376-48c4-9609-fdae7d54a353',
     name: 'Password Reset',
     url: 'password_reset',
+    frontend: false,
+    maintenance: false,
+  },
+  qle2e: {
+    id: 'qle2e',
+    name: 'QuotasLimits E2E',
+    url: 'qle2e',
     frontend: false,
     maintenance: false,
   },
@@ -388,6 +400,25 @@ export const test = base.extend({
 
   managerE2EPage: async ({ managerE2EContext }, use) => {
     const page = await managerE2EContext.newPage()
+    await use(page)
+    await page.close()
+  },
+
+  // Worker-scoped login as the manager seeded inside the `qle2e` test
+  // category, used by the quotas/limits manager scenarios. Bridges the Flask
+  // admin session so the manager can reach the `/isard-admin/*` admin pages.
+  qle2eManagerContext: [async ({ browser }, use) => {
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await ctx.newPage()
+    await loginHelpers.login(page, users.qle2e_manager, categories)
+    await bridgeAdminSession(page)
+    await page.close()
+    await use(ctx)
+    await ctx.close()
+  }, { scope: 'worker' }],
+
+  qle2eManagerPage: async ({ qle2eManagerContext }, use) => {
+    const page = await qle2eManagerContext.newPage()
     await use(page)
     await page.close()
   },

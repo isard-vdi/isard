@@ -2674,5 +2674,177 @@
                 "remote_port": null
             }
         }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "qle2e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "qle2e-group",
+        "id": "qle2e-user",
+        "lang": "es",
+        "name": "QL E2E User",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "user",
+        "secondary_groups": [],
+        "start_logs_id": "qle2e-user_1754484618",
+        "uid": "qle2e-user",
+        "username": "qle2e-user",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.61",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "qle2eUserPrivKeyplaceholder000000000000=",
+                    "public": "qle2eUserPubKeyplaceholder0000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "qle2e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "qle2e-group",
+        "id": "qle2e-adv",
+        "lang": "es",
+        "name": "QL E2E Advanced",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "advanced",
+        "secondary_groups": [],
+        "start_logs_id": "qle2e-adv_1754484618",
+        "uid": "qle2e-adv",
+        "username": "qle2e-adv",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.62",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "qle2eAdvPrivKeyplaceholder0000000000000=",
+                    "public": "qle2eAdvPubKeyplaceholder00000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "qle2e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "qle2e-mgr-home",
+        "id": "qle2e-manager",
+        "lang": "es",
+        "name": "QL E2E Manager",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "manager",
+        "secondary_groups": [],
+        "start_logs_id": "qle2e-manager_1754484618",
+        "uid": "qle2e-manager",
+        "username": "qle2e-manager",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.63",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "qle2eMgrPrivKeyplaceholder0000000000000=",
+                    "public": "qle2eMgrPubKeyplaceholder00000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
+    },
+    {
+        "accessed": 1754483418,
+        "active": true,
+        "api_key": "",
+        "category": "qle2e",
+        "disclaimer_acknowledged": false,
+        "email": "",
+        "email_verification_token": "",
+        "email_verified": null,
+        "group": "qle2e-mgr-home",
+        "id": "qle2e-logout-mgr",
+        "lang": "es",
+        "name": "QL E2E Logout Mgr",
+        "password": "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a",
+        "password_history": [
+            "$2b$12$IDefWow/vOXCKoyc/N9UYuBG6nCuWQe4pgxWOC1FuKbU0RXxzGw5a"
+        ],
+        "password_last_updated": 1754483418,
+        "password_reset_token": "",
+        "photo": "",
+        "provider": "local",
+        "quota": false,
+        "role": "manager",
+        "secondary_groups": [],
+        "start_logs_id": "qle2e-logout-mgr_1754484618",
+        "uid": "qle2e-logout-mgr",
+        "username": "qle2e-logout-mgr",
+        "vpn": {
+            "iptables": [],
+            "wireguard": {
+                "Address": "10.0.0.64",
+                "AllowedIPs": "10.2.0.0/16",
+                "connected": false,
+                "extra_client_nets": null,
+                "keys": {
+                    "private": "qle2eLogoutPrivKeyplaceholder00000000000=",
+                    "public": "qle2eLogoutPubKeyplaceholder000000000000="
+                },
+                "remote_ip": null,
+                "remote_port": null
+            }
+        }
     }
 ]

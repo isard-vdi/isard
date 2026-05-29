@@ -159,5 +159,41 @@
         "parent_category": "0519250f-e376-48c4-9609-fdae7d54a353",
         "quota": false,
         "uid": "Main"
+    },
+    {
+        "auto": false,
+        "description": "[QuotasLimits E2E] group/user quota edit target",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "qle2e-group",
+        "limits": false,
+        "linked_groups": [],
+        "name": "QL E2E Group",
+        "parent_category": "qle2e",
+        "quota": false,
+        "uid": "QL E2E Group"
+    },
+    {
+        "auto": false,
+        "description": "[QuotasLimits E2E] manager home group (never an override target)",
+        "enrollment": {
+            "advanced": false,
+            "manager": false,
+            "user": false
+        },
+        "external_app_id": null,
+        "external_gid": null,
+        "id": "qle2e-mgr-home",
+        "limits": false,
+        "linked_groups": [],
+        "name": "QL E2E Mgr Home",
+        "parent_category": "qle2e",
+        "quota": false,
+        "uid": "QL E2E Mgr Home"
     }
 ]
