@@ -40,6 +40,36 @@ converted file via the `/opt/isard` bind mount).
 - The **destination** must have a running `isard-storage` and a reachable `isard-db`.
 - `--remote-user` must be an existing user id on the destination (it becomes the owner).
 
+## Minimum IsardVDI version
+
+**Both installs must be on `v11.7.13` or newer.** This is the release that introduced
+the **storage refactor** (DB schema version 109): the `storage` table and disks
+referenced by `create_dict.hardware.disks[0].storage_id` with a `directory_path` on
+each storage row. The tool is built entirely around that model — it resolves a
+template's disk through its `storage` row and re-registers it the same way — so on any
+install below `v11.7.13` (disks still recorded by path, no `storage` table) it cannot
+work.
+
+That floor was derived from the code's hard dependencies:
+
+| Dependency (read/written by the tool)                         | Introduced  |
+|---------------------------------------------------------------|-------------|
+| `storage` table + `disks[0].storage_id` + `directory_path`    | **v11.7.13** |
+| `interfaces` as `{id, mac}` dicts (name-based remap)          | v10.81.63   |
+| `reservables_vgpus` / `hypervisors_pools` / `media` tables    | older / pruned if absent |
+
+The storage refactor is the newest of these, so it sets the minimum. Everything else
+either predates it or degrades gracefully — a missing `reservables_vgpus`,
+`hypervisors_pools` or `media` table is detected and the reference is simply
+pruned/defaulted on import rather than failing.
+
+**Recommended:** the tool has been validated on the `v15`/`v16` line, where the storage
+schema and the `isard-storage` container are stable. Treat `v11.7.13` as the hard floor
+and a current `v15+` as the practical target; on installs between those, run a
+`--dry-run` first to confirm the gates pass. (If a target predates the dedicated
+`isard-storage` container, point `--remote-db-container` at whichever container has
+`rethinkdb` + `qemu-img` and the `/isard` mount.)
+
 ## Safety model (fail-closed gates)
 
 Every gate runs **before any mutation**, and `--dry-run` runs all of them and changes
