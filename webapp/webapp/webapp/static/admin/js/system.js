@@ -21,6 +21,12 @@
 $(document).ready(function () {
 
     // Maintenance
+    maintenance_status_enabled = (data) => {
+        if (typeof data === "boolean") {
+            return data;
+        }
+        return Boolean(data && data.enabled);
+    }
     maintenance_update_checkbox = (enabled) => {
         let status;
         if (enabled) {
@@ -46,11 +52,11 @@ $(document).ready(function () {
         $.ajax({
             type: "PUT",
             url: "/api/v4/maintenance",
-            data: JSON.stringify(enabled),
+            data: JSON.stringify({ enabled }),
             contentType: "application/json",
             accept: "application/json",
         }).done((data) => {
-            maintenance_update_checkbox(data);
+            maintenance_update_checkbox(maintenance_status_enabled(data));
             maintenance_bind_checkbox();
             $("#maintenance_spinner").hide();
             $("#maintenance_wrapper").show();
@@ -61,7 +67,7 @@ $(document).ready(function () {
         url: "/api/v4/maintenance/status",
         accept: "application/json",
     }).done((data) => {
-        maintenance_update_checkbox(data);
+        maintenance_update_checkbox(maintenance_status_enabled(data));
         maintenance_bind_checkbox();
         $("#maintenance_spinner").hide();
         $("#maintenance_wrapper").show();
@@ -74,8 +80,9 @@ $(document).ready(function () {
         $.ajax({
             url: "/api/v4/maintenance/text",
         }).done(function (data) {
-            $(modal + " #title").val(data.title);
-            $(modal + " #text").val(data.body);
+            const maintenanceText = data.text || {};
+            $(modal + " #title").val(maintenanceText.title || "");
+            $(modal + " #text").val(maintenanceText.body || "");
         });
         $(modal).modal({
             backdrop: 'static',
@@ -126,7 +133,8 @@ function showMaintenanceText(div) {
     $.ajax({
         url: "/api/v4/maintenance/text",
     }).done(function (data) {
-        $("#preview").text(`${data.title}\n\n${data.body}`)
+        const maintenanceText = data.text || {};
+        $("#preview").text(`${maintenanceText.title || ""}\n\n${maintenanceText.body || ""}`)
     });
 }
 
