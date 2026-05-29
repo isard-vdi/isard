@@ -680,11 +680,6 @@
       "loading-modal": {
         "title": "Creant escriptoris per a '{name}'",
         "body": {
-<<<<<<< HEAD
-          "title": "Espereu mentre creem els vostres escriptoris.",
-          "desktops-total-creating": "{total} escriptoris en total, amb {creating} creant-se actualment",
-          "desktops-created": "Els teus escriptoris s'han creat correctament"
-=======
           "title": "Els teus escriptoris s'estan aprovisionant en dues etapes. No es podran fer servir fins que les dues acabin.",
           "desktops-created-of-total": "{created} de {total} escriptoris creats",
           "desktops-created": "Els teus {total} escriptoris estan a punt",
@@ -696,7 +691,6 @@
           "stage2-progress": "{current} de {total} escriptoris aprovisionats",
           "stage2-pending": "Esperant que la Etapa 1 acabi abans d'aprovisionar emmagatzematge",
           "stage2-done": "{total} de {total} escriptoris aprovisionats"
->>>>>>> b2b09a0484 (fix(old-frontend): split deployment loading modal into 2 explicit stages)
         }
       }
     },
