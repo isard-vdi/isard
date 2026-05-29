@@ -1627,6 +1627,7 @@
       "recreating-deployment": "Recreant desplegament",
       "deployment-desktops-created": "Escriptoris del desplegament creats",
       "deleting-deployment": "Esborrant desplegament",
+      "deployment-deleted": "Desplegament eliminat",
       "making-visible-deployment": "Fent el desplegament visible",
       "making-invisible-deployment": "Fent el desplegament invisible",
       "making-visible-desktop": "Fent l'escriptori visible",
