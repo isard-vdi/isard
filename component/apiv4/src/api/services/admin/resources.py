@@ -18,6 +18,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from uuid import uuid4
+
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_vpn import IsardVpn
@@ -25,7 +27,6 @@ from isardvdi_common.lib.api_admin import ApiAdmin
 
 
 class AdminResourcesService:
-
     @staticmethod
     def get_remote_vpn(vpn_id: str, kind: str = "config", os: str = None) -> dict:
         """Get remote VPN configuration data."""
@@ -43,6 +44,7 @@ class AdminResourcesService:
                 "bad_request",
                 "QoS burst limit validation failed: " + "; ".join(errors),
             )
+        data["id"] = str(uuid4())
         ApiAdmin.insert_table_item("qos_disk", data)
         return {}
 
