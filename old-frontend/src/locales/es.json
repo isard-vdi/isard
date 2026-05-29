@@ -963,11 +963,6 @@
       "loading-modal": {
         "title": "Creando escritorios para '{name}'",
         "body": {
-<<<<<<< HEAD
-          "title": "Por favor, espera mientras creamos tus escritorios.",
-          "desktops-total-creating": "{total} escritorios en total, de los cuales {creating} están siendo creados",
-          "desktops-created": "Tus escritorios han sido creados correctamente"
-=======
           "title": "Tus escritorios se están aprovisionando en dos etapas. No podrán usarse hasta que ambas terminen.",
           "desktops-created-of-total": "{created} de {total} escritorios creados",
           "desktops-created": "Tus {total} escritorios están listos",
@@ -979,7 +974,6 @@
           "stage2-progress": "{current} de {total} escritorios aprovisionados",
           "stage2-pending": "Esperando a que termine la Etapa 1 antes de aprovisionar el almacenamiento",
           "stage2-done": "{total} de {total} escritorios aprovisionados"
->>>>>>> b2b09a0484 (fix(old-frontend): split deployment loading modal into 2 explicit stages)
         }
       }
     },
