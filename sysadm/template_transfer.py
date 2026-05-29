@@ -518,7 +518,14 @@ with get_conn() as conn:
             storage = r.table("storage").get(sid).run(conn) if sid else None
             if storage is None:
                 err = "storage_not_found:" + str(sid)
-    _emit({"error": err, "domain": domain, "storage": storage})
+    iface_names = {}
+    if domain:
+        for _if in (domain.get("create_dict") or {}).get("hardware", {}).get("interfaces", []) or []:
+            iid = _if.get("id") if isinstance(_if, dict) else None
+            if iid and iid not in iface_names:
+                bi = r.table("interfaces").get(iid).run(conn)
+                iface_names[iid] = (bi or {}).get("name")
+    _emit({"error": err, "domain": domain, "storage": storage, "iface_names": iface_names})
 """
 
 _CHECK = """
@@ -645,12 +652,42 @@ with get_conn() as conn:
             return set(ids)  # table absent / cannot verify -> keep as-is
 
     if not opt.get("reset_network"):
+        # Interfaces are matched BY NAME: an interface named X on the source is
+        # remapped to the destination interface that has the same name (ids differ
+        # across installs for ovs/personal nets). Only names with no destination
+        # match are dropped.
         ifaces = [i for i in (hw.get("interfaces") or []) if isinstance(i, dict)]
-        ex = _existing("interfaces", [i.get("id") for i in ifaces])
-        drop = [i.get("id") for i in ifaces if i.get("id") not in ex]
-        if drop:
-            pruned["interfaces"] = drop
-            hw["interfaces"] = [i for i in ifaces if i.get("id") in ex]
+        if ifaces:
+            try:
+                tk_by_name = {ti["name"]: ti["id"]
+                              for ti in r.table("interfaces").pluck("id", "name").run(conn)
+                              if ti.get("name") is not None}
+            except Exception:
+                tk_by_name = None
+            src_names = INPUT.get("iface_names") or {}
+            kept, dropped, remapped = [], [], []
+            for i in ifaces:
+                bid = i.get("id")
+                nm = src_names.get(bid)
+                if tk_by_name is None:
+                    tkid = bid  # cannot verify -> keep as-is
+                elif nm is not None and nm in tk_by_name:
+                    tkid = tk_by_name[nm]
+                elif bid in set(tk_by_name.values()):
+                    tkid = bid  # same id already exists on destination
+                else:
+                    tkid = None
+                if tkid:
+                    if tkid != bid:
+                        remapped.append([nm, bid, tkid])
+                    kept.append({**i, "id": tkid})
+                else:
+                    dropped.append(nm or bid)
+            hw["interfaces"] = kept
+            if dropped:
+                pruned["interfaces"] = dropped
+            if remapped:
+                pruned["interfaces_remapped"] = remapped
 
     for key, table in (("graphics", "graphics"), ("videos", "videos")):
         vals = [x for x in (hw.get(key) or []) if isinstance(x, str)]
@@ -736,6 +773,7 @@ def fetch_template_metadata(domain_id):
         "card_url": card_url,
         "card_host": card_host,
         "name": domain.get("name", domain_id),
+        "iface_names": res.get("iface_names", {}),
     }
     meta["refs"] = _extract_refs(domain)
     return meta
@@ -1115,6 +1153,7 @@ def transfer_one(meta, remote_host, remote_user, cfg):
                 "storage": meta["storage"],
                 "remote_user": remote_user,
                 "opts": cfg.get("restore_opts", {}),
+                "iface_names": meta.get("iface_names", {}),
             },
             remote_host=remote_host,
         )
