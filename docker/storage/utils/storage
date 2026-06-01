@@ -1,0 +1,4535 @@
+#!/usr/bin/env python3
+
+#
+#   Copyright © 2024-2025 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""Unified storage utility for IsardVDI.
+
+Subcommands:
+    sizes       Report disk sizes by storage status
+    integrity   Check qcow2 integrity and dependencies
+    cleanup     Generate deletion file lists for orphaned/broken storage
+    by-role     Report storage grouped by user role
+    age-report  Aggregate size/count by day/week/month/year from cleanup sidecars
+    deployments Annotate cleanup lists with deployment ownership (domains.tag)
+    recycler-audit  Confirm whether the deployment auto-recycler is working
+    desktops    Dump every desktop with role/deployment/idle/size for analysis
+"""
+
+import argparse
+import csv
+import datetime
+import json
+import os
+import shutil
+import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from time import time
+
+from storage_lib.api import (
+    fetch_domains_accessed,
+    fetch_medias,
+    fetch_storage_lookup,
+    fetch_storage_paths,
+    fetch_storages,
+    fetch_storages_by_role,
+    fetch_storages_with_size,
+    poll_task,
+    trigger_disconnect,
+    trigger_find,
+    update_storage_path,
+)
+from storage_lib.cache import load_qcow_cache, save_qcow_cache
+from storage_lib.formatting import format_size, format_time_remaining, log, size_gb
+from storage_lib.qcow import (
+    analyze_dependencies,
+    analyze_integrity,
+    analyze_integrity_and_dependencies,
+    compress_file,
+    create_incremental,
+    diagnose_broken_chains,
+    get_backing_chain,
+    get_full_info,
+    qemu_img_check,
+    qemu_img_info,
+    rebase_file,
+    sparsify_file,
+)
+from storage_lib.reporting import get_output_dir, write_file_list
+from storage_lib.scanning import (
+    count_templates,
+    get_volatile_storages,
+    scan_files,
+    scan_isard_dirs,
+)
+
+# ─── sizes subcommand ────────────────────────────────────────────────────────
+
+CATEGORIES = ["active", "recycled", "other"]
+
+
+def classify(storage_info):
+    """Classify a storage entry into: active, recycled, or other."""
+    if storage_info is None:
+        return "other"
+    if storage_info["has_domains"]:
+        return "active"
+    if storage_info["status"] == "recycled":
+        return "recycled"
+    return "other"
+
+
+def _empty_counts():
+    return {"size": 0, "count": 0}
+
+
+def _empty_breakdown():
+    return {cat: _empty_counts() for cat in CATEGORIES}
+
+
+def _empty_time_split():
+    return {
+        "recent": _empty_breakdown(),
+        "old": _empty_breakdown(),
+        "recent_total": _empty_counts(),
+        "old_total": _empty_counts(),
+    }
+
+
+def _add_to(breakdown, category, size):
+    breakdown[category]["size"] += size
+    breakdown[category]["count"] += 1
+
+
+def _add_to_counts(counts, size):
+    counts["size"] += size
+    counts["count"] += 1
+
+
+def _print_breakdown(breakdown, indent=""):
+    labels = {
+        "active": "Active (has domains)",
+        "recycled": "Recycled",
+        "other": "Other",
+    }
+    for cat in CATEGORIES:
+        c = breakdown[cat]
+        if c["count"] == 0:
+            continue
+        print(
+            f"{indent}{labels[cat]:<24} {c['count']:>6} files"
+            f"  {format_size(c['size']):>10}"
+        )
+
+
+def _print_time_split(split, cutoff_date, indent=""):
+    recent_label = f"Last accessed >= {cutoff_date.strftime('%Y-%m-%d')}"
+    old_label = f"Last accessed < {cutoff_date.strftime('%Y-%m-%d')}"
+
+    r = split["recent_total"]
+    o = split["old_total"]
+    if r["count"]:
+        print(f"{indent}{recent_label}:")
+        print(
+            f"{indent}  {'Total':<22} {r['count']:>6} files"
+            f"  {format_size(r['size']):>10}"
+        )
+        _print_breakdown(split["recent"], indent=indent + "  ")
+    if o["count"]:
+        print(f"{indent}{old_label}:")
+        print(
+            f"{indent}  {'Total':<22} {o['count']:>6} files"
+            f"  {format_size(o['size']):>10}"
+        )
+        _print_breakdown(split["old"], indent=indent + "  ")
+
+
+def cmd_sizes(args):
+    """Report disk sizes by storage status (read-only)."""
+    log("Starting sizes report (read-only)")
+    if args.no_api:
+        log("API calls disabled (--no-api)")
+
+    ext = None if args.extension == "all" else args.extension
+
+    storage_lookup = None
+    domain_accessed = None
+    cutoff_date = None
+
+    if not args.no_api:
+        storage_lookup = fetch_storage_lookup()
+        if args.output or args.past_days:
+            domain_accessed = fetch_domains_accessed()
+
+    if args.past_days:
+        if args.no_api:
+            log(
+                "WARNING: --past-days requires API data, ignoring (use without --no-api)"
+            )
+        else:
+            cutoff_date = datetime.datetime.now() - datetime.timedelta(
+                days=args.past_days
+            )
+            log(
+                f"Time split cutoff: {cutoff_date.strftime('%Y-%m-%d')}"
+                f" ({args.past_days} days ago)"
+            )
+
+    # Scan files
+    all_files = scan_files(args.path, ext)
+
+    if args.check_qcow2:
+        qcow2_count = sum(1 for f in all_files if f.suffix == ".qcow2")
+        log(
+            f"qcow2 inspection enabled: {qcow2_count} qcow2 files to inspect"
+            " with qemu-img info -U..."
+        )
+    if cutoff_date:
+        log(f"Time split cutoff: {cutoff_date.strftime('%Y-%m-%d')} (--past-days)")
+
+    # Process files
+    totals = _empty_breakdown()
+    total_size = 0
+    total_files = 0
+    total_corrupted = 0
+    total_inspected = 0
+    dirs = {}
+    raw_rows = []
+    time_totals = _empty_time_split() if cutoff_date else None
+    file_count = len(all_files)
+
+    cutoff_iso = cutoff_date.isoformat() if cutoff_date else None
+
+    log("Scanning...")
+    start = time()
+    last_log = start
+
+    for f in all_files:
+        try:
+            stat = f.stat()
+            size = stat.st_size
+            file_mtime = datetime.datetime.fromtimestamp(stat.st_mtime).isoformat()
+        except OSError as e:
+            log(f"WARNING: cannot stat {f}: {e}")
+            continue
+
+        total_size += size
+        total_files += 1
+
+        # Progress log
+        now = time()
+        if now - last_log >= 10:
+            pct = (total_files / file_count * 100) if file_count else 0
+            elapsed = now - start
+            rate = total_files / elapsed if elapsed > 0 else 0
+            remaining = (file_count - total_files) / rate if rate > 0 else 0
+            msg = (
+                f"  {total_files}/{file_count} ({pct:.0f}%) | {format_size(total_size)}"
+            )
+            if args.check_qcow2:
+                msg += (
+                    f" | inspected {total_inspected} qcow2,"
+                    f" {total_corrupted} corrupted"
+                )
+            msg += f" | ~{remaining:.0f}s remaining"
+            log(msg)
+            last_log = now
+
+        # qcow2 inspection
+        backing_file = ""
+        backing_file_id = ""
+        virtual_size = ""
+        qcow2_valid = ""
+        is_qcow2 = f.suffix == ".qcow2"
+        if args.check_qcow2 and is_qcow2:
+            total_inspected += 1
+            qinfo = qemu_img_info(f)
+            if qinfo is None:
+                qcow2_valid = "corrupted"
+                total_corrupted += 1
+            else:
+                qcow2_valid = "ok"
+                backing_file = (
+                    qinfo.get("backing-filename")
+                    or qinfo.get("full-backing-filename")
+                    or ""
+                )
+                virtual_size = str(qinfo.get("virtual-size", ""))
+                if backing_file:
+                    try:
+                        backing_file_id = Path(backing_file).stem
+                    except Exception:
+                        backing_file_id = ""
+
+        # Classify
+        storage_id = f.stem
+        cat = None
+        db_status = ""
+        if storage_lookup is not None:
+            info = storage_lookup.get(storage_id)
+            if qcow2_valid == "corrupted":
+                cat = "other"
+                _add_to(totals, cat, size)
+                db_status = info["status"] if info else ""
+            else:
+                cat = classify(info)
+                _add_to(totals, cat, size)
+                db_status = info["status"] if info else ""
+
+        # Domain accessed time
+        accessed = ""
+        if domain_accessed is not None:
+            accessed = domain_accessed.get(storage_id, "") or ""
+
+        # Time split
+        if cutoff_date and cat:
+            ref_time = file_mtime if file_mtime else accessed
+            bucket = "recent" if ref_time >= cutoff_iso else "old"
+            _add_to(time_totals[bucket], cat, size)
+            _add_to_counts(time_totals[f"{bucket}_total"], size)
+
+        # Raw row for CSV
+        if args.output:
+            raw_rows.append(
+                {
+                    "file_path": str(f),
+                    "storage_id": storage_id,
+                    "size_bytes": size,
+                    "size_human": format_size(size),
+                    "virtual_size": virtual_size,
+                    "file_mtime": file_mtime,
+                    "category": cat or "",
+                    "db_status": db_status,
+                    "domain_accessed": accessed,
+                    "qcow2_valid": qcow2_valid,
+                    "backing_file": backing_file,
+                    "backing_file_id": backing_file_id,
+                }
+            )
+
+        # Per-directory
+        parent = str(f.parent)
+        if parent not in dirs:
+            dirs[parent] = {
+                "size": 0,
+                "count": 0,
+                "corrupted": 0,
+                "breakdown": _empty_breakdown(),
+                "time_split": _empty_time_split() if cutoff_date else None,
+            }
+        dirs[parent]["size"] += size
+        dirs[parent]["count"] += 1
+        if qcow2_valid == "corrupted":
+            dirs[parent]["corrupted"] += 1
+        if cat:
+            _add_to(dirs[parent]["breakdown"], cat, size)
+            if cutoff_date:
+                _add_to(dirs[parent]["time_split"][bucket], cat, size)
+                _add_to_counts(dirs[parent]["time_split"][f"{bucket}_total"], size)
+
+    elapsed = time() - start
+    log(
+        f"Scan complete: {total_files} files in {len(dirs)} directories ({elapsed:.1f}s)"
+    )
+    if args.check_qcow2:
+        log(f"Corrupted/invalid qcow2 files: {total_corrupted}")
+
+    # Write CSV
+    if args.output and raw_rows:
+        log(f"Writing raw data to {args.output} ({len(raw_rows)} rows)...")
+        fieldnames = [
+            "file_path",
+            "storage_id",
+            "size_bytes",
+            "size_human",
+            "virtual_size",
+            "file_mtime",
+            "category",
+            "db_status",
+            "domain_accessed",
+            "qcow2_valid",
+            "backing_file",
+            "backing_file_id",
+        ]
+        with open(args.output, "w", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(raw_rows)
+        log(f"Raw data written to {args.output}")
+
+    # Print totals
+    print()
+    print(f"Path: {args.path}")
+    if ext:
+        print(f"Filter: *.{ext}")
+    print(f"Total files: {total_files}")
+    print(f"Total size:  {format_size(total_size)}")
+    if args.check_qcow2:
+        print(f"Corrupted:   {total_corrupted}")
+
+    if storage_lookup is not None:
+        print()
+        _print_breakdown(totals, indent="  ")
+
+        if time_totals:
+            print()
+            _print_time_split(time_totals, cutoff_date, indent="  ")
+
+    # Per-directory
+    if dirs:
+        print()
+        header = f"{'Count':>6}  {'Size':>10}"
+        if args.check_qcow2:
+            header += f"  {'Bad':>4}"
+        header += "  Directory"
+        print(header)
+        print("-" * 70)
+        for d in sorted(dirs, key=lambda k: dirs[k]["size"], reverse=True):
+            dinfo = dirs[d]
+            line = f"{dinfo['count']:>6}  {format_size(dinfo['size']):>10}"
+            if args.check_qcow2:
+                line += f"  {dinfo['corrupted']:>4}"
+            line += f"  {d}"
+            print(line)
+            if storage_lookup is not None:
+                _print_breakdown(dinfo["breakdown"], indent="        ")
+                if dinfo["time_split"]:
+                    _print_time_split(
+                        dinfo["time_split"], cutoff_date, indent="        "
+                    )
+
+    log("Done")
+
+
+# ─── integrity subcommand ────────────────────────────────────────────────────
+
+
+def cmd_integrity(args):
+    """Check qcow2 integrity, dependencies, and DB-vs-disk consistency."""
+    from tabulate import tabulate
+
+    t = time()
+    log("Starting integrity analysis...")
+
+    # ── Fetch full API data ───────────────────────────────────────────────
+    log("Getting storages from API...")
+    raw_storages = fetch_storages()
+    if raw_storages is None:
+        log("ERROR: API call failed.")
+        sys.exit(1)
+
+    db_paths = [s["path"] for s in raw_storages]
+    db_storage_lookup = {}
+    for s in raw_storages:
+        db_storage_lookup[s["path"]] = {
+            "id": s["id"],
+            "status": s.get("status", "unknown"),
+            "has_domains": s.get("domains", 0) > 0,
+        }
+    log(f" - Got {len(db_paths)} storages from API in {time()-t:.2f} seconds")
+
+    # ── Scan filesystem ───────────────────────────────────────────────────
+    log("Getting storages from system...")
+    sys_storages = scan_isard_dirs()
+    log(f" - Got {len(sys_storages)} storages from system in {time()-t:.2f} seconds")
+
+    qcow_storages = [s for s in sys_storages if s.endswith(".qcow2")]
+    non_qcow_storages = [s for s in sys_storages if not s.endswith(".qcow2")]
+    storages_in_db_not_in_system = set(db_paths) - set(qcow_storages)
+    storages_in_system_not_in_db = set(qcow_storages) - set(db_paths)
+
+    # ── Integrity & dependency checks ─────────────────────────────────────
+    log("Analyzing qcow integrity + dependencies...")
+    broken_chain, qcow_deps, _ = analyze_integrity_and_dependencies(qcow_storages)
+    log(f" - Analyzed qcow integrity + dependencies in {time()-t:.2f} seconds")
+
+    volatile = get_volatile_storages()
+    deletable = set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db
+
+    # Classify non-qcow2 and duplicate files
+    dead_artifacts, unknown_non_qcow = _classify_non_qcow2_files(
+        non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
+    )
+    duplicate_uploads = _find_duplicate_uploads(qcow_storages, db_storage_lookup)
+
+    # ── Filesystem summary table ──────────────────────────────────────────
+    log(f"Finished in {time()-t:.2f} seconds, generating report...")
+
+    print("\n" + "=" * 70)
+    print("FILESYSTEM ANALYSIS")
+    print("=" * 70)
+
+    table_data = [
+        ["Info", "Count", "Size (GB)"],
+        ["Storages in API", len(db_paths), "-"],
+        ["Storages in system", len(sys_storages), size_gb(sys_storages)],
+        ["Non-qcow2 files", len(non_qcow_storages), size_gb(non_qcow_storages)],
+        [
+            "Storages in API not in system",
+            len(storages_in_db_not_in_system),
+            "-",
+        ],
+        [
+            "Storages in system not in API",
+            len(storages_in_system_not_in_db),
+            size_gb(storages_in_system_not_in_db),
+        ],
+        ["Broken chain", len(broken_chain), size_gb(broken_chain)],
+        [
+            "No backing file",
+            len(qcow_deps["wo_backing"]),
+            size_gb(qcow_deps["wo_backing"]),
+        ],
+        [
+            "No derivatives",
+            len(qcow_deps["wo_derivatives"]),
+            size_gb(qcow_deps["wo_derivatives"]),
+        ],
+        ["Volatile storages", len(volatile), size_gb(volatile)],
+    ]
+
+    print(
+        tabulate(
+            table_data,
+            headers="firstrow",
+            tablefmt="grid",
+            stralign="center",
+            numalign="center",
+        )
+    )
+
+    # Deletable summary
+    table_data = [
+        ["To delete", "What", "Count", "Size (GB)"],
+        [
+            "Storages in API not in system",
+            "API storage&domains entries",
+            len(storages_in_db_not_in_system),
+            "-",
+        ],
+        [
+            "Dead artifacts (non-qcow2)",
+            "files",
+            len(dead_artifacts),
+            size_gb(dead_artifacts),
+        ],
+        [
+            "Duplicate uploads",
+            "qcow files",
+            len(duplicate_uploads),
+            size_gb(duplicate_uploads),
+        ],
+        [
+            "Other non-qcow2 (media, etc.)",
+            "files",
+            len(unknown_non_qcow),
+            size_gb(unknown_non_qcow),
+        ],
+        [
+            "Volatile storages",
+            "qcow files",
+            len(volatile),
+            size_gb(volatile),
+        ],
+        [
+            "Broken chain",
+            "qcow files",
+            len(broken_chain),
+            size_gb(broken_chain),
+        ],
+        [
+            "Storages in system not in API with no derivatives",
+            "qcow files",
+            len(deletable),
+            size_gb(deletable),
+        ],
+    ]
+
+    print(
+        tabulate(
+            table_data,
+            headers="firstrow",
+            tablefmt="grid",
+            stralign="center",
+            numalign="center",
+        )
+    )
+    print(
+        "Total size of storages that may be deleted: ",
+        size_gb(volatile)
+        + size_gb(dead_artifacts)
+        + size_gb(duplicate_uploads)
+        + size_gb(broken_chain)
+        + size_gb(deletable),
+    )
+
+    # ── DB vs Disk consistency check ──────────────────────────────────────
+    log("Checking DB-vs-disk consistency...")
+
+    # Build filesystem lookup: path -> stat
+    fs_lookup = {}
+    for f in qcow_storages:
+        try:
+            fs_lookup[f] = Path(f).stat()
+        except OSError:
+            pass
+
+    # Group API storages by status
+    ready_storages = [s for s in raw_storages if s["status"] == "ready"]
+    deleted_storages = [s for s in raw_storages if s["status"] == "deleted"]
+    other_storages = [
+        s for s in raw_storages if s["status"] not in ("ready", "deleted")
+    ]
+
+    # Check: ready in DB but file missing on disk
+    ready_missing = []
+    for s in ready_storages:
+        if s["path"] not in fs_lookup:
+            ready_missing.append(s)
+
+    # Check: deleted in DB but file still on disk
+    deleted_ghost = []
+    for s in deleted_storages:
+        if s["path"] in fs_lookup:
+            deleted_ghost.append(s)
+
+    # Check: ready in DB, file exists, but DB actual-size mismatches disk
+    size_mismatches = []
+    SIZE_THRESHOLD = 1024 * 1024  # 1MB
+    for s in ready_storages:
+        if s["path"] not in fs_lookup:
+            continue
+        db_size = (s.get("qemu-img-info") or {}).get("actual-size", 0) or 0
+        real_size = fs_lookup[s["path"]].st_size
+        if db_size and abs(real_size - db_size) > SIZE_THRESHOLD:
+            size_mismatches.append(
+                {
+                    "id": s["id"],
+                    "path": s["path"],
+                    "db_size": db_size,
+                    "real_size": real_size,
+                    "diff_mb": abs(real_size - db_size) / (1024 * 1024),
+                }
+            )
+
+    # Check: ready in DB, file exists, but DB parent doesn't match disk backing
+    parent_mismatches = []
+    broken_set = set(broken_chain)
+    for s in ready_storages:
+        if s["path"] not in fs_lookup or s["path"] in broken_set:
+            continue
+        db_parent = s.get("parent")
+        disk_backing = qcow_deps.get("dependency_map", {}).get(s["path"])
+        if disk_backing:
+            disk_parent_uuid = Path(disk_backing).stem
+        else:
+            disk_parent_uuid = None
+        if db_parent != disk_parent_uuid:
+            parent_mismatches.append(
+                {
+                    "id": s["id"],
+                    "db_parent": db_parent,
+                    "disk_parent": disk_parent_uuid,
+                }
+            )
+
+    # Print DB consistency report
+    print("\n" + "=" * 70)
+    print("DB vs DISK CONSISTENCY")
+    print("=" * 70)
+
+    all_ok = True
+
+    # Status distribution
+    status_table = [["DB Status", "Count", "With domains"]]
+    for label, group in [
+        ("ready", ready_storages),
+        ("deleted", deleted_storages),
+    ]:
+        with_dom = sum(1 for s in group if s.get("domains", 0) > 0)
+        status_table.append([label, len(group), with_dom])
+    if other_storages:
+        for s in other_storages:
+            status_table.append(
+                [
+                    s["status"],
+                    1,
+                    1 if s.get("domains", 0) > 0 else 0,
+                ]
+            )
+    print(
+        tabulate(
+            status_table,
+            headers="firstrow",
+            tablefmt="grid",
+            stralign="center",
+            numalign="center",
+        )
+    )
+
+    # Ready but missing
+    if ready_missing:
+        all_ok = False
+        with_domains = sum(1 for s in ready_missing if s.get("domains", 0) > 0)
+        print(f"\nREADY in DB but FILE MISSING: {len(ready_missing)}")
+        if with_domains:
+            print(f"  WARNING: {with_domains} of these have domains attached!")
+        for s in ready_missing:
+            dom = s.get("domains", 0)
+            dom_str = f"  domains={dom}" if dom else ""
+            print(f"  {s['id']}{dom_str}  {s['path']}")
+
+    # Deleted but ghost
+    if deleted_ghost:
+        all_ok = False
+        print(f"\nDELETED in DB but FILE EXISTS: {len(deleted_ghost)}")
+        for s in deleted_ghost:
+            real_size = fs_lookup[s["path"]].st_size
+            print(f"  {s['id']}  {format_size(real_size)}  {s['path']}")
+
+    # Size mismatches
+    if size_mismatches:
+        all_ok = False
+        size_mismatches.sort(key=lambda x: x["diff_mb"], reverse=True)
+        print(
+            f"\nSIZE MISMATCH (DB vs disk, >{SIZE_THRESHOLD // (1024*1024)}MB): "
+            f"{len(size_mismatches)}"
+        )
+        for m in size_mismatches[:15]:
+            print(
+                f"  {m['id']}  DB={format_size(m['db_size'])} "
+                f" disk={format_size(m['real_size'])} "
+                f" diff={m['diff_mb']:.0f}MB"
+            )
+        if len(size_mismatches) > 15:
+            print(f"  ... and {len(size_mismatches) - 15} more")
+
+    # Parent mismatches
+    if parent_mismatches:
+        all_ok = False
+        print(f"\nPARENT MISMATCH (DB vs disk backing): {len(parent_mismatches)}")
+        for m in parent_mismatches[:10]:
+            print(f"  {m['id']}")
+            print(f"    DB parent:   {m['db_parent']}")
+            print(f"    Disk parent: {m['disk_parent']}")
+        if len(parent_mismatches) > 10:
+            print(f"  ... and {len(parent_mismatches) - 10} more")
+
+    if all_ok:
+        print("\nAll DB records consistent with filesystem.")
+
+    print("=" * 70)
+
+    # ── Templates without dependents ─────────────────────────────────────
+    unused_templates = _find_templates_without_dependents(raw_storages)
+    if unused_templates:
+        total_unused_size = sum(t["size"] for t in unused_templates)
+        print(f"\n{'=' * 70}")
+        print("TEMPLATES WITHOUT DEPENDENTS")
+        print(f"{'=' * 70}")
+        print(
+            f"  {len(unused_templates)} templates ({format_size(total_unused_size)})"
+            " — no desktop or template depends on them"
+        )
+        print()
+        for ot in unused_templates:
+            kids_str = (
+                f"  ({ot['deleted_children']} deleted children)"
+                if ot["deleted_children"]
+                else ""
+            )
+            print(
+                f"  {ot['id']}  {format_size(ot['size']):>10}"
+                f"  user={ot['user_id']}{kids_str}"
+            )
+        print(f"{'=' * 70}")
+
+    # ── Chain depth analysis ─────────────────────────────────────────────
+    health = _analyze_chain_health(qcow_deps, raw_storages, depth_threshold=3)
+    print(f"\n{'=' * 70}")
+    print("CHAIN DEPTH ANALYSIS")
+    print(f"{'=' * 70}")
+    print(f"  Total files:    {len(health['files'])}")
+    print(f"  Root templates: {len(health['roots'])}")
+    print(f"  Max depth:      {health['max_depth']}")
+    print(f"  Average depth:  {health['avg_depth']:.1f}")
+
+    if health["deep"]:
+        print(f"\n  Deep chains (depth > 3): {len(health['deep'])}")
+        for fi in health["deep"][:10]:
+            kind = "template" if fi["is_template"] else "desktop"
+            print(f"    depth={fi['depth']}  {kind}  {fi['id']}")
+
+    if health["single_dependent"]:
+        print(
+            f"\n  Flattening candidates (single-dependent):"
+            f" {len(health['single_dependent'])}"
+        )
+        for sd in health["single_dependent"][:10]:
+            print(
+                f"    {sd['id']} (depth={sd['depth']}) -> child {sd['child_id']}"
+                f" (depth={sd['child_depth']})"
+            )
+
+    print(f"{'=' * 70}")
+
+    # Size comparison
+    if args.compare_sizes:
+        _run_size_comparison(sys_storages, args.threshold)
+
+    log(f"Total execution time: {time()-t:.2f} seconds")
+
+
+def _get_file_size_worker(file_path):
+    """Worker function to get actual size for a single file."""
+    info = get_full_info(file_path)
+    if info:
+        return file_path, info["actual-size"]
+    return file_path, None
+
+
+def _run_size_comparison(sys_storages, threshold_gb):
+    """Run size comparison between DB and filesystem."""
+    from tabulate import tabulate
+
+    print("\n" + "=" * 80)
+    print("STARTING SIZE COMPARISON ANALYSIS")
+    print("=" * 80)
+
+    log("Fetching storage data with qemu-img-info.actual-size from API...")
+    size_start = time()
+    db_storages_with_size = fetch_storages_with_size()
+    log(
+        f" - Got {len(db_storages_with_size)} storages from API"
+        f" in {time()-size_start:.2f} seconds"
+    )
+
+    db_lookup = {s["path"]: s for s in db_storages_with_size}
+    qcow_files = [f for f in sys_storages if f.endswith(".qcow2") and f in db_lookup]
+
+    log(f"Getting actual sizes for {len(qcow_files)} qcow2 files...")
+    fs_sizes = {}
+    total_files = len(qcow_files)
+    processed = 0
+    start_time = time()
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_get_file_size_worker, f): f for f in qcow_files}
+        for future in as_completed(futures):
+            file_path, actual_size = future.result()
+            fs_sizes[file_path] = actual_size
+            processed += 1
+            if processed % 100 == 0 or processed == total_files:
+                elapsed = time() - start_time
+                if 0 < processed < total_files:
+                    avg = elapsed / processed
+                    remaining = avg * (total_files - processed)
+                    pct = (processed / total_files) * 100
+                    log(
+                        f"  Progress: {processed}/{total_files} ({pct:.1f}%)"
+                        f" - Est. {format_time_remaining(remaining)} remaining"
+                    )
+                elif processed == total_files:
+                    log(f"  Progress: {processed}/{total_files} (100.0%) - Done")
+
+    # Compare
+    matched = []
+    discrepancies = []
+    missing_in_fs = []
+    total_db_size = 0
+    total_fs_size = 0
+
+    for db_storage in db_storages_with_size:
+        path = db_storage["path"]
+        db_size = db_storage["db_actual_size"]
+        total_db_size += db_size
+
+        if path in fs_sizes:
+            fs_size = fs_sizes[path]
+            if fs_size is not None:
+                total_fs_size += fs_size
+                diff_bytes = abs(fs_size - db_size)
+                diff_gb = diff_bytes / (1024**3)
+
+                if diff_gb >= threshold_gb:
+                    discrepancies.append(
+                        {
+                            "path": path,
+                            "id": db_storage["id"],
+                            "db_size_gb": round(db_size / (1024**3), 2),
+                            "fs_size_gb": round(fs_size / (1024**3), 2),
+                            "diff_gb": round(diff_gb, 2),
+                            "diff_pct": round((diff_bytes / max(db_size, 1)) * 100, 1),
+                        }
+                    )
+                else:
+                    matched.append(path)
+            else:
+                missing_in_fs.append(path)
+
+    discrepancies.sort(key=lambda x: x["diff_gb"], reverse=True)
+
+    log(f" - Comparison completed in {time()-size_start:.2f} seconds")
+
+    # Print report
+    print("\n" + "=" * 80)
+    print("STORAGE SIZE COMPARISON REPORT")
+    print("=" * 80)
+
+    summary_data = [
+        ["Metric", "Value"],
+        ["Total DB Size (GB)", round(total_db_size / (1024**3), 2)],
+        ["Total FS Size (GB)", round(total_fs_size / (1024**3), 2)],
+        [
+            "Total Difference (GB)",
+            round(abs(total_fs_size - total_db_size) / (1024**3), 2),
+        ],
+        ["Matched Files", len(matched)],
+        [f"Discrepancies (>{threshold_gb} GB)", len(discrepancies)],
+        ["Missing in FS", len(missing_in_fs)],
+    ]
+
+    print("\nSummary:")
+    print(
+        tabulate(
+            summary_data,
+            headers="firstrow",
+            tablefmt="grid",
+            stralign="left",
+            numalign="right",
+        )
+    )
+
+    if discrepancies:
+        print(f"\nTop Discrepancies (showing up to 20):")
+        disc_data = [["Path", "DB Size (GB)", "FS Size (GB)", "Diff (GB)", "Diff (%)"]]
+        for disc in discrepancies[:20]:
+            short_path = disc["path"].replace("/isard/", ".../")
+            if len(short_path) > 60:
+                short_path = "..." + short_path[-57:]
+            disc_data.append(
+                [
+                    short_path,
+                    disc["db_size_gb"],
+                    disc["fs_size_gb"],
+                    disc["diff_gb"],
+                    disc["diff_pct"],
+                ]
+            )
+
+        print(
+            tabulate(
+                disc_data,
+                headers="firstrow",
+                tablefmt="grid",
+                stralign="left",
+                numalign="right",
+            )
+        )
+
+        if len(discrepancies) > 20:
+            print(f"\n  ... and {len(discrepancies) - 20} more discrepancies")
+
+    if missing_in_fs:
+        print(
+            f"\nFiles in DB but failed to get size from FS" f" ({len(missing_in_fs)}):"
+        )
+        for path in missing_in_fs[:10]:
+            print(f"  - {path}")
+        if len(missing_in_fs) > 10:
+            print(f"  ... and {len(missing_in_fs) - 10} more")
+
+    print("\n" + "=" * 80)
+
+
+# ─── cleanup subcommand ──────────────────────────────────────────────────────
+
+
+def cmd_cleanup(args):
+    """Generate categorized file lists for storage cleanup."""
+    t = time()
+    log("Starting cleanup analysis...")
+
+    log("Getting storages from API...")
+    raw_storages = fetch_storages()
+    if raw_storages is None:
+        log("ERROR: API call failed. Cannot determine which files are tracked.")
+        log("ABORTING: refusing to write a cleanup report without API verification.")
+        sys.exit(1)
+    bad_db_records = list(fetch_storages.last_bad_records)
+
+    db_storages = [s["path"] for s in raw_storages]
+    # Build lookup by path for status/domain checks
+    db_storage_lookup = {}
+    for s in raw_storages:
+        db_storage_lookup[s["path"]] = {
+            "id": s["id"],
+            "status": s.get("status", "unknown"),
+            "has_domains": s.get("domains", 0) > 0,
+        }
+    log(f" - Got {len(db_storages)} storages from API in {time()-t:.2f} seconds")
+
+    log("Getting storages from system...")
+    sys_storages = scan_isard_dirs()
+    log(f" - Got {len(sys_storages)} storages from system in {time()-t:.2f} seconds")
+
+    log("Getting medias from API...")
+    medias = fetch_medias()
+    if medias is None:
+        log(
+            " - WARNING: media API call failed."
+            " Continuing without media classification."
+        )
+        bad_media_records = []
+        info_medias_never_downloaded = []
+    else:
+        bad_media_records = list(fetch_medias.last_bad_records)
+        info_medias_never_downloaded = list(
+            getattr(fetch_medias, "last_info_never_downloaded", [])
+        )
+        log(f" - Got {len(medias)} medias from API in {time()-t:.2f} seconds")
+
+    log("Analyzing storages...")
+    qcow_storages = [s for s in sys_storages if s.endswith(".qcow2")]
+    media_storages = [s for s in sys_storages if s.endswith((".iso", ".fd"))]
+    non_qcow_storages = [
+        s for s in sys_storages if not s.endswith((".qcow2", ".iso", ".fd"))
+    ]
+    storages_in_db_not_in_system = set(db_storages) - set(qcow_storages)
+    storages_in_system_not_in_db = set(qcow_storages) - set(db_storages)
+    log(f" - Analyzed storages in {time()-t:.2f} seconds")
+
+    # Sanity check: if API responded but the orphan ratio is implausibly
+    # high, the API likely returned filtered/empty data. Refuse to write
+    # any report — acting on it would mark the entire filesystem as
+    # deletable. Same threshold as cmd_full_cleanup.
+    orphan_ratio = (
+        len(storages_in_system_not_in_db) / len(qcow_storages) if qcow_storages else 0
+    )
+    if orphan_ratio > 0.8 and len(storages_in_system_not_in_db) > 50:
+        log(
+            f"ERROR: {orphan_ratio:.0%} of filesystem files"
+            f" ({len(storages_in_system_not_in_db)}/{len(qcow_storages)})"
+            f" appear as orphans (API returned {len(db_storages)} records)."
+            " This is suspiciously high — possible API data issue."
+        )
+        log("ABORTING: no cleanup files written. Verify the API before retrying.")
+        sys.exit(1)
+
+    log("Analyzing qcow integrity + dependencies...")
+    if getattr(args, "rescan", False):
+        log("  --rescan set: ignoring qcow cache, re-running qemu-img on all files.")
+        cache_in = {}
+    else:
+        cache_in = load_qcow_cache()
+    broken_chain, qcow_deps, fresh_cache = analyze_integrity_and_dependencies(
+        qcow_storages, cache=cache_in
+    )
+    save_qcow_cache(fresh_cache)
+    log(f" - Analyzed qcow integrity + dependencies in {time()-t:.2f} seconds")
+
+    log(f"Finished in {time()-t:.2f} seconds, generating cleanup lists...")
+
+    # Calculate deletable files:
+    # - deletable_orphans: NOT in DB AND no other file depends on them
+    #   This is the only category that is unambiguously safe to remove.
+    # - broken_chain: files with broken backing chains (reported but NOT auto-moved,
+    #   because they may be tracked in DB or be backing files for other disks)
+    # - non_qcow2: split via _classify_non_qcow2_files into dead artifacts
+    #   (e.g. .backup, .copia, .sha256) and unknown (ISOs under /media/,
+    #   files still used as backing). Only the dead artifacts go in the
+    #   deletable bucket; the rest are reported for review.
+    # - volatile: ephemeral files, always safe to remove
+    deletable = set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db
+    volatile = get_volatile_storages()
+    dead_non_qcow, unknown_non_qcow = _classify_non_qcow2_files(
+        non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
+    )
+    if medias is not None:
+        media_classes = _classify_media_files(media_storages, medias)
+    else:
+        # API unavailable: fall back to old behavior — keep all .iso/.fd
+        # files alongside other non-qcow2 unknowns so nothing is lost.
+        media_classes = {
+            "registered": [],
+            "unverified": list(media_storages),
+            "orphan": [],
+            "db_not_in_system": [],
+        }
+
+    # Export results to files
+    output_dir = get_output_dir()
+    log(f"Exporting results to {output_dir}...")
+
+    files_info = [
+        ("ok_db_not_in_system.txt", storages_in_db_not_in_system),
+        ("ok_system_not_in_db.txt", storages_in_system_not_in_db),
+        ("ok_no_backing_file.txt", qcow_deps["wo_backing"]),
+        ("ok_no_derivatives.txt", qcow_deps["wo_derivatives"]),
+        ("ok_non_qcow2_unknown.txt", unknown_non_qcow),
+        ("ok_registered_medias.txt", media_classes["registered"]),
+        ("ok_medias_db_not_in_system.txt", media_classes["db_not_in_system"]),
+        ("ok_medias_unverified.txt", media_classes["unverified"]),
+        ("bad_broken_chain.txt", broken_chain),
+        ("volatile_storage.txt", volatile),
+        ("bad_non_qcow2.txt", dead_non_qcow),
+        ("bad_orphan_medias.txt", media_classes["orphan"]),
+        ("bad_deletable_orphans.txt", deletable),
+    ]
+
+    for filename, file_list in files_info:
+        write_file_list(output_dir, filename, file_list)
+
+    # Bad DB rows (missing directory_path/id/type) — one JSON object per
+    # line so operators can grep/jq the affected ids and statuses.
+    if bad_db_records:
+        bad_db_path = output_dir / "bad_db_storage_entries.jsonl"
+        with open(bad_db_path, "w") as f:
+            for entry in bad_db_records:
+                f.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
+
+    # Bad media rows (missing path_downloaded) — same JSONL format.
+    if bad_media_records:
+        bad_media_path = output_dir / "bad_db_media_entries.jsonl"
+        with open(bad_media_path, "w") as f:
+            for entry in bad_media_records:
+                f.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
+
+    # Media rows whose status legitimately implies the download never
+    # finished (status in deleted/DownloadFailed/Downloading) — these
+    # never had path_downloaded set, so we file them as informational
+    # rather than as bad records.
+    if info_medias_never_downloaded:
+        info_media_path = output_dir / "info_medias_never_downloaded.jsonl"
+        with open(info_media_path, "w") as f:
+            for entry in info_medias_never_downloaded:
+                f.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
+
+    # Count template files
+    templates_in_broken = count_templates(broken_chain)
+    templates_in_deletable = count_templates(deletable)
+    templates_in_system_not_db = count_templates(storages_in_system_not_in_db)
+    templates_in_non_qcow2 = count_templates(dead_non_qcow)
+    templates_in_unknown_non_qcow = count_templates(unknown_non_qcow)
+    templates_in_orphan_medias = count_templates(media_classes["orphan"])
+    total_templates_in_deletable = (
+        templates_in_broken
+        + templates_in_deletable
+        + templates_in_non_qcow2
+        + templates_in_orphan_medias
+    )
+
+    # Generate README.md
+    readme_content = f"""# Storage Cleanup Report
+
+Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+## Summary
+
+| Metric | Count |
+|--------|-------|
+| Storages in API | {len(db_storages)} |
+| Bad DB rows (missing directory_path/id/type) | {len(bad_db_records)} |
+| Medias in API | {len(medias) if medias is not None else "n/a (API failed)"} |
+| Bad media rows (missing path_downloaded) | {len(bad_media_records)} |
+| Storages in system | {len(sys_storages)} |
+| Qcow2 files | {len(qcow_storages)} |
+| ISO/FD media files | {len(media_storages)} |
+| Orphan ratio (qcow2 not in API) | {orphan_ratio:.1%} |
+
+## Informative Files (ok_)
+
+| File | Count | Templates | Size (GB) | Description |
+|------|-------|-----------|-----------|-------------|
+| ok_db_not_in_system.txt | {len(storages_in_db_not_in_system)} | - | - | Paths in API but missing on disk |
+| ok_system_not_in_db.txt | {len(storages_in_system_not_in_db)} | {templates_in_system_not_db} | {size_gb(storages_in_system_not_in_db)} | Files on disk not in API |
+| ok_no_backing_file.txt | {len(qcow_deps["wo_backing"])} | {count_templates(qcow_deps["wo_backing"])} | {size_gb(qcow_deps["wo_backing"])} | Root images (no backing file) |
+| ok_no_derivatives.txt | {len(qcow_deps["wo_derivatives"])} | {count_templates(qcow_deps["wo_derivatives"])} | {size_gb(qcow_deps["wo_derivatives"])} | Leaf images (no derivatives) |
+| ok_non_qcow2_unknown.txt | {len(unknown_non_qcow)} | {templates_in_unknown_non_qcow} | {size_gb(unknown_non_qcow)} | Files still referenced as backing — review, do not auto-delete |
+| ok_registered_medias.txt | {len(media_classes["registered"])} | {count_templates(media_classes["registered"])} | {size_gb(media_classes["registered"])} | ISO/FD media on disk + matched in API as Downloaded |
+| ok_medias_db_not_in_system.txt | {len(media_classes["db_not_in_system"])} | - | - | Media rows with status=Downloaded but file missing on disk |
+| ok_medias_unverified.txt | {len(media_classes["unverified"])} | {count_templates(media_classes["unverified"])} | {size_gb(media_classes["unverified"])} | ISO/FD with no path match but UUID referenced by VM domains — review, do not auto-delete |
+
+## DB-side Issues
+
+| File | Count | Description |
+|------|-------|-------------|
+| bad_db_storage_entries.jsonl | {len(bad_db_records)} | Storage rows in API missing directory_path/id/type — needs DB review (do not delete files for these IDs) |
+| bad_db_media_entries.jsonl | {len(bad_media_records)} | Media rows in API missing path_downloaded — needs DB review |
+
+## Candidates to Delete (bad_)
+
+| File | Count | Templates | Size (GB) | Description |
+|------|-------|-----------|-----------|-------------|
+| bad_broken_chain.txt | {len(broken_chain)} | {templates_in_broken} | {size_gb(broken_chain)} | Files with broken backing chains |
+| bad_non_qcow2.txt | {len(dead_non_qcow)} | {templates_in_non_qcow2} | {size_gb(dead_non_qcow)} | Dead non-qcow2 artifacts (.backup, .copia, .sha256, …) |
+| bad_orphan_medias.txt | {len(media_classes["orphan"])} | {templates_in_orphan_medias} | {size_gb(media_classes["orphan"])} | ISO/FD media files not registered in API (or DB status not Downloaded) |
+| bad_deletable_orphans.txt | {len(deletable)} | {templates_in_deletable} | {size_gb(deletable)} | Safe to delete (not in API + no derivatives) |
+
+## Volatile Storage (volatile_)
+
+| File | Count | Size (GB) | Description |
+|------|-------|-----------|-------------|
+| volatile_storage.txt | {len(volatile)} | {size_gb(volatile)} | Volatile storage files (safe to delete) |
+
+## Cleanup Summary
+
+| Action | File | Count | Templates | Size (GB) |
+|--------|------|-------|-----------|-----------|
+| Delete files | bad_deletable_orphans.txt | {len(deletable)} | {templates_in_deletable} | {size_gb(deletable)} |
+| Delete files | bad_broken_chain.txt | {len(broken_chain)} | {templates_in_broken} | {size_gb(broken_chain)} |
+| Delete files | bad_non_qcow2.txt | {len(dead_non_qcow)} | {templates_in_non_qcow2} | {size_gb(dead_non_qcow)} |
+| Delete files | bad_orphan_medias.txt | {len(media_classes["orphan"])} | {templates_in_orphan_medias} | {size_gb(media_classes["orphan"])} |
+| Delete files | volatile_storage.txt | {len(volatile)} | - | {size_gb(volatile)} |
+
+**Total deletable space:** {size_gb(deletable) + size_gb(broken_chain) + size_gb(volatile) + size_gb(dead_non_qcow) + size_gb(media_classes["orphan"])} GB
+
+{"**WARNING: Some files are in /isard/templates - review carefully before deleting!**" if total_templates_in_deletable > 0 else ""}
+
+## Sample Commands
+
+{"**WARNING:** Check for template files before running delete commands:" if total_templates_in_deletable > 0 else ""}
+```bash
+# Check for templates in any file before deleting
+grep "/isard/templates" *.txt
+```
+
+### Delete broken chain files
+{"**WARNING: Contains " + str(templates_in_broken) + " template files! Review first:**" if templates_in_broken > 0 else ""}
+```bash
+{"grep '/isard/templates' bad_broken_chain.txt  # Review templates first!" if templates_in_broken > 0 else ""}
+cat bad_broken_chain.txt | xargs rm -f
+```
+
+### Delete volatile files
+```bash
+cat volatile_storage.txt | xargs rm -f
+```
+
+### Delete orphan files (safe to delete)
+{"**WARNING: Contains " + str(templates_in_deletable) + " template files! Review first:**" if templates_in_deletable > 0 else ""}
+```bash
+{"grep '/isard/templates' bad_deletable_orphans.txt  # Review templates first!" if templates_in_deletable > 0 else ""}
+cat bad_deletable_orphans.txt | xargs rm -f
+```
+
+### Delete non-qcow2 files
+{"**WARNING: Contains " + str(templates_in_non_qcow2) + " template files! Review first:**" if templates_in_non_qcow2 > 0 else ""}
+```bash
+{"grep '/isard/templates' bad_non_qcow2.txt  # Review templates first!" if templates_in_non_qcow2 > 0 else ""}
+cat bad_non_qcow2.txt | xargs rm -f
+```
+
+### Delete orphan medias (ISO/FD not registered in API)
+{"**WARNING: Contains " + str(templates_in_orphan_medias) + " template files! Review first:**" if templates_in_orphan_medias > 0 else ""}
+```bash
+{"grep '/isard/templates' bad_orphan_medias.txt  # Review templates first!" if templates_in_orphan_medias > 0 else ""}
+cat bad_orphan_medias.txt | xargs rm -f
+```
+
+### Delete all bad_ files at once
+```bash
+cat bad_*.txt | sort -u | xargs rm -f
+```
+
+### Delete all deletable files (bad_ + volatile_)
+```bash
+cat bad_*.txt volatile_*.txt | sort -u | xargs rm -f
+```
+
+### Get qemu-img info for files not in API
+```bash
+while read f; do echo "=== $f ===" && qemu-img info -U "$f"; done < ok_system_not_in_db.txt
+```
+
+### Count files in each list
+```bash
+for f in *.txt; do echo "$f: $(wc -l < "$f")"; done
+```
+
+### Filter out templates before deleting
+```bash
+# Example: delete only non-template files from bad_broken_chain.txt
+grep -v "/isard/templates" bad_broken_chain.txt | xargs rm -f
+```
+"""
+
+    with open(output_dir / "README.md", "w") as f:
+        f.write(readme_content)
+
+    # Size comparison (if requested)
+    if args.compare_sizes:
+        _run_size_comparison(sys_storages, args.threshold)
+
+    # Move deletable files if --move was requested
+    if args.move:
+        if getattr(args, "interactive", False):
+            _interactive_cleanup(
+                output_dir=output_dir,
+                deletable=deletable,
+                volatile=volatile,
+                dead_non_qcow=dead_non_qcow,
+                orphan_medias=media_classes["orphan"],
+                broken_chain=broken_chain,
+                qcow_deps=qcow_deps,
+                db_storage_lookup=db_storage_lookup,
+                storages_in_system_not_in_db=storages_in_system_not_in_db,
+            )
+        else:
+            movable = _collect_movable_files(
+                deletable,
+                volatile,
+                db_storage_lookup,
+                qcow_deps,
+                include_templates=args.include_templates,
+            )
+            _move_deletable_files(movable, output_dir)
+
+    log(f"Results exported to: {output_dir}")
+    log(f"Total execution time: {time()-t:.2f} seconds")
+
+
+# ─── classification helpers ───────────────────────────────────────────────────
+
+
+def _find_templates_without_dependents(raw_storages):
+    """Find ready templates that no other desktop or template depends on.
+
+    A template without dependents is one where no other storage (template
+    or desktop) references it as parent, or all children have status=deleted.
+    These are informational — not auto-deleted, but reported for admin review.
+
+    Returns list of dicts sorted by size descending.
+    """
+    # Build parent -> active children map
+    children_of = {}
+    for s in raw_storages:
+        pid = s.get("parent")
+        if pid and s["status"] != "deleted":
+            children_of.setdefault(pid, []).append(s["id"])
+
+    # Count all children (including deleted) for context
+    all_children_of = {}
+    for s in raw_storages:
+        pid = s.get("parent")
+        if pid:
+            all_children_of.setdefault(pid, []).append(s["id"])
+
+    result = []
+    for s in raw_storages:
+        if s["status"] != "ready":
+            continue
+        if "/templates" not in s.get("directory_path", ""):
+            continue
+
+        active_kids = children_of.get(s["id"], [])
+        if active_kids:
+            continue  # has active dependents
+
+        all_kids = all_children_of.get(s["id"], [])
+        path = s["path"]
+        try:
+            size = Path(path).stat().st_size
+        except OSError:
+            size = 0
+
+        result.append(
+            {
+                "id": s["id"],
+                "path": path,
+                "size": size,
+                "domains": s.get("domains", 0),
+                "user_id": s.get("user_id", "?"),
+                "deleted_children": len(all_kids),
+            }
+        )
+
+    result.sort(key=lambda x: x["size"], reverse=True)
+    return result
+
+
+def _classify_media_files(media_files, medias):
+    """Classify on-disk .iso/.fd files against the API's media table.
+
+    Match in three steps: UUID stem (canonical identifier for API-downloaded
+    files), inode equality with the DB-recorded path (handles bind mounts and
+    hard links — e.g. /isard/media bind-mounted from a storage_pool), then
+    literal path equality. The inode step covers human-named manual uploads
+    whose DB path differs from the discovered path due to a bind mount.
+
+    Returns dict with four lists of paths:
+        registered:        on disk + API match (UUID, inode, or literal path)
+                           with status="Downloaded". Healthy, do not delete.
+        unverified:        on disk, UUID is in API but not Downloaded yet
+                           is referenced by VM domains. Defensive — review.
+        orphan:            on disk, no API match, no domain reference.
+                           Safe to delete after manual review.
+        db_not_in_system:  API has status="Downloaded" but no on-disk file
+                           matches by path, UUID, or inode. Operator review.
+
+    Status semantics: only status="Downloaded" is "should exist on disk"
+    (see api/src/api/libv2/api_media.py:91-105).
+    """
+    media_by_path = {m["path_downloaded"]: m for m in medias}
+    media_by_id = {m["id"]: m for m in medias}
+
+    # Inode index of every Downloaded media's recorded path that exists on
+    # disk — bind-mount-safe lookup for files we discover at a different path.
+    inode_to_media = {}
+    for m in medias:
+        if m.get("status") != "Downloaded":
+            continue
+        try:
+            st = os.stat(m["path_downloaded"])
+        except OSError:
+            continue
+        inode_to_media[(st.st_dev, st.st_ino)] = m
+
+    registered = []
+    unverified = []
+    orphan = []
+    matched_inodes = set()
+
+    for f in media_files:
+        f_str = str(f)
+        stem = Path(f_str).stem
+
+        match_id = media_by_id.get(stem)
+        if match_id and match_id.get("status") == "Downloaded":
+            registered.append(f_str)
+            continue
+
+        match_path = media_by_path.get(f_str)
+        if match_path and match_path.get("status") == "Downloaded":
+            registered.append(f_str)
+            continue
+
+        try:
+            st = os.stat(f_str)
+            key = (st.st_dev, st.st_ino)
+        except OSError:
+            key = None
+        if key is not None and key in inode_to_media:
+            registered.append(f_str)
+            matched_inodes.add(key)
+            continue
+
+        if match_id and match_id.get("domains", 0) > 0:
+            unverified.append(f_str)
+            continue
+
+        orphan.append(f_str)
+
+    on_disk_paths = {str(f) for f in media_files}
+    on_disk_uuids = {Path(f).stem for f in media_files}
+    db_not_in_system = []
+    for m in medias:
+        if m.get("status") != "Downloaded":
+            continue
+        path = m["path_downloaded"]
+        if path in on_disk_paths:
+            continue
+        if m["id"] in on_disk_uuids:
+            continue
+        try:
+            st = os.stat(path)
+            if (st.st_dev, st.st_ino) in matched_inodes:
+                continue
+        except OSError:
+            pass
+        db_not_in_system.append(path)
+
+    return {
+        "registered": registered,
+        "unverified": unverified,
+        "orphan": orphan,
+        "db_not_in_system": db_not_in_system,
+    }
+
+
+def _classify_non_qcow2_files(non_qcow_files, qcow_deps, db_storage_lookup=None):
+    """Classify non-qcow2 files into dead artifacts vs unknown.
+
+    Dead artifacts: any non-.qcow2 file in storage directories that is not
+    used as a backing file by any qcow2 on disk. This includes renamed
+    qcow2 copies (.sin_bc, .copia, .bkp, .sha256, .ram, etc.) and any
+    other non-qcow2 files that ended up in storage dirs.
+
+    Files in any /media/ path are excluded (ISOs/FDs, including under storage_pools).
+
+    Special case: a `*.sparsify-backup` file is the recovery copy of its
+    sibling `*.qcow2`; the whole point of keeping it is to be able to
+    restore the canonical file if it ever turned out broken. We therefore
+    only mark such a backup as "dead" when ALL of:
+      - the canonical .qcow2 exists on disk
+      - qemu-img check on the canonical reports no errors
+      - the canonical's UUID is in the API storage table with status=ready
+        (or no API lookup was passed in, in which case we skip this check)
+    Otherwise we keep the backup as "unknown" so it survives any cleanup.
+
+    Returns (dead_artifacts, unknown_files)
+    """
+    reverse_map = qcow_deps.get("reverse_map", {})
+    dead = []
+    unknown = []
+
+    for f in non_qcow_files:
+        f_str = str(f)
+        if "/media/" in f_str:
+            unknown.append(f_str)
+            continue
+        # Check if any qcow2 references this file as backing
+        if f_str in reverse_map:
+            unknown.append(f_str)
+            continue
+        # Sparsify backups: keep unless the canonical qcow2 is provably
+        # healthy. Without this guard, a corrupt canonical would be
+        # treated as an orphan and its only-good copy moved to to_delete.
+        if f_str.endswith(".qcow2.sparsify-backup"):
+            canonical = f_str[: -len(".sparsify-backup")]
+            if not Path(canonical).is_file():
+                unknown.append(f_str)
+                continue
+            if not qemu_img_check(canonical):
+                unknown.append(f_str)
+                continue
+            if db_storage_lookup is not None:
+                info = db_storage_lookup.get(canonical)
+                if not info or info.get("status") != "ready":
+                    unknown.append(f_str)
+                    continue
+            dead.append(f_str)
+            continue
+        dead.append(f_str)
+
+    return dead, unknown
+
+
+def _find_duplicate_uploads(qcow_storages, db_storage_lookup):
+    """Find qcow2 files that are duplicates of DB-tracked files at a different path.
+
+    A file is a duplicate if:
+    - Its UUID matches a DB storage ID
+    - The DB-referenced path is different from this file's path
+    - The file at the DB-referenced path EXISTS on disk (the DB copy is the real one)
+    - This file is not the DB-referenced path itself
+
+    Returns list of duplicate file paths (safe to remove).
+    """
+    # Build ID -> DB path lookup
+    id_to_db_path = {}
+    for path, info in db_storage_lookup.items():
+        id_to_db_path[info["id"]] = path
+
+    duplicates = []
+    for f in qcow_storages:
+        f_str = str(f)
+        uid = Path(f_str).stem
+        db_path = id_to_db_path.get(uid)
+        if not db_path:
+            continue  # not in DB
+        if db_path == f_str:
+            continue  # this IS the DB copy
+        # DB has a different path for this UUID — check if the DB copy exists
+        if Path(db_path).exists():
+            duplicates.append(f_str)
+
+    return duplicates
+
+
+def _analyze_chain_health(qcow_deps, raw_storages, depth_threshold=3):
+    """Analyze backing chain depth and structure.
+
+    Returns dict with:
+        files: list of per-file info (id, path, depth, children_count, etc.)
+        roots: list of root info dicts (id, path, descendants, max_depth)
+        deep: files with depth > depth_threshold
+        single_dependent: intermediate templates with exactly 1 child
+                          (flattening candidates)
+        max_depth: deepest chain found
+        avg_depth: average depth across all files
+    """
+    dep_map = qcow_deps.get("dependency_map", {})
+    rev_map = qcow_deps.get("reverse_map", {})
+
+    # Build storage info lookup by path
+    storage_by_path = {}
+    for s in raw_storages:
+        storage_by_path[s["path"]] = s
+
+    # Compute depth for every file (cached)
+    depth_cache = {}
+
+    def _depth(f):
+        if f in depth_cache:
+            return depth_cache[f]
+        parent = dep_map.get(f)
+        if not parent:
+            depth_cache[f] = 0
+            return 0
+        d = 1 + _depth(parent)
+        depth_cache[f] = d
+        return d
+
+    for f in dep_map:
+        _depth(f)
+
+    # Count all descendants for each file
+    def _all_descendants(f):
+        result = set()
+        stack = list(rev_map.get(f, []))
+        while stack:
+            c = stack.pop()
+            if c not in result:
+                result.add(c)
+                stack.extend(rev_map.get(c, []))
+        return result
+
+    # Build per-file info
+    files = []
+    for f, parent in dep_map.items():
+        children = rev_map.get(f, [])
+        db = storage_by_path.get(f, {})
+        files.append(
+            {
+                "path": f,
+                "id": Path(f).stem,
+                "depth": depth_cache.get(f, 0),
+                "is_root": parent is None,
+                "is_leaf": len(children) == 0,
+                "children_count": len(children),
+                "status": db.get("status", "?"),
+                "domains": db.get("domains", 0),
+                "user_id": db.get("user_id", "?"),
+                "is_template": "/templates" in f,
+            }
+        )
+
+    # Roots with their subtree info
+    roots = []
+    for fi in files:
+        if fi["is_root"]:
+            desc = _all_descendants(fi["path"])
+            max_d = max((depth_cache.get(d, 0) for d in desc), default=0)
+            roots.append(
+                {
+                    "id": fi["id"],
+                    "path": fi["path"],
+                    "descendants": len(desc),
+                    "max_depth": max_d,
+                }
+            )
+    roots.sort(key=lambda x: x["max_depth"], reverse=True)
+
+    # Deep chains
+    deep = [fi for fi in files if fi["depth"] > depth_threshold]
+    deep.sort(key=lambda x: x["depth"], reverse=True)
+
+    # Single-dependent intermediates (flattening candidates)
+    # Must have: exactly 1 child, has a parent (not root), is a template
+    single_dependent = []
+    for fi in files:
+        if fi["is_root"] or fi["is_leaf"]:
+            continue
+        if fi["children_count"] != 1:
+            continue
+        if not fi["is_template"]:
+            continue
+        child_path = rev_map[fi["path"]][0]
+        child_depth = depth_cache.get(child_path, 0)
+        single_dependent.append(
+            {
+                **fi,
+                "child_path": child_path,
+                "child_id": Path(child_path).stem,
+                "child_depth": child_depth,
+            }
+        )
+    single_dependent.sort(key=lambda x: x["depth"], reverse=True)
+
+    # Stats
+    depths = [fi["depth"] for fi in files]
+    max_d = max(depths) if depths else 0
+    avg_d = sum(depths) / len(depths) if depths else 0
+
+    return {
+        "files": files,
+        "roots": roots,
+        "deep": deep,
+        "single_dependent": single_dependent,
+        "max_depth": max_d,
+        "avg_depth": avg_d,
+        "depth_threshold": depth_threshold,
+    }
+
+
+def _print_chain_tree(root_path, rev_map, depth_cache, storage_by_path, indent=0):
+    """Print a tree view of a chain starting from root."""
+    rid = Path(root_path).stem
+    db = storage_by_path.get(root_path, {})
+    depth = depth_cache.get(root_path, 0)
+    children = rev_map.get(root_path, [])
+    domains = db.get("domains", 0)
+    is_tmpl = "/templates" in root_path
+
+    prefix = "  " * indent
+    kind = "T" if is_tmpl else "D"
+    dom_str = f" dom={domains}" if domains else ""
+    child_str = f" [{len(children)} children]" if children else " [leaf]"
+    print(f"{prefix}{kind} {rid} (depth={depth}{dom_str}{child_str})")
+
+    for child in sorted(children):
+        _print_chain_tree(child, rev_map, depth_cache, storage_by_path, indent + 1)
+
+
+# ─── move helpers ─────────────────────────────────────────────────────────────
+
+TO_DELETE_DIR = "/isard/volatile/to_delete"
+
+
+def _collect_movable_files(
+    deletable_orphans,
+    volatile,
+    db_storage_lookup,
+    qcow_deps,
+    dead_artifacts=None,
+    duplicate_uploads=None,
+    orphan_medias=None,
+    include_templates=False,
+):
+    """Collect files that are SAFE to move, grouped by category.
+
+    Safety rules:
+    - Moves deletable_orphans (not in DB + no derivatives), dead broken chains,
+      dead artifacts (non-qcow2 not in any chain), duplicate uploads, orphan
+      medias (ISO/FD with no API match), and volatile.
+    - The /media/ path rejection only applies to qcow2 orphan verification.
+      Orphan medias are pre-verified by _classify_media_files against the
+      API media table, so they bypass that filter (passed as their own
+      category, not via deletable_orphans).
+    - Performs extra verification on orphans: double-checks against DB.
+      Files found in DB are rejected UNLESS DB status is "deleted".
+    - Dead artifacts, duplicate uploads, and orphan medias are pre-verified
+      by their respective classification functions — they just get the
+      template filter applied.
+    - Templates are excluded unless include_templates is True.
+
+    Returns dict: {category_label: [file_paths]}
+    """
+    # Extra safety: verify each orphan is truly safe to move
+    verified_orphans = []
+    rejected = 0
+    for f in deletable_orphans:
+        f_str = str(f)
+        if "/media/" in f_str:
+            rejected += 1
+            continue
+        db_info = db_storage_lookup.get(f_str)
+        if db_info is not None and db_info["status"] != "deleted":
+            rejected += 1
+            continue
+        storage_id = Path(f_str).stem
+        found_active_in_db = False
+        for path, info in db_storage_lookup.items():
+            if info["id"] == storage_id and info["status"] != "deleted":
+                found_active_in_db = True
+                break
+        if found_active_in_db:
+            rejected += 1
+            continue
+        if f_str in qcow_deps.get("reverse_map", {}):
+            rejected += 1
+            continue
+        verified_orphans.append(f_str)
+
+    if rejected:
+        log(
+            f"Safety check: rejected {rejected} files that appeared orphaned"
+            " but were found in DB or have derivatives."
+        )
+
+    categories = {
+        "deletable_orphans": verified_orphans,
+        "dead_artifacts": list(dead_artifacts or []),
+        "duplicate_uploads": list(duplicate_uploads or []),
+        "orphan_medias": [str(f) for f in (orphan_medias or [])],
+        "volatile": [str(f) for f in volatile],
+    }
+
+    if not include_templates:
+        skipped = 0
+        for cat, files in categories.items():
+            before = len(files)
+            categories[cat] = [f for f in files if "/isard/templates" not in str(f)]
+            skipped += before - len(categories[cat])
+        if skipped:
+            log(
+                f"WARNING: Skipped {skipped} template files."
+                " Use --include-templates to include them."
+            )
+
+    return categories
+
+
+def _verify_orphans(deletable_orphans, db_storage_lookup, qcow_deps):
+    """Re-check orphan candidates against the live DB before moving.
+
+    Same safety logic as _collect_movable_files, factored out so the
+    interactive flow can reuse it without redoing every other category.
+    Returns (verified_orphans, rejected_count).
+    """
+    verified = []
+    rejected = 0
+    for f in deletable_orphans:
+        f_str = str(f)
+        if "/media/" in f_str:
+            rejected += 1
+            continue
+        db_info = db_storage_lookup.get(f_str)
+        if db_info is not None and db_info["status"] != "deleted":
+            rejected += 1
+            continue
+        storage_id = Path(f_str).stem
+        found_active = False
+        for path, info in db_storage_lookup.items():
+            if info["id"] == storage_id and info["status"] != "deleted":
+                found_active = True
+                break
+        if found_active:
+            rejected += 1
+            continue
+        if f_str in qcow_deps.get("reverse_map", {}):
+            rejected += 1
+            continue
+        verified.append(f_str)
+    return verified, rejected
+
+
+def _prompt_yn(message, default="n"):
+    """Prompt for y/n/q. Returns 'y', 'n', or 'q'.
+
+    Empty input returns the default. EOF or Ctrl-C returns 'q'.
+    """
+    while True:
+        try:
+            answer = input(message).strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return "q"
+        if not answer:
+            return default
+        if answer in ("y", "yes"):
+            return "y"
+        if answer in ("n", "no"):
+            return "n"
+        if answer in ("q", "quit", "abort"):
+            return "q"
+        print("  Please answer y, n, or q.")
+
+
+def _bucket_mount(path):
+    """Return a coarse mount label for a path — used for the by-mount summary."""
+    if path.startswith("/isard/storage_pools/vdo3/"):
+        return "vdo3"
+    return "fast"
+
+
+def _print_bucket_summary(non_templates, templates):
+    """Counts, sizes, mount split, and a top-by-size sample for one bucket."""
+    from collections import Counter
+
+    def _stat_size(p):
+        try:
+            return Path(p).stat().st_size
+        except OSError:
+            return 0
+
+    nt_sized = sorted(((_stat_size(f), str(f)) for f in non_templates), reverse=True)
+    t_sized = sorted(((_stat_size(f), str(f)) for f in templates), reverse=True)
+    nt_total = sum(s for s, _ in nt_sized)
+    t_total = sum(s for s, _ in t_sized)
+    mounts = Counter(_bucket_mount(p) for _, p in nt_sized + t_sized)
+
+    print(
+        f"  Non-templates: {len(non_templates):>6} files  {format_size(nt_total):>10}"
+    )
+    if templates:
+        print(f"  Templates:     {len(templates):>6} files  {format_size(t_total):>10}")
+    if mounts:
+        mount_str = ", ".join(f"{k}={v}" for k, v in mounts.most_common())
+        print(f"  By mount:      {mount_str}")
+
+    sample = nt_sized[:5] if nt_sized else t_sized[:5]
+    if sample:
+        print("  Sample (largest):")
+        for size, path in sample:
+            print(f"    {format_size(size):>10}  {path}")
+        more = len(non_templates) + len(templates) - len(sample)
+        if more > 0:
+            print(f"    ... and {more} more")
+
+
+def _interactive_cleanup(
+    output_dir,
+    deletable,
+    volatile,
+    dead_non_qcow,
+    orphan_medias,
+    broken_chain,
+    qcow_deps,
+    db_storage_lookup,
+    storages_in_system_not_in_db,
+):
+    """Walk through deletable buckets in safety order, prompting per step.
+
+    Calls _move_deletable_files(append=True) once per accepted sub-step so
+    the manifest at output_dir/moved_files.txt records every accepted move.
+    """
+    verified_orphans, rejected = _verify_orphans(
+        deletable, db_storage_lookup, qcow_deps
+    )
+    if rejected:
+        log(
+            f"Safety check: rejected {rejected} orphan candidates that"
+            " appeared in DB or are still referenced. They will not be offered."
+        )
+
+    # Broken-chain subset that's unambiguously safe: no DB record AND no
+    # children. Any other broken-chain entry is too risky for this flow.
+    broken_safe = (
+        set(broken_chain)
+        & storages_in_system_not_in_db
+        & set(qcow_deps.get("wo_derivatives", []))
+    )
+    broken_safe -= set(verified_orphans)  # don't list a file twice
+
+    steps = [
+        (
+            "volatile",
+            "Volatile storage",
+            "Ephemeral files in /isard/volatile/. Always safe to remove.",
+            list(volatile),
+        ),
+        (
+            "dead_artifacts",
+            "Dead non-qcow2 artifacts",
+            "Non-qcow2 files (.json, .backup, .copia, .sha256, …) verified not"
+            " to be used as backing for any chain.",
+            list(dead_non_qcow),
+        ),
+        (
+            "deletable_orphans",
+            "Orphan qcow2 (not in DB, no derivatives)",
+            "qcow2 files with no API record and no children. Re-verified"
+            " against the live DB.",
+            verified_orphans,
+        ),
+        (
+            "orphan_medias",
+            "Orphan ISO/FD media",
+            "ISO/FD media files with no Downloaded API record and not"
+            " referenced by any VM domain. Bind-mount-safe match.",
+            list(orphan_medias),
+        ),
+        (
+            "broken_chain_dead",
+            "Broken chains (unrecoverable, not in DB, no derivatives)",
+            "qcow2 files whose backing parent is missing AND that have no DB"
+            " record AND no children. The chain is unrecoverable either way.",
+            sorted(broken_safe),
+        ),
+    ]
+
+    print()
+    print("=" * 70)
+    print("INTERACTIVE CLEANUP — review each bucket and confirm")
+    print(f"Files will be moved to: {TO_DELETE_DIR}")
+    print(f"Manifest:               {output_dir / 'moved_files.txt'}")
+    print("Order: safest → least safe.  [y]es / [N]o / [q]uit")
+    print("=" * 70)
+
+    quit_now = False
+    total_moved = 0
+    total_failed = 0
+
+    for i, (cat, label, description, files) in enumerate(steps, 1):
+        print()
+        print("-" * 70)
+        print(f"[{i}/{len(steps)}] {label}")
+        for line in description.split("\n"):
+            print(f"  {line}")
+
+        if quit_now:
+            print("  (skipped — quit requested)")
+            continue
+
+        if not files:
+            print("  (nothing to move — skipping)")
+            continue
+
+        templates = [f for f in files if "/isard/templates" in str(f)]
+        non_templates = [f for f in files if "/isard/templates" not in str(f)]
+
+        _print_bucket_summary(non_templates, templates)
+
+        if non_templates:
+            choice = _prompt_yn(
+                f"\n  Move {len(non_templates)} non-template files? [y/N/q]: ",
+            )
+            if choice == "q":
+                quit_now = True
+                continue
+            if choice == "y":
+                pre_failed = (output_dir / "move_failures.txt").exists()
+                _move_deletable_files({cat: non_templates}, output_dir, append=True)
+                total_moved += len(non_templates)
+                if pre_failed != (output_dir / "move_failures.txt").exists():
+                    total_failed += 1  # rough — manifest is the source of truth
+        else:
+            print("  (only templates in this bucket)")
+
+        if templates and not quit_now:
+            print()
+            print(
+                f"  WARNING: {len(templates)} template files in this bucket."
+                " Templates may be referenced by users outside the API."
+            )
+            choice_t = _prompt_yn(
+                f"  Also move {len(templates)} template files? [y/N/q]: ",
+            )
+            if choice_t == "q":
+                quit_now = True
+                continue
+            if choice_t == "y":
+                _move_deletable_files(
+                    {cat + "_templates": templates},
+                    output_dir,
+                    append=True,
+                )
+                total_moved += len(templates)
+
+    print()
+    print("=" * 70)
+    print("Interactive cleanup finished.")
+    if total_moved:
+        print(f"Files queued/moved this session: {total_moved}")
+        print(f"Manifest: {output_dir / 'moved_files.txt'}")
+        print()
+        print("To permanently delete all moved files:")
+        print(f"  rm -rf {TO_DELETE_DIR}")
+        print()
+        print("To restore everything:")
+        print(
+            f"  cd {TO_DELETE_DIR} && find . -type f -exec sh -c"
+            f' \'mv "$1" "/$(dirname "$1")"\' _ {{}} \\;'
+        )
+    else:
+        print("No files were moved.")
+    print("=" * 70)
+
+
+def _move_deletable_files(categories, output_dir, append=False, dry_run=False):
+    """Move all deletable files to /isard/volatile/to_delete/, preserving path structure.
+
+    Files are moved as: /isard/groups/abc.qcow2 -> /isard/volatile/to_delete/isard/groups/abc.qcow2
+
+    A manifest of moved files is saved to output_dir/moved_files.txt. With
+    append=True the manifest and failures files are opened in append mode so
+    multiple invocations (e.g. interactive cleanup steps) accumulate into a
+    single record.
+
+    With dry_run=True the function only prints the summary table and writes
+    a `would_move.txt` manifest in `output_dir`; no files are moved.
+    """
+    # Deduplicate across categories
+    seen = set()
+    all_files = []
+    for cat, files in categories.items():
+        for f in files:
+            f_str = str(f)
+            if f_str not in seen:
+                seen.add(f_str)
+                all_files.append((cat, f_str))
+
+    if not all_files:
+        log("No files to move.")
+        return
+
+    # Print summary before moving
+    print()
+    print("=" * 70)
+    print("FILES TO MOVE TO", TO_DELETE_DIR)
+    print("=" * 70)
+
+    cat_summary = {}
+    total_size = 0
+    for cat, f in all_files:
+        if cat not in cat_summary:
+            cat_summary[cat] = {"count": 0, "size": 0}
+        cat_summary[cat]["count"] += 1
+        try:
+            cat_summary[cat]["size"] += Path(f).stat().st_size
+            total_size += Path(f).stat().st_size
+        except OSError:
+            pass
+
+    labels = {
+        "deletable_orphans": "Deletable orphans (not in DB, no derivatives)",
+        "dead_artifacts": "Dead artifacts (non-qcow2, not in any chain)",
+        "duplicate_uploads": "Duplicate uploads (DB copy exists)",
+        "volatile": "Volatile storage",
+    }
+    for cat in ["deletable_orphans", "dead_artifacts", "duplicate_uploads", "volatile"]:
+        if cat in cat_summary:
+            s = cat_summary[cat]
+            print(
+                f"  {labels.get(cat, cat):<50}"
+                f" {s['count']:>6} files  {format_size(s['size']):>10}"
+            )
+    print(f"  {'TOTAL':<50} {len(all_files):>6} files  {format_size(total_size):>10}")
+    print("=" * 70)
+    print()
+
+    if dry_run:
+        manifest_path = output_dir / "would_move.txt"
+        with open(manifest_path, "w") as mf:
+            for cat, f in all_files:
+                mf.write(f"{cat}\t{f}\n")
+        log(f"DRY RUN: {len(all_files)} files would be moved (see {manifest_path})")
+        return
+
+    # Perform moves — manifest is written incrementally so it's always
+    # consistent with what was actually moved, even if interrupted.
+    manifest_path = output_dir / "moved_files.txt"
+    failed_path = output_dir / "move_failures.txt"
+    moved_count = 0
+    failed_count = 0
+
+    total_files = len(all_files)
+    moved_bytes = 0
+    start_time = time()
+    last_log = start_time
+
+    open_mode = "a" if append else "w"
+    with open(manifest_path, open_mode) as mf, open(failed_path, open_mode) as ff:
+        for idx, (cat, f) in enumerate(all_files, 1):
+            src = Path(f)
+            if not src.exists():
+                ff.write(f"{f}\tnot found\n")
+                failed_count += 1
+                continue
+
+            try:
+                file_size = src.stat().st_size
+            except OSError:
+                file_size = 0
+
+            # Preserve full path under to_delete:
+            #   /isard/groups/x.qcow2 -> to_delete/isard/groups/x.qcow2
+            rel_path = str(src).lstrip("/")
+            dest = Path(TO_DELETE_DIR) / rel_path
+
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(src), str(dest))
+                mf.write(f"{cat}\t{f}\t{dest}\n")
+                mf.flush()
+                moved_count += 1
+                moved_bytes += file_size
+            except OSError as e:
+                log(f"  FAIL: {f} -> {e}")
+                ff.write(f"{f}\t{e}\n")
+                ff.flush()
+                failed_count += 1
+
+            # Progress every 10s or every 20 files
+            now = time()
+            if now - last_log >= 10 or idx % 20 == 0 or idx == total_files:
+                elapsed = now - start_time
+                pct = idx / total_files * 100
+                rate = idx / elapsed if elapsed > 0 else 0
+                eta = (total_files - idx) / rate if rate > 0 else 0
+                log(
+                    f"  Moving: {idx}/{total_files} ({pct:.0f}%)"
+                    f" | {format_size(moved_bytes)} moved"
+                    f" | ETA {format_time_remaining(eta)}"
+                )
+                last_log = now
+
+    log(f"Moved {moved_count} files to {TO_DELETE_DIR}")
+    if failed_count:
+        log(f"Failed to move {failed_count} files (see {failed_path})")
+
+    # Clean up empty failures file (only safe in non-append mode — in append
+    # mode a previous step may have written failures we shouldn't drop).
+    if failed_count == 0 and not append:
+        failed_path.unlink(missing_ok=True)
+
+    print()
+    print(f"Moved:  {moved_count} files")
+    print(f"Failed: {failed_count} files")
+    print(f"Destination: {TO_DELETE_DIR}")
+    print(f"Manifest: {manifest_path}")
+    print()
+    print("To permanently delete all moved files:")
+    print(f"  rm -rf {TO_DELETE_DIR}")
+    print()
+    print("To restore a specific file (path tree is preserved):")
+    print(f"  # e.g. /isard/groups/abc.qcow2 was moved to")
+    print(f"  #      {TO_DELETE_DIR}/isard/groups/abc.qcow2")
+    print(f"  mv {TO_DELETE_DIR}/isard/groups/abc.qcow2 /isard/groups/abc.qcow2")
+    print()
+    print("To restore everything:")
+    print(
+        f'  cd {TO_DELETE_DIR} && find . -type f -exec sh -c \'mv "$1" "/$(dirname "$1")"\' _ {{}} \\;'
+    )
+
+
+# ─── by-role subcommand ──────────────────────────────────────────────────────
+
+
+def _is_valid_storage(storage):
+    """Check if a storage is valid and update its actual size from qemu-img info."""
+    import json
+    import subprocess
+
+    path = storage["path"]
+    if not path.endswith(".qcow2"):
+        return None
+    try:
+        result = subprocess.run(
+            ["qemu-img", "info", "--output=json", "-U", "--backing-chain", path],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        info = json.loads(result.stdout)
+        if isinstance(info, list):
+            actual_size = info[0].get("actual-size", 0)
+        else:
+            actual_size = info.get("actual-size", 0)
+        storage["actual-size"] = actual_size
+        return storage
+    except Exception:
+        return None
+
+
+def _validate_storages(storages):
+    """Validate storages in parallel. Returns (valid, invalid) lists."""
+    import concurrent.futures
+
+    valid = []
+    invalid = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {executor.submit(_is_valid_storage, s): s for s in storages}
+        for future in concurrent.futures.as_completed(futures):
+            storage = futures[future]
+            result = future.result()
+            if result:
+                valid.append(result)
+            else:
+                invalid.append(storage)
+    return valid, invalid
+
+
+def cmd_by_role(args):
+    """Generate storage reports grouped by user role."""
+    roles = ["advanced", "manager", "admin"]
+    start_time = datetime.datetime.now()
+
+    logs_path = os.path.join(args.base_path, "disks-by-role")
+    os.makedirs(logs_path, exist_ok=True)
+
+    print(
+        f"[{start_time.strftime('%Y-%m-%d %H:%M:%S')}]"
+        f" Starting storage reports by role - Output: {logs_path}"
+    )
+
+    resume = []
+    for role in roles:
+        role_start = datetime.datetime.now()
+
+        storages = fetch_storages_by_role(role)
+        valid_list, invalid_list = _validate_storages(storages)
+
+        total_size = sum(s.get("actual-size", 0) for s in valid_list)
+
+        role_elapsed = datetime.datetime.now() - role_start
+        print(
+            f"[{role_start.strftime('%H:%M:%S')}] {role}:"
+            f" {len(storages)} total, {len(valid_list)} valid"
+            f" ({format_size(total_size)}),"
+            f" {len(invalid_list)} invalid"
+            f" - {role_elapsed.total_seconds():.1f}s"
+        )
+
+        # Save invalid list
+        invalid_path = os.path.join(logs_path, f"invalid_storages_{role}.list")
+        with open(invalid_path, "w") as f:
+            f.write("\n".join(s["path"] for s in invalid_list) + "\n")
+
+        # Save valid list
+        valid_path = os.path.join(logs_path, f"{role}_storages.list")
+        with open(valid_path, "w") as f:
+            f.write("\n".join(s["path"] for s in valid_list) + "\n")
+
+        # Generate markdown report
+        md_lines, resume_lines = _generate_role_report(valid_list, role, logs_path)
+        resume.extend(resume_lines)
+
+    end_time = datetime.datetime.now()
+    total_elapsed = end_time - start_time
+
+    print(
+        f"[{end_time.strftime('%Y-%m-%d %H:%M:%S')}]"
+        f" Completed in {total_elapsed.total_seconds():.1f}s"
+        f" - Reports: {logs_path}"
+    )
+
+    if resume:
+        print("Summary:")
+        for line in resume:
+            if line.startswith("# Storage Report") or line.startswith("- **"):
+                print(f"  {line}")
+            if line.startswith("---"):
+                break
+
+
+def _generate_role_report(storages, role, logs_path):
+    """Generate markdown report for a role. Returns (md_lines, resume_lines)."""
+    if not storages:
+        print(f"No storages found for role '{role}'.")
+        return [], []
+
+    count = len(storages)
+    total_size = 0
+    oldest = None
+    newest = None
+    details = []
+
+    for storage in storages:
+        dt_str = storage.get("datetime", "")
+        path = storage.get("path", "")
+        actual_size = storage.get("actual-size", 0) or 0
+        total_size += actual_size
+
+        try:
+            dt_obj = (
+                datetime.datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
+                if dt_str
+                else None
+            )
+        except Exception:
+            dt_obj = None
+
+        if dt_obj:
+            if not oldest or dt_obj < oldest[0]:
+                oldest = (dt_obj, path)
+            if not newest or dt_obj > newest[0]:
+                newest = (dt_obj, path)
+
+        details.append((dt_str, path, actual_size))
+
+    md_lines = []
+    md_lines.append(f"# Storage Report for Role: `{role}`\n")
+    md_lines.append("## Summary")
+    md_lines.append(f"- **Count:** {count}")
+    md_lines.append(f"- **Total actual size:** {total_size / (1024**3):.2f} GiB")
+    if oldest:
+        md_lines.append(
+            f"- **Oldest:** {oldest[0].strftime('%Y-%m-%d %H:%M:%S')}"
+            f" - `{oldest[1]}`"
+        )
+    if newest:
+        md_lines.append(
+            f"- **Newest:** {newest[0].strftime('%Y-%m-%d %H:%M:%S')}"
+            f" - `{newest[1]}`"
+        )
+
+    resume_lines = md_lines.copy()
+
+    md_lines.append("\n## Details\n")
+    md_lines.append("| DATETIME             | ACTUAL-SIZE (GiB) | PATH |")
+    md_lines.append("|----------------------|-------------------|------|")
+    for dt_str, path, actual_size in details:
+        md_lines.append(f"| {dt_str:20} | {actual_size / (1024**3):17.2f} | `{path}` |")
+
+    md_report = "\n".join(md_lines)
+    md_filename = os.path.join(logs_path, f"{role}_storages.md")
+    with open(md_filename, "w") as f:
+        f.write(md_report)
+
+    return md_lines, resume_lines
+
+
+# ─── repair-chains subcommand ────────────────────────────────────────────────
+
+
+def cmd_repair_chains(args):
+    """Diagnose and optionally fix broken backing chains."""
+    t = time()
+    log("Starting broken chain diagnosis...")
+
+    log("Scanning filesystem for qcow2 files...")
+    sys_storages = scan_isard_dirs()
+    qcow_storages = [s for s in sys_storages if s.endswith(".qcow2")]
+    log(f"  Found {len(qcow_storages)} qcow2 files")
+
+    log("Checking backing chain integrity...")
+    broken = analyze_integrity(qcow_storages)
+    log(f"  Found {len(broken)} files with broken chains")
+
+    if not broken:
+        log("No broken chains found.")
+        return
+
+    log("Diagnosing broken chains (searching for relocated backing files)...")
+    results = diagnose_broken_chains(broken)
+
+    # Categorize results
+    recoverable = [r for r in results if r["found_at"] and r["rebase_cmd"]]
+    corrupt = [r for r in results if r["corrupt"]]
+    truly_missing = [
+        r
+        for r in results
+        if not r["found_at"] and not r["corrupt"] and r["missing_uuid"]
+    ]
+    no_backing = [r for r in results if not r["corrupt"] and not r["missing_uuid"]]
+
+    # Print report
+    print()
+    print("=" * 80)
+    print("BROKEN CHAIN DIAGNOSIS")
+    print("=" * 80)
+    print(f"  Total broken:     {len(broken)}")
+    print(
+        f"  Recoverable:      {len(recoverable)}  (backing UUID found at different path)"
+    )
+    print(
+        f"  Truly missing:    {len(truly_missing)}  (backing UUID not found anywhere)"
+    )
+    print(f"  Corrupt:          {len(corrupt)}  (qemu-img cannot read file)")
+    if no_backing:
+        print(f"  No backing ref:   {len(no_backing)}  (root image or other issue)")
+    print("=" * 80)
+
+    if recoverable:
+        print(f"\nRecoverable files ({len(recoverable)}):")
+        for r in recoverable:
+            print(f"\n  File:        {r['file']}")
+            if r["broken_link"] != r["file"]:
+                print(f"  Broken at:   {r['broken_link']}")
+            print(f"  Expected:    {r['missing_path']}")
+            print(f"  Found at:    {r['found_at']}")
+            print(f"  Fix:         {r['rebase_cmd']}")
+
+    if truly_missing:
+        print(f"\nTruly missing backing files ({len(truly_missing)}):")
+        for r in truly_missing:
+            print(f"  {r['file']}")
+            print(
+                f"    missing: {r['missing_path']} (UUID {r['missing_uuid']} not on disk)"
+            )
+
+    if corrupt:
+        print(f"\nCorrupt files ({len(corrupt)}):")
+        for r in corrupt:
+            print(f"  {r['file']}  (qemu-img info fails)")
+
+    # Fix mode
+    if args.fix and recoverable:
+        # Filter out templates unless explicitly included
+        to_fix = recoverable
+        if not args.include_templates:
+            templates_skipped = [
+                r for r in recoverable if "/isard/templates" in r["broken_link"]
+            ]
+            to_fix = [
+                r for r in recoverable if "/isard/templates" not in r["broken_link"]
+            ]
+            if templates_skipped:
+                log(
+                    f"Skipping {len(templates_skipped)} template files."
+                    " Use --include-templates to fix them."
+                )
+
+        if not to_fix:
+            log("No non-template recoverable files to fix.")
+        else:
+            print(f"\nApplying {len(to_fix)} fixes...")
+
+        fixed = 0
+        failed = 0
+        for r in to_fix:
+            log(f"  Rebasing {r['broken_link']}...")
+            ok, err = rebase_file(r["broken_link"], r["found_at"])
+            if ok:
+                fixed += 1
+                log(f"    OK")
+            else:
+                failed += 1
+                log(f"    FAILED: {err}")
+
+        print(f"\nFixed: {fixed}, Failed: {failed}")
+
+        if fixed:
+            # Verify fixes
+            log("Verifying fixes...")
+            still_broken = analyze_integrity([r["file"] for r in recoverable])
+            if still_broken:
+                log(
+                    f"  WARNING: {len(still_broken)} files still have broken"
+                    " chains after fix (chain may be broken further up)"
+                )
+                for f in still_broken:
+                    print(f"    Still broken: {f}")
+            else:
+                log(f"  All {fixed} files verified — chains intact")
+
+    elif args.fix and not recoverable:
+        log("No recoverable files to fix.")
+
+    log(f"Total execution time: {time()-t:.2f} seconds")
+
+
+# ─── full subcommand ─────────────────────────────────────────────────────────
+
+
+def cmd_full_cleanup(args):
+    """Full pipeline: verify, repair chains, classify, and move unusable files."""
+    t = time()
+    dry_run = bool(getattr(args, "dry_run", False))
+    log("=" * 60)
+    if dry_run:
+        log("FULL STORAGE MAINTENANCE  (DRY RUN — no changes will be made)")
+    else:
+        log("FULL STORAGE MAINTENANCE")
+    log("=" * 60)
+    actions_planned = []
+
+    # ── Step 1: Fetch API data ────────────────────────────────────────────
+    log("\n[1/6] Fetching storage records from API...")
+    raw_storages = fetch_storages()
+    if raw_storages is None:
+        log("ERROR: API call failed. Cannot proceed without API verification.")
+        sys.exit(1)
+
+    db_storages = [s["path"] for s in raw_storages]
+    db_storage_lookup = {}
+    for s in raw_storages:
+        db_storage_lookup[s["path"]] = {
+            "id": s["id"],
+            "status": s.get("status", "unknown"),
+            "has_domains": s.get("domains", 0) > 0,
+        }
+    log(f"  {len(db_storages)} storages in API")
+
+    medias = fetch_medias()
+    if medias is None:
+        log("  WARNING: media API call failed; orphan media will not be moved.")
+    else:
+        log(f"  {len(medias)} medias in API")
+
+    # ── Step 2: Scan filesystem ───────────────────────────────────────────
+    log("\n[2/6] Scanning filesystem...")
+    sys_storages = scan_isard_dirs()
+    qcow_storages = [s for s in sys_storages if s.endswith(".qcow2")]
+    media_storages = [s for s in sys_storages if s.endswith((".iso", ".fd"))]
+    non_qcow_storages = [
+        s for s in sys_storages if not s.endswith((".qcow2", ".iso", ".fd"))
+    ]
+    storages_in_system_not_in_db = set(qcow_storages) - set(db_storages)
+    log(
+        f"  {len(qcow_storages)} qcow2 files,"
+        f" {len(media_storages)} media files,"
+        f" {len(non_qcow_storages)} other files"
+    )
+    log(f"  {len(storages_in_system_not_in_db)} qcow2 files not in API")
+
+    # Sanity check
+    if len(qcow_storages) > 0:
+        orphan_ratio = len(storages_in_system_not_in_db) / len(qcow_storages)
+        if orphan_ratio > 0.8 and len(storages_in_system_not_in_db) > 50:
+            log(
+                f"ERROR: {orphan_ratio:.0%} orphan ratio is suspiciously high."
+                " Possible API data issue. Aborting."
+            )
+            sys.exit(1)
+
+    # ── Step 3: Check integrity + dependencies in one pass ────────────────
+    log("\n[3/6] Checking backing chain integrity + dependencies...")
+    if getattr(args, "rescan", False):
+        log("  --rescan set: ignoring qcow cache, re-running qemu-img on all files.")
+        cache_in = {}
+    else:
+        cache_in = load_qcow_cache()
+    broken_chain, qcow_deps, fresh_cache = analyze_integrity_and_dependencies(
+        qcow_storages, cache=cache_in
+    )
+    log(f"  {len(broken_chain)} files with broken chains")
+
+    repaired_files = []
+    if broken_chain:
+        log(
+            "\n[4/6] Diagnosing broken chains (searching for relocated backing files)..."
+        )
+        diag_results = diagnose_broken_chains(broken_chain)
+
+        recoverable = [r for r in diag_results if r["found_at"] and r["rebase_cmd"]]
+        corrupt = [r for r in diag_results if r["corrupt"]]
+        truly_missing = [
+            r
+            for r in diag_results
+            if not r["found_at"] and not r["corrupt"] and r["missing_uuid"]
+        ]
+
+        print()
+        print(f"  Broken chain diagnosis:")
+        print(f"    Recoverable:    {len(recoverable)}")
+        print(f"    Truly missing:  {len(truly_missing)}")
+        print(f"    Corrupt:        {len(corrupt)}")
+
+        # Attempt repairs on recoverable files
+        if recoverable:
+            to_fix = recoverable
+            if not args.include_templates:
+                template_count = sum(
+                    1 for r in recoverable if "/isard/templates" in r["broken_link"]
+                )
+                to_fix = [
+                    r for r in recoverable if "/isard/templates" not in r["broken_link"]
+                ]
+                if template_count:
+                    log(
+                        f"  Skipping {template_count} template repairs"
+                        " (use --include-templates)"
+                    )
+
+            if to_fix:
+                if dry_run:
+                    log(
+                        f"  DRY RUN: would attempt to repair {len(to_fix)}"
+                        " broken chains via qemu-img rebase"
+                    )
+                    for r in to_fix:
+                        actions_planned.append(
+                            {
+                                "action": "rebase",
+                                "file": r["file"],
+                                "broken_link": r["broken_link"],
+                                "found_at": r["found_at"],
+                                "rebase_cmd": r["rebase_cmd"],
+                            }
+                        )
+                else:
+                    log(f"  Repairing {len(to_fix)} broken chains...")
+                    for r in to_fix:
+                        ok, err = rebase_file(r["broken_link"], r["found_at"])
+                        if ok:
+                            repaired_files.append(r["file"])
+                            log(f"    FIXED: {r['broken_link']}")
+                        else:
+                            log(f"    FAILED: {r['broken_link']} -> {err}")
+
+        # Repaired files have new mtimes — invalidate their cache entries
+        # so the re-analysis sees them as cache misses and re-runs qemu-img
+        # only for that subset. Untouched files stay cached.
+        if repaired_files:
+            log(f"\n  Re-checking integrity after {len(repaired_files)} repairs...")
+            for f in repaired_files:
+                fresh_cache.pop(f, None)
+            broken_chain, qcow_deps, fresh_cache = analyze_integrity_and_dependencies(
+                qcow_storages, cache=fresh_cache
+            )
+            still_broken = set(repaired_files) & set(broken_chain)
+            newly_ok = len(repaired_files) - len(still_broken)
+            log(
+                f"    {newly_ok} chains fully restored, {len(still_broken)} still broken"
+            )
+            log(f"  Updated broken chain count: {len(broken_chain)}")
+    else:
+        log("\n[4/6] No broken chains — skipping repair step")
+
+    save_qcow_cache(fresh_cache)
+
+    # ── Step 5: Final classification using deps from step 3 ───────────────
+    log("\n[5/6] Classifying files...")
+
+    # Compute final deletable sets
+    deletable_orphans = set(qcow_deps["wo_derivatives"]) & storages_in_system_not_in_db
+    volatile = get_volatile_storages()
+
+    # Broken chain files that are NOT in DB and have no derivatives
+    # are now also safe to move (they're unrecoverable AND no one depends on them)
+    broken_not_in_db = set(broken_chain) & storages_in_system_not_in_db
+    broken_no_deps = broken_not_in_db - set(qcow_deps.get("reverse_map", {}).keys())
+
+    # Broken chain files that ARE in DB but already marked "deleted"
+    # and have no healthy derivatives — the system already gave up on them,
+    # they're unrecoverable, keeping the physical file is pointless.
+    broken_deleted_in_db = set()
+    for f in broken_chain:
+        if f in storages_in_system_not_in_db:
+            continue  # already in broken_no_deps above
+        info = db_storage_lookup.get(f)
+        if info and info["status"] == "deleted":
+            # Verify no healthy file depends on this as backing
+            if f not in qcow_deps.get("reverse_map", {}):
+                broken_deleted_in_db.add(f)
+
+    # Classify non-qcow2 files (renamed artifacts, stale copies, etc.)
+    dead_artifacts, unknown_non_qcow = _classify_non_qcow2_files(
+        non_qcow_storages, qcow_deps, db_storage_lookup=db_storage_lookup
+    )
+
+    # Classify .iso/.fd media files against the API media table.
+    # Without media API data the orphan bucket stays empty (defensive).
+    if medias is not None:
+        media_classes = _classify_media_files(media_storages, medias)
+    else:
+        media_classes = {
+            "registered": [],
+            "unverified": list(media_storages),
+            "orphan": [],
+            "db_not_in_system": [],
+        }
+
+    # Find duplicate qcow2 files where DB-referenced copy exists at a different path
+    duplicate_uploads = _find_duplicate_uploads(qcow_storages, db_storage_lookup)
+
+    log(f"  Deletable orphans (not in DB, no derivatives): {len(deletable_orphans)}")
+    log(
+        f"  Unrecoverable broken chains (not in DB, no derivatives): {len(broken_no_deps)}"
+    )
+    log(
+        f"  Dead broken chains (deleted in DB, unrecoverable): {len(broken_deleted_in_db)}"
+    )
+    log(f"  Dead artifacts (non-qcow2, not in any chain): {len(dead_artifacts)}")
+    log(
+        f"  Orphan medias (ISO/FD not registered in API): {len(media_classes['orphan'])}"
+    )
+    log(f"  Duplicate uploads (DB copy exists at root): {len(duplicate_uploads)}")
+    log(f"  Volatile files: {len(volatile)}")
+
+    # ── Step 5b (optional): Sparsify / Compress healthy files ─────────────
+    sparsified_count = 0
+    compressed_count = 0
+    total_saved = 0
+
+    if args.sparsify or args.compress:
+        # Files to optimize: in DB, not broken, qcow2
+        all_unusable = (
+            deletable_orphans
+            | broken_no_deps
+            | broken_deleted_in_db
+            | set(broken_chain)
+            | set(volatile)
+        )
+        healthy_qcow = [f for f in qcow_storages if f not in all_unusable]
+        if not args.include_templates:
+            healthy_qcow = [f for f in healthy_qcow if "/isard/templates" not in f]
+
+        if dry_run:
+            ops = []
+            if args.sparsify:
+                ops.append("sparsify")
+            if args.compress:
+                ops.append("compress")
+            log(
+                f"\n  DRY RUN: would {'+'.join(ops)} {len(healthy_qcow)}"
+                " healthy qcow2 files"
+            )
+            for f in healthy_qcow:
+                actions_planned.append(
+                    {
+                        "action": "+".join(ops),
+                        "file": f,
+                    }
+                )
+        else:
+            log(f"\n  Optimizing {len(healthy_qcow)} healthy qcow2 files...")
+
+            for i, f in enumerate(healthy_qcow, 1):
+                if args.sparsify:
+                    ok, saved, err = sparsify_file(f)
+                    if ok:
+                        sparsified_count += 1
+                        total_saved += max(saved, 0)
+                    elif err:
+                        log(f"    sparsify skip {Path(f).name}: {err}")
+
+                if args.compress:
+                    ok, saved, err = compress_file(f)
+                    if ok:
+                        compressed_count += 1
+                        total_saved += max(saved, 0)
+                    elif err:
+                        log(f"    compress skip {Path(f).name}: {err}")
+
+                if i % 10 == 0 or i == len(healthy_qcow):
+                    log(
+                        f"    Progress: {i}/{len(healthy_qcow)}"
+                        f" | saved so far: {format_size(total_saved)}"
+                    )
+
+            log(f"  Sparsified: {sparsified_count}, Compressed: {compressed_count}")
+            log(f"  Total space reclaimed: {format_size(total_saved)}")
+
+    # ── Step 6: Export reports and move files ──────────────────────────────
+    log("\n[6/6] Generating report and moving unusable files...")
+    output_dir = get_output_dir()
+
+    # Write file lists
+    storages_in_db_not_in_system = set(db_storages) - set(qcow_storages)
+    files_info = [
+        ("ok_db_not_in_system.txt", storages_in_db_not_in_system),
+        ("ok_system_not_in_db.txt", storages_in_system_not_in_db),
+        ("ok_no_backing_file.txt", qcow_deps["wo_backing"]),
+        ("ok_no_derivatives.txt", qcow_deps["wo_derivatives"]),
+        ("ok_registered_medias.txt", media_classes["registered"]),
+        ("ok_medias_db_not_in_system.txt", media_classes["db_not_in_system"]),
+        ("ok_medias_unverified.txt", media_classes["unverified"]),
+        ("bad_broken_chain.txt", broken_chain),
+        ("volatile_storage.txt", volatile),
+        ("bad_non_qcow2.txt", non_qcow_storages),
+        ("bad_orphan_medias.txt", media_classes["orphan"]),
+        ("bad_deletable_orphans.txt", deletable_orphans),
+        ("bad_dead_artifacts.txt", dead_artifacts),
+        ("bad_duplicate_uploads.txt", duplicate_uploads),
+    ]
+    if repaired_files:
+        files_info.append(("repaired_chains.txt", repaired_files))
+
+    # Templates without dependents (informational, not moved)
+    unused_templates = _find_templates_without_dependents(raw_storages)
+    if unused_templates:
+        files_info.append(
+            (
+                "info_templates_without_dependents.txt",
+                [t["id"] for t in unused_templates],
+            )
+        )
+        total_unused_size = sum(t["size"] for t in unused_templates)
+        log(
+            f"  Templates without dependents:"
+            f" {len(unused_templates)} ({format_size(total_unused_size)})"
+        )
+
+    for filename, file_list in files_info:
+        write_file_list(output_dir, filename, file_list)
+
+    # Collect all movable files — everything unusable goes to to_delete
+    all_movable_orphans = deletable_orphans | broken_no_deps | broken_deleted_in_db
+    movable = _collect_movable_files(
+        all_movable_orphans,
+        volatile,
+        db_storage_lookup,
+        qcow_deps,
+        dead_artifacts=dead_artifacts,
+        duplicate_uploads=duplicate_uploads,
+        orphan_medias=media_classes["orphan"],
+        include_templates=args.include_templates,
+    )
+    if dry_run:
+        log("\n  DRY RUN: skipping move-to-to_delete step.")
+        # Record planned moves for the actions report
+        for cat, files in movable.items():
+            for f in files:
+                actions_planned.append(
+                    {
+                        "action": "move",
+                        "category": cat,
+                        "file": str(f),
+                        "destination": f"{TO_DELETE_DIR}/{str(f).lstrip('/')}",
+                    }
+                )
+        # Still print the summary table so the operator can see the impact.
+        _move_deletable_files(movable, output_dir, dry_run=True)
+    else:
+        _move_deletable_files(movable, output_dir)
+
+    if dry_run:
+        actions_path = output_dir / "dry_run_actions.jsonl"
+        with open(actions_path, "w") as fh:
+            for entry in actions_planned:
+                fh.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
+        log(
+            f"\n  DRY RUN: {len(actions_planned)} planned actions written to"
+            f" {actions_path}"
+        )
+        # Generate a per-category summary of planned actions
+        from collections import Counter
+
+        by_action = Counter(a["action"] for a in actions_planned)
+        if by_action:
+            print()
+            print("=" * 60)
+            print("DRY RUN — PLANNED ACTIONS SUMMARY")
+            print("=" * 60)
+            for k, v in sorted(by_action.items()):
+                print(f"  {k:<20} {v:>6}")
+            print("=" * 60)
+
+    # ── Summary ───────────────────────────────────────────────────────────
+    print()
+    print("=" * 60)
+    print("FULL MAINTENANCE SUMMARY")
+    print("=" * 60)
+    print(f"  API storages:          {len(db_storages)}")
+    print(f"  Filesystem qcow2:      {len(qcow_storages)}")
+    print(f"  Chains repaired:       {len(repaired_files)}")
+    print(f"  Broken (remaining):    {len(broken_chain)}")
+    if sparsified_count or compressed_count:
+        print(f"  Sparsified:            {sparsified_count}")
+        print(f"  Compressed:            {compressed_count}")
+        print(f"  Space reclaimed:       {format_size(total_saved)}")
+    print(f"  Report exported to:    {output_dir}")
+    print("=" * 60)
+
+    log(f"Total execution time: {time()-t:.2f} seconds")
+
+
+# ─── verify subcommand ───────────────────────────────────────────────────────
+
+
+def _build_uuid_to_path_index(qcow_files):
+    """Build UUID -> filesystem path index from scanned files."""
+    index = {}
+    for f in qcow_files:
+        uid = Path(f).stem
+        if uid not in index:
+            index[uid] = f
+    return index
+
+
+def _launch_and_track_tasks(task_map, label="tasks"):
+    """Poll tasks until all complete. task_map = {storage_id: task_id}.
+
+    Returns dict: {storage_id: final_task_status}.
+    """
+    completed = {}
+    start = time()
+    timeout = 600
+
+    while time() - start < timeout:
+        pending = 0
+        for sid, tid in task_map.items():
+            if tid in completed:
+                continue
+            try:
+                task = poll_task(tid)
+                if task.get("status") in ("finished", "failed", "canceled"):
+                    completed[tid] = task.get("status")
+                else:
+                    pending += 1
+            except Exception:
+                pending += 1
+
+        elapsed = int(time() - start)
+        done = len(completed)
+        total = len(task_map)
+        if done >= total:
+            log(f"  {label}: {done}/{total} done ({elapsed}s)")
+            break
+        if elapsed % 10 < 6:
+            log(f"  {label}: {done}/{total} done, {pending} pending ({elapsed}s)")
+        import time as time_mod
+
+        time_mod.sleep(3)
+
+    results = {}
+    for sid, tid in task_map.items():
+        results[sid] = completed.get(tid, "timeout")
+    return results
+
+
+def cmd_verify(args):
+    """Check DB-vs-disk consistency and optionally fix via API."""
+    t = time()
+    log("Starting DB-vs-disk verification...")
+
+    # ── Fetch data ────────────────────────────────────────────────────────
+    log("Getting storages from API...")
+    raw_storages = fetch_storages()
+    if raw_storages is None:
+        log("ERROR: API call failed.")
+        sys.exit(1)
+    log(f"  {len(raw_storages)} storages in API")
+
+    log("Scanning filesystem...")
+    sys_storages = scan_isard_dirs()
+    qcow_storages = [s for s in sys_storages if s.endswith(".qcow2")]
+    log(f"  {len(qcow_storages)} qcow2 files on disk")
+
+    # Build lookups
+    fs_lookup = {}
+    for f in qcow_storages:
+        try:
+            fs_lookup[f] = Path(f).stat()
+        except OSError:
+            pass
+
+    uuid_to_disk_path = _build_uuid_to_path_index(qcow_storages)
+
+    # ── Detect issues ─────────────────────────────────────────────────────
+    ready_missing = []  # ready in DB, file not at DB path
+    ready_path_mismatch = []  # ready in DB, file exists elsewhere on disk
+    deleted_ghost = []  # deleted in DB, file still on disk
+
+    for s in raw_storages:
+        path = s["path"]
+        sid = s["id"]
+        status = s["status"]
+
+        if status == "ready":
+            if path not in fs_lookup:
+                # File not at expected path — check if it's elsewhere
+                actual = uuid_to_disk_path.get(sid)
+                if actual:
+                    ready_path_mismatch.append(
+                        {
+                            "id": sid,
+                            "db_path": path,
+                            "actual_path": actual,
+                            "domains": s.get("domains", 0),
+                        }
+                    )
+                else:
+                    ready_missing.append(s)
+
+        elif status == "deleted":
+            if path in fs_lookup:
+                deleted_ghost.append(s)
+
+    # ── Report ────────────────────────────────────────────────────────────
+    print()
+    print("=" * 70)
+    print("DB vs DISK VERIFICATION")
+    print("=" * 70)
+
+    all_ok = True
+
+    if ready_missing:
+        all_ok = False
+        print(f"\nREADY in DB, file GONE: {len(ready_missing)}")
+        for s in ready_missing:
+            dom = s.get("domains", 0)
+            dom_str = f"  domains={dom}" if dom else ""
+            print(f"  {s['id']}{dom_str}")
+        if args.fix:
+            print(f"  -> Triggering find tasks to mark as deleted...")
+
+    if ready_path_mismatch:
+        all_ok = False
+        print(f"\nREADY in DB, file at WRONG PATH: {len(ready_path_mismatch)}")
+        for m in ready_path_mismatch:
+            print(f"  {m['id']}  domains={m['domains']}")
+            print(f"    DB:   {m['db_path']}")
+            print(f"    Disk: {m['actual_path']}")
+        if args.fix:
+            print(f"  -> Updating DB paths to match disk...")
+
+    if deleted_ghost:
+        all_ok = False
+        print(f"\nDELETED in DB, file ON DISK: {len(deleted_ghost)}")
+        for s in deleted_ghost:
+            size = fs_lookup[s["path"]].st_size
+            print(f"  {s['id']}  {format_size(size)}  {s['path']}")
+        if args.fix:
+            print(f"  -> Triggering find tasks to re-evaluate...")
+
+    if all_ok:
+        print("\nAll DB records consistent with filesystem.")
+        print("=" * 70)
+        log(f"Total execution time: {time()-t:.2f} seconds")
+        return
+
+    print("=" * 70)
+
+    # ── Fix mode ──────────────────────────────────────────────────────────
+    if not args.fix:
+        print("\nRun with --fix to correct these issues.")
+        log(f"Total execution time: {time()-t:.2f} seconds")
+        return
+
+    print()
+    task_map = {}
+    actions = {}
+
+    # Fix path mismatches: update DB path via API
+    for m in ready_path_mismatch:
+        sid = m["id"]
+        try:
+            task_id = update_storage_path(sid, m["actual_path"])
+            task_map[sid] = task_id
+            actions[sid] = f"path_update: {m['db_path']} -> {m['actual_path']}"
+            log(f"  Updated path for {sid}")
+        except Exception as e:
+            log(f"  FAILED to update path for {sid}: {e}")
+
+    # Fix ready-missing: trigger find to mark as deleted
+    for s in ready_missing:
+        sid = s["id"]
+        try:
+            task_id = trigger_find(sid)
+            task_map[sid] = task_id
+            actions[sid] = "find: ready but file missing"
+        except Exception as e:
+            log(f"  FAILED to trigger find for {sid}: {e}")
+
+    # Fix deleted-ghost: trigger find to re-evaluate
+    for s in deleted_ghost:
+        sid = s["id"]
+        try:
+            task_id = trigger_find(sid)
+            task_map[sid] = task_id
+            actions[sid] = "find: deleted but file on disk"
+        except Exception as e:
+            log(f"  FAILED to trigger find for {sid}: {e}")
+
+    if not task_map:
+        log("No tasks to run.")
+        log(f"Total execution time: {time()-t:.2f} seconds")
+        return
+
+    log(f"Launched {len(task_map)} tasks, waiting for completion...")
+    results = _launch_and_track_tasks(task_map, label="verify")
+
+    # Report results
+    finished = sum(1 for s in results.values() if s == "finished")
+    failed = sum(1 for s in results.values() if s == "failed")
+
+    print()
+    print(f"Results: {finished} finished, {failed} failed")
+    for sid, status in results.items():
+        if status != "finished":
+            log(f"  {sid}: {status} ({actions.get(sid, '')})")
+
+    log(f"Total execution time: {time()-t:.2f} seconds")
+
+
+# ─── recover subcommand ──────────────────────────────────────────────────────
+
+
+def cmd_recover(args):
+    """Recover failed desktops by recreating missing incremental disks."""
+    t = time()
+    log("Starting recovery scan...")
+
+    log("Fetching storages from API...")
+    raw_storages = fetch_storages()
+    if raw_storages is None:
+        log("ERROR: API call failed.")
+        sys.exit(1)
+
+    by_id = {s["id"]: s for s in raw_storages}
+
+    # Find recoverable: deleted storage + healthy parent on disk + has domains
+    recoverable = []
+    for s in raw_storages:
+        if s["status"] != "deleted":
+            continue
+        parent_id = s.get("parent")
+        if not parent_id:
+            continue
+        parent = by_id.get(parent_id)
+        if not parent or parent["status"] != "ready":
+            continue
+        parent_path = parent["path"]
+        if not Path(parent_path).exists():
+            continue
+        storage_path = s["path"]
+        if Path(storage_path).exists():
+            continue  # file exists, not missing
+        if s.get("domains", 0) == 0:
+            continue  # no domains, nothing to recover
+
+        recoverable.append(
+            {
+                "id": s["id"],
+                "path": storage_path,
+                "parent_id": parent_id,
+                "parent_path": parent_path,
+                "domains": s.get("domains", 0),
+                "user_id": s.get("user_id", "?"),
+            }
+        )
+
+    # Report
+    print()
+    print("=" * 70)
+    print("RECOVERABLE DESKTOPS")
+    print("=" * 70)
+    print(
+        f"  Deleted storage + healthy parent + missing file + has domains:"
+        f" {len(recoverable)}"
+    )
+
+    if not recoverable:
+        print("\n  No recoverable desktops found.")
+        print("=" * 70)
+        log(f"Total execution time: {time()-t:.2f} seconds")
+        return
+
+    for r in recoverable:
+        print(f"\n  {r['id']}")
+        print(f"    path:    {r['path']}")
+        print(f"    parent:  {r['parent_path']}")
+        print(f"    domains: {r['domains']}  user: {r['user_id']}")
+
+    print("=" * 70)
+
+    if not args.fix:
+        print("\nRun with --fix to recreate disks and trigger find tasks.")
+        log(f"Total execution time: {time()-t:.2f} seconds")
+        return
+
+    # Fix: create incremental disks + trigger find
+    print(f"\nRecovering {len(recoverable)} desktops...")
+    task_map = {}
+
+    for r in recoverable:
+        log(f"  Creating incremental: {r['path']}")
+        log(f"    backing: {r['parent_path']}")
+        ok, err = create_incremental(r["path"], r["parent_path"])
+        if not ok:
+            log(f"    FAILED to create: {err}")
+            continue
+
+        # Verify the new file
+        if not Path(r["path"]).exists():
+            log(f"    FAILED: file not created")
+            continue
+
+        chain = get_backing_chain(r["path"])
+        if chain is None:
+            log(f"    WARNING: created but chain is broken")
+
+        log(f"    OK — triggering find task...")
+        try:
+            task_id = trigger_find(r["id"])
+            task_map[r["id"]] = task_id
+        except Exception as e:
+            log(f"    FAILED to trigger find: {e}")
+
+    if task_map:
+        log(f"Waiting for {len(task_map)} find tasks...")
+        results = _launch_and_track_tasks(task_map, label="recover")
+
+        finished = sum(1 for s in results.values() if s == "finished")
+        failed = sum(1 for s in results.values() if s != "finished")
+        print(f"\nRecovered: {finished}, Failed: {failed}")
+
+        if finished:
+            print("Desktops should now be in 'Stopped' status" " and ready to start.")
+
+    log(f"Total execution time: {time()-t:.2f} seconds")
+
+
+# ─── chains subcommand ───────────────────────────────────────────────────────
+
+
+def cmd_chains(args):
+    """Analyze and optionally flatten backing chain depth."""
+    t = time()
+    log("Starting chain analysis...")
+
+    raw_storages = fetch_storages()
+    if raw_storages is None:
+        log("ERROR: API call failed.")
+        sys.exit(1)
+
+    sys_storages = scan_isard_dirs()
+    qcow_storages = [s for s in sys_storages if s.endswith(".qcow2")]
+
+    log("Analyzing dependencies...")
+    qcow_deps = analyze_dependencies(qcow_storages)
+
+    threshold = args.max_depth
+    health = _analyze_chain_health(qcow_deps, raw_storages, depth_threshold=threshold)
+
+    # Build lookups for tree printing
+    storage_by_path = {s["path"]: s for s in raw_storages}
+    dep_map = qcow_deps.get("dependency_map", {})
+    rev_map = qcow_deps.get("reverse_map", {})
+    depth_cache = {}
+    for fi in health["files"]:
+        depth_cache[fi["path"]] = fi["depth"]
+
+    # Report
+    print()
+    print("=" * 70)
+    print("CHAIN DEPTH ANALYSIS")
+    print("=" * 70)
+    print(f"  Total files:    {len(health['files'])}")
+    print(f"  Root templates: {len(health['roots'])}")
+    print(f"  Max depth:      {health['max_depth']}")
+    print(f"  Average depth:  {health['avg_depth']:.1f}")
+    print(f"  Threshold:      {threshold}")
+    print("=" * 70)
+
+    # Deep chains
+    if health["deep"]:
+        print(f"\nDeep chains (depth > {threshold}): {len(health['deep'])}")
+        for fi in health["deep"]:
+            kind = "template" if fi["is_template"] else "desktop"
+            dom_str = f"  domains={fi['domains']}" if fi["domains"] else ""
+            print(f"  depth={fi['depth']}  {kind}  {fi['id']}{dom_str}")
+    else:
+        print(f"\nNo chains deeper than {threshold}.")
+
+    # Single-dependent intermediates
+    if health["single_dependent"]:
+        print(
+            f"\nFlattening candidates (single-dependent intermediates):"
+            f" {len(health['single_dependent'])}"
+        )
+        for sd in health["single_dependent"]:
+            print(f"  {sd['id']} (depth={sd['depth']}, 1 child)")
+            print(
+                f"    child: {sd['child_id']} (depth={sd['child_depth']})"
+                f" -> disconnect would reduce to depth 0"
+            )
+    else:
+        print("\nNo single-dependent intermediates found.")
+
+    # Chain trees (top 10 by max depth, or all if --verbose)
+    print(f"\nChain trees (sorted by max depth):")
+    show_roots = health["roots"]
+    if not args.verbose and len(show_roots) > 10:
+        show_roots = show_roots[:10]
+        print(f"  (showing top 10 of {len(health['roots'])}, use --verbose for all)")
+
+    for root in show_roots:
+        print(
+            f"\n  Root: {root['id']}"
+            f" ({root['descendants']} descendants, max depth {root['max_depth']})"
+        )
+        _print_chain_tree(root["path"], rev_map, depth_cache, storage_by_path, indent=2)
+
+    print()
+    print("=" * 70)
+
+    # Flatten mode
+    to_flatten = []
+
+    if args.flatten_singles and health["single_dependent"]:
+        for sd in health["single_dependent"]:
+            to_flatten.append(
+                {
+                    "id": sd["child_id"],
+                    "path": sd["child_path"],
+                    "reason": f"single-dependent parent {sd['id']}",
+                    "depth": sd["child_depth"],
+                }
+            )
+
+    if args.flatten_deep and health["deep"]:
+        seen = {f["id"] for f in to_flatten}
+        for fi in health["deep"]:
+            if fi["is_leaf"] and fi["id"] not in seen:
+                to_flatten.append(
+                    {
+                        "id": fi["id"],
+                        "path": fi["path"],
+                        "reason": f"depth {fi['depth']} > {args.flatten_deep}",
+                        "depth": fi["depth"],
+                    }
+                )
+
+    if not to_flatten:
+        if args.flatten_singles or args.flatten_deep:
+            log("No files to flatten.")
+        log(f"Total execution time: {time()-t:.2f} seconds")
+        return
+
+    # Filter templates
+    if not args.include_templates:
+        before = len(to_flatten)
+        to_flatten = [f for f in to_flatten if "/isard/templates" not in f["path"]]
+        skipped = before - len(to_flatten)
+        if skipped:
+            log(
+                f"Skipping {skipped} template files."
+                " Use --include-templates to include them."
+            )
+
+    if not to_flatten:
+        log("No files to flatten after filtering.")
+        log(f"Total execution time: {time()-t:.2f} seconds")
+        return
+
+    print(f"\nFlattening {len(to_flatten)} files via disconnect task:")
+    for f in to_flatten:
+        print(f"  {f['id']} (depth={f['depth']}) — {f['reason']}")
+
+    task_map = {}
+    for f in to_flatten:
+        try:
+            task_id = trigger_disconnect(f["id"])
+            task_map[f["id"]] = task_id
+            log(f"  Triggered disconnect for {f['id']}")
+        except Exception as e:
+            log(f"  FAILED to trigger disconnect for {f['id']}: {e}")
+
+    if task_map:
+        log(f"Waiting for {len(task_map)} disconnect tasks...")
+        results = _launch_and_track_tasks(task_map, label="flatten")
+        finished = sum(1 for s in results.values() if s == "finished")
+        failed = sum(1 for s in results.values() if s != "finished")
+        print(f"\nFlattened: {finished}, Failed: {failed}")
+
+    log(f"Total execution time: {time()-t:.2f} seconds")
+
+
+# ─── desktops subcommand ─────────────────────────────────────────────────────
+
+
+def cmd_desktops(args):
+    """Dump every desktop with role, deployment, idle and size info.
+
+    Output: desktops.tsv with one row per (domain, storage_id) pair:
+        domain_id, name, kind, user, role, deployment_id, storage_id,
+        storage_status, size_bytes, mtime_iso, accessed_iso, months_idle
+
+    `months_idle` uses domains.accessed when available, else file mtime.
+    Then prints a role × idle-bucket summary table.
+
+    Read-only; no API writes, no file deletions.
+    """
+    from datetime import datetime
+    from pathlib import Path
+
+    from storage_lib.api import (
+        fetch_domain_deployments,
+        fetch_domains_accessed,
+        fetch_storages,
+    )
+
+    out_dir = Path(args.output_dir) if args.output_dir else get_output_dir()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    log(f"Writing desktops dump to {out_dir}")
+
+    info = fetch_domain_deployments()
+    domains = info["domains"]
+    accessed_by_storage = fetch_domains_accessed()
+    storages = fetch_storages() or []
+    storage_status = {s["id"]: s.get("status", "unknown") for s in storages}
+    storage_path = {s["id"]: s.get("path") for s in storages}
+    storage_size = {
+        s["id"]: (s.get("qemu-img-info") or {}).get("actual-size") or 0
+        for s in storages
+    }
+
+    def _to_unix(v):
+        if v is None or v == "":
+            return None
+        if isinstance(v, (int, float)):
+            return int(v)
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            pass
+        try:
+            return int(
+                datetime.fromisoformat(str(v).replace("Z", "+00:00")).timestamp()
+            )
+        except Exception:
+            return None
+
+    now = datetime.now()
+    rows = []
+    for did, d in domains.items():
+        for sid in d.get("storage_ids") or [None]:
+            acc = _to_unix(accessed_by_storage.get(sid)) if sid else None
+            mtime_iso = ""
+            mtime_ts = None
+            p = storage_path.get(sid) if sid else None
+            if p:
+                try:
+                    st = os.stat(p)
+                    mtime_ts = int(st.st_mtime)
+                    mtime_iso = datetime.fromtimestamp(st.st_mtime).isoformat(
+                        timespec="seconds"
+                    )
+                except OSError:
+                    pass
+            ref_ts = acc or mtime_ts
+            months_idle = (now.timestamp() - ref_ts) / (30 * 86400) if ref_ts else None
+            acc_iso = (
+                datetime.fromtimestamp(acc).isoformat(timespec="seconds") if acc else ""
+            )
+            kind_val = d.get("kind")
+            if isinstance(kind_val, list):
+                kind_val = ",".join(kind_val)
+            rows.append(
+                {
+                    "domain_id": did,
+                    "name": (d.get("name") or "").replace("\t", " "),
+                    "kind": kind_val or "",
+                    "user": d.get("user") or "",
+                    "role": d.get("role") or "",
+                    "deployment_id": d.get("tag") or "",
+                    "storage_id": sid or "",
+                    "storage_status": storage_status.get(sid, "") if sid else "",
+                    "size_bytes": storage_size.get(sid, 0) if sid else 0,
+                    "mtime_iso": mtime_iso,
+                    "accessed_iso": acc_iso,
+                    "months_idle": months_idle,
+                }
+            )
+
+    out_path = out_dir / "desktops.tsv"
+    cols = [
+        "domain_id",
+        "name",
+        "kind",
+        "user",
+        "role",
+        "deployment_id",
+        "storage_id",
+        "storage_status",
+        "size_bytes",
+        "mtime_iso",
+        "accessed_iso",
+        "months_idle",
+    ]
+    with open(out_path, "w") as f:
+        f.write("\t".join(cols) + "\n")
+        for r in rows:
+            mi = f"{r['months_idle']:.1f}" if r["months_idle"] is not None else ""
+            f.write(
+                f"{r['domain_id']}\t{r['name']}\t{r['kind']}\t{r['user']}\t"
+                f"{r['role']}\t{r['deployment_id']}\t{r['storage_id']}\t"
+                f"{r['storage_status']}\t{r['size_bytes']}\t{r['mtime_iso']}\t"
+                f"{r['accessed_iso']}\t{mi}\n"
+            )
+
+    # Summary: role × idle-bucket × (deployment vs not)
+    cutoffs = args.cutoffs or [2, 3, 4, 6, 12, 24]
+    roles = sorted({r["role"] or "(none)" for r in rows})
+    print()
+    print("=" * 78)
+    print(f"Desktops dump: {len(rows)} (domain,storage) rows in {out_path}")
+    print("=" * 78)
+    for in_dep in (False, True):
+        label = "DEPLOYMENT desktops" if in_dep else "NON-deployment desktops"
+        sub = [
+            r
+            for r in rows
+            if bool(r["deployment_id"]) == in_dep and r["months_idle"] is not None
+        ]
+        print(f"\n--- {label} ({len(sub)} entries with idle data) ---")
+        header = f"{'role':<12} " + " ".join(f">{m:<3}mo (n,GB)" for m in cutoffs)
+        print(header)
+        for role in roles:
+            line = f"{role:<12} "
+            for m in cutoffs:
+                bucket = [
+                    r
+                    for r in sub
+                    if r["role"] == (role if role != "(none)" else "")
+                    and r["months_idle"] > m
+                ]
+                sz = sum(r["size_bytes"] for r in bucket) / (1024**3)
+                line += f"{len(bucket):>4}/{sz:>7.1f} "
+            print(line)
+
+
+# ─── recycler-audit subcommand ───────────────────────────────────────────────
+
+
+def cmd_recycler_audit(args):
+    """Audit whether the deployment auto-recycler is actually doing its job.
+
+    Joins:
+      - deployments      (domains.tag)
+      - last access      (max(domains.accessed) per deployment)
+      - storage status   (storages.status: ready / recycled / deleted / …)
+      - configured rule  (unused_item_timeout.send_unused_deployments_to_recycle_bin)
+
+    Writes two TSVs in --output-dir (or current report dir):
+      - deployment_recycler_audit.tsv      (one row per deployment)
+      - deployment_recycler_violations.tsv (deployments past cutoff with at
+                                            least one ready storage)
+    Empty deployments (zero domains tagged) are reported separately —
+    the official cron's eq_join silently drops them.
+
+    Read-only; no API writes, no file deletions.
+    """
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+    from pathlib import Path
+
+    from storage_lib.api import (
+        fetch_domain_deployments,
+        fetch_domains_accessed,
+        fetch_storages,
+        fetch_unused_item_timeouts,
+    )
+
+    out_dir = Path(args.output_dir) if args.output_dir else get_output_dir()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    log(f"Writing recycler audit to {out_dir}")
+
+    timeouts = fetch_unused_item_timeouts()
+    configured = timeouts.get("send_unused_deployments_to_recycle_bin")
+    if args.cutoff_months is not None:
+        cutoff_months = args.cutoff_months
+        cutoff_source = f"--cutoff-months={cutoff_months}"
+    else:
+        cutoff_months = configured
+        cutoff_source = (
+            f"unused_item_timeout.send_unused_deployments_to_recycle_bin={configured}"
+        )
+
+    info = fetch_domain_deployments()
+    domains = info["domains"]  # domain_id -> {tag, storage_ids, ...}
+    deployments = info["deployments"]  # deployment_id -> [domain_id, ...]
+
+    accessed_by_storage = (
+        fetch_domains_accessed()
+    )  # storage_id -> accessed (unix int or iso)
+
+    storages = fetch_storages() or []
+    storage_status = {s["id"]: s.get("status", "unknown") for s in storages}
+    storage_size = {
+        s["id"]: (s.get("qemu-img-info") or {}).get("actual-size") or 0
+        for s in storages
+    }
+
+    def _to_unix(v):
+        if v is None or v == "":
+            return None
+        if isinstance(v, (int, float)):
+            return int(v)
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            pass
+        try:
+            return int(
+                datetime.fromisoformat(str(v).replace("Z", "+00:00")).timestamp()
+            )
+        except Exception:
+            return None
+
+    def _domain_max_accessed(domain_ids):
+        best = None
+        for did in domain_ids:
+            for sid in domains.get(did, {}).get("storage_ids", []):
+                ts = _to_unix(accessed_by_storage.get(sid))
+                if ts is not None and (best is None or ts > best):
+                    best = ts
+        return best
+
+    now = datetime.now()
+    cutoff_ts = None
+    if cutoff_months is not None:
+        cutoff_ts = int((now - timedelta(days=cutoff_months * 30)).timestamp())
+
+    audit_rows = []
+    violations = []
+    empty_deps = []
+
+    for dep_id, domain_ids in deployments.items():
+        max_acc = _domain_max_accessed(domain_ids)
+        statuses = defaultdict(int)
+        ready_size = 0
+        for did in domain_ids:
+            for sid in domains.get(did, {}).get("storage_ids", []):
+                st = storage_status.get(sid, "missing_in_api")
+                statuses[st] += 1
+                if st == "ready":
+                    ready_size += storage_size.get(sid, 0)
+        months_idle = (now.timestamp() - max_acc) / (30 * 86400) if max_acc else None
+        max_acc_iso = (
+            datetime.fromtimestamp(max_acc).isoformat(timespec="seconds")
+            if max_acc
+            else ""
+        )
+        breakdown = ",".join(f"{k}={v}" for k, v in sorted(statuses.items())) or "-"
+        row = {
+            "deployment_id": dep_id,
+            "desktop_count": len(domain_ids),
+            "max_accessed_iso": max_acc_iso,
+            "months_since_accessed": (
+                f"{months_idle:.1f}" if months_idle is not None else ""
+            ),
+            "storage_status_breakdown": breakdown,
+            "ready_size_gb": f"{ready_size / (1024**3):.2f}",
+        }
+        audit_rows.append(row)
+
+        if (
+            cutoff_ts is not None
+            and max_acc is not None
+            and max_acc < cutoff_ts
+            and statuses.get("ready", 0) > 0
+        ):
+            violations.append(row)
+
+    # Empty deployments: rows in `deployments` table with zero tagged domains.
+    # The official cron's eq_join silently drops these so they live forever.
+    try:
+        from storage_lib.api import _get_api as _api_factory
+
+        dep_rows = _api_factory().post(
+            "/admin/table/deployments", data={"pluck": ["id", "name"]}, timeout=60
+        )
+        all_dep_ids = {d["id"]: d.get("name") for d in dep_rows if d.get("id")}
+        for dep_id, name in all_dep_ids.items():
+            if dep_id not in deployments:
+                empty_deps.append({"deployment_id": dep_id, "name": name or ""})
+    except Exception as e:
+        log(f"WARNING: could not list deployments table for empty-check: {e}")
+
+    audit_path = out_dir / "deployment_recycler_audit.tsv"
+    with open(audit_path, "w") as f:
+        f.write(
+            "deployment_id\tdesktop_count\tmax_accessed_iso\t"
+            "months_since_accessed\tstorage_status_breakdown\tready_size_gb\n"
+        )
+        for r in sorted(
+            audit_rows,
+            key=lambda x: float(x["months_since_accessed"] or -1),
+            reverse=True,
+        ):
+            f.write(
+                f"{r['deployment_id']}\t{r['desktop_count']}\t"
+                f"{r['max_accessed_iso']}\t{r['months_since_accessed']}\t"
+                f"{r['storage_status_breakdown']}\t{r['ready_size_gb']}\n"
+            )
+
+    viol_path = out_dir / "deployment_recycler_violations.tsv"
+    with open(viol_path, "w") as f:
+        f.write(
+            "deployment_id\tdesktop_count\tmax_accessed_iso\t"
+            "months_since_accessed\tstorage_status_breakdown\tready_size_gb\n"
+        )
+        for r in sorted(
+            violations,
+            key=lambda x: float(x["ready_size_gb"]),
+            reverse=True,
+        ):
+            f.write(
+                f"{r['deployment_id']}\t{r['desktop_count']}\t"
+                f"{r['max_accessed_iso']}\t{r['months_since_accessed']}\t"
+                f"{r['storage_status_breakdown']}\t{r['ready_size_gb']}\n"
+            )
+
+    empty_path = out_dir / "deployment_recycler_empty.tsv"
+    with open(empty_path, "w") as f:
+        f.write("deployment_id\tname\n")
+        for r in empty_deps:
+            f.write(f"{r['deployment_id']}\t{r['name']}\n")
+
+    # Headline
+    total_violation_size = sum(float(r["ready_size_gb"]) for r in violations)
+    print()
+    print("=" * 72)
+    print("Deployment auto-recycler audit")
+    print("=" * 72)
+    print(f"Configured cutoff source : {cutoff_source}")
+    print(
+        f"Effective cutoff         : "
+        + (
+            f"{cutoff_months} months"
+            if cutoff_months is not None
+            else "DISABLED (None)"
+        )
+    )
+    print(f"Deployments with desktops: {len(audit_rows)}")
+    print(f"Empty deployments        : {len(empty_deps)}  (cron's eq_join skips these)")
+    if cutoff_months is None:
+        print()
+        print("⚠ No cutoff configured — the recycler is a no-op by design.")
+        print("  Set unused_item_timeout.send_unused_deployments_to_recycle_bin")
+        print("  via the admin UI (value is in MONTHS).")
+    else:
+        print(
+            f"Violations (>{cutoff_months}mo idle, ≥1 ready storage):"
+            f" {len(violations)}  ({total_violation_size:.2f} GB)"
+        )
+        if violations:
+            print()
+            print("⚠ Recycler is NOT removing these deployments — see")
+            print(f"  {viol_path}")
+        else:
+            print()
+            print("✓ No violations — recycler appears to be working.")
+    print()
+    print("Files written:")
+    print(f"  {audit_path}")
+    print(f"  {viol_path}")
+    print(f"  {empty_path}")
+
+
+# ─── deployments subcommand ──────────────────────────────────────────────────
+
+
+def cmd_deployments(args):
+    """Annotate cleanup file lists with deployment ownership.
+
+    For each `bad_*.txt` (or files matched by --filter) in the report
+    directory, look up `Path(p).stem` as a storage_id, then check whether
+    the API knows which domain/deployment that storage belongs to.
+
+    Writes `<name>.deployments.tsv` per source list with columns:
+        path, storage_id, domain_id, deployment_id
+    Then prints a summary table: deployment_id → file count + size_GB,
+    plus an "(unassigned)" row for files whose storage is not tagged
+    (either storage_id unknown to API or domain has tag=None).
+    """
+    from collections import defaultdict
+    from pathlib import Path
+
+    from storage_lib.api import fetch_domain_deployments
+
+    report_dir = Path(args.directory)
+    if not report_dir.is_dir():
+        print(f"ERROR: not a directory: {report_dir}")
+        sys.exit(1)
+
+    patterns = args.filter or ["bad_*.txt", "ok_no_derivatives.txt"]
+    txt_files = []
+    for pat in patterns:
+        # accept both raw names and globs
+        if "*" in pat or "?" in pat:
+            txt_files.extend(sorted(report_dir.glob(pat)))
+        else:
+            p = report_dir / (pat if pat.endswith(".txt") else f"{pat}.txt")
+            if p.exists():
+                txt_files.append(p)
+    txt_files = sorted(set(txt_files))
+    txt_files = [p for p in txt_files if not p.name.endswith(".meta.tsv")]
+    if not txt_files:
+        print(f"No matching .txt files in {report_dir}")
+        sys.exit(1)
+
+    info = fetch_domain_deployments()
+    s2d = info["storage_to_domain"]
+    s2dep = info["storage_to_deployment"]
+    s2role = info.get("storage_to_role", {})
+    domains = info["domains"]
+
+    def size_for(path):
+        try:
+            return os.stat(path).st_size
+        except OSError:
+            return 0
+
+    overall = defaultdict(lambda: [0, 0])  # deployment_id -> [count, bytes]
+    per_file = {}
+
+    for tf in txt_files:
+        local = defaultdict(lambda: [0, 0])
+        out_path = report_dir / f"{tf.stem}.deployments.tsv"
+        with open(tf) as src, open(out_path, "w") as dst:
+            dst.write("path\tstorage_id\tdomain_id\tdeployment_id\trole\n")
+            for line in src:
+                p = line.strip()
+                if not p:
+                    continue
+                sid = Path(p).stem
+                did = s2d.get(sid, "")
+                dep = s2dep.get(sid, "")
+                role = s2role.get(sid, "")
+                dst.write(f"{p}\t{sid}\t{did}\t{dep}\t{role}\n")
+                key = dep or "(unassigned)"
+                size = size_for(p)
+                local[key][0] += 1
+                local[key][1] += size
+                overall[key][0] += 1
+                overall[key][1] += size
+        per_file[tf.name] = local
+
+    def fmt_gb(b):
+        return f"{b / (1024**3):.2f}"
+
+    def render(title, data):
+        print(f"\n=== {title} ===")
+        print(f"{'deployment_id':<40} {'count':>8} {'size_GB':>12}")
+        # Sort by total bytes desc, keep "(unassigned)" last
+        keys = sorted(
+            data.keys(),
+            key=lambda k: (k == "(unassigned)", -data[k][1]),
+        )
+        total_c = total_b = 0
+        for k in keys:
+            c, b = data[k]
+            total_c += c
+            total_b += b
+            print(f"{k:<40} {c:>8} {fmt_gb(b):>12}")
+        print(f"{'TOTAL':<40} {total_c:>8} {fmt_gb(total_b):>12}")
+
+    if args.per_file:
+        for name, data in per_file.items():
+            render(name, data)
+    render("OVERALL by deployment", overall)
+
+
+# ─── age-report subcommand ───────────────────────────────────────────────────
+
+
+def cmd_age_report(args):
+    """Aggregate size & count distribution from cleanup .meta.tsv sidecars."""
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+    from pathlib import Path
+
+    report_dir = Path(args.directory)
+    if not report_dir.is_dir():
+        print(f"ERROR: not a directory: {report_dir}")
+        sys.exit(1)
+
+    patterns = args.filter or ["*.meta.tsv"]
+    if not any("meta.tsv" in p for p in patterns):
+        patterns = [
+            p if p.endswith(".meta.tsv") else f"{Path(p).stem}.meta.tsv"
+            for p in patterns
+        ]
+
+    meta_files = []
+    for pat in patterns:
+        meta_files.extend(sorted(report_dir.glob(pat)))
+    meta_files = sorted(set(meta_files))
+    if not meta_files:
+        print(f"No .meta.tsv files matched in {report_dir}")
+        sys.exit(1)
+
+    def bucket_key(dt):
+        if args.bucket == "day":
+            return dt.strftime("%Y-%m-%d")
+        if args.bucket == "week":
+            iso = dt.isocalendar()
+            return f"{iso[0]}-W{iso[1]:02d}"
+        if args.bucket == "month":
+            return dt.strftime("%Y-%m")
+        if args.bucket == "year":
+            return dt.strftime("%Y")
+        raise ValueError(args.bucket)
+
+    overall = defaultdict(lambda: [0, 0])  # bucket -> [count, size_bytes]
+    per_file = {}
+
+    for mf in meta_files:
+        local = defaultdict(lambda: [0, 0])
+        with open(mf) as f:
+            header = f.readline()  # skip
+            for line in f:
+                parts = line.rstrip("\n").split("\t")
+                if len(parts) < 3:
+                    continue
+                try:
+                    size = int(parts[1])
+                    mtime = datetime.fromisoformat(parts[2])
+                except (ValueError, IndexError):
+                    continue
+                key = bucket_key(mtime)
+                local[key][0] += 1
+                local[key][1] += size
+                overall[key][0] += 1
+                overall[key][1] += size
+        per_file[mf.name] = local
+
+    def fmt_gb(b):
+        return f"{b / (1024**3):.2f}"
+
+    def render(title, data):
+        print(f"\n=== {title} ===")
+        print(f"{'bucket':<12} {'count':>10} {'size_GB':>12}")
+        total_c = total_b = 0
+        for key in sorted(data.keys()):
+            c, b = data[key]
+            total_c += c
+            total_b += b
+            print(f"{key:<12} {c:>10} {fmt_gb(b):>12}")
+        print(f"{'TOTAL':<12} {total_c:>10} {fmt_gb(total_b):>12}")
+
+    if args.per_file:
+        for name, data in per_file.items():
+            render(name, data)
+    render(f"OVERALL ({args.bucket})", overall)
+
+
+# ─── db-cleanup subcommand ───────────────────────────────────────────────────
+
+
+def cmd_db_cleanup(args):
+    """Detect and (with --apply) remove malformed `storage` rows.
+
+    Three classes of bad rows are scanned:
+      1. Zombie rows: only `id` field present, all other fields wiped. These
+         are the residue of a `Storage(<unknown_id>)` call hitting the
+         insert-on-construct bug in `RethinkBase.__init__`.
+      2. Path-shaped ids: `id` is a filesystem path string instead of a UUID.
+         Same root cause but the input was a parent path rather than a UUID.
+      3. Path-shaped parents (reported only): the row's `parent` field
+         points to a path string. Disk chains still work, but DB joins on
+         `parent` break.
+
+    A row is only deletable when no domain, no recycle_bin entry, and no
+    other storage row references it. Each candidate is dumped to
+    `db_cleanup_pending.jsonl` together with the result of the safety check.
+    With `--apply`, after an explicit y/N confirmation, the verified rows
+    are deleted from the storage table; the same JSONL serves as the audit
+    record. Path-shaped-parent rows are *never* auto-deleted.
+    """
+    from storage_lib.db import (
+        categorize_zombies,
+        delete_storage_row,
+        find_path_shaped_ids,
+        find_storages_with_path_parent,
+        find_zombie_storages,
+        get_conn,
+        is_storage_referenced,
+    )
+
+    output_dir = get_output_dir()
+    log("=" * 60)
+    log("DB CLEANUP — storage table malformed row scan")
+    log("=" * 60)
+
+    with get_conn() as conn:
+        zombies = find_zombie_storages(conn)
+        path_ids = find_path_shaped_ids(conn)
+        path_parents = find_storages_with_path_parent(conn)
+
+        # path-shaped ids and zombies overlap (a path-id row is also a zombie)
+        # so dedupe by id.
+        seen = set()
+        all_candidates = []
+        for row in zombies + path_ids:
+            rid = row.get("id")
+            if rid in seen:
+                continue
+            seen.add(rid)
+            all_candidates.append(row)
+
+        uuid_zombies, path_zombies, other = categorize_zombies(all_candidates)
+
+        log(f"  Zombie rows (UUID-shaped id, no other fields): {len(uuid_zombies)}")
+        log(f"  Path-shaped id rows:                           {len(path_zombies)}")
+        log(f"  Other malformed (no path/uuid id):             {len(other)}")
+        log(f"  Path-shaped `parent` field rows (REPORT-ONLY): {len(path_parents)}")
+
+        # Classify each candidate by safety
+        verified_safe = []
+        unsafe = []
+        for row in all_candidates:
+            refs = is_storage_referenced(conn, row["id"])
+            entry = dict(row)
+            entry["_references"] = refs
+            ref_total = (
+                len(refs["by_domains"])
+                + len(refs["by_recycle_bin"])
+                + len(refs["by_storage_parent"])
+            )
+            if ref_total == 0:
+                verified_safe.append(entry)
+            else:
+                unsafe.append(entry)
+
+        log(f"  → safe to delete (no references):              {len(verified_safe)}")
+        log(f"  → unsafe (still referenced — keep, investigate):{len(unsafe)}")
+
+        # Dump JSONL outputs
+        pending_path = output_dir / "db_cleanup_pending.jsonl"
+        kept_path = output_dir / "db_cleanup_kept_referenced.jsonl"
+        path_parent_path = output_dir / "db_cleanup_path_parents_review.jsonl"
+
+        with open(pending_path, "w") as f:
+            for e in verified_safe:
+                f.write(json.dumps(e, sort_keys=True, default=str) + "\n")
+        with open(kept_path, "w") as f:
+            for e in unsafe:
+                f.write(json.dumps(e, sort_keys=True, default=str) + "\n")
+        with open(path_parent_path, "w") as f:
+            for e in path_parents:
+                f.write(json.dumps(e, sort_keys=True, default=str) + "\n")
+
+        log(f"\n  Wrote: {pending_path}")
+        log(f"  Wrote: {kept_path}")
+        log(f"  Wrote: {path_parent_path}")
+
+        if not args.apply:
+            print()
+            print("Read-only mode. Re-run with --apply to delete the verified rows.")
+            print("Inspect the JSONL files above before running --apply.")
+            return
+
+        if not verified_safe:
+            log("\nNothing to delete.")
+            return
+
+        if not args.yes:
+            print()
+            print(f"About to DELETE {len(verified_safe)} storage rows from the DB.")
+            print(
+                "Type 'yes' (literally) to confirm," " anything else aborts: ",
+                end="",
+                flush=True,
+            )
+            answer = sys.stdin.readline().strip()
+            if answer != "yes":
+                print("Aborted.")
+                return
+
+        deleted = 0
+        delete_log_path = output_dir / "db_cleanup_deleted.jsonl"
+        with open(delete_log_path, "w") as f:
+            for entry in verified_safe:
+                rid = entry["id"]
+                # Re-verify references right before deletion (race-safety).
+                refs_now = is_storage_referenced(conn, rid)
+                if any(refs_now.values()):
+                    log(f"  SKIP (newly referenced): {rid}")
+                    continue
+                resp = delete_storage_row(conn, rid)
+                f.write(
+                    json.dumps(
+                        {**entry, "_delete_response": resp},
+                        sort_keys=True,
+                        default=str,
+                    )
+                    + "\n"
+                )
+                deleted += 1
+        log(f"\nDeleted {deleted} rows. Audit log: {delete_log_path}")
+
+
+# ─── sparsify subcommand ─────────────────────────────────────────────────────
+
+
+def cmd_sparsify(args):
+    """Thin wrapper that hands off to the standalone /utils/sparsify script.
+
+    Kept as a subcommand so operators have a single CLI surface (`storage
+    sparsify ...`) rather than remembering a separate util name. All flags
+    after `sparsify` are forwarded verbatim to the script. Use `storage
+    sparsify --help` (which forwards `-h`) to see the script's options.
+    """
+    import subprocess
+
+    script_path = "/utils/sparsify"
+    if not os.path.isfile(script_path):
+        # Fall back to the script next to this file (dev/test environments).
+        local = Path(__file__).resolve().parent / "sparsify"
+        if local.is_file():
+            script_path = str(local)
+        else:
+            log(f"ERROR: sparsify script not found at {script_path}")
+            sys.exit(1)
+
+    cmd = [script_path] + list(args.passthrough or [])
+    log(f"Invoking: {' '.join(cmd)}")
+    rc = subprocess.call(cmd)
+    sys.exit(rc)
+
+
+# ─── CLI argument parser ─────────────────────────────────────────────────────
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog="storage",
+        description="IsardVDI storage utility",
+    )
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # sizes
+    p_sizes = subparsers.add_parser(
+        "sizes",
+        help="Report disk sizes by storage status (read-only)",
+    )
+    p_sizes.add_argument("path", help="Directory to scan")
+    p_sizes.add_argument(
+        "-e",
+        "--extension",
+        default="qcow2",
+        help="File extension to filter (default: qcow2, use 'all' for no filter)",
+    )
+    p_sizes.add_argument(
+        "--no-api",
+        action="store_true",
+        help="Skip API calls, show filesystem sizes only",
+    )
+    p_sizes.add_argument(
+        "-o",
+        "--output",
+        help="Write raw per-file data to this CSV file",
+    )
+    p_sizes.add_argument(
+        "--past-days",
+        type=int,
+        help="Split totals by last accessed time: recent (within N days) vs old",
+    )
+    p_sizes.add_argument(
+        "--check-qcow2",
+        action="store_true",
+        help="Inspect each qcow2 with qemu-img info -U (backing chain, virtual size, corruption detection)",
+    )
+    p_sizes.set_defaults(func=cmd_sizes)
+
+    # integrity
+    p_integrity = subparsers.add_parser(
+        "integrity",
+        help="Check qcow2 integrity and analyze dependencies",
+    )
+    p_integrity.add_argument(
+        "--compare-sizes",
+        action="store_true",
+        help="Compare API qemu-img-info.actual-size with real file sizes",
+    )
+    p_integrity.add_argument(
+        "--threshold",
+        type=float,
+        default=0.1,
+        help="Size difference threshold in GB for reporting discrepancies (default: 0.1)",
+    )
+    p_integrity.set_defaults(func=cmd_integrity)
+
+    # cleanup
+    p_cleanup = subparsers.add_parser(
+        "cleanup",
+        help="Generate deletion file lists for orphaned/broken storage",
+    )
+    p_cleanup.add_argument(
+        "--move",
+        action="store_true",
+        help="Move deletable files to /isard/volatile/to_delete/ instead of just listing them",
+    )
+    p_cleanup.add_argument(
+        "--interactive",
+        action="store_true",
+        help=(
+            "When combined with --move, walk through deletable buckets from"
+            " safest to least safe, showing counts and a sample for each and"
+            " prompting before moving. Templates are offered as a sub-prompt"
+            " inside each bucket; --include-templates is ignored in this mode."
+        ),
+    )
+    p_cleanup.add_argument(
+        "--include-templates",
+        action="store_true",
+        help="Also move template files (by default templates are skipped for safety)",
+    )
+    p_cleanup.add_argument(
+        "--compare-sizes",
+        action="store_true",
+        help="Also compare API qemu-img-info.actual-size with real file sizes",
+    )
+    p_cleanup.add_argument(
+        "--threshold",
+        type=float,
+        default=0.1,
+        help="Size difference threshold in GB (default: 0.1)",
+    )
+    p_cleanup.add_argument(
+        "--rescan",
+        action="store_true",
+        help=(
+            "Ignore the persistent qcow chain cache and re-run qemu-img on"
+            " every file. The cache is still rewritten with fresh data for"
+            " future runs. Default: read cache when available."
+        ),
+    )
+    p_cleanup.set_defaults(func=cmd_cleanup)
+
+    # by-role
+    p_role = subparsers.add_parser(
+        "by-role",
+        help="Report storage grouped by user role",
+    )
+    p_role.add_argument(
+        "--base-path",
+        default="/logs",
+        help="Base path for output (default: /logs)",
+    )
+    p_role.set_defaults(func=cmd_by_role)
+
+    # repair-chains
+    p_repair = subparsers.add_parser(
+        "repair-chains",
+        help="Diagnose and optionally fix broken backing chains",
+    )
+    p_repair.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply fixes (qemu-img rebase) for recoverable broken chains",
+    )
+    p_repair.add_argument(
+        "--include-templates",
+        action="store_true",
+        help="Also fix template files (by default templates are never modified)",
+    )
+    p_repair.set_defaults(func=cmd_repair_chains)
+
+    # full-cleanup
+    p_full = subparsers.add_parser(
+        "full-cleanup",
+        help="Full maintenance: verify, repair chains, move unusable files",
+    )
+    p_full.add_argument(
+        "--include-templates",
+        action="store_true",
+        help="Also repair/move template files (by default templates are skipped)",
+    )
+    p_full.add_argument(
+        "--sparsify",
+        action="store_true",
+        help="Run virt-sparsify --in-place on movable files before moving (reclaim space)",
+    )
+    p_full.add_argument(
+        "--compress",
+        action="store_true",
+        help="Compress qcow2 files (qemu-img convert -c) before moving",
+    )
+    p_full.add_argument(
+        "--rescan",
+        action="store_true",
+        help=(
+            "Ignore the persistent qcow chain cache and re-run qemu-img on"
+            " every file. The cache is still rewritten with fresh data for"
+            " future runs. Default: read cache when available."
+        ),
+    )
+    p_full.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Do not modify anything: skip chain repairs, sparsify/compress,"
+            " and the move-to-to_delete step. Always writes the file lists"
+            " plus a dry_run_actions.md describing every action that would"
+            " be taken and why."
+        ),
+    )
+    p_full.set_defaults(func=cmd_full_cleanup)
+
+    # verify
+    p_verify = subparsers.add_parser(
+        "verify",
+        help="Check DB-vs-disk consistency and optionally fix path mismatches",
+    )
+    p_verify.add_argument(
+        "--fix",
+        action="store_true",
+        help="Fix issues: update DB paths for mismatched files, trigger find for missing/ghost",
+    )
+    p_verify.set_defaults(func=cmd_verify)
+
+    # recover
+    p_recover = subparsers.add_parser(
+        "recover",
+        help="Recover failed desktops by recreating missing incremental disks",
+    )
+    p_recover.add_argument(
+        "--fix",
+        action="store_true",
+        help="Create missing disks and trigger find tasks to restore desktops",
+    )
+    p_recover.set_defaults(func=cmd_recover)
+
+    # chains
+    p_chains = subparsers.add_parser(
+        "chains",
+        help="Analyze backing chain depth and optionally flatten deep/single-dependent chains",
+    )
+    p_chains.add_argument(
+        "--max-depth",
+        type=int,
+        default=3,
+        help="Flag chains deeper than this threshold (default: 3)",
+    )
+    p_chains.add_argument(
+        "--flatten-singles",
+        action="store_true",
+        help="Disconnect single-dependent intermediate templates (flatten child)",
+    )
+    p_chains.add_argument(
+        "--flatten-deep",
+        type=int,
+        metavar="N",
+        help="Disconnect leaf files deeper than N (flatten to depth 0)",
+    )
+    p_chains.add_argument(
+        "--include-templates",
+        action="store_true",
+        help="Also flatten template files (by default templates are skipped)",
+    )
+    p_chains.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show all chain trees (by default shows top 10)",
+    )
+    p_chains.set_defaults(func=cmd_chains)
+
+    # age-report
+    p_age = subparsers.add_parser(
+        "age-report",
+        help="Aggregate size & count from cleanup .meta.tsv sidecars by day/week/month/year",
+    )
+    p_age.add_argument(
+        "directory",
+        help="Path to a cleanup report directory (contains *.meta.tsv files)",
+    )
+    p_age.add_argument(
+        "--bucket",
+        choices=["day", "week", "month", "year"],
+        default="month",
+        help="Aggregation granularity (default: month)",
+    )
+    p_age.add_argument(
+        "--filter",
+        action="append",
+        metavar="NAME",
+        help=(
+            "Restrict to specific lists (e.g. bad_deletable_orphans or"
+            " ok_no_derivatives). Repeatable. Default: all *.meta.tsv."
+        ),
+    )
+    p_age.add_argument(
+        "--per-file",
+        action="store_true",
+        help="Also print a separate breakdown per source list",
+    )
+    p_age.set_defaults(func=cmd_age_report)
+
+    # deployments
+    p_dep = subparsers.add_parser(
+        "deployments",
+        help="Annotate cleanup file lists with the deployment each storage belongs to",
+    )
+    p_dep.add_argument(
+        "directory",
+        help="Path to a cleanup report directory (containing bad_*.txt etc.)",
+    )
+    p_dep.add_argument(
+        "--filter",
+        action="append",
+        metavar="NAME",
+        help=(
+            "Restrict to specific lists (e.g. bad_deletable_orphans). Repeatable."
+            " Default: bad_*.txt + ok_no_derivatives.txt."
+        ),
+    )
+    p_dep.add_argument(
+        "--per-file",
+        action="store_true",
+        help="Also print a separate deployment breakdown per source list",
+    )
+    p_dep.set_defaults(func=cmd_deployments)
+
+    # recycler-audit
+    p_aud = subparsers.add_parser(
+        "recycler-audit",
+        help="Confirm whether the deployment auto-recycler is actually working",
+    )
+    p_aud.add_argument(
+        "--cutoff-months",
+        type=float,
+        default=None,
+        help=(
+            "Override cutoff in months. Default: read from"
+            " unused_item_timeout.send_unused_deployments_to_recycle_bin."
+        ),
+    )
+    p_aud.add_argument(
+        "--output-dir",
+        default=None,
+        help="Where to write the TSVs. Default: new timestamped /logs/analyze/<ts>",
+    )
+    p_aud.set_defaults(func=cmd_recycler_audit)
+
+    # desktops
+    p_desk = subparsers.add_parser(
+        "desktops",
+        help="Dump every desktop with role, deployment, idle and size info",
+    )
+    p_desk.add_argument(
+        "--output-dir",
+        default=None,
+        help="Where to write desktops.tsv. Default: new timestamped /logs/analyze/<ts>",
+    )
+    p_desk.add_argument(
+        "--cutoffs",
+        type=lambda s: [float(x) for x in s.split(",")],
+        default=None,
+        help="Idle thresholds in months for the summary (default: 2,3,4,6,12,24)",
+    )
+    p_desk.set_defaults(func=cmd_desktops)
+
+    # db-cleanup
+    p_db = subparsers.add_parser(
+        "db-cleanup",
+        help=(
+            "Detect and (with --apply) remove malformed storage table rows"
+            " (zombie rows, path-shaped ids). Reports path-shaped `parent`"
+            " fields without modifying them."
+        ),
+    )
+    p_db.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually delete the verified-safe rows (default: report only).",
+    )
+    p_db.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Skip the confirmation prompt when --apply is set (CI use only).",
+    )
+    p_db.set_defaults(func=cmd_db_cleanup)
+
+    # sparsify (thin wrapper around the standalone /utils/sparsify script)
+    p_sparsify = subparsers.add_parser(
+        "sparsify",
+        help=(
+            "Sparsify qcow2 files in-place using virt-sparsify (forwards all"
+            " flags to the standalone /utils/sparsify script)."
+        ),
+        add_help=False,
+    )
+    p_sparsify.add_argument(
+        "passthrough",
+        nargs=argparse.REMAINDER,
+        help="Arguments forwarded verbatim to /utils/sparsify",
+    )
+    p_sparsify.set_defaults(func=cmd_sparsify)
+
+    return parser
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
