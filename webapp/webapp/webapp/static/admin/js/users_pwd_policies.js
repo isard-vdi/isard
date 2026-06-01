@@ -227,7 +227,7 @@ $(document).ready(function () {
                         'not_username': data['not_username'].toLowerCase() === 'true',
                     },
                     'email_verification': data['verification-cb'] == 'on',
-                    'disclaimer': data['disclaimer-cb'] != 'on' && data['category'] !== "all" ? false :
+                    'disclaimer': data['disclaimer-cb'] != 'on' || data['category'] !== "all" ? false :
                         {
                             'template': data['disclaimer-template']
                         }
