@@ -313,7 +313,7 @@ $(document).ready(function () {
             var modal = "#modalForceVerification";
             if (data.password.expiration) { $(modal + " #force-password").show() } else { $(modal + " #force-password").hide() }
             if (data.email_verification) { $(modal + " #force-email").show() } else { $(modal + " #force-email").hide() }
-            if (data.disclaimer) { $(modal + " #force_disclaimer").show() } else { $(modal + " #force_disclaimer").hide() }
+            if (data.disclaimer) { $(modal + " #force-disclaimer").show() } else { $(modal + " #force-disclaimer").hide() }
 
             $(modal + " h5 #span-category").html(data.category_name);
             $(modal + " h5 #span-role").html(data.role);
