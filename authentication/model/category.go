@@ -36,12 +36,14 @@ type CategoryAuthLocal struct {
 	Disabled               bool                                         `rethinkdb:"disabled"`
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
 	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
+	Status                 ProviderStatus                               `rethinkdb:"status"`
 }
 
 type CategoryAuthLDAP struct {
 	Disabled               bool                                         `rethinkdb:"disabled"`
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
 	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
+	Status                 ProviderStatus                               `rethinkdb:"status"`
 	LDAPConfig             *LDAPConfig                                  `rethinkdb:"ldap_config"`
 }
 
@@ -49,6 +51,7 @@ type CategoryAuthSAML struct {
 	Disabled               bool                                         `rethinkdb:"disabled"`
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
 	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
+	Status                 ProviderStatus                               `rethinkdb:"status"`
 	SAMLConfig             *SAMLConfig                                  `rethinkdb:"saml_config"`
 }
 
@@ -56,6 +59,7 @@ type CategoryAuthGoogle struct {
 	Disabled               bool                                         `rethinkdb:"disabled"`
 	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
 	ConfigSource           CategoryAuthenticationConfigSource           `rethinkdb:"config_source"`
+	Status                 ProviderStatus                               `rethinkdb:"status"`
 	GoogleConfig           *GoogleConfig                                `rethinkdb:"google_config"`
 }
 

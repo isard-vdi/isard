@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"time"
 
 	"gitlab.com/isard/isardvdi/pkg/db"
 
@@ -15,13 +16,21 @@ type Config struct {
 	Google Google `rethinkdb:"google"`
 }
 
+type ProviderStatus struct {
+	Healthy     bool      `rethinkdb:"healthy"`
+	Msg         string    `rethinkdb:"msg"`
+	LastUpdated time.Time `rethinkdb:"last_updated"`
+}
+
 type Local struct {
-	Enabled bool `rethinkdb:"enabled"`
+	Enabled bool           `rethinkdb:"enabled"`
+	Status  ProviderStatus `rethinkdb:"status"`
 }
 
 type LDAP struct {
-	Enabled    bool       `rethinkdb:"enabled"`
-	LDAPConfig LDAPConfig `rethinkdb:"ldap_config"`
+	Enabled    bool           `rethinkdb:"enabled"`
+	Status     ProviderStatus `rethinkdb:"status"`
+	LDAPConfig LDAPConfig     `rethinkdb:"ldap_config"`
 }
 
 type LDAPConfig struct {
@@ -73,8 +82,9 @@ type LDAPConfig struct {
 }
 
 type SAML struct {
-	Enabled    bool       `rethinkdb:"enabled"`
-	SAMLConfig SAMLConfig `rethinkdb:"saml_config"`
+	Enabled    bool           `rethinkdb:"enabled"`
+	Status     ProviderStatus `rethinkdb:"status"`
+	SAMLConfig SAMLConfig     `rethinkdb:"saml_config"`
 }
 
 type SAMLConfig struct {
@@ -124,8 +134,9 @@ type SAMLConfig struct {
 }
 
 type Google struct {
-	Enabled      bool         `rethinkdb:"enabled"`
-	GoogleConfig GoogleConfig `rethinkdb:"google_config"`
+	Enabled      bool           `rethinkdb:"enabled"`
+	Status       ProviderStatus `rethinkdb:"status"`
+	GoogleConfig GoogleConfig   `rethinkdb:"google_config"`
 }
 
 type GoogleConfig struct {

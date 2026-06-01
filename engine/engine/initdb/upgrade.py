@@ -35,7 +35,8 @@ from .log import *
 """
 Update to new database release version when new code version release
 """
-release_version = 194
+release_version = 195
+# release 195: Seed provider status (healthy/msg/last_updated) on each auth provider config
 # release 194: Normalize legacy media status "Deleted"/"FailedDeleted" to "deleted"
 # release 193: Add unused_deployment_desktops notification kinds, default rule, and matching notifications/action entries (port of main 7df258e32)
 # release 192: Add config.usage_retention defaults (daily_months=3, weekly_months=6, total_months=None)
@@ -1170,6 +1171,23 @@ password:s:%s"""
                         "daily_months": 3,
                         "weekly_months": 6,
                         "total_months": None,
+                    }
+                }
+            ).run(self.conn)
+
+        if version == 195:
+            provider_status = {
+                "healthy": False,
+                "msg": "",
+                "last_updated": r.epoch_time(0),
+            }
+            r.table(table).update(
+                {
+                    "auth": {
+                        "local": {"status": provider_status},
+                        "ldap": {"status": provider_status},
+                        "saml": {"status": provider_status},
+                        "google": {"status": provider_status},
                     }
                 }
             ).run(self.conn)
@@ -6383,6 +6401,19 @@ password:s:%s"""
                     }
                     provider.pop("allowed_domains", None)
                     provider.pop("enabled", None)
+            r.table(table).insert(categories, conflict="replace").run(self.conn)
+
+        if version == 195:
+            provider_status = {
+                "healthy": False,
+                "msg": "",
+                "last_updated": r.epoch_time(0),
+            }
+            categories = list(r.table(table).run(self.conn))
+            for category in categories:
+                for provider in category.get("authentication", {}).values():
+                    if isinstance(provider, dict):
+                        provider["status"] = dict(provider_status)
             r.table(table).insert(categories, conflict="replace").run(self.conn)
 
         return True

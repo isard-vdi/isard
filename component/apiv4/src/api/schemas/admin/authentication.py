@@ -55,6 +55,16 @@ class PolicyEditRequest(BaseModel):
 # --- Provider config schemas ---
 
 
+class ProviderStatus(BaseModel):
+    """Health status of an authentication provider, written by the
+    authentication service and read by the admin UI. Mirrors the Go
+    ``model.ProviderStatus`` struct."""
+
+    healthy: bool = False
+    msg: str = ""
+    last_updated: Optional[datetime] = None
+
+
 class ProviderConfigUpdateRequest(BaseModel):
     """Request to update a provider configuration"""
 
@@ -127,6 +137,8 @@ class ProviderConfigResponse(BaseModel):
     """
 
     model_config = {"extra": "allow"}
+
+    status: Optional[ProviderStatus] = None
 
 
 class MigrationException(BaseModel):
