@@ -59,6 +59,17 @@ func TestNew(t *testing.T) {
 				},
 			},
 		},
+		"should return an Aborted status if the user lock is busy": {
+			PrepareSessions: func(sm *sessions.MockSessions) {
+				sm.On("New", mock.AnythingOfType("context.backgroundCtx"), "nefix", "127.0.0.1").
+					Return(&model.Session{}, sessions.ErrUserLockBusy)
+			},
+			Req: &sessionsv1.NewRequest{
+				UserId:     "nefix",
+				RemoteAddr: "127.0.0.1",
+			},
+			ExpectedErr: status.Error(codes.Aborted, sessions.ErrUserLockBusy.Error()).Error(),
+		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareSessions: func(sm *sessions.MockSessions) {
 				sm.On("New", mock.AnythingOfType("context.backgroundCtx"), "nefix", "127.0.0.1").
@@ -347,6 +358,17 @@ func TestRenew(t *testing.T) {
 			},
 			ExpectedErr: status.Error(codes.Unauthenticated, sessions.ErrMaxSessionTime.Error()).Error(),
 		},
+		"should return an Aborted status if the user lock is busy": {
+			PrepareSessions: func(sm *sessions.MockSessions) {
+				sm.On("Renew", mock.AnythingOfType("context.backgroundCtx"), "id", "127.0.0.1").
+					Return(&model.SessionTime{}, sessions.ErrUserLockBusy)
+			},
+			Req: &sessionsv1.RenewRequest{
+				Id:         "id",
+				RemoteAddr: "127.0.0.1",
+			},
+			ExpectedErr: status.Error(codes.Aborted, sessions.ErrUserLockBusy.Error()).Error(),
+		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareSessions: func(sm *sessions.MockSessions) {
 				sm.On("Renew", mock.AnythingOfType("context.backgroundCtx"), "56789", "127.0.0.1").
@@ -413,6 +435,16 @@ func TestRevoke(t *testing.T) {
 				Id: "aHR0cHM6Ly9odHRwLmNhdC80MDQ=",
 			},
 			ExpectedErr: status.Error(codes.NotFound, redis.ErrNotFound.Error()).Error(),
+		},
+		"should return an Aborted status if the user lock is busy": {
+			PrepareSessions: func(sm *sessions.MockSessions) {
+				sm.On("Revoke", mock.AnythingOfType("context.backgroundCtx"), "id").
+					Return(sessions.ErrUserLockBusy)
+			},
+			Req: &sessionsv1.RevokeRequest{
+				Id: "id",
+			},
+			ExpectedErr: status.Error(codes.Aborted, sessions.ErrUserLockBusy.Error()).Error(),
 		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareSessions: func(sm *sessions.MockSessions) {

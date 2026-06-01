@@ -22,6 +22,7 @@ var (
 	ErrMissingUserID      = errors.New("missing user ID")
 	ErrInvalidRemoteAddr  = errors.New("invalid remote address")
 	ErrRemoteAddrMismatch = errors.New("remote address mismatch")
+	ErrUserLockBusy       = errors.New("user busy")
 )
 
 type Interface interface {
@@ -36,14 +37,16 @@ type Interface interface {
 var _ Interface = &Sessions{}
 
 type Sessions struct {
-	Cfg   cfg.Sessions
-	redis redis.UniversalClient
+	Cfg      cfg.Sessions
+	redis    redis.UniversalClient
+	LockOpts pkgRedis.LockOptions
 }
 
 func Init(ctx context.Context, log *zerolog.Logger, cfg cfg.Sessions, redis redis.UniversalClient) *Sessions {
 	return &Sessions{
-		Cfg:   cfg,
-		redis: redis,
+		Cfg:      cfg,
+		redis:    redis,
+		LockOpts: pkgRedis.DefaultLockOptions,
 	}
 }
 
@@ -73,6 +76,16 @@ func (s *Sessions) New(ctx context.Context, userID string, remoteAddr string) (*
 	}
 
 	usr := &model.User{ID: userID}
+	release, err := usr.Lock(ctx, s.redis, s.LockOpts)
+	if err != nil {
+		if errors.Is(err, pkgRedis.ErrLockBusy) {
+			return nil, ErrUserLockBusy
+		}
+
+		return nil, fmt.Errorf("lock user: %w", err)
+	}
+	defer release()
+
 	if err := usr.Load(ctx, s.redis); err != nil {
 		if !errors.Is(err, pkgRedis.ErrNotFound) {
 			return nil, fmt.Errorf("load user: %w", err)
@@ -81,12 +94,13 @@ func (s *Sessions) New(ctx context.Context, userID string, remoteAddr string) (*
 	} else {
 		// If there's already a user with an active session, revoke the existing
 		// session to ensure there's only one active session per user
-		if err := s.Revoke(ctx, usr.SessionID); err != nil {
+		if err := s.revoke(ctx, usr.SessionID); err != nil {
 			if errors.Is(err, pkgRedis.ErrNotFound) {
 				// If the session is not found, we can delete the user
 				if err := usr.Delete(ctx, s.redis); err != nil {
 					return nil, fmt.Errorf("delete user: %w", err)
 				}
+
 			} else {
 				return nil, fmt.Errorf("revoke old user session: %w", err)
 			}
@@ -185,7 +199,22 @@ func (s *Sessions) Renew(ctx context.Context, id, remoteAddr string) (*model.Ses
 		return nil, ErrMaxSessionTime
 	}
 
-	// Set expiration time, but cap it at MaxTime if needed
+	usr := &model.User{ID: sess.UserID}
+	release, err := usr.Lock(ctx, s.redis, s.LockOpts)
+	if err != nil {
+		if errors.Is(err, pkgRedis.ErrLockBusy) {
+			return nil, ErrUserLockBusy
+		}
+
+		return nil, fmt.Errorf("lock user: %w", err)
+	}
+	defer release()
+
+	if err := sess.Load(ctx, s.redis); err != nil {
+		return nil, fmt.Errorf("reload session: %w", err)
+	}
+
+	// Set expiration time, but cap it at MaxTime if needed.
 	expirationTime := now.Add(s.Cfg.ExpirationTime)
 	if expirationTime.After(sess.Time.MaxTime) {
 		sess.Time.ExpirationTime = sess.Time.MaxTime
@@ -195,7 +224,6 @@ func (s *Sessions) Renew(ctx context.Context, id, remoteAddr string) (*model.Ses
 
 	if sess.Time.MaxRenewTime.Add(s.Cfg.MaxRenewTime).After(sess.Time.MaxTime) {
 		sess.Time.MaxRenewTime = sess.Time.MaxTime
-
 	} else {
 		sess.Time.MaxRenewTime = now.Add(s.Cfg.MaxRenewTime)
 	}
@@ -213,6 +241,28 @@ func (s *Sessions) Revoke(ctx context.Context, id string) error {
 		return fmt.Errorf("load session: %w", err)
 	}
 
+	usr := &model.User{ID: sess.UserID}
+	release, err := usr.Lock(ctx, s.redis, s.LockOpts)
+	if err != nil {
+		if errors.Is(err, pkgRedis.ErrLockBusy) {
+			return ErrUserLockBusy
+		}
+
+		return fmt.Errorf("lock user: %w", err)
+	}
+	defer release()
+
+	return s.revoke(ctx, id)
+}
+
+// revoke deletes the session and its user pointer. The caller MUST already
+// hold the user lock for the session's user.
+func (s *Sessions) revoke(ctx context.Context, id string) error {
+	sess := &model.Session{ID: id}
+	if err := sess.Load(ctx, s.redis); err != nil {
+		return fmt.Errorf("load session: %w", err)
+	}
+
 	if err := sess.Delete(ctx, s.redis); err != nil {
 		return fmt.Errorf("delete session: %w", err)
 	}
@@ -221,6 +271,7 @@ func (s *Sessions) Revoke(ctx context.Context, id string) error {
 	if err := usr.Load(ctx, s.redis); err != nil {
 		return fmt.Errorf("load user: %w", err)
 	}
+
 	if err := usr.Delete(ctx, s.redis); err != nil {
 		return fmt.Errorf("delete user: %w", err)
 	}

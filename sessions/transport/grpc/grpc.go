@@ -63,6 +63,10 @@ func (s *SessionsServer) New(ctx context.Context, req *sessionsv1.NewRequest) (*
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 
+		if errors.Is(err, sessions.ErrUserLockBusy) {
+			return nil, status.Error(codes.Aborted, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, fmt.Errorf("create new session: %w", err).Error())
 	}
 
@@ -154,6 +158,10 @@ func (s *SessionsServer) Renew(ctx context.Context, req *sessionsv1.RenewRequest
 			return nil, status.Error(codes.Unauthenticated, err.Error())
 		}
 
+		if errors.Is(err, sessions.ErrUserLockBusy) {
+			return nil, status.Error(codes.Aborted, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, fmt.Errorf("renew session: %w", err).Error())
 	}
 
@@ -170,6 +178,10 @@ func (s *SessionsServer) Revoke(ctx context.Context, req *sessionsv1.RevokeReque
 	if err := s.sessions.Revoke(ctx, req.GetId()); err != nil {
 		if errors.Is(err, redis.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
+		}
+
+		if errors.Is(err, sessions.ErrUserLockBusy) {
+			return nil, status.Error(codes.Aborted, err.Error())
 		}
 
 		return nil, status.Error(codes.Internal, fmt.Errorf("revoke session: %w", err).Error())

@@ -54,3 +54,10 @@ func (u *User) Delete(ctx context.Context, db redis.UniversalClient) error {
 
 	return pkgRedis.NewModel(u).Delete(ctx, db)
 }
+
+// Lock acquires a per-user lock with the supplied options. The returned
+// release func MUST be invoked (typically via defer) to release the lock;
+// the TTL in opts provides eventual recovery if it is not.
+func (u *User) Lock(ctx context.Context, db redis.UniversalClient, opts pkgRedis.LockOptions) (func(), error) {
+	return pkgRedis.NewModel(u).Lock(ctx, db, opts)
+}
