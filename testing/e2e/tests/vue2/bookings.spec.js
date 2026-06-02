@@ -3,7 +3,7 @@
 // events, modal, snotify toasts), not just the API responses. API calls
 // are only used for setup/cleanup and for the precise gap invariant.
 // Admin tests stagger by worker over the 8 units of test-t4-2q-available-plan;
-// user tests share `user_e2e_01` so they describe-serial.
+// user/advanced tests reuse a per-worker e2e session, so each describe runs serial.
 
 import {
   test,
@@ -34,9 +34,12 @@ const VGPU_NONE = 'None'
 // (test-override-rule): advanced=800, user=300. See specs/vue2/bookings.md S3.
 const VGPU_OVERRIDE = 'NVIDIA-T4-OVERRIDE'
 
-// user_e2e_01 / advanced_e2e_01 sessions are provided worker-scoped by
-// the login fixtures (userE2EPage/advancedE2EPage + apiv4User/Advanced),
-// so specs reuse one login per worker instead of logging in per test.
+// Per-worker user_e2e_NN / advanced_e2e_NN sessions are provided
+// worker-scoped by the login fixtures (userE2EPage/advancedE2EPage +
+// apiv4User/Advanced), so specs reuse one login per worker instead of
+// logging in per test. Each worker gets a distinct account, so parallel
+// workers never contend on the same Redis session (the old shared
+// user_e2e_01 produced intermittent 401 "Session expired").
 
 // -----------------------------------------------------------------
 // Helpers — test data
@@ -420,13 +423,13 @@ test.describe('Vue 2 — Bookings (admin per-worker)', () => {
 })
 
 // =================================================================
-// Role-specific scenarios (serial — share user_e2e_01)
+// Role-specific scenarios (serial — per-worker user_e2e_NN)
 // =================================================================
 
 test.describe('Vue 2 — Bookings (user — serial)', () => {
   test.describe.configure({ mode: 'serial' })
 
-  // Worker-scoped user_e2e_01 session; tests reuse it (no per-test login).
+  // Worker-scoped user_e2e_NN session; tests reuse it (no per-test login).
   test.afterEach(async ({ apiv4User }, testInfo) => {
     await cleanupTrackedResources(apiv4User, testInfo)
   })
@@ -652,11 +655,12 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
 })
 
 // =================================================================
-// Priority override (serial — share user_e2e_01 + advanced_e2e_01)
+// Priority override (serial — per-worker user_e2e_NN + advanced_e2e_NN)
 //
-// On the single-unit `NVIDIA-T4-OVERRIDE` bookable, advanced_e2e_01
-// resolves to priority 800 and user_e2e_01 to 300 (seed
-// `test-override-rule`). The unit being "taken" by a lower-priority
+// On the single-unit `NVIDIA-T4-OVERRIDE` bookable, the advanced-role
+// account resolves to priority 800 and the user-role account to 300
+// (seed `test-override-rule` matches by role, so every per-worker
+// account inherits the same priority). The unit being "taken" by a lower-priority
 // booking is `overridable` for the higher-priority caller (it may
 // book it) and `unavailable` for the lower-priority one (it may not).
 // Note: on create the loser's booking row is not deleted — eviction
