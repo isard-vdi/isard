@@ -5,6 +5,8 @@ This directory contains system administration tools and configuration files for 
 ## Files and Directories
 
 - `upgrade.sh` - Automated upgrade script with comprehensive features
+- `template_transfer.py` - Port a template (disk + DB docs + card) to another install over SSH
+- `TEMPLATE_TRANSFER.md` - Usage, safety model and flags for `template_transfer.py`
 - `isardvdi.service` - Systemd service file for running IsardVDI as a system service
 - `INSTALL.md` - Installation guide for new deployments
 - `hypervisor/` - Hypervisor-specific configuration files
@@ -158,6 +160,32 @@ Older upgrade scripts have been moved to the `old/` directory:
 - `old/pacemaker-upgrade-cron.sh` - Legacy Pacemaker-aware upgrade script
 
 These are kept for reference but are deprecated. Use the new `upgrade.sh` script instead.
+
+## Template Transfer
+
+`template_transfer.py` ports an IsardVDI **template** — its flattened qcow2 disk, its
+`domains` + `storage` documents and the user card — from one installation to another over
+SSH. It is the automated successor to the manual convert+sparsify+scp+reinsert recipe and
+the old `dump.py`.
+
+Run it on the **source** host; it only needs `docker`, `ssh` and `rsync` (RethinkDB and
+qemu-img work happens inside `isard-storage` via `docker exec`). It is fail-closed: every
+pre-flight gate must pass before any write, the source is never modified, and the
+destination is never clobbered (rollback on error). Always `--dry-run` first.
+
+```bash
+# Preview: run every gate, report what would be pruned, change nothing
+./sysadm/template_transfer.py transfer-templates \
+    --domains UUID1,UUID2 --remote-host root@dest --remote-user <dest-user-id> --dry-run
+
+# Transfer (LAN profile: fast + resumable)
+./sysadm/template_transfer.py transfer-templates \
+    --domains UUID1,UUID2 --remote-host root@dest --remote-user <dest-user-id> --fast
+```
+
+Both installs must be on **v11.7.13 or newer** (storage refactor). See
+[`TEMPLATE_TRANSFER.md`](TEMPLATE_TRANSFER.md) for the full gate list, the import
+normalisation rules and every flag.
 
 ## System Service
 
