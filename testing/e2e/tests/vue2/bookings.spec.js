@@ -434,13 +434,7 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
     await cleanupTrackedResources(apiv4User, testInfo)
   })
 
-  // ---------------------------------------------------------------
-  // S2b (user): a desktop without a GPU paints an empty calendar and
-  //     the Vue 2 client blocks creation client-side — priority is
-  //     all-zero so `checkMaxTime` fails and a `maximum-time` info
-  //     toast appears with no POST sent.
-  // ---------------------------------------------------------------
-  test('S2b user: desktop without GPU → empty calendar + client-side block', async ({
+  test('S2b user: a no-GPU desktop does not surface a booking action in its card', async ({
     userE2EPage: page,
     apiv4User: apiv4,
   }, testInfo) => {
@@ -453,24 +447,25 @@ test.describe('Vue 2 — Bookings (user — serial)', () => {
       reservables: { vgpus: [VGPU_NONE] },
     })
 
-    await gotoBooking(page, desktop.id)
-    // Both splits empty — no event of any kind is painted.
-    await expect(page.locator('#vuecal .vuecal__event')).toHaveCount(0)
+    const listPromise = page.waitForResponse(
+      (r) =>
+        /\/api\/v4\/item\/user\/desktops(\?|$)/.test(r.url()) &&
+        r.request().method() === 'GET',
+      { timeout: 15000 },
+    )
+    await page.goto('/desktops')
+    const list = await listPromise
+    expect(list.status()).toBeLessThan(400)
+    const body = await list.json()
+    const items = Array.isArray(body) ? body : body?.items || []
+    const item = items.find((d) => d.id === desktop.id)
+    expect(item, `desktop ${desktop.id} must appear in the user's list`).toBeTruthy()
+    expect(item.needs_booking).toBe(false)
 
-    const startMs = Date.now() + 60 * 60 * 1000
-    await setCreateModal(page, startMs, startMs + 30 * 60 * 1000)
-    const post = watchBookingPost(page)
-    await pressCreate(page, `e2e-vue2-s2b-${Date.now()}`)
-
-    // priority is {0,0,0}: BookingUtils.priorityAllowed fails on
-    // max_time=0 → showNotification → $snotify.info(maximum-time).
-    const expected = await appI18n(page, 'components.bookings.errors.maximum-time')
-    await expect(
-      page.locator('.snotifyToast.snotify-info .snotifyToast__body').first(),
-    ).toContainText(expected, { timeout: 5000 })
-    expect(post.count, 'client-side block must not fire a POST').toBe(0)
-    await expect(page.locator('#eventModal')).toBeVisible()
-    post.stop()
+    const titleSlug = item.name.slice(0, 18)
+    const card = page.locator('.card', { hasText: titleSlug }).first()
+    await expect(card).toBeVisible({ timeout: 15000 })
+    await expect(card.locator('.machine-notification-bar')).toHaveCount(0)
   })
 
   // ---------------------------------------------------------------

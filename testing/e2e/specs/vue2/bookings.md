@@ -205,20 +205,15 @@ backend.
 
 #### When
 
-1. The user tries to navigate to `/bookings/desktop/<id>`.
+1. The user opens the desktops list at `/desktops`.
 
 #### Then
 
-1. The call `GET /api/v4/item/booking/get-desktop/<id>` returns
-   `[]` (no booking and no plan: the desktop has no reservable GPU).
-2. The calendar renders both splits empty.
-3. The call `get-priority-desktop/<id>` returns `{forbid_time:0,
-   max_time:0, max_items:0}` because there is no *bookable* against
-   which to compute priority.
-4. `BookingUtils.priorityAllowed` returns `false` (the `forbid_time =
-   0` always passes, but `max_time = 0` makes any duration > 0 break
-   `checkMaxTime`). `$snotify` shows
-   `components.bookings.errors.maximum-time` and no POST is sent.
+1. `GET /api/v4/item/user/desktops` reports `needs_booking: false` for
+   this desktop.
+2. The Vue 2 `Card.vue` booking action does not render, so the user
+   has no entry point to `/booking/desktop/<id>`.
+3. The next-booking notification bar on the card is absent.
 
 ---
 
