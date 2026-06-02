@@ -124,7 +124,7 @@ $(document).ready(function () {
         }).get().on("pnotify.confirm", function () {
           $.ajax({
             type: "DELETE",
-            url: "/api/v4/admin/items/table/desktops_priority/"+data["id"],
+            url: "/api/v4/admin/item/table/desktops_priority/"+data["id"],
             contentType: "application/json",
             success: function (data) {
               desktops_priority.ajax.reload();
