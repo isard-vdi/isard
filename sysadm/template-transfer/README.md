@@ -1,8 +1,8 @@
 # Template Transfer
 
-`sysadm/template_transfer.py` ports an IsardVDI **template** (its flattened qcow2
-disk, its `domains` + `storage` documents, and any user card) from one installation
-to another over SSH.
+`sysadm/template-transfer/template_transfer.py` ports an IsardVDI **template** (its
+flattened qcow2 disk, its `domains` + `storage` documents, and any user card) from one
+installation to another over SSH.
 
 It is the automated successor to the manual "move a template between installs" recipe
 and the old `dump.py`. It is safe by design: the **source is never modified**, and it
@@ -149,19 +149,19 @@ always on (`rsync --partial --append-verify`, whole-file).
 
 ```bash
 # Dry run — show every gate and what would be pruned, change nothing
-sysadm/template_transfer.py transfer-templates \
+sysadm/template-transfer/template_transfer.py transfer-templates \
     --domains UUID1,UUID2 --remote-host root@dest-host --remote-user <dest-user-id> --dry-run
 
 # Transfer (LAN, fast + resumable)
-sysadm/template_transfer.py transfer-templates \
+sysadm/template-transfer/template_transfer.py transfer-templates \
     --domains UUID1,UUID2 --remote-host root@dest-host --remote-user <dest-user-id> --fast
 
 # Many templates from a file, 4 workers, keep the converted copies
-sysadm/template_transfer.py transfer-templates \
+sysadm/template-transfer/template_transfer.py transfer-templates \
     --domains-file templates.txt --remote-host root@host --remote-user U --workers 4 --keep-converted
 
 # Slow WAN — shrink before sending
-sysadm/template_transfer.py transfer-templates \
+sysadm/template-transfer/template_transfer.py transfer-templates \
     --domains UUID1 --remote-host root@host --remote-user U --sparsify --compress
 ```
 

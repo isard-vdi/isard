@@ -5,8 +5,7 @@ This directory contains system administration tools and configuration files for 
 ## Files and Directories
 
 - `upgrade.sh` - Automated upgrade script with comprehensive features
-- `template_transfer.py` - Port a template (disk + DB docs + card) to another install over SSH
-- `TEMPLATE_TRANSFER.md` - Usage, safety model and flags for `template_transfer.py`
+- `template-transfer/` - Port a template (disk + DB docs + card) to another install over SSH (see `template-transfer/README.md`)
 - `isardvdi.service` - Systemd service file for running IsardVDI as a system service
 - `INSTALL.md` - Installation guide for new deployments
 - `hypervisor/` - Hypervisor-specific configuration files
@@ -175,17 +174,17 @@ destination is never clobbered (rollback on error). Always `--dry-run` first.
 
 ```bash
 # Preview: run every gate, report what would be pruned, change nothing
-./sysadm/template_transfer.py transfer-templates \
+./sysadm/template-transfer/template_transfer.py transfer-templates \
     --domains UUID1,UUID2 --remote-host root@dest --remote-user <dest-user-id> --dry-run
 
 # Transfer (LAN profile: fast + resumable)
-./sysadm/template_transfer.py transfer-templates \
+./sysadm/template-transfer/template_transfer.py transfer-templates \
     --domains UUID1,UUID2 --remote-host root@dest --remote-user <dest-user-id> --fast
 ```
 
 Both installs must be on **v11.7.13 or newer** (storage refactor). See
-[`TEMPLATE_TRANSFER.md`](TEMPLATE_TRANSFER.md) for the full gate list, the import
-normalisation rules and every flag.
+[`template-transfer/README.md`](template-transfer/README.md) for the full gate list, the
+import normalisation rules and every flag.
 
 ## System Service
 

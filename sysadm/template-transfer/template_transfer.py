@@ -5,7 +5,7 @@ IsardVDI Template Transfer Tool
 Port a TEMPLATE (its flattened qcow2 disk, its ``domains`` + ``storage`` docs and,
 if present, its user card) from one IsardVDI installation to another over SSH.
 
-Design (see sysadm/TEMPLATE_TRANSFER.md for the full rationale):
+Design (see sysadm/template-transfer/README.md for the full rationale):
 
 - The export is **read-only on the source**: the disk is flattened into a *copy*
   (qemu-img convert -U to a new file); the source disk and its derived desktops are
