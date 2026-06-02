@@ -1190,7 +1190,7 @@ function renderDesktopStorageItem(storage, desktop) {
     if (canCancel) {
         actions += '<button type="button" class="btn btn-warning btn-xs btn-desktop-storage-cancel" data-storage-id="' + escapeAttr(sid) + '" data-desktop-id="' + escapeAttr(desktop.id) + '" title="Cancel current operation"><i class="fa fa-ban"></i> Cancel</button> ';
     }
-    actions += '<button type="button" class="btn btn-info btn-xs btn-desktop-storage-increase" data-storage-id="' + escapeAttr(sid) + '"' + (canIncrease ? '' : ' disabled') + ' title="' + (canIncrease ? 'Increase the disk size' : 'Desktop must be stopped and storage ready to increase') + '"><i class="fa fa-plus"></i> Increase</button>';
+    actions += '<button type="button" class="btn btn-info btn-xs btn-increase" data-id="' + escapeAttr(sid) + '"' + (canIncrease ? '' : ' disabled') + ' title="' + (canIncrease ? 'Increase the disk size' : 'Desktop must be stopped and storage ready to increase') + '"><i class="fa fa-plus"></i> Increase</button>';
     if (!canCancel && !canIncrease) {
         actions += '<span class="text-muted">No actions available</span>';
     }
@@ -1266,44 +1266,6 @@ $(document).on('click', '.btn-desktop-storage-cancel', function () {
             }
         });
     }).on('pnotify.cancel', function () {});
-});
-
-// Per-storage Increase from the Desktop Storage modal. Prompts for an
-// integer GB increment and posts to the apiv4 endpoint with priority
-// "low" — same default v3 enforced for non-admins.
-$(document).on('click', '.btn-desktop-storage-increase', function () {
-    var storageId = $(this).data('storage-id');
-    var raw = window.prompt('Increment in GB to add to the disk:', '10');
-    if (raw === null) { return; }
-    var increment = parseInt(raw, 10);
-    if (!isFinite(increment) || increment <= 0 || String(increment) !== String(raw).trim()) {
-        new PNotify({
-            title: 'Invalid increment',
-            text: 'Enter a positive integer number of GB.',
-            type: 'error', hide: true, delay: 4000, opacity: 1, icon: 'fa fa-warning'
-        });
-        return;
-    }
-    $.ajax({
-        type: 'PUT',
-        url: '/api/v4/item/storage/' + storageId + '/priority/low/increase/' + increment,
-        contentType: 'application/json',
-        cache: false,
-        error: function (xhr) {
-            new PNotify({
-                title: 'ERROR increasing storage size',
-                text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
-                type: 'error', hide: true, icon: 'fa fa-warning', delay: 5000, opacity: 1
-            });
-        },
-        success: function () {
-            new PNotify({
-                title: 'Increasing disk size...',
-                text: '', type: 'success', hide: true, icon: 'fa fa-info', delay: 5000, opacity: 1
-            });
-            $('#modalDesktopStorage').modal('hide');
-        }
-    });
 });
 
 function desktopAddUpdateSocketHandle(data) {

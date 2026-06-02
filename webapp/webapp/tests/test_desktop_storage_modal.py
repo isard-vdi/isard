@@ -34,12 +34,18 @@ import pytest
 
 WEBAPP_ROOT = Path(__file__).resolve().parents[1] / "webapp"
 DESKTOPS_MODALS = WEBAPP_ROOT / "templates" / "pages" / "desktops_modals.html"
+DESKTOPS_PAGE = WEBAPP_ROOT / "templates" / "admin" / "pages" / "desktops.html"
 DESKTOPS_JS = WEBAPP_ROOT / "static" / "admin" / "js" / "desktops.js"
 
 
 @pytest.fixture(scope="module")
 def desktops_modals_html() -> str:
     return DESKTOPS_MODALS.read_text(encoding="utf-8")
+
+
+@pytest.fixture(scope="module")
+def desktops_page_html() -> str:
+    return DESKTOPS_PAGE.read_text(encoding="utf-8")
 
 
 @pytest.fixture(scope="module")
@@ -105,14 +111,32 @@ def test_desktops_js_open_modal_uses_admin_storage_endpoint(
     assert "modalDesktopStorage" in open_fn
 
 
-def test_desktops_js_increase_handler_uses_low_priority(desktops_js: str) -> None:
-    """Increase posts to the apiv4 endpoint with priority=low, matching
-    v3 ``@is_not_user`` behaviour — non-admins are forced to low and
-    admins land there too because we don't expose a priority picker."""
-    handler = _slice(desktops_js, "'.btn-desktop-storage-increase'")
-    assert "/priority/low/increase/" in handler
-    # Refuses non-positive or non-integer increments before posting.
-    assert "parseInt" in handler
+def test_desktops_js_increase_button_delegates_to_shared_handler(
+    desktops_js: str,
+) -> None:
+    """Increase must reuse storage.js ``.btn-increase``, not ``window.prompt()``."""
+    assert "btn-desktop-storage-increase" not in desktops_js
+    assert "window.prompt(" not in desktops_js
+    assert 'class="btn btn-info btn-xs btn-increase"' in desktops_js
+
+
+def test_desktops_modals_includes_shared_increase_snippet(
+    desktops_modals_html: str,
+) -> None:
+    """The shared #modalIncreaseStorage snippet must be included for the handler to find a modal."""
+    assert "/snippets/storage_increase_modal.html" in desktops_modals_html
+
+
+def test_desktops_page_loads_storage_increase_script(
+    desktops_page_html: str,
+) -> None:
+    """desktops.html must load both the helpers and the increase-specific handler."""
+    assert "admin/js/storage_actions.js" in desktops_page_html
+    assert "admin/js/storage_increase.js" in desktops_page_html
+    # storage_actions.js defines performStorageOperation — must load first.
+    assert desktops_page_html.index("storage_actions.js") < desktops_page_html.index(
+        "storage_increase.js"
+    )
 
 
 def test_desktops_js_cancel_handler_calls_abort_operations(
