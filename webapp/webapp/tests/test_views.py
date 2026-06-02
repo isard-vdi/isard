@@ -74,9 +74,16 @@ def test_login_with_category_path(client, monkeypatch):
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_remote_logout_calls_logout_and_returns_success(client, monkeypatch):
+def test_remote_logout_calls_logout_and_returns_success(
+    client, monkeypatch, admin_user_dict
+):
     logout = MagicMock()
     monkeypatch.setattr("webapp.views.AdminViews.logout_user", logout)
+    _patch_login_callback(monkeypatch, admin_user_dict)
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = admin_user_dict["id"]
+        sess["_fresh"] = True
 
     response = client.get("/isard-admin/logout/remote")
     assert response.status_code == 200
