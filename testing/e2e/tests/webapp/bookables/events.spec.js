@@ -256,7 +256,7 @@ test.describe('Admin Bookables — Events', () => {
     )
     const schedulerResp = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/scheduler/jobs/bookings') &&
+        r.url().includes('/api/v4/admin/items/scheduler/jobs/bookings') &&
         r.request().method() === 'GET',
       { timeout: 15000 },
     )

@@ -174,7 +174,7 @@ test.describe('Admin Deployments — webapp', () => {
     authenticatedPage: page,
   }) => {
     const tableResponse = page.waitForResponse(
-      (r) => r.url().includes('/api/v4/admin/table/deployments'),
+      (r) => r.url().includes('/api/v4/admin/items/table/deployments'),
       { timeout: 15000 },
     )
     await page.goto(DEPLOYMENTS_URL)
@@ -216,7 +216,7 @@ test.describe('Admin Deployments — webapp', () => {
     // Register the alloweds listener before the expand click triggers it.
     const allowedsResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/allowed/table/deployments') &&
+        r.url().includes('/api/v4/item/allowed/table/deployments') &&
         r.request().method() === 'POST',
       { timeout: 10000 },
     )

@@ -64,7 +64,7 @@ in `afterEach` to ensure a clean state.
 
 ### Then
 
-1. `POST /api/v4/admin/table/deployments` responds with status `< 400`.
+1. `POST /api/v4/admin/items/table/deployments` responds with status `< 400`.
 2. The DataTables table renders with at least one row.
 3. Visible columns include at least: **Name**, **User(owner)**,
    **Co-owners**, **Desktops**, **Running**.
@@ -86,7 +86,7 @@ in `afterEach` to ensure a clean state.
 ### Then
 
 1. The detail panel opens below the row.
-2. `POST /api/v4/allowed/table/deployments` responds and the **Target
+2. `POST /api/v4/item/allowed/table/deployments` responds and the **Target
    users** block renders with a table showing **Type** and **Items**
    columns.
 3. **Change owner** and **Change co-owners** buttons are visible.
@@ -299,8 +299,8 @@ in `afterEach` to ensure a clean state.
 
 ## APIs touched by the flows (reference)
 
-- `POST   /api/v4/admin/table/deployments` — load table data.
-- `POST   /api/v4/allowed/table/deployments` — load Target users for detail panel.
+- `POST   /api/v4/admin/items/table/deployments` — load table data.
+- `POST   /api/v4/item/allowed/table/deployments` — load Target users for detail panel.
 - `GET    /api/v4/item/deployment/{id}/hardware` — hardware panel (S2b).
 - `DELETE /api/v4/item/deployment/{id}` — delete single deployment.
 - `DELETE /api/v4/items/deployments` — bulk delete. Body
@@ -311,7 +311,7 @@ in `afterEach` to ensure a clean state.
   co-owners.
 - `PUT    /api/v4/item/deployment/{id}/co-owners` — update co-owners.
   Body `{ co_owners: [user_id] }`.
-- `POST   /api/v4/admin/users/search` — user search for SELECT2. Body
+- `POST   /api/v4/admin/items/users/search` — user search for SELECT2. Body
   `{ term: str }`.
 
 ## Relevant database state

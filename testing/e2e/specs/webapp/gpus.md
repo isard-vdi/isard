@@ -93,7 +93,7 @@ recover and clean it up even if assertions fail.
 
 ### Then
 
-1. The system saves the changes. `PUT /api/v4/admin/reservables/gpus/{id}`
+1. The system saves the changes. `PUT /api/v4/admin/items/reservables/gpus/{id}`
    responds with status `< 400` and the body is
    `SimpleResponse(id=<item_id>)` (path echo).
 2. The dialog closes automatically and an update-success notification
@@ -177,7 +177,7 @@ recover and clean it up even if assertions fail.
    responds with status `< 400` and the body is
    `SimpleResponse(id=<item_id>)`.
 2. The checkbox stays checked and persistence is validated via
-   `POST /api/v4/admin/table/gpus` (the `profiles_enabled` field must
+   `POST /api/v4/admin/items/table/gpus` (the `profiles_enabled` field must
    contain the submitted `subitem_id`).
 3. If this was the first time this profile was enabled in the system,
    the matching bookable appears in the **Bookables** table
@@ -305,7 +305,7 @@ If the admin confirms with **Notify user** checked:
 
 1. On the GPU row, press the **force** icon (lightning).
 2. The **Forced profile** dialog opens with the dropdown populated
-   from `POST /api/v4/admin/table/gpus` with only the enabled
+   from `POST /api/v4/admin/items/table/gpus` with only the enabled
    profiles.
 3. Select `NVIDIA-A40-2Q` (the one already active) and press **Send**.
 
@@ -482,7 +482,7 @@ If the admin picks a profile **different** from the active one:
 2. A PNotify success notification with title *"GPU profile enabled"*
    is shown.
 3. The GPU has profile X in `profiles_enabled` (verifiable via
-   `POST /api/v4/admin/table/gpus`).
+   `POST /api/v4/admin/items/table/gpus`).
 4. On the **Bookables** screen, the `#reservables_vgpus` table shows
    a new row with `id` equal to profile X.
 
@@ -522,7 +522,7 @@ If the admin picks a profile **different** from the active one:
 
 - `POST   /api/v4/item/reservable/gpus` — create. Body
   `AddReservableItemRequest`; response `SimpleResponse(id=<new_id>)`.
-- `PUT    /api/v4/admin/reservables/gpus/{id}` — edit (name and
+- `PUT    /api/v4/admin/items/reservables/gpus/{id}` — edit (name and
   description). Body `UpdateReservableItemRequest`; response
   `SimpleResponse(id=<id>)`.
 - `GET    /api/v4/item/reservable/check-last/gpus/{id}` — check

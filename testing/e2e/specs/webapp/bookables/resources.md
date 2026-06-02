@@ -64,7 +64,7 @@ restaurar-lo encara que les assercions fallin.
 
 ### Llavors (Then)
 
-1. Es fa una crida `POST /api/v4/admin/table/reservables_vgpus` amb
+1. Es fa una crida `POST /api/v4/admin/items/table/reservables_vgpus` amb
    `{"order_by":"name"}`; respon amb estat `< 400` i un array de
    *bookables*.
 2. La taula `#reservables_vgpus` renderitza una fila per cada element,
@@ -100,12 +100,12 @@ restaurar-lo encara que les assercions fallin.
 ### Llavors (Then)
 
 1. El sistema envia
-   `PUT /api/v4/admin/table/update/reservables_vgpus` amb el cos
+   `PUT /api/v4/admin/item/table/update/reservables_vgpus` amb el cos
    `{id, name, description, priority_id}`. Respon amb estat `< 400`.
 2. El modal es tanca, la taula es recarrega i la fila mostra el nou
    nom i la nova descripció.
 3. Si es consulta de nou via
-   `POST /api/v4/admin/table/reservables_vgpus`, retorna els valors
+   `POST /api/v4/admin/items/table/reservables_vgpus`, retorna els valors
    actualitzats.
 
 ---
@@ -124,7 +124,7 @@ restaurar-lo encara que les assercions fallin.
 
 ### Llavors (Then)
 
-1. `PUT /api/v4/admin/table/update/reservables_vgpus` rep
+1. `PUT /api/v4/admin/item/table/update/reservables_vgpus` rep
    `priority_id: "default"`.
 2. La taula refresca la columna *Priority Rule* del *bookable* a
    `default`.
@@ -143,7 +143,7 @@ restaurar-lo encara que les assercions fallin.
 
 1. A la fila, prem la icona d'**alloweds** (icona d'usuaris blava).
 2. S'obre el modal `#modalAlloweds` titulat *Edit "<nom>" permissions*.
-3. Es fa una crida `POST /api/v4/allowed/table/reservables_vgpus` amb
+3. Es fa una crida `POST /api/v4/item/allowed/table/reservables_vgpus` amb
    `{id}`; els checkboxes de **roles / categories / groups / users** es
    marquen amb els valors actuals.
 4. El modal mostra l'avís específic d'`alloweds_panel` per a
@@ -154,7 +154,7 @@ restaurar-lo encara que les assercions fallin.
 
 ### Llavors (Then)
 
-1. `POST /api/v4/admin/allowed/update/reservables_vgpus` rep el cos
+1. `POST /api/v4/item/allowed/update/reservables_vgpus` rep el cos
    amb `id`, `table` i la nova estructura `allowed = {roles, categories,
    groups, users}`. Respon amb estat `< 400`.
 2. Apareix una notificació PNotify d'èxit *Alloweds updated
@@ -179,7 +179,7 @@ restaurar-lo encara que les assercions fallin.
    `alloweds-<id>` dins.
 3. La pàgina crida `setAlloweds_viewer('#alloweds-<id>', <id>,
    "reservables_vgpus")`, que fa
-   `POST /api/v4/allowed/table/reservables_vgpus` amb `{id}`.
+   `POST /api/v4/item/allowed/table/reservables_vgpus` amb `{id}`.
 
 ### Llavors (Then)
 
@@ -211,7 +211,7 @@ restaurar-lo encara que les assercions fallin.
 
 1. La validació de client (Parsley) bloqueja l'enviament i marca el
    camp amb classe `parsley-error`.
-2. **No** es fa cap crida a `/api/v4/admin/table/update/...`.
+2. **No** es fa cap crida a `/api/v4/admin/item/table/update/...`.
 3. El modal roman obert.
 
 > Igual que a la pantalla GPUs, la branca *massa llarg* no es pot
@@ -236,7 +236,7 @@ restaurar-lo encara que les assercions fallin.
 ### Llavors (Then)
 
 1. La taula `#reservables_vgpus` carrega buida (rebuda buida des de
-   `POST /api/v4/admin/table/reservables_vgpus`).
+   `POST /api/v4/admin/items/table/reservables_vgpus`).
 2. DataTables mostra el seu missatge per defecte *No data available
    in table*.
 
@@ -259,10 +259,10 @@ restaurar-lo encara que les assercions fallin.
    `testInfo.annotations`.
 2. Si el nom, la descripció o el `priority_id` han canviat respecte al
    seed, es restauren via
-   `PUT /api/v4/admin/table/update/reservables_vgpus` amb els valors
+   `PUT /api/v4/admin/item/table/update/reservables_vgpus` amb els valors
    originals.
 3. Si els alloweds han canviat (Escenari 4), es restauren via
-   `POST /api/v4/admin/allowed/update/reservables_vgpus` amb l'estat
+   `POST /api/v4/item/allowed/update/reservables_vgpus` amb l'estat
    original.
 4. Els errors de neteja es silencien per no emmascarar el motiu real
    d'una fallada anterior.
@@ -284,16 +284,16 @@ restaurar-lo encara que les assercions fallin.
 
 ## API tocades pels fluxos (referència)
 
-- `POST /api/v4/admin/table/reservables_vgpus` — datatable load
+- `POST /api/v4/admin/items/table/reservables_vgpus` — datatable load
   (body `{"order_by":"name"}`).
 - `GET  /api/v4/items/bookings/priority-rules` — poblar el dropdown
   *Priority* del modal d'edició. Resposta: `list[PriorityRule]`.
-- `PUT  /api/v4/admin/table/update/reservables_vgpus` — actualitzar
+- `PUT  /api/v4/admin/item/table/update/reservables_vgpus` — actualitzar
   nom, descripció i `priority_id`. Body `{id, name, description,
   priority_id}`.
-- `POST /api/v4/allowed/table/reservables_vgpus` — llegir alloweds
+- `POST /api/v4/item/allowed/table/reservables_vgpus` — llegir alloweds
   (modal i viewer).
-- `POST /api/v4/admin/allowed/update/reservables_vgpus` — actualitzar
+- `POST /api/v4/item/allowed/update/reservables_vgpus` — actualitzar
   alloweds.
 
 ## Estat de base de dades rellevant

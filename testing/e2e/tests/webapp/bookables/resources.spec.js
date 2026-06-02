@@ -111,7 +111,7 @@ test.describe('Admin Bookables — Resources', () => {
   test('S1: lists vGPU bookables from the seed', async ({ authenticatedPage: page, apiv4Admin }) => {
     const tableResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/table/reservables_vgpus') &&
+        r.url().includes('/api/v4/admin/items/table/reservables_vgpus') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -171,7 +171,7 @@ test.describe('Admin Bookables — Resources', () => {
 
     const editResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/table/update/reservables_vgpus') &&
+        r.url().includes('/api/v4/admin/item/table/update/reservables_vgpus') &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -211,7 +211,7 @@ test.describe('Admin Bookables — Resources', () => {
 
     const editResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/table/update/reservables_vgpus') &&
+        r.url().includes('/api/v4/admin/item/table/update/reservables_vgpus') &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -245,7 +245,7 @@ test.describe('Admin Bookables — Resources', () => {
     const openModal = async () => {
       const prefill = page.waitForResponse(
         (r) =>
-          r.url().includes('/api/v4/allowed/table/reservables_vgpus') &&
+          r.url().includes('/api/v4/item/allowed/table/reservables_vgpus') &&
           r.request().method() === 'POST',
         { timeout: 15000 },
       )
@@ -272,7 +272,7 @@ test.describe('Admin Bookables — Resources', () => {
 
     const updateResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/allowed/update/reservables_vgpus') &&
+        r.url().includes('/api/v4/item/allowed/update/reservables_vgpus') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -309,7 +309,7 @@ test.describe('Admin Bookables — Resources', () => {
 
     const viewerResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/allowed/table/reservables_vgpus') &&
+        r.url().includes('/api/v4/item/allowed/table/reservables_vgpus') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -343,7 +343,7 @@ test.describe('Admin Bookables — Resources', () => {
     let putFired = false
     page.on('request', (req) => {
       if (
-        req.url().includes('/api/v4/admin/table/update/reservables_vgpus') &&
+        req.url().includes('/api/v4/admin/item/table/update/reservables_vgpus') &&
         req.method() === 'PUT'
       ) {
         putFired = true

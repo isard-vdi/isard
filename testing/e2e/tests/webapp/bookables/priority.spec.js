@@ -116,7 +116,7 @@ test.describe('Admin Bookables — Priority', () => {
   test('S1: lists priority rules from the seed', async ({ authenticatedPage: page, apiv4Admin }) => {
     const tableResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/table/bookings_priority') &&
+        r.url().includes('/api/v4/admin/items/table/bookings_priority') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -167,7 +167,7 @@ test.describe('Admin Bookables — Priority', () => {
 
     const createResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/table/add/bookings_priority') &&
+        r.url().includes('/api/v4/admin/item/table/add/bookings_priority') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -227,7 +227,7 @@ test.describe('Admin Bookables — Priority', () => {
 
     const editResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/table/update/bookings_priority') &&
+        r.url().includes('/api/v4/admin/item/table/update/bookings_priority') &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -280,7 +280,7 @@ test.describe('Admin Bookables — Priority', () => {
     // visibility so we don't race a stale-DOM read.
     const reloadResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/table/bookings_priority') &&
+        r.url().includes('/api/v4/admin/items/table/bookings_priority') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -341,7 +341,7 @@ test.describe('Admin Bookables — Priority', () => {
     // --- First open: prefill reflects the API-seeded {roles: ['user']} ---
     const prefillRead1 = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/allowed/table/bookings_priority') &&
+        r.url().includes('/api/v4/item/allowed/table/bookings_priority') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -359,7 +359,7 @@ test.describe('Admin Bookables — Priority', () => {
 
     const updateResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/allowed/update/bookings_priority') &&
+        r.url().includes('/api/v4/item/allowed/update/bookings_priority') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -380,7 +380,7 @@ test.describe('Admin Bookables — Priority', () => {
     // --- Reopen: the persisted state must rehydrate the form unchecked ---
     const prefillRead2 = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/allowed/table/bookings_priority') &&
+        r.url().includes('/api/v4/item/allowed/table/bookings_priority') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -415,7 +415,7 @@ test.describe('Admin Bookables — Priority', () => {
 
     const viewerResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/allowed/table/bookings_priority') &&
+        r.url().includes('/api/v4/item/allowed/table/bookings_priority') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -443,7 +443,7 @@ test.describe('Admin Bookables — Priority', () => {
     let postFired = false
     page.on('request', (req) => {
       if (
-        req.url().includes('/api/v4/admin/table/add/bookings_priority') &&
+        req.url().includes('/api/v4/admin/item/table/add/bookings_priority') &&
         req.method() === 'POST'
       ) {
         postFired = true
@@ -510,7 +510,7 @@ test.describe('Admin Bookables — Priority', () => {
 
     const createResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/table/add/bookings_priority') &&
+        r.url().includes('/api/v4/admin/item/table/add/bookings_priority') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
