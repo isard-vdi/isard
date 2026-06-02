@@ -24,7 +24,7 @@
         "hypervisors_pools": ["default"],
         "allowed": {
             "categories": false,
-            "groups": false,
+            "groups": [],
             "roles": false,
             "users": false
         },
