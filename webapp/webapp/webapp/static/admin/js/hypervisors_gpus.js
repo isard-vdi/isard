@@ -95,7 +95,7 @@ $(document).ready(function () {
         data: null, render: function (data, type, full, meta) {
           var text = "Err"
           if (data.physical_device != null) {
-              if (data.changing_to_profile != false) {
+              if (data.changing_to_profile) {
                 text = data.active_profile + "->" + data.changing_to_profile
               } else {
                 text = data.active_profile
