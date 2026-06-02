@@ -21,7 +21,9 @@
         "tag_visible": false,
         "favourite_hyp": false,
         "forced_hyp": false,
-        "hypervisors_pools": ["default"],
+        "hypervisors_pools": [
+            "default"
+        ],
         "allowed": {
             "categories": false,
             "groups": [],
@@ -34,32 +36,54 @@
             "url": "/assets/img/desktops/stock/1.jpg"
         },
         "guest_properties": {
-            "credentials": {"username": "isard", "password": "pirineus"},
+            "credentials": {
+                "username": "isard",
+                "password": "pirineus"
+            },
             "fullscreen": false,
             "viewers": {
-                "browser_vnc": {"options": null},
-                "file_spice": {"options": null}
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
             }
         },
         "create_dict": {
             "hardware": {
                 "vcpus": 1,
                 "memory": 1048576,
-                "videos": ["default"],
-                "interfaces": [{"id": "default", "mac": "52:54:00:00:00:01"}],
-                "graphics": ["default"],
-                "boot_order": ["disk"],
+                "videos": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:00:00:01"
+                    }
+                ],
+                "graphics": [
+                    "default"
+                ],
+                "boot_order": [
+                    "disk"
+                ],
                 "disk_bus": "default",
                 "qos_disk_id": false,
                 "virtualization_nested": false,
                 "isos": [],
                 "floppies": [],
                 "disks": [
-                    {"storage_id": "storage-template-test-001"}
+                    {
+                        "storage_id": "storage-template-test-001"
+                    }
                 ]
             },
             "personal_vlans": false,
-            "reservables": {"vgpus": null}
+            "reservables": {
+                "vgpus": null
+            }
         },
         "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices/></domain>"
     },
@@ -96,13 +120,13 @@
                     {
                         "id": "default",
                         "mac": "52:54:00:7e:b6:8c"
-                    }
-                ],
-                "isos": [
+                    },
                     {
-                        "id": "empty-iso"
+                        "id": "wireguard",
+                        "mac": "52:54:00:7e:b6:8d"
                     }
                 ],
+                "isos": [],
                 "memory": 524288,
                 "qos_disk_id": false,
                 "vcpus": 1,
@@ -150,13 +174,13 @@
         "os": "win",
         "persistent": true,
         "server": false,
-        "status": "CreatingDiskFromScratch",
+        "status": "Stopped",
         "tag": false,
         "tag_name": false,
         "tag_visible": false,
         "user": "c7e77d70-e443-53d2-9933-d9b83e4a19a1",
         "username": "admin_e2e_09",
-        "xml": null
+        "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices><emulator>/usr/bin/qemu-system-x86_64</emulator></devices></domain>"
     },
     {
         "accessed": 1758268075,
@@ -619,6 +643,7 @@
             "default"
         ],
         "icon": "fa-circle-o",
+        "hyp_started": "isard-hypervisor",
         "id": "9a8b7c6d-5e4f-3a2b-1c9d-8e7f6a5b4c3d",
         "image": {
             "id": "45.jpg",
@@ -1002,6 +1027,7 @@
             "default"
         ],
         "icon": "fa-circle-o",
+        "hyp_started": "isard-hypervisor",
         "id": "b2c3d4e5-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
         "image": {
             "id": "22.jpg",
@@ -1888,7 +1914,12 @@
             "guest_ip": null,
             "passwd": "test-passwd",
             "base_port": 5900,
-            "ports": [5900, 5901, 5902, 5700],
+            "ports": [
+                5900,
+                5901,
+                5902,
+                5700
+            ],
             "static": null,
             "proxy_video": null,
             "proxy_hyper_host": null,
@@ -1897,6 +1928,101 @@
             "tls": {}
         },
         "xml": null
+    },
+    {
+        "accessed": 1758268070,
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "booking_id": false,
+        "category": "default",
+        "create_dict": {
+            "create_from_virt_install_xml": "win7Virtio",
+            "hardware": {
+                "boot_order": [
+                    "iso"
+                ],
+                "disk_bus": "default",
+                "disks": [
+                    {
+                        "bus": "default",
+                        "extension": "qcow2",
+                        "size": "1M",
+                        "storage_id": "e121c990-de63-42fe-b838-20aa4cbaf756"
+                    }
+                ],
+                "floppies": [],
+                "graphics": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:7e:b6:8c"
+                    },
+                    {
+                        "id": "wireguard",
+                        "mac": "52:54:00:7e:b6:8d"
+                    }
+                ],
+                "isos": [],
+                "memory": 524288,
+                "qos_disk_id": false,
+                "vcpus": 1,
+                "videos": [
+                    "default"
+                ],
+                "virtualization_nested": false
+            },
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "description": "Base desktop",
+        "detail": "",
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "group": "default-default",
+        "guest_properties": {
+            "credentials": {
+                "password": "pirineus",
+                "username": "isard"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "hypervisors_pools": [
+            "default"
+        ],
+        "icon": "fa-circle-o",
+        "id": "238b6c50-fc3f-40b9-8dc5-2f331c00c925",
+        "image": {
+            "id": "7.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/7.jpg"
+        },
+        "kind": "desktop",
+        "name": "Desktop S16 storage",
+        "os": "win",
+        "persistent": true,
+        "server": false,
+        "status": "Stopped",
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "user": "c7e77d70-e443-53d2-9933-d9b83e4a19a1",
+        "username": "admin_e2e_09",
+        "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices><emulator>/usr/bin/qemu-system-x86_64</emulator></devices></domain>"
     },
     {
         "id": "template-s9-seed",
