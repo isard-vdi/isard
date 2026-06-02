@@ -106,7 +106,7 @@ export default {
     },
     socket_updateRecycleBin (context, data) {
       const recycleBinsListItem = RecycleBinUtils.parseRecycleBinListItem(data)
-      if (['restored', 'deleting', 'deleted'].includes(data.status)) {
+      if (['restored', 'deleting', 'deleted'].includes(recycleBinsListItem.status)) {
         context.commit('removeRecycleBinsItem', recycleBinsListItem)
       } else {
         context.commit('insertUpdateRecycleBinsItem', recycleBinsListItem)

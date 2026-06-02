@@ -9,6 +9,7 @@ export class RecycleBinUtils {
   }
 
   static parseRecycleBinListItem (item) {
+    item = typeof item === 'string' ? JSON.parse(item) : item
     const {
       id,
       accessed,

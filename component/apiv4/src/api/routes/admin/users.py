@@ -1466,7 +1466,7 @@ async def admin_update_category(
             AdminUsersService.update_category,
             request.token_payload,
             category_id,
-            data.model_dump(exclude_none=True),
+            data.model_dump(exclude_unset=True),
         )
         return Response(status_code=204)
     except Error:

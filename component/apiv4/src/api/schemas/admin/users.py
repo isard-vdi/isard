@@ -195,6 +195,7 @@ class AdminCategoryUpdateData(BaseModel):
     custom_url_name: Optional[str] = None
     uid: Optional[str] = None
     photo: Optional[str] = None
+    recycle_bin_cutoff_time: int | None = None
 
 
 class AdminCategoryAuthenticationData(BaseModel):
@@ -693,6 +694,7 @@ class AdminCategoryDetailResponse(BaseModel):
     quota: Optional[bool | dict] = None
     limits: Optional[bool | dict] = None
     branding: Optional[dict] = None
+    recycle_bin_cutoff_time: int | None = None
 
 
 class AdminCategoryUserItem(BaseModel):
