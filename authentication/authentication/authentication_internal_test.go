@@ -10,6 +10,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestProviders(t *testing.T) {
@@ -157,17 +158,17 @@ func TestHealthcheck(t *testing.T) {
 		PrepareProviderManager func(*testing.T) *providermanager.MockProvidermanager
 		ExpectedErr            string
 	}{
-		"should return nil when healthy": {
+		"should work as expected": {
 			PrepareProviderManager: func(t *testing.T) *providermanager.MockProvidermanager {
 				m := providermanager.NewMockProvidermanager(t)
-				m.On("Healthcheck").Return(nil)
+				m.On("Healthcheck", mock.AnythingOfType("*context.cancelCtx")).Return(nil)
 				return m
 			},
 		},
-		"should return error when unhealthy": {
+		"should return an error if the provider manager fails": {
 			PrepareProviderManager: func(t *testing.T) *providermanager.MockProvidermanager {
 				m := providermanager.NewMockProvidermanager(t)
-				m.On("Healthcheck").Return(errors.New("connection refused"))
+				m.On("Healthcheck", mock.AnythingOfType("*context.cancelCtx")).Return(errors.New("connection refused"))
 				return m
 			},
 			ExpectedErr: "connection refused",
@@ -178,19 +179,21 @@ func TestHealthcheck(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
+			pm := tc.PrepareProviderManager(t)
 			a := &Authentication{
 				Log:        log.New("test", "debug"),
-				BaseURL:    &url.URL{Scheme: "https", Host: "localhost"},
-				prvManager: tc.PrepareProviderManager(t),
+				prvManager: pm,
 			}
 
-			err := a.Healthcheck()
+			err := a.Healthcheck(t.Context())
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
 			} else {
 				assert.NoError(err)
 			}
+
+			pm.AssertExpectations(t)
 		})
 	}
 }

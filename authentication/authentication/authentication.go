@@ -43,7 +43,7 @@ type Interface interface {
 
 	SAML(categoryID string, host string) *samlsp.Middleware
 
-	Healthcheck() error
+	Healthcheck(ctx context.Context) error
 }
 
 var _ Interface = &Authentication{}
@@ -121,6 +121,6 @@ func (a *Authentication) SAML(categoryID string, host string) *samlsp.Middleware
 	return a.prvManager.SAML(categoryID, host)
 }
 
-func (a *Authentication) Healthcheck() error {
-	return a.prvManager.Healthcheck()
+func (a *Authentication) Healthcheck(ctx context.Context) error {
+	return a.prvManager.Healthcheck(ctx)
 }

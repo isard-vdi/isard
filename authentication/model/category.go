@@ -159,6 +159,29 @@ func (c *Category) ExistsWithUID(ctx context.Context, sess r.QueryExecutor) (boo
 	return true, nil
 }
 
+// SaveCategoryProviderStatus updates the status of an authentication provider in a category.
+func SaveCategoryProviderStatus(ctx context.Context, sess r.QueryExecutor, categoryID, provider string, healthy bool, msg string) error {
+	_, err := r.Table("categories").Get(categoryID).Update(map[string]any{
+		"authentication": map[string]any{
+			provider: map[string]any{
+				"status": map[string]any{
+					"healthy":      healthy,
+					"msg":          msg,
+					"last_updated": r.Now(),
+				},
+			},
+		},
+	}).Run(sess, r.RunOpts{Context: ctx})
+	if err != nil {
+		return &db.Err{
+			Msg: "update category provider status",
+			Err: err,
+		}
+	}
+
+	return nil
+}
+
 func CategoryConfigurationsLoad(ctx context.Context, sess r.QueryExecutor) (map[string]CategoryConfigEntry, error) {
 	res, err := r.Table("categories").Pluck("id", "authentication", map[string]any{
 		"branding": map[string]any{

@@ -20,7 +20,7 @@ type Interface interface {
 	Manage(ctx context.Context, wg *sync.WaitGroup)
 	Providers(categoryID string) []string
 	Provider(p string, categoryID string) provider.Provider
-	Healthcheck() error
+	Healthcheck(ctx context.Context) error
 	SAML(categoryID string, host string) *samlsp.Middleware
 }
 
@@ -722,29 +722,60 @@ func (m *ProviderManager) restoreInheritedFormSubProvider(scope *providerSet, ca
 	scopeForm.EnableProvider(p)
 }
 
-func (m *ProviderManager) Healthcheck() error {
+// Healthcheck probes every provider and persists each result.
+func (m *ProviderManager) Healthcheck(ctx context.Context) error {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 
 	for _, p := range m.global.providers {
-		if err := p.Healthcheck(); err != nil {
-			m.log.Warn().Err(err).Str("provider", p.String()).Msg("service unhealthy")
-
+		if err := m.persistProviderStatus(ctx, nil, p); err != nil {
 			return err
 		}
 	}
 
 	for categoryID, scope := range m.categories {
 		for _, p := range scope.providers {
-			if err := p.Healthcheck(); err != nil {
-				m.log.Warn().Err(err).Str("provider", p.String()).Str("provider_category", categoryID).Msg("service unhealthy")
-
+			if err := m.persistProviderStatus(ctx, &categoryID, p); err != nil {
 				return err
 			}
 		}
 	}
 
 	return nil
+}
+
+func (m *ProviderManager) persistProviderStatus(ctx context.Context, categoryID *string, p provider.Provider) error {
+	if f, ok := p.(*provider.Form); ok {
+		for _, name := range f.Providers() {
+			if err := m.persistProviderStatus(ctx, categoryID, f.Provider(name)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	name := p.String()
+	if name == types.ProviderUnknown || name == types.ProviderExternal {
+		return nil
+	}
+
+	healthy := true
+	msg := ""
+	if err := p.Healthcheck(); err != nil {
+		healthy = false
+		msg = err.Error()
+
+		evt := m.log.Warn().Err(err).Str("provider", name)
+		if categoryID != nil {
+			evt = evt.Str("provider_category", *categoryID)
+		}
+		evt.Msg("provider unhealthy")
+	}
+
+	if categoryID == nil {
+		return model.SaveProviderStatus(ctx, m.db, name, healthy, msg)
+	}
+	return model.SaveCategoryProviderStatus(ctx, m.db, *categoryID, name, healthy, msg)
 }
 
 func (m *ProviderManager) SAML(categoryID string, host string) *samlsp.Middleware {

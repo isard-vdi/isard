@@ -166,3 +166,26 @@ func (c *Config) Load(ctx context.Context, sess r.QueryExecutor) error {
 
 	return nil
 }
+
+// SaveProviderStatus updates the status of a global authentication provider.
+func SaveProviderStatus(ctx context.Context, sess r.QueryExecutor, provider string, healthy bool, msg string) error {
+	_, err := r.Table("config").Get(1).Update(map[string]any{
+		"auth": map[string]any{
+			provider: map[string]any{
+				"status": map[string]any{
+					"healthy":      healthy,
+					"msg":          msg,
+					"last_updated": r.Now(),
+				},
+			},
+		},
+	}).Run(sess, r.RunOpts{Context: ctx})
+	if err != nil {
+		return &db.Err{
+			Msg: "update provider status",
+			Err: err,
+		}
+	}
+
+	return nil
+}
