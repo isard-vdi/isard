@@ -7,10 +7,12 @@ import (
 
 	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/providermanager"
+	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 func TestProviders(t *testing.T) {
@@ -155,17 +157,53 @@ func TestHealthcheck(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
+		PrepareDB              func(*r.Mock)
+		PrepareAPI             func(*apiv4.MockInvoker)
 		PrepareProviderManager func(*testing.T) *providermanager.MockProvidermanager
 		ExpectedErr            string
 	}{
 		"should work as expected": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Expr(1)).Return(1, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("APIVersion", mock.AnythingOfType("*context.cancelCtx")).Return(&apiv4.ApiVersion{}, nil)
+			},
 			PrepareProviderManager: func(t *testing.T) *providermanager.MockProvidermanager {
 				m := providermanager.NewMockProvidermanager(t)
 				m.On("Healthcheck", mock.AnythingOfType("*context.cancelCtx")).Return(nil)
 				return m
 			},
 		},
+		"should return an error if the DB ping fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Expr(1)).Return(nil, errors.New("connection refused"))
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {},
+			PrepareProviderManager: func(t *testing.T) *providermanager.MockProvidermanager {
+				return providermanager.NewMockProvidermanager(t)
+			},
+			ExpectedErr: "ping the DB: connection refused",
+		},
+		"should return an error if the API ping fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Expr(1)).Return(1, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("APIVersion", mock.AnythingOfType("*context.cancelCtx")).Return(nil, errors.New("connection refused"))
+			},
+			PrepareProviderManager: func(t *testing.T) *providermanager.MockProvidermanager {
+				return providermanager.NewMockProvidermanager(t)
+			},
+			ExpectedErr: "ping the API: connection refused",
+		},
 		"should return an error if the provider manager fails": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Expr(1)).Return(1, nil)
+			},
+			PrepareAPI: func(c *apiv4.MockInvoker) {
+				c.On("APIVersion", mock.AnythingOfType("*context.cancelCtx")).Return(&apiv4.ApiVersion{}, nil)
+			},
 			PrepareProviderManager: func(t *testing.T) *providermanager.MockProvidermanager {
 				m := providermanager.NewMockProvidermanager(t)
 				m.On("Healthcheck", mock.AnythingOfType("*context.cancelCtx")).Return(errors.New("connection refused"))
@@ -179,9 +217,17 @@ func TestHealthcheck(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
+			dbMock := r.NewMock()
+			tc.PrepareDB(dbMock)
+
+			apiMock := apiv4.NewMockInvoker(t)
+			tc.PrepareAPI(apiMock)
+
 			pm := tc.PrepareProviderManager(t)
 			a := &Authentication{
 				Log:        log.New("test", "debug"),
+				DB:         dbMock,
+				API:        apiMock,
 				prvManager: pm,
 			}
 
@@ -193,6 +239,7 @@ func TestHealthcheck(t *testing.T) {
 				assert.NoError(err)
 			}
 
+			dbMock.AssertExpectations(t)
 			pm.AssertExpectations(t)
 		})
 	}
