@@ -592,7 +592,21 @@ with get_conn() as conn:
     storage["parent"] = None
     storage["status"] = "ready"
     storage["perms"] = ["r"]
-    storage.pop("qemu-img-info", None)
+    # Refresh size metadata on the flattened standalone disk so the destination row
+    # carries virtual/actual size immediately (mirrors isard's qemu_img_info()),
+    # instead of waiting for the next storage scan. Best-effort: never fail the import.
+    storage.pop("qemu-img-info", None)          # stale: describes the source's chain
+    try:
+        _qi = sp.run(["qemu-img", "info", "-U", "--output", "json", cpath],
+                     capture_output=True, text=True, timeout=60)
+        if _qi.returncode == 0:
+            _info = json.loads(_qi.stdout)
+            _info.setdefault("backing-filename")
+            _info.setdefault("backing-filename-format")
+            _info.setdefault("full-backing-filename")
+            storage["qemu-img-info"] = _info
+    except Exception:
+        pass                                    # leave unset; isard's next scan fills it
     storage["user_id"] = ru
     storage.setdefault("status_logs", [])
 
