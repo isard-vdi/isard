@@ -22,7 +22,7 @@ import json
 import logging as log
 import os
 import traceback
-from typing import Any, Optional
+from typing import Optional
 
 from api.services.error import Error
 from api.services.templates import clear_templates_cache
@@ -506,85 +506,43 @@ class AdminDomainsService:
     # ── Logs Queries ─────────────────────────────────────────────────────
 
     @staticmethod
-    def _parse_multi_form(form_data: Any) -> dict:
-        """Parse DataTables multi-form data into nested dict."""
-        data = {}
-        for url_k in form_data:
-            v = form_data[url_k]
-            ks = []
-            remaining = url_k
-            while remaining:
-                if "[" in remaining:
-                    k, rest = remaining.split("[", 1)
-                    ks.append(k)
-                    if rest[0] == "]":
-                        ks.append("")
-                    remaining = rest.replace("]", "", 1)
-                else:
-                    ks.append(remaining)
-                    break
-            sub_data = data
-            for i, k in enumerate(ks):
-                if k.isdigit():
-                    k = int(k)
-                if i + 1 < len(ks):
-                    if not isinstance(sub_data, dict):
-                        break
-                    if k in sub_data:
-                        sub_data = sub_data[k]
-                    else:
-                        sub_data[k] = {}
-                        sub_data = sub_data[k]
-                else:
-                    if isinstance(sub_data, dict):
-                        sub_data[k] = v
-        return data
-
-    @staticmethod
     def _query_logs(
         table: str,
-        form_data: Any,
+        body: dict,
         view: str = "raw",
         payload: Optional[dict] = None,
     ) -> dict:
         """Execute a logs query with DataTables parameters.
 
-        Form parsing stays in apiv4 (DataTables-specific shape); the
-        query execution lives in ``LogsProcessed.query_paginated``.
-
         ``payload`` carries the JWT data; managers see only their own
         category (apiv3 ``@is_admin_or_manager`` parity), admins see
         everything.
         """
-        if isinstance(form_data, dict):
-            parsed = form_data
-        else:
-            parsed = AdminDomainsService._parse_multi_form(form_data)
         scope_category_id = (
             payload["category_id"]
             if payload and payload.get("role_id") == "manager"
             else None
         )
         return LogsProcessed.query_paginated(
-            table, parsed, view=view, scope_category_id=scope_category_id
+            table, body, view=view, scope_category_id=scope_category_id
         )
 
     @staticmethod
     def query_logs_desktops(
-        form_data: Any, view: str = "raw", payload: Optional[dict] = None
+        body: dict, view: str = "raw", payload: Optional[dict] = None
     ) -> dict:
         """Query desktop logs with DataTables parameters."""
         return AdminDomainsService._query_logs(
-            "logs_desktops", form_data, view, payload=payload
+            "logs_desktops", body, view, payload=payload
         )
 
     @staticmethod
     def query_logs_users(
-        form_data: Any, view: str = "raw", payload: Optional[dict] = None
+        body: dict, view: str = "raw", payload: Optional[dict] = None
     ) -> dict:
         """Query user logs with DataTables parameters."""
         return AdminDomainsService._query_logs(
-            "logs_users", form_data, view, payload=payload
+            "logs_users", body, view, payload=payload
         )
 
     @staticmethod

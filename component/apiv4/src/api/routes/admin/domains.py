@@ -24,7 +24,6 @@ import traceback
 from typing import Literal
 
 from api import admin_router, manager_router
-from api.dependencies.body_parsers import parse_json_or_form
 from api.schemas.admin.domains import (
     AdminDeploymentViewerDataResponse,
     AdminDomainDetailsResponse,
@@ -52,6 +51,7 @@ from api.schemas.admin.domains import (
     AdminVirtInstallXmlSectionsSaveResponse,
     DesktopLogRow,
     DesktopLogsViewRow,
+    LogsDataTablesRequest,
     LogsDataTablesResponse,
     LogsRetentionConfigResponse,
     UserLogRow,
@@ -60,7 +60,7 @@ from api.schemas.admin.domains import (
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
-from fastapi import BackgroundTasks, Depends, Path, Request
+from fastapi import BackgroundTasks, Path, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 
@@ -815,13 +815,11 @@ async def admin_domain_search_info(request: Request, domain_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_raw(
-    request: Request, form_data=Depends(parse_json_or_form)
-):
+async def admin_logs_desktops_raw(request: Request, body: LogsDataTablesRequest):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_desktops,
-            form_data,
+            body.model_dump(exclude_none=True),
             view="raw",
             payload=request.token_payload,
         )
@@ -855,18 +853,13 @@ async def admin_logs_desktops_raw(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_view(request: Request, view: str = "raw"):
+async def admin_logs_desktops_view(
+    request: Request, body: LogsDataTablesRequest, view: str = "raw"
+):
     try:
-        try:
-            form_data = await request.form()
-        except AssertionError:
-            raise Error(
-                "bad_request",
-                "Request body must be multipart form data",
-            )
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_desktops,
-            form_data,
+            body.model_dump(exclude_none=True),
             view=view,
             payload=request.token_payload,
         )
@@ -904,11 +897,11 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw"):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or_form)):
+async def admin_logs_users_raw(request: Request, body: LogsDataTablesRequest):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_users,
-            form_data,
+            body.model_dump(exclude_none=True),
             view="raw",
             payload=request.token_payload,
         )
@@ -942,18 +935,13 @@ async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_view(request: Request, view: str = "raw"):
+async def admin_logs_users_view(
+    request: Request, body: LogsDataTablesRequest, view: str = "raw"
+):
     try:
-        try:
-            form_data = await request.form()
-        except AssertionError:
-            raise Error(
-                "bad_request",
-                "Request body must be multipart form data",
-            )
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_users,
-            form_data,
+            body.model_dump(exclude_none=True),
             view=view,
             payload=request.token_payload,
         )
