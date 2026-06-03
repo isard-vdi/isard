@@ -523,8 +523,15 @@ class BulkEditDesktopsRequest(BaseModel):
         default=None,
         description="Updated guest properties (credentials, viewers, fullscreen)",
     )
-    hardware: Optional[Hardware] = Field(
+    # DomainHardware (not the strict shared ``Hardware``) so the bulk
+    # form can send only the fields the operator actually changed —
+    # ``videos`` and ``interfaces`` are commonly omitted.
+    hardware: Optional[DomainHardware] = Field(
         default=None, description="Updated hardware spec"
+    )
+    reservables: Optional[Reservables] = Field(
+        default=None,
+        description="Updated bookable resources (vGPUs).",
     )
 
     class Config:

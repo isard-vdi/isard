@@ -105,6 +105,41 @@ def test_bulk_edit_desktops(monkeypatch, test_client):
     }
 
 
+def test_bulk_edit_desktops_partial_hardware(monkeypatch, test_client):
+    # The webapp bulk-edit form only sends the hardware fields the
+    # operator actually touched, so the schema must accept a hardware
+    # block without ``videos`` / ``interfaces`` and the dump must not
+    # inject DomainHardware defaults that would clobber the desktop.
+    jwt = MockJWT(role_id="advanced")
+    captured = {}
+
+    def fake_bulk_edit(ids, data, payload):
+        captured["data"] = data
+        return {"ids": ids}
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.bulk_edit_desktops",
+        staticmethod(fake_bulk_edit),
+    )
+
+    response = test_client(
+        url="/items/desktops/bulk-edit",
+        method="PUT",
+        body={
+            "ids": ["desktop-1"],
+            "hardware": {"vcpus": 2, "memory": 2.5},
+            "reservables": {"vgpus": ["NVIDIA-A16-2Q"]},
+        },
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured["data"] == {
+        "hardware": {"vcpus": 2, "memory": 2.5},
+        "reservables": {"vgpus": ["NVIDIA-A16-2Q"]},
+    }
+
+
 def test_bulk_create_persistent_desktops(monkeypatch, test_client):
     jwt = MockJWT(role_id="advanced")
     captured = {}
