@@ -116,17 +116,25 @@ _cfeed_cov := $(if $(filter __COV__,$(PYTEST_COV_ARGS)),--cov=isardvdi_changefee
 test-engine:
 	docker exec isard-engine sh -c "cd /isard && python3 -m pytest engine/models engine/services/threads -v --tb=short"
 
+_e2e_tty := $(if $(CI),,-it)
+
 .PHONY: test-e2e-seed
 test-e2e-seed:
-	uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py
+	docker run $(_e2e_tty) --rm \
+	--network=isard-network \
+	-e RETHINKDB_HOST=isard-db \
+	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	-e UV_CACHE_DIR=/tmp/uv-cache \
+	-v "${ISARDVDI_SRC}:/src" -w /src \
+	ghcr.io/astral-sh/uv:0.11.7-python3.13-alpine \
+	sh -c 'apk add --no-cache git && uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py'
 
 .PHONY: test-e2e
 test-e2e: test-e2e-seed
-	cd ${ISARDVDI_SRC}/testing/e2e && yarn
-	docker run -it \
+	cd ${ISARDVDI_SRC}/testing/e2e && bun ci
+	docker run $(_e2e_tty) \
 	--rm --ipc=host \
-	--network=host \
-	--add-host=host.docker.internal:host-gateway \
+	--network=isard-network \
 	-e DOCKER=1 \
 	-e CI \
 	-e E2E_WORKERS \
@@ -134,7 +142,7 @@ test-e2e: test-e2e-seed
 	-e E2E_SCREENSHOT \
 	-e E2E_TRACE \
 	-e E2E_TIMEOUT \
-	-e E2E_BASE_URL \
+	-e E2E_BASE_URL=$${E2E_BASE_URL:-https://isard-portal} \
 	-e E2E_REPORTER \
 	-e E2E_VIDEO \
 	-e E2E_BROWSER \
@@ -268,8 +276,9 @@ test-e2e-stack:
 		echo "❌ Dev stack is up. Run 'make down' first, then retry."; \
 		exit 1; \
 	fi
-	@echo "🎭 Generating isardvdi.e2e.cfg from template…"
-	cp ${ISARDVDI_SRC}testing/config/isardvdi.e2e.cfg.template ${ISARDVDI_SRC}isardvdi.e2e.cfg
+	@echo "🎭 Generating isardvdi.e2e.cfg from cfg.example + e2e template…"
+	cp ${ISARDVDI_SRC}isardvdi.cfg.example ${ISARDVDI_SRC}isardvdi.e2e.cfg
+	cat ${ISARDVDI_SRC}testing/config/isardvdi.e2e.cfg.template >> ${ISARDVDI_SRC}isardvdi.e2e.cfg
 	@# Inherit dev stack's image prefix+tag so we reuse already-built images.
 	@DEV_PREFIX=$$(grep -E '^DOCKER_IMAGE_PREFIX=' ${ISARDVDI_SRC}isardvdi.cfg | cut -d= -f2-) && \
 	DEV_TAG=$$(grep -E '^DOCKER_IMAGE_TAG=' ${ISARDVDI_SRC}isardvdi.cfg | cut -d= -f2-) && \

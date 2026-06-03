@@ -71,7 +71,7 @@ poder-los restaurar.
 
 ### Llavors (Then)
 
-1. Es fa una crida `POST /api/v4/admin/table/bookings_priority` amb
+1. Es fa una crida `POST /api/v4/admin/items/table/bookings_priority` amb
    `{"order_by":"name"}`; respon amb estat `< 400` i un array de
    regles.
 2. La taula `#bookings_priority` renderitza les files amb les columnes:
@@ -108,7 +108,7 @@ poblar el dropdown del panell *Computed users priorities*.
 
 ### Llavors (Then)
 
-1. La crida `POST /api/v4/admin/table/add/bookings_priority` rep el cos
+1. La crida `POST /api/v4/admin/item/table/add/bookings_priority` rep el cos
    amb tots els camps convertits a enter on cal (`priority`,
    `forbid_time`, `max_time`, `max_items` són números, no strings) i
    amb la clau `allowed = {roles, categories, groups, users}`.
@@ -135,7 +135,7 @@ poblar el dropdown del panell *Computed users priorities*.
 
 ### Llavors (Then)
 
-1. La crida `PUT /api/v4/admin/table/update/bookings_priority` rep el
+1. La crida `PUT /api/v4/admin/item/table/update/bookings_priority` rep el
    cos amb `id` (= `priority_id` del formulari) i els camps numèrics
    convertits a enter. Respon amb estat `< 400`.
 2. El modal es tanca; la taula es recarrega; la fila mostra els nous
@@ -166,7 +166,7 @@ files del sistema per no contaminar els altres tests del worker.
    respon amb estat `< 400`.
 2. La taula es recarrega i la fila desapareix.
 3. Si es consulta de nou via
-   `POST /api/v4/admin/table/bookings_priority`, la regla ja no hi és.
+   `POST /api/v4/admin/items/table/bookings_priority`, la regla ja no hi és.
 
 ### Camí d'error
 
@@ -214,14 +214,14 @@ un PNotify *ERROR deleting priority* amb el motiu retornat al
 
 1. A la fila, prem la icona d'**alloweds**. S'obre `#modalAlloweds` amb
    títol *Edit "<name>" permissions*.
-2. La crida `POST /api/v4/allowed/table/bookings_priority` retorna els
+2. La crida `POST /api/v4/item/allowed/table/bookings_priority` retorna els
    alloweds actuals; els checkboxes i `select2` es prefills correctament.
 3. Modifica les seleccions (per exemple, afegeix el rol `advanced`).
 4. Prem **Update permissions**.
 
 ### Llavors (Then)
 
-1. La crida `POST /api/v4/admin/allowed/update/bookings_priority` rep
+1. La crida `POST /api/v4/item/allowed/update/bookings_priority` rep
    el cos amb `id`, `table` i `allowed = {roles, categories, groups,
    users}`. Respon amb estat `< 400`.
 2. Apareix una notificació PNotify *Alloweds updated successfully*.
@@ -244,7 +244,7 @@ un PNotify *ERROR deleting priority* amb el motiu retornat al
    que conté `alloweds-<id>` dins.
 3. La pàgina crida `setAlloweds_viewer('#alloweds-<id>', <id>,
    "bookings_priority")`, que fa
-   `POST /api/v4/allowed/table/bookings_priority` amb `{id}`.
+   `POST /api/v4/item/allowed/table/bookings_priority` amb `{id}`.
 
 ### Llavors (Then)
 
@@ -275,7 +275,7 @@ un PNotify *ERROR deleting priority* amb el motiu retornat al
 1. Parsley bloqueja l'enviament (`form.parsley().isValid()` és
    `false`).
 2. **No** es fa cap crida a
-   `POST /api/v4/admin/table/add/bookings_priority`.
+   `POST /api/v4/admin/item/table/add/bookings_priority`.
 3. El modal roman obert i conserva la resta de dades.
 
 ---
@@ -335,9 +335,9 @@ un PNotify *ERROR deleting priority* amb el motiu retornat al
 2. Si existeix, s'elimina via
    `DELETE /api/v4/item/booking/priority/<id>`.
 3. Si el test ha modificat una regla del seed, es restauren els seus
-   camps via `PUT /api/v4/admin/table/update/bookings_priority`.
+   camps via `PUT /api/v4/admin/item/table/update/bookings_priority`.
 4. Si el test ha modificat els alloweds d'una regla del seed, es
-   restauren via `POST /api/v4/admin/allowed/update/bookings_priority`.
+   restauren via `POST /api/v4/item/allowed/update/bookings_priority`.
 5. Els errors de neteja es silencien.
 
 ---
@@ -360,17 +360,17 @@ un PNotify *ERROR deleting priority* amb el motiu retornat al
 
 ## API tocades pels fluxos (referència)
 
-- `POST   /api/v4/admin/table/bookings_priority` — datatable load.
-- `POST   /api/v4/admin/table/add/bookings_priority` — crear regla.
-- `PUT    /api/v4/admin/table/update/bookings_priority` — actualitzar
+- `POST   /api/v4/admin/items/table/bookings_priority` — datatable load.
+- `POST   /api/v4/admin/item/table/add/bookings_priority` — crear regla.
+- `PUT    /api/v4/admin/item/table/update/bookings_priority` — actualitzar
   regla.
 - `DELETE /api/v4/item/booking/priority/{id}` — eliminar regla.
 - `GET    /api/v4/items/bookings/priority-rules` — poblar dropdown
   *Computed users priorities*.
 - `POST   /api/v4/items/bookings/priorities` — computar usuaris per a
   una `rule_id`. Body `{rule_id}`.
-- `POST   /api/v4/allowed/table/bookings_priority` — llegir alloweds.
-- `POST   /api/v4/admin/allowed/update/bookings_priority` —
+- `POST   /api/v4/item/allowed/table/bookings_priority` — llegir alloweds.
+- `POST   /api/v4/item/allowed/update/bookings_priority` —
   actualitzar alloweds.
 - `POST   /api/v4/admin/allowed/term/{roles|categories|groups|users}`
   — termes per al `select2` del panell d'alloweds.

@@ -158,7 +158,7 @@ async function findGpuRowAfterNavigation(page, gpuId, maxAttempts = 3) {
 function waitForGpuAdminTableLookup(page) {
   return page.waitForResponse(
     (r) =>
-      r.url().includes('/api/v4/admin/table/gpus') &&
+      r.url().includes('/api/v4/admin/items/table/gpus') &&
       r.request().method() === 'POST',
     { timeout: 15000 },
   )
@@ -298,7 +298,7 @@ test.describe('Admin GPUs — webapp', () => {
 
     const editResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/reservables/gpus/${gpu.id}`) &&
+        r.url().includes(`/api/v4/admin/items/reservables/gpus/${gpu.id}`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )

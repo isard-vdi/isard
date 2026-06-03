@@ -95,7 +95,7 @@ env > /tmp/env # This is needed by the dnsmasq-hook to get the envvars
 #ip r a $WG_USERS_NET via ${WG_HYPER_NET_WG_PEER}
 
 echo "---> Configuring hugepages support..."
-if mountpoint -q /dev/hugepages 2>/dev/null; then
+if awk '$2 == "/dev/hugepages" && $3 == "hugetlbfs" { found = 1 } END { exit !found }' /proc/mounts 2>/dev/null; then
   if ! grep -q '^hugetlbfs_mount' /etc/libvirt/qemu.conf 2>/dev/null; then
     echo 'hugetlbfs_mount = "/dev/hugepages"' >> /etc/libvirt/qemu.conf
     echo "    hugetlbfs_mount added to qemu.conf"
@@ -103,7 +103,7 @@ if mountpoint -q /dev/hugepages 2>/dev/null; then
     echo "    hugetlbfs_mount already configured"
   fi
 else
-  echo "    /dev/hugepages not mounted, skipping"
+  echo "    /dev/hugepages is not a hugetlbfs mount, skipping"
 fi
 
 echo "---> Starting libvirt daemon..."

@@ -1,4 +1,6 @@
-import { test, expect } from '../fixtures/login.js'
+import { test, expect } from '../../fixtures/login.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 // Smoke coverage for the Vue 3 /maintenance route, served by
 // MaintenanceView.vue.

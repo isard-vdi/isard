@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import time
 
 from rethinkdb import r
 
@@ -8,6 +9,15 @@ DB_HOST = os.environ.get("RETHINKDB_HOST", "172.31.255.13")
 DB_PORT = int(os.environ.get("RETHINKDB_PORT", "28015"))
 DB_NAME = os.environ.get("RETHINKDB_DB", "isard")
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+# The hypervisor registers with enabled=False on boot and only reaches
+# status="Online", enabled=True once the engine orchestrator picks it up —
+# roughly 90s after the stack starts. Booking/desktop specs that hit
+# check_create_storage_pool_availability raise 428 no_storage_pool_available
+# while get_cached_hypervisors_online() is still empty, so the whole suite
+# must block here until a usable hypervisor exists. This mirrors the exact
+# predicate that check passes on: Online + enabled + a non-empty storage pool.
+HYPER_READY_TIMEOUT = int(os.environ.get("E2E_HYPER_READY_TIMEOUT", "240"))
 
 # Tables that have no seed JSON but accumulate per-user state across runs and
 # must be reset so dependent tests stay deterministic on re-runs against the
@@ -22,6 +32,37 @@ RESET_TABLES = ["notifications_data"]
 # fullpage notification left behind fires for every user on login — clean
 # these up at the start of each run without touching the seeded records.
 E2E_PREFIX_TABLES = ["notifications", "notification_tmpls"]
+
+
+def wait_for_hypervisor_online(dbconn, timeout=HYPER_READY_TIMEOUT):
+    """Block until a hypervisor can serve storage-pool-gated requests.
+
+    Returns True once an Online + enabled hypervisor with a non-empty storage
+    pool exists, or False if the timeout elapses (the suite still runs so the
+    failing specs give a clear signal instead of the run hanging).
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            ready = list(
+                r.table("hypervisors")
+                .filter({"status": "Online", "enabled": True})
+                .run(dbconn)
+            )
+        except Exception as e:
+            print(f"Error polling hypervisors: {e}")
+            ready = []
+        for hyper in ready:
+            if hyper.get("enabled_storage_pools") or hyper.get("storage_pools"):
+                print(f"Hypervisor '{hyper['id']}' is Online with a storage pool")
+                return True
+        print("Waiting for an Online+enabled hypervisor with a storage pool...")
+        time.sleep(2)
+    print(
+        f"WARNING: no usable hypervisor after {timeout}s; "
+        "storage-pool-dependent tests will likely fail"
+    )
+    return False
 
 
 def main():
@@ -62,6 +103,8 @@ def main():
             print(f"Result: {result}")
         except Exception as e:
             print(f"Error inserting into '{table_name}': {e}")
+
+    wait_for_hypervisor_online(dbconn)
 
 
 if __name__ == "__main__":

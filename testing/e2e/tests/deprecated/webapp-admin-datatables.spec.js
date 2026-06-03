@@ -12,8 +12,10 @@
 // follow-up wave — these are the pages that most often hide real bugs
 // behind a shell that happens to render.
 
-import { test, expect } from '../fixtures/login.js'
-import { bridgeAdminSession } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/login.js'
+import { bridgeAdminSession } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 async function expectDataTableReady(page, tableSelector) {
   // DataTables wraps the <table> in a `.dataTables_wrapper` div once

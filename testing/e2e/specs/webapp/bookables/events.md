@@ -78,7 +78,7 @@ entre workers.
 1. Es fan tres crides en paral·lel:
    - `GET /api/v4/items/reservables-planner` per a `#table-planning`.
    - `GET /api/v4/items/bookings/all` per a `#table-booking`.
-   - `GET /api/v4/admin/scheduler/jobs/bookings` per a
+   - `GET /api/v4/admin/items/scheduler/jobs/bookings` per a
      `#table-booking-scheduler`.
 2. Totes tres responen amb estat `< 400`.
 3. `#table-planning` mostra els plans del seed (`24ee2910-…`,
@@ -382,7 +382,7 @@ booking) filtra `#table-planning` pel `plan_id` corresponent.
 
 - `GET    /api/v4/items/reservables-planner` — llista de plans.
 - `GET    /api/v4/items/bookings/all` — llista de bookings (admin).
-- `GET    /api/v4/admin/scheduler/jobs/bookings` — jobs del scheduler.
+- `GET    /api/v4/admin/items/scheduler/jobs/bookings` — jobs del scheduler.
 - `GET    /api/v4/item/reservables-planner/{planId}/bookings` —
   bookings dins d'un plan.
 - `GET    /api/v4/item/booking/{bookingId}/plans` — plans que

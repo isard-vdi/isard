@@ -33,7 +33,15 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: envInt("E2E_RETRIES", isCI ? 2 : 1),
   workers: envInt("E2E_WORKERS", isCI ? 2 : 16),
-  reporter: env("E2E_REPORTER", "html"),
+  reporter: process.env.E2E_REPORTER
+    ? process.env.E2E_REPORTER
+    : isCI
+      ? [
+          ["list"],
+          ["junit", { outputFile: "test-results/junit.xml" }],
+          ["html", { open: "never", outputFolder: "playwright-report" }],
+        ]
+      : "html",
   timeout: envInt("E2E_TIMEOUT", 30000),
   use: {
     baseURL,

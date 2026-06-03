@@ -49,12 +49,42 @@ const users = {
   admin_e2e_14: { username: 'admin_e2e_14', password: 'IsardTest1!', category: 'default' },
   admin_e2e_15: { username: 'admin_e2e_15', password: 'IsardTest1!', category: 'default' },
 
-  // E2E user (non-admin) for tests requiring role=user
+  // E2E users (non-admin, role=user) — one per worker to avoid session
+  // conflicts with parallel workers, mirroring the admin_e2e_NN pool.
   user_e2e_01: { username: 'user_e2e_01', password: 'IsardTest1!', category: 'default' },
+  user_e2e_02: { username: 'user_e2e_02', password: 'IsardTest1!', category: 'default' },
+  user_e2e_03: { username: 'user_e2e_03', password: 'IsardTest1!', category: 'default' },
+  user_e2e_04: { username: 'user_e2e_04', password: 'IsardTest1!', category: 'default' },
+  user_e2e_05: { username: 'user_e2e_05', password: 'IsardTest1!', category: 'default' },
+  user_e2e_06: { username: 'user_e2e_06', password: 'IsardTest1!', category: 'default' },
+  user_e2e_07: { username: 'user_e2e_07', password: 'IsardTest1!', category: 'default' },
+  user_e2e_08: { username: 'user_e2e_08', password: 'IsardTest1!', category: 'default' },
+  user_e2e_09: { username: 'user_e2e_09', password: 'IsardTest1!', category: 'default' },
+  user_e2e_10: { username: 'user_e2e_10', password: 'IsardTest1!', category: 'default' },
+  user_e2e_11: { username: 'user_e2e_11', password: 'IsardTest1!', category: 'default' },
+  user_e2e_12: { username: 'user_e2e_12', password: 'IsardTest1!', category: 'default' },
+  user_e2e_13: { username: 'user_e2e_13', password: 'IsardTest1!', category: 'default' },
+  user_e2e_14: { username: 'user_e2e_14', password: 'IsardTest1!', category: 'default' },
+  user_e2e_15: { username: 'user_e2e_15', password: 'IsardTest1!', category: 'default' },
 
-  // E2E advanced user for booking priority-override tests (higher
-  // priority than user_e2e_01 on the NVIDIA-T4-OVERRIDE bookable)
+  // E2E advanced users for booking priority-override tests (role
+  // `advanced` resolves to higher priority than role `user` on the
+  // NVIDIA-T4-OVERRIDE bookable). One per worker, same as above.
   advanced_e2e_01: { username: 'advanced_e2e_01', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_02: { username: 'advanced_e2e_02', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_03: { username: 'advanced_e2e_03', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_04: { username: 'advanced_e2e_04', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_05: { username: 'advanced_e2e_05', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_06: { username: 'advanced_e2e_06', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_07: { username: 'advanced_e2e_07', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_08: { username: 'advanced_e2e_08', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_09: { username: 'advanced_e2e_09', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_10: { username: 'advanced_e2e_10', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_11: { username: 'advanced_e2e_11', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_12: { username: 'advanced_e2e_12', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_13: { username: 'advanced_e2e_13', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_14: { username: 'advanced_e2e_14', password: 'IsardTest1!', category: 'default' },
+  advanced_e2e_15: { username: 'advanced_e2e_15', password: 'IsardTest1!', category: 'default' },
 
   // E2E manager user — reserved for future manager-role vue2 specs
   manager_e2e_01: { username: 'manager_e2e_01', password: 'IsardTest1!', category: 'default' },
@@ -304,14 +334,19 @@ export const test = base.extend({
     await page.close()
   },
 
-  // Worker-scoped logins for the two shared non-admin e2e accounts so
-  // the vue2 specs reuse one session per worker instead of logging in
-  // per test. Each test gets a fresh page (tab) from the shared
-  // context — same cookies, no re-login.
-  userE2EContext: [async ({ browser }, use) => {
+  // Worker-scoped logins for the non-admin e2e accounts so the vue2
+  // specs reuse one session per worker instead of logging in per test.
+  // Each worker logs in as a distinct user_e2e_NN account (keyed by
+  // worker index, same as adminPerWorker): a single shared account
+  // contends on Redis session state under parallel workers — a later
+  // worker's login invalidates the earlier worker's session and apiv4
+  // then returns 401 "Session expired". Each test gets a fresh page
+  // (tab) from the shared context — same cookies, no re-login.
+  userE2EContext: [async ({ browser }, use, workerInfo) => {
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
     const page = await ctx.newPage()
-    await loginHelpers.login(page, users.user_e2e_01, categories)
+    const idx = (workerInfo.workerIndex % 15) + 1
+    await loginHelpers.login(page, users[`user_e2e_${String(idx).padStart(2, '0')}`], categories)
     await page.close()
     await use(ctx)
     await ctx.close()
@@ -323,10 +358,11 @@ export const test = base.extend({
     await page.close()
   },
 
-  advancedE2EContext: [async ({ browser }, use) => {
+  advancedE2EContext: [async ({ browser }, use, workerInfo) => {
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
     const page = await ctx.newPage()
-    await loginHelpers.login(page, users.advanced_e2e_01, categories)
+    const idx = (workerInfo.workerIndex % 15) + 1
+    await loginHelpers.login(page, users[`advanced_e2e_${String(idx).padStart(2, '0')}`], categories)
     await page.close()
     await use(ctx)
     await ctx.close()

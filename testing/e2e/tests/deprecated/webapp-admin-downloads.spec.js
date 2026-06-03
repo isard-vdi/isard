@@ -11,8 +11,10 @@
 // with status < 400. Catches the regression where the v3->v4 admin
 // migration drops the prefix and silently falls back to the SPA 200.
 
-import { test, expect } from '../fixtures/login.js'
-import { bridgeAdminSession } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/login.js'
+import { bridgeAdminSession } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 function captureXhr(page, predicate) {
   const matched = []

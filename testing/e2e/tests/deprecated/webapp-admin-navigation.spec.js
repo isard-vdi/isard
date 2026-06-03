@@ -21,8 +21,10 @@
 // title in <title> and renders a header <h3>/<h4> with the nav name.
 // We assert on the <title> to stay decoupled from layout markup.
 
-import { test, expect } from '../fixtures/login.js'
-import { bridgeAdminSession } from '../fixtures/common.js'
+import { test, expect } from '../../fixtures/login.js'
+import { bridgeAdminSession } from '../../fixtures/common.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 // Recyclebin bare path (`.../render/Recyclebin`) is dead code — the
 // admin sidebar always links to `.../render/Recyclebin/Domains` and

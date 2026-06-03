@@ -235,7 +235,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const createResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/authentication/policy') &&
+        r.url().includes('/api/v4/admin/item/authentication/policy') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -291,7 +291,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const createResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/authentication/policy') &&
+        r.url().includes('/api/v4/admin/item/authentication/policy') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -341,7 +341,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const createResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/authentication/policy') &&
+        r.url().includes('/api/v4/admin/item/authentication/policy') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -384,7 +384,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const createResponse = page.waitForResponse(
       (r) =>
-        r.url().includes('/api/v4/admin/authentication/policy') &&
+        r.url().includes('/api/v4/admin/item/authentication/policy') &&
         r.request().method() === 'POST',
       { timeout: 15000 },
     )
@@ -455,7 +455,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const editResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/policy/${policy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/policy/${policy.id}`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -513,7 +513,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const editResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/policy/${policy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/policy/${policy.id}`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -583,7 +583,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const editResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/policy/${defaultPolicy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/policy/${defaultPolicy.id}`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -664,7 +664,7 @@ test.describe('Admin users policies — webapp', () => {
     // null→false, so checking the API response would always pass.
     const putRequestPromise = page.waitForRequest(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/policy/${defaultPolicy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/policy/${defaultPolicy.id}`) &&
         r.method() === 'PUT',
       { timeout: 15000 },
     )
@@ -738,7 +738,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const editResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/policy/${policy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/policy/${policy.id}`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -791,7 +791,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const deleteResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/policy/${policy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/policy/${policy.id}`) &&
         r.request().method() === 'DELETE',
       { timeout: 15000 },
     )
@@ -857,7 +857,7 @@ test.describe('Admin users policies — webapp', () => {
     let deleteFired = false
     page.on('request', (req) => {
       if (
-        req.url().includes(`/api/v4/admin/authentication/policy/${policy.id}`) &&
+        req.url().includes(`/api/v4/admin/item/authentication/policy/${policy.id}`) &&
         req.method() === 'DELETE'
       ) {
         deleteFired = true
@@ -931,7 +931,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const forceResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/force_validate/email/${policy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/force_validate/email/${policy.id}`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -1033,7 +1033,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const forceResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/force_validate/password/${policy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/force_validate/password/${policy.id}`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -1105,7 +1105,7 @@ test.describe('Admin users policies — webapp', () => {
 
     const forceResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/admin/authentication/force_validate/disclaimer/${defaultPolicy.id}`) &&
+        r.url().includes(`/api/v4/admin/item/authentication/force_validate/disclaimer/${defaultPolicy.id}`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
@@ -1195,7 +1195,7 @@ test.describe('Admin users policies — webapp', () => {
     let postFired = false
     page.on('request', (req) => {
       if (
-        req.url().includes('/api/v4/admin/authentication/policy') &&
+        req.url().includes('/api/v4/admin/item/authentication/policy') &&
         req.method() === 'POST'
       ) {
         postFired = true

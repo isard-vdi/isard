@@ -1,4 +1,6 @@
-import { test, expect } from '../fixtures/login.js'
+import { test, expect } from '../../fixtures/login.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 // End-to-end lifecycle test using the real downloaded Slax 9.3.0 desktop.
 // Requires: Slax downloaded via admin downloads panel before running.

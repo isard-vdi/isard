@@ -226,6 +226,7 @@ gen-protobuf:
     paths:
       - pkg/gen
       - component/frontend/src/gen
+      - testing/e2e/src/gen
       - "**/testing_*_mock.go"
       # openapi-python-client output. Each client's src/<pkg>/__init__.py is
       # tracked but the rest of the tree (client.py, errors.py, types.py,
@@ -522,77 +523,69 @@ test-e2e:
   when: manual
   tags:
     - gpu
-  needs: ["docker-image"]
-  timeout: 15m
+    - kvm
+  needs: ["docker-image", "gen-protobuf"]
+  timeout: 30m
   allow_failure: true
   variables:
     DOCKER_TLS_CERTDIR: "/certs-root"
   services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind"
       variables:
         DOCKER_TLS_CERTDIR: "/certs-root"
       alias: docker
+      entrypoint:
+        - "sh"
+        - "-c"
+        - "apk add --no-cache fuse-overlayfs && exec dockerd-entrypoint.sh"
   image: "docker:${DOCKER_VERSION}"
   before_script:
-    - apk add bash git docker-compose python3 py3-requests yarn nodejs curl
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.local/bin:$PATH"
-    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    # Get dependencies:
+    - |
+      # git: build.sh
+      # make: seeding the instance
+      # libstdc++, libgcc: bun runtime
+      apk add git make libstdc++ libgcc
+
+    # Configure the instance
     - cp isardvdi.cfg.example isardvdi.e2e.cfg
-    - echo "USAGE=test" >> isardvdi.e2e.cfg
-    - echo "DOMAIN=host.docker.internal" >> isardvdi.e2e.cfg
+    - cat testing/config/isardvdi.e2e.cfg.template >> isardvdi.e2e.cfg
+    # CI-only vars appended by the runner
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
     - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
-    - echo "ENABLE_STATS=false" >> isardvdi.e2e.cfg
-    # FRONTEND_MODE=all keeps the Vue 3 SPA reachable for the e2e suite — the
-    # cfg.example default is "deprecated" (Vue 3 redirects to Vue 2) for safe
-    # production migrations, but every Vue 3 e2e spec navigates to /frontend/*
-    # and would silently land on Vue 2 without this override.
     - echo "FRONTEND_MODE=all" >> isardvdi.e2e.cfg
-    # Redirect nvidia-smi / libnvidia-ml / sriov-manage mounts to an
-    # always-present file — rootless dind cannot mkdir /usr/bin/nvidia-smi
-    # or /usr/lib/nvidia/sriov-manage to satisfy the default bind. GPU
-    # discovery exits cleanly when exec fails.
-    - echo "NVIDIA_SMI_PATH=/etc/hostname" >> isardvdi.e2e.cfg
-    - echo "NVIDIA_ML_LIB_PATH=/etc/hostname" >> isardvdi.e2e.cfg
-    - echo "NVIDIA_SRIOV_MANAGE_PATH=/etc/hostname" >> isardvdi.e2e.cfg
-    # /dev/hugepages is mounted by the hypervisor for GPU memoryBacking;
-    # rootless dind cannot mkdir under /dev. Point it at a placeholder dir
-    # that exists for the lifetime of the job.
-    - mkdir -p /tmp/isard-e2e-hugepages
-    - echo "HUGEPAGES_PATH=/tmp/isard-e2e-hugepages" >> isardvdi.e2e.cfg
+    # /dev/hugepages bind loses the hugetlbfs type through nested dind
+    # layers; libvirtd's QEMU driver init aborts unless we point it at a
+    # placeholder dir (the hypervisor never exercises hugepages in test).
+    - mkdir -p /tmp/isard-real-hugepages
+    - echo "HUGEPAGES_PATH=/tmp/isard-real-hugepages" >> isardvdi.e2e.cfg
+    # Build the docker-compose file
     - CODEGEN=false ./build.sh
-    # Rewrite /opt bind mounts to /tmp — rootless dind cannot mkdir /opt
-    - "sed -i 's|source: /opt/isard/|source: /tmp/isard-e2e/opt/isard/|g; s|source: /opt/isard-local/|source: /tmp/isard-e2e/opt/isard-local/|g' docker-compose.e2e.yml"
-    - docker compose -f docker-compose.e2e.yml pull
-    - docker compose -f docker-compose.e2e.yml up -d
-    - sleep 30
-    - uv sync --frozen --package isardvdi-testing --group test --no-editable
-    - uv run --group test --package isardvdi-testing python3 testing/db/populate_test_db.py
+    # Start the instance
+    - docker-compose -f docker-compose.e2e.yml pull --quiet
+    - docker-compose -f docker-compose.e2e.yml up -d
+    ## Download bun
+    - docker create --name bun-bin oven/bun:1.3-alpine
+    - docker cp bun-bin:/usr/local/bin/bun /usr/local/bin/bun
+    - docker rm bun-bin
   script:
-    - cd testing/e2e && yarn install
-    - |
-      PORTAL_IP="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' isard-portal | tr -d '\n')"
-      NETWORK_ID="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' isard-portal | tr -d '\n')"
-      docker run --rm --ipc=host \
-        --network="$NETWORK_ID" \
-        --add-host="host.docker.internal:$PORTAL_IP" \
-        -e DOCKER=1 -e CI=1 \
-        -e E2E_WORKERS=2 -e E2E_RETRIES=2 \
-        -e E2E_SCREENSHOT=only-on-failure \
-        -e E2E_TRACE=on-first-retry \
-        -e E2E_BASE_URL=https://host.docker.internal \
-        -v "$(pwd):/e2e" -w "/e2e" \
-        mcr.microsoft.com/playwright:v1.57.0-jammy \
-        yarn playwright test
+    - make test-e2e
   after_script:
-    - docker compose -f docker-compose.e2e.yml down || true
+    - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
+    # Playwright writes [[ATTACHMENT|<path>]] relative to junit.xml; GitLab
+    # resolves them from CI_PROJECT_DIR, so prepend the dir prefix.
+    - |
+      if [ -f testing/e2e/test-results/junit.xml ]; then
+        sed -i 's#\[\[ATTACHMENT|#\[\[ATTACHMENT|testing/e2e/test-results/#g' testing/e2e/test-results/junit.xml
+      fi
   artifacts:
     when: always
     paths:
-      - testing/e2e/test-results
-      - testing/e2e/playwright-report
+      - docker-compose.log
+      - testing/e2e/test-results/
+      - testing/e2e/playwright-report/
+    reports:
+      junit: testing/e2e/test-results/junit.xml
 
 integration-real:
   # Runs the Python lifecycle suite (testing/integration/) against a

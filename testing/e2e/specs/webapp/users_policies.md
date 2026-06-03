@@ -48,7 +48,7 @@ from the legacy admin. Serves as the contract for the E2E test
 | No username | `yes` | Whether the password may contain the username |
 
 The created policy's `id` (returned by the table via
-`GET /api/v4/admin/authentication/policies`) is stored in the test
+`GET /api/v4/admin/items/authentication/policies`) is stored in the test
 metadata so that `afterEach` can clean it up even if assertions fail.
 
 ---
@@ -75,14 +75,14 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 ### Then
 
 1. The form passes client-side validation (Parsley).
-2. `POST /api/v4/admin/authentication/policy` is called with status
+2. `POST /api/v4/admin/item/authentication/policy` is called with status
    `< 400`.
 3. The dialog closes and the table reloads automatically.
 4. The new policy appears as a row in `#users-password-policy` showing
    the chosen type, category name, role, and the filled-in password
    values.
 5. If the policy is queried via API
-   (`GET /api/v4/admin/authentication/policies`), it is present with
+   (`GET /api/v4/admin/items/authentication/policies`), it is present with
    the expected field values.
 
 ---
@@ -108,7 +108,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `POST /api/v4/admin/authentication/policy` responds with status `< 400`.
+1. `POST /api/v4/admin/item/authentication/policy` responds with status `< 400`.
 2. The created policy has `disclaimer = false` in the API response.
 3. The **Disclaimer** column for that row shows **no icon** (not a green
    circle).
@@ -136,7 +136,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `POST /api/v4/admin/authentication/policy` responds with status `< 400`.
+1. `POST /api/v4/admin/item/authentication/policy` responds with status `< 400`.
 2. The created policy has `email_verification = false` in the API response.
 
 ---
@@ -147,7 +147,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 1. The administrator opens the **New Policy** dialog.
 2. The providers dropdown is populated from
-   `GET /api/v4/admin/authentication/providers`.
+   `GET /api/v4/admin/items/authentication/providers`.
 
 ### When
 
@@ -159,7 +159,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `POST /api/v4/admin/authentication/policy` is called with status
+1. `POST /api/v4/admin/item/authentication/policy` is called with status
    `< 400`; the body contains no `password` sub-object (or only
    default zeros).
 2. The dialog closes and the new row appears in the table.
@@ -185,7 +185,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `PUT /api/v4/admin/authentication/policy/{id}` is called with
+1. `PUT /api/v4/admin/item/authentication/policy/{id}` is called with
    status `< 400`.
 2. The dialog closes and the table reloads.
 3. The **Email verification** column for that row now shows a green
@@ -204,7 +204,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
    before the test).
 2. The administrator opens the **Edit Policy** dialog for that row.
 3. The **Verification required** checkbox is **checked** (pre-filled
-   from `GET /api/v4/admin/authentication/policy/{id}`).
+   from `GET /api/v4/admin/item/authentication/policy/{id}`).
 
 ### When
 
@@ -213,7 +213,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `PUT /api/v4/admin/authentication/policy/{id}` is called with
+1. `PUT /api/v4/admin/item/authentication/policy/{id}` is called with
    status `< 400`.
 2. The dialog closes and the table reloads.
 3. The created policy has `email_verification = false` in the API
@@ -251,7 +251,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `PUT /api/v4/admin/authentication/policy/{id}` is called with
+1. `PUT /api/v4/admin/item/authentication/policy/{id}` is called with
    status `< 400` and the body contains
    `disclaimer: { template: "<template_id>" }`.
 2. The dialog closes and the table reloads.
@@ -283,7 +283,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `PUT /api/v4/admin/authentication/policy/{id}` is called with
+1. `PUT /api/v4/admin/item/authentication/policy/{id}` is called with
    status `< 400`.
 2. The **PUT request body** sent by the browser contains
    `"disclaimer": false` — not `null`.
@@ -303,7 +303,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 1. They press the **edit** icon on the policy row.
 2. The dialog opens with all password fields pre-filled with the
    current values (fetched from
-   `GET /api/v4/admin/authentication/policy/{id}`).
+   `GET /api/v4/admin/item/authentication/policy/{id}`).
 3. They change **Digits** to `2`, **Expiration days** to `60`, and
    **Old passwords** to `5`.
 4. **Type**, **Category**, and **Role** dropdowns are disabled
@@ -313,7 +313,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `PUT /api/v4/admin/authentication/policy/{id}` is called with
+1. `PUT /api/v4/admin/item/authentication/policy/{id}` is called with
    status `< 400`.
 2. The dialog closes and the table reloads.
 3. The updated values (`2`, `60`, `5`) appear in the corresponding
@@ -341,7 +341,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `DELETE /api/v4/admin/authentication/policy/{id}` is called with
+1. `DELETE /api/v4/admin/item/authentication/policy/{id}` is called with
    status `< 400`.
 2. A PNotify success notification "Policy deleted successfully"
    appears.
@@ -389,7 +389,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 1. The dialog closes.
 2. **No** call is made to
-   `DELETE /api/v4/admin/authentication/policy/{id}`.
+   `DELETE /api/v4/admin/item/authentication/policy/{id}`.
 3. The row remains in the table and the policy persists when queried
    via API.
 
@@ -421,7 +421,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `PUT /api/v4/admin/authentication/force_validate/email/{id}` is
+1. `PUT /api/v4/admin/item/authentication/force_validate/email/{id}` is
    called with status `< 400`.
 2. A PNotify success notification "Policy forced successfully" appears
    and the policy table reloads in the background.
@@ -484,7 +484,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `PUT /api/v4/admin/authentication/force_validate/password/{id}` is
+1. `PUT /api/v4/admin/item/authentication/force_validate/password/{id}` is
    called with status `< 400`.
 2. A PNotify success notification "Policy forced successfully" appears
    and the policy table reloads.
@@ -512,7 +512,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 
 ### Then
 
-1. `PUT /api/v4/admin/authentication/force_validate/disclaimer/{id}`
+1. `PUT /api/v4/admin/item/authentication/force_validate/disclaimer/{id}`
    is called with status `< 400`.
 2. A PNotify success notification "Policy forced successfully" appears
    and the policy table reloads.
@@ -567,7 +567,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
    "If disclaimer acknowledgement is enabled, a text template must be
    selected."
 2. **No** call is made to
-   `POST /api/v4/admin/authentication/policy` (or `PUT …`).
+   `POST /api/v4/admin/item/authentication/policy` (or `PUT …`).
 3. The dialog stays open.
 
 ---
@@ -597,7 +597,7 @@ metadata so that `afterEach` can clean it up even if assertions fail.
 1. The policy `id` created by the test is recovered from the metadata
    (`testInfo.annotations` type `"policy-id"`).
 2. The policy is looked up and, if it exists, deleted via
-   `DELETE /api/v4/admin/authentication/policy/{id}`.
+   `DELETE /api/v4/admin/item/authentication/policy/{id}`.
 3. Cleanup errors are silenced to avoid masking the real reason of an
    earlier failure.
 
@@ -636,31 +636,31 @@ since the default policy cannot be deleted and is not tracked via
 
 ## APIs touched by the flows (reference)
 
-- `GET    /api/v4/admin/authentication/policies` — list all policies.
+- `GET    /api/v4/admin/items/authentication/policies` — list all policies.
   Response `list[PolicyResponse]`.
-- `GET    /api/v4/admin/authentication/policy/{id}` — fetch a single
+- `GET    /api/v4/admin/item/authentication/policy/{id}` — fetch a single
   policy (used to pre-fill the edit dialog). Response `PolicyResponse`.
-- `POST   /api/v4/admin/authentication/policy` — create a policy.
+- `POST   /api/v4/admin/item/authentication/policy` — create a policy.
   Body `PolicyCreateRequest`; response 204 No Content.
-- `PUT    /api/v4/admin/authentication/policy/{id}` — edit a policy.
+- `PUT    /api/v4/admin/item/authentication/policy/{id}` — edit a policy.
   Body `PolicyEditRequest`; response 204 No Content.
-- `DELETE /api/v4/admin/authentication/policy/{id}` — delete a policy.
+- `DELETE /api/v4/admin/item/authentication/policy/{id}` — delete a policy.
   Response 204 No Content; 403 if trying to delete the system default.
-- `PUT    /api/v4/admin/authentication/force_validate/email/{id}`
+- `PUT    /api/v4/admin/item/authentication/force_validate/email/{id}`
   — reset `email_verified` for all matching users. Response 204.
-- `PUT    /api/v4/admin/authentication/force_validate/disclaimer/{id}`
+- `PUT    /api/v4/admin/item/authentication/force_validate/disclaimer/{id}`
   — reset `disclaimer_acknowledged` for all matching users. Response 204.
-- `PUT    /api/v4/admin/authentication/force_validate/password/{id}`
+- `PUT    /api/v4/admin/item/authentication/force_validate/password/{id}`
   — reset `password_last_updated` for all matching users. Response 204.
-- `GET    /api/v4/admin/categories` — populate category dropdown in
+- `GET    /api/v4/admin/items/categories` — populate category dropdown in
   the Add dialog. Response `list[CategoryResponse]`.
-- `GET    /api/v4/admin/roles` — populate role dropdown. Response
+- `GET    /api/v4/admin/items/roles` — populate role dropdown. Response
   `list[RoleResponse]`.
-- `GET    /api/v4/admin/authentication/providers` — populate the type
+- `GET    /api/v4/admin/items/authentication/providers` — populate the type
   dropdown. Response `ProvidersResponse`.
-- `GET    /api/v4/admin/notifications/templates` — populate the
+- `GET    /api/v4/admin/items/notifications/templates` — populate the
   disclaimer template selector. Response `{ templates: [...] }`.
-- `GET    /api/v4/admin/notifications/template/{id}` — fetch a single
+- `GET    /api/v4/admin/item/notifications/template/{id}` — fetch a single
   template to render the preview. Response `TemplateResponse`.
 
 ## Relevant database state

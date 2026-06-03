@@ -10,7 +10,9 @@
 //
 // These tests are observation-only — they don't perform a resize, just
 // verify the table renders and the conditional disabled-state is wired.
-import { test, expect } from '../fixtures/login.js'
+import { test, expect } from '../../fixtures/login.js'
+
+test.skip(true, 'Deprecated test, see specs/ for replacements')
 
 test.describe('Vue 2 user storage page', () => {
   test.beforeEach(async ({ page, adminPerWorker, categories, loginHelpers }) => {
