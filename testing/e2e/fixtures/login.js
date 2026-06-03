@@ -374,12 +374,13 @@ export const test = base.extend({
     await page.close()
   },
 
-  // Reserved for future manager-role vue2 specs; same once-per-worker
-  // pattern. Lazy — only logs in if a spec consumes it.
+  // Manager-role vue2 specs; same once-per-worker pattern. Bridges the
+  // Flask admin session so /isard-admin/* routes are accessible.
   managerE2EContext: [async ({ browser }, use) => {
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
     const page = await ctx.newPage()
     await loginHelpers.login(page, users.manager_e2e_01, categories)
+    await bridgeAdminSession(page)
     await page.close()
     await use(ctx)
     await ctx.close()

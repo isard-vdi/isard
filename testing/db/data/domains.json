@@ -61,7 +61,7 @@
             "personal_vlans": false,
             "reservables": {"vgpus": null}
         },
-        "xml": null
+        "xml": "<domain type=\"kvm\"><name>template-test-001</name><uuid>00000000-0000-0000-0000-000000000001</uuid><memory unit=\"KiB\">1048576</memory><vcpu placement=\"static\">1</vcpu><os><type arch=\"x86_64\" machine=\"pc-i440fx-2.11\">hvm</type></os><devices/></domain>"
     },
     {
         "accessed": 1758268070,
@@ -1895,6 +1895,185 @@
             "html5_ext_port": null,
             "spice_ext_port": null,
             "tls": {}
+        },
+        "xml": null
+    },
+    {
+        "id": "template-s9-seed",
+        "kind": "template",
+        "name": "Template S9 Cross Category",
+        "description": "Seed template for S9: has a desktop derivative in a different category.",
+        "status": "Stopped",
+        "enabled": true,
+        "category": "default",
+        "group": "default-default",
+        "user": "local-default-admin-admin",
+        "username": "admin",
+        "persistent": true,
+        "server": false,
+        "icon": "fa-circle-o",
+        "os": "linux",
+        "accessed": 1758268070,
+        "booking_id": false,
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "hypervisors_pools": [
+            "default"
+        ],
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "guest_properties": {
+            "credentials": {
+                "username": "isard",
+                "password": "pirineus"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "create_dict": {
+            "hardware": {
+                "vcpus": 1,
+                "memory": 1048576,
+                "videos": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:00:00:0a"
+                    }
+                ],
+                "graphics": [
+                    "default"
+                ],
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "qos_disk_id": false,
+                "virtualization_nested": false,
+                "isos": [],
+                "floppies": [],
+                "disks": [
+                    {
+                        "storage_id": "storage-template-s9-seed"
+                    }
+                ]
+            },
+            "personal_vlans": false,
+            "reservables": {
+                "vgpus": null
+            }
+        },
+        "xml": null
+    },
+    {
+        "id": "desktop-s9-cross-cat-01",
+        "kind": "desktop",
+        "name": "S9 Cross-category desktop",
+        "description": "Desktop derived from template-s9-seed but in Another category.",
+        "status": "Stopped",
+        "enabled": true,
+        "category": "ae26368b-26d3-4692-ba2f-62e99ceb054e",
+        "group": "8b8054ff-0e53-47c9-8bed-1091f6c4d0c9",
+        "user": "f62e3d74-aadd-4ce3-9b43-38f34f368323",
+        "username": "user03",
+        "parents": [
+            "template-s9-seed"
+        ],
+        "persistent": true,
+        "server": false,
+        "icon": "fa-circle-o",
+        "os": "linux",
+        "accessed": 1758268070,
+        "booking_id": false,
+        "tag": false,
+        "tag_name": false,
+        "tag_visible": false,
+        "favourite_hyp": false,
+        "forced_hyp": false,
+        "hypervisors_pools": [
+            "default"
+        ],
+        "allowed": {
+            "categories": false,
+            "groups": false,
+            "roles": false,
+            "users": false
+        },
+        "image": {
+            "id": "1.jpg",
+            "type": "stock",
+            "url": "/assets/img/desktops/stock/1.jpg"
+        },
+        "guest_properties": {
+            "credentials": {
+                "username": "isard",
+                "password": "pirineus"
+            },
+            "fullscreen": false,
+            "viewers": {
+                "browser_vnc": {
+                    "options": null
+                },
+                "file_spice": {
+                    "options": null
+                }
+            }
+        },
+        "create_dict": {
+            "hardware": {
+                "vcpus": 1,
+                "memory": 524288,
+                "videos": [
+                    "default"
+                ],
+                "interfaces": [
+                    {
+                        "id": "default",
+                        "mac": "52:54:00:00:00:0b"
+                    }
+                ],
+                "graphics": [
+                    "default"
+                ],
+                "boot_order": [
+                    "disk"
+                ],
+                "disk_bus": "default",
+                "qos_disk_id": false,
+                "virtualization_nested": false,
+                "isos": [],
+                "floppies": [],
+                "disks": [
+                    {
+                        "storage_id": "storage-desktop-s9-cross-cat-01"
+                    }
+                ]
+            },
+            "personal_vlans": false,
+            "reservables": {
+                "vgpus": null
+            }
         },
         "xml": null
     }
