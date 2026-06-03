@@ -173,5 +173,14 @@
     "resources": {
         "code": "2WI126QJTTTOBV8OVSGI",
         "url": "https://repository.isardvdi.com"
+    },
+    "recycle_bin": {
+        "default_delete": false,
+        "delete_action": "delete",
+        "old_entries": {
+            "action": "keep",
+            "max_time": null
+        },
+        "recycle_bin_cutoff_time": 1
     }
 }
