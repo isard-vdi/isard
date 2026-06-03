@@ -848,7 +848,7 @@ function modal_add_install_datatables(){
     modal_add_install = $('#modal_add_install').DataTable({
         "ajax": {
             "url": "/api/v4/items/media/installs",
-            "dataSrc": ""
+            "dataSrc": "installs"
         },
         "scrollY":        "125px",
         "scrollCollapse": true,

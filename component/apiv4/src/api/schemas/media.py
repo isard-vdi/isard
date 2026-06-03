@@ -257,8 +257,10 @@ class VirtInstallItem(BaseModel):
 
     id: str = Field(description="ID of the virt_install template")
     name: str = Field(description="Name of the OS template")
-    description: str = Field(default="", description="Description of the OS template")
-    vers: str = Field(default="", description="Version of the OS template")
+    description: Optional[str] = Field(
+        default="", description="Description of the OS template"
+    )
+    vers: Optional[str] = Field(default="", description="Version of the OS template")
 
 
 class VirtInstallListResponse(BaseModel):
