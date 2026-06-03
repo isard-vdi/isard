@@ -935,18 +935,24 @@ function modal_add_install_datatables(){
 }
 
 function parse_media(data){
+    var hardware = data["hardware"] || {};
     return {"media_id":data["media"],
-        "xml_id":data["install"],
+        "os_template":data["install"],
         "kind":data["kind"],
         "name":data["name"],
         "description":data["description"],
+        // Modal has no viewer/credentials picker; default to browser_vnc so
+        // the apiv4 ``one viewer minimum`` check passes.
+        "guest_properties": { "viewers": { "browser_vnc": { "options": null } } },
         "hardware": {
-            ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
-            ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
-            ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},
-            ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
-            ...("interfaces" in data["hardware"]) && {"interfaces": data["hardware"]["interfaces"]},
-            ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},
+            ...("vcpus" in hardware) && {"vcpus": parseInt(hardware["vcpus"])},
+            ...("memory" in hardware) && {"memory": parseFloat(hardware["memory"])},
+            ...("videos" in hardware) && {"videos": [hardware["videos"]]},
+            ...("boot_order" in hardware) && {"boot_order": [hardware["boot_order"]]},
+            "interfaces": Array.isArray(hardware["interfaces"]) && hardware["interfaces"].length
+                ? hardware["interfaces"]
+                : ["default"],
+            ...("disk_bus" in hardware) && {"disk_bus": hardware["disk_bus"]},
             ...("disk_size" in data) && {"disk_size": parseInt(data["disk_size"])},
         },
     }

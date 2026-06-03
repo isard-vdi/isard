@@ -618,6 +618,16 @@ class DomainInterfaceResponse(BaseModel):
     mac: str | None = None
 
 
+class DomainInfoMedia(BaseModel):
+    id: str
+    name: Optional[str] = None
+
+
+class DomainInfoHardware(Hardware):
+    isos: Optional[list[DomainInfoMedia]] = []
+    floppies: Optional[list[DomainInfoMedia]] = []
+
+
 class DomainInfoResponse(BaseModel):
     id: str
     kind: str
@@ -625,7 +635,7 @@ class DomainInfoResponse(BaseModel):
     description: str = ""
     image: DomainImage | None = None
     guest_properties: DomainGuestProperties | None = None
-    hardware: Hardware | None = None
+    hardware: DomainInfoHardware | None = None
     reservables: Reservables | None = None
     limited_hardware: dict | None = None  # TODO: check type
     bastion_target: DomainInfoBastionResponse | None = None

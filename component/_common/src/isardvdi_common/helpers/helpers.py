@@ -813,16 +813,10 @@ class Helpers(RethinkSharedConnection):
         medias = ["isos", "floppies", "storage"]
         for m in medias:
             if m in create_dict["hardware"]:
-                newlist = []
-                for item in create_dict["hardware"][m]:
-                    newlist.append(
-                        Caches.get_document(
-                            "media",
-                            item["id"] if "id" in item else item,
-                            ["id", "name", "description"],
-                        )
-                    )
-                create_dict["hardware"][m] = newlist
+                create_dict["hardware"][m] = [
+                    {"id": item["id"] if isinstance(item, dict) else item}
+                    for item in create_dict["hardware"][m]
+                ]
         return create_dict
 
     @classmethod

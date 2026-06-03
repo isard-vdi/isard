@@ -47,8 +47,6 @@ class Disk(BaseModel):
 
 class Iso(BaseModel):
     id: str
-    name: Optional[str] = None
-    description: Optional[str] = None
 
 
 class Interface(BaseModel):

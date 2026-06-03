@@ -274,21 +274,11 @@ class DesktopService:
         if data.kind == "iso":
             if "isos" not in hardware:
                 hardware["isos"] = []
-            hardware["isos"].append(
-                {
-                    "id": data.media_id,
-                    "name": media.name,
-                }
-            )
+            hardware["isos"].append({"id": data.media_id})
         elif data.kind == "floppy":
             if "floppies" not in hardware:
                 hardware["floppies"] = []
-            hardware["floppies"].append(
-                {
-                    "id": data.media_id,
-                    "name": media.name,
-                }
-            )
+            hardware["floppies"].append({"id": data.media_id})
 
         # Normalize interfaces: convert ['default'] -> [{'id': 'default', 'mac': 'generated'}]
         if "interfaces" in hardware and hardware.get("interfaces"):
@@ -824,7 +814,8 @@ class DesktopService:
         ``Desktops.bulk_create_desktops``. The common lib method handles
         both allowed-entity fan-out and quota checks.
         """
-        return CommonDesktops.bulk_create_desktops(payload, data)
+        desktops = CommonDesktops.bulk_create_desktops(payload, data)
+        return {"ids": [desktop["id"] for desktop in desktops]}
 
     @staticmethod
     def stop_user_desktops(

@@ -1503,19 +1503,10 @@ class DeploymentsProcessed(RethinkSharedConnection):
             if new_data.get("hardware"):
                 # If hardware is provided, we need to update the template with the new data
                 merged_create_dict["hardware"].update(new_data["hardware"])
-                # TODO: CHECK THIS
-                if new_data["hardware"].get("isos"):
-                    try:
-                        parsed_isos = Helpers._parse_media_info(new_data)
-                        merged_create_dict["hardware"]["isos"] = parsed_isos[
-                            "hardware"
-                        ]["isos"]
-                    except Exception:
-                        raise Error(
-                            "internal_server",
-                            "new_from_template: unable to parse media info.",
-                            description_code="unable_to_parse_media",
-                        )
+                if new_data["hardware"].get("isos") or new_data["hardware"].get(
+                    "floppies"
+                ):
+                    merged_create_dict = Helpers._parse_media_info(merged_create_dict)
 
             if new_data.get("reservables"):
                 # If reservables are provided, update them at create_dict level

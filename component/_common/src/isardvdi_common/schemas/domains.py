@@ -131,6 +131,24 @@ class CreateDictDomainStorage(BaseModel):
     reservables: Reservables
 
 
+class BulkDesktopFromTemplate(BaseModel):
+    """Validate each bulk desktop-from-template payload before creation.
+
+    Mirrors the legacy ``desktop_from_template`` cerberus schema: name,
+    template and hardware are validated and a fresh ``id`` is generated.
+    Bulk-only; single creates validate the built document in
+    ``new_from_template``.
+    """
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str = Field(min_length=4, max_length=50)
+    description: str | None = Field(default=None, max_length=255)
+    template_id: str
+    hardware: Hardware
+    guest_properties: GuestProperties
+    image: Image
+
+
 class DesktopFromTemplate(BaseModel):
     """Used during template creation (before storage)"""
 

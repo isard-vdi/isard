@@ -141,7 +141,7 @@ class DesktopAttachedMediaItem(BaseModel):
     id: str
     name: str
     kind: Literal["iso", "floppy"]
-    size: Optional[int] = None
+    size: Optional[str] = None
 
 
 class MediaCheckResponse(BaseModel):
