@@ -50,6 +50,41 @@ class TestAlloweds_TermSearch:
         assert captured["data"] == {"term": "ad"}
         assert captured["role_id"] == "admin"
 
+    def test_extra_user_fields_pass_through(self, monkeypatch, test_client):
+        """The service plucks ``uid, role, username, category_name,
+        group_name`` for the users table; the webapp select2 templates
+        render them. ``AllowedTermItem`` must not strip them.
+        """
+        monkeypatch.setattr(
+            "api.routes.admin.alloweds.AdminAllowedsService.get_table_term",
+            staticmethod(
+                lambda t, d, p: [
+                    {
+                        "id": "u-1",
+                        "name": "Admin User",
+                        "uid": "admin",
+                        "role": "admin",
+                        "username": "admin",
+                        "category_name": "Default",
+                        "group_name": "AdminsGroup",
+                    }
+                ]
+            ),
+        )
+        response = test_client(
+            url=self.URL,
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            body={"term": "ad"},
+        )
+        assert response.status_code == 200
+        row = response.json()[0]
+        assert row["uid"] == "admin"
+        assert row["role"] == "admin"
+        assert row["username"] == "admin"
+        assert row["category_name"] == "Default"
+        assert row["group_name"] == "AdminsGroup"
+
     def test_manager_allowed(self, monkeypatch, test_client):
         """Token_router endpoint — managers must succeed; service is
         responsible for category scoping."""

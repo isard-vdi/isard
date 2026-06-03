@@ -94,8 +94,20 @@ class TableItem(BaseModel):
 
 class AllowedTermItem(BaseModel):
     """Single autocomplete row returned by
-    ``POST /admin/allowed/term/{table}``. The service hard-codes the
-    pluck to ``["id", "name"]`` regardless of table."""
+    ``POST /admin/allowed/term/{table}``.
+
+    The service overrides the pluck per-table:
+    ``users`` adds ``uid, role, username, category_name, group_name``;
+    ``groups`` adds ``parent_category, category_name``. The webapp's
+    select2 templates render those fields (e.g.
+    ``static/js/snippets/alloweds.js`` shows
+    ``item.name [item.uid] (item.category_name)``), so the model must
+    let them pass through — ``extra='allow'`` preserves them; without
+    it Pydantic strips every field except ``id``/``name`` and the
+    select2 labels become ``undefined``.
+    """
+
+    model_config = {"extra": "allow"}
 
     id: str
     name: Optional[str] = None
