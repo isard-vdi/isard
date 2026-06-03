@@ -181,35 +181,37 @@ function setCookie(name,value,days) {
 }
 
 function setViewers(div,data){
-    if(data.guest_properties.fullscreen){
+    var gp = data.guest_properties || {};
+    var viewers = gp.viewers || {};
+    if(gp.fullscreen){
         $(div+' #guest_properties-fullscreen').iCheck('check');
     }else{
-        $(div+' #guest_properties-fullscreen').iCheck('update')[0].unchecked;
+        $(div+' #guest_properties-fullscreen').iCheck('uncheck');
     }
-    if("file_spice" in data.guest_properties.viewers){
+    if(viewers.file_spice){
         $(div+' #viewers-file_spice').iCheck('check');
     }else{
-        $(div+' #viewers-file_spice').iCheck('update')[0].unchecked;
+        $(div+' #viewers-file_spice').iCheck('uncheck');
     }
-    if("file_rdpgw" in data.guest_properties.viewers){
+    if(viewers.file_rdpgw){
         $(div+' #viewers-file_rdpgw').iCheck('check');
     }else{
-        $(div+' #viewers-file_rdpgw').iCheck('update')[0].unchecked;
+        $(div+' #viewers-file_rdpgw').iCheck('uncheck');
     }
-    if("file_rdpvpn" in data.guest_properties.viewers){
+    if(viewers.file_rdpvpn){
         $(div+' #viewers-file_rdpvpn').iCheck('check');
     }else{
-        $(div+' #viewers-file_rdpvpn').iCheck('update')[0].unchecked;
+        $(div+' #viewers-file_rdpvpn').iCheck('uncheck');
     }
-    if("browser_vnc" in data.guest_properties.viewers){
+    if(viewers.browser_vnc){
         $(div+' #viewers-browser_vnc').iCheck('check');
     }else{
-        $(div+' #viewers-browser_vnc').iCheck('update')[0].unchecked;
+        $(div+' #viewers-browser_vnc').iCheck('uncheck');
     }
-    if("browser_rdp" in data.guest_properties.viewers){
+    if(viewers.browser_rdp){
         $(div+' #viewers-browser_rdp').iCheck('check');
     }else{
-        $(div+' #viewers-browser_rdp').iCheck('update')[0].unchecked;
+        $(div+' #viewers-browser_rdp').iCheck('uncheck');
     }
 }
 

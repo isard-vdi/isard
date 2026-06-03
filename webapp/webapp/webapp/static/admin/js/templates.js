@@ -1274,6 +1274,8 @@ function renderDisplay(data){
         });
 
         function parse_desktop(data){
+            var vgpus = (data["reservables"] || {})["vgpus"];
+            var hasNoVgpu = !vgpus || vgpus.includes(undefined) || vgpus.includes("None");
             return {
                 "id": data["id"],
                 "name": data["name"],
@@ -1293,12 +1295,11 @@ function renderDisplay(data){
                     ...("m" in data && "isos" in data["m"]) && {"isos": setMediaIds(data["m"]["isos"])},
                     ...( true) && {"floppies":[]},
                     ...("m" in data && "floppies" in data["m"]) && {"floppies": setMediaIds(data["m"]["floppies"])},
-                    "reservables": {
-                        ...( true ) && {"vgpus":data["reservables"]["vgpus"]},
-                        ...( data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null || data["reservables"]["vgpus"].includes("None") ) &&  {"vgpus": null},
-                    },
                   },
-                }
+                "reservables": {
+                    "vgpus": hasNoVgpu ? null : vgpus,
+                },
+              }
         }
 
         function populate_users(){

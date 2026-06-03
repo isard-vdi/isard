@@ -2151,6 +2151,8 @@ function renderStorageActionsButton(data) {
         });
 
         function parse_desktop(data){
+            var vgpus = (data["reservables"] || {})["vgpus"];
+            var hasNoVgpu = !vgpus || vgpus.includes(undefined) || vgpus.includes("None");
             return {
                 "id": data["id"],
                 "name": data["name"],
@@ -2170,12 +2172,11 @@ function renderStorageActionsButton(data) {
                     ...("m" in data && "isos" in data["m"]) && {"isos": setMediaIds(data["m"]["isos"])},
                     ...( true) && {"floppies":[]},
                     ...("m" in data && "floppies" in data["m"]) && {"floppies": setMediaIds(data["m"]["floppies"])},
-                    "reservables": {
-                        ...( true ) && {"vgpus":data["reservables"]["vgpus"]},
-                        ...( data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null || data["reservables"]["vgpus"].includes("None") ) &&  {"vgpus": null},
-                    },
                   },
-                }
+                "reservables": {
+                    "vgpus": hasNoVgpu ? null : vgpus,
+                },
+              }
         }
 
         function parse_desktop_bulk(data) {
@@ -2190,14 +2191,17 @@ function renderStorageActionsButton(data) {
                         ...("hardware-edit_network" in data) && { "interfaces": data["hardware-interfaces"] },
                         ...("hardware-disk_bus" in data) && { "disk_bus": data["hardware-disk_bus"] },
                         ...("hardware-disk_size" in data) && { "disk_size": parseInt(data["hardware-disk_size"]) },
-                        ...("reservables-vgpus" in data) && {
-                            "reservables": {
-                                ...(true) && { "vgpus": [data["reservables-vgpus"]] },
-                                ...(data["reservables-vgpus"].includes(undefined) || data["reservables-vgpus"] == null || data["reservables-vgpus"].includes("None")) && { "vgpus": null },
-                            },
-                        },
                         ...("edit-network" in data) && { "interfaces": data['hardware-interfaces'] },
-                    }
+                    },
+                    ...("reservables-vgpus" in data) && {
+                        "reservables": {
+                            "vgpus": (data["reservables-vgpus"] == null
+                                || data["reservables-vgpus"].includes(undefined)
+                                || data["reservables-vgpus"].includes("None"))
+                                ? null
+                                : [data["reservables-vgpus"]],
+                        },
+                    },
                 },
                 ...("edit-viewers" in data) && {
                     "guest_properties": {
