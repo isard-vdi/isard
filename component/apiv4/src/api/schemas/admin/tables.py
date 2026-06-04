@@ -35,10 +35,11 @@ class TableListRequest(BaseModel):
     order_by: Optional[str] = Field(
         default=None, description="Field to order results by"
     )
-    pluck: Optional[Union[list, dict]] = Field(
+    # TODO: Standarize pluck/without across all table endpoints to use the same format (e.g. list of strings)
+    pluck: Optional[Union[list, dict, str]] = Field(
         default=None, description="Fields to pluck from each item"
     )
-    without: Optional[Union[list, str]] = Field(
+    without: Optional[Union[list, dict, str]] = Field(
         default=None, description="Fields to exclude from each item"
     )
 
