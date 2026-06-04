@@ -217,7 +217,6 @@ export default {
               hardware: {
                 boot_order: domain.value.hardware.bootOrder,
                 disk_bus: domain.value.hardware.diskBus,
-                disks: domain.value.hardware.disks,
                 floppies: domain.value.hardware.floppies,
                 interfaces: domain.value.hardware.interfaces,
                 isos: isos,

@@ -1590,6 +1590,11 @@ class DeploymentsProcessed(RethinkSharedConnection):
             desktop["tag_desktop_id"]: desktop for desktop in create_dicts
         }
         for desktop_data in desktops_data:
+            # Each deployment desktop owns its derived disk; the deployment
+            # create_dict carries the template's own storage_id, so never let
+            # it overwrite the domain's disk or deleting the deployment would
+            # delete the template's storage.
+            desktop_data.get("hardware", {}).pop("disks", None)
             # If the networks have changed new macs should be generated for each domain
             if (
                 desktop_data.get("hardware", {}).get("interfaces")
