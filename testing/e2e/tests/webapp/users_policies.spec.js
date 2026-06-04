@@ -265,7 +265,7 @@ test.describe('Admin users policies — webapp', () => {
   // If no template is selected, it sends `{ template: undefined }` → serialised
   // as `{}` in JSON. The backend stores `{}` instead of false.
   // -------------------------------------------------------------------------
-  test.fail('S1b: creating all-category policy without disclaimer saves disclaimer=false', async ({
+  test('S1b: creating all-category policy without disclaimer saves disclaimer=false', async ({
     authenticatedPage: page,
     apiv4Admin,
   }, testInfo) => {
@@ -956,7 +956,7 @@ test.describe('Admin users policies — webapp', () => {
   // but the HTML element has `id="force-disclaimer"` (hyphen). The selector
   // never matches, so the button is always visible regardless of policy state.
   // -------------------------------------------------------------------------
-  test.fail('S9b: force-disclaimer button is hidden when policy has no disclaimer', async ({
+  test('S9b: force-disclaimer button is hidden when policy has no disclaimer', async ({
     authenticatedPage: page,
     apiv4Admin,
   }, testInfo) => {
