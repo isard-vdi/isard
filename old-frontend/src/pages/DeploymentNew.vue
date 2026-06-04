@@ -551,6 +551,9 @@ export default {
           showConfirmation()
         })
       } else {
+        if (!users.includes($store.getters.getUser.user_id)) {
+          quantity = quantity + 1
+        }
         showConfirmation()
       }
     }
