@@ -58,6 +58,28 @@ $(document).ready(function () {
         }).done((data) => {
             maintenance_update_checkbox(maintenance_status_enabled(data));
             maintenance_bind_checkbox();
+            new PNotify({
+                title: 'Updated',
+                text: enabled ? 'Maintenance enabled successfully' : 'Maintenance disabled successfully',
+                type: 'success',
+                hide: true,
+                delay: 2000,
+                opacity: 1
+            });
+            $("#maintenance_spinner").hide();
+            $("#maintenance_wrapper").show();
+        }).fail((data) => {
+            new PNotify({
+                title: 'ERROR updating maintenance status',
+                text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 5000,
+                opacity: 1
+            });
+            maintenance_update_checkbox(!enabled);
+            maintenance_bind_checkbox();
             $("#maintenance_spinner").hide();
             $("#maintenance_wrapper").show();
         })
