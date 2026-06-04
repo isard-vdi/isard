@@ -2384,9 +2384,7 @@ function renderStorageActionsButton(data) {
                         url:"/api/v4/admin/items/domains/"+item+"/desktop",
                         contentType: 'application/json',
                         success: function (data) {
-                            data = JSON.parse(data)
-                            $.each(data, function(pos, field) {
-                                field = field[item]
+                            $.each(data.field, function(pos, field) {
                                 if (elem.find('option[value="' + field + 'GB"]').length === 0) {
                                     elem.append('<option value="' + field+ '">' + field + 'GB</option>');
                                 }
@@ -2435,9 +2433,7 @@ function renderStorageActionsButton(data) {
                         async: false,
                         url:"/api/v4/admin/items/domains/"+item+"/desktop",
                         success: function (data) {
-                            data = JSON.parse(data)
-                            $.each(data, function(pos, field) {
-                                field = field[item]
+                            $.each(data.field, function(pos, field) {
                                 if (elem.find('option[value="' + field + '"]').length === 0) {
                                     elem.append('<option value="' + field+ '">' + field + '</option>');
                                 }

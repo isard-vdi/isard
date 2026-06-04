@@ -1353,24 +1353,17 @@ class ApiAdmin(RethinkSharedConnection):
         elif payload["role_id"] == "manager" and not kind:
             query = query.get_all(payload["category_id"], index="category")
 
-        if field not in ["vcpus", "memory"]:
-            pluck = field
+        if field in ["vcpus", "memory"]:
+            values = query["create_dict"]["hardware"][field]
+            if field == "memory":
+                values = values.map(lambda value: value / 1048576)
         else:
-            pluck = {"create_dict": {"hardware": field}}
-        query = query.pluck(pluck)
-
-        query = (
-            query["create_dict"]["hardware"] if field in ["vcpus", "memory"] else query
-        )
-        query = (
-            query.map(lambda value: {"memory": (value["memory"] / 1048576)})
-            if field == "memory"
-            else query
-        )
+            values = query[field]
 
         with cls._rdb_context():
-            result = query.distinct().run(cls._rdb_connection)
-        return result
+            return r.expr({"field": values.distinct().coerce_to("array")}).run(
+                cls._rdb_connection
+            )
 
     @classmethod
     def set_logs_desktops_old_entries_max_time(cls, max_time):

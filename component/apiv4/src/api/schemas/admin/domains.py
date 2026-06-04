@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from datetime import datetime
+from enum import Enum
 from typing import Any, Generic, List, Literal, Optional, TypeVar, Union
 
 from api.schemas.bastion import BastionHttpConfig, BastionSshConfig
@@ -307,6 +308,28 @@ class AdminDomainHardwareInner(BaseModel):
     disks: Optional[List[AdminDomainHardwareDisk]] = None
     virtualization_nested: Optional[bool] = None
     qos_disk_id: Optional[Union[str, bool]] = None
+
+
+class DomainFilterFieldEnum(str, Enum):
+    """Domain columns the webapp filters can request distinct values for."""
+
+    status = "status"
+    name = "name"
+    vcpus = "vcpus"
+    memory = "memory"
+
+
+class AdminDomainsFieldResponse(BaseModel):
+    """Distinct values for a domain field (``GET /admin/items/domains/{field}/{kind}``).
+
+    Values are heterogeneous depending on the column: strings for
+    ``status``/``name``/``user``…, ints for ``vcpus``, floats for ``memory``.
+    """
+
+    field: list = Field(
+        default=[],
+        description="Distinct values found for the requested field.",
+    )
 
 
 class AdminDomainHardwareResponse(BaseModel):

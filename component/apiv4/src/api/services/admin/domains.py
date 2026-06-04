@@ -290,8 +290,8 @@ class AdminDomainsService:
             kind,
         ),
     )
-    def get_domains_field(payload: dict, field: str, kind: str) -> list:
-        """Get a specific field for domains of a kind."""
+    def get_domains_field(payload: dict, field: str, kind: str) -> dict:
+        """Get the distinct values for a domain field as ``{"field": [...]}``."""
         return ApiAdmin.get_domains_field(field, kind, payload)
 
     # ── Domain Hardware ──────────────────────────────────────────────────

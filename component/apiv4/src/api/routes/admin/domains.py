@@ -29,6 +29,7 @@ from api.schemas.admin.domains import (
     AdminDomainDetailsResponse,
     AdminDomainHardwareResponse,
     AdminDomainListItem,
+    AdminDomainsFieldResponse,
     AdminDomainSearchInfoResponse,
     AdminDomainStatusItem,
     AdminDomainStorageItem,
@@ -51,6 +52,7 @@ from api.schemas.admin.domains import (
     AdminVirtInstallXmlSectionsSaveResponse,
     DesktopLogRow,
     DesktopLogsViewRow,
+    DomainFilterFieldEnum,
     LogsDataTablesRequest,
     LogsDataTablesResponse,
     LogsRetentionConfigResponse,
@@ -58,6 +60,7 @@ from api.schemas.admin.domains import (
     UserLogsViewRow,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
+from isardvdi_common.schemas.domains import DomainKindEnum
 from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
 from fastapi import BackgroundTasks, Path, Request
@@ -575,7 +578,7 @@ async def admin_template_delete(request: Request, template_id: str):
 @manager_router.get(
     "/admin/items/domains/{field}/{kind}",
     tags=[tag],
-    response_model=list,
+    response_model=AdminDomainsFieldResponse,
     summary="Get domain field values",
     description="Returns distinct values for a specific field across domains of a given kind.",
     responses={
@@ -583,18 +586,20 @@ async def admin_template_delete(request: Request, template_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domains_field(request: Request, field: str, kind: str):
+async def admin_domains_field(
+    request: Request, field: DomainFilterFieldEnum, kind: DomainKindEnum
+):
     try:
         result = await asyncio.to_thread(
-            AdminDomainsService.get_domains_field, request.token_payload, field, kind
+            AdminDomainsService.get_domains_field,
+            request.token_payload,
+            field.value,
+            kind.value,
         )
-        # ``field`` selects which RethinkDB column is plucked, so the
-        # element type is heterogeneous: scalar string for most columns
-        # (name/category/group/...), but ``{"memory": float}`` /
-        # ``{"vcpus": int}`` dicts when ``field`` is a hardware key. A
-        # single row Pydantic model can't capture both branches, so the
-        # response stays as a permissive ``list``.
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=AdminDomainsFieldResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
