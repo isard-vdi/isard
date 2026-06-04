@@ -726,6 +726,14 @@ class DesktopEditRequest(BaseModel):
         description="List of preferred hypervisor IDs. Requires manager or admin role. If not provided, the current value will be kept.",
         default=None,
     )
+    server: bool = Field(
+        description="If true, mark the desktop as a server. Requires manager or admin role. If not provided, the current value will be kept.",
+        default=None,
+    )
+    server_autostart: bool = Field(
+        description="If true, the server desktop is autostarted. Requires manager or admin role and server=True. If not provided, the current value will be kept.",
+        default=None,
+    )
 
 
 class DesktopGetViewerResponse(BaseModel):
