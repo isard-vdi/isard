@@ -29,8 +29,8 @@ from api.schemas.admin.domains import (
     AdminDomainDetailsResponse,
     AdminDomainHardwareResponse,
     AdminDomainListItem,
-    AdminDomainsFieldResponse,
     AdminDomainSearchInfoResponse,
+    AdminDomainsFieldResponse,
     AdminDomainStatusItem,
     AdminDomainStorageItem,
     AdminDomainStoragePathData,
@@ -60,11 +60,11 @@ from api.schemas.admin.domains import (
     UserLogsViewRow,
 )
 from api.schemas.common import EmptyResponse, ErrorResponse
-from isardvdi_common.schemas.domains import DomainKindEnum
 from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
 from fastapi import BackgroundTasks, Path, Request
 from fastapi.responses import JSONResponse, Response
+from isardvdi_common.schemas.domains import DomainKindEnum
 from pydantic import ValidationError
 
 tag = "admin_domains"
@@ -96,10 +96,22 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
                 data.domain_ids,
             )
         elif data.kind == "desktop":
+            filters = {
+                field: value
+                for field, value in {
+                    "status": data.status,
+                    "group": data.group,
+                    "user": data.user,
+                    "hyp_started": data.hyp_started,
+                    "server": data.server,
+                }.items()
+                if value is not None
+            }
             result = await asyncio.to_thread(
                 AdminDomainsService.list_desktops,
                 request.token_payload,
                 data.categories,
+                filters,
             )
         else:
             result = await asyncio.to_thread(

@@ -63,15 +63,24 @@ class AdminDomainsService:
     # ── List Domains ─────────────────────────────────────────────────────
 
     @staticmethod
-    def list_desktops(payload: dict, categories: Optional[str] = None) -> list[dict]:
-        """List desktops, optionally filtered by categories."""
+    def list_desktops(
+        payload: dict,
+        categories: Optional[str] = None,
+        filters: Optional[dict] = None,
+    ) -> list[dict]:
+        """List desktops, optionally filtered by categories and indexed filters."""
         if payload["role_id"] == "manager":
             categories = [payload["category_id"]]
         elif categories:
             categories = (
                 json.loads(categories) if isinstance(categories, str) else categories
             )
-        return ApiAdmin.ListDesktops(categories)
+        filters = filters or {}
+        if filters or categories:
+            return ApiAdmin.list_desktops_with_filters(
+                categories=categories, filters=filters
+            )
+        return ApiAdmin.list_desktops(categories)
 
     @staticmethod
     def get_domains_by_ids(payload: dict, domain_ids: list[str]) -> list[dict]:
@@ -84,7 +93,7 @@ class AdminDomainsService:
         category = (
             payload["category_id"] if payload.get("role_id") == "manager" else None
         )
-        return ApiAdmin.ListTemplates(category)
+        return ApiAdmin.list_templates(category)
 
     # ── Domain Details ───────────────────────────────────────────────────
 

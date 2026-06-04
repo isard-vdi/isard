@@ -34,6 +34,12 @@ class AdminListDomainsData(BaseModel):
     kind: Literal["desktop", "template"] = "desktop"
     categories: Optional[str] = None
     domain_ids: Optional[List[str]] = None
+    # Server-side indexed filters for the desktops table
+    status: Optional[str] = None
+    group: Optional[str] = None
+    user: Optional[str] = None
+    hyp_started: Optional[str] = None
+    server: Optional[str] = None
 
 
 # ── Multiple Actions ─────────────────────────────────────────────────────
@@ -139,7 +145,7 @@ class AdminDomainCreateDictSummary(BaseModel):
 
 
 class AdminDomainListItem(BaseModel):
-    """Row returned by ``ApiAdmin.ListDesktops`` / ``ListTemplates`` /
+    """Row returned by ``ApiAdmin.list_desktops`` / ``ApiAdmin.list_templates`` /
     ``DomainsProcessed.get_by_ids``.
 
     Different sources populate slightly different subsets — every field
