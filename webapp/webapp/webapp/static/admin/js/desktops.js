@@ -616,19 +616,31 @@ $(document).ready(function() {
     }
 
     var selectedCategories = ''
+    // Snapshot of indexed filters last sent to the API, to detect changes
+    var appliedIndexedFilters = '{}';
 
-    $("#btn-search").on("click", function () {
-        var table = $("#domains").DataTable();
-        var hasIndexedFilter = false;
-        var needsReload = false;
-
-        // Check if any indexed filter is present and has a value
+    function currentIndexedFilters() {
+        var state = {};
         indexed_filters.forEach(function(field) {
             var filterBox = $('#filter-' + field + ' #' + field);
             if (filterBox.length && filterBox.val() && filterBox.val().length) {
-                hasIndexedFilter = true;
+                var val = filterBox.val();
+                state[field] = Array.isArray(val) ? val[0] : val;
             }
         });
+        return JSON.stringify(state);
+    }
+
+    $("#btn-search").on("click", function () {
+        var table = $("#domains").DataTable();
+        var needsReload = false;
+
+        // Reload if the set of indexed filters changed (added, modified or removed)
+        var currentIndexed = currentIndexedFilters();
+        if (currentIndexed !== appliedIndexedFilters) {
+            appliedIndexedFilters = currentIndexed;
+            needsReload = true;
+        }
 
         // Check if category filter changed
         if ($('#filter-category').length) {
@@ -639,8 +651,8 @@ $(document).ready(function() {
             }
         }
 
-        // Reload from API if indexed filters are present or category changed
-        if (hasIndexedFilter || needsReload) {
+        // Reload from API if indexed filters or category changed
+        if (needsReload) {
             table.ajax.reload(function() {
                 // After reload, apply non-indexed (client-side) filters
                 applyClientSideFilters(table);
