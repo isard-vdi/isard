@@ -253,12 +253,6 @@ class AdminDomainViewerDataResponse(BaseModel):
     viewer: AdminDomainViewerInfo
 
 
-class AdminDeploymentViewerDataResponse(BaseModel):
-    """Response of ``DeploymentViewerData`` — only ``create_dict``."""
-
-    create_dict: Optional[dict] = None
-
-
 class AdminDomainHardwareInterface(BaseModel):
     """Interface enriched with its ``name`` from the ``interfaces`` table."""
 

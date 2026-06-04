@@ -26,7 +26,6 @@ from typing import Literal
 from api import admin_router, manager_router
 from api.dependencies.body_parsers import parse_json_or_form
 from api.schemas.admin.domains import (
-    AdminDeploymentViewerDataResponse,
     AdminDomainDetailsResponse,
     AdminDomainHardwareResponse,
     AdminDomainListItem,
@@ -187,41 +186,6 @@ async def admin_domain_viewer_data(request: Request, domain_id: str):
             request,
             "internal_server",
             "Failed to get domain viewer data",
-            traceback.format_exc(),
-        )
-
-
-@manager_router.get(
-    "/admin/item/deployment/{deployment_id}/viewer_data",
-    tags=[tag],
-    response_model=AdminDeploymentViewerDataResponse,
-    summary="Get deployment viewer data",
-    description="Returns viewer connection data for a deployment.",
-    responses={
-        200: {"description": "Deployment viewer data retrieved"},
-        500: {"model": ErrorResponse},
-    },
-)
-async def admin_deployment_viewer_data(request: Request, deployment_id: str):
-    try:
-        result = await asyncio.to_thread(
-            AdminDomainsService.get_deployment_viewer_data,
-            request.token_payload,
-            deployment_id,
-        )
-        return JSONResponse(
-            content=AdminDeploymentViewerDataResponse(
-                **(result if isinstance(result, dict) else {})
-            ).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to get deployment viewer data",
             traceback.format_exc(),
         )
 
