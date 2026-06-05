@@ -115,15 +115,6 @@ class AdminDomainsService:
             raise Error("not_found", f"Domain {domain_id} not found")
         return result
 
-    @staticmethod
-    def get_deployment_viewer_data(payload: dict, deployment_id: str) -> dict:
-        """Get viewer data for a deployment."""
-        AdminDomainsService.owns_domain_id(payload, deployment_id)
-        result = ApiAdmin.DeploymentViewerData(deployment_id)
-        if result is None:
-            raise Error("not_found", f"Deployment {deployment_id} not found")
-        return result
-
     # ── Domain Status ────────────────────────────────────────────────────
 
     @staticmethod

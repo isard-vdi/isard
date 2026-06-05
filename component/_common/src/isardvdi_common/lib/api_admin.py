@@ -676,23 +676,6 @@ class ApiAdmin(RethinkSharedConnection):
         }
 
     @classmethod
-    def DeploymentViewerData(cls, deployment_id):
-        """_From api/libv2/api_admin.py ApiAdmin.DeploymentViewerData()_
-
-        Returns ``None`` for missing deployments (see DesktopViewerData).
-        """
-        with cls._rdb_context():
-            deployment = (
-                r.table("deployments")
-                .get(deployment_id)
-                .default(None)
-                .run(cls._rdb_connection)
-            )
-        if deployment is None:
-            return None
-        return {"create_dict": deployment.get("create_dict")}
-
-    @classmethod
     def DesktopDetailsData(cls, desktop_id):
         """_From api/libv2/api_admin.py ApiAdmin.DesktopDetailsData()_
 
