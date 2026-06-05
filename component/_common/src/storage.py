@@ -246,9 +246,11 @@ class Storage(RethinkCustomBase):
     @property
     def children(self):
         """
-        Returns the storages that have this storage as parent.
+        Returns the non-deleted storages that have this storage as parent.
         """
-        return self.get_index([self.id], index="parent")
+        return self.get_index(
+            [self.id], index="parent", filter=lambda s: s["status"] != "deleted"
+        )
 
     @property
     def derivatives(self):
