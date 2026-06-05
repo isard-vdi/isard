@@ -713,7 +713,7 @@ class ApiAdmin(RethinkSharedConnection):
         }
 
     @classmethod
-    def ListDesktops(cls, categories=None, bastion=True):
+    def list_desktops(cls, categories=None, bastion=True):
         """_From api/libv2/api_admin.py ApiAdmin.ListDesktops()_"""
         query = r.table("categories")
         if categories:
@@ -769,6 +769,173 @@ class ApiAdmin(RethinkSharedConnection):
                 "left": ["group_name", "category_name"],
             }
         ).zip()
+
+        if bastion:
+            query = query.merge(
+                lambda doc: {
+                    "bastion": r.branch(
+                        r.table("targets")
+                        .get_all(doc["id"], index="desktop_id")
+                        .is_empty(),
+                        None,
+                        r.table("targets")
+                        .get_all(doc["id"], index="desktop_id")
+                        .pluck("id", "domain", "http", "ssh")
+                        .nth(0),
+                    ),
+                }
+            )
+
+        with cls._rdb_context():
+            return list(query.run(cls._rdb_connection))
+
+    @classmethod
+    def list_desktops_with_filters(cls, categories=None, filters=None, bastion=True):
+        """
+        Smart index selection based on provided filters.
+
+        Index priority (composite indexes preferred):
+        1. status + category → kind_status_category
+        2. status + user → kind_status_user
+        3. status + group → kind_status_group
+        4. status alone → kind_status
+        5. category alone → category
+        6. group alone → group
+        7. user alone → user
+        8. hyp_started alone → hyp_started
+        9. server alone → server
+        10. fallback → kind
+
+        _From api/libv2/api_admin.py ApiAdmin.ListDesktopsWithFilters()_
+        """
+        filters = filters or {}
+
+        # Fast path: fetch specific domain IDs
+        domain_ids = filters.get("domain_ids")
+        if domain_ids:
+            query = r.table("domains").get_all(r.args(domain_ids))
+            return cls._apply_domain_joins_and_pluck(query, bastion)
+
+        query = r.table("domains")
+        used_filters = set()
+
+        status = filters.get("status")
+        category = categories[0] if categories and len(categories) == 1 else None
+        user_filter = filters.get("user")
+        group_filter = filters.get("group")
+
+        # Select the most selective index for the available filters
+        if status and category:
+            query = query.get_all(
+                ["desktop", status, category], index="kind_status_category"
+            )
+            used_filters.update(["status", "category"])
+        elif status and user_filter:
+            query = query.get_all(
+                ["desktop", status, user_filter], index="kind_status_user"
+            )
+            used_filters.update(["status", "user"])
+        elif status and group_filter:
+            query = query.get_all(
+                ["desktop", status, group_filter], index="kind_status_group"
+            )
+            used_filters.update(["status", "group"])
+        elif status:
+            query = query.get_all(["desktop", status], index="kind_status")
+            used_filters.add("status")
+        elif category:
+            query = query.get_all(category, index="category").filter(
+                lambda d: d["kind"] == "desktop"
+            )
+            used_filters.add("category")
+        elif group_filter:
+            query = query.get_all(group_filter, index="group").filter(
+                lambda d: d["kind"] == "desktop"
+            )
+            used_filters.add("group")
+        elif user_filter:
+            query = query.get_all(user_filter, index="user").filter(
+                lambda d: d["kind"] == "desktop"
+            )
+            used_filters.add("user")
+        elif filters.get("hyp_started"):
+            query = query.get_all(filters["hyp_started"], index="hyp_started").filter(
+                lambda d: d["kind"] == "desktop"
+            )
+            used_filters.add("hyp_started")
+        elif filters.get("server") is not None:
+            query = query.get_all(filters["server"], index="server").filter(
+                lambda d: d["kind"] == "desktop"
+            )
+            used_filters.add("server")
+        else:
+            query = query.get_all("desktop", index="kind")
+
+        # Apply remaining filters not covered by the primary index
+        if categories and len(categories) > 1 and "category" not in used_filters:
+            query = query.filter(lambda d: r.expr(categories).contains(d["category"]))
+        if "hyp_started" in filters and "hyp_started" not in used_filters:
+            query = query.filter(lambda d: d["hyp_started"] == filters["hyp_started"])
+        if "server" in filters and "server" not in used_filters:
+            query = query.filter(lambda d: d["server"] == filters["server"])
+        if "user" in filters and "user" not in used_filters:
+            query = query.filter(lambda d: d["user"] == filters["user"])
+        if "group" in filters and "group" not in used_filters:
+            query = query.filter(lambda d: d["group"] == filters["group"])
+
+        return cls._apply_domain_joins_and_pluck(query, bastion)
+
+    @classmethod
+    def _apply_domain_joins_and_pluck(cls, query, bastion=True):
+        """Apply the standard joins + pluck (and optional bastion merge), then run.
+
+        _From api/libv2/api_admin.py ApiAdmin._apply_domain_joins_and_pluck()_
+        """
+        query = query.eq_join("group", r.table("groups")).map(
+            lambda doc: doc["left"].merge(
+                {
+                    "group_name": doc["right"]["name"],
+                    "category_id": doc["right"]["parent_category"],
+                }
+            )
+        )
+        query = query.eq_join("category_id", r.table("categories")).map(
+            lambda doc: doc["left"].merge({"category_name": doc["right"]["name"]})
+        )
+        query = query.eq_join("user", r.table("users")).map(
+            lambda doc: doc["left"].merge(
+                {"user_name": doc["right"]["name"], "role": doc["right"]["role"]}
+            )
+        )
+
+        query = query.pluck(
+            [
+                "id",
+                {
+                    "create_dict": {
+                        "reservables": True,
+                        "hardware": {"vcpus": True, "memory": True},
+                    }
+                },
+                {"image": {"url": True}},
+                "kind",
+                "server",
+                "hyp_started",
+                "name",
+                "status",
+                "user_name",
+                "accessed",
+                "forced_hyp",
+                "favourite_hyp",
+                "booking_id",
+                "role",
+                "persistent",
+                "current_action",
+                "server_autostart",
+                "group_name",
+                "category_name",
+            ]
+        )
 
         if bastion:
             query = query.merge(
@@ -865,7 +1032,7 @@ class ApiAdmin(RethinkSharedConnection):
             )
 
     @classmethod
-    def ListTemplates(cls, category=None):
+    def list_templates(cls, category=None):
         """_From api/libv2/api_admin.py ApiAdmin.ListTemplates()_"""
         if not category:
             query = r.table("domains").get_all("template", index="kind")
@@ -1353,24 +1520,17 @@ class ApiAdmin(RethinkSharedConnection):
         elif payload["role_id"] == "manager" and not kind:
             query = query.get_all(payload["category_id"], index="category")
 
-        if field not in ["vcpus", "memory"]:
-            pluck = field
+        if field in ["vcpus", "memory"]:
+            values = query["create_dict"]["hardware"][field]
+            if field == "memory":
+                values = values.map(lambda value: value / 1048576)
         else:
-            pluck = {"create_dict": {"hardware": field}}
-        query = query.pluck(pluck)
-
-        query = (
-            query["create_dict"]["hardware"] if field in ["vcpus", "memory"] else query
-        )
-        query = (
-            query.map(lambda value: {"memory": (value["memory"] / 1048576)})
-            if field == "memory"
-            else query
-        )
+            values = query[field]
 
         with cls._rdb_context():
-            result = query.distinct().run(cls._rdb_connection)
-        return result
+            return r.expr({"field": values.distinct().coerce_to("array")}).run(
+                cls._rdb_connection
+            )
 
     @classmethod
     def set_logs_desktops_old_entries_max_time(cls, max_time):

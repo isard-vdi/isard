@@ -429,6 +429,72 @@ def test_admin_logs_desktops_allows_manager_with_category_scope(
     assert captured["payload_category"] == "cat-manager"
 
 
+def test_admin_logs_desktops_view_accepts_json_body(monkeypatch, test_client):
+    """Pipeline plugin sends JSON; pre-fix the {view} handler called ``request.form()`` and rejected it."""
+    jwt = MockJWT()
+    captured = {}
+
+    def fake_query(form_data, view="raw", payload=None):
+        captured["view"] = view
+        captured["form_data"] = form_data
+        return {"draw": 1, "recordsTotal": 0, "recordsFiltered": 0, "data": []}
+
+    monkeypatch.setattr(
+        "api.services.admin.domains.AdminDomainsService.query_logs_desktops",
+        staticmethod(fake_query),
+    )
+
+    response = test_client(
+        url="/admin/items/logs_desktops/desktop_grouping",
+        method="POST",
+        body={"draw": 1, "start": 0, "length": 25, "columns": []},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured["view"] == "desktop_grouping"
+    assert captured["form_data"]["draw"] == 1
+
+
+def test_admin_logs_desktops_serializes_datetime_times(monkeypatch, test_client):
+    """RethinkDB returns ``r.epoch_time(...)`` columns as ``datetime``; the response model must accept them."""
+    from datetime import datetime, timezone
+
+    jwt = MockJWT()
+
+    def fake_query(body, view="raw", payload=None):
+        return {
+            "draw": 1,
+            "recordsTotal": 1,
+            "recordsFiltered": 1,
+            "data": [
+                {
+                    "id": "log-1",
+                    "starting_time": datetime(2026, 6, 3, 12, 0, tzinfo=timezone.utc),
+                    "stopping_time": False,
+                    "desktop_id": "d-1",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        "api.services.admin.domains.AdminDomainsService.query_logs_desktops",
+        staticmethod(fake_query),
+    )
+
+    response = test_client(
+        url="/admin/items/logs_desktops",
+        method="POST",
+        body={"draw": 1, "start": 0, "length": 25, "columns": []},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.text
+    row = response.json()["data"][0]
+    assert row["starting_time"].startswith("2026-06-03T12:00:00")
+    assert row["stopping_time"] is False
+
+
 def test_admin_logs_users_allows_manager_with_category_scope(monkeypatch, test_client):
     """Same parity check for the user-logs DataTables route."""
     jwt = MockJWT(role_id="manager", category_id="cat-manager")

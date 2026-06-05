@@ -472,8 +472,8 @@ def test_list_desktop_attached_media(monkeypatch, test_client):
     (replaces v3_compat POST /desktops/media_list)."""
     jwt = MockJWT()
     stub = [
-        {"id": "iso-1", "name": "dsl-4.4.10.iso", "kind": "iso", "size": 524288000},
-        {"id": "fdd-1", "name": "dos622.img", "kind": "floppy", "size": 1474560},
+        {"id": "iso-1", "name": "dsl-4.4.10.iso", "kind": "iso", "size": "500MiB"},
+        {"id": "fdd-1", "name": "dos622.img", "kind": "floppy", "size": "1.4MiB"},
     ]
 
     monkeypatch.setattr(

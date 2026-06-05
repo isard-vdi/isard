@@ -691,8 +691,15 @@ class DeploymentInterface(BaseModel):
     name: Optional[str] = None
 
 
+class DeploymentMedia(BaseModel):
+    id: str
+    name: Optional[str] = None
+
+
 class DeploymentHardware(Hardware):
     interfaces: list[DeploymentInterface]
+    isos: Optional[list[DeploymentMedia]] = []
+    floppies: Optional[list[DeploymentMedia]] = []
 
 
 class DeploymentHardwareResponse(BaseModel):

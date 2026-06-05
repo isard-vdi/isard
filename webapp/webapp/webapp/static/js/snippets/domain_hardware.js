@@ -122,8 +122,9 @@ function setHardwareDomainDefaults(div_id,domain){
     }
     $(div_id+' #description').val(domain.description);
     $(div_id+' #id').val(domain.id);
-    $(div_id+' #guest_properties-credentials-username').val(domain["guest_properties"]["credentials"]["username"]);
-    $(div_id+' #guest_properties-credentials-password').val(domain["guest_properties"]["credentials"]["password"]);
+    var credentials = ((domain || {}).guest_properties || {}).credentials || {};
+    $(div_id+' #guest_properties-credentials-username').val(credentials.username || '');
+    $(div_id+' #guest_properties-credentials-password').val(credentials.password || '');
     setViewers('#modalEditDesktop',domain)
     if (domain.hardware.virtualization_nested) {
         $(div_id+' #hardware-virtualization_nested').prop('checked',true).iCheck('update');

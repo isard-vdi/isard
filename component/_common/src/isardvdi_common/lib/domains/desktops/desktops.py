@@ -58,6 +58,7 @@ from isardvdi_common.models.domain import Domain
 from isardvdi_common.models.storage import Storage
 from isardvdi_common.models.user import User
 from isardvdi_common.schemas.domains import (
+    BulkDesktopFromTemplate,
     DesktopFromTemplate,
     DomainStatus,
     TemplateToDesktop,
@@ -443,6 +444,7 @@ class DesktopsProcessed(RethinkSharedConnection):
         image=None,
         insert=True,
         soft=False,
+        ignore_allowed_hardware=False,
     ):
         template = Caches.get_document("domains", template_id)
         if not template:
@@ -542,8 +544,9 @@ class DesktopsProcessed(RethinkSharedConnection):
                 description_code="unable_to_parse_media",
             )
 
-        # If no deployment tag is provided, limit the hardware according to user hardware permissions
-        if not deployment_tag_dict:
+        # Limit the hardware according to user hardware permissions, unless the
+        # caller already limited it (bulk create limits by the admin's payload)
+        if not deployment_tag_dict and not ignore_allowed_hardware:
             payload = Helpers.gen_payload_from_user(user_id)
             create_dict = Quotas.limit_user_hardware_allowed(payload, create_dict)
 
@@ -860,25 +863,9 @@ class DesktopsProcessed(RethinkSharedConnection):
                 else:
                     new_data["hardware"].pop("interfaces", None)
 
-            if new_data["hardware"].get("isos"):
-                # Convert to list of dicts
-                new_isos = []
-                for iso in new_data["hardware"]["isos"]:
-                    if isinstance(iso, dict):
-                        new_isos.append(iso)
-                    else:
-                        new_isos.append({"id": iso})
-                new_data["hardware"]["isos"] = new_isos
-
-            if new_data["hardware"].get("floppies"):
-                # Convert to list of dicts
-                new_floppies = []
-                for floppy in new_data["hardware"]["floppies"]:
-                    if isinstance(floppy, dict):
-                        new_floppies.append(floppy)
-                    else:
-                        new_floppies.append({"id": floppy})
-                new_data["hardware"]["floppies"] = new_floppies
+            # Standardize media storage to {id}, same as the create paths
+            if new_data["hardware"].get("isos") or new_data["hardware"].get("floppies"):
+                new_data = Helpers._parse_media_info(new_data)
 
             new_domain = {
                 **new_domain,
@@ -1306,7 +1293,7 @@ class DesktopsProcessed(RethinkSharedConnection):
                 "guest_properties": template["guest_properties"],
                 "image": template["image"],
             }
-            desktop_data = DesktopFromTemplate(**desktop_data).model_dump()
+            desktop_data = BulkDesktopFromTemplate(**desktop_data).model_dump()
 
             cls.new_from_template(
                 desktop_data["name"],

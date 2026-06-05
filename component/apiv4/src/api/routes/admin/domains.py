@@ -24,13 +24,13 @@ import traceback
 from typing import Literal
 
 from api import admin_router, manager_router
-from api.dependencies.body_parsers import parse_json_or_form
 from api.schemas.admin.domains import (
     AdminDeploymentViewerDataResponse,
     AdminDomainDetailsResponse,
     AdminDomainHardwareResponse,
     AdminDomainListItem,
     AdminDomainSearchInfoResponse,
+    AdminDomainsFieldResponse,
     AdminDomainStatusItem,
     AdminDomainStorageItem,
     AdminDomainStoragePathData,
@@ -52,6 +52,8 @@ from api.schemas.admin.domains import (
     AdminVirtInstallXmlSectionsSaveResponse,
     DesktopLogRow,
     DesktopLogsViewRow,
+    DomainFilterFieldEnum,
+    LogsDataTablesRequest,
     LogsDataTablesResponse,
     LogsRetentionConfigResponse,
     UserLogRow,
@@ -60,8 +62,9 @@ from api.schemas.admin.domains import (
 from api.schemas.common import EmptyResponse, ErrorResponse
 from api.services.admin.domains import AdminDomainsService
 from api.services.error import Error
-from fastapi import BackgroundTasks, Depends, Path, Request
+from fastapi import BackgroundTasks, Path, Request
 from fastapi.responses import JSONResponse, Response
+from isardvdi_common.schemas.domains import DomainKindEnum
 from pydantic import ValidationError
 
 tag = "admin_domains"
@@ -93,10 +96,22 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
                 data.domain_ids,
             )
         elif data.kind == "desktop":
+            filters = {
+                field: value
+                for field, value in {
+                    "status": data.status,
+                    "group": data.group,
+                    "user": data.user,
+                    "hyp_started": data.hyp_started,
+                    "server": data.server,
+                }.items()
+                if value is not None
+            }
             result = await asyncio.to_thread(
                 AdminDomainsService.list_desktops,
                 request.token_payload,
                 data.categories,
+                filters,
             )
         else:
             result = await asyncio.to_thread(
@@ -575,7 +590,7 @@ async def admin_template_delete(request: Request, template_id: str):
 @manager_router.get(
     "/admin/items/domains/{field}/{kind}",
     tags=[tag],
-    response_model=list,
+    response_model=AdminDomainsFieldResponse,
     summary="Get domain field values",
     description="Returns distinct values for a specific field across domains of a given kind.",
     responses={
@@ -583,18 +598,20 @@ async def admin_template_delete(request: Request, template_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_domains_field(request: Request, field: str, kind: str):
+async def admin_domains_field(
+    request: Request, field: DomainFilterFieldEnum, kind: DomainKindEnum
+):
     try:
         result = await asyncio.to_thread(
-            AdminDomainsService.get_domains_field, request.token_payload, field, kind
+            AdminDomainsService.get_domains_field,
+            request.token_payload,
+            field.value,
+            kind.value,
         )
-        # ``field`` selects which RethinkDB column is plucked, so the
-        # element type is heterogeneous: scalar string for most columns
-        # (name/category/group/...), but ``{"memory": float}`` /
-        # ``{"vcpus": int}`` dicts when ``field`` is a hardware key. A
-        # single row Pydantic model can't capture both branches, so the
-        # response stays as a permissive ``list``.
-        return JSONResponse(content=result or [], status_code=200)
+        return JSONResponse(
+            content=AdminDomainsFieldResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
     except Error:
         raise
     except Exception as e:
@@ -815,13 +832,11 @@ async def admin_domain_search_info(request: Request, domain_id: str):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_raw(
-    request: Request, form_data=Depends(parse_json_or_form)
-):
+async def admin_logs_desktops_raw(request: Request, body: LogsDataTablesRequest):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_desktops,
-            form_data,
+            body.model_dump(exclude_none=True),
             view="raw",
             payload=request.token_payload,
         )
@@ -855,18 +870,13 @@ async def admin_logs_desktops_raw(
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_desktops_view(request: Request, view: str = "raw"):
+async def admin_logs_desktops_view(
+    request: Request, body: LogsDataTablesRequest, view: str = "raw"
+):
     try:
-        try:
-            form_data = await request.form()
-        except AssertionError:
-            raise Error(
-                "bad_request",
-                "Request body must be multipart form data",
-            )
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_desktops,
-            form_data,
+            body.model_dump(exclude_none=True),
             view=view,
             payload=request.token_payload,
         )
@@ -904,11 +914,11 @@ async def admin_logs_desktops_view(request: Request, view: str = "raw"):
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or_form)):
+async def admin_logs_users_raw(request: Request, body: LogsDataTablesRequest):
     try:
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_users,
-            form_data,
+            body.model_dump(exclude_none=True),
             view="raw",
             payload=request.token_payload,
         )
@@ -942,18 +952,13 @@ async def admin_logs_users_raw(request: Request, form_data=Depends(parse_json_or
         500: {"model": ErrorResponse},
     },
 )
-async def admin_logs_users_view(request: Request, view: str = "raw"):
+async def admin_logs_users_view(
+    request: Request, body: LogsDataTablesRequest, view: str = "raw"
+):
     try:
-        try:
-            form_data = await request.form()
-        except AssertionError:
-            raise Error(
-                "bad_request",
-                "Request body must be multipart form data",
-            )
         result = await asyncio.to_thread(
             AdminDomainsService.query_logs_users,
-            form_data,
+            body.model_dump(exclude_none=True),
             view=view,
             payload=request.token_payload,
         )

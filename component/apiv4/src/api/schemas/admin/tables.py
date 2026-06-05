@@ -35,10 +35,11 @@ class TableListRequest(BaseModel):
     order_by: Optional[str] = Field(
         default=None, description="Field to order results by"
     )
-    pluck: Optional[Union[list, dict]] = Field(
+    # TODO: Standarize pluck/without across all table endpoints to use the same format (e.g. list of strings)
+    pluck: Optional[Union[list, dict, str]] = Field(
         default=None, description="Fields to pluck from each item"
     )
-    without: Optional[Union[list, str]] = Field(
+    without: Optional[Union[list, dict, str]] = Field(
         default=None, description="Fields to exclude from each item"
     )
 
@@ -94,8 +95,20 @@ class TableItem(BaseModel):
 
 class AllowedTermItem(BaseModel):
     """Single autocomplete row returned by
-    ``POST /admin/allowed/term/{table}``. The service hard-codes the
-    pluck to ``["id", "name"]`` regardless of table."""
+    ``POST /admin/allowed/term/{table}``.
+
+    The service overrides the pluck per-table:
+    ``users`` adds ``uid, role, username, category_name, group_name``;
+    ``groups`` adds ``parent_category, category_name``. The webapp's
+    select2 templates render those fields (e.g.
+    ``static/js/snippets/alloweds.js`` shows
+    ``item.name [item.uid] (item.category_name)``), so the model must
+    let them pass through — ``extra='allow'`` preserves them; without
+    it Pydantic strips every field except ``id``/``name`` and the
+    select2 labels become ``undefined``.
+    """
+
+    model_config = {"extra": "allow"}
 
     id: str
     name: Optional[str] = None

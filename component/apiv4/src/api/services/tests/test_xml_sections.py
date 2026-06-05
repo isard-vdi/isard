@@ -257,6 +257,14 @@ def test_merge_accepts_correct_section_paste():
     assert root.find("./description") is not None
 
 
+def test_merge_rejects_plain_text_snippet():
+    """Plain text must fail loudly; silent accept would wipe existing elements."""
+    base = _domain("<description>old notes</description>")
+    with pytest.raises(Error) as exc:
+        merge_xml_sections(base, {"description": "just plain text"})
+    assert exc.value.status_code == 400
+
+
 # ---------------------------------------------------------------------------
 # split_xml_sections — surfaces the 10 new keys
 # ---------------------------------------------------------------------------

@@ -701,6 +701,18 @@ def merge_xml_sections(base_xml_str: str, edited_sections: dict) -> str:
                 traceback.format_exc(),
             )
 
+        # Reject plain-text snippets — without this guard the remove-old
+        # loop below would wipe existing elements with no replacement.
+        if not new_elems:
+            expected = sorted(_section_allowed_tags(sdef) or [])
+            hint = f" Wrap the value in one of: {expected}." if expected else ""
+            raise Error(
+                "bad_request",
+                f"Section '{sdef.get('label', key)}' must contain XML "
+                f"elements; got text only.{hint}",
+                traceback.format_exc(),
+            )
+
         # Hard validation: reject snippets whose root tag does not belong to
         # this section (e.g. pasting <hostdev> into the redirdev section).
         # Surfaces a clear bad_request instead of silently relocating the

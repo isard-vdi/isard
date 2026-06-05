@@ -644,9 +644,7 @@ async def retry_failed_desktop(
 async def bulk_edit_desktops(request: Request, data: BulkEditDesktopsRequest):
     try:
         ids = data.ids
-        # Pydantic ``model_dump`` keeps unknown fields too because the
-        # schema is configured with ``extra = "allow"``.
-        update_payload = data.model_dump(exclude_none=True, exclude={"ids"})
+        update_payload = data.model_dump(exclude_unset=True, exclude={"ids"})
         result = await asyncio.to_thread(
             DesktopService.bulk_edit_desktops,
             ids,

@@ -264,6 +264,30 @@ class TestListTableWithFilters:
         assert response.status_code == 200
         assert captured["options"] == {"order_by": "name"}
 
+    def test_pluck_accepts_string(self, monkeypatch, test_client):
+        # Regression: webapp btn-forcedhyp / forcedhyp-check send
+        # {"pluck": "forced_hyp"} (string, not list). The schema must
+        # accept str alongside list/dict — api_admin._pluck_field_names
+        # and RethinkDB's .pluck() both handle a bare string.
+        captured = {}
+
+        def fake_get(table, payload, options):
+            captured["options"] = options
+            return {"id": "u-1", "forced_hyp": ["hyp-a"]}
+
+        monkeypatch.setattr(
+            "api.routes.admin.tables.AdminTablesService.get_table",
+            staticmethod(fake_get),
+        )
+        response = test_client(
+            url="/admin/items/table/domains",
+            method="POST",
+            jwt=MockJWT(role_id="admin"),
+            body={"id": "desktop-1", "pluck": "forced_hyp"},
+        )
+        assert response.status_code == 200, response.json()
+        assert captured["options"] == {"id": "desktop-1", "pluck": "forced_hyp"}
+
     def test_user_forbidden(self, monkeypatch, test_client):
         monkeypatch.setattr(
             "api.routes.admin.tables.AdminTablesService.get_table",

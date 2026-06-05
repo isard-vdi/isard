@@ -4,6 +4,7 @@ import traceback
 from time import time
 
 from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
@@ -101,9 +102,11 @@ class Caches(RethinkSharedConnection):
 
     @classmethod
     def invalidate_cache(cls, table, item_id):
-        cache_key = (table, item_id)
-        if cache_key in cls.cache:
-            del cls.cache[cache_key]
+        # ``get_cached`` is ``@cached`` over a ``@classmethod``, so cachetools
+        # keys the entry by ``hashkey(cls, table, item_id)`` (3 args). Using a
+        # 2-tuple ``(table, item_id)`` here silently misses every entry and
+        # leaves stale documents in cache for the full TTL.
+        cls.cache.pop(hashkey(cls, table, item_id), None)
 
     @classmethod
     def show_cache_occupancy(cls):

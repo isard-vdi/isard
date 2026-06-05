@@ -105,6 +105,41 @@ def test_bulk_edit_desktops(monkeypatch, test_client):
     }
 
 
+def test_bulk_edit_desktops_partial_hardware(monkeypatch, test_client):
+    # The webapp bulk-edit form only sends the hardware fields the
+    # operator actually touched, so the schema must accept a hardware
+    # block without ``videos`` / ``interfaces`` and the dump must not
+    # inject DomainHardware defaults that would clobber the desktop.
+    jwt = MockJWT(role_id="advanced")
+    captured = {}
+
+    def fake_bulk_edit(ids, data, payload):
+        captured["data"] = data
+        return {"ids": ids}
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.bulk_edit_desktops",
+        staticmethod(fake_bulk_edit),
+    )
+
+    response = test_client(
+        url="/items/desktops/bulk-edit",
+        method="PUT",
+        body={
+            "ids": ["desktop-1"],
+            "hardware": {"vcpus": 2, "memory": 2.5},
+            "reservables": {"vgpus": ["NVIDIA-A16-2Q"]},
+        },
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200
+    assert captured["data"] == {
+        "hardware": {"vcpus": 2, "memory": 2.5},
+        "reservables": {"vgpus": ["NVIDIA-A16-2Q"]},
+    }
+
+
 def test_bulk_create_persistent_desktops(monkeypatch, test_client):
     jwt = MockJWT(role_id="advanced")
     captured = {}
@@ -813,6 +848,40 @@ def test_edit_desktop_accepts_image_upload_payload(monkeypatch, test_client):
         "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAeImBZsAAAAASUVORK5CYII=",
         "filename": "uploaded.png",
     }
+
+
+def test_edit_desktop_propagates_server_toggle(monkeypatch, test_client):
+    # Regression: webapp's modalServer PUTs {server, server_autostart} and
+    # got 200 with no effect because DesktopEditRequest lacked the fields,
+    # so Pydantic silently dropped them and the service received {}.
+    jwt = MockJWT(role_id="admin")
+    captured = {}
+
+    def fake_edit_desktop(desktop_id, data, payload):
+        captured["desktop_id"] = desktop_id
+        captured["data"] = data
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.edit_desktop",
+        staticmethod(fake_edit_desktop),
+    )
+    _bypass_owns_domain_id(monkeypatch)
+
+    class _FakeDomain:
+        def __init__(self, _id):
+            self.kind = "desktop"
+
+    monkeypatch.setattr("api.dependencies.domains.Domain", _FakeDomain)
+
+    response = test_client(
+        url="/item/desktop/desktop-1/edit",
+        method="PUT",
+        body={"server": True, "server_autostart": False},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 200, response.json()
+    assert captured["data"] == {"server": True, "server_autostart": False}
 
 
 def test_change_desktop_owner(monkeypatch, test_client):

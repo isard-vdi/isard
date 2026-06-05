@@ -616,19 +616,31 @@ $(document).ready(function() {
     }
 
     var selectedCategories = ''
+    // Snapshot of indexed filters last sent to the API, to detect changes
+    var appliedIndexedFilters = '{}';
 
-    $("#btn-search").on("click", function () {
-        var table = $("#domains").DataTable();
-        var hasIndexedFilter = false;
-        var needsReload = false;
-
-        // Check if any indexed filter is present and has a value
+    function currentIndexedFilters() {
+        var state = {};
         indexed_filters.forEach(function(field) {
             var filterBox = $('#filter-' + field + ' #' + field);
             if (filterBox.length && filterBox.val() && filterBox.val().length) {
-                hasIndexedFilter = true;
+                var val = filterBox.val();
+                state[field] = Array.isArray(val) ? val[0] : val;
             }
         });
+        return JSON.stringify(state);
+    }
+
+    $("#btn-search").on("click", function () {
+        var table = $("#domains").DataTable();
+        var needsReload = false;
+
+        // Reload if the set of indexed filters changed (added, modified or removed)
+        var currentIndexed = currentIndexedFilters();
+        if (currentIndexed !== appliedIndexedFilters) {
+            appliedIndexedFilters = currentIndexed;
+            needsReload = true;
+        }
 
         // Check if category filter changed
         if ($('#filter-category').length) {
@@ -639,8 +651,8 @@ $(document).ready(function() {
             }
         }
 
-        // Reload from API if indexed filters are present or category changed
-        if (hasIndexedFilter || needsReload) {
+        // Reload from API if indexed filters or category changed
+        if (needsReload) {
             table.ajax.reload(function() {
                 // After reload, apply non-indexed (client-side) filters
                 applyClientSideFilters(table);
@@ -1190,7 +1202,7 @@ function renderDesktopStorageItem(storage, desktop) {
     if (canCancel) {
         actions += '<button type="button" class="btn btn-warning btn-xs btn-desktop-storage-cancel" data-storage-id="' + escapeAttr(sid) + '" data-desktop-id="' + escapeAttr(desktop.id) + '" title="Cancel current operation"><i class="fa fa-ban"></i> Cancel</button> ';
     }
-    actions += '<button type="button" class="btn btn-info btn-xs btn-desktop-storage-increase" data-storage-id="' + escapeAttr(sid) + '"' + (canIncrease ? '' : ' disabled') + ' title="' + (canIncrease ? 'Increase the disk size' : 'Desktop must be stopped and storage ready to increase') + '"><i class="fa fa-plus"></i> Increase</button>';
+    actions += '<button type="button" class="btn btn-info btn-xs btn-increase" data-id="' + escapeAttr(sid) + '"' + (canIncrease ? '' : ' disabled') + ' title="' + (canIncrease ? 'Increase the disk size' : 'Desktop must be stopped and storage ready to increase') + '"><i class="fa fa-plus"></i> Increase</button>';
     if (!canCancel && !canIncrease) {
         actions += '<span class="text-muted">No actions available</span>';
     }
@@ -1266,44 +1278,6 @@ $(document).on('click', '.btn-desktop-storage-cancel', function () {
             }
         });
     }).on('pnotify.cancel', function () {});
-});
-
-// Per-storage Increase from the Desktop Storage modal. Prompts for an
-// integer GB increment and posts to the apiv4 endpoint with priority
-// "low" — same default v3 enforced for non-admins.
-$(document).on('click', '.btn-desktop-storage-increase', function () {
-    var storageId = $(this).data('storage-id');
-    var raw = window.prompt('Increment in GB to add to the disk:', '10');
-    if (raw === null) { return; }
-    var increment = parseInt(raw, 10);
-    if (!isFinite(increment) || increment <= 0 || String(increment) !== String(raw).trim()) {
-        new PNotify({
-            title: 'Invalid increment',
-            text: 'Enter a positive integer number of GB.',
-            type: 'error', hide: true, delay: 4000, opacity: 1, icon: 'fa fa-warning'
-        });
-        return;
-    }
-    $.ajax({
-        type: 'PUT',
-        url: '/api/v4/item/storage/' + storageId + '/priority/low/increase/' + increment,
-        contentType: 'application/json',
-        cache: false,
-        error: function (xhr) {
-            new PNotify({
-                title: 'ERROR increasing storage size',
-                text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
-                type: 'error', hide: true, icon: 'fa fa-warning', delay: 5000, opacity: 1
-            });
-        },
-        success: function () {
-            new PNotify({
-                title: 'Increasing disk size...',
-                text: '', type: 'success', hide: true, icon: 'fa fa-info', delay: 5000, opacity: 1
-            });
-            $('#modalDesktopStorage').modal('hide');
-        }
-    });
 });
 
 function desktopAddUpdateSocketHandle(data) {
@@ -2189,6 +2163,8 @@ function renderStorageActionsButton(data) {
         });
 
         function parse_desktop(data){
+            var vgpus = (data["reservables"] || {})["vgpus"];
+            var hasNoVgpu = !vgpus || vgpus.includes(undefined) || vgpus.includes("None");
             return {
                 "id": data["id"],
                 "name": data["name"],
@@ -2208,12 +2184,11 @@ function renderStorageActionsButton(data) {
                     ...("m" in data && "isos" in data["m"]) && {"isos": setMediaIds(data["m"]["isos"])},
                     ...( true) && {"floppies":[]},
                     ...("m" in data && "floppies" in data["m"]) && {"floppies": setMediaIds(data["m"]["floppies"])},
-                    "reservables": {
-                        ...( true ) && {"vgpus":data["reservables"]["vgpus"]},
-                        ...( data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null || data["reservables"]["vgpus"].includes("None") ) &&  {"vgpus": null},
-                    },
                   },
-                }
+                "reservables": {
+                    "vgpus": hasNoVgpu ? null : vgpus,
+                },
+              }
         }
 
         function parse_desktop_bulk(data) {
@@ -2228,14 +2203,17 @@ function renderStorageActionsButton(data) {
                         ...("hardware-edit_network" in data) && { "interfaces": data["hardware-interfaces"] },
                         ...("hardware-disk_bus" in data) && { "disk_bus": data["hardware-disk_bus"] },
                         ...("hardware-disk_size" in data) && { "disk_size": parseInt(data["hardware-disk_size"]) },
-                        ...("reservables-vgpus" in data) && {
-                            "reservables": {
-                                ...(true) && { "vgpus": [data["reservables-vgpus"]] },
-                                ...(data["reservables-vgpus"].includes(undefined) || data["reservables-vgpus"] == null || data["reservables-vgpus"].includes("None")) && { "vgpus": null },
-                            },
-                        },
                         ...("edit-network" in data) && { "interfaces": data['hardware-interfaces'] },
-                    }
+                    },
+                    ...("reservables-vgpus" in data) && {
+                        "reservables": {
+                            "vgpus": (data["reservables-vgpus"] == null
+                                || data["reservables-vgpus"].includes(undefined)
+                                || data["reservables-vgpus"].includes("None"))
+                                ? null
+                                : [data["reservables-vgpus"]],
+                        },
+                    },
                 },
                 ...("edit-viewers" in data) && {
                     "guest_properties": {
@@ -2418,9 +2396,7 @@ function renderStorageActionsButton(data) {
                         url:"/api/v4/admin/items/domains/"+item+"/desktop",
                         contentType: 'application/json',
                         success: function (data) {
-                            data = JSON.parse(data)
-                            $.each(data, function(pos, field) {
-                                field = field[item]
+                            $.each(data.field, function(pos, field) {
                                 if (elem.find('option[value="' + field + 'GB"]').length === 0) {
                                     elem.append('<option value="' + field+ '">' + field + 'GB</option>');
                                 }
@@ -2469,9 +2445,7 @@ function renderStorageActionsButton(data) {
                         async: false,
                         url:"/api/v4/admin/items/domains/"+item+"/desktop",
                         success: function (data) {
-                            data = JSON.parse(data)
-                            $.each(data, function(pos, field) {
-                                field = field[item]
+                            $.each(data.field, function(pos, field) {
                                 if (elem.find('option[value="' + field + '"]').length === 0) {
                                     elem.append('<option value="' + field+ '">' + field + '</option>');
                                 }

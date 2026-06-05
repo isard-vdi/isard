@@ -18,10 +18,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from datetime import datetime
+from enum import Enum
 from typing import Any, Generic, List, Literal, Optional, TypeVar, Union
 
 from api.schemas.bastion import BastionHttpConfig, BastionSshConfig
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 # ── List Domains ─────────────────────────────────────────────────────────
 
@@ -32,6 +34,12 @@ class AdminListDomainsData(BaseModel):
     kind: Literal["desktop", "template"] = "desktop"
     categories: Optional[str] = None
     domain_ids: Optional[List[str]] = None
+    # Server-side indexed filters for the desktops table
+    status: Optional[str] = None
+    group: Optional[str] = None
+    user: Optional[str] = None
+    hyp_started: Optional[str] = None
+    server: Optional[str] = None
 
 
 # ── Multiple Actions ─────────────────────────────────────────────────────
@@ -137,7 +145,7 @@ class AdminDomainCreateDictSummary(BaseModel):
 
 
 class AdminDomainListItem(BaseModel):
-    """Row returned by ``ApiAdmin.ListDesktops`` / ``ListTemplates`` /
+    """Row returned by ``ApiAdmin.list_desktops`` / ``ApiAdmin.list_templates`` /
     ``DomainsProcessed.get_by_ids``.
 
     Different sources populate slightly different subsets — every field
@@ -308,6 +316,28 @@ class AdminDomainHardwareInner(BaseModel):
     qos_disk_id: Optional[Union[str, bool]] = None
 
 
+class DomainFilterFieldEnum(str, Enum):
+    """Domain columns the webapp filters can request distinct values for."""
+
+    status = "status"
+    name = "name"
+    vcpus = "vcpus"
+    memory = "memory"
+
+
+class AdminDomainsFieldResponse(BaseModel):
+    """Distinct values for a domain field (``GET /admin/items/domains/{field}/{kind}``).
+
+    Values are heterogeneous depending on the column: strings for
+    ``status``/``name``/``user``…, ints for ``vcpus``, floats for ``memory``.
+    """
+
+    field: list = Field(
+        default=[],
+        description="Distinct values found for the requested field.",
+    )
+
+
 class AdminDomainHardwareResponse(BaseModel):
     """Response of ``get_domain_hardware``.
 
@@ -457,8 +487,64 @@ class AdminDomainXmlResponse(BaseModel):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  Logs DataTables envelope (raw + grouped variants)
+#  Logs DataTables request + envelope (raw + grouped variants)
 # ══════════════════════════════════════════════════════════════════════════
+
+
+class DataTablesSearch(BaseModel):
+    """``search`` block sent by DataTables — global or per-column."""
+
+    value: str = ""
+    regex: bool = False
+
+
+class DataTablesColumn(BaseModel):
+    """Column descriptor in a DataTables request."""
+
+    data: Optional[str] = None
+    name: Optional[str] = None
+    searchable: Optional[bool] = None
+    orderable: Optional[bool] = None
+    search: Optional[DataTablesSearch] = None
+
+
+class DataTablesOrder(BaseModel):
+    """Single ordering rule (``column`` is the index into ``columns``)."""
+
+    column: int
+    dir: Literal["asc", "desc"]
+
+
+class LogsDataTablesRange(BaseModel):
+    """Time-range filter injected by the page-level ``pipeline`` plugin."""
+
+    field: str
+    start: str
+    end: str
+
+
+class LogsDataTablesRequest(BaseModel):
+    """Request body for the logs DataTables routes.
+
+    Mirrors the DataTables wire shape plus the project-specific extras
+    (``filter_field`` / ``filter_value`` / ``range`` / ``pluck``) that
+    ``LogsProcessed._build_query`` consumes. ``extra='ignore'`` keeps
+    the contract forward-compatible with DataTables versions that add
+    fields we don't read.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    draw: int = 1
+    start: int = 0
+    length: int = 25
+    columns: List[DataTablesColumn] = Field(default_factory=list)
+    order: List[DataTablesOrder] = Field(default_factory=list)
+    search: Optional[DataTablesSearch] = None
+    range: Optional[LogsDataTablesRange] = None
+    filter_field: Optional[str] = None
+    filter_value: Optional[str] = None
+    pluck: Optional[List[str]] = None
 
 
 RowT = TypeVar("RowT")
@@ -480,6 +566,12 @@ class LogsDataTablesResponse(BaseModel, Generic[RowT]):
     indexs: List[Any] = Field(default_factory=list)
 
 
+# Stored via ``r.epoch_time(...)``; RethinkDB returns them as ``datetime``.
+# ``stopping_time``/``stopped_time`` may be ``False`` when still running.
+LogTime = Optional[Union[float, datetime]]
+LogStopTime = Optional[Union[float, datetime, bool]]
+
+
 class DesktopLogRow(BaseModel):
     """Raw row from ``r.table('logs_desktops')``.
 
@@ -489,17 +581,17 @@ class DesktopLogRow(BaseModel):
     """
 
     id: str
-    starting_time: Optional[float] = None
+    starting_time: LogTime = None
     starting_by: Optional[str] = None
     starting_user: Optional[str] = None
-    started_time: Optional[float] = None
-    stopping_time: Optional[float] = None
+    started_time: LogTime = None
+    stopping_time: LogStopTime = None
     stopping_by: Optional[str] = None
     stopping_user: Optional[str] = None
     stopping_ip: Optional[str] = None
     stopping_agent_browser: Optional[str] = None
     stopping_agent_platform: Optional[str] = None
-    stopped_time: Optional[float] = None
+    stopped_time: LogStopTime = None
     stopped_by: Optional[str] = None
     stopped_status: Optional[str] = None
     desktop_id: Optional[str] = None
@@ -521,8 +613,8 @@ class DesktopLogRow(BaseModel):
     hardware_memory: Optional[float] = None
     hardware_bookables_vgpus: Optional[List[str]] = None
     booking_id: Optional[Union[str, bool]] = None
-    booking_start: Optional[float] = None
-    booking_end: Optional[float] = None
+    booking_start: LogTime = None
+    booking_end: LogTime = None
     events: Optional[List[dict]] = None
     request_ip: Optional[str] = None
     request_agent_browser: Optional[str] = None
@@ -534,8 +626,8 @@ class UserLogRow(BaseModel):
     ``isardvdi_common.helpers.api_logs_users``)."""
 
     id: str
-    started_time: Optional[float] = None
-    stopped_time: Optional[Union[float, bool]] = None
+    started_time: LogTime = None
+    stopped_time: LogStopTime = None
     owner_user_id: Optional[str] = None
     owner_user_name: Optional[str] = None
     owner_role_id: Optional[str] = None
@@ -557,7 +649,7 @@ class DesktopGroupingLogRow(BaseModel):
     owner_group_id: Optional[str] = None
     owner_category_name: Optional[str] = None
     owner_category_id: Optional[str] = None
-    starting_time: Optional[float] = None
+    starting_time: LogTime = None
 
 
 class UserGroupingLogRow(BaseModel):
@@ -570,7 +662,7 @@ class UserGroupingLogRow(BaseModel):
     owner_group_id: Optional[str] = None
     owner_category_name: Optional[str] = None
     owner_category_id: Optional[str] = None
-    started_time: Optional[float] = None
+    started_time: LogTime = None
 
 
 class CategoryGroupingLogRow(BaseModel):

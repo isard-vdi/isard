@@ -523,8 +523,15 @@ class BulkEditDesktopsRequest(BaseModel):
         default=None,
         description="Updated guest properties (credentials, viewers, fullscreen)",
     )
-    hardware: Optional[Hardware] = Field(
+    # DomainHardware (not the strict shared ``Hardware``) so the bulk
+    # form can send only the fields the operator actually changed —
+    # ``videos`` and ``interfaces`` are commonly omitted.
+    hardware: Optional[DomainHardware] = Field(
         default=None, description="Updated hardware spec"
+    )
+    reservables: Optional[Reservables] = Field(
+        default=None,
+        description="Updated bookable resources (vGPUs).",
     )
 
     class Config:
@@ -618,6 +625,16 @@ class DomainInterfaceResponse(BaseModel):
     mac: str | None = None
 
 
+class DomainInfoMedia(BaseModel):
+    id: str
+    name: Optional[str] = None
+
+
+class DomainInfoHardware(Hardware):
+    isos: Optional[list[DomainInfoMedia]] = []
+    floppies: Optional[list[DomainInfoMedia]] = []
+
+
 class DomainInfoResponse(BaseModel):
     id: str
     kind: str
@@ -625,7 +642,7 @@ class DomainInfoResponse(BaseModel):
     description: str = ""
     image: DomainImage | None = None
     guest_properties: DomainGuestProperties | None = None
-    hardware: Hardware | None = None
+    hardware: DomainInfoHardware | None = None
     reservables: Reservables | None = None
     limited_hardware: dict | None = None  # TODO: check type
     bastion_target: DomainInfoBastionResponse | None = None
@@ -707,6 +724,14 @@ class DesktopEditRequest(BaseModel):
     )
     favourite_hyp: list[str] = Field(
         description="List of preferred hypervisor IDs. Requires manager or admin role. If not provided, the current value will be kept.",
+        default=None,
+    )
+    server: bool = Field(
+        description="If true, mark the desktop as a server. Requires manager or admin role. If not provided, the current value will be kept.",
+        default=None,
+    )
+    server_autostart: bool = Field(
+        description="If true, the server desktop is autostarted. Requires manager or admin role and server=True. If not provided, the current value will be kept.",
         default=None,
     )
 
