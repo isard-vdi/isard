@@ -364,7 +364,7 @@ export default {
         // under `tag_name`. The form's "Deployment name" input must bind
         // to the deployment row, not the recipe.
         const deploymentName = response.data.tag_name || response.data.name
-        context.commit('setDeployment', { name: deploymentName })
+        context.commit('setDeployment', { name: deploymentName, description: response.data.tag_description })
         context.dispatch('setAllowedGroupsUsers', { groups: response.data.allowed.groups, users: response.data.allowed.users })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

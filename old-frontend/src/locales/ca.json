@@ -1229,6 +1229,7 @@
     "new-deployment": {
       "title": "Crear nou desplegament:",
       "name": "Nom del desplegament",
+      "description": "Descripció del desplegament",
       "visible": "Visible pels usuaris",
       "not-visible": "No visible pels usuaris",
       "section-title-template": "Seleccionar una plantilla:",

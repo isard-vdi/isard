@@ -1329,7 +1329,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
             "tag": deployment_data.get("tag"),
             "tag_name": deployment_data.get("name"),
             "tag_visible": deployment_data.get("tag_visible"),
-            # "description": deployment_data.get("description"),
+            "tag_description": deployment_data.get("description"),
         }
         template = Caches.get_document(
             "domains",

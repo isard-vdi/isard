@@ -41,6 +41,36 @@
         </b-col>
       </b-row>
 
+      <!-- Description -->
+      <b-row>
+        <b-col
+          cols="4"
+          xl="2"
+        >
+          <label for="deploymentDescription">{{ $t('forms.new-deployment.description') }}</label>
+        </b-col>
+        <b-col
+          cols="6"
+          xl="4"
+          class="mb-4"
+        >
+          <b-form-input
+            id="deploymentDescription"
+            v-model="deploymentDescription"
+            type="text"
+            size="sm"
+            :state="v$.deploymentDescription.$error ? false : null"
+            @blur="v$.deploymentDescription.$touch"
+          />
+          <b-form-invalid-feedback
+            v-if="v$.deploymentDescription.$error"
+            id="deploymentDescriptionError"
+          >
+            {{ $t(`validations.${v$.deploymentDescription.$errors[0].$validator}`, { property: $t('forms.new-deployment.description'), model: deploymentDescription.length, max: 255 }) }}
+          </b-form-invalid-feedback>
+        </b-col>
+      </b-row>
+
       <b-row>
         <b-col cols="12">
           <div class="d-flex">
@@ -344,6 +374,7 @@ export default {
     }
 
     const deploymentName = ref('')
+    const deploymentDescription = ref('')
     const visible = ref(false)
     const collapseVisible = ref(false)
 
@@ -387,11 +418,11 @@ export default {
         minLengthValue: minLength(4),
         inputFormat
       },
-      description: {
+      deploymentDescription: {
         maxLengthValue: maxLength(255)
       },
       selectedTemplateId: { required }
-    }, { selectedTemplateId, deploymentName })
+    }, { selectedTemplateId, deploymentName, deploymentDescription })
 
     watch(items, (newVal, prevVal) => {
       totalRows.value = newVal.length
@@ -489,7 +520,7 @@ export default {
             {
               visible: visible.value,
               name: deploymentName.value,
-              description: domain.value.description,
+              description: deploymentDescription.value || null,
               allowed: {
                 users,
                 groups
@@ -566,6 +597,7 @@ export default {
 
     return {
       deploymentName,
+      deploymentDescription,
       visible,
       getTemplatesLoaded,
       groupsChecked,

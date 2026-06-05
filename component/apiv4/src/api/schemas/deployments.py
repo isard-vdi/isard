@@ -114,8 +114,8 @@ class CreateDeploymentRequest(BaseModel):
         min_length=4,
         max_length=50,
     )
-    description: str = Field(
-        default="",
+    description: str | None = Field(
+        default=None,
         description="Description of the deployment",
         max_length=255,
     )
@@ -200,7 +200,9 @@ class DeploymentDesktopEditRequest(DesktopEditRequest):
 
 class DeploymentEditRequest(BaseModel):
     name: str = Field(description="Name of the deployment", default=None)
-    description: str = Field(description="Description of the deployment", default=None)
+    description: Optional[str] = Field(
+        description="Description of the deployment", default=None
+    )
     image: DomainImage | None = Field(
         default=None,
         description="Image to use for the deployment. If not provided, the image from the first desktop will be used.",
@@ -253,6 +255,11 @@ class DeploymentEditRequest(BaseModel):
         description="Legacy: name to apply to every desktop in the deployment.",
         min_length=1,
         max_length=50,
+    )
+    desktop_description: Optional[str] = Field(
+        default=None,
+        description="Legacy: description to apply to every desktop in the deployment.",
+        max_length=255,
     )
     hardware: Optional[dict] = Field(
         default=None,
@@ -323,7 +330,9 @@ class DeploymentCsvResponse(BaseModel):
 class OwnedDeployment(BaseModel):
     id: str = Field(description="ID of the deployment")
     name: str = Field(description="Name of the deployment")
-    description: str = Field(description="Description of the deployment")
+    description: Optional[str] = Field(
+        default=None, description="Description of the deployment"
+    )
     image: Image | None = Field(
         default=None,
         description="Image associated with the deployment (may be missing on legacy rows)",
@@ -400,7 +409,9 @@ class DeploymentDetail(BaseModel):
 
     id: str = Field(description="ID of the deployment")
     name: str = Field(description="Name of the deployment")
-    description: str = Field(description="Description of the deployment")
+    description: Optional[str] = Field(
+        default=None, description="Description of the deployment"
+    )
     tag_visible: bool = Field(
         description="Indicates if the deployment is visible", default=False
     )
@@ -743,6 +754,7 @@ class DeploymentInfoResponse(BaseModel):
     allowed: Optional[Allowed] = None
     tag: Optional[str] = None
     tag_name: Optional[str] = None
+    tag_description: Optional[str] = None
     tag_visible: Optional[bool] = None
 
 
@@ -753,7 +765,7 @@ class DeploymentVideowallResponse(BaseModel):
         description="List of user IDs that are co-owners of the deployment.",
     )
     description: str | None = Field(
-        default="", description="Description of the deployment"
+        default=None, description="Description of the deployment"
     )
 
     id: str = Field(description="ID of the deployment")

@@ -160,7 +160,7 @@ const transformFormDataToApiFormat = (data: {
 
   return {
     name: data.name,
-    description: data.description || '',
+    description: (data.description || null) as string, // empty → null (generated type strips the null union)
     kind: 'lab' as const,
     tag_visible: data.visibility,
     allowed: {

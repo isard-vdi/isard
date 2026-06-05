@@ -96,6 +96,7 @@
     "new-deployment": {
       "title": "Crear nuevo despliegue:",
       "name": "Nombre del despliegue",
+      "description": "Descripción del despliegue",
       "visible": "Visible para los usuarios",
       "not-visible": "No visible para los usuarios",
       "section-title-template": "Seleccionar una plantilla:",
