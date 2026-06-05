@@ -785,7 +785,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
             user_data["new_user"].get("category") != category
             and user_data["new_user"].get("role") != "admin"
         ):
-            cls.edit_deployment_users(
+            DeploymentUsers.edit_deployment_users(
                 payload,
                 deployment_id,
                 Allowed(**{}).model_dump(),
