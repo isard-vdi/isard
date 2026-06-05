@@ -42,10 +42,6 @@ class AdminStatsService:
         return StatsProcessed.get_templates_stats()
 
     @staticmethod
-    def get_general_stats():
-        return StatsProcessed.get_general_stats()
-
-    @staticmethod
     def get_domains_status():
         return StatsProcessed.get_domains_status()
 
@@ -54,20 +50,8 @@ class AdminStatsService:
         return StatsProcessed.get_kind(kind)
 
     @staticmethod
-    def get_category_status():
-        return StatsProcessed.get_category_status()
-
-    @staticmethod
     def get_group_by_categories():
         return StatsProcessed.get_group_by_categories()
-
-    @staticmethod
-    def get_categories_kind_state(kind, state=False):
-        return StatsProcessed.get_categories_kind_state(kind, state)
-
-    @staticmethod
-    def get_categories_limits_hardware():
-        return StatsProcessed.get_categories_limits_hardware()
 
     @staticmethod
     def get_categories_deployments():

@@ -18,20 +18,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-# NOTE on route ordering:
-# FastAPI matches routes in declaration order, so all LITERAL sub-paths
-# under a given prefix must be declared BEFORE any sibling catch-all
-# /{param} route in the same file, otherwise the catch-all shadows them.
-# In this file:
-#   - /admin/item/stats/categories, /admin/item/stats/categories/limits,
-#     /admin/item/stats/categories/deployments must come BEFORE
-#     /admin/item/stats/categories/{kind}
-#   - /admin/item/stats/domains/status and /admin/item/stats/category/status
-#     come BEFORE per-kind paths (defensive ordering for clarity)
-
 import asyncio
 import traceback
-from typing import Literal
 
 from api import admin_router
 from api.schemas.admin.stats import (
@@ -51,37 +39,6 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 tag = "admin_stats"
-
-
-# =============================================================================
-# GENERAL STATS
-# =============================================================================
-
-
-@admin_router.get(
-    "/admin/item/stats",
-    tags=[tag],
-    summary="Get general statistics",
-    description="Returns general statistics including users, desktops, and templates.",
-    response_model=StatsGenericResponse,
-    responses={500: {"model": ErrorResponse}},
-)
-async def stats_general(request: Request):
-    try:
-        result = await asyncio.to_thread(AdminStatsService.get_general_stats)
-        return JSONResponse(
-            content=StatsGenericResponse(**(result or {})).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to get general statistics",
-            traceback.format_exc(),
-        )
 
 
 @admin_router.get(
@@ -143,39 +100,6 @@ async def stats_domains_status(request: Request):
 
 
 @admin_router.get(
-    "/admin/item/stats/category/status",
-    tags=[tag],
-    summary="Get category status statistics",
-    description="Returns category-level status statistics showing wrong-status desktops and templates.",
-    response_model=StatsGenericResponse,
-    responses={500: {"model": ErrorResponse}},
-)
-async def stats_category_status(request: Request):
-    try:
-        result = {
-            "categories": await asyncio.to_thread(AdminStatsService.get_category_status)
-        }
-        return JSONResponse(
-            content=StatsGenericResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to get category status statistics",
-            traceback.format_exc(),
-        )
-
-
-# -----------------------------------------------------------------------------
-# CATEGORY STATS — literal sub-paths MUST come before /admin/item/stats/categories/{kind}.
-# -----------------------------------------------------------------------------
-
-
-@admin_router.get(
     "/admin/item/stats/categories",
     tags=[tag],
     response_model=StatsCategoriesResponse,
@@ -201,36 +125,6 @@ async def stats_categories(request: Request):
             request,
             "internal_server",
             "Failed to get category statistics",
-            traceback.format_exc(),
-        )
-
-
-@admin_router.get(
-    "/admin/item/stats/categories/limits",
-    tags=[tag],
-    summary="Get category limits and hardware statistics",
-    description="Returns category-level hardware limits and running resource statistics.",
-    response_model=StatsGenericResponse,
-    responses={500: {"model": ErrorResponse}},
-)
-async def stats_categories_limits(request: Request):
-    try:
-        result = {
-            "category": await asyncio.to_thread(
-                AdminStatsService.get_categories_limits_hardware
-            )
-        }
-        return JSONResponse(
-            content=StatsGenericResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to get category limits statistics",
             traceback.format_exc(),
         )
 
@@ -265,73 +159,6 @@ async def stats_categories_deployments(request: Request):
             "Failed to get category deployments statistics",
             traceback.format_exc(),
         )
-
-
-@admin_router.get(
-    "/admin/item/stats/categories/{kind}/{state}",
-    tags=[tag],
-    response_model=StatsGenericResponse,
-    summary="Get category statistics by kind and state",
-    description="Returns category statistics for a specific kind and state.",
-    responses={500: {"model": ErrorResponse}},
-)
-async def stats_categories_kind_state(
-    request: Request, kind: Literal["desktop", "template"], state: str
-):
-    try:
-        result = {
-            "category": await asyncio.to_thread(
-                AdminStatsService.get_categories_kind_state, kind, state
-            )
-        }
-        return JSONResponse(
-            content=StatsGenericResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to get category kind/state statistics",
-            traceback.format_exc(),
-        )
-
-
-@admin_router.get(
-    "/admin/item/stats/categories/{kind}",
-    tags=[tag],
-    response_model=StatsGenericResponse,
-    summary="Get category statistics by kind",
-    description="Returns category statistics for a specific kind (desktop, template).",
-    responses={500: {"model": ErrorResponse}},
-)
-async def stats_categories_kind(request: Request, kind: Literal["desktop", "template"]):
-    try:
-        result = {
-            "category": await asyncio.to_thread(
-                AdminStatsService.get_categories_kind_state, kind
-            )
-        }
-        return JSONResponse(
-            content=StatsGenericResponse(**result).model_dump(mode="json"),
-            status_code=200,
-        )
-    except Error:
-        raise
-    except Exception:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to get category kind statistics",
-            traceback.format_exc(),
-        )
-
-
-# -----------------------------------------------------------------------------
-# Per-kind stats routes (replacing the former /stats/{kind} catch-all)
-# -----------------------------------------------------------------------------
 
 
 @admin_router.get(

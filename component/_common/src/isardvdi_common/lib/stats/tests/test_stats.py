@@ -86,29 +86,6 @@ class TestGetTemplatesStats:
         assert result == {"total": 3, "enabled": 1, "disabled": 2}
 
 
-class TestGetGeneralStats:
-    def test_composes_three_summaries(self, stub_rdb, monkeypatch):
-        monkeypatch.setattr(
-            stub_rdb["Processed"], "get_users_stats", classmethod(lambda cls: {"u": 1})
-        )
-        monkeypatch.setattr(
-            stub_rdb["Processed"],
-            "get_desktops_stats",
-            classmethod(lambda cls: {"d": 2}),
-        )
-        monkeypatch.setattr(
-            stub_rdb["Processed"],
-            "get_templates_stats",
-            classmethod(lambda cls: {"t": 3}),
-        )
-        result = stub_rdb["Processed"].get_general_stats()
-        assert result == {
-            "users": {"u": 1},
-            "desktops": {"d": 2},
-            "templates": {"t": 3},
-        }
-
-
 class TestGetDomainsStatus:
     def test_folds_grouped_kind_status_cursor(self, stub_rdb):
         chain = stub_rdb["mock_table"].return_value
@@ -182,20 +159,6 @@ class TestGetKind:
         assert "widgets" in str(exc.value)
 
 
-class TestGetCategoryStatus:
-    def test_filters_stable_desktops_and_stopped_templates(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        # desktops: cat-a Started (filtered), cat-a Unknown (kept).
-        # templates: cat-a Stopped (filtered), cat-b Failed (kept).
-        chain.get_all.return_value.pluck.return_value.group.return_value.count.return_value.run.side_effect = [
-            {("cat-a", "Started"): 5, ("cat-a", "Unknown"): 2},
-            {("cat-a", "Stopped"): 7, ("cat-b", "Failed"): 1},
-        ]
-        result = stub_rdb["Processed"].get_category_status()
-        assert result["cat-a"] == {"desktops_wrong_status": {"Unknown": 2}}
-        assert result["cat-b"] == {"templates_wrong_status": {"Failed": 1}}
-
-
 class TestGetCategoriesDeployments:
     def test_groups_deployments_by_category(self, stub_rdb):
         chain = stub_rdb["mock_table"].return_value
@@ -257,56 +220,3 @@ class TestGetGroupByCategories:
         result = stub_rdb["Processed"].get_group_by_categories()
         assert result["cat-a"]["users"]["roles"] == {"admin": 1}
         assert None not in result["cat-a"]["users"]["roles"]
-
-
-class TestGetCategoriesKindState:
-    def test_desktop_no_state_returns_full_breakdown(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
-        chain.get_all.return_value.count.return_value.run.return_value = 5
-        chain.get_all.return_value.filter.return_value.count.return_value.run.return_value = (
-            2
-        )
-        result = stub_rdb["Processed"].get_categories_kind_state("desktop")
-        assert result["cat-a"]["desktops"]["total"] == 5
-        assert "Other" in result["cat-a"]["desktops"]["status"]
-
-    def test_template_enabled_returns_just_enabled(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
-        chain.get_all.return_value.count.return_value.run.return_value = 9
-        result = stub_rdb["Processed"].get_categories_kind_state("template", "enabled")
-        assert result["cat-a"]["templates"]["status"]["enabled"] == 9
-
-    def test_unknown_kind_returns_empty(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        chain.pluck.return_value.__getitem__.return_value.run.return_value = ["cat-a"]
-        result = stub_rdb["Processed"].get_categories_kind_state("widget")
-        assert result == {}
-
-
-class TestGetCategoriesLimitsHardware:
-    def test_with_explicit_limits(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        chain.pluck.return_value.run.return_value = [
-            {"id": "cat-a", "limits": {"vcpus": 32, "memory": 64000}}
-        ]
-        chain.get_all.return_value.count.return_value.run.return_value = 4
-        chain.get_all.return_value.__getitem__.return_value.__getitem__.return_value.__getitem__.return_value.sum.return_value.run.return_value = (
-            8
-        )
-        result = stub_rdb["Processed"].get_categories_limits_hardware()
-        assert result["cat-a"]["Started desktops"] == 4
-        assert result["cat-a"]["vCPUs"]["Limit"] == 32
-        assert result["cat-a"]["Memory"]["Limit"] == 64000
-
-    def test_with_limits_false_falls_back_to_zero(self, stub_rdb):
-        chain = stub_rdb["mock_table"].return_value
-        chain.pluck.return_value.run.return_value = [{"id": "cat-a", "limits": False}]
-        chain.get_all.return_value.count.return_value.run.return_value = 0
-        chain.get_all.return_value.__getitem__.return_value.__getitem__.return_value.__getitem__.return_value.sum.return_value.run.return_value = (
-            0
-        )
-        result = stub_rdb["Processed"].get_categories_limits_hardware()
-        assert result["cat-a"]["vCPUs"]["Limit"] == 0
-        assert result["cat-a"]["Memory"]["Limit"] == 0
