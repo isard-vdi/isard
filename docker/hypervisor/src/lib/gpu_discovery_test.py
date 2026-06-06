@@ -826,3 +826,82 @@ def test_build_card_descriptor_is_readonly(monkeypatch):
         sriov={"sriov_totalvfs": 16, "sriov_numvfs": 16},
     )
     gd.build_card_descriptor("0000:c5:00.0", mdevs_reset_at="T")
+
+
+# --- M0: MIG-backed vGPU profile annotation (DC-N-Q <-> +gfx GI) ---
+def test_annotate_mig_backed_vgpu_profiles_maps_slice_to_gfx_gi():
+    import gpu_discovery as _gd
+
+    vgpu = [
+        {
+            "name": "RTXPro6000BlackwellDC-24Q",
+            "type_id": "nvidia-1534",
+            "available_instances": 0,
+            "max_instances": 0,
+        },
+        {
+            "name": "RTXPro6000BlackwellDC-1_24Q",
+            "type_id": "nvidia-1561",
+            "available_instances": 0,
+            "max_instances": 0,
+        },
+        {
+            "name": "RTXPro6000BlackwellDC-2_24Q",
+            "type_id": "nvidia-1570",
+            "available_instances": 0,
+            "max_instances": 0,
+        },
+        {
+            "name": "RTXPro6000BlackwellDC-4_24Q",
+            "type_id": "nvidia-1576",
+            "available_instances": 0,
+            "max_instances": 0,
+        },
+    ]
+    mig = [
+        {"name": "1g.24gb", "profile_id": 14, "max_instances": 4, "memory_gib": 23.12},
+        {
+            "name": "1g.24gb+gfx",
+            "profile_id": 47,
+            "max_instances": 4,
+            "memory_gib": 23.12,
+        },
+        {
+            "name": "2g.48gb+gfx",
+            "profile_id": 35,
+            "max_instances": 2,
+            "memory_gib": 46.5,
+        },
+        {
+            "name": "4g.96gb+gfx",
+            "profile_id": 32,
+            "max_instances": 1,
+            "memory_gib": 93.38,
+        },
+    ]
+    _gd._annotate_mig_backed_vgpu_profiles(vgpu, mig)
+    by = {p["name"]: p for p in vgpu}
+    # Non-MIG full-card profile is left untouched.
+    assert "mig" not in by["RTXPro6000BlackwellDC-24Q"]
+    # 1-slice -> 1g.24gb+gfx (the +gfx variant, NOT the plain id 14), count 4.
+    p1 = by["RTXPro6000BlackwellDC-1_24Q"]
+    assert p1["mig"] is True
+    assert p1["mig_profile_id"] == 47
+    assert p1["mig_count"] == 4
+    assert p1["max_instances"] == 4
+    # 2-slice and 4-slice map to their +gfx GIs with the right per-card counts.
+    assert by["RTXPro6000BlackwellDC-2_24Q"]["mig_profile_id"] == 35
+    assert by["RTXPro6000BlackwellDC-2_24Q"]["max_instances"] == 2
+    assert by["RTXPro6000BlackwellDC-4_24Q"]["mig_profile_id"] == 32
+    assert by["RTXPro6000BlackwellDC-4_24Q"]["max_instances"] == 1
+
+
+def test_annotate_mig_backed_noop_without_gfx_gi():
+    import gpu_discovery as _gd
+
+    # No +gfx GI for the slice count -> profile stays unannotated (non-MIG).
+    vgpu = [{"name": "M-1_24Q", "max_instances": 0}]
+    _gd._annotate_mig_backed_vgpu_profiles(
+        vgpu, [{"name": "1g.24gb", "profile_id": 14, "max_instances": 4}]
+    )
+    assert "mig" not in vgpu[0]

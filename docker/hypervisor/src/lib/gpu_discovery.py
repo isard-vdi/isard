@@ -445,6 +445,50 @@ def _get_mig_profiles(gpu_index):
     return profiles
 
 
+def _annotate_mig_backed_vgpu_profiles(vgpu_profiles, mig_profiles):
+    """Annotate MIG-backed vGPU mdev profiles with their graphics MIG GPU-instance
+    profile, so the apply path knows what to carve and bookings know the count.
+
+    On Blackwell a vGPU desktop on a MIG slice uses the VF mdev type
+    ``DC-N-<mem>Q`` (canonical suffix like ``"1_24Q"`` — a LEADING slice count),
+    which only exposes ``available_instances`` > 0 after N-slice ``<N>g.*+gfx``
+    GPU-instances are created. So the per-card bookable count must come from
+    ``nvidia-smi mig -lgip`` (the GI ``max_instances``), not the VF's own
+    available_instances (0 until carved). For each MIG-backed profile this sets
+    ``mig=True``, ``mig_profile_id`` = the matching ``+gfx`` GI id, ``mig_count``
+    = that GI's max_instances, and overrides ``max_instances`` with the GI max so
+    reservable ``units`` reflect the slice count. Non-MIG vGPU profiles (suffix
+    ``"<mem>Q"`` with no leading slice count, e.g. the full-card ``"24Q"``) are
+    left untouched. Mutates and returns ``vgpu_profiles``.
+    """
+    if not vgpu_profiles or not mig_profiles:
+        return vgpu_profiles
+    # Index the graphics-enabled GI profiles by leading slice count:
+    # "1g.24gb+gfx" -> 1, "2g.48gb+gfx" -> 2, "4g.96gb+gfx" -> 4. Only the +gfx
+    # variants expose a vGPU mdev; the plain compute GIs do not.
+    gfx_by_slices = {}
+    for mp in mig_profiles:
+        name = mp.get("name") or ""
+        if "+gfx" not in name:
+            continue
+        m = re.match(r"(\d+)g\.", name)
+        if m:
+            gfx_by_slices[int(m.group(1))] = mp
+    for prof in vgpu_profiles:
+        suffix = (prof.get("name") or "").rsplit("-", 1)[-1]  # "1_24Q" / "24Q"
+        m = re.match(r"^(\d+)_\d+[ABCQ]$", suffix)  # MIG-backed: leading slice count
+        if not m:
+            continue
+        gi = gfx_by_slices.get(int(m.group(1)))
+        if not gi:
+            continue
+        prof["mig"] = True
+        prof["mig_profile_id"] = gi["profile_id"]
+        prof["mig_count"] = gi["max_instances"]
+        prof["max_instances"] = gi["max_instances"]
+    return vgpu_profiles
+
+
 def _find_audio_companions(sysfs_pci_id):
     """Find HD Audio companion functions in the GPU's IOMMU group.
 
@@ -1434,6 +1478,13 @@ def discover_gpus():
             mig_profiles = _get_mig_profiles(gpu_index)
             if mig_profiles:
                 gpu_info["mig_profiles"] = mig_profiles
+                # Attach the +gfx GI id + per-card count to each MIG-backed vGPU
+                # profile (DC-N-Q), since its VF available_instances is 0 until
+                # the GIs are carved.
+                if isinstance(gpu_info.get("vgpu_profiles"), list):
+                    _annotate_mig_backed_vgpu_profiles(
+                        gpu_info["vgpu_profiles"], mig_profiles
+                    )
 
         # Detect HD-audio companion in the same IOMMU group (display-mode
         # NVIDIA boards expose .0 + .1; compute-mode boards have no .1).
@@ -1581,6 +1632,8 @@ def build_card_descriptor(pci_bdf, mdevs_reset_at=None):
         mig_profiles = _get_mig_profiles(sysfs_pci_id)
         if mig_profiles:
             desc["mig_profiles"] = mig_profiles
+            if isinstance(desc.get("vgpu_profiles"), list):
+                _annotate_mig_backed_vgpu_profiles(desc["vgpu_profiles"], mig_profiles)
 
     return desc
 
