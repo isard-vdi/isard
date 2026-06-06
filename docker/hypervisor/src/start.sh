@@ -44,7 +44,10 @@ ssh-keygen -A
 /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config >/dev/null 2>&1 &
 sleep 1
 
-echo "---> Setting up hypervisor certificates from api..."
+echo "---> Registering hypervisor with API (certificates + SR-IOV/GPU discovery)..."
+echo "     GPU/vGPU discovery can take a while on vGPU hosts;"
+echo "     see 'docker logs isard-hypervisor' for per-GPU progress and failures."
+report_step 0 "GPU/hardware discovery" None
 python3 /src/lib/hypervisor.py setup
 chmod 440 /etc/pki/libvirt-spice/*
 chown qemu:root /etc/pki/libvirt-spice/*

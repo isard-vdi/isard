@@ -1,4 +1,4 @@
-"""Unit tests for gpu_discovery._classify_sriov_state.
+"""Unit tests for gpu_discovery helpers.
 
 Run locally (no CI pytest gate for the hypervisor lib):
     cd docker/hypervisor/src/lib && python -m pytest gpu_discovery_test.py -v
@@ -7,13 +7,29 @@ The module is not packaged, so add its own directory to sys.path before
 importing (mirrors how the lib is loaded inside the hypervisor container).
 """
 
+import logging
 import os
 import sys
+import threading
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pytest
-from gpu_discovery import _classify_sriov_state, normalize_gpu_model
+from gpu_discovery import (
+    _aggregate_subdevice_profiles,
+    _canon_vgpu_profile_name,
+    _check_gpu_tooling,
+    _classify_sriov_state,
+    _cycle_sriov_vfs,
+    _running_qemu_pids,
+    _vf_vgpu_types_settled,
+    _wait_sriov_numvfs_zero,
+    _wait_vf_driver_bound,
+    canonical_gpu_model,
+    discover_gpus,
+    normalize_gpu_model,
+)
 
 
 @pytest.mark.parametrize(
@@ -65,18 +81,54 @@ def test_note_text_is_reassuring_not_a_fault():
     assert "fail" not in msg.lower()
 
 
-def test_iommu_warning_names_the_bound_driver():
+def test_vf_unbound_warning_names_the_bound_driver():
     notes, warnings = _classify_sriov_state(16, 16, False, "vfio-pci")
     assert notes == []
     assert len(warnings) == 1
     assert "driver=vfio-pci" in warnings[0]
-    assert "iommu=pt" in warnings[0]
+    # The old text falsely told operators to add iommu=pt to the kernel
+    # cmdline. Production NVIDIA vGPU hosts work fine with amd_iommu=on
+    # only; the real causes of unbound VFs are nvidia-vgpu-mgr not running
+    # and udev binding races between sriov-manage -d and -e.
+    assert "iommu=pt" not in warnings[0].lower()
+    assert "nvidia-vgpu-mgr" in warnings[0]
 
 
-def test_iommu_warning_handles_unknown_driver():
+def test_vf_unbound_warning_handles_unknown_driver():
     notes, warnings = _classify_sriov_state(16, 16, False, "")
     assert notes == []
     assert "driver=none" in warnings[0]
+    assert "iommu=pt" not in warnings[0].lower()
+
+
+@pytest.mark.parametrize(
+    "type_ids, settled",
+    [
+        (["nvidia-711", "nvidia-713"], True),
+        (["nvidia-713"], True),
+        # generic half-initialized VF names — must NOT be treated as settled
+        (["pci-713"], False),
+        (["nvidia-711", "pci-713"], False),
+        ([], False),  # no profiles at all
+    ],
+)
+def test_vf_vgpu_types_settled(type_ids, settled):
+    profiles = [{"name": f"A16-{i}Q", "type_id": t} for i, t in enumerate(type_ids)]
+    assert _vf_vgpu_types_settled(profiles) is settled
+
+
+def test_vfs_nvidia_bound_no_profiles_points_at_host_vgpud():
+    """VFs up + nvidia-bound but no vGPU types means the host nvidia-vgpud
+    isn't publishing types (e.g. it lost a boot-time race after GPUs were
+    added). The warning must name nvidia-vgpud and tell the operator to restart
+    it ON THE HOST (the container can't), not just say 'no profiles found'."""
+    notes, warnings = _classify_sriov_state(16, 16, False, "nvidia")
+    assert notes == []
+    assert len(warnings) == 1
+    w = warnings[0]
+    assert "nvidia-vgpud" in w
+    assert "host" in w.lower()
+    assert "passthrough" in w.lower()
 
 
 # normalize_gpu_model output is used verbatim as a URL path segment inside the
@@ -112,3 +164,635 @@ def test_normalize_gpu_model_profile_path_is_clean(profile_name, expected):
     result = normalize_gpu_model("irrelevant", vgpu_profiles=[{"name": profile_name}])
     assert result == expected
     assert "/" not in result
+
+
+# canonical_gpu_model unifies the model token for physically identical cards by
+# anchoring on the PCI device-id (+ subsystem-id where the die-id is shared).
+# The live fragmentation it fixes: one 10de:2bb5 card discovered with vGPU
+# profiles -> "RTXPro6000BlackwellDC", an identical one discovered via the
+# nvidia-smi name -> "RTXPRO6000BlackwellServerEdition", and a third discovered
+# after an NVML failure (sysfs + pci.ids fallback) -> the die-label
+# "GB202GL[RTXPRO6000BlackwellServerEdition]". All three are the SAME hardware
+# and MUST collapse to one token. The alias therefore takes PRECEDENCE over the
+# name/profile paths (which themselves diverge) for a mapped device.
+
+
+@pytest.mark.parametrize(
+    "name, profiles",
+    [
+        # vGPU-profile-name path (profiles enumerated): would give DC anyway.
+        (
+            "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+            [{"name": "RTXPro6000BlackwellDC-4Q"}],
+        ),
+        # nvidia-smi-name path (no profiles): would otherwise give ServerEdition.
+        ("NVIDIA RTX PRO 6000 Blackwell Server Edition", None),
+        # NVML-failed / sysfs+pci.ids fallback path: would otherwise give the
+        # bracketed die-label.
+        ("NVIDIA GB202GL [RTX PRO 6000 Blackwell Server Edition]", None),
+    ],
+)
+def test_canonical_gpu_model_blackwell_all_paths_collapse(name, profiles):
+    # 10de:2bb5 is device-only aliased (subsystem irrelevant for this model).
+    result = canonical_gpu_model(
+        name, vgpu_profiles=profiles, pci_device_id="10de:2bb5"
+    )
+    assert result == "RTXPro6000BlackwellDC"
+
+
+@pytest.mark.parametrize(
+    "name, profiles",
+    [
+        ("NVIDIA A16", [{"name": "A16-2Q"}]),
+        ("NVIDIA A16", None),
+        # The NVML-failed fallback names the GA107 die ambiguously as A2/A16.
+        ("NVIDIA GA107GL [A2 / A16]", None),
+    ],
+)
+def test_canonical_gpu_model_a16_all_paths_collapse(name, profiles):
+    # 10de:25b6 is the shared A2/A16 die-id, so the alias is subsystem-qualified.
+    result = canonical_gpu_model(
+        name,
+        vgpu_profiles=profiles,
+        pci_device_id="10de:25b6",
+        pci_subsystem_id="10de:14a9",
+    )
+    assert result == "A16"
+
+
+def test_canonical_gpu_model_does_not_conflate_a2_with_a16():
+    # Same die-id 25b6 but a DIFFERENT subsystem (a real A2) must NOT be aliased
+    # to A16 — it falls through to the unambiguous nvidia-smi name.
+    result = canonical_gpu_model(
+        "NVIDIA A2",
+        vgpu_profiles=None,
+        pci_device_id="10de:25b6",
+        pci_subsystem_id="10de:157e",
+    )
+    assert result == "A2"
+
+
+def test_canonical_gpu_model_unmapped_device_falls_through_to_name():
+    # A40 (10de:2235) is clean fleet-wide -> no alias entry -> identity behaviour
+    # of normalize_gpu_model (profile path then name path).
+    assert canonical_gpu_model("NVIDIA A40", pci_device_id="10de:2235") == "A40"
+    assert (
+        canonical_gpu_model(
+            "irrelevant",
+            vgpu_profiles=[{"name": "A40-12Q"}],
+            pci_device_id="10de:2235",
+        )
+        == "A40"
+    )
+
+
+def test_canonical_gpu_model_no_pci_id_matches_normalize():
+    # Without any device-id (e.g. older callers), behaviour is exactly
+    # normalize_gpu_model.
+    for name in ("NVIDIA A16", "NVIDIA GA107GL [A2 / A16]"):
+        assert canonical_gpu_model(name) == normalize_gpu_model(name)
+
+
+def test_canonical_gpu_model_output_is_url_path_safe():
+    # Whatever path is taken, the token is a URL path segment in the reservable
+    # id, so it must stay dash/slash/space-free.
+    for kwargs in (
+        {"pci_device_id": "10de:2bb5"},
+        {"pci_device_id": "10de:25b6", "pci_subsystem_id": "10de:14a9"},
+        {"pci_device_id": "10de:2235"},
+        {},
+    ):
+        result = canonical_gpu_model("NVIDIA GA107GL [A2 / A16]", **kwargs)
+        assert "/" not in result
+        assert "-" not in result
+        assert " " not in result
+
+
+# _canon_vgpu_profile_name is the single canonicalization point: discovery emits
+# names whose derived "NVIDIA-MODEL-PROFILE" id has exactly two dashes, so the
+# engine info.types key and the catalog id agree and set_gpu_profile's
+# split("-")[-1] resolves the full MIG suffix (the "1-2Q" -> "2Q" regression).
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        # simple time-sliced profiles are already canonical (idempotent)
+        ("A40-4Q", "A40-4Q"),
+        ("A16-2Q", "A16-2Q"),
+        ("RTXPro6000BlackwellDC-passthrough", "RTXPro6000BlackwellDC-passthrough"),
+        # MIG-backed dash suffix -> underscore (the bug this fixes)
+        ("RTXPro6000BlackwellDC-1-2Q", "RTXPro6000BlackwellDC-1_2Q"),
+        ("RTXPro6000BlackwellDC-2-48Q", "RTXPro6000BlackwellDC-2_48Q"),
+        ("A100-1-5C", "A100-1_5C"),
+        # dashed MODEL is collapsed so the suffix split stays correct
+        ("RTX-A6000-1-2Q", "RTXA6000-1_2Q"),
+        ("RTX-A6000-4Q", "RTXA6000-4Q"),
+        # already-canonical underscore form is left untouched (idempotent)
+        ("RTXPro6000BlackwellDC-1_2Q", "RTXPro6000BlackwellDC-1_2Q"),
+    ],
+)
+def test_canon_vgpu_profile_name(name, expected):
+    result = _canon_vgpu_profile_name(name)
+    assert result == expected
+    # the derived BRAND-MODEL-PROFILE id must split into exactly 3 dash tokens
+    assert len(f"NVIDIA-{result}".split("-")) == 3
+    # and split("-")[-1] must recover the full suffix (what set_gpu_profile does)
+    assert f"NVIDIA-{result}".split("-")[-1] == result.split("-", 1)[1]
+
+
+def test_canon_vgpu_profile_name_is_idempotent():
+    once = _canon_vgpu_profile_name("RTXPro6000BlackwellDC-1-2Q")
+    assert _canon_vgpu_profile_name(once) == once
+
+
+# ----- _wait_sriov_numvfs_zero --------------------------------------------
+
+
+def _write(path, content):
+    """Tiny sysfs-style helper: write content (str) to path. Path may be Path or str."""
+    with open(str(path), "w") as f:
+        f.write(str(content))
+
+
+def _redirect_sysfs(monkeypatch, tmp_path):
+    """Point gpu_discovery's _SYSFS_PCI_BASE at tmp_path. Returns it as str."""
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_SYSFS_PCI_BASE", str(tmp_path))
+    return str(tmp_path)
+
+
+def test_wait_sriov_numvfs_zero_returns_true_when_already_zero(monkeypatch, tmp_path):
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:99:00.0"
+    dev_dir = tmp_path / pci_id
+    dev_dir.mkdir(parents=True)
+    _write(dev_dir / "sriov_numvfs", "0")
+    assert _wait_sriov_numvfs_zero(pci_id, timeout=1) is True
+
+
+def test_wait_sriov_numvfs_zero_returns_true_when_becomes_zero(monkeypatch, tmp_path):
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:99:00.0"
+    dev_dir = tmp_path / pci_id
+    dev_dir.mkdir(parents=True)
+    _write(dev_dir / "sriov_numvfs", "16")
+
+    def drop_to_zero():
+        time.sleep(0.4)
+        _write(dev_dir / "sriov_numvfs", "0")
+
+    threading.Thread(target=drop_to_zero, daemon=True).start()
+    assert _wait_sriov_numvfs_zero(pci_id, timeout=3) is True
+
+
+def test_wait_sriov_numvfs_zero_returns_false_on_timeout(monkeypatch, tmp_path):
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:99:00.0"
+    dev_dir = tmp_path / pci_id
+    dev_dir.mkdir(parents=True)
+    _write(dev_dir / "sriov_numvfs", "16")
+    assert _wait_sriov_numvfs_zero(pci_id, timeout=1) is False
+
+
+def test_wait_vf_driver_bound_succeeds_when_already_nvidia(monkeypatch, tmp_path):
+    """When virtfn0 -> VF BDF and VF's driver -> nvidia, the helper returns True."""
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:99:00.0"
+    vf_bdf = "0000:99:00.4"
+    pf_dir = tmp_path / pci_id
+    vf_dir = tmp_path / vf_bdf
+    pf_dir.mkdir()
+    vf_dir.mkdir()
+    # virtfn0 -> VF
+    (pf_dir / "virtfn0").symlink_to(vf_dir)
+    # driver -> nvidia (real subdir, basename matters)
+    nvidia_drv_dir = tmp_path / "drivers" / "nvidia"
+    nvidia_drv_dir.mkdir(parents=True)
+    (vf_dir / "driver").symlink_to(nvidia_drv_dir)
+    assert _wait_vf_driver_bound(pci_id, expected="nvidia", timeout=1) is True
+
+
+def test_wait_vf_driver_bound_returns_false_when_driver_missing(monkeypatch, tmp_path):
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:99:00.0"
+    pf_dir = tmp_path / pci_id
+    pf_dir.mkdir()
+    # No virtfn0 at all → must time out, not crash.
+    assert _wait_vf_driver_bound(pci_id, expected="nvidia", timeout=1) is False
+
+
+# ----- _cycle_sriov_vfs orchestration -------------------------------------
+
+
+def test_cycle_sriov_vfs_runs_settle_helpers_in_order(monkeypatch, tmp_path):
+    """After `-d` we must wait for sriov_numvfs==0; after `-e` we must wait
+    for virtfn0 to be nvidia-bound. Both come from real production breakage
+    where back-to-back sriov-manage left VFs driver=none."""
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:05:00.0"
+    dev_dir = tmp_path / pci_id
+    dev_dir.mkdir()
+    _write(dev_dir / "sriov_totalvfs", "16")
+
+    import gpu_discovery as gd
+
+    call_log = []
+
+    class _R:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(cmd, *a, **kw):
+        call_log.append(("run", tuple(cmd)))
+        return _R()
+
+    def fake_wait_numvfs_zero(_id, timeout=10):
+        call_log.append(("wait_numvfs_zero",))
+        return True
+
+    def fake_wait_vf_bound(_id, expected="nvidia", timeout=15):
+        call_log.append(("wait_vf_bound",))
+        return True
+
+    monkeypatch.setattr(gd.subprocess, "run", fake_run)
+    monkeypatch.setattr(gd, "_wait_sriov_numvfs_zero", fake_wait_numvfs_zero)
+    monkeypatch.setattr(gd, "_wait_vf_driver_bound", fake_wait_vf_bound)
+
+    ok = _cycle_sriov_vfs(pci_id)
+
+    assert ok is True
+    op_order = []
+    for c in call_log:
+        if c[0] == "run":
+            cmd = c[1]
+            if cmd[0] == "sriov-manage":
+                op_order.append(("sriov-manage", cmd[1]))
+            elif cmd[0] == "udevadm":
+                op_order.append(("udevadm",))
+        else:
+            op_order.append((c[0],))
+    assert op_order == [
+        ("sriov-manage", "-d"),
+        ("wait_numvfs_zero",),
+        ("sriov-manage", "-e"),
+        ("udevadm",),
+        ("wait_vf_bound",),
+    ]
+
+
+def test_cycle_sriov_vfs_returns_false_if_vfs_never_bind(monkeypatch, tmp_path):
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:05:00.0"
+    dev_dir = tmp_path / pci_id
+    dev_dir.mkdir()
+    _write(dev_dir / "sriov_totalvfs", "16")
+
+    import gpu_discovery as gd
+
+    class _R:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setattr(gd.subprocess, "run", lambda *a, **kw: _R())
+    monkeypatch.setattr(gd, "_wait_sriov_numvfs_zero", lambda *a, **kw: True)
+    monkeypatch.setattr(gd, "_wait_vf_driver_bound", lambda *a, **kw: False)
+
+    # When VFs do not bind, return False so caller knows mdev scan would be
+    # a wild goose chase. Engine reconcile then treats this as
+    # DISCOVERY_INCOMPLETE rather than "GPU has no profiles".
+    assert _cycle_sriov_vfs(pci_id) is False
+
+
+# ----- discover_gpus retry + None sentinel --------------------------------
+
+
+def test_discover_gpus_emits_none_sentinel_after_retry_exhaustion(
+    monkeypatch, tmp_path
+):
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:05:00.0"
+    dev_dir = tmp_path / pci_id
+    dev_dir.mkdir()
+    _write(dev_dir / "sriov_totalvfs", "16")
+
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(
+        gd,
+        "_run_nvidia_smi",
+        lambda: [
+            {
+                "name": "NVIDIA A16",
+                "memory_total_mb": 15356,
+                "pci_bus_id": "00000000:05:00.0",
+                "driver_version": "535.183.04",
+                "gpu_uuid": "GPU-xxx",
+                "mig_mode": "[N/A]",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        gd,
+        "_aggregate_subdevice_profiles",
+        lambda _pci: ([], None, None),
+    )
+    monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
+    monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
+
+    gpus = discover_gpus()
+    assert len(gpus) == 1
+    g = gpus[0]
+    # The sentinel: None, NOT empty list. Engine must distinguish "discovery
+    # failed" from "GPU genuinely has no vGPU profiles" — the latter is a
+    # valid state for compute-mode boards.
+    assert g["vgpu_profiles"] is None
+    assert "DISCOVERY_FAILED_AFTER_RETRIES" in g.get("errors", [])
+
+
+def test_discover_gpus_emits_empty_list_for_compute_mode_card(monkeypatch, tmp_path):
+    """Non-SR-IOV card with no profiles is a legitimate state (Quadro RTX
+    compute, T4 in compute mode). vgpu_profiles must be [], NOT None."""
+    _redirect_sysfs(monkeypatch, tmp_path)
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(
+        gd,
+        "_run_nvidia_smi",
+        lambda: [
+            {
+                "name": "NVIDIA Quadro RTX 6000",
+                "memory_total_mb": 24576,
+                "pci_bus_id": "00000000:08:00.0",
+                "driver_version": "535.183.04",
+                "gpu_uuid": "GPU-yyy",
+                "mig_mode": "[N/A]",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        gd,
+        "_aggregate_subdevice_profiles",
+        lambda _pci: ([], None, None),
+    )
+    monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
+    monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
+
+    # Critical: no sriov_totalvfs file → the retry loop must NOT engage,
+    # vgpu_profiles must stay [] (not None).
+    gpus = discover_gpus()
+    assert len(gpus) == 1
+    g = gpus[0]
+    assert g["vgpu_profiles"] == []
+    assert g["vgpu_profiles"] is not None
+    assert "errors" not in g
+
+
+def test_discover_gpus_recovers_when_retry_finds_profiles(monkeypatch, tmp_path):
+    """First _aggregate_subdevice_profiles call returns empty (race with
+    nvidia-vgpu-mgr cold start); second returns the real profile list. The
+    GPU dict must contain the recovered profiles, no errors."""
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:05:00.0"
+    dev_dir = tmp_path / pci_id
+    dev_dir.mkdir()
+    _write(dev_dir / "sriov_totalvfs", "16")
+
+    import gpu_discovery as gd
+
+    real_profiles = [
+        {"name": "A16-2Q", "type_id": "nvidia-712", "available_instances": 16},
+        {"name": "A16-4Q", "type_id": "nvidia-713", "available_instances": 16},
+    ]
+    call_count = {"n": 0}
+
+    def staged_aggregate(_pci):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return ([], None, None)
+        return (
+            real_profiles,
+            [f"{tmp_path}/0000:05:00.4"],
+            f"{tmp_path}/0000:05:00.0",
+        )
+
+    monkeypatch.setattr(
+        gd,
+        "_run_nvidia_smi",
+        lambda: [
+            {
+                "name": "NVIDIA A16",
+                "memory_total_mb": 15356,
+                "pci_bus_id": "00000000:05:00.0",
+                "driver_version": "535.183.04",
+                "gpu_uuid": "GPU-zzz",
+                "mig_mode": "[N/A]",
+            }
+        ],
+    )
+    monkeypatch.setattr(gd, "_aggregate_subdevice_profiles", staged_aggregate)
+    monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
+    monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
+
+    gpus = discover_gpus()
+    assert len(gpus) == 1
+    g = gpus[0]
+    assert g["vgpu_profiles"] == real_profiles
+    assert "errors" not in g
+    # Sanity: aggregate was called once initially + at least once on retry.
+    assert call_count["n"] >= 2
+
+
+# ----- boot observability: tooling check + qemu-aware reset guard ----------
+
+
+def test_check_gpu_tooling_errors_when_sriov_manage_missing(monkeypatch, caplog):
+    """Missing sriov-manage in the container is the silent root cause of the
+    bus-reset wedge — it MUST be logged at ERROR, not swallowed at debug."""
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_tooling_checked", False)
+    monkeypatch.setattr(gd.shutil, "which", lambda name: None)
+    monkeypatch.setattr(gd.log, "propagate", True)  # let caplog capture it
+    with caplog.at_level(logging.ERROR, logger="gpu_discovery"):
+        gd._check_gpu_tooling()
+    assert any("sriov-manage NOT found" in r.message for r in caplog.records)
+
+
+def test_check_gpu_tooling_silent_when_tools_present(monkeypatch, caplog):
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_tooling_checked", False)
+    monkeypatch.setattr(gd.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(gd.log, "propagate", True)
+    with caplog.at_level(logging.WARNING, logger="gpu_discovery"):
+        gd._check_gpu_tooling()
+    assert caplog.records == []
+
+
+def test_running_qemu_pids_detects_only_qemu(monkeypatch, tmp_path):
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_PROC_BASE", str(tmp_path))
+    for pid, comm in (("123", "qemu-system-x86_64\n"), ("999", "bash\n")):
+        (tmp_path / pid).mkdir()
+        _write(tmp_path / pid / "comm", comm)
+    # Non-numeric proc entries (e.g. 'self') must be ignored without error.
+    (tmp_path / "self").mkdir()
+    assert gd._running_qemu_pids() == [123]
+
+
+def _stub_aggregate_fallback(monkeypatch, gd, qemu_pids):
+    """Drive _aggregate_subdevice_profiles into its SR-IOV reset-fallback
+    branch (main profiles empty, has_sriov True, VF cycle fails) and record
+    whether the nvidia-smi -r bus reset is issued."""
+    monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda *a, **k: [])
+    monkeypatch.setattr(gd, "_reset_sysfs_mdevs", lambda *a, **k: None)
+    monkeypatch.setattr(gd, "_cycle_sriov_vfs", lambda *a, **k: False)
+    monkeypatch.setattr(gd, "_running_qemu_pids", lambda: qemu_pids)
+    monkeypatch.setattr(gd, "_enumerate_sriov_vf_paths", lambda *a, **k: [])
+    monkeypatch.setattr(gd, "_wait_sriov_numvfs", lambda *a, **k: None)
+    monkeypatch.setattr(gd, "_ensure_sriov_max_vfs", lambda *a, **k: None)
+    monkeypatch.setattr(gd.os.path, "exists", lambda p: True)  # sriov_totalvfs
+    monkeypatch.setattr(gd.os, "listdir", lambda p: [])
+    calls = []
+    monkeypatch.setattr(gd, "_nvidia_smi_gpu_reset", lambda bdf: calls.append(bdf))
+    return calls
+
+
+def test_aggregate_refuses_reset_when_qemu_running(monkeypatch):
+    """A bus reset with live VF consumers wedges unkillably — refuse it while
+    any qemu guest is alive (never expected on a fresh boot)."""
+    import gpu_discovery as gd
+
+    calls = _stub_aggregate_fallback(monkeypatch, gd, qemu_pids=[123])
+    gd._aggregate_subdevice_profiles("00000000:05:00.0")
+    assert calls == []
+
+
+def test_aggregate_runs_reset_when_idle(monkeypatch):
+    import gpu_discovery as gd
+
+    calls = _stub_aggregate_fallback(monkeypatch, gd, qemu_pids=[])
+    gd._aggregate_subdevice_profiles("00000000:05:00.0")
+    assert len(calls) == 1
+
+
+# --- build_card_descriptor (read-only single-card descriptor for runtime apply) ---
+def _patch_descriptor_helpers(
+    monkeypatch, *, vfs, vgpu_profiles, companions, mig_mode, mig_profiles, sriov
+):
+    """Patch build_card_descriptor's read-only helpers + a fake sysfs open, and
+    make the DESTRUCTIVE discovery functions explode so any accidental call
+    fails the test (build_card_descriptor must never reset mdevs / cycle VFs)."""
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_normalize_pci_bus_id", lambda b: b)
+    monkeypatch.setattr(gd, "_enumerate_sriov_vf_paths", lambda base: list(vfs))
+    monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda b: list(vgpu_profiles))
+    monkeypatch.setattr(gd, "_find_audio_companions", lambda b: list(companions))
+    monkeypatch.setattr(gd, "_read_mig_mode_current", lambda b: mig_mode)
+    monkeypatch.setattr(gd, "_get_mig_profiles", lambda b: list(mig_profiles))
+
+    def _boom(*a, **k):
+        raise AssertionError("destructive discovery called in read-only descriptor")
+
+    monkeypatch.setattr(gd, "_aggregate_subdevice_profiles", _boom)
+    monkeypatch.setattr(gd, "_reset_sysfs_mdevs", _boom)
+    monkeypatch.setattr(gd, "_cycle_sriov_vfs", _boom)
+
+    class _F:
+        def __init__(self, val):
+            self.val = val
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return self.val
+
+    def fake_open(path, *a, **k):
+        for key, val in sriov.items():
+            if path.endswith(key):
+                return _F(str(val))
+        raise OSError("no such file")
+
+    monkeypatch.setattr(gd, "open", fake_open, raising=False)
+    return gd
+
+
+def test_build_card_descriptor_vgpu_sriov(monkeypatch):
+    gd = _patch_descriptor_helpers(
+        monkeypatch,
+        vfs=[
+            "/sys/bus/pci/devices/0000:c5:00.4",
+            "/sys/bus/pci/devices/0000:c5:00.5",
+        ],
+        vgpu_profiles=[{"name": "A40-4Q", "type_id": "nvidia-558"}],
+        companions=["0000:c5:00.1"],
+        mig_mode="[N/A]",
+        mig_profiles=[],
+        sriov={"sriov_totalvfs": 16, "sriov_numvfs": 16},
+    )
+    d = gd.build_card_descriptor("0000:c5:00.0", mdevs_reset_at="T")
+    assert d["pci_bus_id"] == "0000:c5:00.0"
+    assert d["path"] == "/sys/bus/pci/devices/0000:c5:00.0"
+    assert d["sub_paths"] == [
+        "/sys/bus/pci/devices/0000:c5:00.4",
+        "/sys/bus/pci/devices/0000:c5:00.5",
+    ]
+    assert d["sriov_totalvfs"] == 16 and d["sriov_numvfs"] == 16
+    assert d["companion_pci_bdfs"] == ["0000:c5:00.1"]
+    assert d["mdevs_reset_at"] == "T"
+    assert "mig_profiles" not in d  # not a MIG card
+
+
+def test_build_card_descriptor_passthrough_no_subpaths(monkeypatch):
+    # A vfio-bound (passthrough) card has its VFs torn down -> no virtfn links,
+    # so sub_paths is absent. apply_target re-enumerates after the rebind.
+    gd = _patch_descriptor_helpers(
+        monkeypatch,
+        vfs=[],
+        vgpu_profiles=[],
+        companions=[],
+        mig_mode="[N/A]",
+        mig_profiles=[],
+        sriov={"sriov_totalvfs": 16, "sriov_numvfs": 0},
+    )
+    d = gd.build_card_descriptor("0000:c5:00.0")
+    assert "sub_paths" not in d
+    assert d["sriov_numvfs"] == 0
+    assert "mdevs_reset_at" not in d  # not passed
+
+
+def test_build_card_descriptor_mig_card_includes_profiles(monkeypatch):
+    gd = _patch_descriptor_helpers(
+        monkeypatch,
+        vfs=[],
+        vgpu_profiles=[],
+        companions=[],
+        mig_mode="Enabled",
+        mig_profiles=[{"name": "1g.10gb", "profile_id": 19}],
+        sriov={"sriov_totalvfs": 0},
+    )
+    d = gd.build_card_descriptor("0000:c5:00.0")
+    assert d["mig_profiles"] == [{"name": "1g.10gb", "profile_id": 19}]
+
+
+def test_build_card_descriptor_is_readonly(monkeypatch):
+    # The _boom patches fail the test if any destructive discovery runs; just
+    # exercising the full happy path proves the descriptor is read-only.
+    gd = _patch_descriptor_helpers(
+        monkeypatch,
+        vfs=["/sys/bus/pci/devices/0000:c5:00.4"],
+        vgpu_profiles=[{"name": "A40-4Q", "type_id": "nvidia-558"}],
+        companions=["0000:c5:00.1"],
+        mig_mode="Disabled",
+        mig_profiles=[{"name": "1g.10gb", "profile_id": 19}],
+        sriov={"sriov_totalvfs": 16, "sriov_numvfs": 16},
+    )
+    gd.build_card_descriptor("0000:c5:00.0", mdevs_reset_at="T")
