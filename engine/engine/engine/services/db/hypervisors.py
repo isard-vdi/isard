@@ -883,6 +883,7 @@ def get_hypers_gpu_online(
     # now find hypervisors with free uuids:
     for h in hypers_online_with_gpu:
         hyper_with_free_uuid = False
+        selected_mig = False
         for pci, model in h["info"]["nvidia"].items():
             if model == gpu_model:
                 gpu_id = h["id"] + "-" + pci
@@ -903,6 +904,9 @@ def get_hypers_gpu_online(
                             and d.get("created", False) is True
                         ):
                             hyper_with_free_uuid = True
+                            # MIG-backed mdevs need display='off' in the guest
+                            # XML; carry the per-mdev flag to the XML builder.
+                            selected_mig = bool(d.get("mig", False))
                             break
                     if hyper_with_free_uuid:
                         break
@@ -952,6 +956,7 @@ def get_hypers_gpu_online(
                             "next_gpu_id": gpu_id,
                             "gpu_profile": gpu_brand_model_profile,
                             "pci_bus_id": pci,
+                            "mig": selected_mig,
                             "companion_pci_bdfs": companion_pci_bdfs,
                             "hugepages_info": h.get("hugepages_info", {}),
                             "hugepages_free_kb": h.get("stats", {})

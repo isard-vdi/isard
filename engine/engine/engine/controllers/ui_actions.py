@@ -402,6 +402,7 @@ class UiActions(object):
                             is_passthrough=(extra_info.get("profile") == "passthrough"),
                             companion_pci_bdfs=extra_info.get("companion_pci_bdfs")
                             or [],
+                            is_mig=extra_info.get("mig", False),
                         )
                     except ValueError as e:
                         log.error(

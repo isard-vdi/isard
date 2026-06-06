@@ -389,6 +389,28 @@ def test_recreate_xml_if_gpu_guest_index_overflow_raises():
         )
 
 
+def test_recreate_xml_if_gpu_mig_mdev_sets_display_off():
+    """A MIG-backed vGPU mdev (compute slice, no display engine) must emit
+    display='off' on the hostdev; otherwise the guest fails to start."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(xml, "fake-uid", is_mig=True)
+    tree = _parse(result)
+    hd = tree.xpath('//hostdev[@type="mdev"]')
+    assert len(hd) == 1
+    assert hd[0].get("display") == "off"
+
+
+def test_recreate_xml_if_gpu_plain_vgpu_mdev_keeps_default_display():
+    """A plain (non-MIG) vGPU mdev keeps libvirt's default — no display
+    attribute is injected (unchanged behaviour)."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(xml, "fake-uid")
+    tree = _parse(result)
+    hd = tree.xpath('//hostdev[@type="mdev"]')
+    assert len(hd) == 1
+    assert hd[0].get("display") is None
+
+
 # ---- engine bug fixes surfaced during the Redmine #15065 audit -------------
 
 
