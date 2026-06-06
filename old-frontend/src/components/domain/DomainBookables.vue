@@ -8,7 +8,7 @@
     <v-select
       v-model="vgpus"
       multiple
-      :options="availableBookables.vgpus"
+      :options="bookableOptions"
       label="name"
       :reduce="element => element.id"
     >
@@ -54,6 +54,20 @@ export default {
       }
     })
 
+    // Restrict the choices to a single GPU model once one profile is picked:
+    // all of a desktop's vGPUs must live on one hypervisor (a guest runs on a
+    // single host), and a given model generally lives on its own hypervisors.
+    const bookableOptions = computed(() => {
+      const all = (availableBookables.value && availableBookables.value.vgpus) || []
+      const selected = vgpus.value || []
+      if (!selected.length) return all
+      const selectedModels = new Set(
+        all.filter(o => selected.includes(o.id)).map(o => o.model)
+      )
+      if (!selectedModels.size) return all
+      return all.filter(o => selectedModels.has(o.model))
+    })
+
     // When not selecting a GPU (empty or the 'None' option), set video to default
     watch(vgpus, (newVal, prevVal) => {
       const noGpu = !vgpus.value.length || vgpus.value.includes('None')
@@ -68,6 +82,7 @@ export default {
     })
     return {
       availableBookables,
+      bookableOptions,
       vgpus,
       v$: useVuelidate({
         vgpus: {

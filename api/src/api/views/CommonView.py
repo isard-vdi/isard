@@ -94,7 +94,7 @@ def api_v3_domains_allowed_hardware_reservables(payload, kind, domain_id=None):
                 "vgpus": allowed.get_items_allowed(
                     payload,
                     "reservables_vgpus",
-                    query_pluck=["id", "name", "description"],
+                    query_pluck=["id", "name", "description", "model"],
                     order="name",
                     query_merge=False,
                     extra_ids_allowed=domain_reservables_vgpus,

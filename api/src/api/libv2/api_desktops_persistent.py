@@ -117,14 +117,27 @@ def validate_reservables_vgpus(vgpus):
     real = [v for v in vgpus if v and v != "None"]
     if real:
         with app.app_context():
-            existing = (
-                r.table("reservables_vgpus").get_all(r.args(real)).count().run(db.conn)
+            rows = list(
+                r.table("reservables_vgpus")
+                .get_all(r.args(real))
+                .pluck("id", "model")
+                .run(db.conn)
             )
-        if existing != len(real):
+        if len(rows) != len(real):
             raise Error(
                 "not_found",
                 "One or more vGPU profiles do not exist",
                 description_code="vgpu_profile_not_found",
+            )
+        # All profiles must be of the same GPU model so they can be placed on a
+        # single hypervisor: a guest runs on one host and can only attach that
+        # host's cards, and a given model generally lives on its own hypervisors.
+        if len({row.get("model") for row in rows}) > 1:
+            raise Error(
+                "bad_request",
+                "All vGPU profiles must be of the same GPU model so they can run "
+                "on one hypervisor",
+                description_code="vgpu_profiles_different_models",
             )
     return vgpus
 
