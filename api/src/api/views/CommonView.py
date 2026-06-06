@@ -13,6 +13,7 @@ from api import app
 
 from ..libv2.api_logging import logs_domain_event_viewer
 from ..libv2.api_templates import ApiTemplates
+from ..libv2.bookings.api_reservables import get_vgpus_hypervisors
 from ..libv2.caches import get_document
 from ..libv2.quotas import Quotas
 
@@ -83,34 +84,53 @@ def api_v2_desktop_viewers(payload, desktop_id=False, protocol=False):
     return json.dumps(viewers), 200, {"Content-Type": "application/json"}
 
 
+def _attach_vgpu_hypervisor_groups(vgpus, show_names):
+    """Tag each vGPU profile with the hypervisor groups that can host it.
+
+    A multi-profile desktop must keep all its profiles on one hypervisor, so the
+    UI needs to know which profiles share a host. Always attach
+    ``hypervisor_groups`` (anonymized stable indices — two profiles are
+    co-selectable iff their lists intersect). When ``show_names`` (admin/webapp)
+    also attach the real ``hypervisors`` names for grouped labels.
+    """
+    hyp_map = get_vgpus_hypervisors()
+    ordered_hyps = sorted({h for v in vgpus for h in hyp_map.get(v["id"], [])})
+    anon_index = {h: i + 1 for i, h in enumerate(ordered_hyps)}
+    for v in vgpus:
+        hyps = hyp_map.get(v["id"], [])
+        v["hypervisor_groups"] = [anon_index[h] for h in hyps]
+        if show_names:
+            v["hypervisors"] = hyps
+    return vgpus
+
+
 @app.route("/api/v3/domains/allowed/<kind>", methods=["GET"])
 @app.route("/api/v3/domains/allowed/<kind>/<domain_id>", methods=["GET"])
 @has_token
 def api_v3_domains_allowed_hardware_reservables(payload, kind, domain_id=None):
     if kind == "reservables":
+        # Admin UIs (webapp) may ask for real hypervisor names; the end-user
+        # frontend (vue2) only gets anonymized group indices.
+        show_names = request.args.get("hypervisor_names", "false").lower() == "true"
         if domain_id and ownsDomainId(payload, domain_id):
             domain_reservables_vgpus = _get_domain_reservables(domain_id)["vgpus"]
-            reservables = {
-                "vgpus": allowed.get_items_allowed(
-                    payload,
-                    "reservables_vgpus",
-                    query_pluck=["id", "name", "description", "model"],
-                    order="name",
-                    query_merge=False,
-                    extra_ids_allowed=domain_reservables_vgpus,
-                )
-            }
-            return json.dumps(reservables)
-        else:
-            reservables = {}
-            reservables["vgpus"] = allowed.get_items_allowed(
+            vgpus = allowed.get_items_allowed(
                 payload,
                 "reservables_vgpus",
-                query_pluck=["id", "name", "description"],
+                query_pluck=["id", "name", "description", "model"],
+                order="name",
+                query_merge=False,
+                extra_ids_allowed=domain_reservables_vgpus,
+            )
+        else:
+            vgpus = allowed.get_items_allowed(
+                payload,
+                "reservables_vgpus",
+                query_pluck=["id", "name", "description", "model"],
                 order="name",
                 query_merge=False,
             )
-            return json.dumps(reservables)
+        return json.dumps({"vgpus": _attach_vgpu_hypervisor_groups(vgpus, show_names)})
     if kind == "hardware":
         return Error("bad_request", "Not implemented")
 

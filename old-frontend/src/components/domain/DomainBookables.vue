@@ -54,18 +54,32 @@ export default {
       }
     })
 
-    // Restrict the choices to a single GPU model once one profile is picked:
-    // all of a desktop's vGPUs must live on one hypervisor (a guest runs on a
-    // single host), and a given model generally lives on its own hypervisors.
+    // All of a desktop's vGPUs must live on ONE hypervisor (a guest runs on a
+    // single host). The API tags each profile with the anonymized hypervisor
+    // groups that can host it (hypervisor_groups); two profiles are
+    // co-selectable iff their groups intersect. Hard-restrict the choices to
+    // those compatible with the current selection, and show the (nameless)
+    // group so the user sees the compatible sets.
+    const groupedLabel = (o) => {
+      const g = o.hypervisor_groups || []
+      if (!g.length) return o.name
+      return `${o.name} · ${g.length > 1 ? 'sets' : 'set'} ${g.join('/')}`
+    }
     const bookableOptions = computed(() => {
       const all = (availableBookables.value && availableBookables.value.vgpus) || []
       const selected = vgpus.value || []
-      if (!selected.length) return all
-      const selectedModels = new Set(
-        all.filter(o => selected.includes(o.id)).map(o => o.model)
-      )
-      if (!selectedModels.size) return all
-      return all.filter(o => selectedModels.has(o.model))
+      let list = all
+      if (selected.length) {
+        let common = null
+        all.filter(o => selected.includes(o.id)).forEach(o => {
+          const g = new Set(o.hypervisor_groups || [])
+          common = common === null ? g : new Set([...common].filter(x => g.has(x)))
+        })
+        if (common && common.size) {
+          list = all.filter(o => (o.hypervisor_groups || []).some(x => common.has(x)))
+        }
+      }
+      return list.map(o => ({ ...o, name: groupedLabel(o) }))
     })
 
     // When not selecting a GPU (empty or the 'None' option), set video to default

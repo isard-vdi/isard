@@ -59,7 +59,7 @@ apib = Bookings()
 api_cards = ApiCards()
 common = ApiDesktopsCommon()
 from ..libv2.api_storage import get_media_domains, get_storage_derivatives
-from ..libv2.bookings.api_reservables import Reservables
+from ..libv2.bookings.api_reservables import Reservables, get_vgpus_hypervisors
 
 api_ri = Reservables()
 api_allowed = ApiAllowed()
@@ -129,16 +129,30 @@ def validate_reservables_vgpus(vgpus):
                 "One or more vGPU profiles do not exist",
                 description_code="vgpu_profile_not_found",
             )
-        # All profiles must be of the same GPU model so they can be placed on a
-        # single hypervisor: a guest runs on one host and can only attach that
-        # host's cards, and a given model generally lives on its own hypervisors.
-        if len({row.get("model") for row in rows}) > 1:
-            raise Error(
-                "bad_request",
-                "All vGPU profiles must be of the same GPU model so they can run "
-                "on one hypervisor",
-                description_code="vgpu_profiles_different_models",
-            )
+        if len(real) > 1:
+            # A guest runs on a single hypervisor and can only attach that host's
+            # cards, so every profile must be hostable on one common hypervisor.
+            hyp_map = get_vgpus_hypervisors()
+            hyp_sets = [set(hyp_map.get(v, [])) for v in real]
+            if all(hyp_sets):
+                # Enablement data is complete: reject when no host hosts them all.
+                common = set.intersection(*hyp_sets)
+                if not common:
+                    raise Error(
+                        "bad_request",
+                        "The selected vGPU profiles are not all available on a "
+                        "single hypervisor",
+                        description_code="vgpu_profiles_different_hypervisors",
+                    )
+            elif len({row.get("model") for row in rows}) > 1:
+                # Incomplete enablement data: fall back to the same-model rule
+                # (a model generally lives on its own hypervisors).
+                raise Error(
+                    "bad_request",
+                    "All vGPU profiles must be of the same GPU model so they can "
+                    "run on one hypervisor",
+                    description_code="vgpu_profiles_different_models",
+                )
     return vgpus
 
 

@@ -25,6 +25,34 @@ from ..helpers import _check
 from ..validators import _validate_item
 
 
+def get_vgpus_hypervisors():
+    """Map each bookable vGPU reservable id to the hypervisors that can host it.
+
+    A profile is hostable on a hypervisor when that hypervisor has a physical
+    card with the profile enabled (``gpus.profiles_enabled``). The hypervisor id
+    is the card id prefix (``<hyp_id>-pci_<bdf>``). Returns ``{reservable_id:
+    sorted([hyp_id, ...])}`` — used to keep a multi-profile desktop's profiles on
+    a single hypervisor (a guest runs on one host).
+    """
+    with app.app_context():
+        cards = list(
+            r.table("gpus").pluck("physical_device", "profiles_enabled").run(db.conn)
+        )
+    hyp_by_profile = {}
+    for card in cards:
+        physical_device = card.get("physical_device") or ""
+        hyp_id = (
+            physical_device.rsplit("-pci_", 1)[0]
+            if "-pci_" in physical_device
+            else physical_device
+        )
+        if not hyp_id:
+            continue
+        for profile_id in card.get("profiles_enabled") or []:
+            hyp_by_profile.setdefault(profile_id, set()).add(hyp_id)
+    return {profile_id: sorted(hyps) for profile_id, hyps in hyp_by_profile.items()}
+
+
 class Reservables:
     def __init__(self):
         self.reservable = {}
