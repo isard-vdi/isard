@@ -22,6 +22,7 @@ import xmltodict
 from engine.config import *
 from engine.models._gpu_pool import (
     _profile_pool_size,
+    decide_reconcile_action,
     plan_passthrough_dedup,
     plan_pool_trim,
 )
@@ -57,6 +58,9 @@ from engine.services.db.hypervisors import (
     get_gpu_card_models,
     get_hypervisor,
     get_vgpu_full,
+    ingest_applied_state,
+    update_operator_passthrough,
+    update_requested_profile,
 )
 from engine.services.lib.functions import (
     SSHTimeoutError,
@@ -71,8 +75,35 @@ from engine.services.lib.functions import (
 from engine.services.lib.libvirt_dicts import virDomainState
 from engine.services.lib.status import get_hypervisor_video_status
 from engine.services.log import *
+from isardvdi_common.gpu_cmds import (
+    build_companion_bind_cmds,
+    build_companion_release_cmds,
+    build_mig_transition_cmds,
+    build_vfio_bind_cmds,
+    build_vfio_group_mknod_cmds,
+    build_vfio_unbind_cmds,
+)
 from libpci import LibPCI
 from lxml import etree
+
+# Lock file the hypervisor's local registration apply holds (setup.py
+# SETUP_GPU_LOCK, fcntl.flock = BSD flock(2)). The engine's SSH-issued GPU
+# command batches take the SAME lock via flock(1) so a same-PF unbind/sriov
+# write cannot race the hypervisor-local apply on an ungraceful restart.
+GPU_HOST_LOCK = "/run/isard-hyp-setup.lock"
+
+
+def _flock_batch(cmds):
+    """Wrap a list of host commands so the WHOLE batch runs in ONE SSH session
+    under GPU_HOST_LOCK (execute_commands runs list items in separate sessions,
+    which would not hold a lock across them). Commands are joined unchanged --
+    their own '|| true' / '2>/dev/null' keep the run-all-ignore-failure
+    semantics -- so the sequence is byte-identical, just serialised. flock(1)
+    creates the lock file if absent and blocks until free (bounded by the SSH
+    command timeout)."""
+    batch = "; ".join(cmds)
+    return [f"flock {GPU_HOST_LOCK} bash -c {shlex.quote(batch)}"]
+
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = (
@@ -574,16 +605,34 @@ class hyp(object):
                     f"[{self.id_hyp_rethink}] Generating mdev UUIDs for "
                     f"{len(self.info_nvidia)} GPU cards..."
                 )
-                d = update_db_hyp_nvidia_info(self.id_hyp_rethink, self.info_nvidia)
+                applied_flags = update_db_hyp_nvidia_info(
+                    self.id_hyp_rethink, self.info_nvidia
+                )
                 # CREATE UUIDS and SELECT vgpu_profile
                 index_vgpu_profile = {}
                 for pci_bus, d_vgpu in self.info_nvidia.items():
                     vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
+
+                    # The hypervisor applied this card itself at registration and
+                    # the API recorded the resulting profile + mdev pool. Rely on
+                    # what the hypervisor set: do NOT regenerate UUIDs or reset
+                    # vgpu_profile here, or we'd overwrite the applied state and
+                    # the reconcile would fight the hypervisor.
+                    if applied_flags.get(vgpu_id):
+                        logs.workers.info(
+                            f"[{self.id_hyp_rethink}] {vgpu_id} applied by "
+                            "hypervisor at registration; keeping its state"
+                        )
+                        continue
+
                     d_uuids = self.create_uuids(d_vgpu)
                     update_vgpu_uuids(vgpu_id, d_uuids)
 
-                    # init vgpu_profile to max gpu profile
-                    vgpu_profile = self.info_nvidia[pci_bus]["type_max_gpus"]
+                    # init vgpu_profile: an unconfigured card defaults to
+                    # passthrough (whole GPU), NOT the max vGPU profile —
+                    # consistent with the reconcile fallback. Operators who want
+                    # auto-carving configure init_vgpu_profiles (below).
+                    vgpu_profile = "passthrough"
                     # if init_vgpu_profiles in hypervisor is defined can change vgpu_profile
                     if type(init_vgpu_profiles) is list:
                         all_profiles = list(self.info_nvidia[pci_bus]["types"])
@@ -625,18 +674,43 @@ class hyp(object):
                     f"for {vgpu_id}: {e}"
                 )
 
-        # Re-apply driver binding for GPUs with active passthrough profile.
-        # The vfio-pci binding does not survive container/host restarts, so
-        # we must re-apply it every time the engine starts.
+        # Re-apply driver binding for GPUs where the operator explicitly
+        # chose passthrough. The vfio-pci binding does not survive container
+        # or host restarts, so we re-apply it every time the engine starts —
+        # but ONLY for the durable "operator_passthrough" flag, never for
+        # the transient runtime vgpu_profile (which the legacy reconcile bug
+        # could write spuriously). Also skip if discovery did not surface
+        # this GPU's types this cycle: re-binding vfio-pci on a PF whose
+        # nvidia driver is already gone (the cascade failure mode) would
+        # lock the loop in.
         for pci_bus in list(self.info_nvidia.keys()):
             vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
             d_vgpu = get_vgpu(vgpu_id)
-            if d_vgpu and d_vgpu.get("vgpu_profile") == "passthrough":
-                logs.workers.info(
-                    f"[{self.id_hyp_rethink}] Re-applying passthrough driver "
-                    f"binding for {vgpu_id} (vfio-pci may not survive restarts)"
+            if not d_vgpu or not d_vgpu.get("operator_passthrough"):
+                continue
+            if d_vgpu.get("applied_by_hypervisor"):
+                # A gpu_apply-capable hypervisor binds vfio-pci itself at
+                # registration and re-applies it on its own (re)registration
+                # (which is what a container/host restart triggers). The engine
+                # must not also drive the bind over SSH, or the two fight on
+                # every init_nvidia cycle -- exactly the round-trip the
+                # hypervisor-owns-GPU handoff removes. Rely on what the
+                # hypervisor set at boot.
+                continue
+            d_nvidia = self.info_nvidia.get(pci_bus, {})
+            if not d_nvidia.get("types"):
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] Skipping passthrough re-apply "
+                    f"for {vgpu_id}: discovery returned no types for this PF "
+                    f"(likely transient driver state). Will retry on the "
+                    f"next init_nvidia cycle."
                 )
-                self.change_vgpu_profile(vgpu_id, "passthrough")
+                continue
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Re-applying operator-requested "
+                f"passthrough binding for {vgpu_id}"
+            )
+            self.change_vgpu_profile(vgpu_id, "passthrough")
 
     def load_info_from_db(self):
         self.info = get_hyp_info(self.id_hyp_rethink)
@@ -675,67 +749,30 @@ class hyp(object):
         else:
             new_mig_profile_id = None
 
-        cmds = []
-
         if old_is_mig and new_is_mig:
-            # MIG → MIG: destroy old instances, create new ones
             logs.main.info(
                 f"MIG→MIG transition on {pci_bdf}: {old_profile} → {new_profile}"
             )
-            cmds = [
-                f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
-                f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
-                f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
-                f"nvidia-smi mig -i {pci_bdf} -cci",
-            ]
         elif not old_is_mig and new_is_mig:
-            # vGPU/PT → MIG: remove mdevs, rebind nvidia if PT, enable MIG
             logs.main.info(
                 f"vGPU/PT→MIG transition on {pci_bdf}: {old_profile} → {new_profile}"
             )
-            if old_profile == "passthrough":
-                # Rebind to nvidia driver first
-                cmds.extend(
-                    [
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true",
-                        f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
-                        "sleep 2",
-                    ]
-                )
-            elif old_profile:
-                # vGPU mode with active SR-IOV VFs: nvidia-smi -mig 1 rejects
-                # the PF while any VF is bound, so tear them down first.
-                # sriov-manage handles the unbind/sriov_numvfs=0 dance the
-                # nvidia driver requires.
-                cmds.append(f"sriov-manage -d {pci_bdf} 2>/dev/null || true")
-            cmds.extend(
-                [
-                    f"nvidia-smi -i {pci_bdf} -mig 1",
-                    f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
-                    "sleep 2",
-                    f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
-                    f"nvidia-smi mig -i {pci_bdf} -cci",
-                ]
-            )
         elif old_is_mig and not new_is_mig:
-            # MIG → vGPU/PT: destroy instances, disable MIG, reset
             logs.main.info(
                 f"MIG→vGPU/PT transition on {pci_bdf}: {old_profile} → {new_profile}"
             )
-            cmds = [
-                f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
-                f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
-                f"nvidia-smi -i {pci_bdf} -mig 0",
-                f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
-                "sleep 2",
-            ]
-            if new_profile != "passthrough":
-                # Restore SR-IOV VFs for vGPU mode. For passthrough the caller
-                # (change_vgpu_profile) tears VFs down again and rebinds to
-                # vfio-pci, so re-enabling here would be wasted work.
-                cmds.append(f"sriov-manage -e {pci_bdf} 2>/dev/null || true")
-        else:
+
+        # Command strings live in the shared builder so the hypervisor can run
+        # the identical sequence locally at registration (see gpu_cmds).
+        cmds = build_mig_transition_cmds(
+            pci_bdf,
+            old_is_mig,
+            new_is_mig,
+            old_profile,
+            new_profile,
+            new_mig_profile_id,
+        )
+        if cmds is None:
             # Should not happen — caller should not route here
             logs.main.error(
                 f"_execute_mig_transition called with no MIG profile: "
@@ -744,7 +781,7 @@ class hyp(object):
             return False
 
         array_out_err = execute_commands(
-            self.hostname, cmds, port=self.port, timeout=120
+            self.hostname, _flock_batch(cmds), port=self.port, timeout=120
         )
         for i, result in enumerate(array_out_err):
             if result.get("err", "").strip():
@@ -752,6 +789,106 @@ class hyp(object):
                     f"MIG transition cmd {i} stderr: {result['err'].strip()}"
                 )
 
+        return True
+
+    def _gpu_apply_capable(self):
+        """True if this hypervisor applies GPU profiles itself (gpu_apply_cli);
+        read fresh so a re-registration that flips the flag is honoured."""
+        rec = get_hypervisor(self.id_hyp_rethink) or {}
+        return bool(rec.get("gpu_apply_capable", False))
+
+    def _apply_via_cli(self, gpu_id, pci_info, new_profile, mig_profile_id=None):
+        """Invoke the hypervisor's local gpu_apply over SSH for ONE card and
+        return the parsed report dict, or None on any invocation/parse failure
+        (caller falls back to the engine inline apply). The hypervisor owns the
+        mechanism; the engine only orchestrates (quiesce + DB).
+
+        ``mig_profile_id`` (the durable GPU-instance profile id) is passed for a
+        MIG target so the CLI can seed it into the read-only descriptor on a
+        MIG-disabled card, where ``nvidia-smi mig -lgip`` lists nothing."""
+        from datetime import datetime, timezone
+
+        from isardvdi_common.vgpu_state import parse_apply_report
+
+        pci_bdf = pci_info["path"].split("/")[-1]
+        # Fresh reset timestamp = the no-fight key: ingested as
+        # mdevs_last_synced_at so the next reconcile confirms (does not rebuild).
+        reset_at = datetime.now(timezone.utc).isoformat()
+        cmd = (
+            "python3 /src/lib/gpu_apply_cli.py "
+            f"--pci-bdf {shlex.quote(pci_bdf)} "
+            f"--target-profile {shlex.quote(new_profile)} "
+            f"--mdevs-reset-at {shlex.quote(reset_at)}"
+        )
+        if mig_profile_id is not None:
+            cmd += f" --mig-profile-id {shlex.quote(str(mig_profile_id))}"
+        try:
+            result = execute_commands(self.hostname, [cmd], port=self.port, timeout=240)
+        except Exception as e:
+            logs.main.warning(f"gpu_apply_cli invocation failed for {gpu_id}: {e}")
+            return None
+        out = ""
+        if result and isinstance(result, list) and isinstance(result[0], dict):
+            out = (result[0].get("out") or "").strip()
+        return parse_apply_report(out)
+
+    def _ingest_cli_report(self, gpu_id, pci_id, new_profile, report):
+        """Persist a gpu_apply_cli report. 'applied' -> full ingest of the newly
+        carved pool. 'noop' -> the card is already at target; re-pin
+        mdevs_last_synced_at (mirror the API Fix A) so the reconcile confirms and
+        re-assert created=True per-uuid on the live profile's pool (the pre-CLI
+        teardown may have cleared it -- notably the passthrough pseudo-slot),
+        WITHOUT touching sibling profiles or the rest of the pool. Anything else
+        -> failure, no DB touch. Returns True on success, False on a reported
+        error / unexpected result."""
+        from isardvdi_common.vgpu_state import build_applied_state_patch
+
+        result = report.get("result")
+        if result == "noop":
+            # Nothing changed (the live card is already at target). But
+            # change_vgpu_profile's pre-CLI teardown may have prematurely set
+            # created=False on the existing pool -- notably the passthrough
+            # pseudo-slot, since the passthrough branch always tears down even on
+            # old==new, with NO actual host removal. The inline path restores
+            # created=True in its create-loop; the CLI path early-returns before
+            # it. Re-pin mdevs_last_synced_at, then restore created=True per-uuid
+            # via update_vgpu_created (a targeted deep-merge, exactly like the
+            # inline create-loop) so the card stays bookable WITHOUT collapsing
+            # sibling-profile placeholder pools (which an r.literal mdevs write
+            # would drop).
+            existing = get_vgpu_full(gpu_id) or {}
+            live_profile = report.get("applied_profile") or existing.get("vgpu_profile")
+            patch = {"changing_to_profile": False}
+            reset_at = report.get("mdevs_reset_at")
+            if reset_at is not None:
+                patch["mdevs_last_synced_at"] = reset_at
+            ingest_applied_state(gpu_id, patch)
+            pool = (existing.get("mdevs") or {}).get(live_profile) or {}
+            for uid in pool:
+                update_vgpu_created(gpu_id, live_profile, uid, created=True)
+            return True
+        if result != "applied":
+            logs.main.error(
+                f"gpu_apply_cli result {result!r} for {gpu_id} -> {new_profile}: "
+                f"{report.get('error')}"
+            )
+            return False
+        applied_profile = report.get("applied_profile") or new_profile
+        existing = get_vgpu_full(gpu_id) or {}
+        patch = build_applied_state_patch(
+            existing,
+            applied_profile,
+            report.get("mdevs"),
+            report.get("mdevs_reset_at"),
+        )
+        ingest_applied_state(gpu_id, patch)
+        if pci_id in self.info_nvidia:
+            self.info_nvidia[pci_id]["vgpu_profile"] = applied_profile
+        self.mdevs[pci_id] = report.get("mdevs") or {}
+        logs.main.info(
+            f"Ingested hypervisor-applied profile '{applied_profile}' for "
+            f"{gpu_id} (runtime, via gpu_apply_cli)"
+        )
         return True
 
     def change_vgpu_profile(self, gpu_id, new_profile):
@@ -1115,6 +1252,15 @@ class hyp(object):
                 if uuid_not_running in old_profile_mdevs:
                     old_profile_mdevs[uuid_not_running]["created"] = False
 
+            # Hypervisor-owned mechanism: a gpu_apply-capable host applies the
+            # profile itself (the SAME gpu_apply code used at registration),
+            # invoked over SSH, instead of the engine building the host-command
+            # sequences below. Domains were already quiesced and the old mdevs
+            # removed above, so the CLI applies the new profile on a clean card
+            # and reports the resulting pool, which we ingest. Any
+            # invocation/parse failure (None) falls through to the inline path;
+            # a reported apply error finalizes as a failure (the reconcile
+            # retries next cycle).
             # Check if either profile is MIG — route to MIG transition handler
             old_is_mig = (
                 pci_info.get("types", {}).get(old_profile, {}).get("mig", False)
@@ -1124,6 +1270,39 @@ class hyp(object):
             new_is_mig = (
                 pci_info.get("types", {}).get(new_profile, {}).get("mig", False)
             )
+
+            # Runtime changes go through the hypervisor CLI -- including MIG. A
+            # MIG-disabled card lists nothing in `nvidia-smi mig -lgip`, so the
+            # CLI's read-only descriptor carries no mig_profiles; we plumb the
+            # durable GPU-instance id from info.types so the CLI can seed it. A
+            # MIG->non-MIG teardown needs no id (apply_target tears MIG down off
+            # the live mig.mode readback), so only the target side needs one.
+            # When the target is MIG but the id can't be resolved, fall back to
+            # the proven inline MIG path instead of routing a half-known change.
+            mig_profile_id = (
+                pci_info.get("types", {}).get(new_profile, {}).get("mig_profile_id")
+                if new_is_mig
+                else None
+            )
+            mig_cli_ok = (not new_is_mig) or (mig_profile_id is not None)
+            if self._gpu_apply_capable() and mig_cli_ok:
+                report = self._apply_via_cli(
+                    gpu_id, pci_info, new_profile, mig_profile_id
+                )
+                if report is not None and report.get("result") in ("applied", "noop"):
+                    self._ingest_cli_report(gpu_id, pci_id, new_profile, report)
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    return None
+                # None (invocation/parse failure) or a non-clean result
+                # (error/skipped_busy/skipped_advisory) -> fall back to the proven
+                # inline apply, which re-attempts from the live state, instead of
+                # failing the force outright.
+                logs.main.warning(
+                    f"gpu_apply_cli did not cleanly apply {gpu_id} "
+                    f"(result={report.get('result') if report else None}); "
+                    "falling back to the engine inline apply"
+                )
+
             if old_is_mig or new_is_mig:
                 result = self._execute_mig_transition(
                     gpu_id, pci_id, pci_info, old_profile, new_profile
@@ -1157,53 +1336,14 @@ class hyp(object):
                     f"(sriov_totalvfs={sriov_totalvfs}, "
                     f"sriov_numvfs={sriov_numvfs})"
                 )
-                if sriov_totalvfs > 0 and sriov_numvfs > 0:
-                    # SR-IOV card with VFs actually created (e.g. A40 with
-                    # vGPU driver): must disable VFs before vfio-pci will
-                    # accept the PF. Replicates sriov-manage -d logic with
-                    # proper error handling for the container environment.
-                    # Skipped when sriov_numvfs == 0 (no VFs to tear down —
-                    # e.g. SR-IOV-incapable Blackwell serving passthrough):
-                    # running it there only churns failing sysfs writes
-                    # ("No such device", unbindLock) every discovery cycle.
-                    sb = pci_bdf.replace("00.0", "")
-                    cmds_driver = [
-                        "modprobe vfio-pci",
-                        "modprobe pci-pf-stub",
-                        # Set unbindLock so nvidia driver prepares for unbind
-                        f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock 2>/dev/null || true",
-                        # Unbind PF from nvidia (returns error but works)
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
-                        # Unbind all VFs
-                        f"for vf in $(lspci -D -s '{sb}' | awk '{{print $1}}'); do "
-                        f'[ "$vf" = "{pci_bdf}" ] && continue; '
-                        f"[ -e /sys/bus/pci/devices/$vf/driver ] && "
-                        f"echo $vf > /sys/bus/pci/devices/$vf/driver/unbind 2>/dev/null || true; "
-                        f"done",
-                        # Bind to pci-pf-stub to set sriov_numvfs=0
-                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
-                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true && '
-                        f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
-                        "sleep 0.5",
-                        f"echo 0 > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null || true",
-                        # Unbind from pci-pf-stub
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind 2>/dev/null || true",
-                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
-                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
-                        # Now bind to vfio-pci
-                        f"printf 'vfio-pci' > /sys/bus/pci/devices/{pci_bdf}/driver_override",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
-                    ]
-                else:
-                    # Non-SR-IOV GPU: simple driver swap
-                    cmds_driver = [
-                        "modprobe vfio-pci",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
-                        f"echo vfio-pci > /sys/bus/pci/devices/{pci_bdf}/driver_override",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
-                    ]
-                execute_commands(self.hostname, cmds_driver, port=self.port, timeout=60)
+                # Command strings live in the shared builder so the hypervisor
+                # can run the identical sequence locally at registration.
+                cmds_driver = build_vfio_bind_cmds(
+                    pci_bdf, sriov_totalvfs, sriov_numvfs
+                )
+                execute_commands(
+                    self.hostname, _flock_batch(cmds_driver), port=self.port, timeout=60
+                )
 
                 # Verify vfio-pci actually bound
                 verify_cmd = [f"readlink /sys/bus/pci/devices/{pci_bdf}/driver"]
@@ -1221,15 +1361,7 @@ class hyp(object):
                 # The bind mount /dev/vfio:/dev/vfio may not see new device
                 # nodes created by the kernel on the host's devtmpfs after
                 # container start, so we create them manually with mknod.
-                cmds_vfio = [
-                    f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{pci_bdf}/iommu_group)) && "
-                    f"if [ ! -e /dev/vfio/$IOMMU_GROUP ]; then "
-                    f"DEV=$(cat /sys/class/vfio/$IOMMU_GROUP/dev) && "
-                    f"MAJOR=${{DEV%%:*}} && MINOR=${{DEV##*:}} && "
-                    f"mknod /dev/vfio/$IOMMU_GROUP c $MAJOR $MINOR && "
-                    f"chmod 0666 /dev/vfio/$IOMMU_GROUP; "
-                    f"fi",
-                ]
+                cmds_vfio = build_vfio_group_mknod_cmds(pci_bdf)
                 execute_commands(self.hostname, cmds_vfio, port=self.port)
 
                 # Bind any HD-audio companion in the same IOMMU group to
@@ -1239,13 +1371,7 @@ class hyp(object):
                 # function staying on snd_hda_intel. Generic unbind covers
                 # snd_hda_intel, driverless, or already-vfio-pci.
                 for cbdf in pci_info.get("companion_pci_bdfs", []):
-                    cmds_companion = [
-                        f"[ -L /sys/bus/pci/devices/{cbdf}/driver ] && "
-                        f"echo {cbdf} > /sys/bus/pci/devices/{cbdf}/driver/unbind "
-                        f"2>/dev/null || true",
-                        f"echo vfio-pci > /sys/bus/pci/devices/{cbdf}/driver_override",
-                        f"echo {cbdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
-                    ]
+                    cmds_companion = build_companion_bind_cmds(cbdf)
                     execute_commands(
                         self.hostname, cmds_companion, port=self.port, timeout=30
                     )
@@ -1271,67 +1397,16 @@ class hyp(object):
                     f"Switching GPU {pci_bdf} from vfio-pci back to nvidia "
                     f"(sriov_totalvfs={sriov_totalvfs})"
                 )
-                if sriov_totalvfs > 0:
-                    # SR-IOV card: unbind vfio-pci, re-enable VFs, rebind
-                    # nvidia. Replicates sriov-manage -e logic.
-                    sb = pci_bdf.replace("00.0", "")
-                    cmds_driver = [
-                        # Clean up /dev/vfio/<group>
-                        f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{pci_bdf}/iommu_group)) && "
-                        f"rm -f /dev/vfio/$IOMMU_GROUP",
-                        # Unbind from vfio-pci
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true",
-                        f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override",
-                        # Probe so nvidia rebinds PF
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
-                        "sleep 2",
-                        # Unbind from nvidia to go through pci-pf-stub
-                        f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock 2>/dev/null || true",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
-                        # Bind to pci-pf-stub to set sriov_numvfs
-                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
-                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true && '
-                        f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
-                        "sleep 0.5",
-                        f"echo {sriov_totalvfs} > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null || true",
-                        # Unbind from pci-pf-stub
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind 2>/dev/null || true",
-                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
-                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
-                        # Bind all VFs to nvidia
-                        f"for vf in $(lspci -D -s '{sb}' | awk '{{print $1}}'); do "
-                        f'[ "$vf" = "{pci_bdf}" ] && continue; '
-                        f"[ -e /sys/bus/pci/devices/$vf/driver ] && "
-                        f"echo $vf > /sys/bus/pci/devices/$vf/driver/unbind 2>/dev/null || true; "
-                        f"echo $vf > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true; "
-                        f"done",
-                        # Bind PF to nvidia
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true",
-                        "nvidia-smi -pm 1 2>/dev/null || true",
-                    ]
-                else:
-                    # Non-SR-IOV GPU: simple driver swap back
-                    cmds_driver = [
-                        f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{pci_bdf}/iommu_group)) && "
-                        f"rm -f /dev/vfio/$IOMMU_GROUP",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true",
-                        f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
-                    ]
-                execute_commands(self.hostname, cmds_driver, port=self.port, timeout=60)
+                cmds_driver = build_vfio_unbind_cmds(pci_bdf, sriov_totalvfs)
+                execute_commands(
+                    self.hostname, _flock_batch(cmds_driver), port=self.port, timeout=60
+                )
 
                 # Release HD-audio companions from vfio-pci so the host audio
                 # driver (snd_hda_intel or whatever modaliases to the device)
                 # can re-bind. Mirrors the new_profile=="passthrough" branch.
                 for cbdf in pci_info.get("companion_pci_bdfs", []):
-                    cmds_companion = [
-                        f"[ -L /sys/bus/pci/devices/{cbdf}/driver ] && "
-                        f"echo {cbdf} > /sys/bus/pci/devices/{cbdf}/driver/unbind "
-                        f"2>/dev/null || true",
-                        f"echo > /sys/bus/pci/devices/{cbdf}/driver_override",
-                        f"echo {cbdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
-                    ]
+                    cmds_companion = build_companion_release_cmds(cbdf)
                     execute_commands(
                         self.hostname, cmds_companion, port=self.port, timeout=30
                     )
@@ -1419,40 +1494,127 @@ class hyp(object):
             f"[{self.id_hyp_rethink}] Found {len(d_mdevs_running)} mdevs already running"
         )
 
+        # On a gpu_apply-capable host the hypervisor owns mdev creation (at
+        # registration, and via gpu_apply_cli inside change_vgpu_profile for a
+        # runtime change) and reports the pool, which is ingested into the DB.
+        # The engine must not also echo-create those mdevs (re-create EEXISTs).
+        # Read once: capability is per-host, identical for all its cards.
+        gpu_apply_capable = self._gpu_apply_capable()
+
         for pci_id, d_nvidia in self.info_nvidia.items():
             vgpu_id = "-".join([self.id_hyp_rethink, pci_id])
             logs.workers.debug(
                 f"[{self.id_hyp_rethink}] Processing PCI device {pci_id} (vgpu_id: {vgpu_id})"
             )
 
-            vgpu_profile = get_vgpu_actual_profile(vgpu_id)
-            # Validate profile is still available for this GPU
-            available_types = d_nvidia.get("types", {})
-            if vgpu_profile and vgpu_profile not in available_types:
-                fallback = d_nvidia.get(
-                    "type_max_gpus", next(iter(available_types), None)
+            # Operator-set "what should be running when nothing is booked"
+            # lives in vgpus.requested_profile (the durable intent — webui/
+            # API is the only writer). Scheduling-driven temporary overrides
+            # come from get_vgpu_actual_profile (resource_planner). The pure
+            # helper decide_reconcile_action turns these inputs + discovery
+            # state into one of a handful of actions; reconcile never mutates
+            # intent itself.
+            d_vgpu_row = get_vgpu(vgpu_id) or {}
+            decision = decide_reconcile_action(
+                requested_profile=d_vgpu_row.get("requested_profile"),
+                scheduled_profile=get_vgpu_actual_profile(vgpu_id),
+                available_types=d_nvidia.get("types", {}),
+                sriov_totalvfs=d_nvidia.get("sriov_totalvfs", 0),
+                operator_passthrough=bool(d_vgpu_row.get("operator_passthrough")),
+                # Default for a card with NO active planning and NO operator
+                # intent: passthrough (whole GPU), NOT the max vGPU profile.
+                # Passthrough needs no mdev types, so an unconfigured/new card
+                # (or one whose vGPU type layer is unavailable) stays usable
+                # instead of being auto-carved or left without a profile. A
+                # card with a planning/requested profile never reaches this
+                # fallback (handled by the effective branch / skip_retry).
+                fallback_default=(d_nvidia.get("vgpu_profile") or "passthrough"),
+            )
+            action = decision["action"]
+            if action == "skip_retry":
+                msg = (
+                    f"GPU {pci_id}: discovery incomplete on SR-IOV PF "
+                    f"(totalvfs={d_nvidia.get('sriov_totalvfs', 0)}); "
+                    f"preserving operator profile {decision['profile']!r}"
                 )
-                logs.workers.warning(
-                    f"[{self.id_hyp_rethink}] Profile '{vgpu_profile}' no longer available "
-                    f"for {pci_id}, resetting to '{fallback}'"
+                logs.workers.warning(f"[{self.id_hyp_rethink}] {msg}")
+                self._gpu_warnings.append(f"DISCOVERY_INCOMPLETE: {msg}")
+                self._gpu_warnings_retryable = True
+                continue
+            if action == "skip_fault":
+                msg = (
+                    f"GPU {pci_id}: requested profile "
+                    f"{decision['profile']!r} not available on this hardware. "
+                    f"Available: "
+                    f"{sorted(d_nvidia.get('types', {}).keys())!r}. Set a "
+                    f"different profile via the admin UI."
                 )
-                vgpu_profile = fallback
-            if vgpu_profile:
+                logs.workers.warning(f"[{self.id_hyp_rethink}] {msg}")
+                self._gpu_warnings.append(f"REQUESTED_PROFILE_UNAVAILABLE: {msg}")
+                continue
+            if action == "refuse_passthrough":
+                logs.workers.error(
+                    f"[{self.id_hyp_rethink}] Refusing reconcile-driven "
+                    f"passthrough rebind for {vgpu_id}: operator_passthrough "
+                    f"is not set. Set the GPU to passthrough explicitly via "
+                    f"the admin UI to enable this binding."
+                )
+                continue
+            if action == "skip_noop":
+                logs.workers.error(
+                    f"[{self.id_hyp_rethink}] GPU {pci_id}: no profile "
+                    f"resolvable (no requested, no scheduled, no default); "
+                    f"skipping."
+                )
+                continue
+            vgpu_profile = decision["profile"]
+            if action == "seed_and_apply":
+                update_requested_profile(vgpu_id, vgpu_profile)
+                if vgpu_profile == "passthrough":
+                    update_operator_passthrough(vgpu_id, True)
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] GPU {pci_id}: seeded "
+                    f"requested_profile={vgpu_profile!r} (first discovery)"
+                )
+            # Skip the engine's SSH (re)bind when the hypervisor already applied
+            # this exact profile and owns the bind. change_vgpu_profile excludes
+            # passthrough from its old==new short-circuit, so without this guard
+            # an applied passthrough card is re-bound over SSH on every init
+            # cycle -- the fight the hypervisor-owns-GPU handoff removes. A
+            # genuine change (resolved profile != the applied one) still
+            # re-applies, and the mdev-pool reconcile below still runs for
+            # runtime booking management.
+            applied_same = bool(d_vgpu_row.get("applied_by_hypervisor")) and (
+                vgpu_profile == d_vgpu_row.get("vgpu_profile")
+            )
+            if applied_same:
+                logs.workers.debug(
+                    f"[{self.id_hyp_rethink}] {vgpu_id} already applied by "
+                    f"hypervisor as {vgpu_profile!r}; confirming, not re-binding"
+                )
+            else:
                 logs.workers.debug(
                     f"[{self.id_hyp_rethink}] Changing vGPU profile to {vgpu_profile}"
                 )
                 self.change_vgpu_profile(vgpu_id, vgpu_profile)
-            else:
-                vgpu_profile = d_nvidia["vgpu_profile"]
-                logs.workers.debug(
-                    f"[{self.id_hyp_rethink}] Using default vGPU profile: {vgpu_profile}"
-                )
-                self.change_vgpu_profile(vgpu_id, vgpu_profile)
+
+            if gpu_apply_capable:
+                # The hypervisor already carved this card's mdevs and reported
+                # the pool (ingested above / at registration); skip the engine's
+                # echo-create loop for this card. The pool reconcile lives in the
+                # hypervisor now.
+                continue
 
             cmds = []
             base_path = d_nvidia["path"]
             sub_paths = d_nvidia.get("sub_paths", False)
-            for uuid_create, d_uuid in self.mdevs[pci_id][vgpu_profile].items():
+            # Defensive .get: on a divergence window the in-memory pool may not
+            # carry this profile key yet (cached info lagging fresh discovery).
+            # A bare index here would KeyError and, since this runs outside any
+            # per-card try, fault the WHOLE hypervisor to Error.
+            for uuid_create, d_uuid in (
+                self.mdevs.get(pci_id, {}).get(vgpu_profile, {}).items()
+            ):
                 type_id = d_uuid.get("type_id")
                 if not type_id:
                     logs.workers.warning(
@@ -2345,6 +2507,44 @@ class hyp(object):
             pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
 
             info_nvidia = {}
+
+            # Discovery-failed sentinel: hypervisor exhausted its retries on
+            # an SR-IOV PF and could not enumerate vGPU profiles. Two cases:
+            #   - card WITH prior DB types -> retain them (don't rebuild); a
+            #     transient failure must not clobber a configured card.
+            #   - card with NO prior state (brand-new) -> track it as
+            #     passthrough-only instead of skipping it into limbo, so it is
+            #     visible and the reconcile default keeps it usable. A card with
+            #     an active planning still resolves via scheduled_profile.
+            if gpu.get("vgpu_profiles") is None and "errors" in gpu:
+                existing = get_vgpu(f"{self.id_hyp_rethink}-{pci_name}")
+                if existing and existing.get("info", {}).get("types"):
+                    # Card WITH prior state: retain it, don't rebuild. A
+                    # transient discovery failure must not clobber a configured
+                    # card (reconcile resolves it via skip_retry).
+                    d_info_nvidia[pci_name] = existing["info"]
+                    logs.workers.warning(
+                        f"[{self.id_hyp_rethink}] GPU {pci_name} discovery "
+                        f"FAILED (errors={gpu.get('errors')}); retaining "
+                        f"previous DB types instead of rebuilding."
+                    )
+                    continue
+                # Brand-new / no-prior-state card whose discovery failed: do NOT
+                # skip it into limbo (no vgpus row -> get_gpu_profile errors,
+                # invisible card). Fall through to the passthrough-only builder
+                # below so the card is TRACKED and reconcile's default
+                # (passthrough) keeps it usable without vGPU types. A card with
+                # an active planning still resolves via scheduled_profile ->
+                # skip_retry, so this never forces a configured card to
+                # passthrough. The empty vGPU type layer almost always means the
+                # host vGPU manager (nvidia-vgpud) isn't publishing types —
+                # restart it on the host; the hypervisor container cannot.
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] GPU {pci_name} discovery FAILED "
+                    f"(errors={gpu.get('errors')}) with no prior DB state; "
+                    f"tracking it as passthrough-only until the host vGPU "
+                    f"manager (nvidia-vgpud) publishes vGPU types."
+                )
 
             if gpu.get("vgpu_profiles"):
                 # Build types dict from vgpu_profiles (vGPU driver present)

@@ -9,7 +9,11 @@ from engine.services.db import (
     get_vgpu_info,
     get_vgpu_model_profile_change,
 )
-from engine.services.db.hypervisors import get_hyp_system_info
+from engine.services.db.hypervisors import (
+    get_hyp_system_info,
+    update_operator_passthrough,
+    update_requested_profile,
+)
 from engine.services.db.storage_pool import get_storage_pools
 from engine.services.lib.functions import execute_commands
 from engine.services.lib.status import (
@@ -298,12 +302,32 @@ def engine_status_detail(payload):
 @api.route("/engine/profile/gpu/<string:gpu_id>", methods=["PUT"])
 @is_admin
 def set_gpu_profile(payload, gpu_id):
+    from isardvdi_common.gpu_pool_policy import profile_suffix_from_id
+
     logs.main.info("set_gpu_profile: {}".format(gpu_id))
     d = request.get_json(force=True)
     pci_id = gpu_id.split("-")[-1]
     profile_id = d.get("profile_id", False)
-    profile = profile_id
+    # Accept both the reservables_vgpus catalog id (e.g. "NVIDIA-A16-2Q",
+    # sent by the scheduler) and the bare suffix (e.g. "2Q", sent by the
+    # webapp force-profile button). Everything downstream — info.types
+    # keys, vgpus.vgpu_profile, vgpus.requested_profile, profile_mismatch
+    # comparisons — is keyed by the canonical suffix. profile_suffix_from_id
+    # canonicalizes BEFORE reducing, so a dash-form MIG id
+    # ("NVIDIA-<model>-1-2Q") collapses to "1_2Q", not a mis-split "2Q"
+    # (mirrors the API's get_vgpu_scheduled_profile_now). passthrough / dot-form
+    # MIG ("1g.24gb") / bare suffixes pass through unchanged.
+    profile = profile_suffix_from_id(profile_id)
     hyp_id = gpu_id[: gpu_id.rfind("-")]
+
+    # Record operator intent BEFORE attempting the driver transition.
+    # If change_vgpu_profile fails (driver glitch, SR-IOV race, ...) the
+    # operator's choice is still preserved in requested_profile and the
+    # reconcile retry loop will re-apply it on the next discovery cycle.
+    # This is the only place outside the one-time backfill that may write
+    # these fields — reconcile never sets them.
+    update_requested_profile(gpu_id, profile)
+    update_operator_passthrough(gpu_id, profile == "passthrough")
 
     h = app.m.t_workers[hyp_id].h
     result = h.change_vgpu_profile(gpu_id, profile)
