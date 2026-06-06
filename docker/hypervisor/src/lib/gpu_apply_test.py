@@ -171,6 +171,7 @@ class _Host:
         busy=False,
         profiles=None,
         apply_works=True,
+        numvfs=0,
     ):
         self.driver = driver
         self.mig = mig
@@ -178,6 +179,7 @@ class _Host:
         self.busy = busy
         self.profiles = profiles or []
         self.apply_works = apply_works
+        self.numvfs = numvfs
         self.mdev_count = 0
         self.cmds = []
         # VF paths a MIG->vGPU teardown re-creates (sriov-manage -e); the carve
@@ -198,7 +200,11 @@ class _Host:
                     self.mig = "Enabled"
                 elif "-mig 0" in c:
                     self.mig = "Disabled"
-        return [{"out": "", "err": ""} for _ in cmds]
+        # The warm-repartition detection reads live sriov_numvfs via run().
+        return [
+            {"out": (f"{self.numvfs}\n" if "sriov_numvfs" in c else ""), "err": ""}
+            for c in cmds
+        ]
 
 
 def _patch_host(monkeypatch, host):
@@ -637,3 +643,40 @@ def test_apply_mig_vgpu_errors_on_short_carve(monkeypatch):
     )
     assert rep["result"] == "error", rep
     assert "2/4" in (rep.get("error") or ""), rep
+
+
+def test_apply_mig_vgpu_warm_repartition_skips_sriov_reset(monkeypatch):
+    # Switching a MIG-vGPU profile on an ALREADY-MIG-enabled card with SR-IOV VFs
+    # up must re-lay-out the GPU-instances at the GI level ONLY: NO sriov-manage,
+    # NO -mig toggle, NO gpu reset (dynamic symmetric repartition; validated on HW).
+    h = _Host(
+        driver="nvidia",
+        mig="Enabled",
+        numvfs=12,
+        profiles=[{"name": "RTXPro6000BlackwellDC-2_24Q", "type_id": "nvidia-1570"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:05:00.{i}" for i in range(1, 7)]
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:05:00.0",
+        "sriov_totalvfs": 12,
+        "sriov_numvfs": 12,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-2_24Q",
+                "type_id": "nvidia-1570",
+                "mig": True,
+                "mig_profile_id": 35,
+                "mig_count": 2,
+            },
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "2_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "applied", rep
+    joined = "\n".join(h.cmds)
+    assert "sriov-manage" not in joined  # warm: no SR-IOV re-cycle
+    assert "-mig 1" not in joined  # no MIG-mode toggle
+    assert "--gpu-reset" not in joined  # no GPU reset
+    assert any("-cgi 35,35 -C" in c for c in h.cmds)  # GI-level recarve to 2 slices

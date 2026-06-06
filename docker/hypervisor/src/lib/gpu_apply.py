@@ -70,6 +70,17 @@ def build_mdev_create_cmd(base_path, type_id, mdev_uuid):
     return f"echo {mdev_uuid} > '{base_path}/mdev_supported_types/{type_id}/create'"
 
 
+def build_mdev_remove_cmd(base_path, type_id, mdev_uuid):
+    """Command to remove one live mdev (``type_id``/``mdev_uuid``) under
+    ``base_path`` (the VF/PF path). Best-effort (``|| true``): the device may
+    already be gone. Used by the non-destructive per-slice remove to free a VF's
+    mdev before its backing MIG GPU-instance is destroyed."""
+    return (
+        f"echo 1 > '{base_path}/mdev_supported_types/{type_id}/devices/"
+        f"{mdev_uuid}/remove' 2>/dev/null || true"
+    )
+
+
 def new_mdev_pool_entry(pci_mdev_id, type_id, mig=False, mig_profile_id=None):
     """Build one ``vgpus.mdevs[profile][uuid]`` entry (engine schema) plus a
     fresh UUID. Returned as ``(uuid, entry)``."""
@@ -256,19 +267,44 @@ def _apply(gpu, current, wanted, run):
 
     if mig_vgpu is not None:
         # MIG-backed vGPU: create `mig_count` graphics GPU-instances of the +gfx
-        # profile and re-enable SR-IOV, then FALL THROUGH to the per-VF vGPU
-        # carve (now tagged mig=True and capped at the slice count). The VF
-        # DC-N-Q mdev type only exposes available_instances once the GIs exist.
+        # profile, then FALL THROUGH to the per-VF vGPU carve (tagged mig=True,
+        # capped at the slice count). The VF DC-N-Q mdev type only exposes
+        # available_instances once the GIs exist.
         gfx_id = mig_vgpu.get("mig_profile_id")
         count = mig_vgpu.get("mig_count") or 1
-        if current == "passthrough":
-            # reverse passthrough first so the PF is nvidia-bound for MIG enable
-            pre = _cmds.build_vfio_unbind_cmds(pci_bdf, sriov_totalvfs)
-            for cbdf in companions:
-                pre += _cmds.build_companion_release_cmds(cbdf)
-            run(pre, timeout=180)
-        run(_cmds.build_mig_vgpu_carve_cmds(pci_bdf, gfx_id, count), timeout=240)
-        # sriov-manage -e re-created the VFs; enumerate them for the carve.
+        # WARM repartition: if the card is ALREADY MIG-enabled with SR-IOV VFs up
+        # (a MIG-vGPU -> MIG-vGPU profile switch), re-lay-out the GIs at the GI
+        # level ONLY -- no sriov-manage / -mig toggle / GPU reset (validated on
+        # Blackwell: SR-IOV/VFs and the PF binding stay intact). Otherwise COLD:
+        # from passthrough / MIG-off, do the full enable-MIG + re-enable-SR-IOV
+        # carve. (mig.mode is the reliable signal; numvfs is read live so a card
+        # with VFs torn down still takes the cold path.)
+        mig_mode = _read_mig_mode(pci_bdf, run)
+        nv = _out(
+            run(
+                [f"cat /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null"],
+                timeout=10,
+            )
+        ).strip()
+        warm = (
+            current != "passthrough"
+            and isinstance(mig_mode, str)
+            and "enabled" in mig_mode.lower()
+            and nv.isdigit()
+            and int(nv) > 0
+        )
+        if warm:
+            run(_cmds.build_mig_clear_card_mdevs_cmds(pci_bdf), timeout=60)
+            run(_cmds.build_mig_recarve_cmds(pci_bdf, gfx_id, count), timeout=180)
+        else:
+            if current == "passthrough":
+                # reverse passthrough first so the PF is nvidia-bound for MIG enable
+                pre = _cmds.build_vfio_unbind_cmds(pci_bdf, sriov_totalvfs)
+                for cbdf in companions:
+                    pre += _cmds.build_companion_release_cmds(cbdf)
+                run(pre, timeout=180)
+            run(_cmds.build_mig_vgpu_carve_cmds(pci_bdf, gfx_id, count), timeout=240)
+        # (re-)enumerate the VFs for the carve.
         sub_paths = _enumerate_vf_sub_paths(pci_bdf, run) or sub_paths
         vf_cap = count
         mig_meta = {"mig": True, "mig_profile_id": gfx_id}
