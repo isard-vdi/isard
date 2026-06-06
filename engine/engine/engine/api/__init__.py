@@ -329,7 +329,31 @@ def set_gpu_profile(payload, gpu_id):
     update_requested_profile(gpu_id, profile)
     update_operator_passthrough(gpu_id, profile == "passthrough")
 
-    h = app.m.t_workers[hyp_id].h
+    worker = app.m.t_workers.get(hyp_id)
+    if worker is None:
+        # No live engine worker for this hypervisor yet -- it is (re)starting and
+        # has not re-registered, or the engine just started and has not spawned
+        # the worker. Operator intent was already persisted above, so the
+        # reconcile loop applies it once the worker is up. Return a clear 503
+        # instead of a 500 KeyError on app.m.t_workers[hyp_id].
+        logs.main.warning(
+            f"set_gpu_profile: no active worker for {hyp_id}; intent "
+            f"{profile!r} recorded, will apply on reconcile"
+        )
+        return (
+            jsonify(
+                {
+                    "error": "hypervisor_not_ready",
+                    "description": (
+                        f"Hypervisor {hyp_id} has no active engine worker yet "
+                        f"(it may be starting). Profile {profile!r} was recorded "
+                        f"and will be applied when it reconnects; retry shortly."
+                    ),
+                }
+            ),
+            503,
+        )
+    h = worker.h
     result = h.change_vgpu_profile(gpu_id, profile)
     # change_vgpu_profile returns False on every failure path it reports to
     # the operator and None on the success path (or early-return when the
