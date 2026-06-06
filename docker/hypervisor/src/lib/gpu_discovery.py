@@ -622,7 +622,7 @@ def _wait_sriov_numvfs_zero(sysfs_pci_id, timeout=10):
     return False
 
 
-def _wait_vf_driver_bound(sysfs_pci_id, expected="nvidia", timeout=15):
+def _wait_vf_driver_bound(sysfs_pci_id, expected="nvidia", timeout=30):
     """Poll ``virtfn0``'s driver symlink until it matches ``expected``.
 
     After ``sriov-manage -e`` returns, the PF has been re-probed but VF binding
@@ -630,6 +630,12 @@ def _wait_vf_driver_bound(sysfs_pci_id, expected="nvidia", timeout=15):
     requires ``mdev_supported_types/`` on each VF, which only appears once the
     nvidia driver is actually bound. Without this wait, discovery enumerates
     empty profiles on hosts where nvidia-vgpu-mgr takes a few seconds to bind.
+
+    The default timeout is generous (30s): cards with many VFs (e.g. A16, 16 VFs)
+    can take >15s for all VFs to (re)bind even after ``udevadm settle``, and a
+    premature timeout returns False -> the caller falls back to a disruptive
+    ``nvidia-smi -r`` bus reset. Better to wait a little longer and keep the
+    non-destructive sriov-manage cycle.
 
     Returns True if virtfn0's driver matches ``expected`` within timeout,
     False otherwise (timeout or missing symlinks).
