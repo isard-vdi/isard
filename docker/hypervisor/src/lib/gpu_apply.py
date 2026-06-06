@@ -343,6 +343,15 @@ def apply_target(gpu, target, run=run_local):
 
     wanted = target_suffix(target)
     driver = _read_driver(pci_bdf, run)
+    if driver not in ("nvidia", "vfio-pci"):
+        # The PF is bound to NO driver (orphaned by a transition interrupted
+        # mid-flight -- e.g. the hypervisor crashed/restarted between the vfio
+        # unbind and the nvidia rebind) or to a stray transient (pci-pf-stub
+        # left over from a half-done SR-IOV dance). In that state nvidia-smi /
+        # sysfs ops and current-detection misbehave and the apply fails. Recover
+        # the PF to the nvidia base so ANY apply self-heals, then re-read.
+        run(_cmds.build_pf_recover_nvidia_cmds(pci_bdf), timeout=60)
+        driver = _read_driver(pci_bdf, run)
     mig_mode = _read_mig_mode(pci_bdf, run)
     current = current_profile_from_state(
         driver, mig_mode, _live_mdev_suffix(pci_bdf, run)

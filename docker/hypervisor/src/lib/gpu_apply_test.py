@@ -132,6 +132,30 @@ def test_apply_errors_on_carve_result_count_mismatch(monkeypatch):
     assert "count" in rep["error"]
 
 
+def test_apply_recovers_orphaned_pf_before_applying(monkeypatch):
+    # A PF bound to NO driver (orphaned by a transition interrupted mid-flight,
+    # e.g. a restart/crash between the vfio unbind and the nvidia rebind) must be
+    # recovered to nvidia BEFORE the apply proceeds -- not operated on as a dead
+    # PF (which fails). The card starts orphaned (driver=None); the apply must
+    # rebind it and then carve the requested vGPU profile.
+    h = _Host(
+        driver=None,
+        mig="Disabled",
+        profiles=[{"name": "A40-4Q", "type_id": "nvidia-558"}],
+    )
+    h.vf_paths = ["/sys/bus/pci/devices/0000:c5:00.1"]
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:c5:00.0",
+        "sub_paths": ["/sys/bus/pci/devices/0000:c5:00.1"],
+        "sriov_totalvfs": 1,
+    }
+    rep = ga.apply_target(gpu, {"target_profile": "4Q", "action": "apply"}, run=h.run)
+    assert any("drivers/nvidia/bind" in c for c in h.cmds)  # recovery ran
+    assert h.driver == "nvidia"  # no longer orphaned
+    assert rep["result"] == "applied", rep
+
+
 # --- apply_target orchestration (stateful host fake) ------------------------
 class _Host:
     """Simulates a card's observable state across an apply. run() applies the

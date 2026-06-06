@@ -192,6 +192,28 @@ def build_vfio_unbind_cmds(pci_bdf, sriov_totalvfs):
     ]
 
 
+def build_pf_recover_nvidia_cmds(pci_bdf):
+    """Recover a PF that is bound to NO driver -- or to a stray transient like
+    pci-pf-stub -- back to nvidia, the base state every apply expects.
+
+    A profile transition interrupted mid-flight (e.g. the hypervisor
+    crashed/restarted between the vfio unbind and the nvidia rebind, or a
+    half-done SR-IOV dance left pci-pf-stub bound) can leave the PF orphaned.
+    nvidia-smi/sysfs then operate on a dead PF and the next apply fails. Clear
+    any stale driver_override (a half-done passthrough leaves it 'vfio-pci'),
+    drop a leftover pci-pf-stub binding, re-probe, and bind nvidia explicitly.
+    Every step is best-effort so this is safe to run from any orphaned state.
+    """
+    return [
+        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind 2>/dev/null || true",
+        f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override 2>/dev/null || true",
+        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
+        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true",
+        "udevadm settle 2>/dev/null || true",
+        "nvidia-smi -pm 1 2>/dev/null || true",
+    ]
+
+
 def build_companion_release_cmds(cbdf):
     """Release an HD-audio companion from vfio-pci so the host driver re-binds."""
     return [
