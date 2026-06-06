@@ -53,6 +53,29 @@ def get_vgpus_hypervisors():
     return {profile_id: sorted(hyps) for profile_id, hyps in hyp_by_profile.items()}
 
 
+def attach_vgpu_hypervisor_groups(vgpus, show_names):
+    """Tag each vGPU profile with the hypervisor groups that can host it.
+
+    A multi-profile desktop must keep all its profiles on one hypervisor, so the
+    UI needs to know which profiles share a host. Always attach
+    ``hypervisor_groups`` (anonymized stable indices — two profiles are
+    co-selectable iff their lists intersect). When ``show_names`` (admin/webapp)
+    also attach the real ``hypervisors`` names for grouped labels. Tolerates
+    items missing an ``id`` and a non-list input.
+    """
+    if not isinstance(vgpus, list):
+        return vgpus
+    hyp_map = get_vgpus_hypervisors()
+    ordered_hyps = sorted({h for v in vgpus for h in hyp_map.get(v.get("id"), [])})
+    anon_index = {h: i + 1 for i, h in enumerate(ordered_hyps)}
+    for v in vgpus:
+        hyps = hyp_map.get(v.get("id"), [])
+        v["hypervisor_groups"] = [anon_index[h] for h in hyps]
+        if show_names:
+            v["hypervisors"] = hyps
+    return vgpus
+
+
 class Reservables:
     def __init__(self):
         self.reservable = {}

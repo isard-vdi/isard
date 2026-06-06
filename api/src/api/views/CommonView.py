@@ -13,7 +13,7 @@ from api import app
 
 from ..libv2.api_logging import logs_domain_event_viewer
 from ..libv2.api_templates import ApiTemplates
-from ..libv2.bookings.api_reservables import get_vgpus_hypervisors
+from ..libv2.bookings.api_reservables import attach_vgpu_hypervisor_groups
 from ..libv2.caches import get_document
 from ..libv2.quotas import Quotas
 
@@ -84,26 +84,6 @@ def api_v2_desktop_viewers(payload, desktop_id=False, protocol=False):
     return json.dumps(viewers), 200, {"Content-Type": "application/json"}
 
 
-def _attach_vgpu_hypervisor_groups(vgpus, show_names):
-    """Tag each vGPU profile with the hypervisor groups that can host it.
-
-    A multi-profile desktop must keep all its profiles on one hypervisor, so the
-    UI needs to know which profiles share a host. Always attach
-    ``hypervisor_groups`` (anonymized stable indices — two profiles are
-    co-selectable iff their lists intersect). When ``show_names`` (admin/webapp)
-    also attach the real ``hypervisors`` names for grouped labels.
-    """
-    hyp_map = get_vgpus_hypervisors()
-    ordered_hyps = sorted({h for v in vgpus for h in hyp_map.get(v["id"], [])})
-    anon_index = {h: i + 1 for i, h in enumerate(ordered_hyps)}
-    for v in vgpus:
-        hyps = hyp_map.get(v["id"], [])
-        v["hypervisor_groups"] = [anon_index[h] for h in hyps]
-        if show_names:
-            v["hypervisors"] = hyps
-    return vgpus
-
-
 @app.route("/api/v3/domains/allowed/<kind>", methods=["GET"])
 @app.route("/api/v3/domains/allowed/<kind>/<domain_id>", methods=["GET"])
 @has_token
@@ -130,7 +110,7 @@ def api_v3_domains_allowed_hardware_reservables(payload, kind, domain_id=None):
                 order="name",
                 query_merge=False,
             )
-        return json.dumps({"vgpus": _attach_vgpu_hypervisor_groups(vgpus, show_names)})
+        return json.dumps({"vgpus": attach_vgpu_hypervisor_groups(vgpus, show_names)})
     if kind == "hardware":
         return Error("bad_request", "Not implemented")
 
