@@ -84,6 +84,42 @@ def build_mig_transition_cmds(
     return cmds
 
 
+def build_mig_vgpu_carve_cmds(pci_bdf, gfx_profile_id, count):
+    """Enable MIG, re-enable SR-IOV, then carve ``count`` graphics MIG
+    GPU-instances of the ``+gfx`` GI profile ``gfx_profile_id`` (each with a
+    compute instance), so the per-slice vGPU mdev type (``DC-N-<mem>Q``) becomes
+    available on the VFs. The caller then creates one mdev per VF (up to
+    ``count``).
+
+    ORDER IS LOAD-BEARING (validated on RTX PRO 6000 Blackwell hardware):
+    ``sriov-manage -e`` MUST run BEFORE ``-cgi``. ``sriov-manage -e`` re-enables
+    SR-IOV by unbinding and rebinding the nvidia driver on the PF (its
+    pci-pf-stub dance), which DESTROYS any GPU-instances that already exist. So
+    the working sequence is: tear VFs down (the PF rejects MIG-enable while VFs
+    are bound) -> ``-mig 1`` -> ``--gpu-reset`` to apply -> ``sriov-manage -e``
+    to bring the VFs up -> THEN ``-cgi <gfx>,... -C`` (the GIs survive and back
+    the VF mdev types; the ``+gfx`` GI variant is the only one that exposes a
+    vGPU mdev, and ``-C`` creates the compute instance per GI in one shot).
+    Creating the GIs first and enabling SR-IOV after wipes them -> 0 bookable.
+
+    Returns a ``list[str]``; the caller logs and executes. Reuses ``sriov-manage``
+    (bind-mounted in the hypervisor container; its pci-pf-stub dance is also
+    inlined in ``build_vfio_unbind_cmds`` as the proven fallback)."""
+    gis = ",".join([str(gfx_profile_id)] * max(1, int(count)))
+    return [
+        f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
+        f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
+        f"sriov-manage -d {pci_bdf} 2>/dev/null || true",
+        f"nvidia-smi -i {pci_bdf} -mig 1",
+        f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+        "sleep 2",
+        f"sriov-manage -e {pci_bdf} 2>/dev/null || true",
+        "udevadm settle 2>/dev/null || true",
+        f"nvidia-smi mig -i {pci_bdf} -cgi {gis} -C",
+        "sleep 1",
+    ]
+
+
 def build_vfio_bind_cmds(pci_bdf, sriov_totalvfs, sriov_numvfs):
     """Bind a GPU PF to vfio-pci for whole-GPU passthrough.
 

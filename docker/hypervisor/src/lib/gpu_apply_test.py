@@ -557,3 +557,83 @@ def test_apply_targets_orders_non_mig_before_mig(monkeypatch):
     ga.apply_targets(gpus, targets)
     # ...but the non-MIG card is applied first (MIG --gpu-reset comes last).
     assert order == ["0000:06:00.0", "0000:c5:00.0"]
+
+
+def test_apply_mig_vgpu_carves_gfx_gis_and_caps_mdevs_per_count(monkeypatch):
+    # A MIG-backed vGPU target (annotated mig_profile_id=47, mig_count=4) must:
+    #  - create 4 +gfx GPU-instances with compute instances (-cgi 47,..,47 -C),
+    #  - re-enable SR-IOV, and
+    #  - carve exactly `mig_count` mdevs (one per GI), capped even when more VFs
+    #    exist, each tagged mig=True/mig_profile_id.
+    h = _Host(
+        driver="nvidia",
+        mig="Disabled",
+        live=None,
+        profiles=[{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "nvidia-1561"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:05:00.{i}" for i in range(1, 7)]  # 6 VFs
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:05:00.0",
+        "sriov_totalvfs": 12,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-1_24Q",
+                "type_id": "nvidia-1561",
+                "mig": True,
+                "mig_profile_id": 47,
+                "mig_count": 4,
+            },
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "1_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "applied", rep
+    pool = rep["mdevs"]["1_24Q"]
+    assert len(pool) == 4  # capped at mig_count, not the 6 VFs
+    entry = next(iter(pool.values()))
+    assert entry["mig"] is True
+    assert entry["mig_profile_id"] == 47
+    assert any("-cgi 47,47,47,47 -C" in c for c in h.cmds)
+    assert any("-mig 1" in c for c in h.cmds)
+    assert any("sriov-manage -e" in c for c in h.cmds)
+    # ORDER IS LOAD-BEARING: sriov-manage -e rebinds the PF driver, which wipes
+    # any existing GPU-instances. It MUST run BEFORE -cgi or the GIs are
+    # destroyed and the VF DC-N-Q mdev type stays at available_instances=0
+    # (0 bookable). Validated on Blackwell hardware.
+    sriov_e_idx = next(i for i, c in enumerate(h.cmds) if "sriov-manage -e" in c)
+    cgi_idx = next(i for i, c in enumerate(h.cmds) if "-cgi 47,47,47,47 -C" in c)
+    assert sriov_e_idx < cgi_idx, h.cmds
+
+
+def test_apply_mig_vgpu_errors_on_short_carve(monkeypatch):
+    # If fewer slices carve than mig_count (e.g. a racy SR-IOV re-enable left
+    # only some VFs exposing the type), the apply must ERROR -- not publish a
+    # partial MIG pool as "applied". Here only 2 VFs are available, mig_count=4.
+    h = _Host(
+        driver="nvidia",
+        mig="Disabled",
+        live=None,
+        profiles=[{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "nvidia-1561"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:05:00.{i}" for i in range(1, 3)]  # 2 VFs
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:05:00.0",
+        "sriov_totalvfs": 12,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-1_24Q",
+                "type_id": "nvidia-1561",
+                "mig": True,
+                "mig_profile_id": 47,
+                "mig_count": 4,
+            },
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "1_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "error", rep
+    assert "2/4" in (rep.get("error") or ""), rep

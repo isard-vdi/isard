@@ -37,7 +37,14 @@ import sys
 SETUP_GPU_LOCK = "/run/isard-hyp-setup.lock"
 
 
-def _build_report(pci_bdf, target_profile, action, mdevs_reset_at, mig_profile_id=None):
+def _build_report(
+    pci_bdf,
+    target_profile,
+    action,
+    mdevs_reset_at,
+    mig_profile_id=None,
+    mig_count=None,
+):
     # Imports are deferred so an argparse/usage error doesn't depend on the
     # GPU libs being importable. gpu_apply + gpu_discovery live beside this file.
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -55,6 +62,22 @@ def _build_report(pci_bdf, target_profile, action, mdevs_reset_at, mig_profile_i
         if gpu_apply.canonical_suffix(target_profile) not in have:
             desc["mig_profiles"] = existing + [
                 {"name": target_profile, "profile_id": mig_profile_id}
+            ]
+        # Seed the MIG-backed vGPU profile into vgpu_profiles so apply_target
+        # takes the multi-GI MIG-vGPU branch and carves `mig_count` slices. The
+        # read-only descriptor's vgpu_profiles is EMPTY when the VFs aren't
+        # currently live (passthrough / MIG card), so _mig_vgpu_entry would
+        # otherwise find nothing and the apply would fall back to a single-GI
+        # plain MIG transition. The engine passes the durable count (info.types
+        # max); default to 1 only if it didn't.
+        if gpu_apply._mig_vgpu_entry(desc, target_profile) is None:
+            desc["vgpu_profiles"] = (desc.get("vgpu_profiles") or []) + [
+                {
+                    "name": target_profile,
+                    "mig": True,
+                    "mig_profile_id": mig_profile_id,
+                    "mig_count": int(mig_count) if mig_count else 1,
+                }
             ]
 
     target = {"target_profile": target_profile, "action": action}
@@ -83,6 +106,7 @@ def main(argv=None):
     parser.add_argument("--action", default="apply")
     parser.add_argument("--mdevs-reset-at", default=None)
     parser.add_argument("--mig-profile-id", default=None, type=int)
+    parser.add_argument("--mig-count", default=None, type=int)
     args = parser.parse_args(argv)
 
     try:
@@ -92,6 +116,7 @@ def main(argv=None):
             args.action,
             args.mdevs_reset_at,
             args.mig_profile_id,
+            args.mig_count,
         )
         print(json.dumps(report))
         return 0
