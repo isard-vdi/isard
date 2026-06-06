@@ -515,17 +515,20 @@ class ReservablesPlanner:
                 log.debug(
                     "Plans for " + k + "/" + subitem + ": " + str(len(plans[subitem]))
                 )
-        if len(plans.keys()) == 0:
-            return []
-        elif len(plans.keys()) == 1:
-            return plans
-        else:
-            log.error(
-                "Trying to book desktop with multiple reservables"
-                + str(list(plans.keys()))
-                + ". Not implemented"
-            )
-            return []
+        # Keep only the subitems (profiles) that obtained at least one plan.
+        non_empty = {k: v for k, v in plans.items() if v}
+        requested = [s for sublist in subitems.values() for s in (sublist or [])]
+        if len(non_empty) != len(requested):
+            # At least one requested profile cannot fit in the window: the whole
+            # multi-profile booking is unsatisfiable.
+            return {}
+        # Each profile must land on a distinct physical card (item_id). Plannings
+        # already enforce one profile per card per window, so distinct profiles are
+        # structurally on distinct cards; this set() check is a cheap final guard.
+        chosen_item_ids = [p["item_id"] for v in non_empty.values() for p in v]
+        if len(set(chosen_item_ids)) != len(chosen_item_ids):
+            return {}
+        return non_empty
 
     ##### Scheduling
     def reschedule_existing_plan_start(self, new_plan, existing_plan):

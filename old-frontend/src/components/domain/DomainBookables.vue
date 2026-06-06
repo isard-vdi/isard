@@ -7,6 +7,7 @@
     {{ $t(`forms.domain.bookables.vgpus`) }}
     <v-select
       v-model="vgpus"
+      multiple
       :options="availableBookables.vgpus"
       label="name"
       :reduce="element => element.id"
@@ -44,16 +45,19 @@ export default {
     const domain = computed(() => $store.getters.getDomain)
     const gpuVideos = computed(() => domain.value.hardware.videos.includes('none'))
     const vgpus = computed({
-      get: () => $store.getters.getDomain.reservables.vgpus,
+      get: () => $store.getters.getDomain.reservables.vgpus || [],
+      // Multi-select: a desktop may carry several vGPU profiles, each on a
+      // distinct physical card. Store the full array of selected profile ids.
       set: (value) => {
-        domain.value.reservables.vgpus = value ? [value] : []
+        domain.value.reservables.vgpus = (value && value.length) ? value : []
         $store.commit('setDomain', domain.value)
       }
     })
 
-    // When not selecting a GPU, set the video to default
+    // When not selecting a GPU (empty or the 'None' option), set video to default
     watch(vgpus, (newVal, prevVal) => {
-      if (vgpus.value[0] === 'None' && gpuVideos.value) {
+      const noGpu = !vgpus.value.length || vgpus.value.includes('None')
+      if (noGpu && gpuVideos.value) {
         ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.video-default'), '', true, 5000)
         $store.dispatch('changeVideos', ['default'])
       }

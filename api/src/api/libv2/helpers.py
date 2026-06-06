@@ -162,9 +162,11 @@ def _get_reservables(item_type, item_id):
                 description_code="not_found",
             )
 
-        # Filter out None values
+        # Filter out None values. Sort each desktop's profile list so the
+        # "all desktops share the same vGPU set" check is order-insensitive
+        # (a multi-profile desktop may list profiles in any order).
         valid_vgpus = [
-            tuple(item["reservables"]["vgpus"])
+            tuple(sorted(item["reservables"]["vgpus"]))
             for item in deployment["create_dict"]
             if item["reservables"]["vgpus"] is not None
         ]

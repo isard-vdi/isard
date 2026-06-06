@@ -2055,7 +2055,11 @@ function renderAction(data){
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalEdit').serializeObject();
-                data['reservables-vgpus'] = [data['reservables-vgpus']]
+                // Only wrap a scalar selection; don't double-wrap (and corrupt)
+                // a multi-profile desktop authored in the new frontend.
+                if (!Array.isArray(data['reservables-vgpus'])) {
+                    data['reservables-vgpus'] = [data['reservables-vgpus']]
+                }
                 if (data['hardware-interfaces'] === undefined || data['hardware-interfaces'] === null) {
                     data['hardware-interfaces'] = [];
                 }

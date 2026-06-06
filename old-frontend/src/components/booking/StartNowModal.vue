@@ -143,6 +143,11 @@ export default {
         return
       }
       if (modal.value.showProfileDropdown) {
+        // Recovery path: the desktop's GPU isn't available right now, so the
+        // user picks a single available profile to start with. NOTE: for a
+        // multi-profile desktop this collapses it to one profile. The primary
+        // start path (checkCanStart success) preserves all profiles since the
+        // server resolves the full reservables; only this fallback is limited.
         const data = {
           id: item.value.id,
           reservables: { vgpus: [profile.value.id] }

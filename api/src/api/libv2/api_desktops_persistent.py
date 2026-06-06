@@ -88,6 +88,46 @@ from .rules import get_unused_item_timeout
 MIN_AUTOBOOKING_TIME = 30
 MAX_BOOKING_TIME = 12 * 60  # 12h
 
+# A desktop may carry several vGPU profiles, each on a distinct physical card.
+# Cap how many to keep placement tractable; bump if hardware allows more.
+MAX_VGPU_PROFILES_PER_DESKTOP = 2
+
+
+def validate_reservables_vgpus(vgpus):
+    """Validate a desktop's list of vGPU reservable ids.
+
+    Rejects duplicate profiles, more than MAX_VGPU_PROFILES_PER_DESKTOP, and
+    unknown reservable ids. Tolerates None / the ``["None"]`` "no GPU" sentinel
+    and returns the value unchanged so callers can keep their normalization.
+    """
+    if not vgpus:
+        return vgpus
+    if len(vgpus) > MAX_VGPU_PROFILES_PER_DESKTOP:
+        raise Error(
+            "bad_request",
+            f"A desktop can have at most {MAX_VGPU_PROFILES_PER_DESKTOP} vGPU profiles",
+            description_code="too_many_vgpu_profiles",
+        )
+    if len(set(vgpus)) != len(vgpus):
+        raise Error(
+            "bad_request",
+            "Duplicate vGPU profiles are not allowed",
+            description_code="duplicate_vgpu_profiles",
+        )
+    real = [v for v in vgpus if v and v != "None"]
+    if real:
+        with app.app_context():
+            existing = (
+                r.table("reservables_vgpus").get_all(r.args(real)).count().run(db.conn)
+            )
+        if existing != len(real):
+            raise Error(
+                "not_found",
+                "One or more vGPU profiles do not exist",
+                description_code="vgpu_profile_not_found",
+            )
+    return vgpus
+
 
 def api_jumperurl_gencode(length=32):
     code = False
@@ -722,16 +762,25 @@ class ApiDesktopsPersistent:
             desktop = parse_domain_update(d, data, admin_or_manager)
             domain = get_document("domains", d)
 
-            if desktop_data.get("hardware", {}).get("reservables", {}).get(
-                "vgpus", []
-            ) != domain.get("create_dict").get("reservables", {}).get("vgpus", []):
-                # Delete booking when the vGPU profile is changed
+            new_vgpus = (
+                desktop_data.get("hardware", {}).get("reservables", {}).get("vgpus")
+                or []
+            )
+            validate_reservables_vgpus(new_vgpus)
+            old_vgpus = (
+                domain.get("create_dict", {}).get("reservables", {}).get("vgpus") or []
+            )
+            if set(new_vgpus) != set(old_vgpus):
+                # Delete booking when the SET of vGPU profiles changes (reordering
+                # the same profiles must not drop a still-valid booking).
                 apib.delete_item_bookings("desktop", d)
 
             with app.app_context():
                 r.table("domains").get(d).update(desktop).run(db.conn)
 
     def UpdateReservables(self, desktop_id, reservables):
+        if reservables:
+            validate_reservables_vgpus(reservables.get("vgpus"))
         with app.app_context():
             r.table("domains").get(desktop_id).update(
                 {"create_dict": {"reservables": reservables}}
