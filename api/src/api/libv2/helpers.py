@@ -529,9 +529,13 @@ def _parse_desktop_booking(desktop):
     if not booking and desktop.get("tag"):
         booking = get_cached_deployment_bookings(desktop.get("tag"))
 
-    if booking and booking[0].get("reservables", {}).get("vgpus") == desktop.get(
-        "create_dict", {}
-    ).get("reservables", {}).get("vgpus"):
+    # Match the booking to the desktop by vGPU profile SET (order-insensitive):
+    # a multi-profile desktop's booking may list its profiles in any order.
+    if booking and set(
+        (booking[0].get("reservables", {}) or {}).get("vgpus") or []
+    ) == set(
+        (desktop.get("create_dict", {}).get("reservables", {}) or {}).get("vgpus") or []
+    ):
         return {
             "needs_booking": True,
             "next_booking_start": booking[0]["start"].strftime("%Y-%m-%dT%H:%M%z"),
