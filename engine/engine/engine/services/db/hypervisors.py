@@ -1214,13 +1214,17 @@ def get_domains_vgpu_uuids():
     """
     r_conn = new_rethink_connection()
     try:
-        uuids = (
-            r.table("domains")
-            .has_fields("vgpu_info")
-            .pluck({"vgpu_info": "uuid"})
-            .run(r_conn)
-        )
-        out = {u for d in uuids if (u := (d.get("vgpu_info") or {}).get("uuid"))}
+        rows = r.table("domains").has_fields("vgpu_info").pluck("vgpu_info").run(r_conn)
+        # vgpu_info is a list of per-mdev bindings (legacy installs: a single
+        # dict). Collect every referenced uuid so pool self-heal never trims a
+        # uuid any domain still claims.
+        out = set()
+        for d in rows:
+            vi = d.get("vgpu_info")
+            if isinstance(vi, list):
+                out.update(e.get("uuid") for e in vi if e.get("uuid"))
+            elif isinstance(vi, dict) and vi.get("uuid"):
+                out.add(vi["uuid"])
     finally:
         close_rethink_connection(r_conn)
     return out

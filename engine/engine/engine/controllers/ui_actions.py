@@ -361,14 +361,23 @@ class UiActions(object):
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
-            # Loop selection+reservation so we can retry on a lost CAS when two
-            # starters race for the same mdev UUID. Non-GPU paths exit after the
-            # first iteration.
             next_hyp = False
             extra_info = {}
             is_gpu = False
             max_attempts = 5
-            for attempt in range(max_attempts):
+
+            # A desktop may request several vGPU profiles. They MUST all land on
+            # ONE hypervisor (a guest runs on a single host and can only attach
+            # that host's devices) and on DISTINCT cards. Pin the host to the
+            # first profile's selection, reserve+inject every profile there, and
+            # roll back if any can't be placed. start_paused_domain intentionally
+            # starts with no GPU (minimal memory), so it takes the non-GPU path.
+            gpu_profiles = []
+            if action != "start_paused_domain":
+                gpu_profiles = list((reservables or {}).get("vgpus") or [])
+
+            if not gpu_profiles:
+                # Non-GPU path (or paused): a single hypervisor selection, no mdev.
                 next_hyp, extra_info = self.manager.pools[
                     pool_id
                 ].balancer.get_next_hypervisor(
@@ -379,56 +388,130 @@ class UiActions(object):
                     storage_pool_id=storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
                 )
-                if next_hyp is False:
-                    break
                 if action == "start_paused_domain":
                     extra_info = {}
                 is_gpu = extra_info.get("nvidia", False) is True
-                if not is_gpu:
-                    break
-                reserved_ok = update_vgpu_uuid_domain_action(
-                    extra_info["gpu_id"],
-                    extra_info["uid"],
-                    "domain_reserved",
-                    domain_id=id_domain,
-                    profile=extra_info["profile"],
-                )
-                if reserved_ok:
-                    try:
-                        xml = recreate_xml_if_gpu(
-                            xml,
-                            extra_info["uid"],
-                            pci_bus_id=extra_info.get("pci_bus_id"),
-                            is_passthrough=(extra_info.get("profile") == "passthrough"),
-                            companion_pci_bdfs=extra_info.get("companion_pci_bdfs")
-                            or [],
-                            is_mig=extra_info.get("mig", False),
-                        )
-                    except ValueError as e:
-                        log.error(
-                            "{}: recreate_xml_if_gpu failed: {}".format(id_domain, e)
-                        )
-                        update_domain_status(
-                            "Failed",
-                            id_domain,
-                            detail="GPU XML injection failed: {}".format(e),
-                        )
-                        return False
-                    if extra_info.get("profile") == "passthrough":
-                        xml = add_qemu_pcie_reserve(xml)
-                    break
-                log.warning(
-                    f"{id_domain}: vgpu reservation lost CAS on uuid "
-                    f"{extra_info.get('uid')} (attempt {attempt + 1}/{max_attempts}); "
-                    f"re-selecting"
-                )
             else:
-                update_domain_status(
-                    "Failed",
-                    id_domain,
-                    detail="Could not reserve a free vGPU mdev after retries (concurrent starters)",
-                )
-                return False
+                # GPU path: reserve EVERY requested profile on a single host.
+                reserved = []  # [(gpu_id, uuid, profile)] for rollback
+                pinned_hyp = list(forced_hyp) if forced_hyp else None
+                primary_extra = None
+                placement_failed = False
+
+                def _rollback_vgpus():
+                    for _g, _u, _p in reserved:
+                        try:
+                            update_vgpu_uuid_domain_action(
+                                _g,
+                                _u,
+                                "domain_stopped",
+                                domain_id=id_domain,
+                                profile=_p,
+                            )
+                        except Exception as _re:
+                            log.error(
+                                f"{id_domain}: rollback release failed for "
+                                f"{_u}: {_re}"
+                            )
+
+                for profile in gpu_profiles:
+                    per_reservables = {"vgpus": [profile]}
+                    placed = False
+                    # Retry per profile on a lost CAS (concurrent starters).
+                    for attempt in range(max_attempts):
+                        nh, ei = self.manager.pools[
+                            pool_id
+                        ].balancer.get_next_hypervisor(
+                            forced_hyp=pinned_hyp if pinned_hyp else forced_hyp,
+                            favourite_hyp=favourite_hyp,
+                            reservables=per_reservables,
+                            force_gpus=force_gpus,
+                            storage_pool_id=storage_pool_id,
+                            domain_memory_gb=domain_memory_gb,
+                        )
+                        if nh is False or ei.get("nvidia", False) is not True:
+                            # No card for this profile on the pinned host.
+                            break
+                        if pinned_hyp is None:
+                            pinned_hyp = [nh]
+                        elif nh not in pinned_hyp:
+                            # Belt-and-suspenders: never split a guest across hosts.
+                            log.error(
+                                f"{id_domain}: profile {profile} resolved to host "
+                                f"{nh} != pinned {pinned_hyp}; refusing cross-host GPU"
+                            )
+                            break
+                        reserved_ok = update_vgpu_uuid_domain_action(
+                            ei["gpu_id"],
+                            ei["uid"],
+                            "domain_reserved",
+                            domain_id=id_domain,
+                            profile=ei["profile"],
+                        )
+                        if not reserved_ok:
+                            log.warning(
+                                f"{id_domain}: vgpu reserve lost CAS on uuid "
+                                f"{ei.get('uid')} (attempt {attempt + 1}/"
+                                f"{max_attempts}); re-selecting"
+                            )
+                            continue
+                        try:
+                            xml = recreate_xml_if_gpu(
+                                xml,
+                                ei["uid"],
+                                pci_bus_id=ei.get("pci_bus_id"),
+                                is_passthrough=(ei.get("profile") == "passthrough"),
+                                companion_pci_bdfs=ei.get("companion_pci_bdfs") or [],
+                                is_mig=ei.get("mig", False),
+                            )
+                        except ValueError as e:
+                            log.error(
+                                "{}: recreate_xml_if_gpu failed: {}".format(
+                                    id_domain, e
+                                )
+                            )
+                            update_vgpu_uuid_domain_action(
+                                ei["gpu_id"],
+                                ei["uid"],
+                                "domain_stopped",
+                                domain_id=id_domain,
+                                profile=ei["profile"],
+                            )
+                            _rollback_vgpus()
+                            update_domain_status(
+                                "Failed",
+                                id_domain,
+                                detail="GPU XML injection failed: {}".format(e),
+                            )
+                            return False
+                        if ei.get("profile") == "passthrough":
+                            xml = add_qemu_pcie_reserve(xml)
+                        reserved.append((ei["gpu_id"], ei["uid"], ei["profile"]))
+                        if primary_extra is None:
+                            primary_extra = ei
+                        placed = True
+                        break
+                    if not placed:
+                        placement_failed = True
+                        break
+
+                if placement_failed:
+                    _rollback_vgpus()
+                    update_domain_status(
+                        "Failed",
+                        id_domain,
+                        detail=(
+                            "Could not place all {} requested vGPU profiles on a "
+                            "single hypervisor with distinct free cards".format(
+                                len(gpu_profiles)
+                            )
+                        ),
+                    )
+                    return False
+
+                is_gpu = True
+                next_hyp = pinned_hyp[0]
+                extra_info = primary_extra
             if next_hyp is not False:
                 # Flag the slow-VFIO path so the worker can extend its
                 # libvirt createXML timeout for this action (see

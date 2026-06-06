@@ -2176,12 +2176,16 @@ def recreate_xml_if_gpu(
 
     ``guest_index`` is the GPU's 0-based position in the desktop's reservable
     list. It deterministically fixes the guest-side PCI slot
-    (``GUEST_GPU_SLOT_BASE + guest_index``) for every passthrough hostdev, so
+    (``GUEST_GPU_SLOT_BASE + guest_index``) for every passthrough hostdev
+    (single-function and the GPU+companion multifunction pair), so a desktop
+    with several passthrough GPUs — built by calling this once per card,
+    threading the returned XML back in — lands each on its own stable slot and
     the guest sees its GPUs at the SAME PCI addresses on every start regardless
     of which host card the carve picked. Without it libvirt auto-assigns the
     slot, which drifts between starts / with carve order and re-shuffles
     in-guest GPU enumeration (``nvidia-smi`` index, ``CUDA_VISIBLE_DEVICES``,
-    Docker ``--gpus`` and LLM device maps).
+    Docker ``--gpus`` and LLM device maps). mdev (vGPU) hostdevs get no explicit
+    guest address and never collide, so this does not apply to them.
     """
     xml = xml
 
@@ -2233,8 +2237,8 @@ def recreate_xml_if_gpu(
         companions = list(companion_pci_bdfs or [])
         if companions:
             # GPU + its companion(s) (e.g. the .1 HD-audio function) as a
-            # multifunction pair on the one guest slot, so the guest sees one
-            # logical device matching bare-metal topology.
+            # multifunction pair on the one guest slot (guest_slot above), so the
+            # guest sees one logical device matching bare-metal topology.
             xml_hostdev = (
                 "  <hostdev mode='subsystem' type='pci' managed='yes'>\n"
                 "    <source>\n"
