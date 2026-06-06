@@ -163,7 +163,12 @@ COPY docker/hypervisor/networks/ /opt/default_networks
 
 # Api
 COPY docker/hypervisor/requirements.txt requirements.txt
-RUN apk add  --no-cache bash python3 py3-pip py3-requests
+# eudev provides the `udevadm` CLI. GPU discovery's SR-IOV VF cycle settles the
+# kernel with `udevadm settle` after `sriov-manage -e` so the new VFs rebind to
+# nvidia before mdev enumeration. Without it the settle is skipped and slower
+# cards (e.g. A16 with many VFs) time out the VF-bound poll and fall back to a
+# disruptive per-card `nvidia-smi -r` bus reset.
+RUN apk add  --no-cache bash python3 py3-pip py3-requests eudev
 RUN pip3 install --break-system-packages --upgrade pip
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
