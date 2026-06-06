@@ -441,6 +441,36 @@ def test_cycle_sriov_vfs_runs_settle_helpers_in_order(monkeypatch, tmp_path):
     ]
 
 
+def test_cycle_sriov_vfs_survives_missing_udevadm(monkeypatch, tmp_path):
+    """A missing `udevadm` binary (FileNotFoundError) must NOT abort the cycle
+    into the destructive nvidia-smi -r fallback: sriov-manage -d/-e already
+    succeeded and the settle is best-effort. Regression — a real GPU host whose
+    image lacks udevadm bus-reset-wedged every card on every discovery."""
+    _redirect_sysfs(monkeypatch, tmp_path)
+    pci_id = "0000:05:00.0"
+    dev_dir = tmp_path / pci_id
+    dev_dir.mkdir()
+    _write(dev_dir / "sriov_totalvfs", "16")
+
+    import gpu_discovery as gd
+
+    class _R:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(cmd, *a, **kw):
+        if cmd[0] == "udevadm":
+            raise FileNotFoundError(2, "No such file or directory", "udevadm")
+        return _R()
+
+    monkeypatch.setattr(gd.subprocess, "run", fake_run)
+    monkeypatch.setattr(gd, "_wait_sriov_numvfs_zero", lambda *a, **k: True)
+    monkeypatch.setattr(gd, "_wait_vf_driver_bound", lambda *a, **k: True)
+
+    assert _cycle_sriov_vfs(pci_id) is True
+
+
 def test_cycle_sriov_vfs_returns_false_if_vfs_never_bind(monkeypatch, tmp_path):
     _redirect_sysfs(monkeypatch, tmp_path)
     pci_id = "0000:05:00.0"

@@ -16,7 +16,16 @@ import time
 import urllib.request
 from datetime import datetime, timezone
 
-import gpu_probe
+try:
+    import gpu_probe
+except ModuleNotFoundError:
+    # Entered as ``lib.gpu_discovery`` (e.g. start.sh's
+    # ``python3 -c "from lib.gpu_discovery import ..."``) with only /src on
+    # sys.path, not /src/lib; gpu_probe is a leaf module beside this file.
+    # Make the import path-robust for every entry point (gpu_apply_cli already
+    # inserts this dir for its own invocation).
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import gpu_probe
 from gpu_probe import (
     MIG_CURRENT,
     _read_driver,
@@ -698,12 +707,22 @@ def _cycle_sriov_vfs(sysfs_pci_id):
                 (r.stderr or r.stdout).strip()[:200],
             )
             return False
-        subprocess.run(
-            ["udevadm", "settle", "--timeout=5"],
-            capture_output=True,
-            timeout=10,
-            check=False,
-        )
+        try:
+            subprocess.run(
+                ["udevadm", "settle", "--timeout=5"],
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            # udevadm is OPTIONAL (see the startup warning at module import):
+            # the hypervisor image may not ship it. check=False suppresses a
+            # non-zero exit, but NOT the FileNotFoundError of a missing binary
+            # -- which would otherwise bubble to the outer handler and force the
+            # destructive nvidia-smi -r bus-reset fallback even though
+            # sriov-manage -d/-e both SUCCEEDED. The settle is best-effort, so
+            # swallow it and fall through to the explicit VF-bound poll below.
+            pass
         if not _wait_vf_driver_bound(sysfs_pci_id, expected="nvidia"):
             log.warning(
                 "GPU %s: virtfn0 not nvidia-bound after sriov-manage -e; "
