@@ -280,6 +280,25 @@ unit-test-go:
       junit: report.xml
   coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
+unit-test-python-gpu:
+  stage: unit-test
+  needs: []
+  image: python:3.10-bullseye
+  script:
+    - pip install pytest==8.3.3
+    # Hypervisor GPU lib suites. The shared gpu_cmds / gpu_pool_policy load from
+    # component/_common/src via the in-tree fallback in _load_shared, so no
+    # install of isardvdi_common is needed here.
+    - cd "$CI_PROJECT_DIR/docker/hypervisor/src/lib"
+    - python -m pytest -q gpu_apply_test.py gpu_apply_cli_test.py gpu_discovery_test.py gpu_probe_test.py
+    # Shared _common GPU policy/state suites.
+    - cd "$CI_PROJECT_DIR/component/_common/src"
+    - python -m pytest -q gpu_pool_policy_test.py vgpu_state_test.py
+    # Engine pool-sizing + reconcile re-export (needs isardvdi_common on the path).
+    - ln -s "$CI_PROJECT_DIR/component/_common/src" /tmp/isardvdi_common
+    - cd "$CI_PROJECT_DIR"
+    - PYTHONPATH="/tmp:$CI_PROJECT_DIR/engine/engine" python -m pytest -q engine/engine/engine/models/_gpu_pool_test.py
+
 docker-image:
   image: "docker:${DOCKER_VERSION}"
   stage: build
