@@ -15,33 +15,6 @@ $(document).ready(function () {
     return $(childTable).toArray();
   }
 
-  $(".btn-assing-vgpus").on("click", function () {
-    new PNotify({
-      title: "Reassign physical devices GPU",
-      text: "Do you really want to reassign all them?",
-      hide: false,
-      opacity: 0.9,
-      confirm: { confirm: true },
-      buttons: { closer: false, sticker: false },
-      history: { history: false },
-      addclass: "pnotify-center",
-    })
-      .get()
-      .on("pnotify.confirm", function () {
-        $.ajax({
-          type: "PUT",
-          url:
-            "/api/v3/hypervisors/gpus",
-          data: JSON.stringify({}),
-          contentType: "application/json",
-          success: function (data) {
-            gpus_table.ajax.reload();
-          },
-        });
-      })
-      .on("pnotify.cancel", function () {});
-  });
-
   modal_add_gpu = $("#modal_add_gpu").DataTable();
   initalize_bookables_modal_events();
   $(".btn-new-gpu").on("click", function () {
@@ -153,6 +126,16 @@ $(document).ready(function () {
           rowData.active_profile = data.vgpu_profile;
           rowData.changing_to_profile = data.changing_to_profile;
           rowData.desktops_started = data.desktops_started;
+          // Operator-intent fields surface "what the operator asked for"
+          // separately from "what is currently bound on the card". When
+          // the two diverge (profile_mismatch=true) the table renders the
+          // requested profile with a warning chip so the operator can
+          // either retry the change or pick a new profile. We never
+          // auto-resolve the mismatch from the client side — that mirrors
+          // the engine policy of never auto-mutating operator intent.
+          rowData.requested_profile = data.requested_profile;
+          rowData.operator_passthrough = data.operator_passthrough;
+          rowData.profile_mismatch = data.profile_mismatch;
           if (typeof data.available_units !== 'undefined') {
             rowData.available_units = data.available_units;
           }
@@ -351,7 +334,10 @@ $(document).ready(function () {
               data = JSON.parse(data)
               // check if the profile is in any domain or has plans
               if (data['last'].includes(true)) {
-                if (data['desktops'].length > 0 || data['plans'].length > 0) {
+                // Warn whenever ANY reference exists -- deployments and bookings
+                // are destroyed by the cascade too, not only desktops/plans.
+                if (data['desktops'].length > 0 || data['plans'].length > 0 ||
+                    data['deployments'].length > 0 || data['bookings'].length > 0) {
                   showDeleteGPUModal(subitem_id, item_id, reservable_type, data);
                 } else {
                   enableProfile(reservable_type, item_id, subitem_id, enabled, null, null, false);
@@ -434,7 +420,10 @@ $(document).ready(function () {
             }).done(function (data) {
               data = JSON.parse(data);
               if (data['last'].includes(true)) {
-                if (data['desktops'].length > 0 || data['plans'].length > 0) {
+                // Warn whenever ANY reference exists -- a deployment-only or
+                // booking-only GPU is destroyed by the cascade too.
+                if (data['desktops'].length > 0 || data['plans'].length > 0 ||
+                    data['deployments'].length > 0 || data['bookings'].length > 0) {
                   showDeleteGPUModal(null, item_id, reservable_type, data);
                 } else {
                   deleteReservable(reservable_type, item_id);
@@ -477,6 +466,13 @@ $(document).ready(function () {
           keyboard: false
         }).modal('show');
         GpuEnabledProfilesDropdown(data.id);
+        // Admin pre-flight: preview which desktops would be stopped and which
+        // reservables would be removed (no other card provides them) for the
+        // selected target profile, before the admin confirms.
+        $('#forced_active_profile').off('change.preview').on('change.preview', function(){
+          forceProfilePreview(data.id, $(this).val());
+        });
+        forceProfilePreview(data.id, $('#forced_active_profile').val());
       }
     });
 
@@ -745,7 +741,7 @@ function initalize_bookables_modal_events() {
             $(".modal").modal("hide");
             var notice = new PNotify({
               title: "Created",
-              text: 'GPU created successfully. Please, reassing physical devices',
+              text: 'GPU created successfully.',
               hide: true,
               delay: 2000,
               icon: 'fa fa-' + data.icon,
@@ -820,6 +816,41 @@ function GpuEnabledProfilesDropdown(gpu_id) {
     data.profiles_enabled.forEach(function(profile){
       $("#modalForcedProfileForm #forced_active_profile").append('<option value=' + profile + '>' + profile+'</option>');
     });
+  });
+}
+
+function forceProfilePreview(card_id, target_profile) {
+  var $panel = $('#forcedProfilePreview');
+  if (!target_profile) { $panel.html(''); return; }
+  $panel.html('<span class="text-muted"><i class="fa fa-spinner fa-pulse"></i> Checking impact…</span>');
+  $.ajax({
+    method: "POST",
+    url: "/api/v3/admin/gpu/" + card_id + "/force_profile_preview",
+    data: JSON.stringify({ "target_profile": target_profile }),
+    contentType: "application/json",
+  }).done(function (p) {
+    var stop = p.desktops_to_stop || [];
+    var remove = p.resources_to_remove || [];
+    var html = '';
+    if (stop.length) {
+      html += '<div class="alert alert-warning" style="margin:0 0 6px">' +
+        '<i class="fa fa-warning"></i> ' + stop.length +
+        ' running desktop(s) will be STOPPED on this card: ' +
+        $('<div>').text(stop.join(', ')).html() + '</div>';
+    }
+    if (remove.length) {
+      html += '<div class="alert alert-danger" style="margin:0 0 6px">' +
+        '<i class="fa fa-trash"></i> No other card provides these reservables — ' +
+        'they may be REMOVED (with their bookings) when the change takes effect: ' +
+        $('<div>').text(remove.join(', ')).html() + '</div>';
+    }
+    if (!stop.length && !remove.length) {
+      html = '<span class="text-success"><i class="fa fa-check"></i> ' +
+        'No desktops stopped, no resources removed.</span>';
+    }
+    $panel.html(html);
+  }).fail(function () {
+    $panel.html('<span class="text-muted">Impact preview unavailable.</span>');
   });
 }
 
