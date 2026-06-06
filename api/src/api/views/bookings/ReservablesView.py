@@ -92,6 +92,10 @@ def api_v3_reservable_items(
         if "notify_user" in request.url:
             notify_user = True
         if data.get("enabled") == False:
+            # Server-side interlock: refuse to strip a profile that has an
+            # in-progress booking, so a scripted/direct PUT cannot bypass the
+            # UI's check/last guard. (raises bad_request if one spans now.)
+            api_rp.check_subitem_current_plan(subitem_id, item_id)
             api_rp.delete_subitem(reservable_type, item_id, subitem_id)
 
             if notify_user:
@@ -239,6 +243,12 @@ def api_v3_reservable_delete_gpu(payload, reservable_type, item_id, notify_user=
                     "Exception when sending verification email to user "
                     + user_items["user_id"],
                 )
+
+    # Server-side interlock: refuse to delete a GPU that has an in-progress
+    # booking on any of its profiles, so a scripted/direct DELETE cannot bypass
+    # the UI's check/last guard.
+    for subitem in api_ri.list_subitems_enabled(reservable_type, item_id):
+        api_rp.check_subitem_current_plan(subitem["id"], item_id)
 
     api_rp.delete_item(
         reservable_type,

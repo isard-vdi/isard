@@ -153,6 +153,7 @@ def api_v3_hypervisor(hyper_id=False):
                 request.form.get("buffering_hyper", default="false", type=str).lower()
             )
             gpu_only = True if request.form.get("gpu_only") == "True" else False
+            gpu_apply_capable = request.form.get("gpu_apply_capable") == "True"
         except:
             raise Error(
                 "bad_request",
@@ -188,6 +189,7 @@ def api_v3_hypervisor(hyper_id=False):
             hugepages_info=hugepages_info,
             pci_devices=pci_devices,
             numa_topology=numa_topology,
+            gpu_apply_capable=gpu_apply_capable,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])
@@ -229,6 +231,35 @@ def api_v3_hypervisor(hyper_id=False):
                 traceback.format_exc(),
             )
         return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/hypervisor/<hyper_id>/gpu_applied", methods=["PUT"])
+@is_hyper
+def api_v3_hypervisor_gpu_applied(hyper_id):
+    """A gpu-apply-capable hypervisor reports back, after registration, the
+    per-card profile it actually applied locally (+ the created mdev pool). The
+    API persists it into vgpus so the DB reflects reality and the engine
+    reconcile confirms instead of re-applying."""
+    try:
+        applied = json.loads(request.form.get("applied", "{}"))
+    except (json.JSONDecodeError, TypeError):
+        raise Error("bad_request", "Invalid applied JSON")
+    api_hypervisors.ingest_gpu_applied(hyper_id, applied)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/gpu/<card_id>/force_profile_preview", methods=["POST"])
+@is_admin
+def api_v3_gpu_force_profile_preview(payload, card_id):
+    """Admin-only read-only pre-flight for the force-profile dialog: which
+    running desktops would be stopped and which reservables would be removed
+    (no other card provides them) if this card is forced to target_profile."""
+    data = request.get_json(force=True) or {}
+    target_profile = data.get("target_profile")
+    if not target_profile:
+        raise Error("bad_request", "target_profile is required")
+    preview = api_hypervisors.preview_force_profile(card_id, target_profile)
+    return json.dumps(preview), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/hypervisor/<hyper_id>/boot_progress", methods=["PUT"])
@@ -274,13 +305,6 @@ def api_v3_hypervisor_disks_found():
 @is_hyper
 def api_v3_hypervisor_media_delete():
     api_hypervisors.delete_media(request.get_json(force=True))
-    return json.dumps(True), 200, {"Content-Type": "application/json"}
-
-
-@app.route("/api/v3/hypervisors/gpus", methods=["PUT"])
-@is_admin
-def api_v3_hypervisors_gpus(payload):
-    api_hypervisors.assign_gpus()
     return json.dumps(True), 200, {"Content-Type": "application/json"}
 
 

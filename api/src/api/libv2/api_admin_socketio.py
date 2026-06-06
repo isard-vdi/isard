@@ -536,6 +536,8 @@ class HypervisorsThread(threading.Thread):
                                 .pluck(
                                     "id",
                                     "vgpu_profile",
+                                    "requested_profile",
+                                    "operator_passthrough",
                                     "changing_to_profile",
                                     {"mdevs": True},
                                 )
@@ -555,6 +557,10 @@ class HypervisorsThread(threading.Thread):
                                 if c["new_val"] is not None:
                                     new_val = c["new_val"]
                                     active_profile = new_val.get("vgpu_profile")
+                                    requested_profile = new_val.get("requested_profile")
+                                    operator_passthrough = bool(
+                                        new_val.get("operator_passthrough", False)
+                                    )
                                     desktops_started = []
                                     available_units = 0
                                     if (
@@ -572,12 +578,27 @@ class HypervisorsThread(threading.Thread):
                                                 desktops_started.append(
                                                     mdev_data["domain_started"]
                                                 )
+                                    # profile_mismatch: operator asked for X
+                                    # but the runtime is Y. Webui renders
+                                    # this as a fault row with "Cancel
+                                    # request" / "Change profile" actions —
+                                    # never auto-resolves it, because that
+                                    # used to be exactly the destructive
+                                    # behavior we removed from reconcile.
+                                    profile_mismatch = bool(
+                                        requested_profile
+                                        and active_profile
+                                        and requested_profile != active_profile
+                                    )
                                     socketio.emit(
                                         "vgpu_data",
                                         json.dumps(
                                             {
                                                 "id": new_val["id"],
                                                 "vgpu_profile": active_profile,
+                                                "requested_profile": requested_profile,
+                                                "operator_passthrough": operator_passthrough,
+                                                "profile_mismatch": profile_mismatch,
                                                 "changing_to_profile": new_val.get(
                                                     "changing_to_profile", False
                                                 ),

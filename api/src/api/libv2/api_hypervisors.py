@@ -9,6 +9,7 @@ import glob
 import ipaddress
 import os
 import re
+import threading
 import time
 import traceback
 
@@ -57,6 +58,33 @@ from .validators import _validate_item
 _GENEVE_OH = 54  # 20 IP + 8 UDP + 8 geneve + 14 eth + 4 VLAN
 _WG_OH = 60  # 20 IP + 8 UDP + 32 WG
 
+# Canonical model token per PCI device — mirror of
+# docker/hypervisor/src/lib/gpu_discovery.py::_MODEL_ALIASES. Physically
+# identical cards (same vendor:device[:subsystem]) MUST resolve to one model
+# token so they share a single reservable/profile pool. Unmapped devices fall
+# through to the name/profile derivation unchanged (no-op for already-consistent
+# cards). The GA107 die-id 10de:25b6 is shared by the A2 and A16 boards, so A16
+# is subsystem-qualified to avoid mislabelling a real A2. Keep both in sync.
+_MODEL_ALIASES = {
+    "10de:2bb5": "RTXPro6000BlackwellDC",
+    "10de:25b6|sub:10de:14a9": "A16",
+}
+
+
+def _model_alias(pci_device_id, pci_subsystem_id=None):
+    """Canonical token for a PCI device, or None if unmapped.
+
+    Tries the subsystem-qualified key first (so a shared die-id only matches the
+    intended board), then the bare device-id.
+    """
+    if not pci_device_id:
+        return None
+    if pci_subsystem_id:
+        alias = _MODEL_ALIASES.get(f"{pci_device_id}|sub:{pci_subsystem_id}")
+        if alias:
+            return alias
+    return _MODEL_ALIASES.get(pci_device_id)
+
 
 def _overlay_max(infrastructure_mtu, tunneling_mode):
     """Maximum payload MTU a guest NIC may use on the tenant overlay.
@@ -71,6 +99,14 @@ def _overlay_max(infrastructure_mtu, tunneling_mode):
     oh = _GENEVE_OH if tunneling_mode == "geneve" else _WG_OH + _GENEVE_OH
     raw = int(infrastructure_mtu) - oh
     return max(1280, min(raw, 9000))  # IPv6 floor .. sane jumbo cap
+
+
+# Serializes the destructive section of reconcile_unrealizable_gpu_profiles so
+# two hypervisors registering concurrently cannot both read "not the last card"
+# and delete a reservable row without running its deassign/booking cleanup. The
+# API runs single-process under gevent (startv3 monkey.patch_all), so this
+# stdlib Lock is monkey-patched to a greenlet-safe lock.
+_gpu_reconcile_lock = threading.Lock()
 
 
 class ApiHypervisors:
@@ -337,6 +373,7 @@ class ApiHypervisors:
         hugepages_info=None,
         pci_devices=None,
         numa_topology=None,
+        gpu_apply_capable=False,
     ):
         data = {}
 
@@ -373,6 +410,7 @@ class ApiHypervisors:
                 hugepages_info=hugepages_info,
                 pci_devices=pci_devices,
                 numa_topology=numa_topology,
+                gpu_apply_capable=gpu_apply_capable,
             )
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
@@ -414,6 +452,7 @@ class ApiHypervisors:
                 hugepages_info=hugepages_info,
                 pci_devices=pci_devices,
                 numa_topology=numa_topology,
+                gpu_apply_capable=gpu_apply_capable,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
@@ -456,6 +495,22 @@ class ApiHypervisors:
                 self.ensure_gpu_cards(hyper_id, nvidia_gpus)
             except Exception as e:
                 log.warning(f"Failed to auto-create gpu cards: {e}")
+            try:
+                self.reconcile_unrealizable_gpu_profiles(hyper_id, nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to reconcile unrealizable gpu profiles: {e}")
+            # For a gpu-apply-capable hypervisor, return the per-card target
+            # profile it should apply locally (planning -> current -> passthrough
+            # default). Computed AFTER the prune so a just-disabled profile is
+            # never offered. Old hypervisors omit the flag -> no targets -> the
+            # engine keeps applying as before.
+            if gpu_apply_capable:
+                try:
+                    data["gpu_targets"] = self.compute_gpu_targets(
+                        hyper_id, nvidia_gpus
+                    )
+                except Exception as e:
+                    log.warning(f"Failed to compute gpu targets: {e}")
 
         data["certs"] = self.get_hypervisors_certs()
 
@@ -501,6 +556,7 @@ class ApiHypervisors:
         hugepages_info=None,
         pci_devices=None,
         numa_topology=None,
+        gpu_apply_capable=False,
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -541,6 +597,11 @@ class ApiHypervisors:
             },
             "info": {},
             "only_forced": only_forced,
+            # Persisted so the engine knows this host applies GPU profiles
+            # itself (registration + runtime via gpu_apply_cli over SSH) and can
+            # route runtime changes to the hypervisor instead of building the
+            # host-command sequences itself. Old hosts omit it -> engine applies.
+            "gpu_apply_capable": gpu_apply_capable,
             "nvidia_enabled": nvidia_enabled,
             "nvidia_gpus": nvidia_gpus if nvidia_gpus is not None else [],
             "min_free_mem_gb": min_free_mem_gb,
@@ -606,6 +667,23 @@ class ApiHypervisors:
             .replace("/", "")
         )
 
+    @staticmethod
+    def _canonical_gpu_model(
+        gpu_name, vgpu_profiles=None, pci_device_id=None, pci_subsystem_id=None
+    ):
+        """Hardware-anchored model token (mirror of
+        gpu_discovery.canonical_gpu_model).
+
+        A mapped device-id takes PRECEDENCE over the name/profile derivation so
+        every discovery path collapses to one token for identical hardware;
+        unmapped devices (or callers without a device-id) fall back to
+        ``_normalize_gpu_model``.
+        """
+        alias = _model_alias(pci_device_id, pci_subsystem_id)
+        if alias:
+            return alias
+        return ApiHypervisors._normalize_gpu_model(gpu_name, vgpu_profiles)
+
     def _resolve_gpu_models(self, hyper_id, nvidia_gpus):
         """Resolve stable model names for discovered GPUs.
 
@@ -622,8 +700,19 @@ class ApiHypervisors:
           1. uuid match against any existing card -> reuse persisted model;
              backfill the card's pci slot if it moved.
           2. PCI-anchored card row exists with a persisted model -> trust it
-             (legacy rows that pre-date uuid tracking).
+             (legacy rows that pre-date uuid tracking). A new uuid in the same
+             slot only forces a model reset + re-curation when the PCI
+             **device-id changed** (genuinely different hardware); an identical
+             card (same device-id, e.g. an RMA replacement) keeps the curated
+             pool.
           3. Otherwise derive fresh from discovery and persist.
+
+        The PCI ``device-id`` (+subsystem) is persisted on the card row and is
+        what anchors the canonical model token, so two physically identical
+        cards resolve to one token / one reservable pool. The fresh derivation
+        uses ``_canonical_gpu_model`` (device-id alias > name/profile). This
+        rewrites only ``model`` / ``pci_device_id`` / ``pci_subsystem_id`` /
+        ``gpu_uuid`` — never the row ``id``, ``physical_device`` or ``category``.
 
         Modifies each GPU dict in-place, setting ``_resolved_model``.
         """
@@ -635,6 +724,15 @@ class ApiHypervisors:
             pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
             card_id = f"auto-{hyper_id}-{pci_name}"
             new_uuid = gpu.get("gpu_uuid")
+            new_device_id = gpu.get("pci_device_id")
+            new_subsystem_id = gpu.get("pci_subsystem_id")
+            # Persist the PCI ids on every write path so legacy rows get them
+            # backfilled and the device-id is available for future swap checks.
+            pci_id_fields = {}
+            if new_device_id:
+                pci_id_fields["pci_device_id"] = new_device_id
+            if new_subsystem_id:
+                pci_id_fields["pci_subsystem_id"] = new_subsystem_id
 
             with app.app_context():
                 existing_card = r.table("gpus").get(card_id).run(db.conn)
@@ -668,8 +766,21 @@ class ApiHypervisors:
                     with app.app_context():
                         new_row = dict(uuid_match)
                         new_row["id"] = card_id
+                        new_row.update(pci_id_fields)
                         r.table("gpus").insert(new_row).run(db.conn)
                         r.table("gpus").get(uuid_match["id"]).delete().run(db.conn)
+                        # Repoint plannings keyed on the OLD card id to the new
+                        # one (resource_planner.item_id IS the physical card id),
+                        # else the planner joins against a now-deleted gpus row.
+                        r.table("resource_planner").get_all(
+                            uuid_match["id"], index="item_id"
+                        ).update({"item_id": card_id}).run(db.conn)
+                elif pci_id_fields and any(
+                    uuid_match.get(k) != v for k, v in pci_id_fields.items()
+                ):
+                    # Same slot/uuid: backfill PCI ids if missing or stale.
+                    with app.app_context():
+                        r.table("gpus").get(card_id).update(pci_id_fields).run(db.conn)
                 continue
 
             # 2) PCI-anchored card with a persisted model: legacy row (no uuid
@@ -677,48 +788,81 @@ class ApiHypervisors:
             # the source of truth; do not re-derive.
             if existing_card and existing_card.get("model"):
                 persisted_uuid = existing_card.get("gpu_uuid")
-                if new_uuid and persisted_uuid and persisted_uuid != new_uuid:
-                    # 2b) Card swap: same slot, different physical card.
-                    # Reset model to the fresh derivation so the catalog
-                    # tracks the new hardware. Operator must re-curate
-                    # gpu_profiles / reservables_vgpus / profiles_enabled —
-                    # those are not auto-migrated because the previous card's
-                    # bookings should not silently bind to a different card.
-                    fresh = gpu.get("model") or self._normalize_gpu_model(
-                        gpu["name"], gpu.get("vgpu_profiles")
-                    )
+                persisted_device_id = existing_card.get("pci_device_id")
+                uuid_changed = bool(
+                    new_uuid and persisted_uuid and persisted_uuid != new_uuid
+                )
+                fresh = gpu.get("model") or self._canonical_gpu_model(
+                    gpu["name"],
+                    gpu.get("vgpu_profiles"),
+                    new_device_id,
+                    new_subsystem_id,
+                )
+                # A different physical card sits in the slot only if its
+                # device-id differs. For legacy rows with no persisted
+                # device-id, fall back to a model-change check as the swap
+                # signal so an identical card is not needlessly re-curated.
+                if persisted_device_id and new_device_id:
+                    hardware_changed = persisted_device_id != new_device_id
+                else:
+                    hardware_changed = fresh != existing_card["model"]
+
+                if uuid_changed and hardware_changed:
+                    # 2b) Card swap to DIFFERENT hardware: reset model so the
+                    # catalog tracks it. Operator must re-curate gpu_profiles /
+                    # reservables_vgpus / profiles_enabled — not auto-migrated,
+                    # because the previous card's bookings should not silently
+                    # bind to a different model.
                     log.warning(
-                        f"GPU card {card_id!r}: physical card swapped "
-                        f"(uuid {persisted_uuid!r} -> {new_uuid!r}); "
-                        f"resetting model {existing_card['model']!r} -> "
-                        f"{fresh!r}. Operator must re-curate gpu_profiles, "
-                        f"reservables_vgpus, and profiles_enabled."
+                        f"GPU card {card_id!r}: physical card swapped to "
+                        f"different hardware (uuid {persisted_uuid!r} -> "
+                        f"{new_uuid!r}, device {persisted_device_id!r} -> "
+                        f"{new_device_id!r}); resetting model "
+                        f"{existing_card['model']!r} -> {fresh!r}. Operator must "
+                        f"re-curate gpu_profiles, reservables_vgpus, and "
+                        f"profiles_enabled."
                     )
                     gpu["_resolved_model"] = fresh
                     with app.app_context():
                         r.table("gpus").get(card_id).update(
-                            {"model": fresh, "gpu_uuid": new_uuid}
+                            {"model": fresh, "gpu_uuid": new_uuid, **pci_id_fields}
                         ).run(db.conn)
                     continue
 
+                # Same card, or an identical replacement (same device-id, new
+                # uuid e.g. RMA): keep the curated model + pool. Backfill uuid
+                # and PCI ids as needed.
                 gpu["_resolved_model"] = existing_card["model"]
-                # Backfill uuid on legacy rows so future discoveries can use
-                # path (1).
-                if new_uuid and not persisted_uuid:
-                    with app.app_context():
-                        r.table("gpus").get(card_id).update({"gpu_uuid": new_uuid}).run(
-                            db.conn
-                        )
+                update_fields = dict(pci_id_fields)
+                if uuid_changed:
+                    update_fields["gpu_uuid"] = new_uuid
+                    log.info(
+                        f"GPU card {card_id!r}: identical card replacement "
+                        f"(uuid {persisted_uuid!r} -> {new_uuid!r}, device "
+                        f"{new_device_id!r}); pool retained."
+                    )
+                elif new_uuid and not persisted_uuid:
+                    update_fields["gpu_uuid"] = new_uuid
                     log.info(f"GPU card {card_id!r}: backfilled gpu_uuid={new_uuid!r}")
+                # Drop pci-id keys that already match to avoid a no-op write.
+                update_fields = {
+                    k: v for k, v in update_fields.items() if existing_card.get(k) != v
+                }
+                if update_fields:
+                    with app.app_context():
+                        r.table("gpus").get(card_id).update(update_fields).run(db.conn)
                 continue
 
             # 3) First sight (no row, or row with no model): derive and persist.
-            resolved = gpu.get("model") or self._normalize_gpu_model(
-                gpu["name"], gpu.get("vgpu_profiles")
+            resolved = gpu.get("model") or self._canonical_gpu_model(
+                gpu["name"],
+                gpu.get("vgpu_profiles"),
+                new_device_id,
+                new_subsystem_id,
             )
             gpu["_resolved_model"] = resolved
             if existing_card:
-                update_fields = {"model": resolved}
+                update_fields = {"model": resolved, **pci_id_fields}
                 if new_uuid:
                     update_fields["gpu_uuid"] = new_uuid
                 with app.app_context():
@@ -777,7 +921,11 @@ class ApiHypervisors:
         # Group by GPU model
         models = {}  # model -> {gpu_info, profiles}
         for gpu in nvidia_gpus:
-            vgpu_profiles = gpu.get("vgpu_profiles", [])
+            # `or []` (not a get-default): the discovery-failed sentinel sets
+            # vgpu_profiles to None (key present), and a brand-new card now
+            # flows through registration, so guard against iterating None. A
+            # profile-less card still gets its passthrough catalog entry below.
+            vgpu_profiles = gpu.get("vgpu_profiles") or []
 
             # Card-anchored model (set by _resolve_gpu_models). Never re-derive
             # here: a fresh derivation that disagrees with the existing card's
@@ -892,6 +1040,25 @@ class ApiHypervisors:
                 f"with {len(new_entry['profiles'])} profiles"
             )
 
+    def _recompute_total_units(self, profiles_enabled):
+        """Recompute reservables_vgpus.total_units for each enabled profile id.
+        Used to RESTORE capacity when a card is re-attached, symmetric to the
+        detach-side recompute in remove_hyper / cleanup_hypervisor_gpus (the
+        count is filtered to physical_device != None, so a re-bound card now
+        counts again)."""
+        if not profiles_enabled:
+            return
+        from .bookings.api_reservables import Reservables
+
+        api_ri = Reservables()
+        for reservable_id in profiles_enabled:
+            try:
+                api_ri.recompute_reservable_total_units("gpus", reservable_id)
+            except Exception as e:
+                log.warning(
+                    f"ensure_gpu_cards: total_units recompute {reservable_id}: {e}"
+                )
+
     def ensure_gpu_cards(self, hyper_id, nvidia_gpus):
         """Auto-create GPU card entries in the 'gpus' table for discovered GPUs.
 
@@ -962,6 +1129,13 @@ class ApiHypervisors:
                 with app.app_context():
                     r.table("gpus").get(card_id).update(update_fields).run(db.conn)
                 log.info(f"GPU card '{card_id}' updated physical_device -> {vgpu_id}")
+                # Capacity restore: if the card was detached and is now re-bound,
+                # recompute total_units for its enabled profiles (the detach path
+                # in remove_hyper/cleanup drove them down). Symmetric to detach.
+                if existing_card.get("physical_device") != vgpu_id:
+                    self._recompute_total_units(
+                        existing_card.get("profiles_enabled") or []
+                    )
                 continue
 
             # Look for an existing unassigned card with matching brand/model
@@ -975,7 +1149,7 @@ class ApiHypervisors:
                             "physical_device": None,
                         }
                     )
-                    .pluck("id")
+                    .pluck("id", "profiles_enabled")
                     .run(db.conn)
                 )
 
@@ -989,6 +1163,8 @@ class ApiHypervisors:
                     f"GPU card '{unassigned[0]['id']}' assigned "
                     f"physical_device -> {vgpu_id}"
                 )
+                # Capacity restore (was physical_device=None -> now bound).
+                self._recompute_total_units(unassigned[0].get("profiles_enabled") or [])
                 continue
 
             # No existing card found — create a new auto-discovered one
@@ -1009,6 +1185,8 @@ class ApiHypervisors:
                 "profiles_enabled": [],
                 "physical_device": vgpu_id,
                 "gpu_uuid": gpu.get("gpu_uuid"),
+                "pci_device_id": gpu.get("pci_device_id"),
+                "pci_subsystem_id": gpu.get("pci_subsystem_id"),
                 "companion_pci_bdfs": gpu.get("companion_pci_bdfs") or [],
             }
 
@@ -1018,6 +1196,435 @@ class ApiHypervisors:
                 f"GPU card '{card_id}' created for {gpu['name']} "
                 f"with physical_device={vgpu_id}"
             )
+
+    def reconcile_unrealizable_gpu_profiles(self, hyper_id, nvidia_gpus):
+        """Remove vGPU profiles a card can no longer realize -- the removal half
+        that complements :meth:`ensure_gpu_profiles`' additive merge.
+
+        SAFETY (decisions live in the pure :mod:`gpu_realizability` module): a
+        profile is dropped from a card ONLY when THIS registration carries a
+        trustworthy reading for that card (discovery succeeded; not the SR-IOV
+        discovery-incomplete / vgpud-down signature) that positively shows the
+        profile is unavailable. The prune is PER PHYSICAL CARD / PER SERVER --
+        each ``gpus`` row is one physical card on one hypervisor and is pruned
+        only against its own reading. Cards not in this POST, or with an
+        ambiguous reading, are never touched, so the model-level reservable
+        survives until EVERY card has dropped the profile (i.e. no card in the
+        whole infrastructure can realize that brand-model-profile). At that
+        point the supported ``delete_subitem`` + ``enable_subitems(False)``
+        sequence (mirroring ``ReservablesView.api_v3_reservable_items``) tears
+        down the profile's bookings, every ``domains``/``deployments``
+        reservable reference, its plannings and the reservable row. Because a
+        running desktop can only exist on a card that is currently realizing the
+        profile, that destructive cleanup never reaches an in-flight session.
+
+        Best-effort and idempotent: a partial/failed cycle self-heals on the
+        next registration.
+        """
+        if not nvidia_gpus:
+            return
+        from .bookings.api_reservables import Reservables
+        from .bookings.api_reservables_planner import ReservablesPlanner
+        from .gpu_realizability import plan_card_prunes
+
+        api_ri = Reservables()
+        api_rp = ReservablesPlanner()
+
+        # Build per-model card entries from THIS registration's payload. Only a
+        # card we just read (with a trustworthy reading) can drive its own
+        # prune; the pure planner skips everything else.
+        by_model = {}
+        for gpu in nvidia_gpus:
+            model = gpu.get("_resolved_model")
+            if not model:
+                continue
+            normalized = gpu["pci_bus_id"].lower()
+            if len(normalized.split(":")[0]) > 4:
+                normalized = "0000:" + normalized.split(":", 1)[1]
+            pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+            vgpu_id = f"{hyper_id}-{pci_name}"
+            with app.app_context():
+                card_rows = list(
+                    r.table("gpus")
+                    .filter({"physical_device": vgpu_id})
+                    .pluck("id", "profiles_enabled")
+                    .run(db.conn)
+                )
+            if not card_rows:
+                continue
+            with app.app_context():
+                vgpu_row = r.table("vgpus").get(vgpu_id).run(db.conn)
+            sriov = ((vgpu_row or {}).get("info") or {}).get("sriov_totalvfs", 0)
+            for card in card_rows:
+                by_model.setdefault(model, []).append(
+                    {
+                        "id": card["id"],
+                        "profiles_enabled": card.get("profiles_enabled") or [],
+                        "gpu_payload": gpu,
+                        "sriov_totalvfs": sriov,
+                    }
+                )
+
+        for model, cards in by_model.items():
+            for card_id, reservable_id in plan_card_prunes(model, cards):
+                # Serialize the last-card decision + disable + row-deletion.
+                # delete_subitem reads "is this the last card?" and enable_subitem
+                # decides the row deletion AFTER mutating profiles_enabled -- two
+                # separate reads. Two hypervisors registering concurrently could
+                # otherwise each read "not last", both disable, and delete the
+                # reservable row with NEITHER running the deassign/booking
+                # cleanup, stranding domain/deployment/planning/booking refs. The
+                # API is single-process gevent, so this monkey-patched lock is
+                # greenlet-safe and keeps the critical section atomic.
+                with _gpu_reconcile_lock:
+                    self._prune_card_reservable(
+                        api_ri, api_rp, model, card_id, reservable_id
+                    )
+
+    def _prune_card_reservable(self, api_ri, api_rp, model, card_id, reservable_id):
+        """Disable one unrealizable profile on one card via the supported
+        ``delete_subitem`` + ``enable_subitems(False)`` sequence, then either fix
+        the surviving reservable's ``total_units`` or, when this was the last
+        card, drop the dead catalog entry. Must run under ``_gpu_reconcile_lock``
+        so ``delete_subitem``'s last-card read and ``enable_subitem``'s
+        row-deletion read stay mutually consistent."""
+        try:
+            api_rp.delete_subitem("gpus", card_id, reservable_id)
+        except Exception as e:
+            log.warning(
+                f"reconcile_unrealizable_gpu_profiles: delete_subitem "
+                f"{reservable_id} on {card_id}: {e}"
+            )
+        try:
+            api_ri.enable_subitems("gpus", card_id, reservable_id, False)
+        except Exception as e:
+            log.warning(
+                f"reconcile_unrealizable_gpu_profiles: disable "
+                f"{reservable_id} on {card_id}: {e}"
+            )
+            return
+        with app.app_context():
+            survives = r.table("reservables_vgpus").get(reservable_id).run(db.conn)
+        if not survives:
+            # Last card: the profile is unrealizable across the whole install ->
+            # also drop the now-dead nested entry from the gpu_profiles model
+            # catalog so it cannot be re-offered. ensure_gpu_profiles re-adds it
+            # if a driver ever exposes it again. (total_units on a surviving
+            # non-last reservable is kept correct centrally in enable_subitem.)
+            self._remove_catalog_profile_entry(model, reservable_id)
+        log.info(
+            f"Pruned unrealizable vGPU profile '{reservable_id}' from card "
+            f"'{card_id}' on a verified reading"
+        )
+
+    def _remove_catalog_profile_entry(self, model, profile_id):
+        """Drop a single nested profile entry from the ``gpu_profiles`` model
+        catalog (never the model row itself, never the passthrough entry).
+        Used when a profile became unrealizable across the whole install."""
+        gpu_profile_id = f"NVIDIA-{model}"
+        with app.app_context():
+            catalog = r.table("gpu_profiles").get(gpu_profile_id).run(db.conn)
+        if not catalog:
+            return
+        profiles = catalog.get("profiles", [])
+        kept = [
+            p
+            for p in profiles
+            if p.get("id") != profile_id or p.get("profile") == "passthrough"
+        ]
+        if len(kept) == len(profiles):
+            return
+        with app.app_context():
+            r.table("gpu_profiles").get(gpu_profile_id).update({"profiles": kept}).run(
+                db.conn
+            )
+        log.info(
+            f"Removed unrealizable profile '{profile_id}' from catalog "
+            f"'{gpu_profile_id}'"
+        )
+
+    @staticmethod
+    def _vgpu_id_for(hyper_id, pci_bus_id):
+        """The vgpus/physical_device id for a discovered card. Mirrors the
+        normalization in ensure_gpu_cards / reconcile_unrealizable_gpu_profiles
+        (single source so the three stay in lockstep)."""
+        normalized = pci_bus_id.lower()
+        if len(normalized.split(":")[0]) > 4:
+            normalized = "0000:" + normalized.split(":", 1)[1]
+        pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+        return f"{hyper_id}-{pci_name}"
+
+    def get_vgpu_scheduled_profile_now(self, card_id):
+        """The profile suffix scheduled by an active booking for this card right
+        now, or None. Mirrors the engine's get_vgpu_actual_profile (query
+        resource_planner by item_id, now-overlap) but canonicalizes the suffix
+        via canonical_profile_id so a dash-form MIG id parses correctly (the
+        engine's split('-')[-1] would mis-split it)."""
+        from .gpu_realizability import canonical_profile_id
+
+        now = datetime.datetime.now(pytz.utc)
+        with app.app_context():
+            plans = list(
+                r.table("resource_planner")
+                .get_all(card_id, index="item_id")
+                .filter(lambda p: (p["start"] <= now) & (p["end"] >= now))
+                .pluck("subitem_id")
+                .run(db.conn)
+            )
+        if not plans:
+            return None
+        parts = canonical_profile_id(plans[0]["subitem_id"]).split("-", 2)
+        # Guard a malformed/empty suffix (e.g. a trailing-hyphen subitem_id):
+        # an empty string would be treated differently from None downstream.
+        return parts[2] if len(parts) == 3 and parts[2].strip() else None
+
+    def compute_gpu_targets(self, hyper_id, nvidia_gpus):
+        """Per-card target profile to apply at registration, for a gpu-apply
+        capable hypervisor. Uses the SAME policy as the engine reconcile
+        (isardvdi_common.gpu_pool_policy.decide_reconcile_action): scheduled
+        booking > operator intent > passthrough default. available_types comes
+        from the freshly-POSTed discovery (vgpus.info may not exist yet on a
+        first registration). Returns {pci_bus_id: {vgpu_id, card_id, action,
+        target_profile}}."""
+        from isardvdi_common.gpu_pool_policy import (
+            canonical_suffix,
+            decide_reconcile_action,
+        )
+
+        from .gpu_realizability import realizable_suffixes
+
+        targets = {}
+        for gpu in nvidia_gpus or []:
+            pci_bus_id = gpu.get("pci_bus_id")
+            if not pci_bus_id or not gpu.get("_resolved_model"):
+                continue
+            if gpu.get("vgpu_profiles") is None:
+                continue  # DISCOVERY_FAILED -> no target, leave to the engine
+            vgpu_id = self._vgpu_id_for(hyper_id, pci_bus_id)
+            with app.app_context():
+                cards = list(
+                    r.table("gpus")
+                    .filter({"physical_device": vgpu_id})
+                    .pluck("id")
+                    .run(db.conn)
+                )
+            if not cards:
+                continue
+            card_id = cards[0]["id"]
+            with app.app_context():
+                vrow = r.table("vgpus").get(vgpu_id).run(db.conn) or {}
+            available_types = {s: {} for s in (realizable_suffixes(gpu) or set())}
+            # Default an un-booked, un-intented card to the profile it is ALREADY
+            # running (keep_current, ephemeral -- no requested_profile write)
+            # instead of forcing passthrough, but ONLY for a real non-passthrough
+            # carve the card can still expose. passthrough/uncarved keep the
+            # seed_and_apply default so a fresh card still seeds operator intent.
+            live = gpu.get("current_profile")
+            realizable = {canonical_suffix(s) for s in available_types}
+            if live and live != "passthrough" and canonical_suffix(live) in realizable:
+                fallback_default, keep_current = live, True
+            else:
+                fallback_default, keep_current = "passthrough", False
+            decision = decide_reconcile_action(
+                requested_profile=vrow.get("requested_profile"),
+                scheduled_profile=self.get_vgpu_scheduled_profile_now(card_id),
+                available_types=available_types,
+                sriov_totalvfs=(vrow.get("info") or {}).get("sriov_totalvfs", 0),
+                operator_passthrough=bool(vrow.get("operator_passthrough")),
+                fallback_default=fallback_default,
+                keep_current=keep_current,
+            )
+            targets[pci_bus_id] = {
+                "vgpu_id": vgpu_id,
+                "card_id": card_id,
+                "action": decision["action"],
+                "target_profile": decision.get("profile"),
+            }
+        return targets
+
+    def ingest_gpu_applied(self, hyper_id, applied):
+        """Persist the hypervisor's applied-state report (from the gpu_applied
+        endpoint) into the vgpus rows so the DB reflects reality and the engine
+        reconcile confirms instead of re-applying. Only 'applied' results carry
+        a rebuilt mdev pool worth persisting; everything else is left alone."""
+        from isardvdi_common.vgpu_state import build_applied_state_patch
+
+        if not isinstance(applied, dict):
+            return
+        for pci_bus_id, rep in applied.items():
+            if not isinstance(rep, dict):
+                continue
+            result = rep.get("result")
+            # noop / skipped_busy / skipped_advisory: nothing was applied, but
+            # the card's existing pool is still valid (a live desktop's mdev
+            # survives discovery's reset). Re-pin ONLY mdevs_last_synced_at to
+            # this discovery's mdevs_reset_at so the engine reconcile CONFIRMS
+            # instead of running the authoritative rebuild that would stop the
+            # still-alive desktop. Never touch the pool/profile here. An 'error'
+            # result is NOT re-pinned (the state is uncertain -> let reconcile
+            # decide).
+            if result in ("noop", "skipped_busy", "skipped_advisory"):
+                reset_at = rep.get("mdevs_reset_at")
+                if reset_at is None:
+                    continue
+                vgpu_id = self._vgpu_id_for(hyper_id, pci_bus_id)
+                with app.app_context():
+                    r.table("vgpus").get(vgpu_id).update(
+                        {"mdevs_last_synced_at": reset_at}
+                    ).run(db.conn)
+                continue
+            if result != "applied":
+                continue
+            applied_profile = rep.get("applied_profile")
+            if not applied_profile:
+                continue
+            vgpu_id = self._vgpu_id_for(hyper_id, pci_bus_id)
+            with app.app_context():
+                existing = r.table("vgpus").get(vgpu_id).run(db.conn)
+            patch = build_applied_state_patch(
+                existing,
+                applied_profile,
+                rep.get("mdevs"),
+                rep.get("mdevs_reset_at"),
+            )
+            if not existing:
+                # First registration: the vgpus row does not exist yet (the
+                # engine normally creates it). Establish it from the
+                # hypervisor's applied report so the engine relies on what the
+                # hypervisor set at boot instead of re-deriving passthrough. The
+                # engine's next discovery fills in info/model and PRESERVES this
+                # applied state (update_db_hyp_nvidia_info). conflict="update"
+                # guards the race where the engine created the row meanwhile.
+                row = {"id": vgpu_id, "hyp_id": hyper_id, "brand": "NVIDIA"}
+                if rep.get("mdevs_reset_at") is not None:
+                    row["mdevs_reset_at"] = rep.get("mdevs_reset_at")
+                row.update(patch)
+                # On the no-row path this inserts `row` as-is. On the engine-won-
+                # the-race path the conflict FUNCTION runs: merge onto the engine's
+                # row (keeping its info/model/nvidia_uids) but REPLACE mdevs via
+                # r.literal -- otherwise the default deep-merge would DOUBLE the
+                # pool (host UUIDs + engine phantoms). r.literal is only legal
+                # inside merge/update, never in a bare insert doc (that raises
+                # "Stray literal keyword found"), which is why this is a conflict
+                # function and `row` itself keeps a plain mdevs dict.
+                with app.app_context():
+                    r.table("vgpus").insert(
+                        row,
+                        conflict=lambda _id, old, new: old.merge(new).merge(
+                            {"mdevs": r.literal(new["mdevs"])}
+                        ),
+                    ).run(db.conn)
+                log.info(
+                    f"Ingested hypervisor-applied profile '{applied_profile}' "
+                    f"for new card {vgpu_id}"
+                )
+                continue
+            # The host is authoritative for the pool: REPLACE mdevs wholesale.
+            # Plain .update() deep-merges nested dicts, which would leave stale
+            # per-profile pools and double a same-profile re-register, so wrap it
+            # in r.literal().
+            if "mdevs" in patch:
+                patch["mdevs"] = r.literal(patch["mdevs"])
+            with app.app_context():
+                r.table("vgpus").get(vgpu_id).update(patch).run(db.conn)
+            log.info(
+                f"Ingested hypervisor-applied profile '{applied_profile}' for "
+                f"{vgpu_id}"
+            )
+
+    def preview_force_profile(self, card_id, target_profile):
+        """Read-only pre-flight for the admin force-profile dialog. Returns what
+        forcing ``target_profile`` on this card WOULD do, so the admin is warned
+        before confirming. Mutates nothing.
+
+        - ``desktops_to_stop``: running desktops on the card that the change
+          would stop (a profile change stops every desktop on the card; none if
+          the target equals the current profile).
+        - ``resources_to_remove``: enabled reservables this card would stop
+          realizing under the target's mode AND for which NO OTHER card in the
+          infrastructure is a provider -> the reservable + its bookings would be
+          pruned. Admin-only; end users are not notified.
+        """
+        from .gpu_realizability import canonical_suffix
+
+        with app.app_context():
+            card = r.table("gpus").get(card_id).run(db.conn)
+        if not card:
+            return {"desktops_to_stop": [], "resources_to_remove": []}
+        vgpu_id = card.get("physical_device")
+        vgpu_row = {}
+        if vgpu_id:
+            with app.app_context():
+                vgpu_row = r.table("vgpus").get(vgpu_id).run(db.conn) or {}
+        current = canonical_suffix(vgpu_row.get("vgpu_profile"))
+        info_types = (vgpu_row.get("info") or {}).get("types", {}) or {}
+
+        def _suffix(reservable_id):
+            # NVIDIA-<model>-<suffix>; model is dash-free by construction, so the
+            # suffix is everything after the first two hyphens. Canonicalize so a
+            # dash-form MIG id (NVIDIA-A16-1-2Q) maps to the same key the rest of
+            # the system uses (1_2Q) -- a plain split("-")[-1] would wrongly yield
+            # "2Q" and misclassify it (false reassurance on dash-form installs).
+            parts = reservable_id.split("-", 2)
+            return canonical_suffix(parts[2]) if len(parts) == 3 else reservable_id
+
+        def _is_mig(suffix):
+            # authoritative mig flag from the card's live info.types when the
+            # suffix is realized in the current mode; otherwise recognise both
+            # dot-form MIG ("1g.24gb") and the MIG-slice vGPU form ("1_2Q"/"1-2Q")
+            # so a dash-form MIG-backed vGPU is not misclassified as plain vGPU.
+            t = info_types.get(suffix)
+            if isinstance(t, dict) and "mig" in t:
+                return bool(t["mig"])
+            return bool(re.match(r"\d+g\.", suffix) or re.match(r"\d+[_-]\d", suffix))
+
+        target_suffix = _suffix(target_profile)
+        target_pt = target_suffix == "passthrough"
+        target_mig = (not target_pt) and _is_mig(target_suffix)
+
+        desktops = set()
+        if target_suffix != current:
+            for pool in (vgpu_row.get("mdevs") or {}).values():
+                if not isinstance(pool, dict):
+                    continue
+                for mdev in pool.values():
+                    started = isinstance(mdev, dict) and mdev.get("domain_started")
+                    if isinstance(started, str) and started:
+                        desktops.add(started)
+
+        resources = []
+        for reservable_id in card.get("profiles_enabled", []) or []:
+            suffix = _suffix(reservable_id)
+            if suffix == target_suffix:
+                continue  # still realized
+            if target_pt:
+                still_realized = False  # passthrough realizes no vGPU/MIG profile
+            elif target_mig:
+                still_realized = _is_mig(suffix)  # MIG mode -> MIG profiles
+            else:
+                still_realized = suffix != "passthrough" and not _is_mig(suffix)
+            if still_realized:
+                continue
+            with app.app_context():
+                others = (
+                    r.table("gpus")
+                    .filter(
+                        lambda g: g["profiles_enabled"].contains(reservable_id)
+                        & g["id"].ne(card_id)
+                        & g["physical_device"].default(None).ne(None)
+                    )
+                    .count()
+                    .run(db.conn)
+                )
+            if others == 0:
+                resources.append(reservable_id)
+
+        return {
+            "current_profile": current,
+            "target_profile": target_suffix,
+            "desktops_to_stop": sorted(desktops),
+            "resources_to_remove": sorted(resources),
+        }
 
     def enable_hyper(self, hyper_id, enable=True):
         with app.app_context():
@@ -1048,13 +1655,34 @@ class ApiHypervisors:
             ).run(db.conn)
 
     def remove_hyper(self, hyper_id, restart=True):
-        # Clear physical_device on auto-created GPU cards for this hypervisor
+        # Clear physical_device on auto-created GPU cards for this hypervisor and
+        # keep vGPU capacity (reservables_vgpus.total_units) honest: a detached
+        # card has no hardware so it must stop counting toward capacity. We do
+        # NOT touch profiles_enabled or bookings -> when the hypervisor returns
+        # and re-registers, physical_device is restored and capacity recovers.
         try:
             prefix = f"auto-{hyper_id}-"
             with app.app_context():
+                affected = list(
+                    r.table("gpus")
+                    .filter(lambda gpu: gpu["id"].match(f"^{prefix}"))
+                    .concat_map(lambda gpu: gpu["profiles_enabled"].default([]))
+                    .distinct()
+                    .run(db.conn)
+                )
                 r.table("gpus").filter(
                     lambda gpu: gpu["id"].match(f"^{prefix}")
                 ).update({"physical_device": None}).run(db.conn)
+            from .bookings.api_reservables import Reservables
+
+            api_ri = Reservables()
+            for reservable_id in affected:
+                try:
+                    api_ri.recompute_reservable_total_units("gpus", reservable_id)
+                except Exception as e:
+                    log.warning(
+                        f"remove_hyper: total_units recompute {reservable_id}: {e}"
+                    )
         except Exception as e:
             log.warning(f"Failed to clear GPU cards for {hyper_id}: {e}")
 
@@ -1370,75 +1998,6 @@ class ApiHypervisors:
         if not dict["errors"]:
             return True
         return False
-
-    def assign_gpus(self):
-        """Wire each vgpu (engine-discovered physical device) to its gpus
-        card row.
-
-        Resolution order per vgpu:
-          1. Auto-id direct hit ``auto-<hyp_id>-pci_<bdf>``: deterministic,
-             survives any (brand, model) drift between vgpus.info.model and
-             gpus.model.
-          2. Manually-created card with matching (brand, model) and no
-             physical_device: legacy path for operator-curated cards.
-        """
-        with app.app_context():
-            hypers = [
-                h["id"]
-                for h in r.table("hypervisors")
-                .filter({"status": "Online"})
-                .run(db.conn)
-            ]
-        with app.app_context():
-            r.table("gpus").update({"physical_device": None}).run(db.conn)
-        with app.app_context():
-            physical_devices = list(
-                r.table("vgpus")
-                .pluck("id", "brand", "hyp_id", {"info": "model"})
-                .run(db.conn)
-            )
-        physical_devices = [pd for pd in physical_devices if pd["hyp_id"] in hypers]
-        log.debug(
-            "Matching hypers with cards found by engine: " + str(physical_devices)
-        )
-        for pd in physical_devices:
-            vgpu_id = pd["id"]
-            # vgpu id format is "<hyp_id>-pci_<bdf>"; the auto card id mirrors
-            # that as "auto-<hyp_id>-pci_<bdf>". Direct lookup avoids the
-            # (brand, model) join entirely so a model rename can't strand the
-            # card.
-            auto_id = f"auto-{vgpu_id}"
-            with app.app_context():
-                auto_card = r.table("gpus").get(auto_id).run(db.conn)
-            if auto_card:
-                with app.app_context():
-                    r.table("gpus").get(auto_id).update(
-                        {"physical_device": vgpu_id}
-                    ).run(db.conn)
-                continue
-
-            # Fallback: legacy / manually-created card matched by (brand,
-            # vgpus.info.model). Kept for backwards compat with admin-added
-            # rows that have no auto-PCI id.
-            with app.app_context():
-                gpus = list(
-                    r.table("gpus")
-                    .get_all([pd["brand"], pd["info"]["model"]], index="brand-model")
-                    .filter({"physical_device": None})
-                    .run(db.conn)
-                )
-            if len(gpus):
-                with app.app_context():
-                    r.table("gpus").get(gpus[0]["id"]).update(
-                        {"physical_device": vgpu_id}
-                    ).run(db.conn)
-            else:
-                log.warning(
-                    f"assign_gpus: no card row for vgpu {vgpu_id!r} "
-                    f"(brand={pd.get('brand')!r}, "
-                    f"info.model={pd.get('info', {}).get('model')!r}); "
-                    f"_resolve_gpu_models must run before this."
-                )
 
     def get_hyper_status(self, hyper_id):
         with app.app_context():
