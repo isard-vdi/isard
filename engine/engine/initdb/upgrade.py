@@ -28,6 +28,7 @@ from .upgrade_helpers import (
     keys_exists,
     v189_backfill_and_canon_vgpus,
     v189_canonicalize_vgpu_ids,
+    v189_prune_non_full_use_gpu_profiles,
 )
 
 """
@@ -7187,7 +7188,7 @@ password:s:%s"""
     def vgpus(self, version):
         """vgpus table + vGPU-id canonicalization migrations.
 
-        v189 does two things idempotently, combined so vgpus is iterated once:
+        v189 does three things idempotently, combined so vgpus is iterated once:
 
         1. Seed operator-intent fields (``requested_profile``,
            ``operator_passthrough``) on rows that lack them. The reconcile-policy
@@ -7202,6 +7203,14 @@ password:s:%s"""
            profile change breaks. This migration replaces the former standalone
            ``normalize_vgpu_ids.py`` script (now removed) so the rewrite runs
            automatically, in lockstep with the release.
+        3. Prune NON-full-utilization GPU profiles from the bookable catalog
+           (``gpu_profiles``/``gpus.profiles_enabled``/``reservables_vgpus``):
+           the plain GI-name MIG profiles (``1g.24gb`` & variants -- single GI,
+           no usable mdev) AND the partial-framebuffer MIG-backed profiles
+           (e.g. ``1_4Q`` on a 24 GB GI strands 20 GB). Only full-utilization
+           modes stay: whole-card ``passthrough``, time-sliced ``<fb>Q``, and
+           the max-framebuffer MIG-backed profile per tier (``1_24Q``/``2_48Q``/
+           ``4_96Q``). Bookings, if any, are kept + logged.
         """
         log.info("UPGRADING vgpus TABLE TO VERSION " + str(version))
 
@@ -7214,5 +7223,9 @@ password:s:%s"""
                 v189_canonicalize_vgpu_ids(self)
             except Exception as e:
                 log.error(f"v189 vGPU-id canonicalization failed: {e}")
+            try:
+                v189_prune_non_full_use_gpu_profiles(self)
+            except Exception as e:
+                log.error(f"v189 non-full-use GPU profile prune failed: {e}")
 
         return True

@@ -463,6 +463,153 @@ def v189_canonicalize_vgpu_ids(upgrade):
     )
 
 
+# Plain GI-name MIG profile suffix, e.g. "1g.24gb", "1g.24gb+gfx", "1g.24gb+me",
+# "1g.24gb+me.all", "1g.24gb_me", "1g.24gb-me", "2g.48gb", "4g.96gb". These carve
+# a single GPU-instance / expose no usable per-slice vGPU mdev, so they must not
+# be bookable.
+_PLAIN_GI_MIG_SUFFIX_RE = re.compile(r"^\d+g\.\d+gb")
+
+# MIG-backed vGPU profile suffix "<slices>_<framebuffer><series>" (e.g. "1_24Q",
+# "2_48Q"). Groups: slices, framebuffer-GB, series-letter. The slice separator is
+# accepted as "_" OR "-": canonical ids use "_", but legacy reservable `profile`
+# fields may still carry the dash form ("1-2Q") that id-canon did not rewrite.
+_MIG_BACKED_SUFFIX_RE = re.compile(r"^(\d+)[-_](\d+)([ABCQ])$")
+
+
+def _reservable_suffix(reservable_id):
+    """``NVIDIA-<model>-<suffix>`` -> ``<suffix>`` (model is dash-free post-canon)."""
+    if isinstance(reservable_id, str) and reservable_id.count("-") >= 2:
+        return reservable_id.split("-", 2)[2]
+    return None
+
+
+def _mig_max_fb_from_suffixes(suffixes):
+    """(slices, series) -> max framebuffer across the MIG-backed suffixes given.
+
+    Per slice-tier only the largest framebuffer uses the GI's full memory; the
+    smaller ones strand the rest of the GI. Computed from the complete catalog
+    (gpu_profiles), since the enabled-reservables subset may omit the full one.
+    """
+    mx = {}
+    for s in suffixes:
+        if not isinstance(s, str):
+            continue
+        m = _MIG_BACKED_SUFFIX_RE.match(s)
+        if m:
+            key = (m.group(1), m.group(3))
+            mx[key] = max(mx.get(key, 0), int(m.group(2)))
+    return mx
+
+
+def _is_non_full_use_suffix(suffix, mig_max_fb):
+    """True if a profile suffix is NOT full-utilization and must be pruned:
+      - plain GI-name MIG ("1g.24gb" & variants), or
+      - a MIG-backed vGPU below the max framebuffer for its slice-tier (strands
+        the GI's spare memory).
+    Kept (full-utilization): whole-card "passthrough", time-sliced "<fb>Q", and
+    the max-framebuffer MIG-backed profile per tier ("1_24Q"/"2_48Q"/"4_96Q").
+    """
+    if not isinstance(suffix, str):
+        return False
+    if _PLAIN_GI_MIG_SUFFIX_RE.match(suffix):
+        return True
+    m = _MIG_BACKED_SUFFIX_RE.match(suffix)
+    if m:
+        return int(m.group(2)) < mig_max_fb.get((m.group(1), m.group(3)), 0)
+    return False
+
+
+def v189_prune_non_full_use_gpu_profiles(upgrade):
+    """v189: keep only full-utilization GPU profiles bookable.
+
+    Removes both (a) the plain GI-name MIG profiles (single GI / no usable mdev)
+    and (b) the partial-framebuffer MIG-backed vGPU profiles (e.g. 1_4Q on a
+    24 GB 1g GI strands 20 GB). What stays: whole-card ``passthrough``,
+    time-sliced ``<fb>Q`` (which partition the card's memory fully), and the
+    max-framebuffer MIG-backed profile per slice-tier (``1_24Q``/``2_48Q``/
+    ``4_96Q``). Pairs with ``ensure_gpu_profiles`` no longer emitting these.
+
+    Idempotent (filtered delete/update; no-op on re-run). The per-model
+    max-framebuffer is computed from the FULL gpu_profiles catalog, then applied
+    to gpu_profiles, gpus.profiles_enabled and reservables_vgpus. A reservable
+    still referenced by a booking is logged and kept (never drop a reservation).
+    """
+    conn = upgrade.conn
+
+    # 1) gpu_profiles: per model, derive the tier max-fb from the FULL catalog,
+    #    then drop non-full-use entries (in place; never delete the parent row).
+    model_mig_max = {}
+    gp_pruned = 0
+    for gp in list(r.table("gpu_profiles").run(conn)):
+        profs = gp.get("profiles")
+        if not isinstance(profs, list):
+            continue
+        mig_max = _mig_max_fb_from_suffixes(
+            [p.get("profile") for p in profs if isinstance(p, dict)]
+        )
+        model_mig_max[gp.get("model")] = mig_max
+        kept = [
+            p
+            for p in profs
+            if not (
+                isinstance(p, dict)
+                and _is_non_full_use_suffix(p.get("profile"), mig_max)
+            )
+        ]
+        if len(kept) != len(profs):
+            r.table("gpu_profiles").get(gp["id"]).update({"profiles": kept}).run(conn)
+            gp_pruned += len(profs) - len(kept)
+
+    # 2) reservables_vgpus: delete non-full-use rows not referenced by a booking.
+    res_deleted = 0
+    res_kept_booked = 0
+    dropped_ids = set()
+    for res in list(r.table("reservables_vgpus").run(conn)):
+        mig_max = model_mig_max.get(res.get("model"), {})
+        if not _is_non_full_use_suffix(res.get("profile"), mig_max):
+            continue
+        rid = res["id"]
+        booked = (
+            r.table("bookings")
+            .filter(lambda b: b["reservables"]["vgpus"].default([]).contains(rid))
+            .count()
+            .run(conn)
+        )
+        if booked:
+            log.warning(
+                f"v189: reservable {rid} still has {booked} booking(s); kept in "
+                f"place for manual review (not deleted)."
+            )
+            res_kept_booked += 1
+            continue
+        r.table("reservables_vgpus").get(rid).delete().run(conn)
+        dropped_ids.add(rid)
+        res_deleted += 1
+
+    # 3) gpus.profiles_enabled: drop refs to dropped reservables / non-full-use.
+    ge_pruned = 0
+    for g in r.table("gpus").pluck("id", "profiles_enabled", "model").run(conn):
+        enabled = g.get("profiles_enabled")
+        if not isinstance(enabled, list):
+            continue
+        mig_max = model_mig_max.get(g.get("model"), {})
+        kept = [
+            rid
+            for rid in enabled
+            if rid not in dropped_ids
+            and not _is_non_full_use_suffix(_reservable_suffix(rid), mig_max)
+        ]
+        if len(kept) != len(enabled):
+            r.table("gpus").get(g["id"]).update({"profiles_enabled": kept}).run(conn)
+            ge_pruned += len(enabled) - len(kept)
+
+    log.info(
+        f"v189: pruned non-full-use GPU profiles -- {gp_pruned} catalog entr(ies), "
+        f"{ge_pruned} profiles_enabled ref(s), {res_deleted} reservable(s) deleted, "
+        f"{res_kept_booked} kept (booked)."
+    )
+
+
 """
 Upgrade general actions
 """
