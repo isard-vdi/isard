@@ -11,12 +11,15 @@ only callable from the initdb runtime, where rethinkdb and the package-relative
 log resolve.
 """
 
+import json
 import re
 
 try:  # pragma: no cover - present in the initdb runtime, absent in unit tests
-    import rethinkdb as r
+    from rethinkdb import RethinkDB
 
     from .log import log
+
+    r = RethinkDB()
 except ImportError:
     r = None
     log = None
@@ -468,17 +471,17 @@ Upgrade general actions
 def add_keys(self, table, keys, id=False):
     for key in keys:
         if id is False:
-            r.table(table).update(key).run(upgrade.conn)
+            r.table(table).update(key).run(self.conn)
         else:
-            r.table(table).get(id).update(key).run(upgrade.conn)
+            r.table(table).get(id).update(key).run(self.conn)
 
 
 def del_keys(self, table, keys, id=False):
     for key in keys:
         if id is False:
-            r.table(table).replace(r.row.without(key)).run(upgrade.conn)
+            r.table(table).replace(r.row.without(key)).run(self.conn)
         else:
-            r.table(table).get(id).replace(r.row.without(key)).run(upgrade.conn)
+            r.table(table).get(id).replace(r.row.without(key)).run(self.conn)
 
 
 def check_done(self, dict, must=[], mustnot=[]):
@@ -488,7 +491,7 @@ def check_done(self, dict, must=[], mustnot=[]):
     for m in must:
         if type(m) is str:
             m = [m]
-        if upgrade.keys_exists(dict, m):
+        if self.keys_exists(dict, m):
             done = True
             # ~ print(str(m)+' exists on dict. ok')
         # ~ else:
@@ -498,7 +501,7 @@ def check_done(self, dict, must=[], mustnot=[]):
         log.info(mn)
         if type(mn) is str:
             mn = [mn]
-        if not upgrade.keys_exists(dict, mn):
+        if not self.keys_exists(dict, mn):
             done = True
             # ~ print(str(mn)+' not exists on dict. ok')
         # ~ else:
@@ -526,11 +529,11 @@ def keys_exists(self, element, keys):
 
 
 def index_create(self, table, indexes):
-    indexes_ontable = r.table(table).index_list().run(upgrade.conn)
+    indexes_ontable = r.table(table).index_list().run(self.conn)
     apply_indexes = [mi for mi in indexes if mi not in indexes_ontable]
     for i in apply_indexes:
-        r.table(table).index_create(i).run(upgrade.conn)
-        r.table(table).index_wait(i).run(upgrade.conn)
+        r.table(table).index_create(i).run(self.conn)
+        r.table(table).index_wait(i).run(self.conn)
 
 
 ## To upgrade to default cards
@@ -539,7 +542,7 @@ def get_domain_stock_card(self, domain_id):
     for i in range(0, len(domain_id)):
         total += total + ord(domain_id[i])
     total = total % 48 + 1
-    return upgrade.get_card(str(total) + ".jpg", "stock")
+    return self.get_card(str(total) + ".jpg", "stock")
 
 
 def get_card(self, card_id, type):
@@ -566,9 +569,7 @@ def _system_upgrades(self):
         f = open("./initdb/profiles/gpu_profiles.json")
         gpu_profiles = json.loads(f.read())
         f.close()
-        r.table("gpu_profiles").insert(gpu_profiles, conflict="update").run(
-            upgrade.conn
-        )
+        r.table("gpu_profiles").insert(gpu_profiles, conflict="update").run(self.conn)
     except Exception as e:
         print(e)
     return True

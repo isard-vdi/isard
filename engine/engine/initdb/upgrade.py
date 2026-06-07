@@ -17,7 +17,18 @@ from redis import Redis
 
 from .lib import *
 from .log import *
-from .upgrade_helpers import v189_backfill_and_canon_vgpus, v189_canonicalize_vgpu_ids
+from .upgrade_helpers import (
+    _system_upgrades,
+    add_keys,
+    check_done,
+    del_keys,
+    get_card,
+    get_domain_stock_card,
+    index_create,
+    keys_exists,
+    v189_backfill_and_canon_vgpus,
+    v189_canonicalize_vgpu_ids,
+)
 
 """
 Update to new database release version when new code version release
@@ -264,6 +275,19 @@ tables = [
 
 
 class Upgrade(object):
+    # The table-upgrade helper methods live in upgrade_helpers (module-level
+    # functions taking `self`, so upgrade_vgpu_unify_test can import that file
+    # without this module's runtime deps). Bind them here so the hundreds of
+    # existing self.add_keys()/self.check_done()/... call sites keep working.
+    add_keys = add_keys
+    del_keys = del_keys
+    check_done = check_done
+    keys_exists = keys_exists
+    index_create = index_create
+    get_domain_stock_card = get_domain_stock_card
+    get_card = get_card
+    _system_upgrades = _system_upgrades
+
     def __init__(self):
         cfg = loadConfig()
         self.conf = cfg.cfg()
