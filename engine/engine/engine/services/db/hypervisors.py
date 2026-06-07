@@ -889,7 +889,14 @@ def get_hypers_gpu_online(
                 gpu_profile_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_profile)
 
                 if gpu_profile_active == gpu_profile:
-                    for mdev_uuid, d in mdevs[gpu_profile].items():
+                    # get_vgpus_mdevs plucks {"mdevs": [gpu_profile]}, so a card
+                    # whose pool lacks that key (mid-transition, stale active
+                    # field, pool not yet rebuilt) yields an EMPTY mdevs dict -
+                    # treat it as "no free uuid on this card" instead of
+                    # KeyError-ing the whole start action. A multi-vGPU desktop
+                    # probes every requested profile against every card of the
+                    # model, which makes this window easy to hit.
+                    for mdev_uuid, d in mdevs.get(gpu_profile, {}).items():
                         if (
                             d.get("domain_reserved", False) is False
                             and d.get("domain_started", False) is False
