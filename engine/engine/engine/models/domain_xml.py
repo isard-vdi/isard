@@ -2148,12 +2148,21 @@ def hostdev_locked(domain):
     )
 
 
+# Base guest PCI slot for the first passed-through GPU. Picked from a high free
+# range to avoid colliding with libvirt's default device placement on q35 /
+# i440fx topologies; GPU N lands on GUEST_GPU_SLOT_BASE + N. Highest slot on a
+# single PCI bus is 0x1f.
+GUEST_GPU_SLOT_BASE = 0x09
+GUEST_GPU_SLOT_MAX = 0x1F
+
+
 def recreate_xml_if_gpu(
     xml,
     mdev_uid,
     pci_bus_id=None,
     is_passthrough=False,
     companion_pci_bdfs=None,
+    guest_index=0,
 ):
     """Inject the appropriate GPU hostdev(s) into a domain XML.
 
@@ -2163,6 +2172,15 @@ def recreate_xml_if_gpu(
     pair on a single guest PCI slot so the guest sees them as one logical
     device — matching bare-metal topology so the GPU driver finds its
     audio codec at the expected offset.
+
+    ``guest_index`` is the GPU's 0-based position in the desktop's reservable
+    list. It deterministically fixes the guest-side PCI slot
+    (``GUEST_GPU_SLOT_BASE + guest_index``) for every passthrough hostdev, so
+    the guest sees its GPUs at the SAME PCI addresses on every start regardless
+    of which host card the carve picked. Without it libvirt auto-assigns the
+    slot, which drifts between starts / with carve order and re-shuffles
+    in-guest GPU enumeration (``nvidia-smi`` index, ``CUDA_VISIBLE_DEVICES``,
+    Docker ``--gpus`` and LLM device maps).
     """
     xml = xml
 
@@ -2200,12 +2218,22 @@ def recreate_xml_if_gpu(
         bus = "0x" + parts[1]
         slot = "0x" + parts[2]
         function = "0x" + parts[3]
+        # Deterministic guest-side slot from the GPU's reservable index, so the
+        # guest always sees this GPU at the same PCI address across starts.
+        guest_slot_num = GUEST_GPU_SLOT_BASE + int(guest_index)
+        if guest_slot_num > GUEST_GPU_SLOT_MAX:
+            raise ValueError(
+                "recreate_xml_if_gpu: guest_index {} exceeds available guest PCI "
+                "slots (base 0x{:02x}..0x{:02x})".format(
+                    guest_index, GUEST_GPU_SLOT_BASE, GUEST_GPU_SLOT_MAX
+                )
+            )
+        guest_slot = "0x{:02x}".format(guest_slot_num)
         companions = list(companion_pci_bdfs or [])
         if companions:
-            # Guest-side slot for the GPU+audio multifunction pair. Slot
-            # picked from a high free range to avoid colliding with
-            # libvirt's default device placement on q35/i440fx topologies.
-            guest_slot = "0x09"
+            # GPU + its companion(s) (e.g. the .1 HD-audio function) as a
+            # multifunction pair on the one guest slot, so the guest sees one
+            # logical device matching bare-metal topology.
             xml_hostdev = (
                 "  <hostdev mode='subsystem' type='pci' managed='yes'>\n"
                 "    <source>\n"
@@ -2238,11 +2266,17 @@ def recreate_xml_if_gpu(
                     "  </hostdev>"
                 )
         else:
-            xml_hostdev = f"""  <hostdev mode='subsystem' type='pci' managed='yes'>
-        <source>
-          <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>
-        </source>
-      </hostdev>"""
+            # Single-function GPU: pin the guest slot deterministically too, so
+            # multi-GPU desktops keep a stable, carve-order-independent guest
+            # PCI layout (single function → no multifunction flag).
+            xml_hostdev = (
+                "  <hostdev mode='subsystem' type='pci' managed='yes'>\n"
+                "    <source>\n"
+                f"      <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>\n"
+                "    </source>\n"
+                f"    <address type='pci' slot='{guest_slot}' function='0x0'/>\n"
+                "  </hostdev>"
+            )
         xpath_parent = "/domain/devices"
     else:
         xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'>

@@ -298,9 +298,11 @@ def test_recreate_xml_if_gpu_passthrough_with_audio_companion():
     assert comp_guest.get("multifunction") is None
 
 
-def test_recreate_xml_if_gpu_passthrough_without_companion_unchanged():
-    """Compute-mode boards (no audio companion) keep the original
-    single-hostdev shape with no guest-side address (libvirt auto-assigns)."""
+def test_recreate_xml_if_gpu_passthrough_single_function_deterministic_slot():
+    """Compute-mode boards (no audio companion) now get a deterministic guest
+    PCI slot from guest_index (default 0 -> 0x09), single function, NOT
+    multifunction, so multi-GPU guests keep a stable carve-order-independent
+    PCI layout."""
     xml = '<domain type="kvm"><devices/></domain>'
     result = recreate_xml_if_gpu(
         xml,
@@ -312,9 +314,79 @@ def test_recreate_xml_if_gpu_passthrough_without_companion_unchanged():
     tree = _parse(result)
     hostdevs = tree.xpath('//hostdev[@type="pci"][@managed="yes"]')
     assert len(hostdevs) == 1
-    # No guest-side multifunction injection when there are no companions.
     guest_addr = hostdevs[0].find("address")
-    assert guest_addr is None
+    assert guest_addr is not None
+    assert guest_addr.get("slot") == "0x09"
+    assert guest_addr.get("function") == "0x0"
+    assert guest_addr.get("multifunction") is None
+
+
+def test_recreate_xml_if_gpu_guest_index_distinct_slots():
+    """Two GPUs on one desktop get distinct, index-derived guest slots
+    (index 0 -> 0x09, index 1 -> 0x0a) regardless of which host card."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    r0 = recreate_xml_if_gpu(
+        xml, "u", pci_bus_id="pci_0000_03_00_0", is_passthrough=True, guest_index=0
+    )
+    r1 = recreate_xml_if_gpu(
+        xml, "u", pci_bus_id="pci_0000_63_00_0", is_passthrough=True, guest_index=1
+    )
+    s0 = _parse(r0).xpath("//hostdev/address")[0].get("slot")
+    s1 = _parse(r1).xpath("//hostdev/address")[0].get("slot")
+    assert s0 == "0x09"
+    assert s1 == "0x0a"
+    assert s0 != s1
+
+
+def test_recreate_xml_if_gpu_guest_index_deterministic_across_calls():
+    """Same guest_index + same source card -> byte-identical XML (stable guest
+    PCI address across starts)."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    a = recreate_xml_if_gpu(
+        xml, "u", pci_bus_id="pci_0000_03_00_0", is_passthrough=True, guest_index=2
+    )
+    b = recreate_xml_if_gpu(
+        xml, "u", pci_bus_id="pci_0000_03_00_0", is_passthrough=True, guest_index=2
+    )
+    assert a == b
+    assert _parse(a).xpath("//hostdev/address")[0].get("slot") == "0x0b"
+
+
+def test_recreate_xml_if_gpu_companion_uses_guest_index_slot():
+    """Companion multifunction pair lands on the index-derived slot (index 2 ->
+    0x0b), .0 multifunction='on', .1 same slot at function 0x1."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(
+        xml,
+        "u",
+        pci_bus_id="pci_0000_86_00_0",
+        is_passthrough=True,
+        companion_pci_bdfs=["0000:86:00.1"],
+        guest_index=2,
+    )
+    hostdevs = _parse(result).xpath('//hostdev[@type="pci"][@managed="yes"]')
+    assert len(hostdevs) == 2
+    g0 = hostdevs[0].find("address")
+    g1 = hostdevs[1].find("address")
+    assert g0.get("slot") == "0x0b"
+    assert g0.get("multifunction") == "on"
+    assert g0.get("function") == "0x0"
+    assert g1.get("slot") == "0x0b"
+    assert g1.get("function") == "0x1"
+
+
+def test_recreate_xml_if_gpu_guest_index_overflow_raises():
+    """guest_index beyond the available guest PCI slots is a clear error, not a
+    silently malformed address."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    with pytest.raises(ValueError):
+        recreate_xml_if_gpu(
+            xml,
+            "u",
+            pci_bus_id="pci_0000_03_00_0",
+            is_passthrough=True,
+            guest_index=0x20,
+        )
 
 
 # ---- engine bug fixes surfaced during the Redmine #15065 audit -------------
