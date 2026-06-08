@@ -90,6 +90,13 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                 }
             }
 
+            // Rebuild the vGPU control from scratch. It is enhanced with select2
+            // (like #hardware-interfaces) so the list is click-to-toggle (no
+            // Ctrl), searchable and scrollable instead of a cramped native
+            // multi-select; destroy any previous instance before repopulating.
+            if($(id+" #reservables-vgpus").hasClass('select2-hidden-accessible')){
+                $(id+" #reservables-vgpus").select2('destroy');
+            }
             $(id+" #reservables-vgpus").find('option,optgroup').remove();
             if("reservables" in hardware && "vgpus" in hardware.reservables){
                 // A desktop may carry several vGPU profiles but they must all run
@@ -118,7 +125,8 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                     $(id+" #reservables-vgpus").append(optHtml(value));
                 });
                 // Hard-restrict: once a profile is chosen, disable any profile not
-                // hostable on a hypervisor common to the whole selection.
+                // hostable on a hypervisor common to the whole selection, then
+                // tell select2 to re-render so the greyed-out options show.
                 $(id+" #reservables-vgpus").off('change.vgpurestrict').on('change.vgpurestrict', function(){
                     var selected = $(this).val() || [];
                     var common = null;
@@ -136,6 +144,15 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                         var ok = hyps.some(function(h){ return common[h]; });
                         $(this).prop('disabled', !ok);
                     });
+                    if($(this).hasClass('select2-hidden-accessible')){
+                        $(this).trigger('change.select2');
+                    }
+                });
+                // Enhance with select2: click-to-toggle, searchable, scrollable.
+                $(id+" #reservables-vgpus").select2({
+                    width: '100%',
+                    closeOnSelect: false,
+                    placeholder: 'Select GPU profile(s)',
                 });
             }
             if (callback) {
@@ -252,7 +269,9 @@ function setHardwareDomainDefaults(div_id,domain){
     }else{
         $(div_id+' #reservables-vgpus option[value="None"]').prop("selected",true);
     }
-    $(div_id+' #reservables-vgpus').trigger('change.vgpurestrict');
+    // Plain 'change' so select2 re-renders the selection AND the hard-restrict
+    // handler (namespaced on change) runs.
+    $(div_id+' #reservables-vgpus').trigger('change');
 }
 
 function setHardwareDomainDefaultsDetails(domain_id,item){

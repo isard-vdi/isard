@@ -8,6 +8,7 @@
     <v-select
       v-model="vgpus"
       multiple
+      :close-on-select="false"
       :options="bookableOptions"
       label="name"
       :reduce="element => element.id"
