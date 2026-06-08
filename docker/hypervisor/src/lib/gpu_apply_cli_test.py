@@ -46,7 +46,14 @@ def test_cli_emits_json_error_on_exception(monkeypatch, capsys):
 def test_cli_passes_args_through(monkeypatch, capsys):
     seen = {}
 
-    def capture(pci_bdf, target_profile, action, mdevs_reset_at, mig_profile_id=None):
+    def capture(
+        pci_bdf,
+        target_profile,
+        action,
+        mdevs_reset_at,
+        mig_profile_id=None,
+        deliberate=False,
+    ):
         seen.update(
             pci_bdf=pci_bdf,
             target_profile=target_profile,
@@ -81,7 +88,14 @@ def test_cli_passes_args_through(monkeypatch, capsys):
 def test_cli_parses_mig_profile_id_as_int(monkeypatch):
     seen = {}
 
-    def capture(pci_bdf, target_profile, action, mdevs_reset_at, mig_profile_id=None):
+    def capture(
+        pci_bdf,
+        target_profile,
+        action,
+        mdevs_reset_at,
+        mig_profile_id=None,
+        deliberate=False,
+    ):
         seen["mig_profile_id"] = mig_profile_id
         return {"result": "applied"}
 
@@ -115,7 +129,7 @@ def test_build_report_seeds_mig_profile_id_when_descriptor_has_none(
     monkeypatch.setattr(
         gpu_apply,
         "apply_target",
-        lambda desc, target: captured.update(desc=desc, target=target)
+        lambda desc, target, deliberate=False: captured.update(desc=desc, target=target)
         or {"result": "applied"},
     )
     cli._build_report("0000:c5:00.0", "1g.24gb_me", "apply", None, mig_profile_id=19)
@@ -142,7 +156,8 @@ def test_build_report_does_not_override_live_mig_profiles(monkeypatch, tmp_path)
     monkeypatch.setattr(
         gpu_apply,
         "apply_target",
-        lambda desc, target: captured.update(desc=desc) or {"result": "applied"},
+        lambda desc, target, deliberate=False: captured.update(desc=desc)
+        or {"result": "applied"},
     )
     cli._build_report("0000:c5:00.0", "1g.24gb_me", "apply", None, mig_profile_id=99)
     # The live -lgip row wins: profile_id stays 7, nothing appended.
