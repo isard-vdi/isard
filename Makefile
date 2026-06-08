@@ -118,6 +118,11 @@ test-engine:
 
 _e2e_tty := $(if $(CI),,-it)
 
+# Usage:
+#   make test-e2e                                          # run all specs
+#   make test-e2e E2E_ARGS=tests/webapp/login.spec.js      # single spec
+#   make test-e2e E2E_ARGS='tests/vue2/'                   # one directory
+#   make test-e2e E2E_ARGS='--grep "should login"'         # by test name
 .PHONY: test-e2e-seed
 test-e2e-seed:
 	docker run $(_e2e_tty) --rm \
@@ -148,7 +153,7 @@ test-e2e: test-e2e-seed
 	-e E2E_BROWSER \
 	-v "${ISARDVDI_SRC}/testing/e2e:/e2e" \
 	-w "/e2e" \
-	mcr.microsoft.com/playwright:v1.57.0-jammy yarn playwright test
+	mcr.microsoft.com/playwright:v1.57.0-jammy yarn playwright test $(E2E_ARGS)
 
 .PHONY: test-apiv4
 test-apiv4:
@@ -306,7 +311,7 @@ test-e2e-stack:
 		-e E2E_RATE_LIMITS_ENABLED=false \
 		-v "${ISARDVDI_SRC}testing/e2e:/e2e" -w "/e2e" \
 		mcr.microsoft.com/playwright:v1.57.0-jammy \
-		yarn playwright test
+		yarn playwright test $(E2E_ARGS)
 
 .PHONY: test-e2e-stack-down
 test-e2e-stack-down:
