@@ -414,7 +414,7 @@ class UiActions(object):
                                 f"{_u}: {_re}"
                             )
 
-                for profile in gpu_profiles:
+                for guest_index, profile in enumerate(gpu_profiles):
                     per_reservables = {"vgpus": [profile]}
                     placed = False
                     # Retry per profile on a lost CAS (concurrent starters).
@@ -463,6 +463,7 @@ class UiActions(object):
                                 is_passthrough=(ei.get("profile") == "passthrough"),
                                 companion_pci_bdfs=ei.get("companion_pci_bdfs") or [],
                                 is_mig=ei.get("mig", False),
+                                guest_index=guest_index,
                             )
                         except ValueError as e:
                             log.error(
