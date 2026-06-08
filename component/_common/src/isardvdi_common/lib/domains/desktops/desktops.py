@@ -1123,7 +1123,21 @@ class DesktopsProcessed(RethinkSharedConnection):
                 description_code="duplicate",
             )
 
-        ## TODO: Permanently delete children if any
+        ## Block conversion if the template has dependent items in the recycle bin
+        recycle_bin_dependants = (
+            RecycleBinHelpers.get_template_dependant_recycle_bin_entries(
+                [data["template_id"]], "parents"
+            )
+            + RecycleBinHelpers.get_template_dependant_recycle_bin_entries(
+                [data["template_id"]], "duplicate_parent_template"
+            )
+        )
+        if recycle_bin_dependants:
+            raise Error(
+                "precondition_required",
+                f"Template {data['template_id']} has dependent items in the recycle bin",
+                description_code="storage_has_recycled_children",
+            )
 
         ## TODO: Delete deployments if any
 
@@ -1146,11 +1160,6 @@ class DesktopsProcessed(RethinkSharedConnection):
         }
         # Merge the new data with the existing desktop_data
         desktop_data = {**desktop_data, **new_desktop_data}
-
-        # Permanently delete dependants in recycle bin
-        RecycleBinHelpers.delete_dependants_recycle_bin_from_templates(
-            [data["template_id"]]
-        )
 
         with cls._rdb_context():
             r.table("domains").get(data["template_id"]).update(desktop_data).run(
