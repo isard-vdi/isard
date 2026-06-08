@@ -90,7 +90,7 @@ MAX_BOOKING_TIME = 12 * 60  # 12h
 
 # A desktop may carry several vGPU profiles, each on a distinct physical card.
 # Cap how many to keep placement tractable; bump if hardware allows more.
-MAX_VGPU_PROFILES_PER_DESKTOP = 2
+MAX_VGPU_PROFILES_PER_DESKTOP = 4
 
 
 def validate_reservables_vgpus(vgpus):
