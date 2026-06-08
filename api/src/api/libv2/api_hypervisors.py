@@ -1414,14 +1414,27 @@ class ApiHypervisors:
                 cards = list(
                     r.table("gpus")
                     .filter({"physical_device": vgpu_id})
-                    .pluck("id")
+                    .pluck("id", "operator_requested_profile", "operator_passthrough")
                     .run(db.conn)
                 )
             if not cards:
                 continue
-            card_id = cards[0]["id"]
+            card = cards[0]
+            card_id = card["id"]
             with app.app_context():
                 vrow = r.table("vgpus").get(vgpu_id).run(db.conn) or {}
+            # Operator intent: prefer the live vgpus row, but fall back to the
+            # PERSISTENT gpus catalog when the row is fresh -- a hypervisor
+            # restart deletes+recreates the vgpus row, dropping operator intent,
+            # so without this the operator's forced passthrough/profile is lost
+            # and the card has to be re-forced by hand after every reboot. The
+            # catalog mirror (update_requested_profile / update_operator_passthrough)
+            # is the durable copy; re-seeding here re-applies it automatically.
+            requested_profile = vrow.get("requested_profile")
+            operator_passthrough = bool(vrow.get("operator_passthrough"))
+            if requested_profile is None and not operator_passthrough:
+                requested_profile = card.get("operator_requested_profile")
+                operator_passthrough = bool(card.get("operator_passthrough"))
             available_types = {s: {} for s in (realizable_suffixes(gpu) or set())}
             # Default an un-booked, un-intented card to the profile it is ALREADY
             # running (keep_current, ephemeral -- no requested_profile write)
@@ -1435,11 +1448,11 @@ class ApiHypervisors:
             else:
                 fallback_default, keep_current = "passthrough", False
             decision = decide_reconcile_action(
-                requested_profile=vrow.get("requested_profile"),
+                requested_profile=requested_profile,
                 scheduled_profile=self.get_vgpu_scheduled_profile_now(card_id),
                 available_types=available_types,
                 sriov_totalvfs=(vrow.get("info") or {}).get("sriov_totalvfs", 0),
-                operator_passthrough=bool(vrow.get("operator_passthrough")),
+                operator_passthrough=operator_passthrough,
                 fallback_default=fallback_default,
                 keep_current=keep_current,
             )

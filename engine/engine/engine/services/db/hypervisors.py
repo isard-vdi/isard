@@ -1311,6 +1311,30 @@ def update_vgpu_profile(vgpu_id, vgpu_profile):
     close_rethink_connection(r_conn)
 
 
+def _mirror_operator_intent_to_catalog(vgpu_id, fields):
+    """Persist operator GPU intent durably in the gpus CATALOG row.
+
+    The live ``vgpus`` row is deleted+recreated on every hypervisor (re)start,
+    so operator intent stored only there is lost across a reboot -- the card
+    comes back un-intented and ``compute_gpu_targets`` no longer applies the
+    operator's passthrough (the cards had to be re-forced by hand). The ``gpus``
+    catalog row (keyed by ``physical_device == vgpu_id``) is persistent, so we
+    mirror the intent there; ``compute_gpu_targets`` re-seeds from it at
+    registration when the fresh vgpus row carries no intent. Best-effort: a
+    catalog write failure must not break the operator force.
+    """
+    r_conn = new_rethink_connection()
+    try:
+        r.table("gpus").filter({"physical_device": vgpu_id}).update(fields).run(r_conn)
+    except Exception as e:
+        logs.main.warning(
+            f"could not mirror operator intent {fields} to gpus catalog "
+            f"for {vgpu_id}: {e}"
+        )
+    finally:
+        close_rethink_connection(r_conn)
+
+
 def update_requested_profile(vgpu_id, requested_profile):
     """Set operator-requested profile for this vgpu.
 
@@ -1323,6 +1347,10 @@ def update_requested_profile(vgpu_id, requested_profile):
         {"requested_profile": requested_profile}
     ).run(r_conn)
     close_rethink_connection(r_conn)
+    # Durable mirror so the intent survives a hypervisor restart (see helper).
+    _mirror_operator_intent_to_catalog(
+        vgpu_id, {"operator_requested_profile": requested_profile}
+    )
 
 
 def update_operator_passthrough(vgpu_id, flag):
@@ -1340,6 +1368,8 @@ def update_operator_passthrough(vgpu_id, flag):
         {"operator_passthrough": bool(flag)}
     ).run(r_conn)
     close_rethink_connection(r_conn)
+    # Durable mirror so the intent survives a hypervisor restart (see helper).
+    _mirror_operator_intent_to_catalog(vgpu_id, {"operator_passthrough": bool(flag)})
 
 
 def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
