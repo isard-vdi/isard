@@ -33,6 +33,7 @@ import fcntl
 import json
 import os
 import sys
+import time
 
 SETUP_GPU_LOCK = "/run/isard-hyp-setup.lock"
 
@@ -66,6 +67,19 @@ def _build_report(
 
     target = {"target_profile": target_profile, "action": action}
 
+    # While a deliberate change is applied, drop a per-card marker so the qemu
+    # hook (gpu_change_guard) refuses any start that races onto this card. The
+    # engine's changing_to_profile placement veto is the first line; this is the
+    # authoritative host-side half. Removed in the finally so the card unblocks
+    # the moment the apply returns (the guard also ages markers out after 300s).
+    marker = f"/run/isard-gpu-change.{pci_bdf}" if deliberate else None
+    if marker:
+        try:
+            with open(marker, "w") as f:
+                f.write(f"{target_profile} {int(time.time())}\n")
+        except OSError:
+            pass
+
     lock_fd = os.open(SETUP_GPU_LOCK, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
@@ -81,6 +95,11 @@ def _build_report(
             os.close(lock_fd)
         except OSError:
             pass
+        if marker:
+            try:
+                os.remove(marker)
+            except OSError:
+                pass
 
 
 def main(argv=None):

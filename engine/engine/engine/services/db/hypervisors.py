@@ -886,7 +886,18 @@ def get_hypers_gpu_online(
         for pci, model in h["info"]["nvidia"].items():
             if model == gpu_model:
                 gpu_id = h["id"] + "-" + pci
-                gpu_profile_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_profile)
+                gpu_profile_active, mdevs, changing_to_profile = get_vgpus_mdevs(
+                    gpu_id, gpu_profile
+                )
+
+                if changing_to_profile:
+                    # A profile change is in progress on this card: it is being
+                    # torn down and re-carved, so it offers NO bookable capacity
+                    # until the new profile is up. Skip it so NO desktop (user
+                    # click, autostart, scheduler, booking, or a forced-hyp
+                    # server desktop) is placed on a card mid-change -- a start
+                    # there would re-grab the card and wedge the teardown.
+                    continue
 
                 if gpu_profile_active == gpu_profile:
                     # get_vgpus_mdevs plucks {"mdevs": [gpu_profile]}, so a card

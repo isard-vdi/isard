@@ -635,6 +635,25 @@ class UiActions(object):
                 and len(reservables.get("vgpus", []))
             ):
                 gpu_profiles = reservables.get("vgpus", [])
+                # A GPU start can fail to place because the card it needs is
+                # mid profile-change (the placement query skips a card whose
+                # changing_to_profile is set). That is TRANSIENT, not a real
+                # failure: leave the desktop Stopped (not Failed) with a retry
+                # hint so the user / autostart / scheduler can try again once
+                # the new profile is up, instead of stranding it Failed.
+                from engine.services.db.domains import any_vgpu_changing_profile
+
+                if any_vgpu_changing_profile():
+                    update_domain_status(
+                        status="Stopped",
+                        id_domain=id_domain,
+                        hyp_id=False,
+                        detail=(
+                            "GPU is reconfiguring (profile change in progress); "
+                            "try again in a few minutes"
+                        ),
+                    )
+                    return False
                 detail = (
                     f"desktop not started: no hypervisors online in pool {pool_id} "
                     f"with GPU profile {gpu_profiles}"

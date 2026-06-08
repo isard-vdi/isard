@@ -52,6 +52,20 @@ sub_operation="$3"
 # Read XML from stdin immediately (must be consumed)
 XML=$(cat -)
 
+# GPU profile-change start-block (host-side half; the engine's
+# changing_to_profile placement veto is the first line). On prepare/start --
+# BEFORE qemu launches -- refuse a domain whose GPU hostdev references a card
+# whose PF is mid profile-change (a fresh /run/isard-gpu-change.<pf-bdf> marker).
+# This stops a start that raced the engine veto from re-grabbing a card being
+# torn down (which would wedge the PF). The guard only reads sysfs + /run; it
+# never calls virsh (which would deadlock libvirtd).
+if [ "${operation}" = "prepare" ] || [ "${operation}" = "start" ]; then
+    if ! printf '%s' "$XML" | python3 /src/lib/gpu_change_guard.py; then
+        echo "qemu hook: refusing start of ${domain_name} -- a GPU card is mid profile-change" >&2
+        exit 1
+    fi
+fi
+
 # Determine what action to take based on operation
 case "${operation}" in
     started)
