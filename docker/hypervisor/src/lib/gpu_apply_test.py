@@ -272,6 +272,46 @@ def test_apply_skipped_when_busy(monkeypatch):
     assert h.cmds == []
 
 
+def test_deliberate_busy_quiesce_fail_aborts_without_unbind(monkeypatch):
+    # THE anti-wedge assertion: a deliberate change on a busy card whose holders
+    # cannot be cleared must report teardown_blocked and emit NO unbind /
+    # sriov-manage -d / -mig teardown -- unbinding an in-use vfio device wedges
+    # the PF in uninterruptible D-state.
+    h = _Host(driver="nvidia", live="4Q", busy=True)
+    _patch_host(monkeypatch, h)
+    monkeypatch.setattr(
+        ga, "_quiesce_card", lambda gpu, run: (False, "card 0000:c5:00.0 still held")
+    )
+    rep = ga.apply_target(
+        {"pci_bus_id": "0000:c5:00.0"},
+        {"target_profile": "passthrough", "action": "apply"},
+        run=h.run,
+        deliberate=True,
+    )
+    assert rep["result"] == "teardown_blocked"
+    assert "still held" in rep["error"]
+    joined = "\n".join(h.cmds)
+    assert "unbind" not in joined
+    assert "sriov-manage -d" not in joined
+    assert "-mig 0" not in joined
+
+
+def test_deliberate_busy_quiesce_ok_proceeds(monkeypatch):
+    # When the holders ARE cleared, the deliberate change proceeds to apply.
+    h = _Host(driver="nvidia", live=None, busy=True)
+    _patch_host(monkeypatch, h)
+    monkeypatch.setattr(ga, "_quiesce_card", lambda gpu, run: (True, "cleared"))
+    gpu = {"pci_bus_id": "0000:c5:00.0", "sriov_totalvfs": 16, "sriov_numvfs": 16}
+    rep = ga.apply_target(
+        gpu,
+        {"target_profile": "passthrough", "action": "apply"},
+        run=h.run,
+        deliberate=True,
+    )
+    assert rep["result"] == "applied"
+    assert rep["binding"] == "vfio-pci"
+
+
 def test_apply_advisory_skip(monkeypatch):
     h = _Host(driver="nvidia", live="4Q")
     _patch_host(monkeypatch, h)
@@ -539,7 +579,7 @@ def test_apply_targets_orders_non_mig_before_mig(monkeypatch):
     monkeypatch.setattr(
         ga,
         "apply_target",
-        lambda gpu, target, run=None: order.append(gpu["pci_bus_id"])
+        lambda gpu, target, run=None, deliberate=False: order.append(gpu["pci_bus_id"])
         or {"result": "applied"},
     )
     gpus = [

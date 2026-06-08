@@ -21,11 +21,12 @@ touches the host is validated on a GPU host.
 
 import logging
 import os
+import signal
 import time
 import uuid as _uuid
 
 import gpu_probe
-from gpu_discovery import _get_vgpu_profiles, _vfio_group_in_use
+from gpu_discovery import _card_in_use, _get_vgpu_profiles, _vfio_group_in_use
 from gpu_probe import (
     MIG_CURRENT,
     _enumerate_vf_sub_paths,
@@ -153,10 +154,10 @@ def _resolve_type_id(pci_bdf, suffix, sub_paths=None):
 
 
 def _card_busy(base_path):
-    """True if a live VFIO consumer holds this card (never disturb it at
-    registration). _vfio_group_in_use is itself conservative (True on any read
-    error) and is a module-level import now (no cycle)."""
-    return _vfio_group_in_use(base_path)
+    """True if a live VFIO consumer holds this card -- the PF passthrough group
+    OR any SR-IOV VF mdev (vGPU/MIG desktops). Never disturb a busy card at
+    registration. _card_in_use is conservative (True on any read error)."""
+    return _card_in_use(base_path)
 
 
 def _mig_profile_ids(gpu):
@@ -363,14 +364,153 @@ def _wait_for_driver(pci_bdf, expected, run):
     return drv
 
 
-def apply_target(gpu, target, run=run_local):
+# --------------------------------------------------------------------------- #
+# Deliberate profile-change quiesce: force-stop every qemu holding the card
+# (PF or any VF) before a teardown, then verify release. NEVER unbind an in-use
+# vfio device -- that wedges the PF in uninterruptible D-state (reboot-only).
+# Used ONLY on a deliberate change (runtime profile change / operator force),
+# never on registration/advisory applies. Runtime: libvirtd is up so we virsh
+# destroy the owning domains; boot: libvirtd is down and normally no qemu
+# exists, so the SIGKILL fallback handles a stray leftover. The /proc + os.kill
+# probes are the unit-test monkeypatch points.
+# --------------------------------------------------------------------------- #
+_QUIESCE_ATTEMPTS = 10
+_QUIESCE_DELAY = 1  # s; ~10s for qemu to release the vfio fd after destroy
+
+
+def _card_vfio_targets(base_path):
+    """Realpaths of /dev/vfio/<group> for this card's PF and every VF."""
+    groups = []
+    try:
+        groups.append(
+            os.path.basename(os.path.realpath(os.path.join(base_path, "iommu_group")))
+        )
+    except OSError:
+        pass
+    try:
+        for name in os.listdir(base_path):
+            if name.startswith("virtfn"):
+                groups.append(
+                    os.path.basename(
+                        os.path.realpath(os.path.join(base_path, name, "iommu_group"))
+                    )
+                )
+    except OSError:
+        pass
+    targets = set()
+    for g in groups:
+        dev = f"/dev/vfio/{g}"
+        if os.path.exists(dev):
+            try:
+                targets.add(os.path.realpath(dev))
+            except OSError:
+                pass
+    return targets
+
+
+def _card_holder_pids(base_path):
+    """PIDs holding this card's PF or any VF /dev/vfio group (the qemu(s) using
+    the card). Best-effort (empty on read errors); the conservative bool guard
+    is gpu_discovery._card_in_use."""
+    targets = _card_vfio_targets(base_path)
+    pids = set()
+    if not targets:
+        return pids
+    try:
+        proc = os.listdir("/proc")
+    except OSError:
+        return pids
+    for pid in proc:
+        if not pid.isdigit():
+            continue
+        fd_dir = f"/proc/{pid}/fd"
+        try:
+            fds = os.listdir(fd_dir)
+        except OSError:
+            continue
+        for fd in fds:
+            try:
+                if os.path.realpath(os.path.join(fd_dir, fd)) in targets:
+                    pids.add(int(pid))
+                    break
+            except OSError:
+                pass
+    return pids
+
+
+def _domain_of_pid(pid):
+    """libvirt domain name from a qemu PID's cmdline (``-name guest=<dom>``),
+    or None."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            args = f.read().split(b"\x00")
+    except OSError:
+        return None
+    for i, a in enumerate(args):
+        if a == b"-name" and i + 1 < len(args):
+            a = args[i + 1]
+        for part in a.decode("utf-8", "replace").split(","):
+            if part.startswith("guest="):
+                return part[len("guest=") :]
+    return None
+
+
+def _quiesce_card(gpu, run):
+    """Force-stop every qemu holding this card (PF or VFs), then verify the card
+    is released. Returns ``(cleared, reason)``. The caller MUST NOT proceed to a
+    teardown when this returns False -- unbinding an in-use vfio device wedges
+    the PF in uninterruptible D-state."""
+    pci_bdf = gpu["pci_bus_id"]
+    base_path = gpu.get("path") or f"/sys/bus/pci/devices/{pci_bdf}"
+    if not _card_in_use(base_path):
+        return True, "no holders"
+    pids = _card_holder_pids(base_path)
+    log.info(
+        "quiesce %s: card in use, holder pids=%s -- stopping", pci_bdf, sorted(pids)
+    )
+    for pid in pids:
+        dom = _domain_of_pid(pid)
+        if dom:
+            log.info("quiesce %s: virsh destroy %s (pid %s)", pci_bdf, dom, pid)
+            run([f"virsh destroy {dom} 2>/dev/null || true"], timeout=20)
+    for _ in range(_QUIESCE_ATTEMPTS):
+        if not _card_in_use(base_path):
+            return True, "cleared"
+        _SLEEP(_QUIESCE_DELAY)
+    # Last resort: SIGKILL whatever still holds it (orphaned qemu / boot-time
+    # leftover with no libvirt domain).
+    for pid in _card_holder_pids(base_path):
+        try:
+            os.kill(pid, signal.SIGKILL)
+            log.warning(
+                "quiesce %s: SIGKILL pid %s (destroy did not release)", pci_bdf, pid
+            )
+        except OSError:
+            pass
+    for _ in range(_QUIESCE_ATTEMPTS):
+        if not _card_in_use(base_path):
+            return True, "cleared after SIGKILL"
+        _SLEEP(_QUIESCE_DELAY)
+    return False, (
+        f"card {pci_bdf} still held after destroy+kill "
+        f"(pids={sorted(_card_holder_pids(base_path))})"
+    )
+
+
+def apply_target(gpu, target, run=run_local, deliberate=False):
     """Apply one card's target profile locally and return the applied-state
     report the caller POSTs back to the API.
 
     Reports 'applied' ONLY after a post-apply driver readback (and, for vGPU, a
     materialised mdev) confirms the sysfs sequence took; otherwise 'error', so
     ingest never persists a lie and the engine reconcile recovers on the next
-    cycle."""
+    cycle.
+
+    On a ``deliberate`` change (runtime profile change / operator force) any
+    qemu holding the card (PF or a VF) is force-stopped before teardown; the
+    apply ABORTS with ``result='teardown_blocked'`` if a holder can't be cleared
+    (unbinding an in-use vfio device wedges the PF in D-state). A non-deliberate
+    (registration/advisory) apply leaves a busy card untouched (skipped_busy)."""
     pci_bdf = gpu["pci_bus_id"]
     base_path = gpu.get("path") or f"/sys/bus/pci/devices/{pci_bdf}"
     reset_at = gpu.get("mdevs_reset_at")
@@ -402,15 +542,16 @@ def apply_target(gpu, target, run=run_local):
 
     action = decide_apply_action(current, wanted, _card_busy(base_path))
     log.info(
-        "apply %s: current=%s wanted=%s action=%s (driver=%s mig=%s)",
+        "apply %s: current=%s wanted=%s action=%s (driver=%s mig=%s deliberate=%s)",
         pci_bdf,
         current,
         wanted,
         action,
         driver,
         mig_mode,
+        deliberate,
     )
-    if action in ("noop", "skipped_busy"):
+    if action == "noop" or (action == "skipped_busy" and not deliberate):
         log.info("apply %s: %s -- nothing to do, existing pool kept", pci_bdf, action)
         # Carry mdevs_reset_at so the API can re-pin mdevs_last_synced_at even
         # though nothing was applied: a noop/busy card's existing pool is still
@@ -426,6 +567,22 @@ def apply_target(gpu, target, run=run_local):
             mig_mode=mig_mode,
             mdevs_reset_at=reset_at,
         )
+
+    # We are about to MUTATE the card (action == "apply", or a deliberate change
+    # on a busy card). On a deliberate change, force-stop any qemu holding the
+    # card FIRST -- unbinding an in-use vfio device wedges the PF in D-state.
+    if deliberate:
+        cleared, reason = _quiesce_card(gpu, run)
+        if not cleared:
+            log.error("apply %s: deliberate change ABORTED -- %s", pci_bdf, reason)
+            return _report(
+                pci_bdf,
+                "teardown_blocked",
+                previous=current,
+                binding=_read_driver(pci_bdf, run),
+                mig_mode=mig_mode,
+                error=reason,
+            )
 
     # Apply + verify, with a bounded retry so a transient post-restart settle
     # race (driver not yet re-attached, VF not yet ready for the mdev write)
@@ -523,7 +680,7 @@ def _is_mig_target(gpu, targets):
     return target_suffix(targets.get(gpu.get("pci_bus_id"))) in _mig_profile_ids(gpu)
 
 
-def apply_targets(nvidia_gpus, targets, run=run_local, progress=None):
+def apply_targets(nvidia_gpus, targets, run=run_local, progress=None, deliberate=False):
     """Apply the per-card targets (keyed by pci_bus_id) for all discovered GPUs.
     Returns {pci_bus_id: report}. Best-effort: one card failing never aborts the
     others.
@@ -565,7 +722,9 @@ def apply_targets(nvidia_gpus, targets, run=run_local, progress=None):
             except Exception:
                 pass  # progress reporting must never break the apply
         try:
-            applied[pci_bdf] = apply_target(gpu, targets.get(pci_bdf), run=run)
+            applied[pci_bdf] = apply_target(
+                gpu, targets.get(pci_bdf), run=run, deliberate=deliberate
+            )
         except Exception as e:
             log.warning("apply [%d/%d] %s raised: %s", idx, total, pci_bdf, e)
             applied[pci_bdf] = _report(pci_bdf, "error", error=str(e))

@@ -826,3 +826,40 @@ def test_build_card_descriptor_is_readonly(monkeypatch):
         sriov={"sriov_totalvfs": 16, "sriov_numvfs": 16},
     )
     gd.build_card_descriptor("0000:c5:00.0", mdevs_reset_at="T")
+
+
+def test_card_in_use_detects_vf_holder(monkeypatch):
+    """_card_in_use must see a consumer on ANY SR-IOV VF, not just the PF
+    group (the gap that let a vGPU desktop's card be torn down -> D-state wedge)."""
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_vfio_group_in_use", lambda p: False)  # PF free
+    monkeypatch.setattr(gd.os, "listdir", lambda p: ["virtfn0", "config", "driver"])
+    monkeypatch.setattr(
+        gd.os.path,
+        "realpath",
+        lambda p: "/sys/kernel/iommu_groups/42" if p.endswith("iommu_group") else p,
+    )
+    monkeypatch.setattr(gd, "_vfio_group_held", lambda g: g == "42")  # VF held
+    assert gd._card_in_use("/sys/bus/pci/devices/0000:03:00.0") is True
+
+
+def test_card_in_use_false_when_pf_and_vfs_free(monkeypatch):
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_vfio_group_in_use", lambda p: False)
+    monkeypatch.setattr(gd.os, "listdir", lambda p: ["virtfn0", "config"])
+    monkeypatch.setattr(
+        gd.os.path,
+        "realpath",
+        lambda p: "/sys/kernel/iommu_groups/42" if p.endswith("iommu_group") else p,
+    )
+    monkeypatch.setattr(gd, "_vfio_group_held", lambda g: False)
+    assert gd._card_in_use("/sys/bus/pci/devices/0000:03:00.0") is False
+
+
+def test_card_in_use_true_when_pf_held(monkeypatch):
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_vfio_group_in_use", lambda p: True)  # PF held
+    assert gd._card_in_use("/sys/bus/pci/devices/0000:03:00.0") is True
