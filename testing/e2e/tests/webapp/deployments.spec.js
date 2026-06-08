@@ -241,11 +241,7 @@ test.describe('Admin Deployments — webapp', () => {
   // ──────────────────────────────────────────────────────────────────────────
   // S2b — admin expands a deployment row and sees the hardware panel
   // ──────────────────────────────────────────────────────────────────────────
-  // Skipped: GET /api/v4/item/deployment/{id}/hardware returns 500.
-  // DeploymentHardwareResponse expects interfaces as list[str] or list[Interface]
-  // (with mac field) but the DB returns {id, name} objects without mac.
-  // Bug reported — unskip once fixed.
-  test.skip('S2b: expanding a row shows hardware panel populated', async ({
+  test('S2b: expanding a row shows hardware panel populated', async ({
     authenticatedPage: page,
     apiv4Admin,
   }, testInfo) => {
