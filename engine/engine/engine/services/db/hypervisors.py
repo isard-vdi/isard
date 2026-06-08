@@ -962,7 +962,16 @@ def get_hypers_gpu_online(
             if model != gpu_model:
                 continue
             gpu_id_k = h["id"] + "-" + pci_k
-            gpu_profile_active, mdevs = get_vgpus_mdevs(gpu_id_k, gpu_profile)
+            gpu_profile_active, mdevs, changing_to_profile = get_vgpus_mdevs(
+                gpu_id_k, gpu_profile
+            )
+            # A profile change in progress: the card is being torn down and
+            # re-carved, so it offers NO bookable capacity until the new profile
+            # is up. Skip it so no desktop (user/autostart/scheduler/booking/
+            # forced) is placed on a card mid-change -- a start there would
+            # re-grab it and wedge the teardown.
+            if changing_to_profile:
+                continue
             # get_vgpus_mdevs plucks {"mdevs": [gpu_profile]}, so a card whose
             # pool lacks that key (mid-transition, stale active field, pool not
             # yet rebuilt) yields an EMPTY mdevs dict - treat it as "no free
