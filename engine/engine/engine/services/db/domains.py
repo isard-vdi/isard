@@ -1059,16 +1059,39 @@ def update_vgpu_uuid_domain_action(
     return True
 
 
+def any_vgpu_changing_profile():
+    """True if ANY GPU card currently has a profile change in progress
+    (``changing_to_profile`` set). Used to render a blocked GPU start as a
+    transient 'retry in a few minutes' instead of a hard Failed."""
+    r_conn = new_rethink_connection()
+    try:
+        n = (
+            r.table("vgpus")
+            .filter(lambda v: v["changing_to_profile"].default(False).ne(False))
+            .count()
+            .run(r_conn)
+        )
+    except Exception:
+        close_rethink_connection(r_conn)
+        return False
+    close_rethink_connection(r_conn)
+    return n > 0
+
+
 def get_vgpus_mdevs(id_gpu, type_gpu):
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
     try:
-        d = rtable.get(id_gpu).pluck("vgpu_profile", {"mdevs": [type_gpu]}).run(r_conn)
+        d = (
+            rtable.get(id_gpu)
+            .pluck("vgpu_profile", "changing_to_profile", {"mdevs": [type_gpu]})
+            .run(r_conn)
+        )
     except Exception as e:
         close_rethink_connection(r_conn)
-        return False, {}
+        return False, {}, False
     close_rethink_connection(r_conn)
-    return d["vgpu_profile"], d["mdevs"]
+    return d["vgpu_profile"], d["mdevs"], d.get("changing_to_profile", False)
 
 
 def domain_get_vgpu_info(domain_id):

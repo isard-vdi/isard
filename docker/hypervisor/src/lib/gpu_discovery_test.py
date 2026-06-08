@@ -905,3 +905,40 @@ def test_annotate_mig_backed_noop_without_gfx_gi():
         vgpu, [{"name": "1g.24gb", "profile_id": 14, "max_instances": 4}]
     )
     assert "mig" not in vgpu[0]
+
+
+def test_card_in_use_detects_vf_holder(monkeypatch):
+    """_card_in_use must see a consumer on ANY SR-IOV VF, not just the PF
+    group (the gap that let a vGPU desktop's card be torn down -> D-state wedge)."""
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_vfio_group_in_use", lambda p: False)  # PF free
+    monkeypatch.setattr(gd.os, "listdir", lambda p: ["virtfn0", "config", "driver"])
+    monkeypatch.setattr(
+        gd.os.path,
+        "realpath",
+        lambda p: "/sys/kernel/iommu_groups/42" if p.endswith("iommu_group") else p,
+    )
+    monkeypatch.setattr(gd, "_vfio_group_held", lambda g: g == "42")  # VF held
+    assert gd._card_in_use("/sys/bus/pci/devices/0000:03:00.0") is True
+
+
+def test_card_in_use_false_when_pf_and_vfs_free(monkeypatch):
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_vfio_group_in_use", lambda p: False)
+    monkeypatch.setattr(gd.os, "listdir", lambda p: ["virtfn0", "config"])
+    monkeypatch.setattr(
+        gd.os.path,
+        "realpath",
+        lambda p: "/sys/kernel/iommu_groups/42" if p.endswith("iommu_group") else p,
+    )
+    monkeypatch.setattr(gd, "_vfio_group_held", lambda g: False)
+    assert gd._card_in_use("/sys/bus/pci/devices/0000:03:00.0") is False
+
+
+def test_card_in_use_true_when_pf_held(monkeypatch):
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_vfio_group_in_use", lambda p: True)  # PF held
+    assert gd._card_in_use("/sys/bus/pci/devices/0000:03:00.0") is True

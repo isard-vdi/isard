@@ -1419,14 +1419,33 @@ function renderStatus(data) {
       }
       break;
     case 'Offline':
-      if (data.boot_progress && data.boot_progress.step) {
-        var bp = data.boot_progress;
+      var bp = data.boot_progress;
+      // Freshness guard: a boot_progress report lingers in the DB after a boot,
+      // so only treat it as "currently booting" when the last update is recent.
+      // Without this a long-offline hyp would keep showing a stale boot stage.
+      var bpFresh = bp && bp.timestamp && ((Date.now() / 1000 - bp.timestamp) < 600);
+      // NB: step can be 0 (GPU/hardware discovery -- the longest phase), so test
+      // `!= null`, never truthiness, or step 0 silently renders as plain Offline.
+      if (bp && bp.step != null && bpFresh) {
+        var fullLabel = bp.label || '';
+        // Brief label in the cell so the table column stays compact; full stage
+        // detail goes in the hover tooltip.
+        var brief = fullLabel.length > 30 ? fullLabel.slice(0, 29) + '…' : fullLabel;
+        var elapsed = Math.max(0, Math.round(Date.now() / 1000 - bp.timestamp));
+        var detailParts = [
+          'Boot step ' + bp.step + '/' + bp.total + ': ' + fullLabel,
+          'Updated ' + elapsed + 's ago',
+        ];
+        if (bp.error) { detailParts.push('Error: ' + String(bp.error)); }
+        // title="" tooltip: collapse quotes + use &#10; for line breaks (matches
+        // the other multi-line tooltips in this file).
+        var tip = detailParts.join('&#10;').replace(/"/g, '&quot;');
         if (bp.error) {
-          icon = '<i class="fa fa-exclamation-triangle fa-2x" style="color:red" title="' + bp.error + '"></i>';
-          statusText = bp.step + '/' + bp.total + ': ' + bp.label + ' (error)';
+          icon = '<i class="fa fa-exclamation-triangle fa-2x" style="color:red" title="' + tip + '"></i>';
+          statusText = '<span style="cursor:help" title="' + tip + '">' + bp.step + '/' + bp.total + ': ' + brief + ' (error)</span>';
         } else {
-          icon = '<i class="fa fa-spinner fa-pulse fa-2x" style="color:cornflowerblue"></i>';
-          statusText = bp.step + '/' + bp.total + ': ' + bp.label;
+          icon = '<i class="fa fa-spinner fa-pulse fa-2x" style="color:cornflowerblue" title="' + tip + '"></i>';
+          statusText = '<span style="cursor:help" title="' + tip + '">' + bp.step + '/' + bp.total + ': ' + brief + '</span>';
         }
       } else {
         icon = '<i class="fa fa-power-off fa-2x" style="color:black"></i>';

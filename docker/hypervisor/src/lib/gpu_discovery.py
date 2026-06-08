@@ -2040,24 +2040,10 @@ def discover_numa_topology(probe_libvirt=False):
     return {"libvirt_numa_ok": ok, "reason": reason, "nodes": nodes}
 
 
-def _vfio_group_in_use(dev_path):
-    """True if any process holds /dev/vfio/<group> for this PCI device.
-
-    Walks /proc/*/fd to detect open handles. Conservative — on read errors,
-    returns True so we never rebind a device a live qemu is using.
-    """
-    iommu_link = os.path.join(dev_path, "iommu_group")
-    try:
-        group = os.path.basename(os.path.realpath(iommu_link))
-    except OSError:
-        return True
-    vfio_dev = f"/dev/vfio/{group}"
-    if not os.path.exists(vfio_dev):
-        return False
-    try:
-        target = os.path.realpath(vfio_dev)
-    except OSError:
-        return True
+def _proc_holds_realpath(target):
+    """True if any /proc/*/fd entry resolves to ``target``. Conservative:
+    returns True on a top-level /proc read error so a held device is never
+    reported free."""
     try:
         pids = os.listdir("/proc")
     except OSError:
@@ -2076,6 +2062,65 @@ def _vfio_group_in_use(dev_path):
                     return True
             except OSError:
                 pass
+    return False
+
+
+def _vfio_group_held(group):
+    """True if a process holds ``/dev/vfio/<group>``. False if the node does not
+    exist (no consumer possible); True on a resolve error (conservative)."""
+    vfio_dev = f"/dev/vfio/{group}"
+    if not os.path.exists(vfio_dev):
+        return False
+    try:
+        target = os.path.realpath(vfio_dev)
+    except OSError:
+        return True
+    return _proc_holds_realpath(target)
+
+
+def _vfio_group_in_use(dev_path):
+    """True if any process holds the PF's ``/dev/vfio/<group>``.
+
+    PF-only check, kept for ``_rebind_vfio_to_nvidia_if_idle``. For the
+    teardown / profile-change in-use guard use ``_card_in_use``, which also
+    covers the SR-IOV VFs. Conservative — True on read errors.
+    """
+    iommu_link = os.path.join(dev_path, "iommu_group")
+    try:
+        group = os.path.basename(os.path.realpath(iommu_link))
+    except OSError:
+        return True
+    return _vfio_group_held(group)
+
+
+def _card_in_use(dev_path):
+    """True if a live consumer (qemu) holds this GPU card -- the PF's
+    ``/dev/vfio`` group OR ANY of its SR-IOV VFs' ``/dev/vfio`` groups.
+
+    The PF-only ``_vfio_group_in_use`` missed vGPU/MIG desktops, whose qemu
+    holds a VF's mdev (a VF iommu group), not the PF group. Tearing a card down
+    while a VF is held wedges the PCI device in uninterruptible D-state, so this
+    guard must see VF consumers too. (NVIDIA non-VM clients -- persistenced /
+    CUDA -- are caught by the unbindLock honored during the teardown itself.)
+    Conservative -- True on any read error.
+    """
+    if _vfio_group_in_use(dev_path):  # PF group
+        return True
+    try:
+        entries = os.listdir(dev_path)  # virtfn* symlinks the kernel publishes
+    except OSError:
+        return True
+    for name in entries:
+        if not name.startswith("virtfn"):
+            continue
+        try:
+            vf_group = os.path.basename(
+                os.path.realpath(os.path.join(dev_path, name, "iommu_group"))
+            )
+        except OSError:
+            return True
+        if _vfio_group_held(vf_group):
+            return True
     return False
 
 
