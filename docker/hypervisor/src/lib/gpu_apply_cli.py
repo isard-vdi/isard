@@ -44,6 +44,7 @@ def _build_report(
     mdevs_reset_at,
     mig_profile_id=None,
     mig_count=None,
+    deliberate=False,
 ):
     # Imports are deferred so an argparse/usage error doesn't depend on the
     # GPU libs being importable. gpu_apply + gpu_discovery live beside this file.
@@ -85,7 +86,7 @@ def _build_report(
     lock_fd = os.open(SETUP_GPU_LOCK, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
-        return gpu_apply.apply_target(desc, target)
+        return gpu_apply.apply_target(desc, target, deliberate=deliberate)
     finally:
         # Guard the release so a flock/close error can never mask the real
         # exception from apply_target (closing the fd releases the lock anyway).
@@ -107,6 +108,12 @@ def main(argv=None):
     parser.add_argument("--mdevs-reset-at", default=None)
     parser.add_argument("--mig-profile-id", default=None, type=int)
     parser.add_argument("--mig-count", default=None, type=int)
+    parser.add_argument(
+        "--deliberate",
+        action="store_true",
+        help="Operator/scheduler-initiated change: force-stop any qemu holding "
+        "the card before teardown (never on registration/advisory applies).",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -117,6 +124,7 @@ def main(argv=None):
             args.mdevs_reset_at,
             args.mig_profile_id,
             args.mig_count,
+            deliberate=args.deliberate,
         )
         print(json.dumps(report))
         return 0

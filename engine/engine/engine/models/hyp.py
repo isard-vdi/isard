@@ -850,11 +850,17 @@ class hyp(object):
         reset_at = datetime.now(timezone.utc).isoformat()
         target_type = (pci_info.get("types") or {}).get(new_profile) or {}
         mig_count = target_type.get("mig_count") or target_type.get("max")
+        # --deliberate: this is an operator/scheduler-initiated runtime change,
+        # so the hypervisor force-stops any qemu still holding the card before
+        # teardown (defense-in-depth; the engine already quiesced inline) instead
+        # of skipping a busy card -- and aborts rather than unbinding an in-use
+        # vfio device (which would wedge the PF in D-state).
         cmd = (
             "python3 /src/lib/gpu_apply_cli.py "
             f"--pci-bdf {shlex.quote(pci_bdf)} "
             f"--target-profile {shlex.quote(new_profile)} "
-            f"--mdevs-reset-at {shlex.quote(reset_at)}"
+            f"--mdevs-reset-at {shlex.quote(reset_at)} "
+            "--deliberate"
         )
         if mig_profile_id is not None:
             cmd += f" --mig-profile-id {shlex.quote(str(mig_profile_id))}"
@@ -1330,7 +1336,22 @@ class hyp(object):
                 if report is not None and report.get("result") in ("applied", "noop"):
                     self._ingest_cli_report(gpu_id, pci_id, new_profile, report)
                     update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    update_table_field("vgpus", gpu_id, "last_apply_error", None)
                     return None
+                if report is not None and report.get("result") == "teardown_blocked":
+                    # A live qemu still holds the card and could not be cleared.
+                    # NEVER fall back to a forced inline teardown -- unbinding an
+                    # in-use vfio device wedges the PF in uninterruptible D-state.
+                    # Abort cleanly: the card keeps its current profile and the
+                    # operator sees why (retry once the holder releases).
+                    reason = report.get("error") or "card in use"
+                    logs.main.error(
+                        f"gpu_apply_cli teardown_blocked for {gpu_id} -> "
+                        f"{new_profile}: {reason}; aborting profile change"
+                    )
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    update_table_field("vgpus", gpu_id, "last_apply_error", reason)
+                    return False
                 # None (invocation/parse failure) or a non-clean result
                 # (error/skipped_busy/skipped_advisory) -> fall back to the proven
                 # inline apply, which re-attempts from the live state, instead of
