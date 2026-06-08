@@ -105,6 +105,16 @@ def test_passthrough_without_operator_flag_refused():
     assert d["action"] == "refuse_passthrough"
 
 
+def test_scheduled_passthrough_applies_without_operator_flag():
+    # Calendar is king: a passthrough that the planning calendar schedules for
+    # this card applies even when operator_passthrough is False -- the planning
+    # IS the opt-in for the (destructive) vfio-pci rebind. Covers a card that
+    # exposes both vGPU and passthrough types, has no operator flag, and has a
+    # current passthrough planning.
+    d = _decide(scheduled_profile="passthrough")
+    assert d == {"action": "apply", "profile": "passthrough"}
+
+
 def test_valid_scheduled_applies():
     d = _decide(scheduled_profile="4Q")
     assert d == {"action": "apply", "profile": "4Q"}

@@ -124,7 +124,10 @@ def decide_reconcile_action(
       * ``{"action": "skip_fault", ...}``  requested profile genuinely
         unavailable on this hardware; surface a fault and skip, never mutate.
       * ``{"action": "refuse_passthrough", ...}``  effective resolved to
-        passthrough but ``operator_passthrough`` is False — refuse, skip.
+        passthrough but ``operator_passthrough`` is False AND it is not a
+        planning-scheduled passthrough — refuse, skip. A passthrough scheduled
+        by the planning calendar (``scheduled_profile == "passthrough"``) is
+        authoritative and returns ``apply`` instead.
       * ``{"action": "apply", "profile": ...}``  valid; apply.
       * ``{"action": "seed_and_apply", "profile": ...}``  first-ever discovery
         with no operator intent yet — caller writes ``requested_profile`` (and
@@ -177,7 +180,17 @@ def decide_reconcile_action(
         # treat as apply.
         return {"action": "apply", "profile": fallback_default}
 
-    if effective == "passthrough" and not operator_passthrough:
+    if (
+        effective == "passthrough"
+        and not operator_passthrough
+        and scheduled_profile != "passthrough"
+    ):
+        # A reconcile-driven vfio-pci rebind (destructive: tears down SR-IOV) is
+        # refused unless the operator opted in -- BUT a passthrough that the
+        # planning calendar schedules for this card IS that opt-in (the booking
+        # planner is authoritative for what a card runs now). So refuse only a
+        # passthrough coming from requested_profile/fallback without a scheduled
+        # plan; a scheduled passthrough falls through to "apply".
         return {
             "action": "refuse_passthrough",
             "reason": "operator_passthrough_not_set",
