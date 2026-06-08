@@ -398,6 +398,11 @@ $(document).ready(function() {
             if (data['edit-network'] && (data['hardware-interfaces'] === undefined || data['hardware-interfaces'] === null)) {
                 data['hardware-interfaces'] = [];
             }
+            // Multi-select: read the full array from the select (serializeObject
+            // collapses a repeated field to a single value).
+            if ('reservables-vgpus' in data) {
+                data['reservables-vgpus'] = $('#modalBulkEditForm #reservables-vgpus').val() || []
+            }
             data = parse_desktop_bulk(data)
 
             var notice = new PNotify({
@@ -2055,11 +2060,10 @@ function renderAction(data){
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalEdit').serializeObject();
-                // Only wrap a scalar selection; don't double-wrap (and corrupt)
-                // a multi-profile desktop authored in the new frontend.
-                if (!Array.isArray(data['reservables-vgpus'])) {
-                    data['reservables-vgpus'] = [data['reservables-vgpus']]
-                }
+                // The GPU control is a multi-select: serializeObject() keeps only
+                // ONE value for a repeated field, so read the full array straight
+                // from the select (select2 keeps the underlying <select> in sync).
+                data['reservables-vgpus'] = $('#modalEdit #reservables-vgpus').val() || []
                 if (data['hardware-interfaces'] === undefined || data['hardware-interfaces'] === null) {
                     data['hardware-interfaces'] = [];
                 }
@@ -2146,7 +2150,10 @@ function renderAction(data){
                         ...("hardware-disk_size" in data) && { "disk_size": parseInt(data["hardware-disk_size"]) },
                         ...("reservables-vgpus" in data) && {
                             "reservables": {
-                                ...(true) && { "vgpus": [data["reservables-vgpus"]] },
+                                // A multi-profile selection already serializes as
+                                // an array; only wrap a scalar so we never save a
+                                // nested [[...]] list.
+                                ...(true) && { "vgpus": Array.isArray(data["reservables-vgpus"]) ? data["reservables-vgpus"] : [data["reservables-vgpus"]] },
                                 ...(data["reservables-vgpus"].includes(undefined) || data["reservables-vgpus"] == null || data["reservables-vgpus"].includes("None")) && { "vgpus": null },
                             },
                         },

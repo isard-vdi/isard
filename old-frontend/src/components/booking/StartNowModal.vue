@@ -13,28 +13,34 @@
         cols="6"
         class="mt-2"
       >
-        <label for="profile">{{ $t(`components.start-now-modal.profile`) }}*</label>
-        <b-form-select
-          id="profile"
-          v-model="profile"
-          :options="modal.data.availableProfiles"
-          :state="v$.profile.$error ? false : null"
-          @blur="v$.profile.$touch"
+        <label for="profiles">{{ $t(`components.start-now-modal.profiles`) }}*</label>
+        <!-- A desktop may carry several vGPU profiles, all on ONE hypervisor.
+             Pick the set to start now; options are restricted to profiles that
+             can share a host with the current selection. -->
+        <v-select
+          v-model="profiles"
+          multiple
+          :close-on-select="false"
+          :options="bookableOptions"
+          label="name"
+          :reduce="element => element.id"
         >
-          <template #first>
-            <b-form-select-option
-              :value="null"
-              disabled
+          <template #search="{ attributes, events }">
+            <input
+              id="profiles"
+              class="vs__search"
+              :required="!profiles.length"
+              v-bind="attributes"
+              v-on="events"
             >
-              {{ $t(`components.start-now-modal.select-profile`) }}
-            </b-form-select-option>
           </template>
-        </b-form-select>
+        </v-select>
         <b-form-invalid-feedback
-          v-if="v$.profile.$error"
-          id="profileError"
+          v-if="v$.profiles.$error"
+          id="profilesError"
+          :force-show="true"
         >
-          {{ $t(`validations.${v$.profile.$errors[0].$validator}`, { property: $t('components.start-now-modal.profile') }) }}
+          {{ $t(`validations.${v$.profiles.$errors[0].$validator}`, { property: $t('components.start-now-modal.profiles') }) }}
         </b-form-invalid-feedback>
       </b-col>
       <b-col
@@ -81,24 +87,22 @@
   </b-modal>
 </template>
 <script>
-import { ref, computed, watch } from '@vue/composition-api'
+import { computed } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
-import { required } from '@vuelidate/validators'
+import { required, requiredIf } from '@vuelidate/validators'
 import { DateUtils } from '@/utils/dateUtils'
 
 export default {
   setup (_, context) {
     const $store = context.root.$store
 
-    const availableTimes = ref([])
     const item = computed(() => $store.getters.getBookingItem)
-
     const modal = computed(() => $store.getters.getStartNowModal)
 
-    const profile = computed({
-      get: () => $store.getters.getStartNowModal.selected.profile,
+    const profiles = computed({
+      get: () => $store.getters.getStartNowModal.selected.profiles || [],
       set: (value) => {
-        modal.value.selected.profile = value
+        modal.value.selected.profiles = value || []
         $store.commit('setStartNowModal', modal.value)
       }
     })
@@ -111,46 +115,68 @@ export default {
       }
     })
 
-    watch(profile, (newVal, prevVal) => {
-      if (newVal) {
-        const timeChunks = DateUtils.breakTimeInChunks(DateUtils.dateToMoment(new Date()), DateUtils.stringToDate(DateUtils.utcToLocalTime(newVal.maxBookingDate)), 30, 'minutes')
-        availableTimes.value = timeChunks.map((time) => {
-          return {
-            text: DateUtils.formatAsTime(time),
-            value: time
-          }
-        })
+    // Restrict the choices to profiles co-locatable on a single hypervisor with
+    // the current selection (same hypervisor_groups intersection rule as the
+    // desktop editor). See DomainBookables.vue.
+    const bookableOptions = computed(() => {
+      const all = modal.value.data.availableProfiles || []
+      const selected = profiles.value || []
+      if (!selected.length) return all
+      let common = null
+      all.filter(o => selected.includes(o.id)).forEach(o => {
+        const g = new Set(o.hypervisorGroups || [])
+        common = common === null ? g : new Set([...common].filter(x => g.has(x)))
+      })
+      if (common && common.size) {
+        return all.filter(o => (o.hypervisorGroups || []).some(x => common.has(x)))
       }
-    }, { immediate: true })
+      return all
+    })
+
+    // The booking can only run as long as the EARLIEST window among the selected
+    // profiles (the bottleneck). Non-recovery uses the desktop's single window.
+    const endLimit = computed(() => {
+      if (!modal.value.showProfileDropdown) return modal.value.data.maxBookingDate
+      const selected = (modal.value.data.availableProfiles || []).filter(p => (profiles.value || []).includes(p.id))
+      if (!selected.length) return null
+      return selected.reduce((min, p) => (!min || p.maxBookingDate < min) ? p.maxBookingDate : min, null)
+    })
+
+    const availableTimes = computed(() => {
+      if (!endLimit.value) return []
+      return DateUtils.breakTimeInChunks(
+        DateUtils.dateToMoment(new Date()),
+        DateUtils.stringToDate(DateUtils.utcToLocalTime(endLimit.value)),
+        30,
+        'minutes'
+      ).map((time) => {
+        return { text: DateUtils.formatAsTime(time), value: time }
+      })
+    })
 
     const v$ = useVuelidate({
-      profile: {
-        required
+      profiles: {
+        required: requiredIf(() => modal.value.showProfileDropdown)
       },
       endDate: {
         required
       }
     }, {
-      profile,
+      profiles,
       endDate
     })
 
     const startDesktop = () => {
-      // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
-        document.getElementById(v$.value.$errors[0].$property).focus()
         return
       }
       if (modal.value.showProfileDropdown) {
-        // Recovery path: the desktop's GPU isn't available right now, so the
-        // user picks a single available profile to start with. NOTE: for a
-        // multi-profile desktop this collapses it to one profile. The primary
-        // start path (checkCanStart success) preserves all profiles since the
-        // server resolves the full reservables; only this fallback is limited.
+        // Recovery: rebuild the desktop's GPU set from the currently-available,
+        // co-locatable profiles the user picked, then book now.
         const data = {
           id: item.value.id,
-          reservables: { vgpus: [profile.value.id] }
+          reservables: { vgpus: profiles.value }
         }
         $store.dispatch('editDesktopReservables', data).then(() => {
           createEventNow()
@@ -175,16 +201,16 @@ export default {
     const closeModal = () => {
       v$.value.$reset()
       $store.dispatch('resetStartNowModal')
-      availableTimes.value = []
     }
 
     return {
       startDesktop,
       closeModal,
       modal,
-      profile,
+      profiles,
       endDate,
       v$,
+      bookableOptions,
       availableTimes
     }
   }

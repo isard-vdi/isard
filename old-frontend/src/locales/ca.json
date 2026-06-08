@@ -321,7 +321,9 @@
     "start-now-modal": {
       "title": "Iniciar ara",
       "profile": "Perfil",
+      "profiles": "Perfils",
       "select-profile": "Selecciona el perfil que es farà servir",
+      "select-profiles": "Selecciona els perfils que es faran servir",
       "end-date": "Data de finalització",
       "end-time": "Hora de finalització",
       "select-end-date": "Selecciona fins a quan es farà servir",
@@ -329,11 +331,11 @@
     },
     "cant-start-now-modal": {
       "title": {
-        "available-profile": "El model de targeta gràfica d'aquest escriptori ({profile}) no està disponible en aquest moment",
+        "available-profile": "Els models de targeta gràfica d'aquest escriptori no estan disponibles en aquest moment",
         "no-available-profile": "No hi ha cap altre model de targeta gràfica disponible en aquest moment"
       },
       "change-desktop-gpu": {
-        "text": "Podeu canviar a un model de targeta gràfica disponible ara i iniciar-lo (pot afectar al rendiment de l'escriptori)",
+        "text": "Es poden canviar a models de targeta gràfica disponibles ara i iniciar-lo (pot afectar al rendiment de l'escriptori)",
         "button": "Canviar i iniciar"
       },
       "go-to-bookings": {

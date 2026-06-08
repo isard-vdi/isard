@@ -12,6 +12,7 @@ from api import app
 from ...libv2.api_allowed import ApiAllowed
 from ...libv2.api_desktops_persistent import ApiDesktopsPersistent
 from ...libv2.bookings.api_booking import Bookings
+from ...libv2.bookings.api_reservables import attach_vgpu_hypervisor_groups
 from ...libv2.bookings.api_reservables_planner_compute import payload_priority
 from ...libv2.deployments.api_deployments import get
 from ..decorators import (
@@ -299,6 +300,12 @@ def api_v3_admin_booking_reservables_available(payload):
                 )
 
     if len(available):
+        # Tag each available profile with the hypervisor groups that can host it
+        # so the start-now UI can keep a multi-profile selection co-locatable on a
+        # single host (admins/managers also get the real hypervisor names).
+        attach_vgpu_hypervisor_groups(
+            available, show_names=payload["role_id"] in ("admin", "manager")
+        )
         return json.dumps({"reservables_available": available})
     else:
         raise Error(
