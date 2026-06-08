@@ -617,8 +617,11 @@ class hyp(object):
                     # the API recorded the resulting profile + mdev pool. Rely on
                     # what the hypervisor set: do NOT regenerate UUIDs or reset
                     # vgpu_profile here, or we'd overwrite the applied state and
-                    # the reconcile would fight the hypervisor.
-                    if applied_flags.get(vgpu_id):
+                    # the reconcile would fight the hypervisor. gpu_apply-capable
+                    # hosts (all of them now) own this unconditionally -- even a
+                    # card whose apply has not landed yet is the hypervisor+API's
+                    # to settle, never the engine's.
+                    if self._gpu_apply_capable() or applied_flags.get(vgpu_id):
                         logs.workers.info(
                             f"[{self.id_hyp_rethink}] {vgpu_id} applied by "
                             "hypervisor at registration; keeping its state"
@@ -664,15 +667,23 @@ class hyp(object):
         # Reconcile mdev pools with current sub_paths. Picks up VFs that
         # appeared after the original discovery (e.g., sriov_numvfs raised
         # later) without disturbing UUIDs already bound to running domains.
-        for pci_bus, d_vgpu in self.info_nvidia.items():
-            vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
-            try:
-                self.reconcile_vgpu_uuids(vgpu_id, d_vgpu)
-            except Exception as e:
-                logs.workers.error(
-                    f"[{self.id_hyp_rethink}] reconcile_vgpu_uuids failed "
-                    f"for {vgpu_id}: {e}"
-                )
+        #
+        # gpu_apply-capable hosts (all of them now) own their mdev pool: the
+        # hypervisor applied the card and reported the pool, ingested into the
+        # DB. The engine must NOT run the authoritative rebuild here -- it
+        # re-establishes SR-IOV VFs and fights a passthrough apply (the exact
+        # fight that left cards flapping nvidia<->pci-pf-stub). Only an old,
+        # non-capable hypervisor falls back to this engine-side reconcile.
+        if not self._gpu_apply_capable():
+            for pci_bus, d_vgpu in self.info_nvidia.items():
+                vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
+                try:
+                    self.reconcile_vgpu_uuids(vgpu_id, d_vgpu)
+                except Exception as e:
+                    logs.workers.error(
+                        f"[{self.id_hyp_rethink}] reconcile_vgpu_uuids failed "
+                        f"for {vgpu_id}: {e}"
+                    )
 
         # Re-apply driver binding for GPUs where the operator explicitly
         # chose passthrough. The vfio-pci binding does not survive container
@@ -686,7 +697,15 @@ class hyp(object):
         for pci_bus in list(self.info_nvidia.keys()):
             vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
             d_vgpu = get_vgpu(vgpu_id)
-            if not d_vgpu or not d_vgpu.get("operator_passthrough"):
+            # gpu_apply-capable hosts (all of them now) re-apply their own
+            # passthrough vfio-pci binding at registration; the engine must not
+            # drive it over SSH too (the round-trip the hypervisor-owns-GPU
+            # handoff removes). Only old, non-capable hypervisors need this.
+            if (
+                self._gpu_apply_capable()
+                or not d_vgpu
+                or not d_vgpu.get("operator_passthrough")
+            ):
                 continue
             if d_vgpu.get("applied_by_hypervisor"):
                 # A gpu_apply-capable hypervisor binds vfio-pci itself at
@@ -1501,6 +1520,25 @@ class hyp(object):
         # Read once: capability is per-host, identical for all its cards.
         gpu_apply_capable = self._gpu_apply_capable()
 
+        # Engine does NOTHING about GPU profiles at hypervisor startup for a
+        # gpu_apply-capable host: the hypervisor decided (the API's
+        # compute_gpu_targets at registration: scheduled booking > operator
+        # intent > passthrough default) and applied locally, then reported the
+        # pool, which was ingested into the DB and loaded into self.mdevs by
+        # load_info_from_db BEFORE init_nvidia. Re-deriving/applying here is
+        # redundant and could fight the hypervisor. The engine's only GPU jobs
+        # are runtime force-profile changes and scheduled-planning transitions
+        # (both over SSH via change_vgpu_profile). Running-domain mdevs were
+        # already adopted by reconcile_mdevs_with_reality (init_nvidia step 1),
+        # so the balancer's in-use view stays correct. The full reconcile below
+        # remains the fallback ONLY for old, non-capable hypervisors.
+        if gpu_apply_capable:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] gpu_apply-capable host: engine skips "
+                f"GPU reconcile/apply at startup (hypervisor+API own it)"
+            )
+            return
+
         for pci_id, d_nvidia in self.info_nvidia.items():
             vgpu_id = "-".join([self.id_hyp_rethink, pci_id])
             logs.workers.debug(
@@ -1598,13 +1636,8 @@ class hyp(object):
                 )
                 self.change_vgpu_profile(vgpu_id, vgpu_profile)
 
-            if gpu_apply_capable:
-                # The hypervisor already carved this card's mdevs and reported
-                # the pool (ingested above / at registration); skip the engine's
-                # echo-create loop for this card. The pool reconcile lives in the
-                # hypervisor now.
-                continue
-
+            # (gpu_apply-capable hosts returned early above; only old,
+            # non-capable hypervisors reach this engine-owned echo-create.)
             cmds = []
             base_path = d_nvidia["path"]
             sub_paths = d_nvidia.get("sub_paths", False)
@@ -1833,25 +1866,42 @@ class hyp(object):
         except Exception:
             pass
 
-        # Step 1: Reconcile mdevs with reality (adopt unknown mdevs, update DB)
-        logs.workers.info(
-            f"[{self.id_hyp_rethink}] NVIDIA init step 1/2: Reconciling mdevs with hypervisor reality..."
-        )
-        step_start = time.time()
-        self.reconcile_mdevs_with_reality()
-        logs.workers.info(
-            f"[{self.id_hyp_rethink}] NVIDIA init step 1/2: Completed in {time.time() - step_start:.2f}s"
-        )
+        # On a gpu_apply-capable host the hypervisor (driven by the API's
+        # compute_gpu_targets at registration) owns the card's profile AND its
+        # mdev pool, and reports both -- ingested into the DB and loaded into the
+        # in-memory pool by load_info_from_db BEFORE this runs. The engine must
+        # do NOTHING about GPUs at startup: neither the authoritative mdev
+        # rebuild (step 1, which would re-establish SR-IOV VFs and fight a
+        # passthrough apply) nor the echo-create (step 2). Its only GPU jobs are
+        # runtime force-profile changes and scheduled-planning transitions (both
+        # over SSH via change_vgpu_profile). The full reconcile below remains the
+        # fallback ONLY for old, non-capable hypervisors.
+        if self._gpu_apply_capable():
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] gpu_apply-capable host: engine skips "
+                f"NVIDIA init (mdev reconcile + create) at startup; the "
+                f"hypervisor+API own the GPU profile and pool (loaded from DB)."
+            )
+        else:
+            # Step 1: Reconcile mdevs with reality (adopt unknown mdevs, update DB)
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] NVIDIA init step 1/2: Reconciling mdevs with hypervisor reality..."
+            )
+            step_start = time.time()
+            self.reconcile_mdevs_with_reality()
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] NVIDIA init step 1/2: Completed in {time.time() - step_start:.2f}s"
+            )
 
-        # Step 2: Create mdevs for empty slots (if configured profile needs more)
-        logs.workers.info(
-            f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Creating mdevs for empty slots..."
-        )
-        step_start = time.time()
-        self.create_mdevs_from_uuids()
-        logs.workers.info(
-            f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Completed in {time.time() - step_start:.2f}s"
-        )
+            # Step 2: Create mdevs for empty slots (if configured profile needs more)
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Creating mdevs for empty slots..."
+            )
+            step_start = time.time()
+            self.create_mdevs_from_uuids()
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Completed in {time.time() - step_start:.2f}s"
+            )
 
         # Write accumulated GPU notes (non-fault, informational) to DB.
         try:
