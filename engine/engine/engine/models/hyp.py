@@ -742,9 +742,19 @@ class hyp(object):
                 vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
                 d_vgpu = get_vgpu(vgpu_id)
                 if d_vgpu:
-                    self.info_nvidia[pci_bus] = d_vgpu["info"]
-                    self.mdevs[pci_bus] = d_vgpu["mdevs"]
-                    self.info_nvidia[pci_bus]["vgpu_profile"] = d_vgpu["vgpu_profile"]
+                    # Guard each field: a vgpus row left incomplete -- e.g. an
+                    # interrupted/failed carve that dropped mdevs / vgpu_profile --
+                    # must NOT raise KeyError here. It used to abort the whole
+                    # hypervisor init and flip the host to "Error: Failed to get
+                    # hypervisor info: 'mdevs'", taking the entire hypervisor
+                    # offline over one malformed GPU row. Treat a missing field as
+                    # empty / no-profile so the host still registers (the carve is
+                    # recovered separately by the hypervisor apply).
+                    self.info_nvidia[pci_bus] = d_vgpu.get("info") or {}
+                    self.mdevs[pci_bus] = d_vgpu.get("mdevs") or {}
+                    self.info_nvidia[pci_bus]["vgpu_profile"] = d_vgpu.get(
+                        "vgpu_profile"
+                    )
 
         return True
 
