@@ -178,6 +178,14 @@ $(document).ready(function () {
           $(row).attr("data-reservabletype", "gpus");
           $(row).attr("data-itemId", id);
           $(row).attr("data-subitemId", data.id);
+          // The id actually enabled on this card for this base profile: the
+          // bare base, or "<base>@<variant>". Empty when not enabled. Used so a
+          // disable/re-key targets the real id (not a recomputed one).
+          var enabledId =
+            (rowData.profiles_enabled || []).find(function (p) {
+              return p === data.id || p.indexOf(data.id + "@") === 0;
+            }) || "";
+          $(row).attr("data-enabledId", enabledId);
         },
         sAjaxDataProp: "",
         language: {
@@ -198,16 +206,43 @@ $(document).ready(function () {
           { data: "profile" },
           { data: "memory" },
           { data: "units" },
+          { data: null, title: "Variant", orderable: false, defaultContent: "" },
         ],
         columnDefs: [
           {
             targets: 0,
             render: function (data, type, full, meta) {
-              if (rowData.profiles_enabled.includes(full.id)) {
-                return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input>';
-              } else {
-                return '<input id="chk-enabled" type="checkbox" class="form-check-input"></input>';
-              }
+              // Checked when the base profile OR any "<base>@<variant>" of it is
+              // enabled on this card.
+              var en = (rowData.profiles_enabled || []).some(function (p) {
+                return p === full.id || p.indexOf(full.id + "@") === 0;
+              });
+              return en
+                ? '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input>'
+                : '<input id="chk-enabled" type="checkbox" class="form-check-input"></input>';
+            },
+          },
+          {
+            // Optional variant name: differentiates same brand-model-profile
+            // cards into distinct selectable reservables ("<base>@<variant>").
+            targets: 6,
+            orderable: false,
+            render: function (data, type, full, meta) {
+              var enabledId = (rowData.profiles_enabled || []).find(function (p) {
+                return p === full.id || p.indexOf(full.id + "@") === 0;
+              });
+              var variant =
+                enabledId && enabledId.indexOf("@") >= 0
+                  ? enabledId.split("@")[1]
+                  : "";
+              return (
+                '<input id="txt-variant" type="text" class="form-control input-sm" ' +
+                'placeholder="(name)" pattern="[a-z0-9]{1,20}" maxlength="20" ' +
+                'title="Optional 1-20 lowercase alphanumerics to split identical cards" ' +
+                'value="' +
+                variant +
+                '" style="width:90px">'
+              );
             },
           },
         ],
@@ -296,7 +331,27 @@ $(document).ready(function () {
       profile_checkbox = $(this)
       let reservable_type = $(this).parents("tr").attr("data-reservableType");
       let item_id = $(this).parents("tr").attr("data-itemId");
-      let subitem_id = $(this).parents("tr").attr("data-subitemId");
+      let base_id = $(this).parents("tr").attr("data-subitemId");
+      // Optional "@<variant>" qualifier from the row's text input; when set it
+      // makes this card's profile a distinct selectable reservable.
+      let variant = ($(this).parents("tr").find("#txt-variant").val() || "").trim();
+      if (variant && !/^[a-z0-9]{1,20}$/.test(variant)) {
+        new PNotify({
+          title: "Invalid variant name",
+          text: "Use 1-20 lowercase alphanumerics (a-z, 0-9).",
+          hide: true,
+          delay: 3000,
+          icon: "fa fa-warning",
+          opacity: 1,
+          type: "error",
+        });
+        $(this).prop("checked", !$(this).is(":checked"));
+        return;
+      }
+      let subitem_id = base_id + (variant ? "@" + variant : "");
+      // The id currently enabled on this card (base or "<base>@<variant>").
+      let enabledId =
+        $(this).parents("tr").attr("data-enabledId") || subitem_id;
 
       switch ($(this).attr("id")) {
         case "chk-enabled":
@@ -307,6 +362,9 @@ $(document).ready(function () {
           }
 
           if (!enabled) {
+            // Disable the id that is ACTUALLY enabled (so unchecking a variant
+            // removes "<base>@<variant>", not a reconstructed base).
+            subitem_id = enabledId;
             // check if it's the last profile of this kind
             $.ajax({
               type: "GET",

@@ -603,10 +603,14 @@ class Bookings:
                 fp["reduction"] for fp in forecast_60 if fp["group"] == profile
             ]
             forecast_60_plans = forecast_60_plans[0] if forecast_60_plans else []
+            # brand-model-suffix(+optional "@<variant>"); front-indexed split so a
+            # dash-form MIG suffix (1-2Q) and an "@<variant>" qualifier stay intact
+            # in the suffix instead of being mis-split by a back-indexed split.
+            _bmp = profile.split("-", 2)
             profile = {
-                "brand": profile.split("-")[-3],
-                "model": profile.split("-")[-2],
-                "profile": profile.split("-")[-1],
+                "brand": _bmp[0] if len(_bmp) == 3 else profile,
+                "model": _bmp[1] if len(_bmp) == 3 else "",
+                "profile": _bmp[2] if len(_bmp) == 3 else "",
                 "now": {
                     "units": bookings_max_units(forecast_0_plans),
                     "date": datetime.now().astimezone().isoformat(),

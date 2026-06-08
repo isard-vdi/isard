@@ -58,17 +58,44 @@ def canonical_suffix(suffix):
     return s
 
 
+def split_qualifier(reservable_id):
+    """Split an optional ``@<name>`` variant qualifier off a reservable id.
+
+    Admins may differentiate otherwise-identical brand-model-profile cards by
+    appending ``@<name>`` (e.g. ``NVIDIA-L40S-8Q@lab``). ``@`` is forbidden in
+    profile suffixes, so a single right-split is unambiguous. Returns
+    ``(base_id, name_or_None)``."""
+    if not isinstance(reservable_id, str) or "@" not in reservable_id:
+        return reservable_id, None
+    base, name = reservable_id.rsplit("@", 1)
+    return base, (name or None)
+
+
 def canonical_profile_id(reservable_id):
-    """Canonicalize a ``NVIDIA-<model>-<suffix>`` id by canonicalizing only its
-    suffix. Model tokens are dash-free by construction (see
-    ``canonical_gpu_model``), so the first two hyphens delimit brand/model and
-    everything after is the (possibly dash-bearing MIG) suffix."""
+    """Canonicalize a ``NVIDIA-<model>-<suffix>[@<name>]`` id by canonicalizing
+    only its suffix, preserving any ``@<name>`` variant qualifier. Model tokens
+    are dash-free by construction (see ``canonical_gpu_model``), so the first two
+    hyphens delimit brand/model and everything after (up to an optional ``@``) is
+    the (possibly dash-bearing MIG) suffix."""
     if not isinstance(reservable_id, str):
         return reservable_id
-    parts = reservable_id.split("-", 2)
+    base, name = split_qualifier(reservable_id)
+    parts = base.split("-", 2)
     if len(parts) == 3:
-        return f"{parts[0]}-{parts[1]}-{canonical_suffix(parts[2])}"
-    return reservable_id
+        base = f"{parts[0]}-{parts[1]}-{canonical_suffix(parts[2])}"
+    return base if name is None else f"{base}@{name}"
+
+
+def bare_suffix(reservable_id):
+    """The canonical profile SUFFIX of a reservable id with any ``@<name>``
+    qualifier stripped, for matching against a host's ``vgpus.info.types`` keys
+    (which are bare suffixes like ``8Q`` / ``1g.24gb``). Returns the input
+    unchanged when it is not a 3-part ``brand-model-suffix`` id."""
+    if not isinstance(reservable_id, str):
+        return reservable_id
+    base, _ = split_qualifier(reservable_id)
+    parts = base.split("-", 2)
+    return canonical_suffix(parts[2]) if len(parts) == 3 else base
 
 
 def realizable_suffixes(gpu_payload):

@@ -17,12 +17,21 @@ from ..flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+import re as _re
 import traceback
 
 from isardvdi_common.api_exceptions import Error
 
+from ..gpu_realizability import split_qualifier
 from ..helpers import _check
 from ..validators import _validate_item
+
+# An optional admin "@<variant>" qualifier differentiates otherwise-identical
+# brand-model-profile cards into distinct selectable reservables. Restricted to
+# lowercase alphanumerics so it can never collide with the id/suffix parsing
+# (which keys on "-" and the reserved "@" delimiter, and where ".","_","+" already
+# occur inside MIG suffixes).
+_VARIANT_RE = _re.compile(r"^[a-z0-9]{1,20}$")
 
 
 def get_vgpus_hypervisors():
@@ -321,6 +330,16 @@ class ResourceItemsGpus:
             return list(r.table("gpu_profiles").run(db.conn))
 
     def enable_subitem(self, item_id, subitem_id, enabled):
+        # Reject a malformed "@<variant>" qualifier early (choke point for every
+        # enable/disable caller) so a bad label can never reach id/suffix parsing.
+        variant = split_qualifier(subitem_id)[1]
+        if variant is not None and not _VARIANT_RE.match(variant):
+            raise Error(
+                "bad_request",
+                "Invalid vGPU variant name '%s' (use 1-20 lowercase alphanumerics)"
+                % variant,
+                description_code="bad_request",
+            )
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
         if not item:
@@ -377,6 +396,14 @@ class ResourceItemsGpus:
                 "Gpu profile id not found in gpu_profiles table",
                 description_code="not_found",
             )
+        # Canonical base id from the card + profile; preserve any "@<variant>"
+        # qualifier the admin attached so two same brand-model-profile cards can
+        # be distinct, separately-bookable reservables. The variant is also shown
+        # in the human name/description.
+        variant = split_qualifier(subitem_id)[1]
+        base_id = item["brand"] + "-" + item["model"] + "-" + subitem["profile"]
+        reservable_id = base_id + ("@" + variant if variant else "")
+        variant_label = " [" + variant + "]" if variant else ""
         new_reservable_vgpu = {
             "allowed": {
                 "categories": False,
@@ -390,20 +417,22 @@ class ResourceItemsGpus:
             + item["model"]
             + " with profile "
             + subitem["profile"]
+            + variant_label
             + " with "
             + str(subitem["memory"])
             + " vRAM with maximum "
             + str(subitem["units"])
             + " vGPUs per device",
             "heads": 1,
-            "id": item["brand"] + "-" + item["model"] + "-" + subitem["profile"],
+            "id": reservable_id,
             "model": item["model"],
             "name": "GPU "
             + item["brand"]
             + " "
             + item["model"]
             + " "
-            + str(subitem["memory"]),
+            + str(subitem["memory"])
+            + variant_label,
             "profile": subitem["profile"],
             "ram": subitem["memory"],
             "vram": subitem["memory"],
@@ -557,7 +586,11 @@ class ResourceItemsGpus:
                     )
                     .run(db.conn)
                 )[0].get("profiles")
-            subitem = [s for s in subitems if s.get("id") == subitem_id][0]
+            # Resolve against the BASE id; an optional "@<variant>" qualifier is
+            # an admin label on the reservable, not part of the hardware profile
+            # catalog, so strip it before matching gpu_profiles.
+            base_subitem_id = split_qualifier(subitem_id)[0]
+            subitem = [s for s in subitems if s.get("id") == base_subitem_id][0]
         except:
             log.debug(traceback.format_exc())
             raise Error(

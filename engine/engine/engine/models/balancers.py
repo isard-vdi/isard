@@ -14,6 +14,7 @@ from engine.services.lib.functions import (
     get_pools_threads_running,
 )
 from engine.services.log import logs
+from isardvdi_common.gpu_pool_policy import profile_suffix_from_id
 
 """ 
 BALANCERS 
@@ -471,8 +472,10 @@ def _parse_extra_gpu_info(gpu_selected):
         "uid": gpu_selected["next_available_uid"],
         "gpu_id": gpu_selected["next_gpu_id"],
         "model": gpu_selected["gpu_profile"].split("-", 2)[1],
+        # Bare canonical suffix (e.g. "8Q", "passthrough") with any "@<variant>"
+        # qualifier stripped, so downstream mdev/info.types matching keys on it.
         "profile": (
-            gpu_selected["gpu_profile"].split("-", 2)[2]
+            profile_suffix_from_id(gpu_selected["gpu_profile"])
             if len(gpu_selected["gpu_profile"].split("-", 2)) > 2
             else ""
         ),

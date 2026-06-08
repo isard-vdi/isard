@@ -11,6 +11,7 @@ from engine.services.db import (
 )
 from engine.services.db.domains import get_vgpus_mdevs
 from engine.services.log import log, logs
+from isardvdi_common.gpu_pool_policy import profile_suffix_from_id
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -890,13 +891,17 @@ def get_hypers_gpu_online(
     if exclude_outofmem:
         hypers_online = filter_outofmem_hypers(hypers_online)
 
-    # Check profile format: "NVIDIA-A10-2Q" or "NVIDIA-RTXPro6000BlackwellDC-1-12Q"
-    # Use split with maxsplit=2 to handle profiles with dashes (e.g., "1-12Q")
+    # Check profile format: "NVIDIA-A10-2Q" or "NVIDIA-RTXPro6000BlackwellDC-1-12Q",
+    # optionally with an "@<variant>" qualifier (e.g. "NVIDIA-L40S-8Q@lab").
+    # Use split with maxsplit=2 to handle profiles with dashes (e.g., "1-12Q");
+    # gpu_profile must be the BARE canonical suffix (mdev-pool / info.types key),
+    # so any "@<variant>" qualifier is stripped via profile_suffix_from_id.
     try:
         parts = gpu_brand_model_profile.split("-", 2)
         if len(parts) != 3:
             raise ValueError("Expected 3 parts")
-        gpu_brand, gpu_model, gpu_profile = parts
+        gpu_brand, gpu_model, _ = parts
+        gpu_profile = profile_suffix_from_id(gpu_brand_model_profile)
     except:
         logs.workers.error(
             f"Error parsing gpu_profile: {gpu_brand_model_profile}. Not in format BRAND-MODEL-PROFILE"

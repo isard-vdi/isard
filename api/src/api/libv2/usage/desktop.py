@@ -137,7 +137,8 @@ class DesktopsUsage:
         # (a single-profile desktop is just a one-element list).
         gpu_mem = 0
         for profile in consumption.get("hardware_bookables_vgpus") or []:
-            profile_suffix = profile.split("-")[2]
+            # drop any "@<variant>" qualifier before reading the leading vRAM digits
+            profile_suffix = profile.split("-")[2].split("@")[0]
             match = re.match(r"(\d+)", profile_suffix)
             gpu_mem += int(match.group(1)) if match else 0
         return self._calculate_consumption(

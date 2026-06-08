@@ -195,3 +195,52 @@ def test_dash_form_mig_realizable_not_pruned():
         }
     ]
     assert gr.plan_card_prunes("A16", cards) == []
+
+
+# --- variant qualifier (@<name>) --------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "rid,base,name",
+    [
+        ("NVIDIA-L40S-8Q", "NVIDIA-L40S-8Q", None),
+        ("NVIDIA-L40S-8Q@lab", "NVIDIA-L40S-8Q", "lab"),
+        ("NVIDIA-RTXPro6000DC-1g.24gb@prod", "NVIDIA-RTXPro6000DC-1g.24gb", "prod"),
+        ("NVIDIA-A16-1-2Q@x", "NVIDIA-A16-1-2Q", "x"),
+        ("passthrough", "passthrough", None),
+        (None, None, None),
+    ],
+)
+def test_split_qualifier(rid, base, name):
+    assert gr.split_qualifier(rid) == (base, name)
+
+
+@pytest.mark.parametrize(
+    "rid,expected",
+    [
+        ("NVIDIA-L40S-8Q@lab", "8Q"),
+        ("NVIDIA-L40S-8Q", "8Q"),
+        (
+            "NVIDIA-RTXPro6000DC-1g.24gb@prod",
+            "1g.24gb",
+        ),  # dot-form MIG kept, @ stripped
+        ("NVIDIA-A16-1-2Q@x", "1_2Q"),  # dash-form MIG canonicalized, @ stripped
+        ("NVIDIA-A16-1-2Q", "1_2Q"),
+        ("NVIDIA-T4-passthrough@p", "passthrough"),
+    ],
+)
+def test_bare_suffix(rid, expected):
+    assert gr.bare_suffix(rid) == expected
+
+
+@pytest.mark.parametrize(
+    "rid,expected",
+    [
+        # canonical_profile_id canonicalizes the suffix while preserving @<name>
+        ("NVIDIA-A16-1-2Q@lab", "NVIDIA-A16-1_2Q@lab"),
+        ("NVIDIA-L40S-8Q@lab", "NVIDIA-L40S-8Q@lab"),
+        ("NVIDIA-L40S-8Q", "NVIDIA-L40S-8Q"),
+    ],
+)
+def test_canonical_profile_id_preserves_variant(rid, expected):
+    assert gr.canonical_profile_id(rid) == expected
