@@ -417,7 +417,16 @@ class ApiHypervisors:
             elif not self.check(result, "inserted"):
                 raise Error("not_found", "Unable to add hypervisor")
         else:
-            # Second time will try to enable itself
+            # Re-registration: keep the hypervisor DISABLED for the whole boot.
+            # The hypervisor re-enables itself (EnableHypervisor) only once it is
+            # fully ready -- after the long GPU discovery/apply, the VPN/geneve
+            # bring-up AND libvirtd are up. Registering it enabled here (its
+            # previous state) made the engine start managing a half-booted host:
+            # the worker's libvirt reconnect failed for minutes, flipping the
+            # host to Error and stopping its desktops. With enabled=False the
+            # engine's disable_hyper stops the worker cleanly (host -> Offline,
+            # not Error); EnableHypervisor's later enabled=True fires enable_hyper
+            # and spawns a fresh worker against a host that is actually ready.
             if hypervisor.get("enabled"):
                 with app.app_context():
                     r.table("hypervisors").get(hyper_id).update({"enabled": False}).run(
@@ -429,7 +438,7 @@ class ApiHypervisors:
                 port=port,
                 cap_disk=cap_disk,
                 cap_hyper=cap_hyper,
-                enabled=hypervisor["enabled"],
+                enabled=False,
                 browser_port=str(browser_port),
                 spice_port=str(spice_port),
                 isard_static_url=isard_static_url,
