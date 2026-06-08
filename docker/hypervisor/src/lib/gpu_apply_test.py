@@ -202,6 +202,8 @@ class _Host:
 
 
 def _patch_host(monkeypatch, host):
+    # Stub the post-restart settle waits so the retry/poll path runs instantly.
+    monkeypatch.setattr(ga, "_SLEEP", lambda *a, **k: None)
     monkeypatch.setattr(ga, "_read_driver", lambda b, r: host.driver)
     monkeypatch.setattr(ga, "_read_mig_mode", lambda b, r: host.mig)
     monkeypatch.setattr(ga, "_live_mdev_suffix", lambda b, r: host.live)
@@ -332,6 +334,28 @@ def test_apply_passthrough_reports_error_when_bind_silently_fails(monkeypatch):
     )
     assert rep["result"] == "error"  # NOT 'applied' -> ingest won't persist a lie
     assert "driver" in rep["error"]
+
+
+def test_apply_self_heals_when_driver_settles_after_carve(monkeypatch):
+    # Post-restart race: the carve succeeds but the PF driver readback is None
+    # right after (the kernel re-attaches nvidia asynchronously after the
+    # gpu-reset/SR-IOV cycle). The settle-poll/retry must let it settle and
+    # report 'applied' instead of leaving the card uncarved with a phantom pool.
+    h = _Host(
+        driver="nvidia",
+        live=None,
+        profiles=[{"name": "A40-4Q", "type_id": "nvidia-558"}],
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:c5:00.{i}" for i in range(4, 7)]
+    _patch_host(monkeypatch, h)
+    # top detection sees nvidia; the first post-apply readback is None, then it
+    # settles to nvidia on the next poll.
+    seq = iter(["nvidia", None, "nvidia"])
+    monkeypatch.setattr(ga, "_read_driver", lambda b, r: next(seq, "nvidia"))
+    gpu = {"pci_bus_id": "0000:c5:00.0", "sriov_totalvfs": 16}
+    rep = ga.apply_target(gpu, {"target_profile": "4Q", "action": "apply"}, run=h.run)
+    assert rep["result"] == "applied", rep
+    assert rep["binding"] == "nvidia"
 
 
 def test_apply_vgpu_sriov_carves_one_mdev_per_vf(monkeypatch):

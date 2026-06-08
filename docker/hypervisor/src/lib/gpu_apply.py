@@ -20,6 +20,7 @@ touches the host is validated on a GPU host.
 """
 
 import os
+import time
 import uuid as _uuid
 
 import gpu_probe
@@ -323,6 +324,37 @@ def _apply(gpu, current, wanted, run):
     return mdevs, None
 
 
+# Transient post-restart settle. A hypervisor (container) restart can leave the
+# card briefly unsettled: the carve's ``--gpu-reset`` / SR-IOV re-enable can
+# return before the kernel re-attaches nvidia to the PF ("post-apply driver
+# None") or before a freshly-created VF accepts the mdev sysfs write ("mdev
+# create ... I/O error"). Both clear within seconds. We poll for the driver to
+# settle and retry the whole carve a few times so a boot-time race self-heals,
+# instead of giving up and leaving the card uncarved with a phantom (created)
+# pool the engine then trusts -> GPU desktops fail to start until a manual
+# re-force.
+_APPLY_ATTEMPTS = 3
+_APPLY_RETRY_DELAY = 3  # seconds between whole-carve retries
+_DRIVER_SETTLE_ATTEMPTS = 10
+_DRIVER_SETTLE_DELAY = 2  # seconds (~20s max for the driver to re-attach)
+_SLEEP = time.sleep  # indirection so tests can stub the settle waits
+
+
+def _wait_for_driver(pci_bdf, expected, run):
+    """Poll the PF driver until it settles to ``expected`` (or attempts run out).
+
+    After a ``--gpu-reset`` / SR-IOV re-enable the kernel re-binds the driver
+    asynchronously, so the first readback right after the carve can be ``None``
+    even though the sequence actually succeeded. Returns the last driver read."""
+    drv = _read_driver(pci_bdf, run)
+    for _ in range(_DRIVER_SETTLE_ATTEMPTS):
+        if drv == expected:
+            return drv
+        _SLEEP(_DRIVER_SETTLE_DELAY)
+        drv = _read_driver(pci_bdf, run)
+    return drv
+
+
 def apply_target(gpu, target, run=run_local):
     """Apply one card's target profile locally and return the applied-state
     report the caller POSTs back to the API.
@@ -374,57 +406,71 @@ def apply_target(gpu, target, run=run_local):
             mdevs_reset_at=reset_at,
         )
 
-    try:
-        mdevs, err = _apply(gpu, current, wanted, run)
-    except Exception as e:  # never abort the whole registration for one card
-        return _report(pci_bdf, "error", previous=current, error=str(e))
-    if err:
-        return _report(pci_bdf, "error", previous=current, error=err)
-
-    # Verify the realised state matches intent before claiming success.
-    new_driver = _read_driver(pci_bdf, run)
+    # Apply + verify, with a bounded retry so a transient post-restart settle
+    # race (driver not yet re-attached, VF not yet ready for the mdev write)
+    # self-heals instead of leaving the card uncarved with a phantom pool. Each
+    # retry first recovers an orphaned PF and re-reads `current`.
     expected_driver = "vfio-pci" if wanted == "passthrough" else "nvidia"
-    if new_driver != expected_driver:
-        return _report(
-            pci_bdf,
-            "error",
-            previous=current,
-            binding=new_driver,
-            error=f"post-apply driver {new_driver!r} != expected {expected_driver!r}",
-        )
-    is_mig = wanted in _mig_profile_ids(gpu)
-    if is_mig:
-        # The driver readback above is a tautology for MIG (a MIG card stays
-        # nvidia-bound), so gate on the actual MIG state: a failed nvidia-smi
-        # -mig 1 leaves mig.mode Disabled and must report 'error'.
-        post_mig = _read_mig_mode(pci_bdf, run)
-        if not (isinstance(post_mig, str) and "enabled" in post_mig.lower()):
-            return _report(
-                pci_bdf,
-                "error",
-                previous=current,
-                binding=new_driver,
-                mig_mode=post_mig,
-                error=f"MIG {wanted} enable did not take (mig_mode={post_mig!r})",
+    last_error = None
+    for attempt in range(_APPLY_ATTEMPTS):
+        if attempt:
+            _SLEEP(_APPLY_RETRY_DELAY)
+            if expected_driver == "nvidia" and _read_driver(pci_bdf, run) != "nvidia":
+                run(_cmds.build_pf_recover_nvidia_cmds(pci_bdf), timeout=60)
+            driver = _read_driver(pci_bdf, run)
+            mig_mode = _read_mig_mode(pci_bdf, run)
+            current = current_profile_from_state(
+                driver, mig_mode, _live_mdev_suffix(pci_bdf, run)
             )
-    is_vgpu = wanted != "passthrough" and not is_mig
-    if is_vgpu and _live_mdev_count(pci_bdf, run, gpu.get("sub_paths")) == 0:
+
+        try:
+            mdevs, err = _apply(gpu, current, wanted, run)
+        except Exception as e:  # never abort the whole registration for one card
+            last_error = str(e)
+            continue
+        if err:
+            last_error = err
+            continue
+
+        # Verify the realised state matches intent before claiming success.
+        # `_wait_for_driver` polls because the kernel re-attaches the driver
+        # asynchronously after the carve's gpu-reset/SR-IOV cycle.
+        new_driver = _wait_for_driver(pci_bdf, expected_driver, run)
+        if new_driver != expected_driver:
+            last_error = (
+                f"post-apply driver {new_driver!r} != expected {expected_driver!r}"
+            )
+            continue
+        is_mig = wanted in _mig_profile_ids(gpu)
+        if is_mig:
+            # The driver readback above is a tautology for MIG (a MIG card stays
+            # nvidia-bound), so gate on the actual MIG state: a failed nvidia-smi
+            # -mig 1 leaves mig.mode Disabled and must report 'error'.
+            post_mig = _read_mig_mode(pci_bdf, run)
+            if not (isinstance(post_mig, str) and "enabled" in post_mig.lower()):
+                last_error = f"MIG {wanted} enable did not take (mig_mode={post_mig!r})"
+                continue
+        is_vgpu = wanted != "passthrough" and not is_mig
+        if is_vgpu and _live_mdev_count(pci_bdf, run, gpu.get("sub_paths")) == 0:
+            last_error = f"vGPU {wanted} carve did not materialise (no live mdev)"
+            continue
         return _report(
             pci_bdf,
-            "error",
+            "applied",
+            applied=wanted,
             previous=current,
             binding=new_driver,
-            error=f"vGPU {wanted} carve did not materialise (no live mdev)",
+            mig_mode=_read_mig_mode(pci_bdf, run),
+            mdevs=mdevs,
+            mdevs_reset_at=reset_at,
         )
+
     return _report(
         pci_bdf,
-        "applied",
-        applied=wanted,
+        "error",
         previous=current,
-        binding=new_driver,
-        mig_mode=_read_mig_mode(pci_bdf, run),
-        mdevs=mdevs,
-        mdevs_reset_at=reset_at,
+        binding=_read_driver(pci_bdf, run),
+        error=f"apply failed after {_APPLY_ATTEMPTS} attempts: {last_error}",
     )
 
 
