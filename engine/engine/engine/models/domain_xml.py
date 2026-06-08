@@ -1970,6 +1970,13 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         log.error("viewer password not found in domain {}".format(id_domain))
 
     xml = x.return_xml()
+    # Guarantee every <iothreadpin iothread="N"/> has a matching declared
+    # iothread. Stored XML can carry an orphan iothreadpin (admin-pasted custom
+    # XML, or the independently-editable cputune/iothreads protected sections)
+    # with no <iothreads>; libvirt then rejects the domain at start with
+    # "Cannot find 'iothread' : N". This repair runs on every start path,
+    # including the ones that don't regenerate pinning (add_iothread_pinning).
+    xml = ensure_iothreads_declared(xml)
     # log.debug('#####################################################')
     # log.debug(xml)
     # log.debug('#####################################################')
@@ -2480,6 +2487,78 @@ def add_qemu_pcie_reserve(xml, reserve_size="256G"):
     # Insert before closing </domain>
     xml = xml.replace("</domain>", qemu_block + "</domain>")
     return xml
+
+
+def ensure_iothreads_declared(xml):
+    """Guarantee every ``<iothreadpin iothread="N"/>`` has a matching declared
+    iothread.
+
+    libvirt rejects a domain whose ``<cputune>`` references an iothread id that
+    is not declared by a top-level ``<iothreads>N</iothreads>`` (or an explicit
+    ``<iothreadids>``), failing at start with
+    ``unsupported configuration: Cannot find 'iothread' : N``. Stored XML can
+    carry an orphan ``<iothreadpin>`` without the matching ``<iothreads>`` —
+    from admin-pasted custom XML, or because the ``cputune`` and ``iothreads``
+    XML sections are independently editable/protectable. This repair declares
+    enough iothreads so the domain is valid.
+
+    Chosen strategy: declare (don't drop). Raising ``<iothreads>`` to cover the
+    highest referenced id preserves the admin's iothread-pinning intent; an
+    otherwise-unused declared iothread is harmless to libvirt. Idempotent, and a
+    no-op when there are no iothreadpins or they are already declared.
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error(f"Exception parsing xml in ensure_iothreads_declared: {e}")
+        return xml
+
+    pin_ids = []
+    for pin in tree.xpath("/domain/cputune/iothreadpin"):
+        try:
+            pin_ids.append(int(pin.get("iothread")))
+        except (TypeError, ValueError):
+            continue
+    if not pin_ids:
+        return xml
+    max_id = max(pin_ids)
+    if max_id < 1:
+        return xml
+
+    # Which iothread ids are already declared? <iothreads>N</iothreads> declares
+    # ids 1..N; <iothreadids><iothread id="K"/></iothreadids> declares K's.
+    iothreads_elems = tree.xpath("/domain/iothreads")
+    declared_count = 0
+    if iothreads_elems and (iothreads_elems[0].text or "").strip().isdigit():
+        declared_count = int(iothreads_elems[0].text.strip())
+    declared_ids = set(range(1, declared_count + 1))
+    for idel in tree.xpath("/domain/iothreadids/iothread"):
+        try:
+            declared_ids.add(int(idel.get("id")))
+        except (TypeError, ValueError):
+            continue
+
+    if all(pid in declared_ids for pid in pin_ids):
+        return xml
+
+    # Raise the <iothreads> count to cover the highest referenced id. A plain
+    # count (declaring 1..max_id) is the simplest declaration that satisfies the
+    # contiguous pin set the engine itself emits (see add_iothread_pinning); we
+    # don't synthesize <iothreadids>.
+    needed = max(max_id, declared_count)
+    if iothreads_elems:
+        iothreads_elems[0].text = str(needed)
+    else:
+        iothreads_elem = etree.Element("iothreads")
+        iothreads_elem.text = str(needed)
+        vcpu_elem = tree.xpath("/domain/vcpu")
+        if vcpu_elem:
+            vcpu_elem[0].addnext(iothreads_elem)
+        else:
+            tree.xpath("/domain")[0].insert(0, iothreads_elem)
+
+    return indent(etree.tostring(tree, encoding="unicode"))
 
 
 def add_iothread_pinning(xml, cpulist_str):

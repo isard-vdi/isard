@@ -4,6 +4,7 @@ import pytest
 from engine.models.domain_xml import (
     DomainXML,
     add_memory_backing,
+    ensure_iothreads_declared,
     hostdev_locked,
     recreate_xml_if_gpu,
 )
@@ -557,4 +558,89 @@ def test_add_interface_overlay_no_mtu_when_cluster_value_none(monkeypatch):
     x.add_interface("ovs", "52:54:00:aa:bb:cc", "dom1", "if1", net="100")
     tree = _parse(x.return_xml())
     assert tree.xpath("/domain/devices/interface/mtu") == []
+
+
+# ---- ensure_iothreads_declared: orphan <iothreadpin> repair on load ---------
+
+
+def _iothreadpin_domain_xml(iothread_id="1", with_iothreads=None):
+    """A domain with a <cputune><iothreadpin> referencing iothread_id. When
+    with_iothreads is None no <iothreads> is declared (the orphan/bug shape);
+    otherwise a <iothreads>{with_iothreads}</iothreads> is emitted after <vcpu>.
+    """
+    iothreads = (
+        f"<iothreads>{with_iothreads}</iothreads>" if with_iothreads is not None else ""
+    )
+    return (
+        '<domain type="kvm">'
+        "<name>d1</name>"
+        "<vcpu>24</vcpu>"
+        f"{iothreads}"
+        "<cputune>"
+        '  <vcpupin vcpu="0" cpuset="48-71"/>'
+        f'  <iothreadpin iothread="{iothread_id}" cpuset="92-93"/>'
+        "</cputune>"
+        "<devices/>"
+        "</domain>"
+    )
+
+
+def test_ensure_iothreads_declared_inserts_missing():
+    """Orphan <iothreadpin iothread='1'/> with no <iothreads> => declare
+    <iothreads>1</iothreads> right after <vcpu> (the libvirt-correct order)."""
+    result = ensure_iothreads_declared(_iothreadpin_domain_xml(iothread_id="1"))
+    tree = _parse(result)
+    iothreads = tree.xpath("/domain/iothreads")
+    assert len(iothreads) == 1
+    assert iothreads[0].text == "1"
+    # Declared after <vcpu> and before <cputune>.
+    children = [c.tag for c in tree.xpath("/domain")[0]]
+    assert children.index("iothreads") == children.index("vcpu") + 1
+    assert children.index("iothreads") < children.index("cputune")
+    # Pinning preserved, not dropped.
+    assert len(tree.xpath("/domain/cputune/iothreadpin")) == 1
+
+
+def test_ensure_iothreads_declared_bumps_too_small():
+    """<iothreads>1</iothreads> but a pin references iothread 3 => bump to 3."""
+    result = ensure_iothreads_declared(
+        _iothreadpin_domain_xml(iothread_id="3", with_iothreads="1")
+    )
+    tree = _parse(result)
+    assert tree.xpath("/domain/iothreads")[0].text == "3"
+    assert len(tree.xpath("/domain/iothreads")) == 1
+
+
+def test_ensure_iothreads_declared_noop_when_already_covered():
+    """A pin id already within <iothreads>N is left untouched (idempotent)."""
+    xml = _iothreadpin_domain_xml(iothread_id="1", with_iothreads="2")
+    result = ensure_iothreads_declared(xml)
+    tree = _parse(result)
+    assert tree.xpath("/domain/iothreads")[0].text == "2"
+
+
+def test_ensure_iothreads_declared_noop_without_iothreadpin():
+    """No <iothreadpin> => no <iothreads> synthesized, XML unchanged."""
+    xml = (
+        '<domain type="kvm"><name>d</name><vcpu>4</vcpu>'
+        '<cputune><vcpupin vcpu="0" cpuset="0-3"/></cputune>'
+        "<devices/></domain>"
+    )
+    result = ensure_iothreads_declared(xml)
+    assert _parse(result).xpath("/domain/iothreads") == []
+
+
+def test_ensure_iothreads_declared_honors_explicit_iothreadids():
+    """An explicit <iothreadids><iothread id='5'/></iothreadids> already declares
+    id 5 => a pin to 5 is a no-op (no spurious <iothreads> count added)."""
+    xml = (
+        '<domain type="kvm"><name>d</name><vcpu>8</vcpu>'
+        '<iothreadids><iothread id="5"/></iothreadids>'
+        '<cputune><iothreadpin iothread="5" cpuset="0-3"/></cputune>'
+        "<devices/></domain>"
+    )
+    result = ensure_iothreads_declared(xml)
+    tree = _parse(result)
+    assert tree.xpath("/domain/iothreads") == []
+    assert len(tree.xpath('/domain/iothreadids/iothread[@id="5"]')) == 1
     assert len(tree.xpath("/domain/devices/interface")) == 1
