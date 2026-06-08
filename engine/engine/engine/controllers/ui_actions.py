@@ -16,6 +16,7 @@ from engine.models.domain_xml import (
     add_memory_backing,
     add_numa_pinning,
     add_qemu_pcie_reserve,
+    count_passthrough_gpus_in_xml,
     hostdev_locked,
     pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
@@ -541,6 +542,22 @@ class UiActions(object):
                 # even if the optimization block bails out.
                 expects_slow_createxml = False
 
+                # --- Large-BAR multi-GPU PCIe reserve (best-effort) ---
+                # A guest with >=2 passed-through GPUs (large BARs, e.g. RTX PRO
+                # 6000) needs a bigger 64-bit prefetchable MMIO window on the PCIe
+                # root ports, or the second card's BAR fails to map. The per-card
+                # carve loop only covers engine-reserved profiles; this also covers
+                # the manual-passthrough path (hostdevs baked into the XML, no
+                # reservation). add_qemu_pcie_reserve is idempotent.
+                try:
+                    if count_passthrough_gpus_in_xml(xml) >= 2:
+                        xml = add_qemu_pcie_reserve(xml)
+                except Exception as _pref_err:
+                    log.warning(
+                        f"{id_domain}: pcie pref64-reserve check failed: "
+                        f"{_pref_err}; continuing without it"
+                    )
+
                 # --- NUMA / hugepages optimizations (best-effort) ---
                 # A failure anywhere in this block (bad topology data,
                 # unexpected XML shape, missing fields) must never stop the
@@ -549,9 +566,12 @@ class UiActions(object):
                 _xml_before_opts = xml
                 try:
                     # --- NUMA node selection ---
-                    # We always trust the sysfs view for CPU pinning (<cputune>
+                    # The engine derives CPU pinning from the sysfs view (<cputune>
                     # and <vcpu cpuset='...'> reference CPU IDs, which libvirt
-                    # sees correctly even when its capability XML is broken).
+                    # sees correctly even when its capability XML is broken) —
+                    # UNLESS the admin locked <cputune> via xml_protected_sections,
+                    # in which case the editor's manual pinning is authoritative and
+                    # must not be overwritten (see cputune_locked below).
                     # The libvirt_numa_ok flag only gates <numatune>: when False
                     # (libvirt-in-container reporting duplicate cell IDs, etc.),
                     # add_numa_pinning skips the memory-binding element so
@@ -647,7 +667,22 @@ class UiActions(object):
                                         xml = add_memory_backing(xml, "2", "M")
 
                     # --- NUMA CPU pinning + IO thread pinning ---
-                    if target_node is not None and target_node in numa_nodes:
+                    # Honor an admin-locked CPU pinning: when the desktop protects
+                    # <cputune> in its XML editor, the manual pinning is the source
+                    # of truth (the GPU carve already prefers a card on the pinned
+                    # node, see prefer_cpuset). Don't overwrite it here.
+                    cputune_locked = "cputune" in (
+                        (get_domain(id_domain) or {})
+                        .get("create_dict", {})
+                        .get("xml_protected_sections", [])
+                        or []
+                    )
+                    if cputune_locked:
+                        log.info(
+                            f"{id_domain}: <cputune> is admin-protected; keeping the "
+                            f"manual CPU pinning (skipping engine NUMA pinning)"
+                        )
+                    elif target_node is not None and target_node in numa_nodes:
                         cpulist = numa_nodes[target_node].get("cpulist", "")
                         if cpulist:
                             from io import StringIO

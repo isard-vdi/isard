@@ -2181,6 +2181,28 @@ def pinned_cpuset_from_xml(xml):
     return joined or None
 
 
+def count_passthrough_gpus_in_xml(xml):
+    """Number of passed-through GPUs in a domain XML.
+
+    Counts managed PCI ``<hostdev>`` entries whose source PCI function is ``0``
+    (the GPU itself), so an audio companion at function ``1`` of the same card
+    is not double-counted. Used to decide whether the guest needs the larger
+    64-bit prefetchable MMIO window (``pcie-root-port.pref64-reserve``): with two
+    or more large-BAR cards (e.g. RTX PRO 6000) the second card's BAR fails to
+    map without it.
+    """
+    try:
+        tree = etree.parse(StringIO(xml), etree.XMLParser(remove_blank_text=True))
+    except Exception:
+        return 0
+    return len(
+        tree.xpath(
+            "/domain/devices/hostdev[@type='pci'][@managed='yes']"
+            "/source/address[@function='0x0']"
+        )
+    )
+
+
 def recreate_xml_if_gpu(
     xml,
     mdev_uid,
