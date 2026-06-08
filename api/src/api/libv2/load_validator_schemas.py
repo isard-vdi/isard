@@ -15,6 +15,12 @@ from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 from api import app
 
+# Upper bound (in minutes) for desktop auto-shutdown time values. One year is
+# effectively unlimited for a session while keeping `now + max` well within a
+# representable date: an unbounded `max` (e.g. INT32_MAX) made the scheduler
+# compute a year-6109 shutdown date that broke desktop scheduling.
+MAX_SHUTDOWN_MINUTES = 525600
+
 
 class IsardValidator(Validator):
     def _normalize_coerce_sanitize(self, value):
@@ -87,8 +93,11 @@ class IsardValidator(Validator):
         danger_time = data[action]["notify_intervals"][0]["time"]
         if (
             max_time <= 0
+            or max_time > MAX_SHUTDOWN_MINUTES
             or warning_time >= 0
             or danger_time >= 0
+            or warning_time < -MAX_SHUTDOWN_MINUTES
+            or danger_time < -MAX_SHUTDOWN_MINUTES
             or warning_time >= max_time
             or danger_time >= max_time
             or danger_time <= warning_time
