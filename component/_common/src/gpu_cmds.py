@@ -92,26 +92,21 @@ def build_vfio_bind_cmds(pci_bdf, sriov_totalvfs, sriov_numvfs):
     are a simple driver swap. Skipped-VF case (sriov_numvfs==0) takes the swap.
     """
     if sriov_totalvfs > 0 and sriov_numvfs > 0:
-        sb = pci_bdf.replace("00.0", "")
+        # SR-IOV vGPU card with live VFs: SR-IOV must be disabled before vfio-pci
+        # will accept the PF. Use NVIDIA's own sriov-manage -d (same tool the
+        # profile-change teardown already uses): it unbinds every VF from the
+        # nvidia VF driver and sets sriov_numvfs=0 cleanly.
+        #
+        # The previous manual pci-pf-stub dance was broken on these cards: it
+        # registered the PF's vendor:device via `pci-pf-stub/new_id`, but the 48
+        # VFs share that SAME id, so pci-pf-stub claimed ALL of them. sriov_numvfs
+        # then could not reach 0 (VFs stuck on pci-pf-stub) and the PF could never
+        # bind vfio-pci -- the card was stranded (PF nvidia, VFs pci-pf-stub).
         return [
             "modprobe vfio-pci",
-            "modprobe pci-pf-stub",
+            f"sriov-manage -d {pci_bdf} 2>/dev/null || true",
             f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock 2>/dev/null || true",
             f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
-            f"for vf in $(lspci -D -s '{sb}' | awk '{{print $1}}'); do "
-            f'[ "$vf" = "{pci_bdf}" ] && continue; '
-            f"[ -e /sys/bus/pci/devices/$vf/driver ] && "
-            f"echo $vf > /sys/bus/pci/devices/$vf/driver/unbind 2>/dev/null || true; "
-            f"done",
-            f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
-            f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true && '
-            f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
-            f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
-            "sleep 0.5",
-            f"echo 0 > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null || true",
-            f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind 2>/dev/null || true",
-            f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
-            f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
             f"printf 'vfio-pci' > /sys/bus/pci/devices/{pci_bdf}/driver_override",
             f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
         ]
