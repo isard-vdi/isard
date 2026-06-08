@@ -53,6 +53,7 @@ def test_cli_passes_args_through(monkeypatch, capsys):
         mdevs_reset_at,
         mig_profile_id=None,
         mig_count=None,
+        deliberate=False,
     ):
         seen.update(
             pci_bdf=pci_bdf,
@@ -97,6 +98,7 @@ def test_cli_parses_mig_profile_id_and_count_as_int(monkeypatch):
         mdevs_reset_at,
         mig_profile_id=None,
         mig_count=None,
+        deliberate=False,
     ):
         seen["mig_profile_id"] = mig_profile_id
         seen["mig_count"] = mig_count
@@ -135,7 +137,7 @@ def test_build_report_seeds_mig_profile_id_when_descriptor_has_none(
     monkeypatch.setattr(
         gpu_apply,
         "apply_target",
-        lambda desc, target: captured.update(desc=desc, target=target)
+        lambda desc, target, deliberate=False: captured.update(desc=desc, target=target)
         or {"result": "applied"},
     )
     cli._build_report("0000:c5:00.0", "1g.24gb_me", "apply", None, mig_profile_id=19)
@@ -162,7 +164,8 @@ def test_build_report_does_not_override_live_mig_profiles(monkeypatch, tmp_path)
     monkeypatch.setattr(
         gpu_apply,
         "apply_target",
-        lambda desc, target: captured.update(desc=desc) or {"result": "applied"},
+        lambda desc, target, deliberate=False: captured.update(desc=desc)
+        or {"result": "applied"},
     )
     cli._build_report("0000:c5:00.0", "1g.24gb_me", "apply", None, mig_profile_id=99)
     # The live -lgip row wins: profile_id stays 7, nothing appended.
@@ -192,7 +195,8 @@ def test_build_report_seeds_mig_vgpu_count_so_multi_gi_branch_runs(
     monkeypatch.setattr(
         gpu_apply,
         "apply_target",
-        lambda desc, target: captured.update(desc=desc) or {"result": "applied"},
+        lambda desc, target, deliberate=False: captured.update(desc=desc)
+        or {"result": "applied"},
     )
     cli._build_report(
         "0000:05:00.0", "1_24Q", "apply", None, mig_profile_id=47, mig_count=4
