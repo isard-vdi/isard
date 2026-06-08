@@ -23,7 +23,9 @@ from gpu_discovery import (
     _classify_sriov_state,
     _cycle_sriov_vfs,
     _running_qemu_pids,
+    _sriov_manage_usable,
     _vf_vgpu_types_settled,
+    _vgpu_host_driver_present,
     _wait_sriov_numvfs_zero,
     _wait_vf_driver_bound,
     canonical_gpu_model,
@@ -415,6 +417,7 @@ def test_cycle_sriov_vfs_runs_settle_helpers_in_order(monkeypatch, tmp_path):
         call_log.append(("wait_vf_bound",))
         return True
 
+    monkeypatch.setattr(gd, "_sriov_manage_usable", lambda *a, **k: True)
     monkeypatch.setattr(gd.subprocess, "run", fake_run)
     monkeypatch.setattr(gd, "_wait_sriov_numvfs_zero", fake_wait_numvfs_zero)
     monkeypatch.setattr(gd, "_wait_vf_driver_bound", fake_wait_vf_bound)
@@ -464,6 +467,7 @@ def test_cycle_sriov_vfs_survives_missing_udevadm(monkeypatch, tmp_path):
             raise FileNotFoundError(2, "No such file or directory", "udevadm")
         return _R()
 
+    monkeypatch.setattr(gd, "_sriov_manage_usable", lambda *a, **k: True)
     monkeypatch.setattr(gd.subprocess, "run", fake_run)
     monkeypatch.setattr(gd, "_wait_sriov_numvfs_zero", lambda *a, **k: True)
     monkeypatch.setattr(gd, "_wait_vf_driver_bound", lambda *a, **k: True)
@@ -485,6 +489,7 @@ def test_cycle_sriov_vfs_returns_false_if_vfs_never_bind(monkeypatch, tmp_path):
         stdout = ""
         stderr = ""
 
+    monkeypatch.setattr(gd, "_sriov_manage_usable", lambda *a, **k: True)
     monkeypatch.setattr(gd.subprocess, "run", lambda *a, **kw: _R())
     monkeypatch.setattr(gd, "_wait_sriov_numvfs_zero", lambda *a, **kw: True)
     monkeypatch.setattr(gd, "_wait_vf_driver_bound", lambda *a, **kw: False)
@@ -493,6 +498,91 @@ def test_cycle_sriov_vfs_returns_false_if_vfs_never_bind(monkeypatch, tmp_path):
     # a wild goose chase. Engine reconcile then treats this as
     # DISCOVERY_INCOMPLETE rather than "GPU has no profiles".
     assert _cycle_sriov_vfs(pci_id) is False
+
+
+def test_cycle_sriov_vfs_returns_false_when_sriov_manage_unusable(monkeypatch):
+    """When sriov-manage is not a usable executable (missing host source /
+    empty-dir bind-mount / not +x) the cycle must bail out cleanly with False
+    and never exec the tool — avoiding the confusing mid-call EACCES."""
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_sriov_manage_usable", lambda *a, **k: False)
+
+    def _boom(*a, **kw):
+        raise AssertionError("subprocess.run must not be called when unusable")
+
+    monkeypatch.setattr(gd.subprocess, "run", _boom)
+    assert _cycle_sriov_vfs("0000:05:00.0") is False
+
+
+def test_aggregate_skips_sriov_cycle_without_vgpu_host_driver(monkeypatch):
+    """A datacenter/CUDA-driver host (no vGPU host driver) exposes
+    sriov_totalvfs but cannot bring vGPU VFs up. Discovery must skip the doomed
+    VF cycle + nvidia-smi -r bus reset entirely rather than spamming failures."""
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda *a, **k: [])
+    monkeypatch.setattr(gd, "_reset_sysfs_mdevs", lambda *a, **k: None)
+    monkeypatch.setattr(gd, "_vgpu_host_driver_present", lambda *a, **k: False)
+    monkeypatch.setattr(gd, "_running_qemu_pids", lambda: [])
+    monkeypatch.setattr(gd, "_enumerate_sriov_vf_paths", lambda *a, **k: [])
+    monkeypatch.setattr(gd.os.path, "exists", lambda p: True)  # sriov_totalvfs
+    monkeypatch.setattr(gd.os, "listdir", lambda p: [])
+    cycle_calls = []
+    reset_calls = []
+    monkeypatch.setattr(
+        gd, "_cycle_sriov_vfs", lambda *a, **k: cycle_calls.append(a) or False
+    )
+    monkeypatch.setattr(
+        gd, "_nvidia_smi_gpu_reset", lambda bdf: reset_calls.append(bdf)
+    )
+
+    gd._aggregate_subdevice_profiles("00000000:05:00.0")
+
+    assert cycle_calls == []  # doomed VF cycle skipped
+    assert reset_calls == []  # no bus reset
+
+
+def test_sriov_manage_usable(monkeypatch):
+    import gpu_discovery as gd
+
+    # Real executable file -> usable
+    monkeypatch.setattr(gd.shutil, "which", lambda n: "/usr/bin/sriov-manage")
+    monkeypatch.setattr(gd.os.path, "isfile", lambda p: True)
+    monkeypatch.setattr(gd.os, "access", lambda p, m: True)
+    assert _sriov_manage_usable() is True
+
+    # which() returns None (not on PATH) -> not usable
+    monkeypatch.setattr(gd.shutil, "which", lambda n: None)
+    assert _sriov_manage_usable() is False
+
+    # Resolves to an empty-dir bind-mount target (not a file) -> not usable
+    monkeypatch.setattr(gd.shutil, "which", lambda n: "/usr/bin/sriov-manage")
+    monkeypatch.setattr(gd.os.path, "isfile", lambda p: False)
+    assert _sriov_manage_usable() is False
+
+
+@pytest.mark.parametrize(
+    "smi_stdout, expected",
+    [
+        ("    Host VGPU Mode                    : SR-IOV", True),
+        ("    Host VGPU Mode                    : Non SR-IOV", True),
+        ("    Host VGPU Mode                    : N/A", False),
+        ("    GPU 00000000:05:00.0\n    Product Name : NVIDIA", False),
+    ],
+)
+def test_vgpu_host_driver_present(monkeypatch, smi_stdout, expected):
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(gd, "_vgpu_host_driver", None)  # reset per-process cache
+
+    class _R:
+        returncode = 0
+        stdout = smi_stdout
+        stderr = ""
+
+    monkeypatch.setattr(gd.subprocess, "run", lambda *a, **k: _R())
+    assert _vgpu_host_driver_present() is expected
 
 
 # ----- discover_gpus retry + None sentinel --------------------------------
@@ -679,6 +769,9 @@ def _stub_aggregate_fallback(monkeypatch, gd, qemu_pids):
     whether the nvidia-smi -r bus reset is issued."""
     monkeypatch.setattr(gd, "_get_vgpu_profiles", lambda *a, **k: [])
     monkeypatch.setattr(gd, "_reset_sysfs_mdevs", lambda *a, **k: None)
+    # vGPU host driver present so has_sriov gates True and the fallback runs
+    # (the no-driver skip path is covered separately).
+    monkeypatch.setattr(gd, "_vgpu_host_driver_present", lambda *a, **k: True)
     monkeypatch.setattr(gd, "_cycle_sriov_vfs", lambda *a, **k: False)
     monkeypatch.setattr(gd, "_running_qemu_pids", lambda: qemu_pids)
     monkeypatch.setattr(gd, "_enumerate_sriov_vf_paths", lambda *a, **k: [])
