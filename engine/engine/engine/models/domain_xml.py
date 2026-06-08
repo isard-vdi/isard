@@ -2156,6 +2156,31 @@ GUEST_GPU_SLOT_BASE = 0x09
 GUEST_GPU_SLOT_MAX = 0x1F
 
 
+def pinned_cpuset_from_xml(xml):
+    """Union of a domain's CPU-pinning cpusets as a cpulist string
+    (e.g. ``"48-71,92-93"``), or None when the domain is not CPU-pinned.
+
+    Reads ``<cputune><vcpupin cpuset=.../>`` and ``<vcpu cpuset=...>``. The GPU
+    carve uses it to place a desktop's passed-through GPU(s) on the NUMA node
+    matching its pinned vCPUs.
+    """
+    try:
+        tree = etree.parse(StringIO(xml), etree.XMLParser(remove_blank_text=True))
+    except Exception:
+        return None
+    parts = []
+    for el in tree.xpath("/domain/cputune/vcpupin"):
+        cs = el.get("cpuset")
+        if cs:
+            parts.append(cs)
+    for el in tree.xpath("/domain/vcpu"):
+        cs = el.get("cpuset")
+        if cs:
+            parts.append(cs)
+    joined = ",".join(parts)
+    return joined or None
+
+
 def recreate_xml_if_gpu(
     xml,
     mdev_uid,

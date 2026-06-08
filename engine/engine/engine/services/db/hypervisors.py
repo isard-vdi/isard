@@ -785,6 +785,58 @@ def filter_outofmem_hypers(hypers_online):
     return hypers_with_ram
 
 
+def _expand_cpu_ranges(cpulist):
+    """Expand a Linux cpulist string ("0-47,96-143") into a set of CPU ids.
+
+    Tolerant of empties / spaces / malformed parts (skipped). Used to map a
+    desktop's pinned cpuset onto a host NUMA node whose cpulist may be
+    non-contiguous (e.g. SMT siblings live in a second range).
+    """
+    out = set()
+    if not cpulist:
+        return out
+    for part in str(cpulist).split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            lo, _, hi = part.partition("-")
+            try:
+                out.update(range(int(lo), int(hi) + 1))
+            except ValueError:
+                continue
+        else:
+            try:
+                out.add(int(part))
+            except ValueError:
+                continue
+    return out
+
+
+def _resolve_numa_node_for_cpuset(numa_nodes, cpuset):
+    """Return the NUMA node id (int) whose cpulist best covers ``cpuset``.
+
+    ``numa_nodes`` is ``numa_topology["nodes"]`` ({node_id: {"cpulist": ...}}).
+    Picks the node with the largest overlap with the desktop's pinned cpuset.
+    Returns None when nothing is resolvable (no cpuset, no topology, no overlap)
+    so the caller falls back to its default placement.
+    """
+    want = _expand_cpu_ranges(cpuset)
+    if not want or not numa_nodes:
+        return None
+    best, best_overlap = None, 0
+    for nid, nd in numa_nodes.items():
+        overlap = len(want & _expand_cpu_ranges((nd or {}).get("cpulist")))
+        if overlap > best_overlap:
+            best_overlap, best = overlap, nid
+    if best is None:
+        return None
+    try:
+        return int(best)
+    except (TypeError, ValueError):
+        return None
+
+
 def get_hypers_gpu_online(
     id_pool="default",
     forced_hyp=None,
@@ -793,6 +845,8 @@ def get_hypers_gpu_online(
     forced_gpus_hypervisors=None,
     exclude_outofmem=True,
     storage_pool_id=None,
+    prefer_cpuset=None,
+    prefer_numa_node=None,
 ):
     r_conn = new_rethink_connection()
     hypers_online = list(
@@ -884,32 +938,73 @@ def get_hypers_gpu_online(
     for h in hypers_online_with_gpu:
         hyper_with_free_uuid = False
         selected_mig = False
-        for pci, model in h["info"]["nvidia"].items():
-            if model == gpu_model:
-                gpu_id = h["id"] + "-" + pci
-                gpu_profile_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_profile)
-
-                if gpu_profile_active == gpu_profile:
-                    # get_vgpus_mdevs plucks {"mdevs": [gpu_profile]}, so a card
-                    # whose pool lacks that key (mid-transition, stale active
-                    # field, pool not yet rebuilt) yields an EMPTY mdevs dict -
-                    # treat it as "no free uuid on this card" instead of
-                    # KeyError-ing the whole start action. A multi-vGPU desktop
-                    # probes every requested profile against every card of the
-                    # model, which makes this window easy to hit.
-                    for mdev_uuid, d in mdevs.get(gpu_profile, {}).items():
-                        if (
-                            d.get("domain_reserved", False) is False
-                            and d.get("domain_started", False) is False
-                            and d.get("created", False) is True
-                        ):
-                            hyper_with_free_uuid = True
-                            # MIG-backed mdevs need display='off' in the guest
-                            # XML; carry the per-mdev flag to the XML builder.
-                            selected_mig = bool(d.get("mig", False))
-                            break
-                    if hyper_with_free_uuid:
+        numa_nodes = (h.get("numa_topology", {}) or {}).get("nodes", {}) or {}
+        host_multinode = len(numa_nodes) > 1
+        # Preferred NUMA node on this host: an explicit node hint wins (used to
+        # group the 2nd..Nth card of a multi-GPU desktop on the 1st card's
+        # node), else derive it from the desktop's pinned cpuset against this
+        # host's topology. Only meaningful on multi-node hosts.
+        target_node = None
+        if host_multinode:
+            if prefer_numa_node is not None:
+                try:
+                    target_node = int(prefer_numa_node)
+                except (TypeError, ValueError):
+                    target_node = None
+            elif prefer_cpuset:
+                target_node = _resolve_numa_node_for_cpuset(numa_nodes, prefer_cpuset)
+        pdev = h.get("pci_devices", {}) or {}
+        # Collect every free card of the model on this host (with its NUMA node)
+        # so the preference can pick among them; with no preference this reduces
+        # to the historical "first free card".
+        free_cards = []  # (pci, gpu_id, mdev_uuid, mig, numa_node)
+        for pci_k, model in h["info"]["nvidia"].items():
+            if model != gpu_model:
+                continue
+            gpu_id_k = h["id"] + "-" + pci_k
+            gpu_profile_active, mdevs = get_vgpus_mdevs(gpu_id_k, gpu_profile)
+            # get_vgpus_mdevs plucks {"mdevs": [gpu_profile]}, so a card whose
+            # pool lacks that key (mid-transition, stale active field, pool not
+            # yet rebuilt) yields an EMPTY mdevs dict - treat it as "no free
+            # uuid on this card" instead of KeyError-ing the whole start action.
+            # A multi-vGPU desktop probes every requested profile against every
+            # card of the model, which makes this window easy to hit.
+            if gpu_profile_active != gpu_profile:
+                continue
+            for mdev_uuid_k, d in mdevs.get(gpu_profile, {}).items():
+                if (
+                    d.get("domain_reserved", False) is False
+                    and d.get("domain_started", False) is False
+                    and d.get("created", False) is True
+                ):
+                    pci_sysfs_k = pci_k[4:].replace("_", ":", 2)
+                    pci_sysfs_k = (
+                        pci_sysfs_k[: len(pci_sysfs_k) - 2] + "." + pci_sysfs_k[-1]
+                    )
+                    nn = pdev.get(pci_sysfs_k, {}).get("numa_node")
+                    free_cards.append(
+                        (pci_k, gpu_id_k, mdev_uuid_k, bool(d.get("mig", False)), nn)
+                    )
+                    # one free uuid is enough to mark this card available
+                    break
+        if free_cards:
+            # NUMA preference: prefer a free card on target_node; a card with an
+            # unknown (-1/None) numa_node matches any node. Fall back to the
+            # first free card so NUMA is only ever a preference, never a reason
+            # to refuse a start (single-node hosts / -1 cards behave as before).
+            chosen = None
+            if target_node is not None:
+                for fc in free_cards:
+                    nn = fc[4]
+                    if nn is not None and int(nn) >= 0 and int(nn) == target_node:
+                        chosen = fc
                         break
+            if chosen is None:
+                chosen = free_cards[0]
+            # MIG-backed mdevs need display='off' in the guest XML; carry the
+            # per-mdev flag to the XML builder.
+            pci, gpu_id, mdev_uuid, selected_mig, _chosen_nn = chosen
+            hyper_with_free_uuid = True
         if hyper_with_free_uuid:
             logs.workers.info(
                 f"hypervisor with available profile gpu: {h['id']}, uuid_selected: {mdev_uuid}, "

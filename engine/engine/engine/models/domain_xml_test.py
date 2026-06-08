@@ -6,6 +6,7 @@ from engine.models.domain_xml import (
     add_memory_backing,
     ensure_iothreads_declared,
     hostdev_locked,
+    pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
 )
 from lxml import etree
@@ -738,3 +739,36 @@ def test_ensure_iothreads_declared_honors_explicit_iothreadids():
     assert tree.xpath("/domain/iothreads") == []
     assert len(tree.xpath('/domain/iothreadids/iothread[@id="5"]')) == 1
     assert len(tree.xpath("/domain/devices/interface")) == 1
+
+
+# ---- pinned_cpuset_from_xml: NUMA-aware GPU placement input ----------------
+
+
+def test_pinned_cpuset_from_xml_unions_vcpupin():
+    """Union every <vcpupin cpuset/> into one cpulist string (the carve maps it
+    to a NUMA node)."""
+    xml = (
+        '<domain type="kvm"><name>d</name><vcpu>24</vcpu>'
+        '<cputune><vcpupin vcpu="0" cpuset="48-71"/>'
+        '<vcpupin vcpu="1" cpuset="92-93"/>'
+        '<iothreadpin iothread="1" cpuset="92-93"/></cputune>'
+        "<devices/></domain>"
+    )
+    assert pinned_cpuset_from_xml(xml) == "48-71,92-93"
+
+
+def test_pinned_cpuset_from_xml_reads_vcpu_attr():
+    """A whole-domain <vcpu cpuset="..."> pin is also picked up."""
+    xml = '<domain type="kvm"><vcpu cpuset="0-15">16</vcpu><devices/></domain>'
+    assert pinned_cpuset_from_xml(xml) == "0-15"
+
+
+def test_pinned_cpuset_from_xml_none_when_unpinned():
+    """No pinning => None, so the carve keeps its default placement."""
+    xml = '<domain type="kvm"><vcpu>4</vcpu><devices/></domain>'
+    assert pinned_cpuset_from_xml(xml) is None
+
+
+def test_pinned_cpuset_from_xml_none_on_bad_xml():
+    """Malformed XML => None (never raises)."""
+    assert pinned_cpuset_from_xml("<domain><not-closed>") is None

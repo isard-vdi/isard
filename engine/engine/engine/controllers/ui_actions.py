@@ -17,6 +17,7 @@ from engine.models.domain_xml import (
     add_numa_pinning,
     add_qemu_pcie_reserve,
     hostdev_locked,
+    pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
     recreate_xml_to_start,
@@ -397,6 +398,14 @@ class UiActions(object):
                 pinned_hyp = list(forced_hyp) if forced_hyp else None
                 primary_extra = None
                 placement_failed = False
+                # NUMA-aware placement: if the desktop pins its vCPUs, prefer
+                # GPU cards on the matching NUMA node; then group every later
+                # card on the first card's node so a multi-GPU guest is not
+                # split across NUMA nodes. Both are preferences (the carve falls
+                # back to any free card), so single-node hosts and cards with an
+                # unknown numa_node behave exactly as before.
+                prefer_cpuset = pinned_cpuset_from_xml(xml)
+                group_node = None
 
                 def _rollback_vgpus():
                     for _g, _u, _p in reserved:
@@ -428,6 +437,8 @@ class UiActions(object):
                             force_gpus=force_gpus,
                             storage_pool_id=storage_pool_id,
                             domain_memory_gb=domain_memory_gb,
+                            prefer_cpuset=prefer_cpuset,
+                            prefer_numa_node=group_node,
                         )
                         if nh is False or ei.get("nvidia", False) is not True:
                             # No card for this profile on the pinned host.
@@ -490,6 +501,14 @@ class UiActions(object):
                         reserved.append((ei["gpu_id"], ei["uid"], ei["profile"]))
                         if primary_extra is None:
                             primary_extra = ei
+                        # Group any later card on this (first) card's NUMA node
+                        # so the guest's GPUs stay on one node. Skip when the
+                        # node is unknown (-1/None) — then later cards just take
+                        # any free card, as before.
+                        if group_node is None:
+                            _nn = ei.get("gpu_numa_node")
+                            if _nn is not None and int(_nn) >= 0:
+                                group_node = int(_nn)
                         placed = True
                         break
                     if not placed:

@@ -233,6 +233,8 @@ class BalancerInterface:
         force_gpus=None,
         storage_pool_id=None,
         domain_memory_gb=1.0,
+        prefer_cpuset=None,
+        prefer_numa_node=None,
     ):
         if storage_pool_id is None:
             logs.hmlog.error("Storage pool id is None so can't get next hypervisor")
@@ -267,6 +269,8 @@ class BalancerInterface:
             forced_gpus_hypervisors,
             storage_pool_id,
             domain_memory_gb,
+            prefer_cpuset=prefer_cpuset,
+            prefer_numa_node=prefer_numa_node,
         )
 
         # If no hypervisor with gpu available and online, return False
@@ -380,6 +384,8 @@ class BalancerInterface:
         forced_gpus_hypervisors=None,
         storage_pool_id=None,
         domain_memory_gb=1.0,
+        prefer_cpuset=None,
+        prefer_numa_node=None,
     ):
         gpu_hypervisors_online = get_hypers_gpu_online(
             self.id_pool,
@@ -388,6 +394,8 @@ class BalancerInterface:
             gpu_profile,
             forced_gpus_hypervisors,
             storage_pool_id=storage_pool_id,
+            prefer_cpuset=prefer_cpuset,
+            prefer_numa_node=prefer_numa_node,
         )
         hypers_w_threads = get_pools_threads_running(gpu_hypervisors_online)
         if len(gpu_hypervisors_online) != len(hypers_w_threads):
