@@ -44,6 +44,31 @@ ssh-keygen -A
 /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config >/dev/null 2>&1 &
 sleep 1
 
+# Do NOT progress the startup until the API is reachable. A hypervisor that runs
+# its (slow) GPU discovery and registers against a not-yet-ready API ends up
+# Online-but-incomplete -- registration half-persists (no vgpus / no gpu_targets
+# back), so no GPU profile is applied and the card looks empty. This bites on a
+# full-stack `docker compose up -d` where every container (db/engine/api/hyp)
+# restarts at once and the fast hypervisor races ahead. Block here until the API
+# answers (any HTTP status = the API is serving; only a connection failure means
+# down), then register against a ready stack.
+echo "---> Waiting for the API to be reachable before registering..."
+api_wait=0
+until python3 -c "
+import sys, urllib.request, urllib.error
+try:
+    urllib.request.urlopen('http://isard-api:5000/api/v3/', timeout=3)
+except urllib.error.HTTPError:
+    pass  # 4xx/5xx still means the API process is up and serving
+except Exception:
+    sys.exit(1)
+" 2>/dev/null; do
+  api_wait=$((api_wait + 3))
+  echo "     API not reachable yet (${api_wait}s elapsed); waiting 3s..."
+  sleep 3
+done
+echo "---> API reachable; proceeding with registration."
+
 echo "---> Registering hypervisor with API (certificates + SR-IOV/GPU discovery)..."
 echo "     GPU/vGPU discovery can take a while on vGPU hosts;"
 echo "     see 'docker logs isard-hypervisor' for per-GPU progress and failures."

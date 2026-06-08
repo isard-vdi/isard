@@ -76,6 +76,9 @@ $(document).ready(function () {
           } else {
             text = "-"
           }
+          if (data.last_apply_error) {
+            text += ' <i class="fa fa-exclamation-triangle" style="color:darkred" title="' + String(data.last_apply_error).replace(/"/g, '&quot;') + '"></i>'
+          }
           return text + ' <button id="btn-force_active_profile" class="btn btn-xs btn-danger" type="button" style="margin-left:10px" data-toggle="tooltip" data-placement="right" title="Force active profile"><i class="fa fa-flash"></i></button>'
         }
       },
@@ -125,6 +128,7 @@ $(document).ready(function () {
         if (rowData.physical_device === data.id) {
           rowData.active_profile = data.vgpu_profile;
           rowData.changing_to_profile = data.changing_to_profile;
+          rowData.last_apply_error = data.last_apply_error;
           rowData.desktops_started = data.desktops_started;
           // Operator-intent fields surface "what the operator asked for"
           // separately from "what is currently bound on the card". When

@@ -539,6 +539,7 @@ class HypervisorsThread(threading.Thread):
                                     "requested_profile",
                                     "operator_passthrough",
                                     "changing_to_profile",
+                                    "last_apply_error",
                                     {"mdevs": True},
                                 )
                                 .merge({"table": "vgpus"})
@@ -601,6 +602,13 @@ class HypervisorsThread(threading.Thread):
                                                 "profile_mismatch": profile_mismatch,
                                                 "changing_to_profile": new_val.get(
                                                     "changing_to_profile", False
+                                                ),
+                                                # Last apply/teardown failure
+                                                # reason (e.g. teardown_blocked:
+                                                # card still held) so the admin
+                                                # GPU table can show the fault.
+                                                "last_apply_error": new_val.get(
+                                                    "last_apply_error"
                                                 ),
                                                 "desktops_started": desktops_started,
                                                 # Pool size of the new active
