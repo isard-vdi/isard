@@ -129,8 +129,19 @@ def _discover_gpus_locked():
 def _apply_gpus_locked(nvidia_gpus, targets):
     """Apply the API's per-card target profiles locally, under the SAME
     exclusive lock _discover_gpus_locked uses so a concurrent setup cannot race
-    driver swaps. Returns the applied-state report {pci_bus_id: {...}}."""
+    driver swaps. Returns the applied-state report {pci_bus_id: {...}}.
+
+    Reports per-card boot progress so the admin UI is not stuck on
+    "GPU/hardware discovery" for the whole (sometimes multi-minute) apply: each
+    card updates the boot_progress label + timestamp as it is carved."""
     import gpu_apply
+
+    def _report_apply_progress(idx, total, pci_bdf, wanted):
+        report_progress(
+            0,
+            9,
+            f"Applying GPU profiles ({idx}/{total}): {pci_bdf} -> {wanted}",
+        )
 
     try:
         lock_f = open(SETUP_GPU_LOCK, "w")
@@ -139,7 +150,9 @@ def _apply_gpus_locked(nvidia_gpus, targets):
     try:
         if lock_f is not None:
             fcntl.flock(lock_f, fcntl.LOCK_EX)
-        return gpu_apply.apply_targets(nvidia_gpus, targets)
+        return gpu_apply.apply_targets(
+            nvidia_gpus, targets, progress=_report_apply_progress
+        )
     finally:
         if lock_f is not None:
             try:

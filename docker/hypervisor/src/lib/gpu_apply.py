@@ -19,6 +19,7 @@ gpu_discovery) are unit-tested in gpu_apply_test.py; the orchestration that
 touches the host is validated on a GPU host.
 """
 
+import logging
 import os
 import time
 import uuid as _uuid
@@ -47,6 +48,13 @@ from gpu_probe import (
 # _get_vgpu_profiles / _vfio_group_in_use are pure-read discovery helpers,
 # imported at module level now (no cycle: gpu_discovery no longer imports us).
 _cmds = _load_shared("gpu_cmds")
+
+# Per-card apply progress goes to stdout (docker logs isard-hypervisor). The
+# apply phase runs inside `hypervisor.py setup`, which configures the root
+# logger to stdout, so this child logger propagates there. Without it the
+# multi-minute GPU apply at registration is completely silent and looks like a
+# hang (it is not -- each card carve can legitimately take minutes + retries).
+log = logging.getLogger("gpu_apply")
 
 
 # --------------------------------------------------------------------------- #
@@ -474,10 +482,13 @@ def apply_target(gpu, target, run=run_local):
     base_path = gpu.get("path") or f"/sys/bus/pci/devices/{pci_bdf}"
     reset_at = gpu.get("mdevs_reset_at")
 
+    t0 = time.monotonic()
+
     if not is_actionable(target):
         # Advisory skip (skip_retry / skip_fault): nothing applied, but preserve
         # the existing pool -- carry mdevs_reset_at so the API re-pins
         # mdevs_last_synced_at and the engine confirms instead of rebuilding.
+        log.info("apply %s: advisory skip (target=%r), pool preserved", pci_bdf, target)
         return _report(pci_bdf, "skipped_advisory", mdevs_reset_at=reset_at)
 
     wanted = target_suffix(target)
@@ -497,7 +508,17 @@ def apply_target(gpu, target, run=run_local):
     )
 
     action = decide_apply_action(current, wanted, _card_busy(base_path))
+    log.info(
+        "apply %s: current=%s wanted=%s action=%s (driver=%s mig=%s)",
+        pci_bdf,
+        current,
+        wanted,
+        action,
+        driver,
+        mig_mode,
+    )
     if action in ("noop", "skipped_busy"):
+        log.info("apply %s: %s -- nothing to do, existing pool kept", pci_bdf, action)
         # Carry mdevs_reset_at so the API can re-pin mdevs_last_synced_at even
         # though nothing was applied: a noop/busy card's existing pool is still
         # valid (a live desktop's mdev survived this discovery's reset), so the
@@ -521,6 +542,13 @@ def apply_target(gpu, target, run=run_local):
     last_error = None
     for attempt in range(_APPLY_ATTEMPTS):
         if attempt:
+            log.info(
+                "apply %s: retry %d/%d after error: %s",
+                pci_bdf,
+                attempt + 1,
+                _APPLY_ATTEMPTS,
+                last_error,
+            )
             _SLEEP(_APPLY_RETRY_DELAY)
             if expected_driver == "nvidia" and _read_driver(pci_bdf, run) != "nvidia":
                 run(_cmds.build_pf_recover_nvidia_cmds(pci_bdf), timeout=60)
@@ -534,9 +562,11 @@ def apply_target(gpu, target, run=run_local):
             mdevs, err = _apply(gpu, current, wanted, run)
         except Exception as e:  # never abort the whole registration for one card
             last_error = str(e)
+            log.warning("apply %s: carve raised: %s", pci_bdf, last_error)
             continue
         if err:
             last_error = err
+            log.warning("apply %s: carve returned error: %s", pci_bdf, err)
             continue
 
         # Verify the realised state matches intent before claiming success.
@@ -561,6 +591,13 @@ def apply_target(gpu, target, run=run_local):
         if is_vgpu and _live_mdev_count(pci_bdf, run, gpu.get("sub_paths")) == 0:
             last_error = f"vGPU {wanted} carve did not materialise (no live mdev)"
             continue
+        log.info(
+            "apply %s: applied %s (was %s) in %.1fs",
+            pci_bdf,
+            wanted,
+            current,
+            time.monotonic() - t0,
+        )
         return _report(
             pci_bdf,
             "applied",
@@ -572,6 +609,13 @@ def apply_target(gpu, target, run=run_local):
             mdevs_reset_at=reset_at,
         )
 
+    log.error(
+        "apply %s: FAILED after %d attempts in %.1fs -- %s",
+        pci_bdf,
+        _APPLY_ATTEMPTS,
+        time.monotonic() - t0,
+        last_error,
+    )
     return _report(
         pci_bdf,
         "error",
@@ -586,14 +630,18 @@ def _is_mig_target(gpu, targets):
     return target_suffix(targets.get(gpu.get("pci_bus_id"))) in _mig_profile_ids(gpu)
 
 
-def apply_targets(nvidia_gpus, targets, run=run_local):
+def apply_targets(nvidia_gpus, targets, run=run_local, progress=None):
     """Apply the per-card targets (keyed by pci_bus_id) for all discovered GPUs.
     Returns {pci_bus_id: report}. Best-effort: one card failing never aborts the
     others.
 
     Non-MIG cards (vGPU/passthrough) are applied BEFORE MIG cards: a MIG
     transition issues ``nvidia-smi --gpu-reset``, which on a multi-GPU board can
-    disturb a sibling, so we finish the carves that don't need a reset first."""
+    disturb a sibling, so we finish the carves that don't need a reset first.
+
+    ``progress`` is an optional callback ``(index, total, pci_bdf, wanted)``
+    invoked before each card so the caller can surface live boot-progress (the
+    apply phase can take minutes on multi-card vGPU/MIG hosts)."""
     applied = {}
     targets = targets or {}
     cards = [
@@ -603,10 +651,30 @@ def apply_targets(nvidia_gpus, targets, run=run_local):
     ]
     # stable sort: False (non-MIG) before True (MIG)
     cards.sort(key=lambda gpu: _is_mig_target(gpu, targets))
-    for gpu in cards:
+    total = len(cards)
+    t0 = time.monotonic()
+    log.info(
+        "applying GPU targets to %d card(s): %s",
+        total,
+        ", ".join(
+            f"{g['pci_bus_id']}->{target_suffix(targets.get(g['pci_bus_id']))}"
+            for g in cards
+        )
+        or "(none)",
+    )
+    for idx, gpu in enumerate(cards, start=1):
         pci_bdf = gpu["pci_bus_id"]
+        wanted = target_suffix(targets.get(pci_bdf))
+        log.info("apply [%d/%d] %s -> %s starting", idx, total, pci_bdf, wanted)
+        if progress is not None:
+            try:
+                progress(idx, total, pci_bdf, wanted)
+            except Exception:
+                pass  # progress reporting must never break the apply
         try:
             applied[pci_bdf] = apply_target(gpu, targets.get(pci_bdf), run=run)
         except Exception as e:
+            log.warning("apply [%d/%d] %s raised: %s", idx, total, pci_bdf, e)
             applied[pci_bdf] = _report(pci_bdf, "error", error=str(e))
+    log.info("GPU apply complete: %d card(s) in %.1fs", total, time.monotonic() - t0)
     return applied
