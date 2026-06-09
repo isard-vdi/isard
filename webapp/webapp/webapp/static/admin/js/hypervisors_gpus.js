@@ -183,11 +183,11 @@ $(document).ready(function () {
           $(row).attr("data-itemId", id);
           $(row).attr("data-subitemId", data.id);
           // The id actually enabled on this card for this base profile: the
-          // bare base, or "<base>@<variant>". Empty when not enabled. Used so a
+          // bare base, or "<base>~<variant>". Empty when not enabled. Used so a
           // disable/re-key targets the real id (not a recomputed one).
           var enabledId =
             (rowData.profiles_enabled || []).find(function (p) {
-              return p === data.id || p.indexOf(data.id + "@") === 0;
+              return p === data.id || p.indexOf(data.id + "~") === 0;
             }) || "";
           $(row).attr("data-enabledId", enabledId);
         },
@@ -216,10 +216,10 @@ $(document).ready(function () {
           {
             targets: 0,
             render: function (data, type, full, meta) {
-              // Checked when the base profile OR any "<base>@<variant>" of it is
+              // Checked when the base profile OR any "<base>~<variant>" of it is
               // enabled on this card.
               var en = (rowData.profiles_enabled || []).some(function (p) {
-                return p === full.id || p.indexOf(full.id + "@") === 0;
+                return p === full.id || p.indexOf(full.id + "~") === 0;
               });
               return en
                 ? '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input>'
@@ -228,16 +228,16 @@ $(document).ready(function () {
           },
           {
             // Optional variant name: differentiates same brand-model-profile
-            // cards into distinct selectable reservables ("<base>@<variant>").
+            // cards into distinct selectable reservables ("<base>~<variant>").
             targets: 6,
             orderable: false,
             render: function (data, type, full, meta) {
               var enabledId = (rowData.profiles_enabled || []).find(function (p) {
-                return p === full.id || p.indexOf(full.id + "@") === 0;
+                return p === full.id || p.indexOf(full.id + "~") === 0;
               });
               var variant =
-                enabledId && enabledId.indexOf("@") >= 0
-                  ? enabledId.split("@")[1]
+                enabledId && enabledId.indexOf("~") >= 0
+                  ? enabledId.split("~")[1]
                   : "";
               return (
                 '<input id="txt-variant" type="text" class="form-control input-sm" ' +
@@ -336,7 +336,7 @@ $(document).ready(function () {
       let reservable_type = $(this).parents("tr").attr("data-reservableType");
       let item_id = $(this).parents("tr").attr("data-itemId");
       let base_id = $(this).parents("tr").attr("data-subitemId");
-      // Optional "@<variant>" qualifier from the row's text input; when set it
+      // Optional "~<variant>" qualifier from the row's text input; when set it
       // makes this card's profile a distinct selectable reservable.
       let variant = ($(this).parents("tr").find("#txt-variant").val() || "").trim();
       if (variant && !/^[a-z0-9]{1,20}$/.test(variant)) {
@@ -352,8 +352,8 @@ $(document).ready(function () {
         $(this).prop("checked", !$(this).is(":checked"));
         return;
       }
-      let subitem_id = base_id + (variant ? "@" + variant : "");
-      // The id currently enabled on this card (base or "<base>@<variant>").
+      let subitem_id = base_id + (variant ? "~" + variant : "");
+      // The id currently enabled on this card (base or "<base>~<variant>").
       let enabledId =
         $(this).parents("tr").attr("data-enabledId") || subitem_id;
 
@@ -367,7 +367,7 @@ $(document).ready(function () {
 
           if (!enabled) {
             // Disable the id that is ACTUALLY enabled (so unchecking a variant
-            // removes "<base>@<variant>", not a reconstructed base).
+            // removes "<base>~<variant>", not a reconstructed base).
             subitem_id = enabledId;
             // check if it's the last profile of this kind
             $.ajax({

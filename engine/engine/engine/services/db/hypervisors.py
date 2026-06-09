@@ -892,10 +892,10 @@ def get_hypers_gpu_online(
         hypers_online = filter_outofmem_hypers(hypers_online)
 
     # Check profile format: "NVIDIA-A10-2Q" or "NVIDIA-RTXPro6000BlackwellDC-1-12Q",
-    # optionally with an "@<variant>" qualifier (e.g. "NVIDIA-L40S-8Q@lab").
+    # optionally with a "~<variant>" qualifier (e.g. "NVIDIA-L40S-8Q~lab").
     # Use split with maxsplit=2 to handle profiles with dashes (e.g., "1-12Q");
     # gpu_profile must be the BARE canonical suffix (mdev-pool / info.types key),
-    # so any "@<variant>" qualifier is stripped via profile_suffix_from_id.
+    # so any "~<variant>" qualifier is stripped via profile_suffix_from_id.
     try:
         parts = gpu_brand_model_profile.split("-", 2)
         if len(parts) != 3:
@@ -907,6 +907,31 @@ def get_hypers_gpu_online(
             f"Error parsing gpu_profile: {gpu_brand_model_profile}. Not in format BRAND-MODEL-PROFILE"
         )
         return []
+
+    # Variant segregation: a card is a candidate ONLY if it is enabled for the
+    # EXACT reservable id requested (gpus.profiles_enabled), so a "~<variant>"
+    # desktop is placed only on cards of that variant -- never on a card sharing
+    # the bare suffix but belonging to a different variant (or the unqualified
+    # pool). gpus.physical_device equals the vgpus card id rebuilt as gpu_id_k
+    # below. (Symmetric: an unqualified profile only matches unqualified cards.)
+    _rc = new_rethink_connection()
+    try:
+        eligible_cards = {
+            g["physical_device"]
+            for g in r.table("gpus")
+            .filter(
+                lambda g: g["profiles_enabled"]
+                .default([])
+                .contains(gpu_brand_model_profile)
+            )
+            .pluck("physical_device")
+            .run(_rc)
+            if g.get("physical_device")
+        }
+    except Exception:
+        eligible_cards = None  # query failed -> don't over-restrict (fail open)
+    finally:
+        close_rethink_connection(_rc)
 
     hypers_online_with_gpu = [
         h
@@ -967,6 +992,11 @@ def get_hypers_gpu_online(
             if model != gpu_model:
                 continue
             gpu_id_k = h["id"] + "-" + pci_k
+            # Variant segregation: skip cards not enabled for the EXACT reservable
+            # id (eligible_cards). None = the enablement query failed, so fall open
+            # to the historical model-only match rather than refuse every start.
+            if eligible_cards is not None and gpu_id_k not in eligible_cards:
+                continue
             gpu_profile_active, mdevs, changing_to_profile = get_vgpus_mdevs(
                 gpu_id_k, gpu_profile
             )

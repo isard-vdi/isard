@@ -150,8 +150,8 @@ def test_requested_overrides_keep_current():
     "rid,base,name",
     [
         ("NVIDIA-L40S-8Q", "NVIDIA-L40S-8Q", None),
-        ("NVIDIA-L40S-8Q@lab", "NVIDIA-L40S-8Q", "lab"),
-        ("NVIDIA-A16-1-2Q@x", "NVIDIA-A16-1-2Q", "x"),
+        ("NVIDIA-L40S-8Q~lab", "NVIDIA-L40S-8Q", "lab"),
+        ("NVIDIA-A16-1-2Q~x", "NVIDIA-A16-1-2Q", "x"),
         (None, None, None),
     ],
 )
@@ -162,9 +162,9 @@ def test_split_qualifier(rid, base, name):
 @pytest.mark.parametrize(
     "rid,expected",
     [
-        ("NVIDIA-L40S-8Q@lab", "8Q"),  # @<name> stripped -> matches info.types key
-        ("NVIDIA-RTXPro6000DC-1g.24gb@prod", "1g.24gb"),
-        ("NVIDIA-A16-1-2Q@x", "1_2Q"),  # dash-form canonicalized + @ stripped
+        ("NVIDIA-L40S-8Q~lab", "8Q"),  # ~<name> stripped -> matches info.types key
+        ("NVIDIA-RTXPro6000DC-1g.24gb~prod", "1g.24gb"),
+        ("NVIDIA-A16-1-2Q~x", "1_2Q"),  # dash-form canonicalized + @ stripped
         ("NVIDIA-L40S-8Q", "8Q"),
         ("8Q", "8Q"),  # already-bare suffix passes through
     ],
@@ -174,5 +174,5 @@ def test_profile_suffix_from_id_strips_variant(rid, expected):
 
 
 def test_canonical_profile_id_preserves_variant():
-    assert gpp.canonical_profile_id("NVIDIA-A16-1-2Q@lab") == "NVIDIA-A16-1_2Q@lab"
-    assert gpp.canonical_profile_id("NVIDIA-L40S-8Q@lab") == "NVIDIA-L40S-8Q@lab"
+    assert gpp.canonical_profile_id("NVIDIA-A16-1-2Q~lab") == "NVIDIA-A16-1_2Q~lab"
+    assert gpp.canonical_profile_id("NVIDIA-L40S-8Q~lab") == "NVIDIA-L40S-8Q~lab"
