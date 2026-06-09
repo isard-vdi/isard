@@ -93,7 +93,7 @@ from api.services.admin.socketio import AdminSocketioService
 from api.services.admin.users import AdminUsersService
 from api.services.error import Error
 from cachetools import TTLCache, cached
-from fastapi import BackgroundTasks, Path, Query, Request
+from fastapi import BackgroundTasks, Header, Path, Query, Request
 from fastapi.responses import JSONResponse, Response
 from isardvdi_common.models.user import UserModel as UserDBModel
 from pydantic import ValidationError
@@ -1248,27 +1248,19 @@ async def admin_get_group_users(request: Request, group_id: str):
 )
 async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentData):
     try:
-        # ``UserEnrollment.enrollment_action`` returns either ``True``
-        # (disable) or a 6-char enrollment code. Funnel both through the
-        # response model — the existing route always echoed ``{}`` for
-        # non-dict service returns, so emit an empty model for the
-        # disable path and surface the code on reset/recreate.
+        # enrollment_action returns the new 6-char code (reset) or True (disable).
         result = await asyncio.to_thread(
             AdminUsersService.update_group_enrollment,
             request.token_payload,
             data.model_dump(),
         )
-        if isinstance(result, dict):
-            payload = AdminGroupEnrollmentResponse(**result)
-        else:
-            payload = AdminGroupEnrollmentResponse()
         return JSONResponse(
-            content=payload.model_dump(mode="json"),
+            content=AdminGroupEnrollmentResponse(code=result).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",
@@ -2337,20 +2329,36 @@ async def admin_get_user_by_email_category(request: Request, email: str, categor
     "/admin/item/user/auto-register",
     tags=[tag],
     summary="Auto register user",
-    description="Auto-registers a user based on token payload.",
+    description="Auto-registers a user from the Register-Claims token.",
     response_model=AutoRegisterResponse,
     responses={
         200: {"description": "User auto-registered"},
+        403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         409: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
-async def admin_auto_register(request: Request, data: AutoRegisterRequest):
+async def admin_auto_register(
+    request: Request,
+    data: AutoRegisterRequest,
+    register_claims: str = Header(alias="Register-Claims"),
+):
     try:
+        # The Authorization token authorizes the call (admin service); the user
+        # identity comes from the separate Register-Claims register token.
+        from api.dependencies.jwt_token import TokenFastAPI
+
+        claims = TokenFastAPI.get_jwt_payload(register_claims)
+        if claims.get("type") != "register":
+            raise Error(
+                "forbidden",
+                "Register-Claims must be a register token",
+                description_code="invalid_register_token",
+            )
         user_id = await asyncio.to_thread(
             AdminUsersService.auto_register_user,
-            request.token_payload,
+            claims,
             data.model_dump(exclude_none=True),
         )
         return JSONResponse(

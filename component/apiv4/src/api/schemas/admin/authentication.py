@@ -66,7 +66,14 @@ class ProviderStatus(BaseModel):
 
 
 class ProviderConfigUpdateRequest(BaseModel):
-    """Request to update a provider configuration"""
+    """Update a provider configuration.
+
+    ``extra: allow`` passes the full provider block (``enabled``,
+    ``<provider>_config``, …) through to ``update_provider_config``, which does
+    the validation; without it Pydantic would drop ``enabled``.
+    """
+
+    model_config = {"extra": "allow"}
 
     migration: Optional[Dict[str, Any]] = None
 

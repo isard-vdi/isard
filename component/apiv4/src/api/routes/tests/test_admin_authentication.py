@@ -504,11 +504,19 @@ class TestProviderConfig:
             url="/admin/item/authentication/provider/google",
             method="PUT",
             jwt=MockJWT(role_id="admin"),
-            body={"migration": {"export": True}},
+            body={
+                "enabled": True,
+                "google_config": {"client_id": "x", "client_secret": "y"},
+                "migration": {"export": True},
+            },
         )
         assert response.status_code == 204
         assert captured["provider"] == "google"
         assert captured["data"]["migration"]["export"] is True
+        # extra fields (enabled, <provider>_config) must reach the service,
+        # otherwise the global enable/disable toggle never persists.
+        assert captured["data"]["enabled"] is True
+        assert captured["data"]["google_config"]["client_id"] == "x"
 
     def test_user_forbidden_on_update(self, monkeypatch, test_client):
         monkeypatch.setattr(

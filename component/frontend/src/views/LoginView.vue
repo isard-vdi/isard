@@ -152,8 +152,8 @@ const providersCategoryId = computed(() => {
   if (categoriesDropdownModel.value) {
     return categoriesDropdownModel.value.id
   }
-  if (categories.value?.length === 1) {
-    return categories.value[0].id
+  if (categories.value?.categories?.length === 1) {
+    return categories.value.categories[0].id
   }
   return 'default'
 })
@@ -334,6 +334,14 @@ const selectedCategory = computed(() => {
   // external providers that can guess the category
   return 'default'
 })
+
+// Swap the login logo to the selected category's branding logo (the
+// per-category endpoint falls back to the default logo when none is enabled).
+const logoSrc = computed(() =>
+  selectedCategory.value && selectedCategory.value !== 'default'
+    ? `/api/v4/logo/category/${selectedCategory.value}`
+    : '/api/v4/logo'
+)
 
 const categoriesDropdownEl = ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
 const focusCategoriesDropdown = () => {
@@ -666,6 +674,7 @@ watch(categoryError, (newErr) => {
     :loading="isPending"
     :hide-locale-switch="config?.locale?.hide"
     :hide-logo="config?.logo?.hide"
+    :logo-src="logoSrc"
     :title="category?.name || config?.info?.title"
     :description="categorySelectToken ? t('views.login.select-category') : description"
   >

@@ -30,6 +30,7 @@ from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.users.categories.categories import CategoriesProcessed
 
 _PROVIDER_SENSITIVE_KEYS = ("password", "client_secret")
+_KNOWN_PROVIDERS = ("local", "ldap", "google", "saml")
 
 
 class AdminCategoryService:
@@ -131,10 +132,9 @@ class AdminCategoryService:
     def update_authentication(payload: dict, category_id: str, data: dict) -> None:
         """Update category authentication.
 
-        Checks the manager `authentication` permission, preserves any sensitive
-        field (password, client_secret) that the caller omitted or left empty in
-        the payload by reading the current value from the DB, then delegates to
-        the Category setter which handles API→DB conversion of provider configs.
+        Preserves omitted/empty secrets from the DB (raising when a required one
+        is absent), enforces the apiv3 structural rules, then writes via the
+        Category setter (API→DB conversion).
         """
         AdminCategoryService._check_owns_and_permission(
             payload, category_id, "authentication"
@@ -149,6 +149,7 @@ class AdminCategoryService:
         _preserve_authentication_secrets(
             auth, Category(category_id).authentication or {}
         )
+        _validate_category_authentication(auth)
         Category(category_id).authentication = auth
 
     # ── Login Notification ───────────────────────────────────────────────
@@ -210,8 +211,13 @@ class AdminCategoryService:
         category = CategoriesProcessed.find_by_branding_domain(domain)
         if not category:
             return None
+        return AdminCategoryService.get_logo_by_category(category["id"])
+
+    @staticmethod
+    def get_logo_by_category(category_id: str) -> str | None:
+        """Get the branding logo data URL for a category, or None when disabled."""
         try:
-            branding = Category(category["id"]).branding or {}
+            branding = Category(category_id).branding or {}
             logo = branding.get("logo", {})
             if logo.get("enabled") and logo.get("data"):
                 return logo["data"]
@@ -335,7 +341,8 @@ def _preserve_authentication_secrets(new_auth: dict, existing_auth: dict) -> dic
     (``password``, ``client_secret``), keeps the existing value from
     ``existing_auth`` when the new payload provides an empty / falsy value.
     If the payload omits the key entirely, this is left untouched so the
-    caller's intent is preserved.
+    caller's intent is preserved. Mirrors apiv3: an empty secret with no
+    stored value to fall back on is rejected as required.
     """
     for provider_name, provider_data in new_auth.items():
         if not isinstance(provider_data, dict):
@@ -358,4 +365,119 @@ def _preserve_authentication_secrets(new_auth: dict, existing_auth: dict) -> dic
                 if existing_val:
                     config_data[secret_key] = existing_val
                 else:
-                    del config_data[secret_key]
+                    raise Error(
+                        "bad_request",
+                        f"{secret_key} is required",
+                        description_code="authentication_secret_required",
+                    )
+
+
+def _validate_category_authentication(auth: dict) -> None:
+    """Reject the same incomplete payloads as the apiv3 Cerberus schema.
+
+    Mirrors v3's per-provider ``depends_if`` co-requirements (presence-based);
+    unknown providers pass through for forward compatibility.
+    """
+
+    def _require(condition: bool, message: str) -> None:
+        if not condition:
+            raise Error(
+                "bad_request", message, description_code="authentication_invalid"
+            )
+
+    for provider, provider_data in auth.items():
+        if provider not in _KNOWN_PROVIDERS:
+            continue
+        _require(
+            isinstance(provider_data, dict),
+            f"'{provider}' authentication must be an object",
+        )
+
+        disabled = provider_data.get("disabled")
+        _require(
+            isinstance(disabled, bool), f"'{provider}' requires a boolean 'disabled'"
+        )
+
+        config_source = provider_data.get("config_source")
+        edr = provider_data.get("email_domain_restriction")
+
+        if disabled is False:
+            _require(
+                edr is not None and config_source is not None,
+                f"'{provider}' requires 'email_domain_restriction' and "
+                "'config_source' when enabled",
+            )
+
+        if config_source is not None:
+            _require(
+                config_source in ("global", "custom"),
+                f"'{provider}' config_source must be 'global' or 'custom'",
+            )
+
+        if isinstance(edr, dict):
+            _require(
+                isinstance(edr.get("enabled"), bool),
+                f"'{provider}' email_domain_restriction requires a boolean 'enabled'",
+            )
+            if edr["enabled"]:
+                _require(
+                    "allowed" in edr,
+                    f"'{provider}' email_domain_restriction requires 'allowed' "
+                    "when enabled",
+                )
+
+        config = provider_data.get(f"{provider}_config")
+        config = config if isinstance(config, dict) else {}
+        edr_enabled = isinstance(edr, dict) and edr.get("enabled") is True
+
+        if provider == "google" and config_source == "custom":
+            _require(
+                "google_config" in provider_data,
+                "'google' requires 'google_config' when config_source is custom",
+            )
+
+        if provider == "ldap":
+            if config_source == "custom":
+                _require(
+                    "ldap_config" in provider_data,
+                    "'ldap' requires 'ldap_config' when config_source is custom",
+                )
+            if edr_enabled:
+                _require(
+                    "field_email" in config,
+                    "'ldap' requires 'ldap_config.field_email' when email domain "
+                    "restriction is enabled",
+                )
+            if config.get("auto_register") and config.get("group_default", "") == "":
+                _require(
+                    "field_group" in config,
+                    "'ldap' requires 'ldap_config.field_group' when auto-registering "
+                    "without a default group",
+                )
+
+        if provider == "saml":
+            if config_source == "custom":
+                _require(
+                    "metadata_url" in config or "metadata_file" in config,
+                    "'saml' requires 'saml_config.metadata_url' or "
+                    "'saml_config.metadata_file' when config_source is custom",
+                )
+            if edr_enabled:
+                _require(
+                    "field_email" in config,
+                    "'saml' requires 'saml_config.field_email' when email domain "
+                    "restriction is enabled",
+                )
+            if config.get("auto_register"):
+                if config.get("group_default", "") == "":
+                    _require(
+                        "field_group" in config,
+                        "'saml' requires 'saml_config.field_group' when "
+                        "auto-registering without a default group",
+                    )
+                if config.get("role_default", "") == "":
+                    _require(
+                        "field_role" in config,
+                        "'saml' requires 'saml_config.field_role' when "
+                        "auto-registering without a default role",
+                    )

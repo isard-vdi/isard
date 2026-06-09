@@ -707,3 +707,97 @@ def test_admin_delete_category(monkeypatch, test_client):
     # in admin/users.py.
     assert response.status_code == 204
     assert calls == ["cat-1"]
+
+
+def _register_claims_token(**overrides):
+    """Mint a flat register token like the authentication service's SignRegisterToken."""
+    import os
+    from datetime import datetime, timedelta, timezone
+
+    import jwt
+
+    claims = {
+        "kid": "isardvdi",
+        "type": "register",
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=60),
+        "provider": "saml",
+        "user_id": "saml-ext-uid",
+        "username": "jdoe",
+        "category_id": "default",
+        "name": "John Doe",
+        "email": "jdoe@example.com",
+        "photo": "",
+    }
+    claims.update(overrides)
+    return jwt.encode(claims, os.environ["API_ISARDVDI_SECRET"], algorithm="HS256")
+
+
+def test_admin_auto_register_uses_register_claims(monkeypatch, test_client):
+    """User identity comes from the Register-Claims token, not the auth token."""
+    captured = {}
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.auto_register_user",
+        staticmethod(
+            lambda payload, data: captured.update(payload=payload, data=data)
+            or "new-user-id"
+        ),
+    )
+    response = test_client(
+        url="/admin/item/user/auto-register",
+        method="POST",
+        jwt=MockJWT(role_id="admin"),
+        headers={"Register-Claims": _register_claims_token()},
+        body={"role_id": "advanced", "group_id": "g1"},
+    )
+    assert response.status_code == 200
+    assert captured["payload"]["provider"] == "saml"
+    assert captured["payload"]["user_id"] == "saml-ext-uid"
+    assert captured["data"]["role_id"] == "advanced"
+
+
+def test_admin_auto_register_rejects_non_register_token(monkeypatch, test_client):
+    """A non-register token in Register-Claims is forbidden."""
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.auto_register_user",
+        staticmethod(lambda payload, data: "x"),
+    )
+    response = test_client(
+        url="/admin/item/user/auto-register",
+        method="POST",
+        jwt=MockJWT(role_id="admin"),
+        headers={"Register-Claims": str(MockJWT(role_id="admin"))},
+        body={"role_id": "advanced", "group_id": "g1"},
+    )
+    assert response.status_code == 403
+
+
+def test_admin_group_enrollment_reset_surfaces_code(monkeypatch, test_client):
+    """reset surfaces the new 6-char code under ``code`` (not null)."""
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.update_group_enrollment",
+        staticmethod(lambda payload, data: "abc123"),
+    )
+    response = test_client(
+        url="/admin/item/group/enrollment",
+        method="POST",
+        jwt=MockJWT(role_id="admin"),
+        body={"id": "g1", "role": "advanced", "action": "reset"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"code": "abc123"}
+
+
+def test_admin_group_enrollment_disable_returns_true_code(monkeypatch, test_client):
+    """disable surfaces ``True`` under ``code``."""
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.update_group_enrollment",
+        staticmethod(lambda payload, data: True),
+    )
+    response = test_client(
+        url="/admin/item/group/enrollment",
+        method="POST",
+        jwt=MockJWT(role_id="admin"),
+        body={"id": "g1", "role": "advanced", "action": "disable"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"code": True}

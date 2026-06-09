@@ -776,7 +776,7 @@ function actionsGroupDetail(){
                 url:"/api/v4/admin/item/group/enrollment",
                 contentType: "application/json",
                 success: function(data){
-                    $('#manager-key').val(data);
+                    $('#manager-key').val(data.code);
                 }
             });
             $('#manager-key').show();
@@ -837,7 +837,7 @@ function actionsGroupDetail(){
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data){
-                    $('#advanced-key').val(data);
+                    $('#advanced-key').val(data.code);
                 }
             });
             $('#advanced-key').show();
@@ -898,7 +898,7 @@ function actionsGroupDetail(){
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data){
-                    $('#user-key').val(data);
+                    $('#user-key').val(data.code);
                 }
             });
             $('#user-key').show();

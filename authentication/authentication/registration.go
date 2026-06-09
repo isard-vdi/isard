@@ -5,16 +5,25 @@ import (
 	"fmt"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/authentication/token"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/ogenclient"
 )
 
 func (a *Authentication) registerUser(ctx context.Context, u *model.User) error {
-	// TODO: Register-Claims header (review #1) — out of scope for this refactor
+	// The Authorization token authorizes the call; the user identity travels in
+	// the separate Register-Claims register token (apiv4 reads it from there).
+	registerClaims, err := token.SignRegisterToken(a.Secret, u)
+	if err != nil {
+		return fmt.Errorf("sign register claims: %w", err)
+	}
+
 	rsp, err := a.API.AdminAutoRegister(ctx, &apiv4.AutoRegisterRequest{
 		RoleID:          string(u.Role),
 		GroupID:         u.Group,
 		SecondaryGroups: u.SecondaryGroups,
+	}, apiv4.AdminAutoRegisterParams{
+		RegisterClaims: registerClaims,
 	})
 	if err != nil {
 		return fmt.Errorf("register the user: %w", err)

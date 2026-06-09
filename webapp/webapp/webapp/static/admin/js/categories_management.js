@@ -158,8 +158,6 @@ $(document).ready(function () {
                 "targets": 5,
                 "render": function (data, type, full, meta) {
                     domains = ""
-                    
-                    console.warn(full)
 
                     if (full.authentication) {
                         const providers = [
@@ -172,7 +170,7 @@ $(document).ready(function () {
                             const provider = full.authentication[key];
                             const restriction = provider?.email_domain_restriction;
                             if (
-                                provider.disabled !== true &&
+                                provider?.disabled !== true &&
                                 restriction &&
                                 restriction.enabled !== false &&
                                 restriction.allowed

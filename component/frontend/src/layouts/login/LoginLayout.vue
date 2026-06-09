@@ -9,6 +9,7 @@ interface Props {
   loading?: boolean
   hideLocaleSwitch?: boolean
   hideLogo?: boolean
+  logoSrc?: string
   title?: string
   description?: string
 }
@@ -17,6 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   hideLocaleSwitch: false,
   hideLogo: false,
+  logoSrc: '/api/v4/logo',
   title: undefined,
   description: undefined
 })
@@ -45,7 +47,7 @@ const props = withDefaults(defineProps<Props>(), {
         <img
           v-if="!loading && !props.hideLogo"
           class="self-center max-h-[150px]"
-          :src="'/api/v4/logo'"
+          :src="props.logoSrc"
           alt="IsardVDI logo"
         />
         <h1

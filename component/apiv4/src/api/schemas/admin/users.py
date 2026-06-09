@@ -183,6 +183,7 @@ class AdminCategoryCreateData(BaseModel):
     uid: Optional[str] = None
     photo: Optional[str] = None
     storage_pool: Optional[str] = None
+    manager_permissions: Optional[dict] = None
 
 
 class AdminCategoryUpdateData(BaseModel):
@@ -195,6 +196,8 @@ class AdminCategoryUpdateData(BaseModel):
     custom_url_name: Optional[str] = None
     uid: Optional[str] = None
     photo: Optional[str] = None
+    manager_permissions: Optional[dict] = None
+    maintenance: Optional[bool] = None
     recycle_bin_cutoff_time: int | None = None
 
 
@@ -609,15 +612,8 @@ class AdminGroupUserItem(BaseModel):
 
 
 class AdminGroupEnrollmentResponse(BaseModel):
-    """Response for ``POST /admin/item/group/enrollment``.
-
-    ``UserEnrollment.enrollment_action`` returns either ``True`` (for
-    ``disable``) or a 6-char alphanumeric code. The route currently
-    funnels both through an ``isinstance(result, dict)`` guard that
-    coerces the scalar into ``{}`` — preserving that no-op response shape
-    here so the OAS documents the actual on-the-wire payload (an empty
-    object). The optional ``code`` field is reserved for the route
-    refactor that will surface the service value."""
+    """Response for ``POST /admin/item/group/enrollment``: the new enrollment
+    code (reset) or ``True`` (disable)."""
 
     code: Optional[str | bool] = None
 
@@ -665,6 +661,7 @@ class AdminCategoryNavItem(BaseModel):
     uid: Optional[str] = None
     photo: Optional[str] = None
     authentication: Optional[dict] = None
+    manager_permissions: Optional[dict] = None
     quota: Optional[bool | dict] = None
     limits: Optional[bool | dict] = None
     media_size: Optional[float] = None
@@ -694,6 +691,8 @@ class AdminCategoryDetailResponse(BaseModel):
     quota: Optional[bool | dict] = None
     limits: Optional[bool | dict] = None
     branding: Optional[dict] = None
+    manager_permissions: Optional[dict] = None
+    maintenance: Optional[bool] = None
     recycle_bin_cutoff_time: int | None = None
 
 
