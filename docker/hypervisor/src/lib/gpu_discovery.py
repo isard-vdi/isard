@@ -1395,10 +1395,12 @@ def discover_gpus():
         # injected, so gpu_discovery never imports gpu_apply (cycle broken). The
         # try/except guards the runtime probe (sysfs/nvidia-smi), not the import.
         current_profile = None
+        _driver = None
         try:
             _sysfs_cur = _normalize_pci_bus_id(_bdf).lower()
+            _driver = _read_driver(_sysfs_cur, run_local)
             _cur = current_profile_from_state(
-                _read_driver(_sysfs_cur, run_local),
+                _driver,
                 _read_mig_mode(_sysfs_cur, run_local),
                 gpu_probe._live_mdev_suffix(_sysfs_cur, run_local, _get_vgpu_profiles),
             )
@@ -1406,7 +1408,26 @@ def discover_gpus():
         except Exception:
             current_profile = None
 
-        profiles, sub_paths, path_parent = _aggregate_subdevice_profiles(_bdf)
+        # Per-card passthrough guard: a card bound to vfio-pci right now IS in
+        # passthrough. NEVER run the destructive SR-IOV cycle on it --
+        # `_aggregate_subdevice_profiles` calls `sriov-manage -d` which unbinds
+        # the PF; on a card with a live vfio consumer (a running passthrough
+        # desktop during a runtime re-discovery) that wedges in an unkillable
+        # kernel D-state, and even when idle it strips a binding the engine has
+        # to put back. Skip enumeration and report the card as passthrough; the
+        # engine keeps/restores its profile from durable operator intent.
+        if _driver == "vfio-pci":
+            profiles, sub_paths, path_parent = [], None, None
+            current_profile = "passthrough"
+            log.info(
+                "GPU %s [%d/%d]: vfio-pci bound (passthrough); skipping the "
+                "SR-IOV cycle to preserve the binding",
+                _bdf,
+                gpu_index + 1,
+                total,
+            )
+        else:
+            profiles, sub_paths, path_parent = _aggregate_subdevice_profiles(_bdf)
         log.info(
             "GPU %s [%d/%d]: discovery step done in %.1fs (profiles=%d)",
             _bdf,
@@ -1432,7 +1453,7 @@ def discover_gpus():
                 _early_totalvfs = int(f.read().strip())
         except (OSError, ValueError):
             _early_totalvfs = 0
-        if not profiles and _early_totalvfs > 0:
+        if not profiles and _early_totalvfs > 0 and current_profile != "passthrough":
             for attempt in range(1, 4):
                 log.warning(
                     "GPU %s: empty profile list on SR-IOV PF (totalvfs=%d); "

@@ -956,3 +956,83 @@ def test_card_in_use_true_when_pf_held(monkeypatch):
 
     monkeypatch.setattr(gd, "_vfio_group_in_use", lambda p: True)  # PF held
     assert gd._card_in_use("/sys/bus/pci/devices/0000:03:00.0") is True
+
+
+def test_discover_gpus_skips_cycle_on_vfio_bound_card(monkeypatch, tmp_path):
+    """A card already bound to vfio-pci (passthrough) must NOT be SR-IOV-cycled:
+    _aggregate_subdevice_profiles (which runs sriov-manage -d) must never be
+    called for it. It is reported as passthrough."""
+    _redirect_sysfs(monkeypatch, tmp_path)
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(
+        gd,
+        "_run_nvidia_smi",
+        lambda: [
+            {
+                "name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+                "memory_total_mb": 98304,
+                "pci_bus_id": "00000000:63:00.0",
+                "driver_version": "580.65.05",
+                "gpu_uuid": "GPU-pt",
+                "mig_mode": "[N/A]",
+            }
+        ],
+    )
+    monkeypatch.setattr(gd, "_read_driver", lambda *a, **k: "vfio-pci")
+
+    def _boom(*a, **k):
+        raise AssertionError("SR-IOV cycle ran on a vfio-bound passthrough card")
+
+    monkeypatch.setattr(gd, "_aggregate_subdevice_profiles", _boom)
+    monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
+    monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
+
+    gpus = discover_gpus()
+    assert len(gpus) == 1
+    g = gpus[0]
+    assert g["vgpu_profiles"] == []
+    assert g.get("current_profile") == "passthrough"
+
+
+def test_discover_gpus_cycles_nvidia_bound_card(monkeypatch, tmp_path):
+    """An nvidia-bound card is still enumerated via the SR-IOV cycle."""
+    _redirect_sysfs(monkeypatch, tmp_path)
+    import gpu_discovery as gd
+
+    monkeypatch.setattr(
+        gd,
+        "_run_nvidia_smi",
+        lambda: [
+            {
+                "name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+                "memory_total_mb": 98304,
+                "pci_bus_id": "00000000:86:00.0",
+                "driver_version": "580.65.05",
+                "gpu_uuid": "GPU-vgpu",
+                "mig_mode": "[N/A]",
+            }
+        ],
+    )
+    monkeypatch.setattr(gd, "_read_driver", lambda *a, **k: "nvidia")
+    called = {"n": 0}
+
+    real_profiles = [
+        {
+            "name": "RTXPro6000BlackwellDC-24Q",
+            "type_id": "nvidia-2000",
+            "available_instances": 4,
+        }
+    ]
+
+    def _agg(_pci):
+        called["n"] += 1
+        return (real_profiles, None, None)
+
+    monkeypatch.setattr(gd, "_aggregate_subdevice_profiles", _agg)
+    monkeypatch.setattr(gd, "_find_audio_companions", lambda _id: [])
+    monkeypatch.setattr(gd, "_scan_sysfs_nvidia_gpus", lambda _known: [])
+
+    gpus = discover_gpus()
+    assert called["n"] == 1
+    assert gpus[0]["vgpu_profiles"] == real_profiles
