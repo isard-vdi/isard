@@ -298,6 +298,8 @@ unit-test-python-gpu:
     - ln -s "$CI_PROJECT_DIR/component/_common/src" /tmp/isardvdi_common
     - cd "$CI_PROJECT_DIR"
     - PYTHONPATH="/tmp:$CI_PROJECT_DIR/engine/engine" python -m pytest -q engine/engine/engine/models/_gpu_pool_test.py
+    # Tier-1 NUMA-node balancer (dependency-free pure logic).
+    - PYTHONPATH="$CI_PROJECT_DIR/engine/engine" python -m pytest -q engine/engine/engine/models/numa_balancer_test.py
 
 docker-image:
   image: "docker:${DOCKER_VERSION}"

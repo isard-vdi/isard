@@ -2181,6 +2181,21 @@ def pinned_cpuset_from_xml(xml):
     return joined or None
 
 
+def vcpus_from_xml(xml, default=1):
+    """Number of vCPUs from ``<vcpu>`` in a domain XML, or ``default``.
+
+    Used to weigh a desktop's CPU footprint when balancing it across NUMA nodes.
+    """
+    try:
+        tree = etree.parse(StringIO(xml), etree.XMLParser(remove_blank_text=True))
+        el = tree.xpath("/domain/vcpu")
+        if el and el[0].text:
+            return int(el[0].text)
+    except Exception:
+        pass
+    return default
+
+
 def count_passthrough_gpus_in_xml(xml):
     """Number of passed-through GPUs in a domain XML.
 
