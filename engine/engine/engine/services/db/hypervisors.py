@@ -11,6 +11,7 @@ from engine.services.db import (
 )
 from engine.services.db.domains import get_vgpus_mdevs
 from engine.services.log import log, logs
+from isardvdi_common.gpu_pool_policy import profile_suffix_from_id
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -1698,5 +1699,10 @@ def get_vgpu_actual_profile(vgpu_id):
         logs.workers.info("==================================")
     close_rethink_connection(r_conn)
     if len(data):
-        return data["subitem_id"].split("-")[-1]
+        # Canonicalize the planned subitem_id to its bare profile suffix the same
+        # way the API's get_vgpu_scheduled_profile_now does, so the runtime
+        # reconcile and the hypervisor-startup path agree: a dash-form MIG id
+        # ("NVIDIA-<model>-1-2Q") yields "1_2Q" (not a mis-split "2Q"), and any
+        # "~<variant>" qualifier is dropped, instead of a naive split("-")[-1].
+        return profile_suffix_from_id(data["subitem_id"])
     return None
