@@ -4,6 +4,7 @@ import pytest
 from engine.models.domain_xml import (
     DomainXML,
     add_memory_backing,
+    add_numa_pinning,
     ensure_iothreads_declared,
     hostdev_locked,
     recreate_xml_if_gpu,
@@ -738,3 +739,27 @@ def test_ensure_iothreads_declared_honors_explicit_iothreadids():
     assert tree.xpath("/domain/iothreads") == []
     assert len(tree.xpath('/domain/iothreadids/iothread[@id="5"]')) == 1
     assert len(tree.xpath("/domain/devices/interface")) == 1
+
+
+def test_add_numa_pinning_excess_vcpus_still_pins_emulator():
+    # More vCPUs (8) than the node has CPUs (0-3 = 4): per-vCPU pinning is
+    # intentionally skipped to avoid core oversubscription, but the emulator
+    # threads MUST still be pinned to the node and every vCPU constrained to it.
+    xml = "<domain type='kvm'><vcpu placement='static'>8</vcpu><devices></devices></domain>"
+    out = add_numa_pinning(xml, 0, "0-3", 8, emit_numatune=False)
+    tree = etree.parse(StringIO(out))
+    emu = tree.xpath("/domain/cputune/emulatorpin")
+    assert emu and emu[0].get("cpuset") == "0-3"
+    assert tree.xpath("/domain/vcpu")[0].get("cpuset") == "0-3"
+    assert not tree.xpath(
+        "/domain/cputune/vcpupin"
+    )  # no per-vCPU pins when oversubscribed
+
+
+def test_add_numa_pinning_fits_pins_all_vcpus_and_emulator():
+    # 4 vCPUs on a 4-CPU node: full per-vCPU pinning + emulatorpin (regression lock).
+    xml = "<domain type='kvm'><vcpu placement='static'>4</vcpu><devices></devices></domain>"
+    out = add_numa_pinning(xml, 0, "0-3", 4, emit_numatune=False)
+    tree = etree.parse(StringIO(out))
+    assert len(tree.xpath("/domain/cputune/vcpupin")) == 4
+    assert tree.xpath("/domain/cputune/emulatorpin")[0].get("cpuset") == "0-3"
