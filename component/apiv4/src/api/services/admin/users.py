@@ -730,11 +730,14 @@ class AdminUsersService:
             "custom_url_name": data.get("custom_url_name", ""),
             "photo": data.get("photo"),
             "uid": data.get("uid") or category_id,
-            "authentication": {
-                "google": {"allowed_domains": [], "enabled": None},
-                "ldap": {"allowed_domains": [], "enabled": None},
-                "local": {"allowed_domains": [], "enabled": None},
-                "saml": {"allowed_domains": [], "enabled": None},
+            # No authentication on create (apiv3 parity): provider state is
+            # derived from live global availability, not a per-category snapshot.
+            # Managers get no per-category settings access unless the admin grants it on create.
+            "manager_permissions": {
+                "authentication": False,
+                "branding": False,
+                "login_notification": False,
+                **(data.get("manager_permissions") or {}),
             },
         }
 
