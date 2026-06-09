@@ -353,11 +353,16 @@
             <div id="xmlSectionsContainer">
                <!-- Sections rendered dynamically by JS -->
             </div>
+            <div id="xmlLiveCompare" style="display: none;">
+               <!-- Stored vs live side-by-side rendered dynamically by JS -->
+            </div>
          </div>
          <div class="modal-footer">
             <ul class="nav navbar-left panel_toolbox">
                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
                <li><button id="xmlSectionsDownload" type="button" class="btn btn-default"><i class="fa fa-download"></i> Download XML</button></li>
+               <li><button id="xmlSectionsLiveXml" type="button" class="btn btn-info" style="display: none;"><i class="fa fa-server"></i> Live XML</button></li>
+               <li><button id="xmlLiveCompareBack" type="button" class="btn btn-default" style="display: none;"><i class="fa fa-arrow-left"></i> Back to editor</button></li>
                <li><button id="xmlSectionsSaveVirtInstall" type="button" class="btn btn-warning"><i class="fa fa-plus-circle"></i> Save as virt_install</button></li>
             </ul>
             <ul class="nav navbar-right panel_toolbox">

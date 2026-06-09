@@ -45,6 +45,9 @@ function openXmlSections(domainId, mode) {
     } else {
         $('#xmlSectionsSaveVirtInstall').show();
     }
+    // Reset the live-compare view (editor visible, comparison hidden).
+    xmlSectionsShowEditorView();
+    $('#xmlSectionsLiveXml').hide();
     $('#modalEditXmlSections').modal({backdrop: 'static', keyboard: false}).modal('show');
 
     // Fetch sections and capabilities in parallel
@@ -53,6 +56,10 @@ function openXmlSections(domainId, mode) {
         $.ajax({type: "GET", url: "/api/v3/admin/domains/xml_capabilities"})
     ).done(function(sectionsResp, capsResp) {
         renderXmlSections(sectionsResp[0].sections, capsResp[0]);
+        // Offer the live running XML only for a running desktop (not virt_install).
+        if (xmlSectionsMode !== 'virt_install' && xmlSectionsDesktopIsRunning(domainId)) {
+            $('#xmlSectionsLiveXml').show();
+        }
     }).fail(function(data) {
         $('#xmlSectionsContainer').html(
             '<div class="alert alert-danger">Failed to load XML sections: ' +
@@ -489,6 +496,87 @@ function xmlSectionsDesktopIsRunning(domainId) {
     } catch (e) { /* datatable not present in this context */ }
     return false;
 }
+
+function xmlSectionsShowEditorView() {
+    $('#xmlSectionsContainer').show();
+    $('#xmlLiveCompare').hide().empty();
+    $('#xmlLiveCompareBack').hide();
+    $('#xmlSectionsValidate, #xmlSectionsSave, #xmlSectionsDownload').show();
+    if (xmlSectionsMode === 'virt_install') {
+        $('#xmlSectionsSaveVirtInstall').hide();
+    } else {
+        $('#xmlSectionsSaveVirtInstall').show();
+    }
+}
+
+function xmlSectionsShowCompareView() {
+    $('#xmlSectionsContainer').hide();
+    $('#xmlLiveCompare').show();
+    $('#xmlLiveCompareBack').show();
+    $('#xmlSectionsValidate, #xmlSectionsSave, #xmlSectionsSaveVirtInstall, #xmlSectionsLiveXml, #xmlSectionsDownload').hide();
+}
+
+// Minimal dependency-free line diff: highlights lines unique to each side.
+function xmlRenderLineDiff(storedXml, liveXml) {
+    function splitLines(s) { return (s || '').replace(/\r/g, '').split('\n'); }
+    function bag(arr) {
+        var m = {};
+        arr.forEach(function(l) { var t = l.trim(); if (t) { m[t] = (m[t] || 0) + 1; } });
+        return m;
+    }
+    var a = splitLines(storedXml), b = splitLines(liveXml);
+    var ba = bag(a), bb = bag(b);
+    function col(arr, other) {
+        return arr.map(function(l) {
+            var t = l.trim();
+            var changed = t.length > 0 && !(other[t] > 0);
+            var style = changed ? ' style="background:#fff3cd;"' : '';
+            return '<div' + style + '>' + (escapeHtml(l) || '&nbsp;') + '</div>';
+        }).join('');
+    }
+    var paneStyle = 'flex:1; min-width:0; overflow:auto; max-height:60vh; border:1px solid #ddd; ' +
+        'padding:6px; white-space:pre; font-family:monospace; font-size:12px;';
+    return '<div style="display:flex; gap:8px;">' +
+        '<div style="' + paneStyle + '"><b>Stored (editor base)</b><hr style="margin:4px 0;">' + col(a, bb) + '</div>' +
+        '<div style="' + paneStyle + '"><b>Live (running)</b><hr style="margin:4px 0;">' + col(b, ba) + '</div>' +
+        '</div>';
+}
+
+// Live XML button: fetch the running domain's libvirt XML (engine RAM, incl.
+// secrets) and the stored base, and show them side-by-side read-only.
+$(document).on('click', '#xmlSectionsLiveXml', function() {
+    var domainId = $('#xmlSectionsDomainId').val();
+    $('#xmlLiveCompare').html('<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>');
+    xmlSectionsShowCompareView();
+    $.when(
+        $.ajax({type: 'GET', url: '/api/v3/admin/domains/' + encodeURIComponent(domainId) + '/live_xml'}),
+        $.ajax({type: 'GET', url: '/api/v3/admin/domains/xml/' + encodeURIComponent(domainId)})
+    ).done(function(liveResp, storedResp) {
+        var live = (liveResp[0] && liveResp[0].xml) || '';
+        var hyp = (liveResp[0] && liveResp[0].hyp) || '';
+        var stored = (typeof storedResp[0] === 'string') ? storedResp[0] : (storedResp[0] || '');
+        var banner = '<div class="alert alert-warning" style="margin-bottom:8px;">' +
+            '<i class="fa fa-exclamation-triangle"></i> Live XML from libvirt' +
+            (hyp ? ' on hypervisor <b>' + escapeHtml(hyp) + '</b>' : '') +
+            ' — read-only, <b>includes secrets</b> (viewer password). ' +
+            'Lines that differ from the stored editor base are highlighted.' +
+            '</div>';
+        $('#xmlLiveCompare').html(banner + xmlRenderLineDiff(stored, live));
+    }).fail(function(data) {
+        var msg = (data && data.responseJSON && data.responseJSON.description)
+            ? data.responseJSON.description
+            : 'Could not fetch live XML (is the desktop running?)';
+        $('#xmlLiveCompare').html('<div class="alert alert-danger">' + escapeHtml(msg) + '</div>');
+    });
+});
+
+$(document).on('click', '#xmlLiveCompareBack', function() {
+    xmlSectionsShowEditorView();
+    var domainId = $('#xmlSectionsDomainId').val();
+    if (xmlSectionsMode !== 'virt_install' && xmlSectionsDesktopIsRunning(domainId)) {
+        $('#xmlSectionsLiveXml').show();
+    }
+});
 
 // Save button
 $(document).on('click', '#xmlSectionsSave', function() {
