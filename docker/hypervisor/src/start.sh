@@ -55,9 +55,18 @@ sleep 1
 echo "---> Waiting for the API to be reachable before registering..."
 api_wait=0
 until python3 -c "
-import sys, urllib.request, urllib.error
+import os, sys, ssl, urllib.request, urllib.error
+# Resolve the API base URL the SAME way api_client.py does: prefer the
+# configured API_DOMAIN (remote API on a standalone hypervisor), and fall
+# back to the local isard-api service (all-in-one). On an all-in-one this
+# gate solves the boot race against the co-located api/engine/db; on a
+# standalone hypervisor it waits for the already-up remote API instead of
+# a non-existent local isard-api (which previously hung forever).
+api_domain = os.environ.get('API_DOMAIN', '')
+base = 'https://%s/api/v3/' % api_domain if (api_domain and api_domain != 'isard-api') else 'http://isard-api:5000/api/v3/'
+ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
 try:
-    urllib.request.urlopen('http://isard-api:5000/api/v3/', timeout=3)
+    urllib.request.urlopen(base, timeout=3, context=ctx)
 except urllib.error.HTTPError:
     pass  # 4xx/5xx still means the API process is up and serving
 except Exception:
