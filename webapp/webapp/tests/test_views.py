@@ -19,8 +19,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
+import os
 from unittest.mock import MagicMock
 
+import jwt
 import pytest
 
 # ──────────────────────────────────────────────────────────────────────
@@ -217,8 +219,9 @@ def _patch_custom_url_client(monkeypatch, *, status_code, content=b""):
 def test_logout_without_session_cookie_redirects_to_plain_login(
     client, monkeypatch, admin_user_dict
 ):
+    """Without a session cookie, logout 302-redirects to the bare /login."""
     _patch_login_callback(monkeypatch, admin_user_dict)
-    sync_detailed = _patch_custom_url_client(
+    _patch_custom_url_client(
         monkeypatch, status_code=200, content=b'"ignored-without-cookie"'
     )
     monkeypatch.setattr(
@@ -230,13 +233,8 @@ def test_logout_without_session_cookie_redirects_to_plain_login(
         sess["_fresh"] = True
 
     response = client.get("/isard-admin/logout")
-    assert response.status_code == 200
-    # Without an isardvdi_session cookie the route never consults
-    # ``api_v4_category_custom_url`` for redirection — it goes straight
-    # to the bare ``/login`` path. The call may still happen at the top
-    # of the handler before the cookie check, so we don't assert call
-    # count, just the redirect.
-    assert b"window.location = '/login'" in response.data
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/login"
 
 
 def test_logout_with_local_provider_uses_form_path_and_custom_url(
@@ -258,8 +256,8 @@ def test_logout_with_local_provider_uses_form_path_and_custom_url(
 
     client.set_cookie(key="isardvdi_session", value="fake-jwt", domain="localhost")
     response = client.get("/isard-admin/logout")
-    assert response.status_code == 200
-    assert b"window.location = '/login/form/custom-url-1'" in response.data
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/login/form/custom-url-1"
 
 
 def test_logout_with_saml_provider_falls_back_when_custom_url_missing(
@@ -278,9 +276,59 @@ def test_logout_with_saml_provider_falls_back_when_custom_url_missing(
 
     client.set_cookie(key="isardvdi_session", value="fake-jwt", domain="localhost")
     response = client.get("/isard-admin/logout")
-    assert response.status_code == 200
+    assert response.status_code == 302
     # 404 from custom_url means we use the bare /login/<provider> path.
-    assert b"window.location = '/login/saml'" in response.data
+    assert response.headers["Location"] == "/login/saml"
+
+
+def _session_jwt(payload, secret):
+    return jwt.encode(payload, secret, algorithm="HS256")
+
+
+def test_logout_forged_jwt_is_rejected_without_js_sink(
+    client, monkeypatch, admin_user_dict
+):
+    """Forged cookie (wrong signature) → plain /login, malicious provider never reflected."""
+    _patch_login_callback(monkeypatch, admin_user_dict)
+    _patch_custom_url_client(monkeypatch, status_code=200, content=b'"custom-url-1"')
+    monkeypatch.setattr("webapp.views.AdminViews.logout_user", MagicMock())
+
+    forged = _session_jwt(
+        {"kid": "isardvdi", "data": {"provider": "x'; alert(1);//"}},
+        secret="attacker-secret",
+    )
+    with client.session_transaction() as sess:
+        sess["_user_id"] = admin_user_dict["id"]
+        sess["_fresh"] = True
+    client.set_cookie(key="isardvdi_session", value=forged, domain="localhost")
+
+    response = client.get("/isard-admin/logout")
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/login"
+    assert b"alert(1)" not in response.data
+    assert b"<script" not in response.data
+
+
+def test_logout_legitimate_jwt_redirects_to_provider_custom_url(
+    client, monkeypatch, admin_user_dict
+):
+    """Correctly-signed cookie → /login/{provider}/{custom_url}."""
+    _patch_login_callback(monkeypatch, admin_user_dict)
+    _patch_custom_url_client(monkeypatch, status_code=200, content=b'"custom-url-1"')
+    monkeypatch.setattr("webapp.views.AdminViews.logout_user", MagicMock())
+
+    valid = _session_jwt(
+        {"kid": "isardvdi", "data": {"provider": "local"}},
+        secret=os.environ["API_ISARDVDI_SECRET"],
+    )
+    with client.session_transaction() as sess:
+        sess["_user_id"] = admin_user_dict["id"]
+        sess["_fresh"] = True
+    client.set_cookie(key="isardvdi_session", value=valid, domain="localhost")
+
+    response = client.get("/isard-admin/logout")
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/login/form/custom-url-1"
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -41,23 +41,40 @@ class Token:
 
     @staticmethod
     def get_expired_user_data(token):
+        """Decode a possibly-expired isardvdi_session cookie; signature still required."""
         try:
-            claims = jwt.decode(token, options={"verify_signature": False})
+            unverified = jwt.decode(token, options={"verify_signature": False})
+        except Exception:
+            return None
+        kid = unverified.get("kid")
+        if kid == "isardvdi":
+            secret = os.environ.get("API_ISARDVDI_SECRET")
+        elif kid == "isardvdi-viewer":
+            secret = os.environ.get("API_ISARDVDI_SECRET")
+        else:
+            return None
+        if not secret:
+            return None
+        try:
+            claims = jwt.decode(
+                token,
+                secret,
+                algorithms=["HS256"],
+                options={"verify_exp": False, "verify_signature": True},
+            )
         except Exception:
             return None
         try:
             if claims.get("kid") == "isardvdi":
                 return claims.get("data")
-            elif claims.get("kid") == "isardvdi-viewer" and claims.get("data").get(
+            elif claims.get("kid") == "isardvdi-viewer" and claims.get("data", {}).get(
                 "desktop_id"
             ):
                 return claims.get("data")
-            else:
-                # Not a system secret
-                return None
+            return None
         except Exception as e:
             log.debug(e)
-        return None
+            return None
 
     @classmethod
     def log_user(cls, payload):
