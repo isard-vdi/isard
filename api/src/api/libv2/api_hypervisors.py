@@ -1386,7 +1386,7 @@ class ApiHypervisors:
             )
         if not plans:
             return None
-        # Drop any "@<variant>" qualifier so the bare suffix matches info.types.
+        # Drop any "~<variant>" qualifier so the bare suffix matches info.types.
         base = split_qualifier(plans[0]["subitem_id"])[0]
         parts = canonical_profile_id(base).split("-", 2)
         # Guard a malformed/empty suffix (e.g. a trailing-hyphen subitem_id):
@@ -1588,9 +1588,9 @@ class ApiHypervisors:
         info_types = (vgpu_row.get("info") or {}).get("types", {}) or {}
 
         def _suffix(reservable_id):
-            # NVIDIA-<model>-<suffix>[@<variant>]; model is dash-free by
+            # NVIDIA-<model>-<suffix>[~<variant>]; model is dash-free by
             # construction, so the suffix is everything after the first two
-            # hyphens (up to an optional "@<variant>"). Drop the qualifier and
+            # hyphens (up to an optional "~<variant>"). Drop the qualifier and
             # canonicalize so a dash-form MIG id (NVIDIA-A16-1-2Q) maps to the key
             # the rest of the system uses (1_2Q) -- a plain split("-")[-1] would
             # wrongly yield "2Q" and misclassify it.
