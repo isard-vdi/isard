@@ -229,6 +229,9 @@ $(document).ready(function () {
           {
             // Optional variant name: differentiates same brand-model-profile
             // cards into distinct selectable reservables ("<base>~<variant>").
+            // Read-only display + an Edit button that opens modalEditVariant; the
+            // variant is no longer free-typed inline (it must drive reservable
+            // create/delete + total_units, so it goes through a confirmed flow).
             targets: 6,
             orderable: false,
             render: function (data, type, full, meta) {
@@ -239,13 +242,19 @@ $(document).ready(function () {
                 enabledId && enabledId.indexOf("~") >= 0
                   ? enabledId.split("~")[1]
                   : "";
+              var label = variant
+                ? '<span class="label label-info">' + variant + "</span>"
+                : '<span class="text-muted">&mdash;</span>';
+              // Names already defined for this base profile (other cards), passed
+              // to the editor so the admin can re-use one without retyping it.
+              var existing = (full.variants || []).join(",");
               return (
-                '<input id="txt-variant" type="text" class="form-control input-sm" ' +
-                'placeholder="(name)" pattern="[a-z0-9]{1,20}" maxlength="20" ' +
-                'title="Optional 1-20 lowercase alphanumerics to split identical cards" ' +
-                'value="' +
-                variant +
-                '" style="width:90px">'
+                '<span style="display:inline-block;min-width:70px">' + label + "</span> " +
+                '<button type="button" class="btn btn-xs btn-default btn-edit-variant" ' +
+                'data-base="' + full.id + '" ' +
+                'data-memory="' + (full.memory || "") + '" ' +
+                'data-variants="' + existing + '" ' +
+                'title="Manage variant"><i class="fa fa-pencil"></i></button>'
               );
             },
           },
@@ -336,24 +345,10 @@ $(document).ready(function () {
       let reservable_type = $(this).parents("tr").attr("data-reservableType");
       let item_id = $(this).parents("tr").attr("data-itemId");
       let base_id = $(this).parents("tr").attr("data-subitemId");
-      // Optional "~<variant>" qualifier from the row's text input; when set it
-      // makes this card's profile a distinct selectable reservable.
-      let variant = ($(this).parents("tr").find("#txt-variant").val() || "").trim();
-      if (variant && !/^[a-z0-9]{1,20}$/.test(variant)) {
-        new PNotify({
-          title: "Invalid variant name",
-          text: "Use 1-20 lowercase alphanumerics (a-z, 0-9).",
-          hide: true,
-          delay: 3000,
-          icon: "fa fa-warning",
-          opacity: 1,
-          type: "error",
-        });
-        $(this).prop("checked", !$(this).is(":checked"));
-        return;
-      }
-      let subitem_id = base_id + (variant ? "~" + variant : "");
-      // The id currently enabled on this card (base or "<base>~<variant>").
+      // The variant is now managed through the Edit button / modalEditVariant, not
+      // here: the checkbox simply enables the BARE profile and disables whatever id
+      // is actually enabled on this card (bare or "<base>~<variant>").
+      let subitem_id = base_id;
       let enabledId =
         $(this).parents("tr").attr("data-enabledId") || subitem_id;
 
@@ -434,9 +429,14 @@ $(document).ready(function () {
       var item_id = $('#modalDeleteGPUForm #item_id').val();
       var subitem_id = $('#modalDeleteGPUForm #subitem_id').val();
       var reservable_type = $('#modalDeleteGPUForm #reservable_type').val();
+      var rekey_to = $('#modalDeleteGPUForm #rekey_to').val();
       var desktops = JSON.parse($('#modalDeleteGPUForm #desktops').val());
       var plans = JSON.parse($('#modalDeleteGPUForm #plans').val());
-      if (subitem_id) {
+      if (subitem_id && rekey_to) {
+        // Variant re-key: disable the old id (cascade confirmed above) then enable
+        // the new one, sequentially.
+        rekeyVariant(reservable_type, item_id, subitem_id, rekey_to, desktops, plans, data["notify-user"] === "on")
+      } else if (subitem_id) {
         enableProfile(reservable_type, item_id, subitem_id, false, desktops, plans, data["notify-user"] === "on")
       } else {
         deleteReservable(reservable_type, item_id, data["notify-user"] === "on");
@@ -646,16 +646,131 @@ $(document).ready(function () {
             });
         }
     });
+
+    // --- Profile variant editor -------------------------------------------------
+    // Open the editor with the variant names already defined for this base profile
+    // (so the admin can re-use one to join cards) plus a "new variant" option.
+    $("#table-gpus").find("tbody").on("click", ".btn-edit-variant", function (e) {
+      e.stopPropagation();
+      profile_checkbox = undefined; // not a checkbox flow; avoid cancel re-check
+      var $tr = $(this).closest("tr");
+      var item_id = $tr.attr("data-itemId");
+      var base = $(this).attr("data-base") || $tr.attr("data-subitemId");
+      var enabledId = $tr.attr("data-enabledId") || "";
+      var memory = $(this).attr("data-memory");
+      var current =
+        enabledId && enabledId.indexOf("~") >= 0 ? enabledId.split("~")[1] : "";
+      var existing = ($(this).attr("data-variants") || "")
+        .split(",")
+        .filter(function (v) { return v; });
+
+      $("#modalEditVariant #variant_item_id").val(item_id);
+      $("#modalEditVariant #variant_base").val(base);
+      $("#modalEditVariant #variant_enabled_id").val(enabledId);
+      $("#modalEditVariant #variant_profile_label").text(
+        base + (memory ? " (" + memory + " vRAM)" : "")
+      );
+
+      var names = existing.slice();
+      if (current && names.indexOf(current) < 0) names.push(current);
+      names.sort();
+      var $sel = $("#modalEditVariant #variant_select").empty();
+      $sel.append('<option value="">none (bare)</option>');
+      names.forEach(function (n) {
+        $sel.append('<option value="' + n + '">' + n + "</option>");
+      });
+      $sel.append('<option value="__new__">new variant…</option>');
+      $sel.val(current || "");
+      $("#modalEditVariant #variant_new").val("");
+      $("#modalEditVariant #variant_new_group").hide();
+
+      $("#modalEditVariant").modal({ backdrop: "static", keyboard: false }).modal("show");
+    });
+
+    $("#modalEditVariant #variant_select").off("change").on("change", function () {
+      $("#modalEditVariant #variant_new_group").toggle($(this).val() === "__new__");
+    });
+
+    $("#modalEditVariant #send").off("click").on("click", function () {
+      var item_id = $("#modalEditVariant #variant_item_id").val();
+      var base = $("#modalEditVariant #variant_base").val();
+      var enabledId = $("#modalEditVariant #variant_enabled_id").val();
+      var reservable_type =
+        $("#modalEditVariant #variant_reservable_type").val() || "gpus";
+      var sel = $("#modalEditVariant #variant_select").val();
+      var newVariant = (sel === "__new__")
+        ? ($("#modalEditVariant #variant_new").val() || "").trim()
+        : (sel || "");
+      if (newVariant && !/^[a-z0-9]{1,20}$/.test(newVariant)) {
+        new PNotify({
+          title: "Invalid variant name",
+          text: "Use 1-20 lowercase alphanumerics (a-z, 0-9).",
+          hide: true, delay: 3000, icon: "fa fa-warning", opacity: 1, type: "error",
+        });
+        return;
+      }
+      var newId = base + (newVariant ? "~" + newVariant : "");
+
+      if (!enabledId) {
+        // Not enabled on this card yet: enable it directly with the chosen variant.
+        $("#modalEditVariant").modal("hide");
+        enableProfile(reservable_type, item_id, newId, true, null, null, false);
+        return;
+      }
+      if (newId === enabledId) {
+        $("#modalEditVariant").modal("hide");
+        new PNotify({
+          title: "No change", text: "Variant unchanged.",
+          type: "info", hide: true, delay: 2000, opacity: 1,
+        });
+        return;
+      }
+      // Re-key: the old reservable is removed (its bookings/plans on this card go
+      // with it; if it is the last card, its desktops/deployments lose the GPU) and
+      // a new one is created with default permissions/priority. Show the impact.
+      $("#modalEditVariant").modal("hide");
+      $.ajax({
+        type: "GET",
+        url: "/api/v3/admin/reservables/check/last/" +
+          reservable_type + "/" + enabledId + "/" + item_id,
+        contentType: "application/json",
+        error: function (data) {
+          new PNotify({
+            title: "ERROR checking variant impact",
+            text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+            hide: true, delay: 3000, opacity: 1, type: "error",
+          });
+        },
+      }).done(function (data) {
+        data = JSON.parse(data);
+        var isLast = data["last"].includes(true);
+        var hasRefs = isLast
+          ? (data["desktops"].length > 0 || data["plans"].length > 0 ||
+             data["deployments"].length > 0 || data["bookings"].length > 0)
+          : (data["plans"].length > 0 || data["bookings"].length > 0);
+        if (hasRefs) {
+          showDeleteGPUModal(enabledId, item_id, reservable_type, data, isLast, newId);
+        } else {
+          rekeyVariant(reservable_type, item_id, enabledId, newId, null, null, false);
+        }
+      });
+    });
 });
 
-function showDeleteGPUModal(subitem_id, item_id, reservable_type, data, isLast) {
+function showDeleteGPUModal(subitem_id, item_id, reservable_type, data, isLast, rekeyTo) {
   // isLast === false is a NON-LAST disable: the profile survives on other cards,
   // so desktops/deployments keep their GPU and only THIS card's plans/bookings
   // are removed. Don't list desktops/deployments as affected in that case.
+  // rekeyTo (optional): when set, this is a variant RE-KEY -- after the old id is
+  // disabled (with the cascade shown here), the new id is enabled. The Save button
+  // in the modal chains both via rekeyVariant().
   if (isLast === undefined) isLast = true;
+  $('#modalDeleteGPUForm #rekey_to').val(rekeyTo || "");
   if (subitem_id) {
     $('#modalDeleteGPUForm #subitem_id').val(subitem_id);
-    $("#modalDeleteGPU #title").text(isLast ? " Disable profile" : " Disable profile on this card");
+    $("#modalDeleteGPU #title").text(
+      rekeyTo ? " Change variant" : (isLast ? " Disable profile" : " Disable profile on this card")
+    );
     $("#modalDeleteGPU .item_type").text("profile");
   } else {
     $("#modalDeleteGPU #title").text(" Delete GPU");
@@ -879,6 +994,52 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
         type: 'error'
     })
     }
+  });
+}
+
+function rekeyVariant(reservable_type, item_id, oldId, newId, desktops, plans, notify_user) {
+  // Sequential disable(old) -> enable(new): the order matters so the new
+  // reservable's total_units card-count is computed after the old id is gone.
+  // disable goes through the same choke point a plain profile disable uses, so it
+  // recomputes total_units (if other cards still realize it) or deletes + cascades.
+  $.ajax({
+    type: "PUT",
+    url:
+      "/api/v3/admin/reservables/enable/" + reservable_type + "/" + item_id + "/" +
+      oldId + (notify_user ? "/notify_user" : ""),
+    data: JSON.stringify({ enabled: false, desktops: desktops, plans: plans }),
+    contentType: "application/json",
+    error: function (data) {
+      new PNotify({
+        title: "ERROR removing old variant",
+        text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+        hide: true, delay: 3000, opacity: 1, type: "error",
+      });
+    },
+  }).done(function () {
+    $.ajax({
+      type: "PUT",
+      url: "/api/v3/admin/reservables/enable/" + reservable_type + "/" + item_id + "/" + newId,
+      data: JSON.stringify({ enabled: true, desktops: null, plans: null }),
+      contentType: "application/json",
+      success: function (data) {
+        $(".modal").modal("hide");
+        gpus_table.ajax.reload();
+        new PNotify({
+          title: "Variant updated",
+          text: "Re-keyed to " + newId,
+          hide: true, delay: 2500, icon: "fa fa-" + data.icon, opacity: 1, type: "success",
+        });
+      },
+      error: function (data) {
+        gpus_table.ajax.reload();
+        new PNotify({
+          title: "ERROR setting new variant",
+          text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+          hide: true, delay: 4000, opacity: 1, type: "error",
+        });
+      },
+    });
   });
 }
 

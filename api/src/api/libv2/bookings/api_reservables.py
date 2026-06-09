@@ -340,6 +340,29 @@ class ResourceItemsGpus:
                 % variant,
                 description_code="bad_request",
             )
+        # A variant name must map to a SINGLE base profile: the same "~<name>" may
+        # be re-used to join the identical profile across several cards (same base
+        # id), but never attached to a DIFFERENT profile (a different brand-model-
+        # suffix, i.e. a different RAM size) -- that would be an operator mistake.
+        # Only guard when enabling; a disable targets an id that already exists.
+        if enabled and variant is not None:
+            base = split_qualifier(subitem_id)[0]
+            with app.app_context():
+                clashes = list(
+                    r.table("reservables_vgpus")
+                    .filter(lambda res: res["id"].match("~" + variant + "$"))
+                    .pluck("id")
+                    .run(db.conn)
+                )
+            for res in clashes:
+                if split_qualifier(res["id"])[0] != base:
+                    raise Error(
+                        "bad_request",
+                        "vGPU variant '%s' is already used by profile '%s'; pick a "
+                        "different name or the matching profile."
+                        % (variant, res["id"]),
+                        description_code="bad_request",
+                    )
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
         if not item:
@@ -525,6 +548,22 @@ class ResourceItemsGpus:
                 {"total_units": total_units}
             ).run(db.conn)
 
+    def _variants_by_base(self):
+        """Map each base reservable id (``brand-model-suffix``) to the set of
+        ``~<name>`` variant names currently defined for it across all cards.
+
+        Sourced from ``reservables_vgpus`` so the admin UI can offer the exact
+        names already in use for a profile (to join the same profile over several
+        cards without retyping/mistyping the label)."""
+        with app.app_context():
+            ids = list(r.table("reservables_vgpus").pluck("id").run(db.conn))
+        out = {}
+        for row in ids:
+            base, name = split_qualifier(row["id"])
+            if name:
+                out.setdefault(base, set()).add(name)
+        return out
+
     def list_subitems(self, item_id):
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
@@ -543,6 +582,12 @@ class ResourceItemsGpus:
                 )[0]["profiles"]
         except:
             raise Error("not_found", "Gpu id not found in gpu definitions table")
+        # Attach the variant names already defined for each base profile so the
+        # admin can re-use an exact "~<name>" (instead of free-typing it) to join
+        # the same profile across cards. Empty list when none exist yet.
+        variants_by_base = self._variants_by_base()
+        for subitem in subitems:
+            subitem["variants"] = sorted(variants_by_base.get(subitem.get("id"), set()))
         return subitems
 
     def list_subitems_enabled(self, item_id):
