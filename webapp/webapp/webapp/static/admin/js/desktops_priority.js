@@ -352,6 +352,21 @@ function parseTimeValues (data) {
     });
   }
 
+  // Cap at one year (525600 min). An unbounded max overflowed the scheduler's
+  // shutdown date computation, producing a far-future (year-6109) date that
+  // broke desktop scheduling.
+  if (data["max_time"] > 525600) {
+    return new PNotify({
+      title: "ERROR",
+      text: "Max (min) must not exceed 525600 (one year)",
+      hide: true,
+      delay: 3000,
+      icon: 'fa fa-warning',
+      opacity: 1,
+      type: 'error'
+    });
+  }
+
   if ((data["max_time"] <= data["warning_time"]) || (data["max_time"] <= data["danger_time"])) {
     return new PNotify({
       title: "ERROR",
