@@ -191,7 +191,7 @@ class AdminAllowedsService:
                 table,
                 "name",
                 data["term"],
-                pluck=data["pluck"] + ["user", "allowed"],
+                pluck=data["pluck"] + ["user", "allowed", "category"],
                 query_filter={"status": "Downloaded"},
                 index_key="kind",
                 index_value=kind,
