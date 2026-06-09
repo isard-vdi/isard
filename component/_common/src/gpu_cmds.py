@@ -23,20 +23,30 @@ def build_mig_transition_cmds(
     old_profile,
     new_profile,
     new_mig_profile_id,
+    mig_count=1,
 ):
     """Commands to transition MIG mode for a card (vGPU/PT<->MIG, MIG<->MIG).
+
+    ``mig_count`` is how many ``+gfx`` GPU-instances of ``new_mig_profile_id`` to
+    carve (one per bookable vGPU slice). A MIG-backed vGPU profile like ``1_24Q``
+    exposes ``mig_count`` slices, so the inline path MUST create that many GIs --
+    matching ``build_mig_vgpu_carve_cmds``/``build_mig_recarve_cmds`` -- or it
+    under-carves the card to a single slice. The ``+gfx`` GI variant is the only
+    one that backs a vGPU mdev, and ``-C`` creates the compute instance per GI in
+    one shot (so the separate ``-cci`` is not needed).
 
     Returns a ``list[str]``, or ``None`` when neither side is MIG (the caller
     should not have routed here). The caller does the logging and execution.
     """
+    gis = ",".join([str(new_mig_profile_id)] * max(1, int(mig_count or 1)))
     cmds = []
     if old_is_mig and new_is_mig:
-        # MIG -> MIG: destroy old instances, create new ones
+        # MIG -> MIG: destroy old instances, create new ones (one +gfx GI per
+        # bookable slice, with its compute instance via -C)
         cmds = [
             f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
             f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
-            f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
-            f"nvidia-smi mig -i {pci_bdf} -cci",
+            f"nvidia-smi mig -i {pci_bdf} -cgi {gis} -C",
         ]
     elif not old_is_mig and new_is_mig:
         # vGPU/PT -> MIG: remove mdevs, rebind nvidia if PT, enable MIG
@@ -61,8 +71,7 @@ def build_mig_transition_cmds(
                 f"nvidia-smi -i {pci_bdf} -mig 1",
                 f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
                 "sleep 2",
-                f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
-                f"nvidia-smi mig -i {pci_bdf} -cci",
+                f"nvidia-smi mig -i {pci_bdf} -cgi {gis} -C",
             ]
         )
     elif old_is_mig and not new_is_mig:
