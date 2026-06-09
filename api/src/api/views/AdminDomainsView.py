@@ -193,6 +193,23 @@ def api_v3_admin_domains_xml(payload, domain_id):
     )
 
 
+@app.route("/api/v3/admin/domains/<domain_id>/live_xml", methods=["GET"])
+@is_admin
+def api_v3_admin_domains_live_xml(payload, domain_id):
+    """Live libvirt XML (incl. secrets) of a started desktop, from engine RAM.
+
+    Proxies to the engine's internal API; the XML is never stored in the DB.
+    """
+    from ..libv2.api_engine import get_desktop_live_xml
+
+    data = get_desktop_live_xml(domain_id)
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/domains/xml_capabilities", methods=["GET"])
 @is_admin
 def api_v3_admin_domains_xml_capabilities(payload):
