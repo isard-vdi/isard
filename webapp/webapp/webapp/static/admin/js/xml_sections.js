@@ -321,8 +321,8 @@ $(document).on('change', '#xmlUploadFile', function(e) {
             contentType: 'application/json',
             success: function(resp) {
                 var loaded = [];
-                var emptyInUpload = [];
-                var skipped = [];
+                var leftUnchanged = [];  // present in the form, absent/empty in the file
+                var skipped = [];        // uploaded content NOT applied because locked
                 resp.sections.forEach(function(section) {
                     if (!section.key || !/^[a-z_]+$/.test(section.key)) return;
                     var panel = $('#xml-section-' + section.key);
@@ -332,40 +332,54 @@ $(document).on('change', '#xmlUploadFile', function(e) {
                     // stray <driver> snippet doesn't try to land in a
                     // non-editable textarea.
                     if (panel.attr('data-section-derived') === '1') return;
+                    var snippet = section.xml || '';
+                    var hasContent = snippet.trim().length > 0;
                     var hiddenInput = panel.find('.xml-section-protect');
                     if (hiddenInput.length === 0) {
-                        skipped.push(escapeHtml(section.label) + ' (system-locked)');
+                        // System-locked (identity/metadata): always engine-managed,
+                        // never loaded from a file. Expected, so report silently.
                         return;
                     }
                     if (hiddenInput.val() === '1') {
-                        skipped.push(escapeHtml(section.label) + ' (admin-locked)');
+                        // Admin-locked: the lock wins, but make it explicit that
+                        // the uploaded content for this section was NOT applied.
+                        if (hasContent) skipped.push(escapeHtml(section.label));
                         return;
                     }
-                    var snippet = section.xml || '';
-                    panel.find('.xml-section-textarea').val(snippet);
-                    if (snippet.trim().length > 0) {
+                    if (hasContent) {
+                        panel.find('.xml-section-textarea').val(snippet);
                         loaded.push(escapeHtml(section.label));
                     } else {
-                        emptyInUpload.push(escapeHtml(section.label));
+                        // Absent/empty in the file: leave the existing value in
+                        // place instead of clearing it, so an upload never
+                        // silently removes a section the file simply omits.
+                        leftUnchanged.push(escapeHtml(section.label));
                     }
                 });
 
                 var msg = '';
-                if (loaded.length) msg += '<b>Loaded:</b> ' + loaded.join(', ');
-                if (skipped.length) msg += (msg ? '<br>' : '') + '<b>Skipped (locked):</b> ' + skipped.join(', ');
-                if (emptyInUpload.length) msg += (msg ? '<br>' : '') + '<b>Empty in upload:</b> ' + emptyInUpload.join(', ');
-                if (!loaded.length && !skipped.length && !emptyInUpload.length) {
-                    msg = 'No sections found in the uploaded XML.';
+                if (loaded.length) msg += '<b>Loaded from file:</b> ' + loaded.join(', ');
+                if (skipped.length) msg += (msg ? '<br>' : '') +
+                    '<b>NOT applied — section is locked:</b> ' + skipped.join(', ') +
+                    ' <small>(unlock the section, then re-upload, to apply it)</small>';
+                if (leftUnchanged.length) msg += (msg ? '<br>' : '') +
+                    '<small>Left unchanged (not present in the file): ' +
+                    leftUnchanged.join(', ') + '</small>';
+                if (!loaded.length && !skipped.length) {
+                    msg = msg || 'No editable sections found in the uploaded XML.';
                 }
                 if (loaded.length) {
                     msg += '<br><i>Click <b>Update</b> to save these changes.</i>';
                 }
 
+                // Keep the notice on screen (no auto-hide) whenever uploaded
+                // content was dropped because a section is locked, so the admin
+                // sees exactly what was not applied.
                 new PNotify({
                     title: 'XML Loaded',
                     text: msg,
-                    type: loaded.length ? 'success' : 'info',
-                    hide: true,
+                    type: skipped.length ? 'info' : (loaded.length ? 'success' : 'info'),
+                    hide: skipped.length === 0,
                     delay: 6000,
                     icon: 'fa fa-upload'
                 });
