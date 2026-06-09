@@ -612,15 +612,8 @@ class AdminGroupUserItem(BaseModel):
 
 
 class AdminGroupEnrollmentResponse(BaseModel):
-    """Response for ``POST /admin/item/group/enrollment``.
-
-    ``UserEnrollment.enrollment_action`` returns either ``True`` (for
-    ``disable``) or a 6-char alphanumeric code. The route currently
-    funnels both through an ``isinstance(result, dict)`` guard that
-    coerces the scalar into ``{}`` — preserving that no-op response shape
-    here so the OAS documents the actual on-the-wire payload (an empty
-    object). The optional ``code`` field is reserved for the route
-    refactor that will surface the service value."""
+    """Response for ``POST /admin/item/group/enrollment``: the new enrollment
+    code (reset) or ``True`` (disable)."""
 
     code: Optional[str | bool] = None
 

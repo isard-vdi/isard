@@ -769,3 +769,35 @@ def test_admin_auto_register_rejects_non_register_token(monkeypatch, test_client
         body={"role_id": "advanced", "group_id": "g1"},
     )
     assert response.status_code == 403
+
+
+def test_admin_group_enrollment_reset_surfaces_code(monkeypatch, test_client):
+    """reset surfaces the new 6-char code under ``code`` (not null)."""
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.update_group_enrollment",
+        staticmethod(lambda payload, data: "abc123"),
+    )
+    response = test_client(
+        url="/admin/item/group/enrollment",
+        method="POST",
+        jwt=MockJWT(role_id="admin"),
+        body={"id": "g1", "role": "advanced", "action": "reset"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"code": "abc123"}
+
+
+def test_admin_group_enrollment_disable_returns_true_code(monkeypatch, test_client):
+    """disable surfaces ``True`` under ``code``."""
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.update_group_enrollment",
+        staticmethod(lambda payload, data: True),
+    )
+    response = test_client(
+        url="/admin/item/group/enrollment",
+        method="POST",
+        jwt=MockJWT(role_id="admin"),
+        body={"id": "g1", "role": "advanced", "action": "disable"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"code": True}

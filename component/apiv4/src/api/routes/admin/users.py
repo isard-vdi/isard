@@ -1248,27 +1248,19 @@ async def admin_get_group_users(request: Request, group_id: str):
 )
 async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentData):
     try:
-        # ``UserEnrollment.enrollment_action`` returns either ``True``
-        # (disable) or a 6-char enrollment code. Funnel both through the
-        # response model — the existing route always echoed ``{}`` for
-        # non-dict service returns, so emit an empty model for the
-        # disable path and surface the code on reset/recreate.
+        # enrollment_action returns the new 6-char code (reset) or True (disable).
         result = await asyncio.to_thread(
             AdminUsersService.update_group_enrollment,
             request.token_payload,
             data.model_dump(),
         )
-        if isinstance(result, dict):
-            payload = AdminGroupEnrollmentResponse(**result)
-        else:
-            payload = AdminGroupEnrollmentResponse()
         return JSONResponse(
-            content=payload.model_dump(mode="json"),
+            content=AdminGroupEnrollmentResponse(code=result).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
         raise
-    except Exception as e:
+    except Exception:
         raise await Error.create(
             request,
             "internal_server",
