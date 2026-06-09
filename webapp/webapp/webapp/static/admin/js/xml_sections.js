@@ -43,6 +43,7 @@ function openXmlSections(domainId, mode) {
     xmlSectionsFullXml = '';
     $('#xmlRawTextarea').val('');
     $('#xmlRawToggle').prop('checked', false);
+    if ($.fn.iCheck) { $('#xmlRawToggle').iCheck('update'); }
     $('#xmlSectionsContainer').html(
         '<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>'
     );
@@ -69,6 +70,9 @@ function openXmlSections(domainId, mode) {
         var isRaw = (xmlSectionsMode !== 'virt_install') &&
             prot.length === 1 && prot[0] === 'raw';
         $('#xmlRawToggle').prop('checked', isRaw).prop('disabled', xmlSectionsMode === 'virt_install');
+        if ($.fn.iCheck) {
+            $('#xmlRawToggle').iCheck(xmlSectionsMode === 'virt_install' ? 'disable' : 'enable').iCheck('update');
+        }
         xmlSectionsSetRawView(isRaw);
         // Offer the live running XML only for a running desktop (not virt_install).
         if (xmlSectionsMode !== 'virt_install' && xmlSectionsDesktopIsRunning(domainId)) {
@@ -572,8 +576,10 @@ function xmlSectionsSetRawView(on) {
     }
 }
 
-$(document).on('change', '#xmlRawToggle', function() {
-    xmlSectionsSetRawView(this.checked);
+// The XML modal skins checkboxes with iCheck, which fires 'ifChanged' on toggle
+// instead of a native 'change'; bind both so the RAW view switches either way.
+$(document).on('ifChanged change', '#xmlRawToggle', function() {
+    xmlSectionsSetRawView($(this).is(':checked'));
 });
 
 // Minimal dependency-free line diff: highlights lines unique to each side.

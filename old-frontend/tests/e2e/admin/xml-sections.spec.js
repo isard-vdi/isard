@@ -318,8 +318,15 @@ test.describe('XML sections editor (Redmine #15065)', () => {
     await openXmlEditor(page, testDesktopId)
 
     // Enable RAW mode: section panels hide, the full-XML textarea shows.
-    const rawToggle = page.locator('#xmlRawToggle')
-    await rawToggle.check()
+    // The modal skins checkboxes with iCheck (an <ins.iCheck-helper> overlay
+    // intercepts clicks and fires 'ifChanged' instead of 'change'); toggle via
+    // the helper when present, else fall back to a native check().
+    const rawHelper = page.locator('#xmlRawToggle ~ ins.iCheck-helper')
+    if (await rawHelper.count()) {
+      await rawHelper.click()
+    } else {
+      await page.locator('#xmlRawToggle').check()
+    }
     const rawArea = page.locator('#xmlRawTextarea')
     await expect(rawArea).toBeVisible()
     await expect(page.locator('#xmlSectionsContainer')).toBeHidden()
