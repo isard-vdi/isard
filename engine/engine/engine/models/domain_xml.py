@@ -1738,6 +1738,12 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     if protected:
         log.info(f"Domain {id_domain}: xml_protected_sections={sorted(protected)}")
 
+    # RAW mode (sentinel ['raw']): the uploaded <domain> is authoritative; apply
+    # only the isard-essentials and leave everything else verbatim.
+    if protected == {"raw"}:
+        log.info(f"Domain {id_domain}: RAW XML mode")
+        return recreate_xml_to_start_raw(dict_domain, x, ssl)
+
     x.set_name(id_domain)
     try:
         uuid.UUID(id_domain)
@@ -1989,6 +1995,88 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     return xml, viewer_passwd
 
 
+def recreate_xml_to_start_raw(dict_domain, x, ssl=True):
+    """RAW mode start XML — apply ONLY the isard-essential adaptations.
+
+    Activated by create_dict.xml_protected_sections == ['raw']. The uploaded
+    <domain> XML is authoritative; the engine only:
+      - sets name/uuid to the desktop id,
+      - injects the isard-managed disk <source> paths (storage),
+      - rebuilds interfaces from create_dict + the mac2network metadata the OVS
+        worker needs (networking),
+      - injects the isard <metadata> (ownership),
+      - ensures the spice/vnc viewer with a fresh password (video/viewer).
+    Everything else (memory, vcpu, cpu, features, os, video model, custom
+    devices, qemu:commandline, cputune, hostdev, …) is left exactly as uploaded.
+    """
+    id_domain = dict_domain["id"]
+
+    # name + uuid (isard identity)
+    x.set_name(id_domain)
+    try:
+        uuid.UUID(id_domain)
+        domain_uuid = id_domain
+    except ValueError:
+        domain_uuid = str(uuid.uuid5(uuid.NAMESPACE_OID, id_domain))
+    uuid_nodes = x.tree.xpath("/domain/uuid")
+    if uuid_nodes:
+        uuid_nodes[0].text = domain_uuid
+    else:
+        name_node = x.tree.xpath("/domain/name")[0]
+        uuid_el = etree.Element("uuid")
+        uuid_el.text = domain_uuid
+        name_node.addnext(uuid_el)
+
+    # storage — inject isard-resolved disk source paths into the existing disks
+    hw = resolve_hardware_from_create_dict(dict_domain)
+    if "disks" in hw:
+        total_disks_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="disk"]'))
+        for i, disk in enumerate(hw["disks"]):
+            if not disk.get("file"):
+                log.error(f"RAW: disk {i} in domain {id_domain} not resolved")
+                return False
+            s = disk["file"]
+            type_disk = (
+                "qcow2" if s[s.rfind(".") :].lower().find("qcow") == 1 else "raw"
+            )
+            if i >= total_disks_in_xml:
+                x.add_disk(
+                    index=i,
+                    path_disk=s,
+                    type_disk=type_disk,
+                    bus=disk.get("bus") or "virtio",
+                )
+            else:
+                x.set_vdisk(s, index=i, type_disk=type_disk)
+
+    # metadata (isard ownership)
+    x.add_metadata_isard(
+        dict_domain["user"],
+        dict_domain["group"],
+        dict_domain["category"],
+        dict_domain["create_dict"].get("origin", ""),
+    )
+
+    # viewer — ensure spice graphics + fresh password + vnc websockets
+    x.add_spice_graphics_if_not_exist()
+    if ssl is True:
+        x.reset_viewer_passwd()
+    else:
+        x.spice_remove_passwd_nossl()
+    x.add_vnc_with_websockets()
+
+    # networking — rebuild interfaces from create_dict + mac2network metadata
+    recreate_xml_interfaces(dict_domain, x)
+    if x.mac2network_mappings:
+        x.add_mac2network_metadata(x.mac2network_mappings)
+
+    x.dict_from_xml()
+    viewer_passwd = x.viewer_passwd if "viewer_passwd" in x.__dict__.keys() else ""
+    if not viewer_passwd:
+        log.error(f"RAW: viewer password not found in domain {id_domain}")
+    return x.return_xml(), viewer_passwd
+
+
 def recreate_xml_interfaces(dict_domain, x):
     id_domain = dict_domain["id"]
     # redo network
@@ -2140,17 +2228,28 @@ def recreate_xml_if_start_paused(xml, memory_mb=64):
     return xml_output
 
 
+def domain_is_raw(domain):
+    """True when the domain is in RAW XML mode.
+
+    RAW mode is signalled by the sentinel ``xml_protected_sections == ['raw']``:
+    the uploaded <domain> XML is authoritative and the engine applies only the
+    isard-essential adaptations (name/uuid, storage paths, networking, viewer,
+    metadata). 'raw' therefore reads as "everything locked".
+    """
+    return (domain.get("create_dict") or {}).get("xml_protected_sections") == ["raw"]
+
+
 def hostdev_locked(domain):
     """True when the admin locked the <hostdev> XML section for this domain.
 
     When create_dict.xml_protected_sections contains "hostdev", the manual
     passthrough <hostdev> entries are authoritative: the engine must not also
     reserve/inject a managed GPU on top of them (otherwise recreate_xml_if_gpu
-    would append an extra balancer-selected <hostdev>, with no dedup).
+    would append an extra balancer-selected <hostdev>, with no dedup). RAW mode
+    ('raw' sentinel) locks every section, hostdev included.
     """
-    return "hostdev" in (
-        (domain.get("create_dict") or {}).get("xml_protected_sections") or []
-    )
+    protected = (domain.get("create_dict") or {}).get("xml_protected_sections") or []
+    return "hostdev" in protected or "raw" in protected
 
 
 # Base guest PCI slot for the first passed-through GPU. Picked from a high free
@@ -2231,16 +2330,18 @@ def numa_opts_allowed(domain):
     has locked the corresponding XML section via
     create_dict.xml_protected_sections, the hand-tuned XML is authoritative and
     must not be overwritten — return False for that section so the controller
-    skips (or, for cputune/numatune, disables that half of) the injection.
+    skips (or, for cputune/numatune, disables that half of) the injection. RAW
+    mode ('raw' sentinel) disables all of them.
     """
     protected = set(
         (domain.get("create_dict") or {}).get("xml_protected_sections") or []
     )
+    raw = "raw" in protected
     return {
-        "memory_backing": "memory_backing" not in protected,
-        "cputune": "cputune" not in protected,
-        "numatune": "numatune" not in protected,
-        "iothreads": "iothreads" not in protected,
+        "memory_backing": not raw and "memory_backing" not in protected,
+        "cputune": not raw and "cputune" not in protected,
+        "numatune": not raw and "numatune" not in protected,
+        "iothreads": not raw and "iothreads" not in protected,
     }
 
 

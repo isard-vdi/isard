@@ -1,5 +1,6 @@
 from io import StringIO
 
+import engine.models.domain_xml as dxml
 import pytest
 from engine.models.domain_xml import (
     DomainXML,
@@ -8,11 +9,13 @@ from engine.models.domain_xml import (
     add_numa_pinning,
     add_qemu_pcie_reserve,
     count_passthrough_gpus_in_xml,
+    domain_is_raw,
     ensure_iothreads_declared,
     hostdev_locked,
     numa_opts_allowed,
     pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
+    recreate_xml_to_start_raw,
 )
 from lxml import etree
 
@@ -1022,3 +1025,109 @@ def test_numa_opts_allowed_default_when_nothing_protected():
         {},
     ):
         assert all(numa_opts_allowed(d).values()), f"unexpected gate for {d!r}"
+
+
+# ---- RAW XML mode ('raw' sentinel) -----------------------------------------
+
+
+def test_domain_is_raw_and_locks_everything():
+    raw = {"create_dict": {"xml_protected_sections": ["raw"]}}
+    assert domain_is_raw(raw) is True
+    assert domain_is_raw({"create_dict": {"xml_protected_sections": ["cpu"]}}) is False
+    assert domain_is_raw({"create_dict": {}}) is False
+    # 'raw' locks hostdev and disables every NUMA/hugepage/iothread injection.
+    assert hostdev_locked(raw) is True
+    assert all(v is False for v in numa_opts_allowed(raw).values())
+
+
+_RAW_DOMAIN = (
+    '<domain type="kvm">'
+    "<name>placeholder</name>"
+    '<memory unit="KiB">8388608</memory>'
+    '<currentMemory unit="KiB">8388608</currentMemory>'
+    '<vcpu placement="static">8</vcpu>'
+    '<features><acpi/><apic/><kvm><hidden state="on"/></kvm></features>'
+    '<os><type arch="x86_64" machine="q35">hvm</type><boot dev="hd"/></os>'
+    '<cpu mode="host-passthrough"/>'
+    "<devices>"
+    "<emulator>/usr/bin/qemu-system-x86_64</emulator>"
+    '<disk type="file" device="disk"><driver name="qemu" type="qcow2"/>'
+    '<source file="/foreign/orig.qcow2"/><target dev="vda" bus="virtio"/></disk>'
+    '<interface type="bridge"><source bridge="virbr0"/>'
+    '<mac address="52:54:00:11:22:33"/><model type="virtio"/></interface>'
+    '<video><model type="qxl"/></video>'
+    "</devices>"
+    '<qemu:commandline xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">'
+    '<qemu:arg value="-cpu"/><qemu:arg value="host,+vmx"/>'
+    "</qemu:commandline>"
+    "</domain>"
+)
+
+
+def test_recreate_xml_to_start_raw_injects_essentials_keeps_the_rest(monkeypatch):
+    dom_id = "11111111-2222-3333-4444-555555555555"
+    dict_domain = {
+        "id": dom_id,
+        "user": "u",
+        "group": "g",
+        "category": "c",
+        "create_dict": {
+            "origin": "tpl",
+            "xml_protected_sections": ["raw"],
+            "hardware": {
+                "disks": [{"storage_id": "s1"}],
+                "interfaces": [{"id": "n1", "mac": "52:54:00:aa:bb:cc"}],
+            },
+        },
+    }
+    monkeypatch.setattr(
+        dxml,
+        "resolve_hardware_from_create_dict",
+        lambda d: {"disks": [{"file": "/isard/managed/" + d["id"] + ".qcow2"}]},
+    )
+
+    def fake_ifaces(dd, x):
+        # mimic isard networking: replace the interface + record a mac2network map
+        for el in x.tree.xpath("/domain/devices/interface"):
+            el.getparent().remove(el)
+        ifc = etree.fromstring(
+            '<interface type="bridge"><source bridge="ovs-br0"/>'
+            '<mac address="52:54:00:aa:bb:cc"/><model type="virtio"/></interface>'
+        )
+        x.tree.xpath("/domain/devices")[0].append(ifc)
+        x.mac2network_mappings = [
+            {
+                "mac": "52:54:00:aa:bb:cc",
+                "kind": "interface",
+                "interface_id": "n1",
+                "vlan_id": "100",
+            }
+        ]
+
+    monkeypatch.setattr(dxml, "recreate_xml_interfaces", fake_ifaces)
+
+    x = DomainXML(_RAW_DOMAIN, id_domain=dom_id)
+    out, passwd = recreate_xml_to_start_raw(dict_domain, x, ssl=True)
+    t = _parse(out)
+
+    # identity = desktop id
+    assert t.xpath("/domain/name")[0].text == dom_id
+    assert t.xpath("/domain/uuid")[0].text == dom_id
+    # storage: isard-managed path injected, foreign path gone
+    assert "/isard/managed/" in out and "/foreign/orig.qcow2" not in out
+    # networking rebuilt + mac2network metadata emitted
+    assert t.xpath('/domain/devices/interface/source[@bridge="ovs-br0"]')
+    assert "mapping" in out and "52:54:00:aa:bb:cc" in out
+    # viewer: spice + vnc + a fresh 32-char password
+    assert t.xpath('/domain/devices/graphics[@type="spice"]')
+    assert t.xpath('/domain/devices/graphics[@type="vnc"]')
+    assert len(passwd) == 32
+    # isard metadata injected
+    assert t.xpath("/domain/metadata")
+    # EVERYTHING ELSE preserved verbatim
+    assert t.xpath("/domain/features/kvm/hidden")
+    assert "host,+vmx" in out  # qemu:commandline untouched
+    assert t.xpath("/domain/cpu")[0].get("mode") == "host-passthrough"
+    assert t.xpath("/domain/memory")[0].text == "8388608"
+    assert t.xpath("/domain/vcpu")[0].text == "8"
+    assert t.xpath("/domain/devices/video/model")[0].get("type") == "qxl"
