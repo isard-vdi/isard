@@ -132,7 +132,52 @@ _LOGO_MIME_TYPES = {
 }
 
 
-@cached(cache=logo_cache, key=lambda r: r.headers.get("host", ""))
+_LOGO_HEADERS = {
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+    "Cache-Control": "public, max-age=60",
+}
+
+
+def _logo_response(data_url: str | None) -> Response:
+    """Serve a branding logo data URL, falling back to the static custom then default logo."""
+    if data_url and data_url.startswith("data:"):
+        header, b64_data = data_url.split(",", 1)
+        mime_type = header.split(":")[1].split(";")[0]
+        return Response(
+            content=base64.b64decode(b64_data),
+            media_type=mime_type,
+            headers=_LOGO_HEADERS,
+        )
+    for path in sorted(glob.glob(_STATIC_CUSTOM_LOGO_GLOB)):
+        try:
+            with open(path, "rb") as f:
+                file_bytes = f.read()
+        except OSError:
+            continue
+        ext = os.path.splitext(path)[1].lstrip(".").lower()
+        media_type = _LOGO_MIME_TYPES.get(ext, "application/octet-stream")
+        return Response(
+            content=file_bytes, media_type=media_type, headers=_LOGO_HEADERS
+        )
+    if os.path.isfile(_DEFAULT_LOGO_PATH):
+        with open(_DEFAULT_LOGO_PATH, "rb") as f:
+            return Response(
+                content=f.read(),
+                media_type="image/svg+xml",
+                headers={"Cache-Control": "public, max-age=300"},
+            )
+    return Response(status_code=404)
+
+
+# cachetools.cached can't wrap the async endpoint (it would cache the
+# coroutine and break on a second await), and placing it above @router.get
+# is a no-op since FastAPI registers the unwrapped handler. So cache the
+# synchronous DB+filesystem resolution instead, keyed by domain.
+@cached(cache=logo_cache, key=lambda domain: domain)
+def _logo_data_url_by_domain(domain: str) -> str | None:
+    return AdminCategoryService.get_logo_by_domain(domain)
+
+
 @open_router.get(
     "/logo",
     tags=["categories"],
@@ -155,45 +200,8 @@ _LOGO_MIME_TYPES = {
 async def get_logo(request: Request):
     try:
         domain = request.headers.get("host", "").split(":")[0]
-        data_url = await asyncio.to_thread(
-            AdminCategoryService.get_logo_by_domain, domain
-        )
-        if data_url and data_url.startswith("data:"):
-            header, b64_data = data_url.split(",", 1)
-            mime_type = header.split(":")[1].split(";")[0]
-            file_bytes = base64.b64decode(b64_data)
-            return Response(
-                content=file_bytes,
-                media_type=mime_type,
-                headers={
-                    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
-                    "Cache-Control": "public, max-age=60",
-                },
-            )
-        for path in sorted(glob.glob(_STATIC_CUSTOM_LOGO_GLOB)):
-            try:
-                with open(path, "rb") as f:
-                    file_bytes = f.read()
-            except OSError:
-                continue
-            ext = os.path.splitext(path)[1].lstrip(".").lower()
-            media_type = _LOGO_MIME_TYPES.get(ext, "application/octet-stream")
-            return Response(
-                content=file_bytes,
-                media_type=media_type,
-                headers={
-                    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
-                    "Cache-Control": "public, max-age=60",
-                },
-            )
-        if os.path.isfile(_DEFAULT_LOGO_PATH):
-            with open(_DEFAULT_LOGO_PATH, "rb") as f:
-                return Response(
-                    content=f.read(),
-                    media_type="image/svg+xml",
-                    headers={"Cache-Control": "public, max-age=300"},
-                )
-        return Response(status_code=404)
+        data_url = await asyncio.to_thread(_logo_data_url_by_domain, domain)
+        return _logo_response(data_url)
     except Error:
         raise
     except Exception:
@@ -201,6 +209,42 @@ async def get_logo(request: Request):
             request,
             "internal_server",
             "Failed to retrieve logo",
+            traceback.format_exc(),
+        )
+
+
+@open_router.get(
+    "/logo/category/{category_id}",
+    tags=["categories"],
+    response_class=Response,
+    summary="Get category logo",
+    description="Returns the branding logo for a category. Falls back to the default logo.",
+    responses={
+        200: {
+            "description": "Logo image file",
+            "content": {
+                "image/png": {},
+                "image/jpeg": {},
+                "image/svg+xml": {},
+                "image/*": {},
+            },
+        },
+        404: {"model": ErrorResponse},
+    },
+)
+async def get_category_logo(category_id: str, request: Request):
+    try:
+        data_url = await asyncio.to_thread(
+            AdminCategoryService.get_logo_by_category, category_id
+        )
+        return _logo_response(data_url)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve logo for category '{category_id}'",
             traceback.format_exc(),
         )
 

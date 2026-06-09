@@ -26,6 +26,7 @@ BUCKET_B_ALLOWLIST: set[tuple[str, str]] = {
     # PlainTextResponse / raw image bytes
     ("GET", "/api/v4/item/category/{category_id}/custom_url"),
     ("GET", "/api/v4/logo"),
+    ("GET", "/api/v4/logo/category/{category_id}"),
     # 204 No Content
     ("PUT", "/api/v4/item/deployment/{deployment_id}/stop"),
     ("PUT", "/api/v4/item/deployment/{deployment_id}/user/{user_id}/stop"),

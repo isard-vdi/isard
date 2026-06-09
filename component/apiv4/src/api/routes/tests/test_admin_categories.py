@@ -481,9 +481,9 @@ class TestUpdateCategoryAuthentication:
         ldap_config = get_response.json().get("ldap", {}).get("ldap_config", {})
         assert ldap_config.get("password_set") is True
 
-    def test_empty_secret_on_empty_existing_does_not_raise(self, test_client):
-        """Starting with no existing secret and sending an empty secret is a no-op,
-        not an error — the field should simply not be written."""
+    def test_empty_secret_on_empty_existing_is_required(self, test_client):
+        """An empty secret with no stored value to fall back on is rejected as
+        required — matching the apiv3 admin API (v3-literal strictness)."""
         jwt = MockJWT(role_id="admin")
         # DB with an empty ldap_config (no existing password)
         custom_auth = {
@@ -503,6 +503,106 @@ class TestUpdateCategoryAuthentication:
             jwt=jwt,
             body=self._payload(ldap={"ldap_config": {"password": ""}}),
             db_tables_data=_db(authentication=custom_auth),
+        )
+        assert response.status_code == 400
+
+    # ── structural validation (apiv3 Cerberus parity) ───────────────────
+
+    def test_missing_disabled_rejected(self, test_client):
+        """`disabled` is mandatory per provider."""
+        jwt = MockJWT(role_id="admin")
+        payload = self._payload()
+        del payload["authentication"]["saml"]["disabled"]
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            method="PUT",
+            jwt=jwt,
+            body=payload,
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 400
+
+    def test_enabled_provider_requires_config_source_and_restriction(self, test_client):
+        """An enabled (disabled=False) provider must carry config_source +
+        email_domain_restriction."""
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            method="PUT",
+            jwt=jwt,
+            body=self._payload(
+                saml={
+                    "disabled": False,
+                    "config_source": None,
+                    "email_domain_restriction": None,
+                }
+            ),
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 400
+
+    def test_invalid_config_source_rejected(self, test_client):
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            method="PUT",
+            jwt=jwt,
+            body=self._payload(google={"config_source": "bogus"}),
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 400
+
+    def test_email_restriction_enabled_requires_allowed(self, test_client):
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            method="PUT",
+            jwt=jwt,
+            body=self._payload(local={"email_domain_restriction": {"enabled": True}}),
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 400
+
+    def test_custom_google_requires_config(self, test_client):
+        """config_source=custom for google must include google_config."""
+        jwt = MockJWT(role_id="admin")
+        payload = self._payload(google={"config_source": "custom"})
+        del payload["authentication"]["google"]["google_config"]
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            method="PUT",
+            jwt=jwt,
+            body=payload,
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 400
+
+    def test_custom_saml_requires_metadata(self, test_client):
+        """config_source=custom for saml must include a metadata source."""
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            method="PUT",
+            jwt=jwt,
+            body=self._payload(saml={"config_source": "custom", "saml_config": {}}),
+            db_tables_data=_db(),
+        )
+        assert response.status_code == 400
+
+    def test_custom_saml_with_metadata_accepted(self, test_client):
+        """A complete custom saml config passes structural validation."""
+        jwt = MockJWT(role_id="admin")
+        response = test_client(
+            url="/admin/item/category/test-cat/authentication",
+            method="PUT",
+            jwt=jwt,
+            body=self._payload(
+                saml={
+                    "config_source": "custom",
+                    "saml_config": {"metadata_url": "https://idp.example.com/meta"},
+                }
+            ),
+            db_tables_data=_db(),
         )
         assert response.status_code == 204
 
@@ -734,6 +834,22 @@ class TestLogoEndpointDirect:
         response = client.get("/api/v4/logo", follow_redirects=False)
         # Direct open_router endpoint, returns 404 (no logo configured)
         assert response.status_code in (200, 404)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  GET /logo/category/{category_id} — public per-category endpoint
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestCategoryLogoEndpoint:
+    @pytest.mark.clear_cache
+    def test_returns_404_when_logo_disabled(self, test_client):
+        response = test_client(
+            url="/logo/category/test-cat",
+            db_tables_data=_db(),
+        )
+        # Category has logo disabled, no static/default fallback file → 404
+        assert response.status_code == 404
 
 
 def test_update_branding_does_not_block_on_grpc(test_client):
