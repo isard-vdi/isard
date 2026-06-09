@@ -379,7 +379,6 @@ class ApiHypervisors:
         hugepages_info=None,
         pci_devices=None,
         numa_topology=None,
-        gpu_apply_capable=False,
     ):
         data = {}
 
@@ -416,7 +415,6 @@ class ApiHypervisors:
                 hugepages_info=hugepages_info,
                 pci_devices=pci_devices,
                 numa_topology=numa_topology,
-                gpu_apply_capable=gpu_apply_capable,
             )
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
@@ -467,7 +465,6 @@ class ApiHypervisors:
                 hugepages_info=hugepages_info,
                 pci_devices=pci_devices,
                 numa_topology=numa_topology,
-                gpu_apply_capable=gpu_apply_capable,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
@@ -514,18 +511,13 @@ class ApiHypervisors:
                 self.reconcile_unrealizable_gpu_profiles(hyper_id, nvidia_gpus)
             except Exception as e:
                 log.warning(f"Failed to reconcile unrealizable gpu profiles: {e}")
-            # For a gpu-apply-capable hypervisor, return the per-card target
-            # profile it should apply locally (planning -> current -> passthrough
-            # default). Computed AFTER the prune so a just-disabled profile is
-            # never offered. Old hypervisors omit the flag -> no targets -> the
-            # engine keeps applying as before.
-            if gpu_apply_capable:
-                try:
-                    data["gpu_targets"] = self.compute_gpu_targets(
-                        hyper_id, nvidia_gpus
-                    )
-                except Exception as e:
-                    log.warning(f"Failed to compute gpu targets: {e}")
+            # Return the per-card target profile the hypervisor should apply
+            # locally (planning -> current -> passthrough default). Computed
+            # AFTER the prune so a just-disabled profile is never offered.
+            try:
+                data["gpu_targets"] = self.compute_gpu_targets(hyper_id, nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to compute gpu targets: {e}")
 
         data["certs"] = self.get_hypervisors_certs()
 
@@ -571,7 +563,6 @@ class ApiHypervisors:
         hugepages_info=None,
         pci_devices=None,
         numa_topology=None,
-        gpu_apply_capable=False,
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -612,11 +603,6 @@ class ApiHypervisors:
             },
             "info": {},
             "only_forced": only_forced,
-            # Persisted so the engine knows this host applies GPU profiles
-            # itself (registration + runtime via gpu_apply_cli over SSH) and can
-            # route runtime changes to the hypervisor instead of building the
-            # host-command sequences itself. Old hosts omit it -> engine applies.
-            "gpu_apply_capable": gpu_apply_capable,
             "nvidia_enabled": nvidia_enabled,
             "nvidia_gpus": nvidia_gpus if nvidia_gpus is not None else [],
             "min_free_mem_gb": min_free_mem_gb,
