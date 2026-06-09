@@ -153,7 +153,6 @@ def api_v3_hypervisor(hyper_id=False):
                 request.form.get("buffering_hyper", default="false", type=str).lower()
             )
             gpu_only = True if request.form.get("gpu_only") == "True" else False
-            gpu_apply_capable = request.form.get("gpu_apply_capable") == "True"
         except:
             raise Error(
                 "bad_request",
@@ -189,7 +188,6 @@ def api_v3_hypervisor(hyper_id=False):
             hugepages_info=hugepages_info,
             pci_devices=pci_devices,
             numa_topology=numa_topology,
-            gpu_apply_capable=gpu_apply_capable,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])

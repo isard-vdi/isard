@@ -1401,12 +1401,12 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
             "requested_profile": None,
             "operator_passthrough": False,
             "force_selected_profile": False,
-            # Hypervisor-applied state. When the hypervisor applies the profile
-            # itself at registration (gpu_apply_capable) the API records the
-            # applied profile + mdev pool here. The engine relies on what the
-            # hypervisor set at boot, so this delete+insert must NOT wipe it —
-            # otherwise the next reconcile re-derives passthrough and re-applies
-            # over SSH, defeating the hypervisor-owns-GPU handoff.
+            # Hypervisor-applied state. The hypervisor applies the profile itself
+            # at registration and the API records the applied profile + mdev pool
+            # here. The engine relies on what the hypervisor set at boot, so this
+            # delete+insert must NOT wipe it — otherwise the next reconcile
+            # re-derives passthrough and re-applies over SSH, defeating the
+            # hypervisor-owns-GPU handoff.
             "vgpu_profile": None,
             "mdevs": {},
             "mdevs_reset_at": None,
