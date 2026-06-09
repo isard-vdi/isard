@@ -146,6 +146,7 @@ def test_client_with_conn(monkeypatch, client):
         method: Literal["GET", "POST", "PUT", "DELETE"] | str = "GET",
         body: dict = {},
         jwt: MockJWT = None,
+        headers: dict = None,
     ):
         create_indexes(db_tables_data, conn)
 
@@ -174,6 +175,8 @@ def test_client_with_conn(monkeypatch, client):
         }
         if jwt:
             request_params["headers"] = jwt.header
+        if headers:
+            request_params["headers"] = {**request_params.get("headers", {}), **headers}
         if body:
             request_params["json"] = body
 
@@ -195,6 +198,7 @@ def test_client(monkeypatch, client, test_client_with_conn):
         method: Literal["GET", "POST", "PUT", "DELETE"] | str = "GET",
         body: dict = {},
         jwt: MockJWT = None,
+        headers: dict = None,
         # ──────────────────────────────────────────────────────────────
         db_tables_data: dict[str, list[dict]] = {},
         remove_default_db: bool = False,
@@ -253,6 +257,7 @@ def test_client(monkeypatch, client, test_client_with_conn):
                 method=method,
                 body=body,
                 jwt=jwt,
+                headers=headers,
             )
 
     return client_factory
