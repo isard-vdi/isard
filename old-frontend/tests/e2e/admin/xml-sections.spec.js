@@ -277,6 +277,35 @@ test.describe('XML sections editor (Redmine #15065)', () => {
       await api.waitForDomainStatus(testDesktopId, 'Stopped', 120000).catch(() => {})
     }
   })
+
+  // -----------------------------------------------------------------
+  // (9) Live XML: a running desktop exposes a "Live XML" button that shows
+  // the actual libvirt running domain (engine RAM, incl. secrets) side-by-side
+  // with the stored base. The button is absent for a stopped desktop.
+  // -----------------------------------------------------------------
+  test('Live XML shows the running domain side-by-side', async ({ page, administration, api }) => {
+    await api.startDesktop(testDesktopId)
+    await api.waitForDomainStatus(testDesktopId, 'Started', 120000)
+    try {
+      await openXmlEditor(page, testDesktopId)
+      const liveBtn = page.locator('#xmlSectionsLiveXml')
+      await expect(liveBtn).toBeVisible({ timeout: 10000 })
+      await liveBtn.click()
+
+      const compare = page.locator('#xmlLiveCompare')
+      await expect(compare).toBeVisible()
+      // The live pane shows the running domain with its graphics/viewer block.
+      await expect(compare).toContainText('<domain', { timeout: 15000 })
+      await expect(compare).toContainText('<graphics')
+
+      // Back returns to the section editor.
+      await page.locator('#xmlLiveCompareBack').click()
+      await expect(page.locator('#xml-section-disks')).toBeVisible()
+    } finally {
+      await api.stopDesktop(testDesktopId)
+      await api.waitForDomainStatus(testDesktopId, 'Stopped', 120000).catch(() => {})
+    }
+  })
 })
 
 /**
