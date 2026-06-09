@@ -135,7 +135,7 @@ func (a *AuthenticationServer) healthcheck(w http.ResponseWriter, r *http.Reques
 
 	status := a.healthcheckCache.Get(healthcheckCacheKey)
 	if status == nil || status.IsExpired() {
-		err := a.Authentication.Healthcheck()
+		err := a.Authentication.Healthcheck(r.Context())
 
 		status = a.healthcheckCache.Set(healthcheckCacheKey, err, ttlcache.DefaultTTL)
 	}

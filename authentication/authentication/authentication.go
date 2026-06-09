@@ -10,6 +10,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/providermanager"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	"gitlab.com/isard/isardvdi/pkg/db"
 	apiv4 "gitlab.com/isard/isardvdi/pkg/gen/oas/apiv4"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
@@ -43,7 +44,7 @@ type Interface interface {
 
 	SAML(categoryID string, host string) *samlsp.Middleware
 
-	Healthcheck() error
+	Healthcheck(ctx context.Context) error
 }
 
 var _ Interface = &Authentication{}
@@ -121,6 +122,14 @@ func (a *Authentication) SAML(categoryID string, host string) *samlsp.Middleware
 	return a.prvManager.SAML(categoryID, host)
 }
 
-func (a *Authentication) Healthcheck() error {
-	return a.prvManager.Healthcheck()
+func (a *Authentication) Healthcheck(ctx context.Context) error {
+	if err := db.Ping(ctx, a.DB); err != nil {
+		return err
+	}
+
+	if _, err := a.API.APIVersion(ctx); err != nil {
+		return fmt.Errorf("ping the API: %w", err)
+	}
+
+	return a.prvManager.Healthcheck(ctx)
 }
