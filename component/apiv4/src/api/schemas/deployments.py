@@ -781,7 +781,7 @@ class DeploymentVideowallResponse(BaseModel):
         default=[],
         description="List of permissions the user has over the deployment.",
     )
-    total_desktops: int = Field(alias="totalDesktops")
+    total_desktops: int
     visible_desktops: int = Field(alias="visibleDesktops")
     started_desktops: int = Field(alias="startedDesktops")
     creating_desktops: int = Field(alias="creatingDesktops")
@@ -795,4 +795,3 @@ class DeploymentVideowallResponse(BaseModel):
     desktops: list[UserDeploymentDesktop]  # TODO
     total_users: int
     desktops_each_user: int
-    total_desktops: int
