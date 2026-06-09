@@ -1091,7 +1091,17 @@ def get_vgpus_mdevs(id_gpu, type_gpu):
         close_rethink_connection(r_conn)
         return False, {}, False
     close_rethink_connection(r_conn)
-    return d["vgpu_profile"], d["mdevs"], d.get("changing_to_profile", False)
+    # pluck OMITS absent fields, so a freshly-discovered/uncarved card (no
+    # vgpu_profile, no mdevs of this type) yields a doc missing those keys.
+    # Read defensively: an absent vgpu_profile -> None (caller skips the card
+    # as "not serving this profile"), and a missing/null mdevs -> {} (caller
+    # treats it as "no free uuid on this card") -- NEVER KeyError the whole
+    # start action just because one probed card of the model is uncarved.
+    return (
+        d.get("vgpu_profile"),
+        (d.get("mdevs") or {}),
+        d.get("changing_to_profile", False),
+    )
 
 
 def domain_get_vgpu_info(domain_id):
