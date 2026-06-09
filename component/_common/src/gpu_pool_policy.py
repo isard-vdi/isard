@@ -170,6 +170,16 @@ def decide_reconcile_action(
                 "reason": "no_profile_resolvable",
             }
         if requested_profile is None:
+            # The operator's durable passthrough choice is authoritative and must
+            # win over keep_current: a card forced to passthrough that comes back
+            # from discovery as a (realizable) SR-IOV carve -- e.g. after a reboot
+            # where the idle-reclaim + discovery re-cycled it -- must be reverted
+            # to passthrough, NOT "kept" on the incidental carve. Without this the
+            # passthrough intent is silently dropped whenever the card is found
+            # carved (the durable operator_passthrough flag was never consulted on
+            # the keep_current path).
+            if operator_passthrough:
+                return {"action": "seed_and_apply", "profile": "passthrough"}
             if keep_current:
                 # Keep the live carve but do NOT seed durable intent — ephemeral
                 # so an incidental profile never becomes sticky operator intent.
