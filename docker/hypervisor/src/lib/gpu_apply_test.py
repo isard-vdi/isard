@@ -720,3 +720,42 @@ def test_apply_mig_vgpu_warm_repartition_skips_sriov_reset(monkeypatch):
     assert "-mig 1" not in joined  # no MIG-mode toggle
     assert "--gpu-reset" not in joined  # no GPU reset
     assert any("-cgi 35,35 -C" in c for c in h.cmds)  # GI-level recarve to 2 slices
+
+
+def test_apply_normalizes_8digit_bdf_for_sysfs(monkeypatch):
+    # Discovery emits the nvidia-smi 8-digit BDF (00000000:84:00.0); apply_target
+    # must use the 4-digit sysfs form (0000:84:00.0) for _read_driver and the
+    # base_path that _card_busy reads -- otherwise the path doesn't exist,
+    # _read_driver returns None and _card_busy mis-reads the card as busy, so the
+    # whole startup apply is skipped. Regression: every card came back uncarved
+    # after a hypervisor restart with `driver=None action=skipped_busy`.
+    h = _Host(driver="vfio-pci")  # current resolves to passthrough -> noop
+    seen = {}
+
+    def _rec_driver(b, r):
+        seen["driver_bdf"] = b
+        return h.driver
+
+    def _rec_busy(p):
+        seen["busy_path"] = p
+        return h.busy
+
+    monkeypatch.setattr(ga, "_SLEEP", lambda *a, **k: None)
+    monkeypatch.setattr(ga, "_read_driver", _rec_driver)
+    monkeypatch.setattr(ga, "_read_mig_mode", lambda b, r: h.mig)
+    monkeypatch.setattr(ga, "_live_mdev_suffix", lambda b, r: h.live)
+    monkeypatch.setattr(ga, "_card_busy", _rec_busy)
+    monkeypatch.setattr(ga, "_live_profiles", lambda b: h.profiles)
+    monkeypatch.setattr(
+        ga, "_live_mdev_count", lambda b, r, sub_paths=None: h.mdev_count
+    )
+    monkeypatch.setattr(ga, "_enumerate_vf_sub_paths", lambda b, r: h.vf_paths)
+
+    rep = ga.apply_target(
+        {"pci_bus_id": "00000000:84:00.0"},
+        {"target_profile": "passthrough", "action": "apply"},
+        run=h.run,
+    )
+    assert seen["driver_bdf"] == "0000:84:00.0"
+    assert seen["busy_path"] == "/sys/bus/pci/devices/0000:84:00.0"
+    assert rep["result"] == "noop"  # already at target; not wrongly skipped_busy
