@@ -395,12 +395,37 @@ def _apply(gpu, current, wanted, run):
     # phantom mdevs nor orphans the ones that did get created (those are tracked
     # and the engine reconcile can fill the rest). Only a total failure errors.
     planned = []  # (uuid, entry, create_cmd)
+    first_err = None
     if sub_paths:
         # A MIG-backed vGPU carves exactly `vf_cap` mdevs (one per GI); a plain
         # SR-IOV vGPU carves one per VF. mig_meta tags MIG entries (mig=True,
         # mig_profile_id) so the engine emits display='off' for them.
         carve_vfs = sub_paths[:vf_cap] if vf_cap else sub_paths
-        for vf_path in carve_vfs:
+        # Read each VF's available_instances for this type first: a VF reporting
+        # 0 has no backing GPU-instance (a racy/short MIG carve, or SR-IOV not
+        # settled) so its create would fail -- skip it with a precise reason
+        # instead of an opaque create stderr. Unreadable (attr absent / older
+        # driver) -> "x", treated as usable (unchanged behaviour).
+        avail_res = (
+            run(
+                [
+                    f"cat '{vf}/mdev_supported_types/{type_id}/available_instances' "
+                    "2>/dev/null || echo x"
+                    for vf in carve_vfs
+                ],
+                timeout=30,
+            )
+            or []
+        )
+        for idx, vf_path in enumerate(carve_vfs):
+            out = (avail_res[idx].get("out") if idx < len(avail_res) else "") or ""
+            out = out.strip()
+            if out.isdigit() and int(out) == 0:
+                first_err = first_err or (
+                    f"available_instances=0 on {os.path.basename(vf_path)} "
+                    f"(no backing GPU-instance for {type_id})"
+                )
+                continue
             uuid, entry = new_mdev_pool_entry(
                 os.path.basename(vf_path), type_id, **mig_meta
             )
@@ -422,7 +447,6 @@ def _apply(gpu, current, wanted, run):
             f"mdev create result count {len(results)} != {len(planned)} planned"
         )
     mdevs = {wanted: {}}
-    first_err = None
     for (uuid, entry, _), res in zip(planned, results):
         err = (res.get("err") or "").strip()
         if err:
