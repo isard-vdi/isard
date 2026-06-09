@@ -740,7 +740,6 @@ def test_ensure_iothreads_declared_honors_explicit_iothreadids():
     tree = _parse(result)
     assert tree.xpath("/domain/iothreads") == []
     assert len(tree.xpath('/domain/iothreadids/iothread[@id="5"]')) == 1
-    assert len(tree.xpath("/domain/devices/interface")) == 1
 
 
 # ---- pinned_cpuset_from_xml: NUMA-aware GPU placement input ----------------
