@@ -195,7 +195,13 @@
       },
       "bookables": {
         "title": "Bookables",
-        "vgpus": "GPU"
+        "vgpus": "GPU",
+        "sets": "sets",
+        "server-set": "Server set {n}",
+        "numa-socket": "NUMA socket {n}",
+        "numa-socket-unknown": "NUMA socket (unknown)",
+        "numa-same-socket": "Same NUMA socket possible (node {node}) — cards can share a socket, best memory bandwidth.",
+        "numa-diff-socket": "Different NUMA sockets — the desktop still starts, but cross-socket memory access is slower."
       },
       "media": {
         "title": "Media",

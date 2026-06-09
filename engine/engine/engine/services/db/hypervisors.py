@@ -838,6 +838,77 @@ def _resolve_numa_node_for_cpuset(numa_nodes, cpuset):
         return None
 
 
+def _eligible_cards_for_profile(reservable_id):
+    """Card ids (``gpus.physical_device``) enabled for the EXACT reservable id.
+
+    Returns a set, or ``None`` if the segregation query fails (fail open). Same
+    rule as the primary-profile filter in :func:`get_hypers_gpu_online`; used to
+    scope a co-placement profile's free cards.
+    """
+    _rc = new_rethink_connection()
+    try:
+        return {
+            g["physical_device"]
+            for g in r.table("gpus")
+            .filter(lambda g: g["profiles_enabled"].default([]).contains(reservable_id))
+            .pluck("physical_device")
+            .run(_rc)
+            if g.get("physical_device")
+        }
+    except Exception:
+        return None
+    finally:
+        close_rethink_connection(_rc)
+
+
+def _free_numa_nodes_for_profile(h, reservable_id, eligible_cards):
+    """NUMA nodes of this host's FREE cards for one reservable id.
+
+    Mirrors the free-card scan in :func:`get_hypers_gpu_online` but returns only
+    the set of real (``>= 0``) NUMA nodes that currently have a free mdev for the
+    profile. Used to seed a multi-profile desktop onto a node ALL requested
+    profiles can share. Unknown (``-1``/None) nodes are dropped — they impose no
+    constraint, so the intersection still falls back to "any free card".
+    """
+    try:
+        gpu_model = reservable_id.split("-", 2)[1]
+        gpu_profile = profile_suffix_from_id(reservable_id)
+    except Exception:
+        return set()
+    pdev = h.get("pci_devices", {}) or {}
+    nodes = set()
+    for pci_k, model in (h.get("info", {}) or {}).get("nvidia", {}).items():
+        if model != gpu_model:
+            continue
+        gpu_id_k = h["id"] + "-" + pci_k
+        if eligible_cards is not None and gpu_id_k not in eligible_cards:
+            continue
+        gpu_profile_active, mdevs, changing_to_profile = get_vgpus_mdevs(
+            gpu_id_k, gpu_profile
+        )
+        if changing_to_profile or gpu_profile_active != gpu_profile:
+            continue
+        for _uuid, d in mdevs.get(gpu_profile, {}).items():
+            if (
+                d.get("domain_reserved", False) is False
+                and d.get("domain_started", False) is False
+                and d.get("created", False) is True
+            ):
+                pci_sysfs_k = pci_k[4:].replace("_", ":", 2)
+                pci_sysfs_k = (
+                    pci_sysfs_k[: len(pci_sysfs_k) - 2] + "." + pci_sysfs_k[-1]
+                )
+                nn = pdev.get(pci_sysfs_k, {}).get("numa_node")
+                try:
+                    nn = int(nn)
+                except (TypeError, ValueError):
+                    nn = None
+                if nn is not None and nn >= 0:
+                    nodes.add(nn)
+                break
+    return nodes
+
+
 def get_hypers_gpu_online(
     id_pool="default",
     forced_hyp=None,
@@ -848,6 +919,7 @@ def get_hypers_gpu_online(
     storage_pool_id=None,
     prefer_cpuset=None,
     prefer_numa_node=None,
+    coplacement_profiles=None,
 ):
     r_conn = new_rethink_connection()
     hypers_online = list(
@@ -963,6 +1035,23 @@ def get_hypers_gpu_online(
         if not len(hypers_online_with_gpu):
             return []
 
+    # Multi-profile co-location: when a desktop requests several DIFFERENT vGPU
+    # profiles (coplacement_profiles) we want them on ONE socket. Precompute the
+    # eligible cards of each OTHER requested profile so, per host, we can pick a
+    # NUMA node where every profile has a free card. Skipped for single-profile
+    # requests (no extra DB work) and when the caller pinned a node explicitly.
+    co_others = []
+    co_eligible = {}
+    if coplacement_profiles and prefer_numa_node is None:
+        distinct = []
+        for p in coplacement_profiles:
+            if p and p not in distinct:
+                distinct.append(p)
+        if len(distinct) > 1:
+            co_others = [p for p in distinct if p != gpu_brand_model_profile]
+            for p in co_others:
+                co_eligible[p] = _eligible_cards_for_profile(p)
+
     hypervisors_with_available_profile = []
     # now find hypervisors with free uuids:
     for h in hypers_online_with_gpu:
@@ -1032,6 +1121,23 @@ def get_hypers_gpu_online(
                     # one free uuid is enough to mark this card available
                     break
         if free_cards:
+            # Multi-profile co-location: with no explicit node preference, seed
+            # target_node to a socket that EVERY requested profile has a free card
+            # on (this host), so the first card lands where the rest can join it.
+            # Empty intersection -> leave target_node None (any free card), so a
+            # start is never refused for NUMA reasons.
+            if host_multinode and target_node is None and co_others:
+                common = {
+                    int(fc[4])
+                    for fc in free_cards
+                    if fc[4] is not None and int(fc[4]) >= 0
+                }
+                for p in co_others:
+                    if not common:
+                        break
+                    common &= _free_numa_nodes_for_profile(h, p, co_eligible.get(p))
+                if common:
+                    target_node = sorted(common)[0]
             # NUMA preference: prefer a free card on target_node; a card with an
             # unknown (-1/None) numa_node matches any node. Fall back to the
             # first free card so NUMA is only ever a preference, never a reason

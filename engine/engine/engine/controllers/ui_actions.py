@@ -231,6 +231,7 @@ class UiActions(object):
             )
             starting_paused = False
 
+        start_error = "recreate_xml_to_start returned no XML"
         try:
             xml, viewer_passwd = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
         except Exception as e:
@@ -238,6 +239,7 @@ class UiActions(object):
             log.error("recreate_xml_to_start in domain {}".format(id_domain))
             log.error("Traceback: \n .{}".format(traceback.format_exc()))
             log.error("Exception message: {}".format(e))
+            start_error = str(e)
             xml = False
             viewer_passwd = ""
 
@@ -245,7 +247,7 @@ class UiActions(object):
             update_domain_status(
                 "Failed",
                 id_domain,
-                detail=f"Engine failed to build XML for start: {e}",
+                detail=f"Engine failed to build XML for start: {start_error}",
             )
             return False
         else:
@@ -454,6 +456,11 @@ class UiActions(object):
                             domain_vcpus=domain_vcpus,
                             prefer_cpuset=prefer_cpuset,
                             prefer_numa_node=group_node,
+                            # Co-locate a multi-profile guest: for the FIRST card
+                            # (group_node still None) seed placement onto a socket
+                            # every requested profile can share; ignored once
+                            # group_node is set (prefer_numa_node wins downstream).
+                            coplacement_profiles=gpu_profiles,
                         )
                         if nh is False or ei.get("nvidia", False) is not True:
                             # No card for this profile on the pinned host.

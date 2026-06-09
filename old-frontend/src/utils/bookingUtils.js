@@ -70,7 +70,8 @@ export class BookingUtils {
         id: item.id,
         name: item.name,
         maxBookingDate: item.max_booking_date,
-        hypervisorGroups: item.hypervisor_groups || []
+        hypervisorGroups: item.hypervisor_groups || [],
+        numaByGroup: item.numa_by_group || {}
       }
     })
   }
