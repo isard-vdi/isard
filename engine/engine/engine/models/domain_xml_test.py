@@ -1131,3 +1131,28 @@ def test_recreate_xml_to_start_raw_injects_essentials_keeps_the_rest(monkeypatch
     assert t.xpath("/domain/memory")[0].text == "8388608"
     assert t.xpath("/domain/vcpu")[0].text == "8"
     assert t.xpath("/domain/devices/video/model")[0].get("type") == "qxl"
+
+
+def test_dict_from_xml_disk_without_source_does_not_raise():
+    # A disk may legitimately lack <source> before start: the engine injects it
+    # from create_dict.hardware.disks (storage_id) at start time. dict_from_xml
+    # is an info pass that must not crash on this state (regression: IndexError
+    # on tree.xpath("source")[0] aborted every start of such a domain).
+    xml = (
+        '<domain type="kvm">'
+        "<devices>"
+        "<emulator>/usr/bin/qemu-kvm</emulator>"
+        '<disk type="file" device="disk">'
+        '  <driver name="qemu" type="qcow2"/>'
+        '  <target dev="vda" bus="virtio"/>'
+        "</disk>"
+        "</devices>"
+        "</domain>"
+    )
+    x = DomainXML(xml)
+    disks = x.vm_dict["disks"]
+    assert len(disks) == 1
+    assert disks[0].get("file") is None
+    assert disks[0]["dev"] == "vda"
+    assert disks[0]["bus"] == "virtio"
+    assert disks[0]["type"] == "qcow2"

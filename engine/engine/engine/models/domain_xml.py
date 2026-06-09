@@ -425,10 +425,17 @@ class DomainXML(object):
             vm_dict["disks"] = list()
             for tree in xml_tree.xpath('/domain/devices/disk[@device="disk"]'):
                 list_dict = {}
-                list_dict["type"] = tree.xpath("driver")[0].get("type")
-                list_dict["file"] = tree.xpath("source")[0].get("file")
-                list_dict["dev"] = tree.xpath("target")[0].get("dev")
-                list_dict["bus"] = tree.xpath("target")[0].get("bus")
+                # A disk may legitimately lack <source> before start: the engine
+                # injects it from create_dict.hardware.disks (storage_id) at start
+                # time. Guard every child lookup so this info pass never crashes
+                # (matches the floppy/cdrom blocks below).
+                if len(tree.xpath("driver")) != 0:
+                    list_dict["type"] = tree.xpath("driver")[0].get("type")
+                if len(tree.xpath("source")) != 0:
+                    list_dict["file"] = tree.xpath("source")[0].get("file")
+                if len(tree.xpath("target")) != 0:
+                    list_dict["dev"] = tree.xpath("target")[0].get("dev")
+                    list_dict["bus"] = tree.xpath("target")[0].get("bus")
                 vm_dict["disks"].append(list_dict)
 
         if xml_tree.xpath('/domain/devices/disk[@device="floppy"]'):
