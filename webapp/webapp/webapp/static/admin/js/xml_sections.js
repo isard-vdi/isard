@@ -25,6 +25,8 @@ var SECTION_CAPS_MAP = {
 
 // Global state for XML sections editor mode
 var xmlSectionsMode = 'domain'; // 'domain' or 'virt_install'
+var xmlSectionsRawMode = false;  // RAW XML mode (xml_protected_sections == ['raw'])
+var xmlSectionsFullXml = '';     // the stored full <domain> XML
 
 function xmlSectionsApiUrl(id) {
     if (xmlSectionsMode === 'virt_install') {
@@ -36,6 +38,11 @@ function xmlSectionsApiUrl(id) {
 function openXmlSections(domainId, mode) {
     xmlSectionsMode = mode || 'domain';
     $('#xmlSectionsDomainId').val(domainId);
+    // Reset RAW state from any previous open so it can't leak across desktops.
+    xmlSectionsRawMode = false;
+    xmlSectionsFullXml = '';
+    $('#xmlRawTextarea').val('');
+    $('#xmlRawToggle').prop('checked', false);
     $('#xmlSectionsContainer').html(
         '<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>'
     );
@@ -56,6 +63,13 @@ function openXmlSections(domainId, mode) {
         $.ajax({type: "GET", url: "/api/v3/admin/domains/xml_capabilities"})
     ).done(function(sectionsResp, capsResp) {
         renderXmlSections(sectionsResp[0].sections, capsResp[0]);
+        // RAW mode detection (xml_protected_sections == ['raw']).
+        xmlSectionsFullXml = sectionsResp[0].xml_full || '';
+        var prot = sectionsResp[0].xml_protected_sections || [];
+        var isRaw = (xmlSectionsMode !== 'virt_install') &&
+            prot.length === 1 && prot[0] === 'raw';
+        $('#xmlRawToggle').prop('checked', isRaw).prop('disabled', xmlSectionsMode === 'virt_install');
+        xmlSectionsSetRawView(isRaw);
         // Offer the live running XML only for a running desktop (not virt_install).
         if (xmlSectionsMode !== 'virt_install' && xmlSectionsDesktopIsRunning(domainId)) {
             $('#xmlSectionsLiveXml').show();
@@ -321,6 +335,17 @@ $(document).on('change', '#xmlUploadFile', function(e) {
     reader.onload = function(ev) {
         var xmlContent = ev.target.result;
 
+        // RAW mode: load the whole file verbatim into the raw textarea.
+        if (xmlSectionsRawMode) {
+            $('#xmlRawTextarea').val(xmlContent);
+            new PNotify({
+                title: 'RAW XML loaded',
+                text: 'Click <b>Update</b> to save the raw XML.',
+                type: 'success', hide: true, delay: 4000, icon: 'fa fa-upload'
+            });
+            return;
+        }
+
         $.ajax({
             type: 'POST',
             url: '/api/v3/admin/domains/xml_sections/parse',
@@ -498,9 +523,14 @@ function xmlSectionsDesktopIsRunning(domainId) {
 }
 
 function xmlSectionsShowEditorView() {
-    $('#xmlSectionsContainer').show();
     $('#xmlLiveCompare').hide().empty();
     $('#xmlLiveCompareBack').hide();
+    // Restore whichever editor was active (RAW textarea vs section panels).
+    if (xmlSectionsRawMode) {
+        xmlSectionsSetRawView(true);
+        return;
+    }
+    $('#xmlSectionsContainer').show();
     $('#xmlSectionsValidate, #xmlSectionsSave, #xmlSectionsDownload').show();
     if (xmlSectionsMode === 'virt_install') {
         $('#xmlSectionsSaveVirtInstall').hide();
@@ -511,10 +541,40 @@ function xmlSectionsShowEditorView() {
 
 function xmlSectionsShowCompareView() {
     $('#xmlSectionsContainer').hide();
+    $('#xmlRawContainer').hide();
     $('#xmlLiveCompare').show();
     $('#xmlLiveCompareBack').show();
     $('#xmlSectionsValidate, #xmlSectionsSave, #xmlSectionsSaveVirtInstall, #xmlSectionsLiveXml, #xmlSectionsDownload').hide();
 }
+
+// RAW XML mode: edit the whole <domain> in one textarea; on start the engine
+// applies only the isard-essentials (uuid, storage path, networking, viewer).
+function xmlSectionsSetRawView(on) {
+    xmlSectionsRawMode = !!on;
+    if (on) {
+        if (!$('#xmlRawTextarea').val().trim()) {
+            $('#xmlRawTextarea').val(xmlSectionsFullXml);
+        }
+        $('#xmlSectionsContainer').hide();
+        $('#xmlRawContainer').show();
+        // Section-level actions don't apply in RAW mode.
+        $('#xmlSectionsValidate, #xmlSectionsSaveVirtInstall').hide();
+        $('#xmlSectionsDownload, #xmlSectionsSave').show();
+    } else {
+        $('#xmlRawContainer').hide();
+        $('#xmlSectionsContainer').show();
+        $('#xmlSectionsValidate, #xmlSectionsDownload, #xmlSectionsSave').show();
+        if (xmlSectionsMode === 'virt_install') {
+            $('#xmlSectionsSaveVirtInstall').hide();
+        } else {
+            $('#xmlSectionsSaveVirtInstall').show();
+        }
+    }
+}
+
+$(document).on('change', '#xmlRawToggle', function() {
+    xmlSectionsSetRawView(this.checked);
+});
 
 // Minimal dependency-free line diff: highlights lines unique to each side.
 function xmlRenderLineDiff(storedXml, liveXml) {
@@ -581,7 +641,13 @@ $(document).on('click', '#xmlLiveCompareBack', function() {
 // Save button
 $(document).on('click', '#xmlSectionsSave', function() {
     var domainId = $('#xmlSectionsDomainId').val();
-    var data = collectXmlSections();
+    var data;
+    if (xmlSectionsRawMode) {
+        // RAW mode: store the whole <domain> verbatim with the 'raw' sentinel.
+        data = { raw_xml: $('#xmlRawTextarea').val(), xml_protected_sections: ['raw'] };
+    } else {
+        data = collectXmlSections();
+    }
     var isRunning = xmlSectionsDesktopIsRunning(domainId);
     var notice = new PNotify({
         text: 'Updating XML sections...',

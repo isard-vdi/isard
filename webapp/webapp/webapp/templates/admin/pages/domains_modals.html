@@ -350,8 +350,17 @@
          </div>
          <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
             <input id="xmlSectionsDomainId" type="hidden">
+            <div style="padding: 4px 4px 8px; border-bottom: 1px solid #eee; margin-bottom: 8px;">
+               <label style="font-weight: normal; cursor: pointer; margin: 0;">
+                  <input type="checkbox" id="xmlRawToggle"> <b>RAW XML mode</b>
+                  <small class="text-muted">— edit the whole &lt;domain&gt; verbatim; on start the engine only sets uuid, the desktop's storage path, isard networking and the viewer. Everything else is used as-is.</small>
+               </label>
+            </div>
             <div id="xmlSectionsContainer">
                <!-- Sections rendered dynamically by JS -->
+            </div>
+            <div id="xmlRawContainer" style="display: none;">
+               <textarea id="xmlRawTextarea" class="form-control" rows="22" style="font-family: monospace; font-size: 12px; width: 100%; white-space: pre;" spellcheck="false"></textarea>
             </div>
             <div id="xmlLiveCompare" style="display: none;">
                <!-- Stored vs live side-by-side rendered dynamically by JS -->
