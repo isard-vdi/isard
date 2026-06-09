@@ -484,10 +484,10 @@ class DomainXML(object):
                 vm_dict["interfaces"].append(list_dict)
 
         vm_dict["boot_order"] = [
-            x.get("dev") for x in tree.xpath("/domain/os/boot[@dev]")
+            x.get("dev") for x in xml_tree.xpath("/domain/os/boot[@dev]")
         ]
         vm_dict["boot_menu_enable"] = [
-            x.get("dev") for x in tree.xpath("/domain/os/bootmenu[@enable]")
+            x.get("dev") for x in xml_tree.xpath("/domain/os/bootmenu[@enable]")
         ]
 
         ## OJO!!!!!!!!!!!!!!
