@@ -42,8 +42,7 @@ from datetime import datetime, timedelta
 
 BATCH_SIZE = 50000
 
-from isardvdi_common.gpu_pool_policy import canonical_suffix, profile_suffix_from_id
-
+from .._common.gpu_pool_policy import canonical_suffix, profile_suffix_from_id
 from .api_client import ApiClient
 from .exceptions import Error
 
