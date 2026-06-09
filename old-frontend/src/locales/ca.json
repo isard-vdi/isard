@@ -1489,6 +1489,7 @@
     "deployment_stop": "Per realitzar aquesta acció és necessari que els escriptoris del desplegament estiguin aturats",
     "desktop_not_booked": "Per iniciar l'escriptori ha d'estar reservat",
     "desktop_not_booked_until": "No es pot iniciar l'escriptori fins a la propera reserva {start}",
+    "desktop_reservable_not_found": "El perfil de GPU de l'escriptori ja no existeix i s'ha eliminat. Edita l'escriptori per seleccionar un perfil de GPU disponible abans d'iniciar-lo.",
     "only_works_rdp": "Mode 'Only GPU' només funciona amb visors RDP",
     "current_plan_doesnt_match": "No hi ha cap GPU disponible amb el perfil de l'escriptori",
     "needs_deployment_booking": "Ara mateix no es pot iniciar l'escriptori, contacta amb el propietari d'aquest desplegament perquè creï una reserva",

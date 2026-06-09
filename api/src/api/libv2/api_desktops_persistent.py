@@ -813,6 +813,53 @@ class ApiDesktopsPersistent:
                 {"create_dict": {"reservables": reservables}}
             ).run(db.conn)
 
+    def clean_missing_reservables(self, desktop_id):
+        """Strip vGPU reservables that no longer exist, and alert the user.
+
+        A desktop keeps the reservable ids it was created with; if an admin later
+        deletes that GPU profile, the id dangles and the booking/start path blows
+        up (``payload_priority`` dereferences a ``None`` reservable). Here we
+        detect dangling ids, remove them from ``create_dict.reservables.vgpus``
+        (keeping any still-valid profiles, clearing to ``None`` when none remain
+        so the edit form shows no GPU selected and the desktop can start without
+        one on retry), and raise a clear Error telling the user to pick a new GPU.
+        No-op when the desktop has no reservables or all of them still exist.
+        """
+        with app.app_context():
+            desktop = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck({"create_dict": {"reservables": True}})
+                .run(db.conn)
+            )
+        reservables = (desktop or {}).get("create_dict", {}).get("reservables") or {}
+        vgpus = reservables.get("vgpus") or []
+        real = [v for v in vgpus if v and v != "None"]
+        if not real:
+            return
+        with app.app_context():
+            existing = {
+                x["id"]
+                for x in r.table("reservables_vgpus")
+                .get_all(r.args(real))
+                .pluck("id")
+                .run(db.conn)
+            }
+        missing = [v for v in real if v not in existing]
+        if not missing:
+            return
+        valid = [v for v in vgpus if v in existing]
+        with app.app_context():
+            r.table("domains").get(desktop_id).update(
+                {"create_dict": {"reservables": {"vgpus": valid or None}}}
+            ).run(db.conn)
+        raise Error(
+            "precondition_required",
+            "The desktop's GPU profile no longer exists and has been removed. "
+            "Edit the desktop to select an available GPU profile before starting it.",
+            description_code="desktop_reservable_not_found",
+        )
+
     def JumperUrl(self, id):
         with app.app_context():
             domain = r.table("domains").get(id).run(db.conn)
