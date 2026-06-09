@@ -255,6 +255,7 @@ def test_get_user_deployments_with_data(monkeypatch, test_client):
         "description": "A test deployment",
         "image": {"type": "stock", "id": "img-1"},
         "desktop_names": ["desktop-1"],
+        "template_names": ["template-1"],
         "started_desktops": 1,
         "tag_visible": True,
         "total_desktops": 1,

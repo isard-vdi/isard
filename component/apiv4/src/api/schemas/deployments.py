@@ -340,6 +340,7 @@ class OwnedDeployment(BaseModel):
     desktop_names: list[str] = Field(
         description="List of desktop names associated with the deployment"
     )
+    template_names: list[str]
     started_desktops: int = Field(
         description="Number of desktops that have been started"
     )

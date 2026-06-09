@@ -9,12 +9,6 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentsItem (deployment, { partial = false } = {}) {
-    // apiv4 OwnedDeployment shape: snake_case fields + desktop_names (plural list)
-    // + tag_visible. Vue 2 has always read camelCase + a single desktopName.
-    // Map apiv4 → Vue 2 here; multi-desktop deployments display the count.
-    // ``partial`` mode keeps only keys present in the payload so a
-    // change-handler emit with exclude_none=True doesn't clobber the
-    // cached row.
     const {
       id,
       name,
@@ -24,10 +18,12 @@ export class DeploymentsUtils {
       total_desktops: totalDesktops,
       tag_visible: visible,
       needs_booking: needsBooking,
-      desktop_names: desktopNames
+      desktop_names: desktopNames,
+      template_names: templateNames
     } = deployment
     const hasDesktopNames = desktopNames !== undefined
-    const isMultiDesktop = hasDesktopNames && Array.isArray(desktopNames) && desktopNames.length > 1
+    const hasTemplateNames = templateNames !== undefined
+    const isMultiDesktop = hasDesktopNames && Array.isArray(desktopNames) && desktopNames.length > 1 && hasTemplateNames && Array.isArray(templateNames) && templateNames.length > 1
     const out = {
       id,
       name,
@@ -38,8 +34,8 @@ export class DeploymentsUtils {
       creatingDesktops: partial ? undefined : 0,
       visible,
       needsBooking,
-      desktopName: hasDesktopNames ? (isMultiDesktop ? `${desktopNames.length} desktop types` : (desktopNames && desktopNames[0]) || '') : undefined,
-      template: hasDesktopNames ? (isMultiDesktop ? '' : (desktopNames && desktopNames[0]) || '') : undefined,
+      desktopName: hasDesktopNames ? (isMultiDesktop ? `${desktopNames.length} desktop types` : (hasDesktopNames && desktopNames[0]) || '') : undefined,
+      template: hasTemplateNames ? (isMultiDesktop ? '' : (hasTemplateNames && templateNames[0]) || '') : undefined,
       isMultiDesktop: hasDesktopNames ? isMultiDesktop : undefined
     }
     if (!partial) return out

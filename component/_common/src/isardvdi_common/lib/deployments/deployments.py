@@ -341,6 +341,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         "desktop_names": r.expr(deployment["create_dict"]).map(
                             lambda cd: cd["name"]
                         ),
+                        "template_names": r.expr(deployment["create_dict"]).map(
+                            lambda cd: (
+                                r.table("domains")
+                                .get(cd["template"])["name"]
+                                .default("")
+                            )
+                        ),
                         "co_owner": False,
                     }
                 )
@@ -379,7 +386,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
                     "id",
                     "description",
                     "image",
-                    {"create_dict": {"reservables": True, "name": True}},
+                    {
+                        "create_dict": {
+                            "reservables": True,
+                            "name": True,
+                            "template": True,
+                        }
+                    },
                 )
                 .merge(
                     lambda deployment: {
@@ -395,6 +408,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         .count(),
                         "desktop_names": r.expr(deployment["create_dict"]).map(
                             lambda cd: cd["name"]
+                        ),
+                        "template_names": r.expr(deployment["create_dict"]).map(
+                            lambda cd: (
+                                r.table("domains")
+                                .get(cd["template"])["name"]
+                                .default("")
+                            )
                         ),
                         "co_owner": True,
                     }
