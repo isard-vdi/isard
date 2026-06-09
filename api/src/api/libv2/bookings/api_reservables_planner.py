@@ -298,6 +298,74 @@ class ReservablesPlanner:
                             {"booking_id": False}
                         ).run(db.conn)
 
+    def delete_card_subitem_plans(self, item_id, subitem_id):
+        """Non-last-card disable: drop ONLY this card's availability for this
+        profile and surgically detach it from any booking, without touching the
+        plans/bookings on the cards that still realize the profile.
+
+        A non-last disable leaves the model-level reservable alive (other cards
+        still enable it), so the broad ``deassign_*`` sweep must NOT run -- the
+        desktops keep their GPU assignment. But this card's ``resource_planner``
+        rows are now phantom capacity: availability is summed by the
+        ``subitem_id`` index across all cards, so an orphaned plan on a card that
+        no longer realizes the profile would over-count capacity. We therefore
+        delete those rows (by the ``item-subitem`` index -- ALL of them,
+        regardless of time window) and remove their plan_ids from every booking
+        that referenced them. A desktop booking holds a single card's plan, so it
+        empties and is deleted (its ``booking_id`` reset, scheduler jobs removed,
+        mirroring :meth:`delete_plan`); a multi-card deployment booking keeps the
+        entries pointing at the surviving cards and lives on."""
+        with app.app_context():
+            plan_ids = list(
+                r.table("resource_planner")
+                .get_all([item_id, subitem_id], index="item-subitem")["id"]
+                .run(db.conn)
+            )
+        if not plan_ids:
+            return 0, 0
+        with app.app_context():
+            r.table("resource_planner").get_all(
+                r.args(plan_ids), index="id"
+            ).delete().run(db.conn)
+        for plan_id in plan_ids:
+            self.scheduler.remove_scheduler_startswith_id(plan_id)
+
+        plan_id_set = set(plan_ids)
+        with app.app_context():
+            affected = list(
+                r.table("bookings")
+                .filter(
+                    lambda b: b["plans"].contains(
+                        lambda p: r.expr(plan_ids).contains(p["plan_id"])
+                    )
+                )
+                .run(db.conn)
+            )
+        bookings_deleted = 0
+        for booking in affected:
+            remaining = [p for p in booking["plans"] if p["plan_id"] not in plan_id_set]
+            if remaining:
+                with app.app_context():
+                    r.table("bookings").get(booking["id"]).update(
+                        {"plans": remaining}
+                    ).run(db.conn)
+                continue
+            with app.app_context():
+                r.table("bookings").get(booking["id"]).delete().run(db.conn)
+            bookings_deleted += 1
+            self.scheduler.remove_scheduler_startswith_id(booking["id"])
+            if booking.get("item_type") == "desktop" and booking.get("item_id"):
+                with app.app_context():
+                    r.table("domains").get(booking["item_id"]).update(
+                        {"booking_id": False}
+                    ).run(db.conn)
+            elif booking.get("item_type") == "deployment" and booking.get("item_id"):
+                with app.app_context():
+                    r.table("domains").get_all(booking["item_id"], index="tag").update(
+                        {"booking_id": False}
+                    ).run(db.conn)
+        return len(plan_ids), bookings_deleted
+
     def get_plan_bookings(self, plan_id):
         with app.app_context():
             return list(
@@ -355,7 +423,15 @@ class ReservablesPlanner:
             self.list_subitem_plans(
                 item_id,
                 subitem_id,
+                # Span the whole timeline (epoch .. far future). list_subitem_plans
+                # defaults end to start when end is omitted, which collapses the
+                # window to a single instant and matches NO plan -- so this listing
+                # must pass BOTH bounds, otherwise the cascade's delete_plan loop
+                # and the UI warning would silently see zero plans/bookings.
                 start=datetime.fromtimestamp(0, pytz.timezone("UTC")).strftime(
+                    "%Y-%m-%dT%H:%M%z"
+                ),
+                end=datetime(9999, 12, 31, tzinfo=pytz.utc).strftime(
                     "%Y-%m-%dT%H:%M%z"
                 ),
                 getUsername=True,
@@ -396,6 +472,25 @@ class ReservablesPlanner:
             if data.get("plans"):
                 for plan in data["plans"]:
                     self.delete_plan(plan["id"])
+        else:
+            # Non-last disable: the profile survives on other cards. Don't
+            # deassign desktops/deployments (they keep their GPU), but THIS
+            # card's availability is now phantom -- drop only this card's plans
+            # and surgically detach them from bookings (multi-card bookings
+            # survive). This also fires from the whole-card delete loop
+            # (delete_item), so a shared profile's plans never outlive their card.
+            plans_deleted, bookings_deleted = self.delete_card_subitem_plans(
+                item_id, subitem_id
+            )
+            if plans_deleted or bookings_deleted:
+                log.info(
+                    "Disabled %s on card %s (profile still on other cards): "
+                    "removed %s phantom plan(s), %s booking(s)",
+                    subitem_id,
+                    item_id,
+                    plans_deleted,
+                    bookings_deleted,
+                )
 
     def delete_item(self, item_type, item_id, subitems=None, data=None):
         if not subitems:

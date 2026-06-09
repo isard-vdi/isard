@@ -396,16 +396,24 @@ $(document).ready(function () {
               data = JSON.parse(data)
               // check if the profile is in any domain or has plans
               if (data['last'].includes(true)) {
-                // Warn whenever ANY reference exists -- deployments and bookings
-                // are destroyed by the cascade too, not only desktops/plans.
+                // Last card for this profile: the whole reservable is removed and
+                // the cascade destroys desktops/deployments/plans/bookings. Warn
+                // whenever ANY reference exists.
                 if (data['desktops'].length > 0 || data['plans'].length > 0 ||
                     data['deployments'].length > 0 || data['bookings'].length > 0) {
-                  showDeleteGPUModal(subitem_id, item_id, reservable_type, data);
+                  showDeleteGPUModal(subitem_id, item_id, reservable_type, data, true);
                 } else {
                   enableProfile(reservable_type, item_id, subitem_id, enabled, null, null, false);
                 }
               } else {
-                enableProfile(reservable_type, item_id, subitem_id, enabled, null, null, false)
+                // Other cards still realize the profile, so desktops/deployments
+                // keep their GPU. But this card's planned availability is dropped
+                // and any booking tied solely to it is removed -- warn if so.
+                if (data['plans'].length > 0 || data['bookings'].length > 0) {
+                  showDeleteGPUModal(subitem_id, item_id, reservable_type, data, false);
+                } else {
+                  enableProfile(reservable_type, item_id, subitem_id, enabled, null, null, false)
+                }
               }
             });
           } else {
@@ -640,24 +648,33 @@ $(document).ready(function () {
     });
 });
 
-function showDeleteGPUModal(subitem_id, item_id, reservable_type, data) {
+function showDeleteGPUModal(subitem_id, item_id, reservable_type, data, isLast) {
+  // isLast === false is a NON-LAST disable: the profile survives on other cards,
+  // so desktops/deployments keep their GPU and only THIS card's plans/bookings
+  // are removed. Don't list desktops/deployments as affected in that case.
+  if (isLast === undefined) isLast = true;
   if (subitem_id) {
     $('#modalDeleteGPUForm #subitem_id').val(subitem_id);
-    $("#modalDeleteGPU #title").text(" Disable profile");
+    $("#modalDeleteGPU #title").text(isLast ? " Disable profile" : " Disable profile on this card");
     $("#modalDeleteGPU .item_type").text("profile");
   } else {
     $("#modalDeleteGPU #title").text(" Delete GPU");
     $("#modalDeleteGPU .item_type").text("GPU");
   }
+  // On a non-last disable the profile remains realizable on other cards, so no
+  // desktop/deployment loses its GPU -- present empty lists for those.
+  var desktopsAffected = isLast ? data['desktops'] : [];
+  var deploymentsAffected = isLast ? data['deployments'] : [];
   $("#modalDeleteGPU #send").prop('disabled', false);
   $('#modalDeleteGPUForm #item_id').val(item_id);
   $('#modalDeleteGPUForm #reservable_type').val(reservable_type);
-  $('#modalDeleteGPUForm #desktops').val(JSON.stringify(data['desktops']));
+  $('#modalDeleteGPUForm #desktops').val(JSON.stringify(desktopsAffected));
   $('#modalDeleteGPUForm #plans').val(JSON.stringify(data['plans']));
   $('#modalDeleteGPUForm #bookings').val(JSON.stringify(data['bookings']));
-  $('#modalDeleteGPUForm #deployments').val(JSON.stringify(data['deployments']));
+  $('#modalDeleteGPUForm #deployments').val(JSON.stringify(deploymentsAffected));
   $('#modalDeleteGPUForm #notify-user').iCheck('uncheck').iCheck('update');
   $('#modalDeleteGPUForm .table tbody').empty();
+  data = Object.assign({}, data, {desktops: desktopsAffected, deployments: deploymentsAffected});
   if (data['desktops'].length > 0) {
     $.each(data['desktops'], function (key, value) {
       value['user_name'] = value['username'];
