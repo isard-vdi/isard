@@ -337,9 +337,9 @@ class DomainXML(object):
         if mac is None:
             mac = randomMAC()
 
-        self.tree.xpath("/domain/devices/interface")[dev_index].xpath("mac")[
-            dev_index
-        ].set("address", mac)
+        self.tree.xpath("/domain/devices/interface")[dev_index].xpath("mac")[0].set(
+            "address", mac
+        )
 
     def dict_from_xml(self, xml_tree=False, domain_id=None):
         ## TODO INFO TO DEVELOPER: hay que montar excepciones porque si no el xml peta
@@ -1945,13 +1945,18 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
             if file_spice_options.get("shared_folder") is True:
                 x.add_shared_folder()
 
-    x.remove_selinux_options()
+    # Stripping all <seclabel> would wipe an admin-locked custom security label.
+    if "seclabel" not in protected:
+        x.remove_selinux_options()
 
     if "domain_type" not in protected:
         x.set_domain_type_and_emulator()
 
-    # remove boot order in disk definition that conflict with /os/boot order in xml
-    x.remove_boot_order_and_danger_options_from_disks()
+    # remove boot order in disk definition that conflict with /os/boot order in
+    # xml. Skip when disks are admin-locked so a hand-pinned <boot>/<address>
+    # (e.g. a passthrough-fixed PCI slot) is preserved.
+    if "disks" not in protected:
+        x.remove_boot_order_and_danger_options_from_disks()
 
     # Ensure there's always QEMU guest agent
     if "qemu_guest_agent" not in protected:
@@ -2218,6 +2223,27 @@ def count_passthrough_gpus_in_xml(xml):
     )
 
 
+def numa_opts_allowed(domain):
+    """Which engine start-time XML injections are permitted for this domain.
+
+    `add_memory_backing`, `add_numa_pinning` (cputune/numatune) and
+    `add_iothread_pinning` are applied at start by the controller. When the admin
+    has locked the corresponding XML section via
+    create_dict.xml_protected_sections, the hand-tuned XML is authoritative and
+    must not be overwritten — return False for that section so the controller
+    skips (or, for cputune/numatune, disables that half of) the injection.
+    """
+    protected = set(
+        (domain.get("create_dict") or {}).get("xml_protected_sections") or []
+    )
+    return {
+        "memory_backing": "memory_backing" not in protected,
+        "cputune": "cputune" not in protected,
+        "numatune": "numatune" not in protected,
+        "iothreads": "iothreads" not in protected,
+    }
+
+
 def recreate_xml_if_gpu(
     xml,
     mdev_uid,
@@ -2452,7 +2478,13 @@ def _expand_cpulist(cpulist_str):
 
 
 def add_numa_pinning(
-    xml, numa_node, cpulist_str, vcpus, memory_mode="preferred", emit_numatune=True
+    xml,
+    numa_node,
+    cpulist_str,
+    vcpus,
+    memory_mode="preferred",
+    emit_numatune=True,
+    emit_cputune=True,
 ):
     """Add <cputune> and (optionally) <numatune> for NUMA-local CPU pinning.
 
@@ -2481,6 +2513,10 @@ def add_numa_pinning(
                        pinning still works because <cputune>/cpuset
                        reference CPU IDs, not cell IDs, and the kernel's
                        first-touch policy provides soft memory locality.
+        emit_cputune: When True (default), (re)build <cputune> (and the
+                      <vcpu cpuset> on the contention path). Set False when the
+                      admin has locked the cputune XML section so the
+                      hand-tuned CPU pinning is preserved.
 
     See https://libvirt.org/formatdomain.html#cpu-tuning
     See https://libvirt.org/formatdomain.html#numa-node-tuning
@@ -2496,12 +2532,19 @@ def add_numa_pinning(
     if not node_cpus:
         return xml
 
-    # Remove existing cputune and numatune (idempotent)
-    for tag in ("cputune", "numatune"):
+    # Remove existing cputune (only when we will rebuild it) and numatune
+    # (idempotent). When the admin has locked <cputune> (emit_cputune=False) it
+    # must be left untouched; <numatune> can still be emitted independently.
+    rebuild_tags = []
+    if emit_cputune:
+        rebuild_tags.append("cputune")
+    if emit_numatune:
+        rebuild_tags.append("numatune")
+    for tag in rebuild_tags:
         for elem in tree.xpath(f"/domain/{tag}"):
             elem.getparent().remove(elem)
 
-    if vcpus <= len(node_cpus):
+    if emit_cputune and vcpus <= len(node_cpus):
         # Per-vCPU pinning: distribute round-robin across node CPUs
         pins = []
         for i in range(vcpus):
@@ -2521,7 +2564,7 @@ def add_numa_pinning(
             vcpu_elem[0].addnext(cputune_elem)
         else:
             tree.xpath("/domain")[0].insert(0, cputune_elem)
-    else:
+    elif emit_cputune:
         # Too many vCPUs for the node: don't force per-vCPU pinning (it would
         # oversubscribe cores and add contention). Constrain every vCPU to the
         # node via <vcpu cpuset='...'> and let the host scheduler distribute
@@ -2594,11 +2637,14 @@ def add_qemu_pcie_reserve(xml, reserve_size="256G"):
             # Handle <domain type="..."> without space before type
             xml = xml.replace("<domain", f"<domain {QEMU_NS}", 1)
 
-    # Remove any existing qemu:commandline block
+    # Remove any existing commandline block, regardless of namespace prefix.
+    # The XML-section editor (ElementTree) may have re-serialized the block with
+    # a different prefix (e.g. <ns0:commandline>); a prefix-literal match would
+    # miss it and we would append a second block (duplicate qemu:commandline).
     import re as _re
 
     xml = _re.sub(
-        r"\s*<qemu:commandline>.*?</qemu:commandline>\s*",
+        r"\s*<(?:\w+:)?commandline\b.*?</(?:\w+:)?commandline>\s*",
         "\n",
         xml,
         flags=_re.DOTALL,

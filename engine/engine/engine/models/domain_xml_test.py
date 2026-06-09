@@ -3,11 +3,14 @@ from io import StringIO
 import pytest
 from engine.models.domain_xml import (
     DomainXML,
+    add_iothread_pinning,
     add_memory_backing,
     add_numa_pinning,
+    add_qemu_pcie_reserve,
     count_passthrough_gpus_in_xml,
     ensure_iothreads_declared,
     hostdev_locked,
+    numa_opts_allowed,
     pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
 )
@@ -845,3 +848,177 @@ def test_add_numa_pinning_fits_pins_all_vcpus_and_emulator():
     tree = etree.parse(StringIO(out))
     assert len(tree.xpath("/domain/cputune/vcpupin")) == 4
     assert tree.xpath("/domain/cputune/emulatorpin")[0].get("cpuset") == "0-3"
+
+
+# ---- B5: reset_mac_address off-by-one --------------------------------------
+
+
+def test_reset_mac_address_targets_second_interface():
+    """B5: reset_mac_address(dev_index=1) must set the SECOND interface's mac
+    (an interface has exactly one <mac>), not raise IndexError."""
+    xml = (
+        '<domain type="kvm"><devices>'
+        '<interface type="network"><source network="default"/>'
+        '<mac address="52:54:00:00:00:01"/><model type="virtio"/></interface>'
+        '<interface type="network"><source network="default"/>'
+        '<mac address="52:54:00:00:00:02"/><model type="virtio"/></interface>'
+        "</devices></domain>"
+    )
+    x = DomainXML(xml)
+    x.reset_mac_address(dev_index=1, mac="52:54:00:ab:cd:ef")
+    macs = _parse(x.return_xml()).xpath("/domain/devices/interface/mac")
+    assert macs[0].get("address") == "52:54:00:00:00:01"
+    assert macs[1].get("address") == "52:54:00:ab:cd:ef"
+
+
+# ---- B6: dict_from_xml on a diskless + interfaceless domain -----------------
+
+
+def test_dict_from_xml_diskless_interfaceless_domain():
+    """B6: dict_from_xml must not raise UnboundLocalError ('tree') when the
+    domain has no <disk device='disk'> and no <interface> (the boot_order
+    comprehension used the loop variable instead of the document tree)."""
+    xml = (
+        '<domain type="kvm"><name>n</name><uuid>u</uuid>'
+        "<memory>1048576</memory><vcpu>1</vcpu>"
+        '<os><type arch="x86_64" machine="q35">hvm</type><boot dev="hd"/></os>'
+        "<devices><emulator>/usr/bin/qemu-kvm</emulator></devices></domain>"
+    )
+    d = DomainXML(xml).dict_from_xml()
+    assert d["boot_order"] == ["hd"]
+
+
+# ---- NUMA / iothread pinning consistency (guards for B1 changes) -----------
+
+
+def _numa_base_xml(vcpus=8):
+    return (
+        '<domain type="kvm">'
+        "<memory>8388608</memory><currentMemory>8388608</currentMemory>"
+        f'<vcpu placement="static">{vcpus}</vcpu>'
+        "<devices><emulator>/usr/bin/qemu-kvm</emulator></devices></domain>"
+    )
+
+
+def _virtio_disks_domain(n):
+    disks = "".join(
+        '<disk type="file" device="disk"><driver name="qemu" type="qcow2"/>'
+        f'<source file="/isard/d{i}.qcow2"/>'
+        f'<target dev="vd{chr(97 + i)}" bus="virtio"/></disk>'
+        for i in range(n)
+    )
+    return (
+        '<domain type="kvm">'
+        "<memory>8388608</memory><currentMemory>8388608</currentMemory>"
+        '<vcpu placement="static">8</vcpu>'
+        f"<devices><emulator>/usr/bin/qemu-kvm</emulator>{disks}</devices></domain>"
+    )
+
+
+def test_add_numa_pinning_per_vcpu_when_fit():
+    result = add_numa_pinning(_numa_base_xml(8), 1, "24-47", 8, "strict", True)
+    tree = _parse(result)
+    assert len(tree.xpath("/domain/cputune/vcpupin")) == 8
+    assert len(tree.xpath("/domain/cputune/emulatorpin")) == 1
+    nt = tree.xpath("/domain/numatune/memory")
+    assert (
+        len(nt) == 1 and nt[0].get("nodeset") == "1" and nt[0].get("mode") == "strict"
+    )
+
+
+def test_add_numa_pinning_cpuset_only_when_overcommit():
+    result = add_numa_pinning(_numa_base_xml(24), 0, "0-3", 24, "preferred", True)
+    tree = _parse(result)
+    assert tree.xpath("/domain/cputune/vcpupin") == []
+    assert tree.xpath("/domain/vcpu")[0].get("cpuset") == "0-3"
+
+
+def test_add_iothread_pinning_three_disks():
+    result = add_iothread_pinning(_virtio_disks_domain(3), "24-47")
+    tree = _parse(result)
+    io = tree.xpath("/domain/iothreads")
+    assert len(io) == 1 and io[0].text == "3"
+    pins = tree.xpath("/domain/cputune/iothreadpin")
+    assert sorted(p.get("iothread") for p in pins) == ["1", "2", "3"]
+    drivers = tree.xpath('/domain/devices/disk[@device="disk"]/driver')
+    assert sorted(d.get("iothread") for d in drivers) == ["1", "2", "3"]
+
+
+def test_add_iothread_pinning_no_orphan_iothreadpin():
+    """Invariant from a prior production bug: every <iothreadpin> id must be
+    <= the declared <iothreads> count (no orphan pin libvirt would reject)."""
+    result = add_iothread_pinning(_virtio_disks_domain(2), "24-47")
+    tree = _parse(result)
+    count = int(tree.xpath("/domain/iothreads")[0].text)
+    ids = [int(p.get("iothread")) for p in tree.xpath("/domain/cputune/iothreadpin")]
+    assert ids and all(1 <= i <= count for i in ids)
+    assert len(ids) == len(set(ids)) == count
+
+
+def test_add_iothread_pinning_no_virtio_disks_unchanged():
+    base = (
+        '<domain type="kvm"><vcpu>4</vcpu><devices>'
+        "<emulator>/usr/bin/qemu-kvm</emulator>"
+        '<disk type="file" device="disk"><driver name="qemu" type="qcow2"/>'
+        '<source file="/x.iso"/><target dev="sda" bus="sata"/></disk>'
+        "</devices></domain>"
+    )
+    assert add_iothread_pinning(base, "0-3") == base
+
+
+# ---- #4: qemu:commandline dedup must be namespace-prefix agnostic -----------
+
+
+def test_add_qemu_pcie_reserve_dedups_ns0_prefixed_block():
+    """#4: an editor-stored <ns0:commandline> block must be deduped, not left in
+    place so a second <qemu:commandline> is appended (duplicate)."""
+    xml = (
+        '<domain xmlns:ns0="http://libvirt.org/schemas/domain/qemu/1.0" type="kvm">'
+        "<name>d</name>"
+        '<ns0:commandline><ns0:arg value="-global"/>'
+        '<ns0:arg value="pcie-root-port.pref64-reserve=256G"/></ns0:commandline>'
+        "</domain>"
+    )
+    result = add_qemu_pcie_reserve(xml, "256G")
+    # exactly one commandline block survives (2 = one open + one close tag)
+    assert result.count("commandline") == 2
+
+
+# ---- B1: protected sections honored at engine start ------------------------
+
+
+def test_add_numa_pinning_emit_cputune_false_preserves_existing_cputune():
+    """B1: with emit_cputune=False a pre-existing (admin-protected) <cputune>
+    must be left intact, while <numatune> can still be emitted independently."""
+    base = _numa_base_xml(8).replace(
+        "<devices>",
+        "<cputune><vcpupin vcpu='0' cpuset='5'/></cputune><devices>",
+    )
+    result = add_numa_pinning(base, 1, "24-47", 8, "strict", True, emit_cputune=False)
+    tree = _parse(result)
+    pins = tree.xpath("/domain/cputune/vcpupin")
+    assert len(pins) == 1 and pins[0].get("cpuset") == "5"  # untouched
+    assert len(tree.xpath("/domain/numatune")) == 1  # numatune still emitted
+
+
+def test_numa_opts_allowed_respects_protected_sections():
+    """B1: a protected memory_backing/cputune/numatune/iothreads section must
+    gate OFF the engine's start-time injection so it cannot overwrite the
+    admin-locked XML."""
+    d = {"create_dict": {"xml_protected_sections": ["memory_backing", "numatune"]}}
+    allow = numa_opts_allowed(d)
+    assert allow["memory_backing"] is False
+    assert allow["numatune"] is False
+    assert allow["cputune"] is True
+    assert allow["iothreads"] is True
+
+
+def test_numa_opts_allowed_default_when_nothing_protected():
+    for d in (
+        {"create_dict": {"xml_protected_sections": []}},
+        {"create_dict": {"xml_protected_sections": None}},
+        {"create_dict": {}},
+        {"create_dict": None},
+        {},
+    ):
+        assert all(numa_opts_allowed(d).values()), f"unexpected gate for {d!r}"
