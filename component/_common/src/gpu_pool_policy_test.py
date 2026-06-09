@@ -141,3 +141,23 @@ def test_booking_overrides_keep_current():
 def test_requested_overrides_keep_current():
     d = _decide(requested_profile="4Q", fallback_default="1C", keep_current=True)
     assert d == {"action": "apply", "profile": "4Q"}
+
+
+def test_operator_passthrough_overrides_keep_current():
+    # A card the operator forced to passthrough, but discovered as a realizable
+    # SR-IOV carve (so keep_current=True) -- e.g. after a reboot where idle-reclaim
+    # + discovery re-cycled it -- must be reverted to passthrough, NOT kept on the
+    # incidental carve. The durable operator_passthrough intent is authoritative.
+    d = _decide(operator_passthrough=True, fallback_default="4Q", keep_current=True)
+    assert d == {"action": "seed_and_apply", "profile": "passthrough"}
+
+
+def test_booking_still_overrides_operator_passthrough():
+    # A live scheduled booking outranks the operator's standing passthrough force.
+    d = _decide(
+        scheduled_profile="4Q",
+        operator_passthrough=True,
+        fallback_default="passthrough",
+        keep_current=True,
+    )
+    assert d == {"action": "apply", "profile": "4Q"}
