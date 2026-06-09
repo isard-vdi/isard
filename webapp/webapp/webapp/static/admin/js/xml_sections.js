@@ -457,10 +457,30 @@ $(document).on('click', '#xmlSectionsValidate', function() {
     });
 });
 
+// Best-effort: is this desktop currently running? Used to warn that XML edits
+// apply at the next start (the engine rebuilds the domain XML from the stored
+// definition on each start, it does not hot-apply to a running domain).
+// Guarded so it is safe in template / virt_install contexts where the desktops
+// datatable is absent.
+function xmlSectionsDesktopIsRunning(domainId) {
+    if (xmlSectionsMode === 'virt_install') { return false; }
+    try {
+        if (typeof domains_table !== 'undefined' && domains_table) {
+            var row = domains_table.row('#' + domainId);
+            if (row && row.data()) {
+                return ['Starting', 'Started', 'Shutting-down', 'Stopping']
+                    .indexOf(row.data().status) !== -1;
+            }
+        }
+    } catch (e) { /* datatable not present in this context */ }
+    return false;
+}
+
 // Save button
 $(document).on('click', '#xmlSectionsSave', function() {
     var domainId = $('#xmlSectionsDomainId').val();
     var data = collectXmlSections();
+    var isRunning = xmlSectionsDesktopIsRunning(domainId);
     var notice = new PNotify({
         text: 'Updating XML sections...',
         hide: false,
@@ -475,15 +495,28 @@ $(document).on('click', '#xmlSectionsSave', function() {
         contentType: 'application/json',
         success: function(resp) {
             $('#modalEditXmlSections').modal('hide');
-            notice.update({
-                title: 'Updated',
-                text: 'Domain XML sections updated successfully',
-                type: 'success',
-                hide: true,
-                delay: 2000,
-                icon: 'fa fa-check',
-                opacity: 1
-            });
+            if (isRunning) {
+                notice.update({
+                    title: 'Saved — applies at next start',
+                    text: 'The desktop is running. Changes are saved to its ' +
+                          'definition and will take effect the next time it is started.',
+                    type: 'success',
+                    hide: true,
+                    delay: 6000,
+                    icon: 'fa fa-info-circle',
+                    opacity: 1
+                });
+            } else {
+                notice.update({
+                    title: 'Updated',
+                    text: 'Domain XML sections updated successfully',
+                    type: 'success',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-check',
+                    opacity: 1
+                });
+            }
         },
         error: function(data) {
             notice.update({
