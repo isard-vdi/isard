@@ -1255,7 +1255,6 @@ async def admin_get_group_users(request: Request, group_id: str):
 )
 async def admin_group_enrollment(request: Request, data: AdminGroupEnrollmentData):
     try:
-        # enrollment_action returns the new 6-char code (reset) or True (disable).
         result = await asyncio.to_thread(
             AdminUsersService.update_group_enrollment,
             request.token_payload,
