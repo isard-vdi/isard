@@ -26,7 +26,12 @@ import time
 import uuid as _uuid
 
 import gpu_probe
-from gpu_discovery import _card_in_use, _get_vgpu_profiles, _vfio_group_in_use
+from gpu_discovery import (
+    _card_in_use,
+    _get_vgpu_profiles,
+    _normalize_pci_bus_id,
+    _vfio_group_in_use,
+)
 from gpu_probe import (
     MIG_CURRENT,
     _enumerate_vf_sub_paths,
@@ -511,8 +516,18 @@ def apply_target(gpu, target, run=run_local, deliberate=False):
     apply ABORTS with ``result='teardown_blocked'`` if a holder can't be cleared
     (unbinding an in-use vfio device wedges the PF in D-state). A non-deliberate
     (registration/advisory) apply leaves a busy card untouched (skipped_busy)."""
-    pci_bdf = gpu["pci_bus_id"]
-    base_path = gpu.get("path") or f"/sys/bus/pci/devices/{pci_bdf}"
+    # Normalize to the 4-digit sysfs BDF. Discovery emits the nvidia-smi 8-digit
+    # form (e.g. 00000000:83:00.0), but every sysfs readlink/bind and command
+    # builder -- here AND in _apply, which inherits this gpu dict -- needs the
+    # 4-digit sysfs form (0000:83:00.0); otherwise /sys/bus/pci/devices/<bdf>
+    # does not exist, _read_driver returns None, and _card_busy mis-reads the
+    # card as busy, so the whole startup apply is skipped (no profile ever
+    # applied at boot). apply_targets keys the report by the ORIGINAL pci_bus_id,
+    # so the per-card result still matches on the API side. Idempotent for a BDF
+    # already in sysfs form (the engine-driven runtime path).
+    pci_bdf = _normalize_pci_bus_id(gpu["pci_bus_id"]).lower()
+    base_path = f"/sys/bus/pci/devices/{pci_bdf}"
+    gpu = {**gpu, "pci_bus_id": pci_bdf, "path": base_path}
     reset_at = gpu.get("mdevs_reset_at")
 
     t0 = time.monotonic()
