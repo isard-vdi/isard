@@ -23,6 +23,32 @@ from .api_admin import admin_table_get, db
 # Maximum size for a single XML snippet (256 KB)
 MAX_SNIPPET_SIZE = 256 * 1024
 
+# Allowed libvirt <domain type="..."> values (see the domain_type section).
+ALLOWED_DOMAIN_TYPES = {
+    "kvm",
+    "qemu",
+    "xen",
+    "lxc",
+    "kqemu",
+    "uml",
+    "hvf",
+    "vz",
+    "bhyve",
+}
+
+# libvirt "foreign" namespaces that can appear in a domain document. Registering
+# the conventional prefixes makes ElementTree round-trip them as e.g.
+# <qemu:commandline> instead of <ns0:commandline>. The ns0 rewrite is harmful:
+# the engine's add_qemu_pcie_reserve dedups the existing block with a regex that
+# matches the literal "qemu:" prefix, so an "ns0:"-stored block is not removed
+# and a duplicate <qemu:commandline> is appended on the next GPU start.
+LIBVIRT_XML_NAMESPACES = {
+    "qemu": "http://libvirt.org/schemas/domain/qemu/1.0",
+    "lxc": "http://libvirt.org/schemas/domain/lxc/1.0",
+}
+for _ns_prefix, _ns_uri in LIBVIRT_XML_NAMESPACES.items():
+    ET.register_namespace(_ns_prefix, _ns_uri)
+
 
 def _safe_fromstring(xml_str):
     """Parse XML string with protection against entity expansion (Billion Laughs).
@@ -30,6 +56,10 @@ def _safe_fromstring(xml_str):
     Python's xml.etree.ElementTree uses expat which does NOT resolve external
     entities (SYSTEM/PUBLIC), but DOES expand internal entities without limit.
     We reject any XML containing a DOCTYPE declaration to prevent entity bombs.
+
+    Comments are preserved (``insert_comments=True``) so a no-op save through the
+    section editor does not silently strip ``<!-- ... -->`` from the stored
+    domain XML.
     """
     stripped = xml_str.strip()
     if "<!DOCTYPE" in stripped or "<!ENTITY" in stripped:
@@ -38,7 +68,8 @@ def _safe_fromstring(xml_str):
             "XML DOCTYPE and ENTITY declarations are not allowed",
             traceback.format_exc(),
         )
-    return ET.fromstring(stripped)
+    parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+    return ET.fromstring(stripped, parser=parser)
 
 
 # Canonical libvirt direct-children-of-<domain> order. Used to compute the
@@ -521,23 +552,39 @@ def _get_unclaimed_children(root, claimed, catchall_type):
         unclaimed = [
             child
             for child in list(parent)
-            if id(child) not in claimed and child is not devices_elem
+            if id(child) not in claimed
+            and child is not devices_elem
+            and not callable(child.tag)
         ]
     elif catchall_type == "devices":
         parent = root.find("./devices")
         if parent is None:
             return None, []
-        unclaimed = [child for child in list(parent) if id(child) not in claimed]
+        unclaimed = [
+            child
+            for child in list(parent)
+            if id(child) not in claimed and not callable(child.tag)
+        ]
     else:
         return None, []
     return parent, unclaimed
 
 
 def _parse_snippet(snippet_xml, section_key):
-    """Parse an XML snippet string into a list of elements."""
+    """Parse an XML snippet string into a list of elements.
+
+    The wrapper declares libvirt's foreign namespaces (qemu/lxc) so a snippet
+    that uses a prefix bound on the <domain> root in the real document — e.g. a
+    natural ``<qemu:commandline>`` pasted into the "Other (top-level)" section —
+    parses instead of failing with "unbound prefix". Comment nodes are dropped
+    (they are not real elements for a section).
+    """
     try:
-        wrapper_xml = f"<_wrapper>{snippet_xml}</_wrapper>"
-        return list(_safe_fromstring(wrapper_xml))
+        ns_decls = " ".join(
+            f'xmlns:{p}="{u}"' for p, u in LIBVIRT_XML_NAMESPACES.items()
+        )
+        wrapper_xml = f"<_wrapper {ns_decls}>{snippet_xml}</_wrapper>"
+        return [e for e in _safe_fromstring(wrapper_xml) if not callable(e.tag)]
     except ET.ParseError as e:
         raise Error(
             "bad_request",
@@ -762,6 +809,36 @@ def _compute_derived_keys():
 _DERIVED_KEYS = _compute_derived_keys()
 
 
+def _apply_extra_attrs(root, sdef, snippet_xml):
+    """Apply (and strip) the ``extra_attrs`` a section encodes as a leading
+    ``<!-- tag attr="value" -->`` comment.
+
+    The split side stores root/element attributes that have no element of their
+    own — currently only ``<domain type="...">`` for the domain_type section —
+    as an HTML comment so they show in the textarea. ElementTree drops that
+    comment when the snippet is parsed, so the value would be lost on merge. We
+    read it from the raw snippet string, validate it, apply it to the target,
+    and remove the comment so the remaining elements parse and validate cleanly.
+    """
+    for path, attr in sdef.get("extra_attrs", []):
+        pattern = rf'<!--\s*\w+\s+{re.escape(attr)}="([^"]*)"\s*-->'
+        match = re.search(pattern, snippet_xml)
+        if match:
+            target = root if path == "." else root.find(path)
+            value = match.group(1)
+            if attr == "type" and value not in ALLOWED_DOMAIN_TYPES:
+                raise Error(
+                    "bad_request",
+                    f"Invalid domain type '{value}'; allowed: "
+                    f"{sorted(ALLOWED_DOMAIN_TYPES)}",
+                    traceback.format_exc(),
+                )
+            if target is not None:
+                target.set(attr, value)
+        snippet_xml = re.sub(pattern, "", snippet_xml)
+    return snippet_xml
+
+
 def merge_xml_sections(base_xml_str, edited_sections):
     """Merge edited XML snippets back into the base XML.
 
@@ -826,6 +903,9 @@ def merge_xml_sections(base_xml_str, edited_sections):
             catchall_edits.append((sdef, snippet_xml))
             continue
 
+        if sdef.get("extra_attrs"):
+            snippet_xml = _apply_extra_attrs(root, sdef, snippet_xml)
+
         if not snippet_xml.strip():
             parent_map = _build_parent_map(root)
             for elem in _find_section_elements(root, sdef):
@@ -861,13 +941,25 @@ def merge_xml_sections(base_xml_str, edited_sections):
                     first_idx = list(parent).index(old_elem)
                 parent.remove(old_elem)
 
-        # Determine insertion parent and position
+        # Determine insertion parent and position. Derive the structural parent
+        # from the xpath via _xpath_steps (which correctly strips predicates and
+        # resolves a trailing `/..`). The old string-munging approach mangled
+        # predicate dots and ignored `/..`, so adding an absent qemu_guest_agent
+        # channel landed it as a direct child of <domain> (invalid for libvirt).
         if first_parent is None and new_elems:
             xpath = sdef["xpaths"][0]
-            parent_path = xpath.rsplit("/", 1)[0] if "/" in xpath else "."
-            parent_path = parent_path.replace(".", "").lstrip("/")
-            first_parent = root.find(parent_path) if parent_path else root
-            if first_parent is None:
+            parent_steps = _xpath_steps(xpath)[:-1]
+            if parent_steps:
+                first_parent = root.find("./" + "/".join(parent_steps))
+                if first_parent is None and parent_steps == ["devices"]:
+                    # device section but <devices> is absent: create it at the
+                    # canonical top-level position.
+                    idx = _libvirt_toplevel_insert_index(root, "devices")
+                    first_parent = ET.Element("devices")
+                    root.insert(idx, first_parent)
+                if first_parent is None:
+                    first_parent = root
+            else:
                 first_parent = root
             if first_parent is root:
                 first_idx = _libvirt_toplevel_insert_index(
@@ -1060,7 +1152,9 @@ def generalize_xml(xml_str, name):
     metadata = root.find("metadata")
     if metadata is not None:
         for child in list(metadata):
-            # Keep libosinfo namespace elements
+            # Keep comments and libosinfo namespace elements
+            if callable(child.tag):
+                continue
             if "libosinfo" not in (child.tag or ""):
                 metadata.remove(child)
 
