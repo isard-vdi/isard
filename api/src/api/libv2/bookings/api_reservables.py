@@ -62,6 +62,60 @@ def get_vgpus_hypervisors():
     return {profile_id: sorted(hyps) for profile_id, hyps in hyp_by_profile.items()}
 
 
+def _pci_id_to_sysfs(pci_underscored):
+    """``0000_41_00_0`` -> ``0000:41:00.0`` (the sysfs/pci_devices key form).
+
+    Mirrors the transform the engine uses in
+    ``services/db/hypervisors.py`` so a card's ``physical_device`` BDF can be
+    looked up in ``hypervisors.pci_devices``.
+    """
+    s = pci_underscored.replace("_", ":", 2)
+    return s[:-2] + "." + s[-1] if len(s) >= 2 else s
+
+
+def get_vgpus_placements():
+    """Map each reservable id to the ``{hyp_id: {numa_node, ...}}`` its cards occupy.
+
+    A reservable can be enabled on several physical cards across one or more
+    hypervisors, and within a multi-socket host on cards bound to different NUMA
+    nodes. Returns ``{reservable_id: {hyp_id: sorted([numa_node, ...])}}`` using
+    only real nodes (``>= 0``; ``-1``/unknown/single-socket affinity is dropped),
+    so the UI can group selectable cards by (server, socket) and hint when two
+    profiles can share a socket. The card's NUMA node lives in
+    ``hypervisors.pci_devices[<sysfs_bdf>].numa_node`` (discovered from sysfs).
+    """
+    with app.app_context():
+        cards = list(
+            r.table("gpus").pluck("physical_device", "profiles_enabled").run(db.conn)
+        )
+        hypers = list(r.table("hypervisors").pluck("id", "pci_devices").run(db.conn))
+    # {hyp_id: {sysfs_bdf: numa_node}}
+    numa_by_hyp_bdf = {
+        h["id"]: (h.get("pci_devices") or {}) for h in hypers if h.get("id")
+    }
+    placements = {}  # {reservable_id: {hyp_id: set(numa_node)}}
+    for card in cards:
+        physical_device = card.get("physical_device") or ""
+        if "-pci_" not in physical_device:
+            continue
+        hyp_id, pci_part = physical_device.rsplit("-pci_", 1)
+        if not hyp_id:
+            continue
+        sysfs_bdf = _pci_id_to_sysfs(pci_part)
+        numa = (numa_by_hyp_bdf.get(hyp_id, {}).get(sysfs_bdf, {}) or {}).get(
+            "numa_node"
+        )
+        try:
+            numa = int(numa)
+        except (TypeError, ValueError):
+            numa = None
+        if numa is None or numa < 0:
+            continue
+        for profile_id in card.get("profiles_enabled") or []:
+            placements.setdefault(profile_id, {}).setdefault(hyp_id, set()).add(numa)
+    return placements
+
+
 def attach_vgpu_hypervisor_groups(vgpus, show_names):
     """Tag each vGPU profile with the hypervisor groups that can host it.
 
@@ -71,17 +125,47 @@ def attach_vgpu_hypervisor_groups(vgpus, show_names):
     co-selectable iff their lists intersect). When ``show_names`` (admin/webapp)
     also attach the real ``hypervisors`` names for grouped labels. Tolerates
     items missing an ``id`` and a non-list input.
+
+    Also attach the NUMA-socket placement of each profile's cards so the UI can
+    sub-group server → socket and hint when two profiles can share a socket
+    (best memory bandwidth). ``numa_by_group`` keys on the anonymized hypervisor
+    index (``{"1": [0, 1]}``); with ``show_names`` also ``numa_by_hypervisor``
+    keyed on the real hypervisor id. Nodes are real (``>= 0``) only, so a
+    single-socket / unknown-NUMA server yields an empty mapping and the UI shows
+    no socket layer.
     """
     if not isinstance(vgpus, list):
         return vgpus
-    hyp_map = get_vgpus_hypervisors()
+    return _tag_vgpus_with_groups(
+        vgpus, get_vgpus_hypervisors(), get_vgpus_placements(), show_names
+    )
+
+
+def _tag_vgpus_with_groups(vgpus, hyp_map, placements, show_names):
+    """Pure tagging step of :func:`attach_vgpu_hypervisor_groups` (no DB).
+
+    ``hyp_map`` is ``{reservable_id: [hyp_id, ...]}`` and ``placements`` is
+    ``{reservable_id: {hyp_id: iterable(numa_node)}}``. Kept dependency-free so it
+    can be unit-tested without booting Flask.
+    """
+    if not isinstance(vgpus, list):
+        return vgpus
     ordered_hyps = sorted({h for v in vgpus for h in hyp_map.get(v.get("id"), [])})
     anon_index = {h: i + 1 for i, h in enumerate(ordered_hyps)}
     for v in vgpus:
         hyps = hyp_map.get(v.get("id"), [])
         v["hypervisor_groups"] = [anon_index[h] for h in hyps]
+        placement = placements.get(v.get("id"), {})
+        v["numa_by_group"] = {
+            str(anon_index[h]): sorted(nodes)
+            for h, nodes in placement.items()
+            if h in anon_index and nodes
+        }
         if show_names:
             v["hypervisors"] = hyps
+            v["numa_by_hypervisor"] = {
+                h: sorted(nodes) for h, nodes in placement.items() if nodes
+            }
     return vgpus
 
 
