@@ -172,6 +172,7 @@ class _Host:
         profiles=None,
         apply_works=True,
         numvfs=0,
+        avail=None,
     ):
         self.driver = driver
         self.mig = mig
@@ -180,6 +181,9 @@ class _Host:
         self.profiles = profiles or []
         self.apply_works = apply_works
         self.numvfs = numvfs
+        # VF basename -> available_instances string the carve readback should see
+        # (default: unset -> "" -> treated as usable, the pre-guard behaviour).
+        self.avail = avail or {}
         self.mdev_count = 0
         self.cmds = []
         # VF paths a MIG->vGPU teardown re-creates (sriov-manage -e); the carve
@@ -200,11 +204,18 @@ class _Host:
                     self.mig = "Enabled"
                 elif "-mig 0" in c:
                     self.mig = "Disabled"
-        # The warm-repartition detection reads live sriov_numvfs via run().
-        return [
-            {"out": (f"{self.numvfs}\n" if "sriov_numvfs" in c else ""), "err": ""}
-            for c in cmds
-        ]
+        # The warm-repartition detection reads live sriov_numvfs via run(); the
+        # carve reads each VF's available_instances before creating its mdev.
+        out = []
+        for c in cmds:
+            if "sriov_numvfs" in c:
+                out.append({"out": f"{self.numvfs}\n", "err": ""})
+            elif "available_instances" in c:
+                val = next((v for vf, v in self.avail.items() if vf in c), "")
+                out.append({"out": f"{val}", "err": ""})
+            else:
+                out.append({"out": "", "err": ""})
+        return out
 
 
 def _patch_host(monkeypatch, host):
@@ -683,6 +694,68 @@ def test_apply_mig_vgpu_errors_on_short_carve(monkeypatch):
     )
     assert rep["result"] == "error", rep
     assert "2/4" in (rep.get("error") or ""), rep
+
+
+def test_build_mig_transition_cmds_carves_one_gi_per_slice():
+    # The engine inline fallback must carve `mig_count` +gfx GPU-instances (one
+    # per bookable slice) with -C, matching the CLI carve path -- NOT a single
+    # GI + separate -cci, which under-carves a multi-slice MIG-vGPU profile.
+    bmt = ga._cmds.build_mig_transition_cmds
+    for old_is_mig, old_profile in ((True, "2_24Q"), (False, "4Q")):
+        cmds = bmt("0000:05:00.0", old_is_mig, True, old_profile, "1_24Q", 47, 4)
+        assert "nvidia-smi mig -i 0000:05:00.0 -cgi 47,47,47,47 -C" in cmds, cmds
+        assert not any(c.rstrip().endswith("-cci") for c in cmds), cmds
+    # Default count == 1 -> a single GI (a 1-slice profile is unchanged in shape).
+    cmds = bmt("0000:05:00.0", True, True, "x", "y", 9)
+    assert "nvidia-smi mig -i 0000:05:00.0 -cgi 9 -C" in cmds, cmds
+    # The MIG->non-MIG teardown branch carves nothing and is left untouched.
+    cmds = bmt("0000:05:00.0", True, False, "1_24Q", "4Q", None, 4)
+    assert any("-mig 0" in c for c in cmds)
+    assert not any("-cgi" in c for c in cmds), cmds
+
+
+def test_apply_mig_vgpu_skips_vf_with_zero_available_instances(monkeypatch):
+    # A VF whose available_instances reads 0 has no backing GPU-instance, so the
+    # carve must skip it (its create would fail) and surface a precise reason.
+    # 4 VFs, mig_count=4, but VF .3 reports 0 -> 3 carve -> MIG short-carve error
+    # that names available_instances.
+    h = _Host(
+        driver="nvidia",
+        mig="Disabled",
+        live=None,
+        profiles=[{"name": "RTXPro6000BlackwellDC-1_24Q", "type_id": "nvidia-1561"}],
+        avail={
+            "0000:05:00.1": 1,
+            "0000:05:00.2": 1,
+            "0000:05:00.3": 0,  # no backing GPU-instance
+            "0000:05:00.4": 1,
+        },
+    )
+    h.vf_paths = [f"/sys/bus/pci/devices/0000:05:00.{i}" for i in range(1, 5)]  # 4 VFs
+    _patch_host(monkeypatch, h)
+    gpu = {
+        "pci_bus_id": "0000:05:00.0",
+        "sriov_totalvfs": 12,
+        "vgpu_profiles": [
+            {
+                "name": "RTXPro6000BlackwellDC-1_24Q",
+                "type_id": "nvidia-1561",
+                "mig": True,
+                "mig_profile_id": 47,
+                "mig_count": 4,
+            },
+        ],
+    }
+    rep = ga.apply_target(
+        gpu, {"target_profile": "1_24Q", "action": "apply"}, run=h.run
+    )
+    assert rep["result"] == "error", rep
+    assert "available_instances=0" in (rep.get("error") or ""), rep
+    # The zero-available VF is never echoed a create (in any retry attempt).
+    assert not any(
+        "0000:05:00.3/mdev_supported_types" in c and c.rstrip().endswith("/create'")
+        for c in h.cmds
+    ), h.cmds
 
 
 def test_apply_mig_vgpu_warm_repartition_skips_sriov_reset(monkeypatch):

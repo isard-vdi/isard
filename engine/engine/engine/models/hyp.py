@@ -775,8 +775,17 @@ class hyp(object):
 
         if new_is_mig:
             new_mig_profile_id = old_types[new_profile].get("mig_profile_id")
+            # One +gfx GPU-instance per bookable slice (same source the CLI path
+            # uses in _apply_via_cli); without it the inline carve under-creates
+            # a single GI for a multi-slice MIG-vGPU profile.
+            new_mig_count = (
+                old_types[new_profile].get("mig_count")
+                or old_types[new_profile].get("max")
+                or 1
+            )
         else:
             new_mig_profile_id = None
+            new_mig_count = 1
 
         if old_is_mig and new_is_mig:
             logs.main.info(
@@ -800,6 +809,7 @@ class hyp(object):
             old_profile,
             new_profile,
             new_mig_profile_id,
+            new_mig_count,
         )
         if cmds is None:
             # Should not happen — caller should not route here
