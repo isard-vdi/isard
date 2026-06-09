@@ -306,6 +306,61 @@ test.describe('XML sections editor (Redmine #15065)', () => {
       await api.waitForDomainStatus(testDesktopId, 'Stopped', 120000).catch(() => {})
     }
   })
+
+  // -----------------------------------------------------------------
+  // (10) RAW XML mode: the editor exposes a toggle that swaps the section
+  // panels for a single full-document <domain> textarea. Saving stores the
+  // verbatim XML with the ['raw'] sentinel; reopening round-trips it. On
+  // start the engine applies only the isard essentials, leaving custom
+  // blocks (here a marker <qemu:commandline>) untouched.
+  // -----------------------------------------------------------------
+  test('RAW mode: full-document textarea round-trips with the raw sentinel', async ({ page, administration, api }) => {
+    await openXmlEditor(page, testDesktopId)
+
+    // Enable RAW mode: section panels hide, the full-XML textarea shows.
+    const rawToggle = page.locator('#xmlRawToggle')
+    await rawToggle.check()
+    const rawArea = page.locator('#xmlRawTextarea')
+    await expect(rawArea).toBeVisible()
+    await expect(page.locator('#xmlSectionsContainer')).toBeHidden()
+
+    const rawXml = [
+      '<domain type="kvm">',
+      '<name>placeholder</name>',
+      '<uuid>11111111-2222-3333-4444-555555555555</uuid>',
+      '<memory unit="KiB">2097152</memory>',
+      '<currentMemory unit="KiB">2097152</currentMemory>',
+      '<vcpu placement="static">2</vcpu>',
+      '<os><type arch="x86_64" machine="q35">hvm</type><boot dev="hd"/></os>',
+      '<features><acpi/><apic/></features>',
+      '<devices>',
+      '<emulator>/usr/bin/qemu-system-x86_64</emulator>',
+      '<disk type="file" device="disk"><driver name="qemu" type="qcow2"/>',
+      '<source file="/placeholder.qcow2"/><target dev="vda" bus="virtio"/></disk>',
+      '<interface type="network"><source network="default"/><model type="virtio"/></interface>',
+      '<graphics type="spice" autoport="yes"/><video><model type="qxl"/></video>',
+      '</devices>',
+      '<qemu:commandline xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">',
+      '<qemu:arg value="-RAWMARKER"/></qemu:commandline>',
+      '</domain>'
+    ].join('')
+    await rawArea.fill(rawXml)
+
+    await page.locator('#xmlSectionsSave').click()
+    await expect(page.locator('#modalEditXmlSections')).toBeHidden({ timeout: 10000 })
+
+    // Reopen: the desktop is now in RAW mode, so the toggle is checked and the
+    // raw textarea round-trips the verbatim document (custom marker included).
+    await page.goto('/isard-admin/admin/domains/render/Desktops')
+    await expect(page.locator('table#domains')).toBeVisible({ timeout: 15000 })
+    await page.locator('#domains_filter input[type="search"]').fill(testDesktopId)
+    await page.waitForTimeout(500) // DataTable filter debounce
+    await page.locator(`table#domains tbody tr[data-pk="${testDesktopId}"] .btn-xml`).click()
+    await expect(page.locator('#modalEditXmlSections')).toBeVisible({ timeout: 10000 })
+
+    await expect(page.locator('#xmlRawToggle')).toBeChecked({ timeout: 10000 })
+    await expect(page.locator('#xmlRawTextarea')).toHaveValue(/-RAWMARKER/, { timeout: 10000 })
+  })
 })
 
 /**
