@@ -216,7 +216,6 @@ def SetupHypervisor():
     # This hypervisor can apply GPU profiles locally at registration, so the API
     # returns per-card targets (gpu_targets) in the response. Old hypervisors
     # omit this flag and the engine keeps applying as before.
-    HYPERVISOR["gpu_apply_capable"] = "True"
 
     ## Adding hyper. Received dict with certs and number
     ok = False

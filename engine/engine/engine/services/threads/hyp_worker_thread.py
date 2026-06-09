@@ -1512,7 +1512,11 @@ class HypWorkerThread(threading.Thread):
                 "Failed",
             )
 
-            # Clear stale vgpu_info so next retry can reallocate a fresh mdev
+            # Clear stale vgpu_info so next retry can reallocate a fresh mdev.
+            # "mediated device '<uuid>' not found" means the DB pool advertised an
+            # mdev the host has lost; freeing the reservation here lets the next
+            # start reallocate, and the hypervisor (which owns the mdev pool)
+            # re-reports reality on its next discovery/registration.
             update_vgpu_info_if_stopped(action["id_domain"])
 
             # Handle lost connection

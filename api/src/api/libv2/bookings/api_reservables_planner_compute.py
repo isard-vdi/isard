@@ -591,7 +591,10 @@ def payload_priority(payload, reservables):
         for subitem in v:
             with app.app_context():
                 reservable = r.table("reservables_" + k).get(subitem).run(db.conn)
-            if not reservable.get("priority_id") or reservable["priority_id"] == "":
+            # A dangling reservable id (profile deleted after a desktop referenced
+            # it) returns None here; treat it as the default priority instead of
+            # dereferencing None and 500ing the caller.
+            if not reservable or not reservable.get("priority_id"):
                 priority_id = "default"
             else:
                 priority_id = reservable.get("priority_id")
@@ -620,7 +623,7 @@ def min_profile_priority(reservables):
         for subitem in v:
             with app.app_context():
                 reservable = r.table("reservables_" + k).get(subitem).run(db.conn)
-            if not reservable.get("priority_id") or reservable["priority_id"] == "":
+            if not reservable or not reservable.get("priority_id"):
                 priority_id = "default"
             else:
                 priority_id = reservable.get("priority_id")

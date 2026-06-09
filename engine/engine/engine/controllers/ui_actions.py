@@ -22,6 +22,7 @@ from engine.models.domain_xml import (
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
     recreate_xml_to_start,
+    vcpus_from_xml,
 )
 from engine.services.db import (
     create_disk_template_created_list_in_domain,
@@ -367,6 +368,8 @@ class UiActions(object):
             extra_info = {}
             is_gpu = False
             max_attempts = 5
+            # vCPU footprint, used to balance non-GPU desktops across NUMA nodes.
+            domain_vcpus = vcpus_from_xml(xml)
 
             # A desktop may request several vGPU profiles. They MUST all land on
             # ONE hypervisor (a guest runs on a single host and can only attach
@@ -389,6 +392,7 @@ class UiActions(object):
                     force_gpus=force_gpus,
                     storage_pool_id=storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
+                    domain_vcpus=domain_vcpus,
                 )
                 if action == "start_paused_domain":
                     extra_info = {}
@@ -438,6 +442,7 @@ class UiActions(object):
                             force_gpus=force_gpus,
                             storage_pool_id=storage_pool_id,
                             domain_memory_gb=domain_memory_gb,
+                            domain_vcpus=domain_vcpus,
                             prefer_cpuset=prefer_cpuset,
                             prefer_numa_node=group_node,
                         )
@@ -602,8 +607,14 @@ class UiActions(object):
                                         f"{node_free}KB free < {domain_memory_kb}KB needed, "
                                         f"using preferred mode (may cross NUMA)"
                                     )
+                        elif extra_info.get("selected_numa_node") in numa_nodes:
+                            # Non-GPU: the balancer load-spreads desktops across
+                            # nodes (per-node RAM+vCPU in-flight accounting) so they
+                            # don't all pile on the node with most free hugepages.
+                            target_node = extra_info["selected_numa_node"]
                         else:
-                            # Pick NUMA node with most free hugepages, or hash-distribute
+                            # Fallback (paused start / balancer gave nothing): pick
+                            # NUMA node with most free hugepages, or hash-distribute.
                             if numa_hp_free:
                                 candidates = {
                                     n: free_kb
@@ -705,6 +716,13 @@ class UiActions(object):
                                 emit_numatune=libvirt_numa_ok,
                             )
                             xml = add_iothread_pinning(xml, cpulist)
+                    log.info(
+                        f"{id_domain}: NUMA placement -> is_gpu={is_gpu} "
+                        f"gpu_numa={extra_info.get('gpu_numa_node')} "
+                        f"target_node={target_node} mem_mode={mem_mode} "
+                        f"hugepages={'yes' if '<hugepages>' in xml else 'no'} "
+                        f"selected_numa_node={extra_info.get('selected_numa_node')}"
+                    )
                 except Exception as _opt_err:
                     log.warning(
                         f"NUMA/hugepages optimizations failed for {id_domain}: "

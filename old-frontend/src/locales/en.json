@@ -1608,6 +1608,7 @@
     "deployment_recreate_booking_not_enough_units": "The deployment can't be recreated because there are not enough units available for the scheduled bookings",
     "desktop_not_booked": "The desktop needs a booking to be started",
     "desktop_not_booked_until": "The desktop can't be started until its next booking: {start}",
+    "desktop_reservable_not_found": "The desktop's GPU profile no longer exists and has been removed. Edit the desktop to select an available GPU profile before starting it.",
     "incorrect_new_plan_body_data": "Incorrect new plan body data",
     "duplicated_name": "Duplicated name",
     "user_disabled": "The user is disabled",

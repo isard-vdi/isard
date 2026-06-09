@@ -1586,6 +1586,7 @@
     "deployment_stop": "Para realizar esta acción es necesario que los escritorios del despliegue estén parados",
     "desktop_not_booked": "Para arrancar el escritorio debe estar reservado",
     "desktop_not_booked_until": "No se puede arrancar el escritorio hasta su próxima reserva: {start}",
+    "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo.",
     "booking_does_not_fit_date": "La reserva no se ajusta a la fecha solicitada",
     "booking_desktop_delete_stop": "Para eliminar esta reserva el escritorio debe estar parado",
     "booking_deployment_delete_stop": "Para eliminar esta reserva es necesario que los escritorios del despliegue estén parados",
