@@ -18,7 +18,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import os
 from typing import Optional
 
 from api.services.error import Error
@@ -112,20 +111,12 @@ class AdminAuthenticationService:
 
     @staticmethod
     def get_providers() -> dict:
-        providers = {}
-        providers["local"] = not (
-            os.environ.get("AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED") == "false"
-        )
-        providers["google"] = (
-            os.environ.get("AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED") == "true"
-        )
-        providers["saml"] = (
-            os.environ.get("AUTHENTICATION_AUTHENTICATION_SAML_ENABLED") == "true"
-        )
-        providers["ldap"] = (
-            os.environ.get("AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED") == "true"
-        )
-        return providers
+        # Global availability is the admin-toggled DB config (config.auth.<provider>.enabled), the source the global auth page reads
+        auth = (Config.get_config() or {}).get("auth", {})
+        return {
+            provider: bool(auth.get(provider, {}).get("enabled", provider == "local"))
+            for provider in ("local", "google", "saml", "ldap")
+        }
 
     # ── Force validate at login ───────────────────────────────────────────
 
