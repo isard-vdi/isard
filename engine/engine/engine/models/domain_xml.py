@@ -2507,12 +2507,27 @@ def add_numa_pinning(
         else:
             tree.xpath("/domain")[0].insert(0, cputune_elem)
     else:
-        # Too many vCPUs for the node: only constrain via cpuset on <vcpu>
-        # so the host scheduler distributes within the node without
-        # per-vCPU pinning that would cause contention
+        # Too many vCPUs for the node: don't force per-vCPU pinning (it would
+        # oversubscribe cores and add contention). Constrain every vCPU to the
+        # node via <vcpu cpuset='...'> and let the host scheduler distribute
+        # within it -- but STILL pin the QEMU emulator threads to the node so
+        # they stay NUMA-local with the guest's memory and GPUs (otherwise the
+        # emulator floats across all nodes). add_iothread_pinning() adds
+        # <iothreadpin> into this same <cputune>.
         vcpu_elem = tree.xpath("/domain/vcpu")
         if vcpu_elem:
             vcpu_elem[0].set("cpuset", cpulist_str)
+        cputune_xml = "<cputune>\n  <emulatorpin cpuset='{}'/>\n</cputune>".format(
+            cpulist_str
+        )
+        cputune_elem = etree.parse(StringIO(cputune_xml)).getroot()
+        mem_backing = tree.xpath("/domain/memoryBacking")
+        if mem_backing:
+            mem_backing[0].addnext(cputune_elem)
+        elif vcpu_elem:
+            vcpu_elem[0].addnext(cputune_elem)
+        else:
+            tree.xpath("/domain")[0].insert(0, cputune_elem)
 
     if emit_numatune:
         # Add numatune

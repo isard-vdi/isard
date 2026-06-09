@@ -62,6 +62,54 @@ _PROC_BASE = "/proc"
 # a single time per process instead of once per GPU.
 _tooling_checked = False
 
+# Cached once per process (None = not yet probed).
+_vgpu_host_driver = None
+
+
+def _sriov_manage_usable():
+    """True only when ``sriov-manage`` resolves to a real executable FILE.
+
+    Docker bind-mounts ``/usr/lib/nvidia/sriov-manage`` → ``/usr/bin/sriov-manage``.
+    When the host source path does NOT exist (e.g. a Blackwell host on the plain
+    datacenter driver, which ships no sriov-manage), docker creates the mount
+    target as an empty DIRECTORY. ``shutil.which`` may still return it, and the
+    subprocess ``exec`` then fails mid-call with EACCES ("Permission denied"),
+    a confusing error far from the root cause. Reject non-files / non-executables
+    here so the caller takes the clean fallback instead of EACCES-ing.
+    """
+    p = shutil.which("sriov-manage")
+    return bool(p) and os.path.isfile(p) and os.access(p, os.X_OK)
+
+
+def _vgpu_host_driver_present():
+    """True when the NVIDIA **vGPU host driver** is active (SR-IOV vGPU capable).
+
+    The licensed vGPU host driver reports ``Host VGPU Mode: SR-IOV`` (or
+    ``Non SR-IOV``); the plain datacenter/CUDA driver reports ``N/A`` (or omits
+    the line). SR-IOV vGPU mdevs (the VF cycling discovery does) are ONLY
+    possible with the vGPU host driver — a datacenter-driver host exposes
+    ``sriov_totalvfs`` but ``sriov-manage -e`` fails to bring VFs up. Probing
+    this lets discovery skip the doomed VF cycle + bus-reset + retries on such
+    hosts and register passthrough + bare-MIG cleanly. Cached per process.
+    """
+    global _vgpu_host_driver
+    if _vgpu_host_driver is not None:
+        return _vgpu_host_driver
+    _vgpu_host_driver = False
+    try:
+        r = subprocess.run(
+            ["nvidia-smi", "-q"], capture_output=True, text=True, timeout=30
+        )
+        for line in r.stdout.splitlines():
+            if "Host VGPU Mode" in line:
+                val = line.split(":", 1)[-1].strip()
+                if val and val.upper() not in ("N/A", "NA", ""):
+                    _vgpu_host_driver = True
+                break
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        _vgpu_host_driver = False
+    return _vgpu_host_driver
+
 
 def _check_gpu_tooling():
     """Log (once) whether the host-provided GPU tools are reachable in-container.
@@ -715,6 +763,15 @@ def _cycle_sriov_vfs(sysfs_pci_id):
     end — otherwise the caller would scan ``mdev_supported_types/`` against
     driverless VFs and find nothing.
     """
+    if not _sriov_manage_usable():
+        log.error(
+            "GPU %s: sriov-manage is not a usable executable (missing host "
+            "source / empty-dir bind-mount / not +x) — cannot cycle SR-IOV VFs. "
+            "Check the compose bind-mount and that the host ships sriov-manage "
+            "(only the NVIDIA vGPU host driver does).",
+            sysfs_pci_id,
+        )
+        return False
     base = f"{_SYSFS_PCI_BASE}/{sysfs_pci_id}"
     try:
         with open(f"{base}/sriov_totalvfs") as f:
@@ -1053,7 +1110,14 @@ def _aggregate_subdevice_profiles(pci_bus_id):
     # GPU which causes sriov_numvfs to vanish until the driver re-probes,
     # so calling it before the VF cycle would cause ENOENT.
     _reset_sysfs_mdevs(main_path)
-    has_sriov = os.path.exists(f"{main_path}/sriov_totalvfs")
+    # A datacenter/CUDA-driver host exposes sriov_totalvfs but CANNOT bring vGPU
+    # VFs up (no vGPU host driver → sriov-manage -e fails). Gate the whole SR-IOV
+    # cycle on the vGPU host driver being present, so such hosts skip the doomed
+    # cycle + bus-reset + retries and register passthrough + bare-MIG cleanly
+    # instead of spamming failures and bus-resetting the GPU every discovery.
+    has_sriov = os.path.exists(f"{main_path}/sriov_totalvfs") and (
+        _vgpu_host_driver_present()
+    )
     if has_sriov and not _cycle_sriov_vfs(sysfs_pci_id):
         # VF cycle failed on an SR-IOV card (EBUSY from stuck mdevs, missing
         # sriov-manage, etc.). The nvidia-smi -r fallback bus-resets the GPU to
@@ -1375,10 +1439,12 @@ def discover_gpus():
         # injected, so gpu_discovery never imports gpu_apply (cycle broken). The
         # try/except guards the runtime probe (sysfs/nvidia-smi), not the import.
         current_profile = None
+        _driver = None
         try:
             _sysfs_cur = _normalize_pci_bus_id(_bdf).lower()
+            _driver = _read_driver(_sysfs_cur, run_local)
             _cur = current_profile_from_state(
-                _read_driver(_sysfs_cur, run_local),
+                _driver,
                 _read_mig_mode(_sysfs_cur, run_local),
                 gpu_probe._live_mdev_suffix(_sysfs_cur, run_local, _get_vgpu_profiles),
             )
@@ -1386,7 +1452,26 @@ def discover_gpus():
         except Exception:
             current_profile = None
 
-        profiles, sub_paths, path_parent = _aggregate_subdevice_profiles(_bdf)
+        # Per-card passthrough guard: a card bound to vfio-pci right now IS in
+        # passthrough. NEVER run the destructive SR-IOV cycle on it --
+        # `_aggregate_subdevice_profiles` calls `sriov-manage -d` which unbinds
+        # the PF; on a card with a live vfio consumer (a running passthrough
+        # desktop during a runtime re-discovery) that wedges in an unkillable
+        # kernel D-state, and even when idle it strips a binding the engine has
+        # to put back. Skip enumeration and report the card as passthrough; the
+        # engine keeps/restores its profile from durable operator intent.
+        if _driver == "vfio-pci":
+            profiles, sub_paths, path_parent = [], None, None
+            current_profile = "passthrough"
+            log.info(
+                "GPU %s [%d/%d]: vfio-pci bound (passthrough); skipping the "
+                "SR-IOV cycle to preserve the binding",
+                _bdf,
+                gpu_index + 1,
+                total,
+            )
+        else:
+            profiles, sub_paths, path_parent = _aggregate_subdevice_profiles(_bdf)
         log.info(
             "GPU %s [%d/%d]: discovery step done in %.1fs (profiles=%d)",
             _bdf,
@@ -1412,7 +1497,7 @@ def discover_gpus():
                 _early_totalvfs = int(f.read().strip())
         except (OSError, ValueError):
             _early_totalvfs = 0
-        if not profiles and _early_totalvfs > 0:
+        if not profiles and _early_totalvfs > 0 and current_profile != "passthrough":
             for attempt in range(1, 4):
                 log.warning(
                     "GPU %s: empty profile list on SR-IOV PF (totalvfs=%d); "
