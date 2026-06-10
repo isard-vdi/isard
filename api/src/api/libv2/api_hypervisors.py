@@ -1105,9 +1105,44 @@ class ApiHypervisors:
 
         Each physical GPU gets a deterministic card ID so re-discovery is idempotent.
         Only profiles_enabled (left empty) and physical_device are managed.
+
+        Also auto-assigns a stable per-card ``passthrough_variant`` label
+        (``<host>n<numa>b<bus>``) so identical passthrough cards are uniquely
+        identifiable by (host, socket, slot). The label is a fill-if-empty hint
+        only -- no reservable is created and ``profiles_enabled`` is untouched;
+        an admin enabling passthrough later adopts it (see ``enable_subitem``).
         """
         if not nvidia_gpus:
             return
+
+        # Per-card passthrough identity: read the hypervisor's hostname + the
+        # NUMA map (already persisted by add_hyper before this runs) once, so
+        # each card can be auto-labelled. Pure-string helpers; best-effort.
+        from ..gpu_realizability import (
+            bare_suffix,
+            passthrough_variant_token,
+            split_qualifier,
+        )
+
+        with app.app_context():
+            hyp_row = (
+                r.table("hypervisors")
+                .get(hyper_id)
+                .pluck("hostname", "pci_devices")
+                .run(db.conn)
+            ) or {}
+        host_label = hyp_row.get("hostname") or hyper_id
+        pci_devices = hyp_row.get("pci_devices") or {}
+
+        def _needs_pt_variant(card):
+            # Fill-if-empty: never overwrite an existing auto label, and never
+            # override an admin who already enabled a passthrough ~variant.
+            if card.get("passthrough_variant"):
+                return False
+            for p in card.get("profiles_enabled") or []:
+                if bare_suffix(p) == "passthrough" and split_qualifier(p)[1]:
+                    return False
+            return True
 
         for gpu in nvidia_gpus:
             # Card-anchored model (set by _resolve_gpu_models). Same contract
@@ -1125,6 +1160,11 @@ class ApiHypervisors:
             if len(normalized.split(":")[0]) > 4:
                 normalized = "0000:" + normalized.split(":", 1)[1]
             pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+
+            # Stable per-card passthrough identity (None if no valid token).
+            # ``normalized`` is the sysfs/pci_devices key form ("0000:bb:dd.f").
+            numa_node = (pci_devices.get(normalized) or {}).get("numa_node")
+            pt_token = passthrough_variant_token(host_label, normalized, numa_node)
 
             card_id = f"auto-{hyper_id}-{pci_name}"
             vgpu_id = f"{hyper_id}-{pci_name}"
@@ -1171,6 +1211,10 @@ class ApiHypervisors:
                 # die-label description) once the card is seen NVML-clean. Only
                 # touches the "0 GB" sentinel; never the immutable model above.
                 update_fields.update(gpu_card_metadata_resync(existing_card, gpu))
+                # Fill-if-empty per-card passthrough identity (never overrides an
+                # existing auto/admin label).
+                if pt_token and _needs_pt_variant(existing_card):
+                    update_fields["passthrough_variant"] = pt_token
                 with app.app_context():
                     r.table("gpus").get(card_id).update(update_fields).run(db.conn)
                 log.info(f"GPU card '{card_id}' updated physical_device -> {vgpu_id}")
@@ -1194,16 +1238,19 @@ class ApiHypervisors:
                             "physical_device": None,
                         }
                     )
-                    .pluck("id", "profiles_enabled")
+                    .pluck("id", "profiles_enabled", "passthrough_variant")
                     .run(db.conn)
                 )
 
             if unassigned:
                 # Assign physical_device to the existing manually-created card
+                assign_fields = {"physical_device": vgpu_id}
+                if pt_token and _needs_pt_variant(unassigned[0]):
+                    assign_fields["passthrough_variant"] = pt_token
                 with app.app_context():
-                    r.table("gpus").get(unassigned[0]["id"]).update(
-                        {"physical_device": vgpu_id}
-                    ).run(db.conn)
+                    r.table("gpus").get(unassigned[0]["id"]).update(assign_fields).run(
+                        db.conn
+                    )
                 log.info(
                     f"GPU card '{unassigned[0]['id']}' assigned "
                     f"physical_device -> {vgpu_id}"
@@ -1235,6 +1282,8 @@ class ApiHypervisors:
                 "companion_pci_bdfs": gpu.get("companion_pci_bdfs") or [],
                 "category": None,
             }
+            if pt_token:
+                new_card["passthrough_variant"] = pt_token
 
             with app.app_context():
                 r.table("gpus").insert(new_card).run(db.conn)

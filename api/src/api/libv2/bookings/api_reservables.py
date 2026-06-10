@@ -22,7 +22,7 @@ import traceback
 
 from isardvdi_common.api_exceptions import Error
 
-from ..gpu_realizability import split_qualifier
+from ..gpu_realizability import bare_suffix, split_qualifier
 from ..helpers import _check
 from ..validators import _validate_item
 
@@ -463,6 +463,25 @@ class ResourceItemsGpus:
             return list(r.table("gpu_profiles").run(db.conn))
 
     def enable_subitem(self, item_id, subitem_id, enabled):
+        # Adopt the card's auto-assigned passthrough identity when an admin
+        # enables the BASE passthrough profile without choosing a variant, so
+        # each physical card stays a distinct, per-(host,socket,slot)-labelled
+        # reservable by default. An explicit "~<variant>" the admin typed, or any
+        # non-passthrough profile, is left untouched.
+        if (
+            enabled
+            and split_qualifier(subitem_id)[1] is None
+            and bare_suffix(subitem_id) == "passthrough"
+        ):
+            with app.app_context():
+                _card = (
+                    r.table("gpus")
+                    .get(item_id)
+                    .pluck("passthrough_variant")
+                    .run(db.conn)
+                ) or {}
+            if _card.get("passthrough_variant"):
+                subitem_id = subitem_id + "~" + _card["passthrough_variant"]
         # Reject a malformed "~<variant>" qualifier early (choke point for every
         # enable/disable caller) so a bad label can never reach id/suffix parsing.
         variant = split_qualifier(subitem_id)[1]
