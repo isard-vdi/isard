@@ -198,6 +198,13 @@ class AdminAuthenticationService:
             if isinstance(data.get(provider), dict):
                 if key in data[provider] and not data[provider][key]:
                     del data[provider][key]
+        # Normalise the legacy "none"/"" action sentinel to null so the stored
+        # config matches the API contract (only "disable"/"delete" act on the
+        # account).
+        migration = data.get("migration")
+        if isinstance(migration, dict) and "action_after_migrate" in migration:
+            if migration["action_after_migrate"] not in ("disable", "delete"):
+                migration["action_after_migrate"] = None
         Config.update_provider_config(provider, data)
         provider_config_cache.clear()
         Caches.clear_config_cache()
