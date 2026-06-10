@@ -221,7 +221,7 @@ test-sparsify:
 .PHONY: ci-test-storage-utils
 ci-test-storage-utils:
 	uv sync --no-dev --group test --package isardvdi-storage
-	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests -q --tb=short --junitxml=report.xml
+	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests -q --tb=short --junitxml=report.xml --cov=storage_lib --cov-report=term --cov-report=xml:coverage.xml
 
 
 # CI test targets: emit JUnit + Cobertura XML so GitLab CI can consume them
@@ -237,7 +237,7 @@ ci-test-go:
 # suite here needs a running service: the ones that assert on a real Redis live
 # in testing/integration/redis/ and run against the stack.
 # apiv4 needs USAGE=production at runtime; that comes from the CI job's
-# `variables:` block (.gitlab-ci.yml unit-test-apiv4), not inline here.
+# `variables:` block (.gitlab-ci.yml unit-test-python), not inline here.
 define CI_TEST_RULE
 .PHONY: ci-test-$(word 1,$1)
 ci-test-$(word 1,$1):

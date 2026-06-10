@@ -107,10 +107,10 @@ make ci-all
 
 | Suite | Tests | How to run locally | CI job |
 |---|---:|---|---|
-| APIv4 unit | 301 fn | `make test-apiv4` | `unit-test-apiv4` |
-| `_common` unit | — | `make test-common` | `unit-test-common` |
-| change-handler unit | 66 fn | `make test-change-handler` | `unit-test-change-handler` |
-| changefeed unit | — | `make test-changefeed` | `unit-test-changefeed` |
+| APIv4 unit | 301 fn | `make test-apiv4` | `unit-test-python: apiv4` |
+| `_common` unit | — | `make test-common` | `unit-test-python: common` |
+| change-handler unit | 66 fn | `make test-change-handler` | `unit-test-python: change-handler` |
+| changefeed unit | — | `make test-changefeed` | `unit-test-python: changefeed` |
 | Go unit | ~60 `*_test.go` | `make test-go` (`go test -race -cover ./...`) | `unit-test-go` |
 | Playwright e2e | 76 scenarios | `make test-e2e` (auto-seeds + runs Playwright container) | `test-e2e` |
 | Integration (real stack) | — | `make test-e2e-stack` | `integration-real` |
