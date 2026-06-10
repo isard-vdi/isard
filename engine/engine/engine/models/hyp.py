@@ -796,8 +796,12 @@ class hyp(object):
             # QEMU a phantom UUID, adopting domain_started/reserved for any UUID
             # still live. Shared reconcile -> identical to the API ingest. This
             # also supersedes the lazy-seeded placeholder pool (L1), so an
-            # engine-vs-host disagreement can't promote phantom UUIDs.
-            if isinstance(live, dict) and live:
+            # engine-vs-host disagreement can't promote phantom UUIDs. Require a
+            # NON-EMPTY live inner pool so a forged/partial report can't
+            # r.literal-wipe a valid pool (a real report carries one).
+            if isinstance(live, dict) and any(
+                isinstance(v, dict) and v for v in live.values()
+            ):
                 reconciled = reconcile_pool_to_live(existing.get("mdevs") or {}, live)
                 patch = {"changing_to_profile": False, "mdevs": reconciled}
                 if reset_at is not None:
