@@ -207,6 +207,13 @@ def plan_card_prunes(model, cards):
         for enabled_id in card.get("profiles_enabled") or []:
             if not isinstance(enabled_id, str) or not enabled_id.startswith(prefix):
                 continue
-            if canonical_profile_id(enabled_id) not in realizable:
+            # Realizability is a property of the BARE hardware profile; the
+            # "~<variant>" qualifier is only an admin label, never part of the
+            # card's reading. Strip it before the membership test (the realizable
+            # set holds bare ids) -- otherwise EVERY variant profile, including
+            # always-realizable passthrough, is wrongly pruned on each
+            # re-registration. Still disable the FULL id so the right entry goes.
+            base_id = split_qualifier(enabled_id)[0]
+            if canonical_profile_id(base_id) not in realizable:
                 prunes.add((card["id"], enabled_id))
     return sorted(prunes)
