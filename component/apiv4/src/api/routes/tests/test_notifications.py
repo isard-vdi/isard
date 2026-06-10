@@ -310,6 +310,33 @@ def test_get_user_notification_trigger_display_nested_empty(monkeypatch, test_cl
     assert response.json() == {"notifications": {}}
 
 
+def test_get_user_notification_trigger_display_unknown_display_rejected(
+    monkeypatch, test_client
+):
+    """An unknown ``display`` is rejected by the NotificationDisplayEnum
+    path-param validation before the service is reached."""
+    called = False
+
+    def fake(payload, trigger, display):
+        nonlocal called
+        called = True
+        return {}
+
+    monkeypatch.setattr(
+        "api.services.notifications.NotificationService.get_user_trigger_notifications",
+        staticmethod(fake),
+    )
+
+    response = test_client(
+        method="GET",
+        url="/notification/user/start_desktop/not-a-display",
+        jwt=MockJWT(),
+    )
+
+    assert response.status_code == 400
+    assert called is False
+
+
 # ─── PUT /admin/notify/desktops/queue/{hyp_id} (Category A2) ─────────────
 
 

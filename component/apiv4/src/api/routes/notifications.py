@@ -35,6 +35,7 @@ from api.services.error import Error
 from api.services.notifications import NotificationService
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from isardvdi_common.schemas.notifications import NotificationDisplayEnum
 
 tag = "notifications"
 
@@ -119,7 +120,7 @@ async def get_user_notification_displays(request: Request, trigger: str):
     ),
 )
 async def get_user_notification_trigger_display(
-    request: Request, trigger: str, display: str
+    request: Request, trigger: str, display: NotificationDisplayEnum
 ):
 
     try:
@@ -129,7 +130,7 @@ async def get_user_notification_trigger_display(
                     NotificationService.get_user_trigger_notifications_flat,
                     request.token_payload,
                     trigger,
-                    display,
+                    display.value,
                 )
             ).model_dump(mode="json"),
             status_code=200,
@@ -163,7 +164,7 @@ async def get_user_notification_trigger_display(
     deprecated=True,
 )
 async def get_user_notification_trigger_display_nested(
-    request: Request, trigger: str, display: str
+    request: Request, trigger: str, display: NotificationDisplayEnum
 ):
     try:
         return JSONResponse(
@@ -172,7 +173,7 @@ async def get_user_notification_trigger_display_nested(
                     NotificationService.get_user_trigger_notifications,
                     request.token_payload,
                     trigger,
-                    display,
+                    display.value,
                 )
             ).model_dump(mode="json"),
             status_code=200,

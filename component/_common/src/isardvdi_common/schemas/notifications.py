@@ -24,3 +24,17 @@ class NotificationStatusEnum(str, Enum):
 
     pending = "pending"
     notified = "notified"
+
+
+class NotificationTriggerEnum(str, Enum):
+
+    login = "login"
+    start_desktop = "start_desktop"
+    start_desktop_bastion = "start_desktop_bastion"
+
+
+class NotificationDisplayEnum(str, Enum):
+
+    fullpage = "fullpage"
+    modal = "modal"
+    banner = "banner"

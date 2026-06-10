@@ -52,6 +52,7 @@ from api.services.error import Error
 from api.services.notifications import NotificationService
 from fastapi import Request
 from fastapi.responses import JSONResponse, Response
+from isardvdi_common.schemas.notifications import NotificationTriggerEnum
 
 tag = "admin-notifications"
 
@@ -681,11 +682,11 @@ async def admin_delete_all_notification_data(request: Request):
     responses={500: {"model": ErrorResponse}},
 )
 async def admin_get_user_notification_displays(
-    request: Request, user_id: str, trigger: str
+    request: Request, user_id: str, trigger: NotificationTriggerEnum
 ):
     try:
         displays = await asyncio.to_thread(
-            AdminNotificationService.get_user_displays, user_id, trigger
+            AdminNotificationService.get_user_displays, user_id, trigger.value
         )
         return JSONResponse(
             content=AdminUserDisplaysResponse(displays=displays).model_dump(

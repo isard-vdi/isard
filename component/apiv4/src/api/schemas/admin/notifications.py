@@ -20,6 +20,10 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from isardvdi_common.schemas.notifications import (
+    NotificationDisplayEnum,
+    NotificationTriggerEnum,
+)
 from pydantic import BaseModel, Field, RootModel
 
 from ..allowed import Allowed
@@ -96,8 +100,8 @@ class NotificationCreateRequest(BaseModel):
 
     name: Optional[str] = None
     description: Optional[str] = None
-    trigger: Optional[str] = None
-    display: Optional[List[str]] = None
+    trigger: Optional[NotificationTriggerEnum] = None
+    display: Optional[List[NotificationDisplayEnum]] = None
     template_id: Optional[str] = None
     action_id: Optional[str] = None
     item_type: Optional[str] = None
@@ -115,8 +119,8 @@ class NotificationUpdateRequest(BaseModel):
 
     name: Optional[str] = None
     description: Optional[str] = None
-    trigger: Optional[str] = None
-    display: Optional[List[str]] = None
+    trigger: Optional[NotificationTriggerEnum] = None
+    display: Optional[List[NotificationDisplayEnum]] = None
     template_id: Optional[str] = None
     action_id: Optional[str] = None
     item_type: Optional[str] = None
@@ -186,4 +190,4 @@ class NotificationGroupedDataResponse(BaseModel):
 class AdminUserDisplaysResponse(BaseModel):
     """Admin user notification displays response"""
 
-    displays: List[str]
+    displays: List[NotificationDisplayEnum]

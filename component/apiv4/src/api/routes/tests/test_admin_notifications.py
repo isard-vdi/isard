@@ -550,6 +550,25 @@ class TestAdminUserDisplays:
         )
         assert response.status_code == 403
 
+    def test_unknown_trigger_rejected(self, monkeypatch, test_client):
+        called = False
+
+        def fake(user_id, trigger):
+            nonlocal called
+            called = True
+            return []
+
+        monkeypatch.setattr(
+            "api.routes.admin.notifications.AdminNotificationService.get_user_displays",
+            staticmethod(fake),
+        )
+        response = test_client(
+            url="/admin/items/notifications/user/displays/u-1/not-a-trigger",
+            jwt=MockJWT(role_id="admin"),
+        )
+        assert response.status_code == 400
+        assert called is False
+
 
 # ══════════════════════════════════════════════════════════════════════════
 #  User-facing endpoints (token_router) — coverage lives in
