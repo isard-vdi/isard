@@ -832,3 +832,42 @@ def test_apply_normalizes_8digit_bdf_for_sysfs(monkeypatch):
     assert seen["driver_bdf"] == "0000:84:00.0"
     assert seen["busy_path"] == "/sys/bus/pci/devices/0000:84:00.0"
     assert rep["result"] == "noop"  # already at target; not wrongly skipped_busy
+
+
+# --- _live_mdev_pool (noop/skipped_busy live-pool report) -------------------
+def test_live_mdev_pool_enumerates_existing_uuids(monkeypatch):
+    monkeypatch.setattr(ga, "_resolve_type_id", lambda b, s, sp=None: "nvidia-1525")
+
+    def run(cmds, timeout=0):
+        out = []
+        for c in cmds:
+            if "0000:d4:00.2" in c:
+                out.append({"out": "uuidA\n", "err": ""})
+            elif "0000:d4:00.3" in c:
+                out.append({"out": "uuidB\n", "err": ""})
+            else:
+                out.append({"out": "", "err": ""})
+        return out
+
+    sub = ["/sys/bus/pci/devices/0000:d4:00.2", "/sys/bus/pci/devices/0000:d4:00.3"]
+    pool = ga._live_mdev_pool("0000:d4:00.0", run, "8Q", {"mig_profiles": []}, sub)
+    assert set(pool["8Q"]) == {"uuidA", "uuidB"}
+    assert pool["8Q"]["uuidA"]["pci_mdev_id"] == "0000:d4:00.2"
+    assert pool["8Q"]["uuidA"]["created"] is True
+    assert pool["8Q"]["uuidA"]["domain_started"] is False
+
+
+def test_live_mdev_pool_none_for_passthrough_and_empty(monkeypatch):
+    monkeypatch.setattr(ga, "_resolve_type_id", lambda b, s, sp=None: "nvidia-1525")
+    run = lambda cmds, timeout=0: [{"out": "", "err": ""} for _ in cmds]
+    # passthrough -> pseudo pool (None, keep timestamp-only); empty card -> None
+    assert (
+        ga._live_mdev_pool(
+            "0000:d4:00.0", run, "passthrough", {"mig_profiles": []}, ["/x"]
+        )
+        is None
+    )
+    assert (
+        ga._live_mdev_pool("0000:d4:00.0", run, "8Q", {"mig_profiles": []}, ["/x"])
+        is None
+    )
