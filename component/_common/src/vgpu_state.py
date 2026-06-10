@@ -117,6 +117,32 @@ def reconcile_pool_to_live(db_mdevs, live_mdevs, running_uuids):
     return out
 
 
+def vgpu_pool_frees_for_domain(mdevs, dom_id):
+    """Which ``{profile: {uuid: {flags off}}}`` entries of a card's ``mdevs`` pool
+    are still pinned (``domain_started`` OR ``domain_reserved``) to ``dom_id``.
+
+    Used to FREE a stopped/removed desktop's reservation: the engine's
+    ``vgpu_info``-keyed release tracks only ONE uuid, so a multi-GPU desktop (it
+    holds >1 card), a passthrough card (never covered by the noop reconcile), or a
+    stale reserved-but-not-started entry would otherwise leak the card. Returns a
+    deep-merge patch (only the two flags) so the rest of the pool is untouched;
+    empty dict when this domain holds nothing on the card."""
+    free = {}
+    for profile, entries in (mdevs or {}).items():
+        if not isinstance(entries, dict):
+            continue
+        for uid, e in entries.items():
+            if isinstance(e, dict) and dom_id in (
+                e.get("domain_started"),
+                e.get("domain_reserved"),
+            ):
+                free.setdefault(profile, {})[uid] = {
+                    "domain_started": False,
+                    "domain_reserved": False,
+                }
+    return free
+
+
 def parse_apply_report(stdout):
     """Parse a ``gpu_apply_cli`` stdout line into the report dict, or ``None``
     when it is missing / blank / non-JSON / not a report object.
