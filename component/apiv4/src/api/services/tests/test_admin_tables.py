@@ -143,3 +143,96 @@ class TestInsertTableItemEmptyBody:
         AdminTablesService.insert_table_item("categories", {"name": "cat-1"})
         forwarded = mock_insert.call_args.args[1]
         assert UUID_RE.match(forwarded["id"]), forwarded["id"]
+
+
+class TestDesktopsPriorityShutdownBounds:
+    """Bound shutdown values: max in (0, 525600], interval time in [-525600, -1]."""
+
+    def _rule(self, max_time, interval_time=-10):
+        return {
+            "id": "p1",
+            "name": "p1",
+            "shutdown": {
+                "max": max_time,
+                "notify_intervals": [{"time": interval_time, "type": "danger"}],
+            },
+        }
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_in_range_insert_passes(self, _check, mock_insert):
+        AdminTablesService.insert_table_item("desktops_priority", self._rule(525600))
+        assert mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_max_over_one_year_rejected(self, _check, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error) as exc_info:
+            AdminTablesService.insert_table_item(
+                "desktops_priority", self._rule(525601)
+            )
+        assert exc_info.value.args[0] == "bad_request"
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_non_positive_max_rejected(self, _check, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error) as exc_info:
+            AdminTablesService.insert_table_item("desktops_priority", self._rule(0))
+        assert exc_info.value.args[0] == "bad_request"
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_interval_time_too_far_back_rejected(self, _check, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error) as exc_info:
+            AdminTablesService.insert_table_item(
+                "desktops_priority", self._rule(210, interval_time=-525601)
+            )
+        assert exc_info.value.args[0] == "bad_request"
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_non_negative_interval_time_rejected(self, _check, mock_insert):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error) as exc_info:
+            AdminTablesService.insert_table_item(
+                "desktops_priority", self._rule(210, interval_time=0)
+            )
+        assert exc_info.value.args[0] == "bad_request"
+        assert not mock_insert.called
+
+    @patch("api.services.admin.tables.ApiAdmin.update_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_update_out_of_range_rejected(self, _check, mock_update):
+        import pytest
+        from api.services.error import Error
+
+        with pytest.raises(Error) as exc_info:
+            AdminTablesService.update_table_item(
+                "desktops_priority", self._rule(525601)
+            )
+        assert exc_info.value.args[0] == "bad_request"
+        assert not mock_update.called
+
+    @patch("api.services.admin.tables.ApiAdmin.insert_table_item")
+    @patch("api.services.admin.tables.Helpers.check_duplicate")
+    def test_other_table_with_shutdown_key_untouched(self, _check, mock_insert):
+        # The guard is keyed on table name — an unrelated table carrying a
+        # ``shutdown`` field must not be validated against these bounds.
+        AdminTablesService.insert_table_item(
+            "interfaces", {"id": "i1", "name": "i1", "shutdown": {"max": 999999}}
+        )
+        assert mock_insert.called

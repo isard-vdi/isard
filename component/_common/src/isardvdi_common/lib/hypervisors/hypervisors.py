@@ -37,6 +37,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.helpers.desktop_events import DesktopEvents
+from isardvdi_common.helpers.desktops_priority import MAX_SHUTDOWN_MINUTES
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.helpers.isard_vpn import IsardVpn
@@ -1523,7 +1524,7 @@ class HypervisorsProcessed(RethinkSharedConnection):
     @cached(cache=_get_desktops_max_timeout_cache)
     def get_desktops_max_timeout(cls):
         with cls._rdb_context():
-            return (
+            max_timeout = (
                 r.table("desktops_priority")
                 .has_fields({"shutdown": {"max": True}})
                 .order_by(r.desc(lambda priority: priority["shutdown"]["max"]))
@@ -1531,6 +1532,8 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 .default(720)  # Default to 12 hours if no max timeout found (12*60=720)
                 .run(cls._rdb_connection)
             )
+        # Clamp against stale out-of-range rules pushing destroy_time far out.
+        return min(max_timeout, MAX_SHUTDOWN_MINUTES)
 
     @classmethod
     def clear_get_desktops_max_timeout_cache(cls):
