@@ -132,12 +132,13 @@ def test_reconcile_replaces_stale_uuids_with_host_set():
             }
         }
     }
-    out = vs.reconcile_pool_to_live(db, live)
+    out = vs.reconcile_pool_to_live(db, live, set())
     assert set(out["8Q"]) == {"new"}  # stale 'old' dropped, host 'new' added free
     assert out["8Q"]["new"]["domain_started"] is False
 
 
 def test_reconcile_adopts_running_desktop():
+    # The UUID is in the running set (a desktop is live on it) -> adopt its binding.
     db = {
         "8Q": {
             "u": {
@@ -158,9 +159,46 @@ def test_reconcile_adopts_running_desktop():
             }
         }
     }
-    out = vs.reconcile_pool_to_live(db, live)
+    out = vs.reconcile_pool_to_live(db, live, {"u"})
     assert out["8Q"]["u"]["domain_started"] == "desk1"  # never drop a running desktop
     assert out["8Q"]["u"]["domain_reserved"] == "desk1"
+
+
+def test_reconcile_frees_stale_started_but_keeps_reserved():
+    # With an empty running set (e.g. hypervisor startup where leftover qemu was
+    # just killed): a stale domain_started -- no live qemu -- must be freed (clean
+    # slate, no phantom). But a domain_reserved CAS lock (taken just BEFORE the
+    # qemu launches, so never in the running set) must be PRESERVED, else two
+    # concurrent starters could claim the same UUID.
+    db = {
+        "8Q": {
+            "stale": {
+                "created": True,
+                "domain_started": "deskA",
+                "domain_reserved": False,
+            },
+            "booking": {
+                "created": True,
+                "domain_started": False,
+                "domain_reserved": "deskB",
+            },
+        }
+    }
+
+    def _free(pci):
+        return {
+            "pci_mdev_id": pci,
+            "type_id": "nvidia-1525",
+            "created": True,
+            "domain_started": False,
+            "domain_reserved": False,
+        }
+
+    live = {"8Q": {"stale": _free("0000:d4:00.2"), "booking": _free("0000:d4:00.3")}}
+    out = vs.reconcile_pool_to_live(db, live, set())  # nothing actually running
+    assert out["8Q"]["stale"]["domain_started"] is False  # stale started -> freed
+    assert out["8Q"]["booking"]["domain_reserved"] == "deskB"  # reservation kept
+    assert out["8Q"]["booking"]["domain_started"] is False
 
 
 def test_reconcile_drops_sibling_profile_pools():
@@ -177,5 +215,5 @@ def test_reconcile_drops_sibling_profile_pools():
             }
         }
     }
-    out = vs.reconcile_pool_to_live(db, live)
+    out = vs.reconcile_pool_to_live(db, live, set())
     assert set(out) == {"8Q"} and set(out["8Q"]) == {"z"}
