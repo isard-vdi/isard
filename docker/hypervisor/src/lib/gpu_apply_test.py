@@ -675,3 +675,15 @@ def test_live_mdev_pool_none_for_passthrough_and_empty(monkeypatch):
         ga._live_mdev_pool("0000:d4:00.0", run, "8Q", {"mig_profiles": []}, ["/x"])
         is None
     )
+
+
+def test_live_mdev_pool_none_on_truncated_batch(monkeypatch):
+    # A short result list (fewer entries than bases) would otherwise yield a
+    # PARTIAL pool that, r.literal-replaced, drops the running-desktop UUID on
+    # the missing base. Must return None so the caller keeps the pool intact.
+    monkeypatch.setattr(ga, "_resolve_type_id", lambda b, s, sp=None: "nvidia-1525")
+    run = lambda cmds, timeout=0: [{"out": "uuidA\n", "err": ""}]  # 1 result, 2 bases
+    sub = ["/sys/bus/pci/devices/0000:d4:00.2", "/sys/bus/pci/devices/0000:d4:00.3"]
+    assert (
+        ga._live_mdev_pool("0000:d4:00.0", run, "8Q", {"mig_profiles": []}, sub) is None
+    )
