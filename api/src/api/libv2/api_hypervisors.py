@@ -12,6 +12,7 @@ import re
 import threading
 import time
 import traceback
+import uuid
 
 import pytz
 from cachetools import TTLCache, cached
@@ -1498,20 +1499,80 @@ class ApiHypervisors:
                 reset_at = rep.get("mdevs_reset_at")
                 live = rep.get("mdevs")
                 vgpu_id = self._vgpu_id_for(hyper_id, pci_bus_id)
-                if isinstance(live, dict) and live:
-                    with app.app_context():
-                        existing = r.table("vgpus").get(vgpu_id).run(db.conn)
-                    if existing:
-                        reconciled = reconcile_pool_to_live(
-                            existing.get("mdevs") or {}, live
-                        )
-                        patch = {"mdevs": r.literal(reconciled)}
+                with app.app_context():
+                    existing = r.table("vgpus").get(vgpu_id).run(db.conn)
+                applied_profile = rep.get("applied_profile")
+                # First-time establish for a never-applied passthrough-only card.
+                # Such a card boots ALREADY in passthrough, so its very first apply
+                # is current==wanted==passthrough -> "noop": it never produces an
+                # "applied" report, so vgpu_profile stays null and the card shows
+                # "no active profile" forever (unlike a vGPU card whose first apply
+                # is a real carve). The vgpus row may not exist yet (the engine
+                # creates it separately and the apply-report often arrives first --
+                # the same "new card" race the 'applied' path handles) OR may exist
+                # with no vgpu_profile. Mint the single passthrough pool and
+                # establish, mirroring the 'applied' insert/update paths. Once
+                # established, subsequent noops fall through to the re-pin and KEEP
+                # the existing pool, so an in-use passthrough uuid is never churned.
+                if applied_profile == "passthrough" and (
+                    not existing or not existing.get("vgpu_profile")
+                ):
+                    pool = {
+                        "passthrough": {
+                            str(uuid.uuid4()): {
+                                "pci_mdev_id": pci_bus_id,
+                                "type_id": "passthrough",
+                                "created": True,
+                                "domain_started": False,
+                                "domain_reserved": False,
+                            }
+                        }
+                    }
+                    patch = build_applied_state_patch(
+                        existing, "passthrough", pool, reset_at
+                    )
+                    if not existing:
+                        row = {"id": vgpu_id, "hyp_id": hyper_id, "brand": "NVIDIA"}
                         if reset_at is not None:
-                            patch["mdevs_last_synced_at"] = reset_at
+                            row["mdevs_reset_at"] = reset_at
+                        row.update(patch)
+                        with app.app_context():
+                            r.table("vgpus").insert(
+                                row,
+                                conflict=lambda _id, old, new: old.merge(new).merge(
+                                    {"mdevs": r.literal(new["mdevs"])}
+                                ),
+                            ).run(db.conn)
+                    else:
+                        patch["mdevs"] = r.literal(patch["mdevs"])
                         with app.app_context():
                             r.table("vgpus").get(vgpu_id).update(patch).run(db.conn)
-                        log.info(f"Reconciled live mdev pool for {vgpu_id} ({result})")
-                        continue
+                    log.info(
+                        f"Established passthrough applied-state for never-applied "
+                        f"passthrough-only card {vgpu_id} (first-discovery noop)"
+                    )
+                    continue
+                # vGPU/MIG card whose live UUIDs drifted from the DB (same profile,
+                # fresh UUIDs after a re-carve or a hypervisor-container recreate):
+                # re-pin the DB to host reality, adopting domain_started/reserved
+                # for any UUID still live so a running desktop is never dropped.
+                # Require a NON-EMPTY live inner pool so a forged/partial report
+                # can't r.literal-wipe a valid pool (a real report carries one).
+                if (
+                    existing
+                    and isinstance(live, dict)
+                    and any(isinstance(v, dict) and v for v in live.values())
+                ):
+                    reconciled = reconcile_pool_to_live(
+                        existing.get("mdevs") or {}, live
+                    )
+                    patch = {"mdevs": r.literal(reconciled)}
+                    if reset_at is not None:
+                        patch["mdevs_last_synced_at"] = reset_at
+                    with app.app_context():
+                        r.table("vgpus").get(vgpu_id).update(patch).run(db.conn)
+                    log.info(f"Reconciled live mdev pool for {vgpu_id} ({result})")
+                    continue
                 # advisory skip / no live pool / no row yet: re-pin only the
                 # timestamp so the engine CONFIRMS instead of rebuilding.
                 if reset_at is None:

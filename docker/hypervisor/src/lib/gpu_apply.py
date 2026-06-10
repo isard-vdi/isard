@@ -267,6 +267,12 @@ def _live_mdev_pool(pci_bdf, run, current_suffix, gpu, sub_paths=None):
         )
         or []
     )
+    # A truncated batch (fewer results than bases) would yield a PARTIAL pool
+    # that, r.literal-replaced, drops the running-desktop UUIDs on the missing
+    # bases. Never reconcile from a partial enumeration: fall back to the
+    # timestamp-only path (which keeps the existing pool intact).
+    if len(res) != len(bases):
+        return None
     mig_ids = _mig_profile_ids(gpu)
     is_mig = current_suffix in mig_ids
     pool = {}
