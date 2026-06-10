@@ -1445,12 +1445,20 @@ class DomainXML(object):
 
     def set_vdisk(self, new_path_vdisk, index=0, type_disk="qcow2", force_bus=False):
         if self.tree.xpath('/domain/devices/disk[@device="disk"]'):
-            self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath(
-                "source"
-            )[0].set("file", new_path_vdisk)
-            self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath(
-                "driver"
-            )[0].set("type", type_disk)
+            disk_el = self.tree.xpath('/domain/devices/disk[@device="disk"]')[index]
+            # The disk may have no <source>/<driver> yet (e.g. authored via the
+            # XML editor): the engine injects the storage path here, so create
+            # the elements when missing instead of assuming they already exist.
+            source_els = disk_el.xpath("source")
+            if source_els:
+                source_els[0].set("file", new_path_vdisk)
+            else:
+                etree.SubElement(disk_el, "source", file=new_path_vdisk)
+            driver_els = disk_el.xpath("driver")
+            if driver_els:
+                driver_els[0].set("type", type_disk)
+            else:
+                etree.SubElement(disk_el, "driver", name="qemu", type=type_disk)
             # Cache attribute is applied at the top of recreate_xml_to_start
             # under the `disk_cache not in protected` guard. Calling it here
             # would bypass that guard whenever the disk path changes (Redmine

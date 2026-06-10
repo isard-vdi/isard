@@ -1156,3 +1156,29 @@ def test_dict_from_xml_disk_without_source_does_not_raise():
     assert disks[0]["dev"] == "vda"
     assert disks[0]["bus"] == "virtio"
     assert disks[0]["type"] == "qcow2"
+
+
+def test_set_vdisk_creates_missing_source():
+    # A disk authored via the XML editor may have <driver>/<target> but no
+    # <source>. set_vdisk injects the storage path at start time and must
+    # create the <source> element when absent instead of indexing source[0]
+    # (regression: IndexError in set_vdisk aborted the start).
+    xml = (
+        '<domain type="kvm">'
+        "<devices>"
+        "<emulator>/usr/bin/qemu-kvm</emulator>"
+        '<disk type="file" device="disk">'
+        '  <driver name="qemu" type="qcow2" cache="none"/>'
+        '  <target dev="vda" bus="virtio"/>'
+        "</disk>"
+        "</devices>"
+        "</domain>"
+    )
+    x = DomainXML(xml)
+    path = x.set_vdisk("/isard/groups/new.qcow2", index=0, type_disk="qcow2")
+    tree = _parse(x.return_xml())
+    sources = tree.xpath('//disk[@device="disk"]/source')
+    assert len(sources) == 1
+    assert sources[0].get("file") == "/isard/groups/new.qcow2"
+    assert path == "/isard/groups/new.qcow2"
+    assert tree.xpath('//disk[@device="disk"]/driver')[0].get("type") == "qcow2"
