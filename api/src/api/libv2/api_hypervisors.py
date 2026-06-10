@@ -1233,6 +1233,7 @@ class ApiHypervisors:
                 "pci_device_id": gpu.get("pci_device_id"),
                 "pci_subsystem_id": gpu.get("pci_subsystem_id"),
                 "companion_pci_bdfs": gpu.get("companion_pci_bdfs") or [],
+                "category": None,
             }
 
             with app.app_context():

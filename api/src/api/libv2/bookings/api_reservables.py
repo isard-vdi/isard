@@ -203,6 +203,12 @@ class Reservables:
     def update_item(self, item_type, item_id, data):
         return self.reservable[item_type].update_item(item_id, data)
 
+    def get_item_category(self, item_type, item_id):
+        return self.reservable[item_type].get_item_category(item_id)
+
+    def set_item_category(self, item_type, item_id, category):
+        return self.reservable[item_type].set_item_category(item_id, category)
+
     def get_subitem(self, item_type, item_id, subitem):
         return self.reservable[item_type].get_subitem(item_id, subitem)
 
@@ -294,6 +300,13 @@ class ResourceItemsGpus:
         hyp_gpu_warnings = {}
         hyp_gpu_notes = {}
         for item in items:
+            cat = item.get("category")
+            if cat:
+                with app.app_context():
+                    cat_row = r.table("categories").get(cat).run(db.conn)
+                item["category_name"] = (cat_row or {}).get("name")
+            else:
+                item["category_name"] = None
             if item.get("active_profile"):
                 with app.app_context():
                     available_units = list(
@@ -408,6 +421,42 @@ class ResourceItemsGpus:
                 )
         with app.app_context():
             return r.table("gpus").get(item_id).run(db.conn)
+
+    def get_item_category(self, item_id):
+        """Category a physical GPU card is delegated to, or ``None``.
+
+        A null/absent ``category`` means the card is not delegated to any
+        category (admin-only / global) -- the historical default. This is the
+        placement scope a category manager's plannings are checked against.
+        """
+        with app.app_context():
+            item = r.table("gpus").get(item_id).run(db.conn)
+        return (item or {}).get("category")
+
+    def set_item_category(self, item_id, category):
+        """Delegate a GPU card to a category (``None`` clears it); admin only.
+
+        One category per card: a card already delegated to a category must be
+        cleared (``None``) before it can be re-delegated to a different one, so a
+        physical card never serves two categories at once.
+        """
+        with app.app_context():
+            item = r.table("gpus").get(item_id).run(db.conn)
+        if not item:
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu table",
+                description_code="not_found",
+            )
+        current = item.get("category")
+        if category and current and current != category:
+            raise Error(
+                "precondition_required",
+                "GPU card is already delegated to a category; clear it first",
+                description_code="gpu_already_delegated",
+            )
+        with app.app_context():
+            r.table("gpus").get(item_id).update({"category": category}).run(db.conn)
 
     def list_profiles(self):
         with app.app_context():

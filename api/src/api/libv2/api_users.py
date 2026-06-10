@@ -514,6 +514,16 @@ class ApiUsers:
             or os.environ.get("FRONTEND_SHOW_BOOKINGS") == "True"
             else False
         )
+        # Admins always see the GPU planner; a manager sees it only when their
+        # category has the 'plannings' manager permission (matches the
+        # can_manage_gpu_plannings API gate). Regular users never see it.
+        show_gpu_plannings = payload["role_id"] == "admin"
+        if not show_gpu_plannings and payload["role_id"] == "manager":
+            show_gpu_plannings = bool(
+                (Category(payload["category_id"]).manager_permissions or {}).get(
+                    "plannings"
+                )
+            )
         frontend_show_temporal_tab = (
             True
             if os.environ.get("FRONTEND_SHOW_TEMPORAL") == None
@@ -559,6 +569,7 @@ class ApiUsers:
         return {
             **{
                 "show_bookings_button": show_bookings_button,
+                "show_gpu_plannings": show_gpu_plannings,
                 "documentation_url": os.environ.get(
                     "FRONTEND_DOCS_URI", "https://isard.gitlab.io/isardvdi-docs/"
                 ),

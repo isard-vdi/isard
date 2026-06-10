@@ -6,3 +6,7 @@ description:
   maxlength: 255
   type: string
   coerce: sanitize
+category:
+  type: string
+  nullable: true
+  maxlength: 64

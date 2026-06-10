@@ -12,7 +12,7 @@ from ...libv2.bookings.api_reservables import Reservables
 from ...libv2.bookings.api_reservables_planner import ReservablesPlanner
 from ...libv2.bookings.api_reservables_planner_compute import get_subitems_planning
 from ...libv2.validators import _validate_item
-from ..decorators import checkDuplicate, has_token, is_admin
+from ..decorators import can_manage_gpu_plannings, checkDuplicate, has_token, is_admin
 
 api_ri = Reservables()
 api_rp = ReservablesPlanner()
@@ -23,8 +23,10 @@ notifier_client = ApiRest("isard-notifier")
 
 
 # Gets list of reservables ["gpus","usbs"]
+# Managers with the plannings permission need this to render the planner type
+# selector; the list is just the resource-type catalog, nothing category-bound.
 @app.route("/api/v3/admin/reservables", methods=["GET"])
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables(payload):
     return json.dumps(api_ri.list_reservables()), 200
 
@@ -38,14 +40,28 @@ def api_v3_profiles(payload, reservable_type):
 
 # # Gets list of items created from this reservable (card names) [{"id","model"...}]
 @app.route("/api/v3/admin/reservables/<reservable_type>", methods=["GET", "POST"])
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservable_types(payload, reservable_type):
     if request.method == "POST":
+        # Creating a reservable item (registering a card) stays admin-only;
+        # a manager only plans cards already delegated to their category.
+        if payload["role_id"] != "admin":
+            raise Error(
+                "forbidden",
+                "Only admins can create reservable items",
+                description_code="insufficient_permissions",
+            )
         data = request.get_json()
         checkDuplicate("gpus", data["name"])
         return json.dumps(api_ri.add_item(reservable_type, data)), 200
     else:
         items = api_ri.list_items(reservable_type)
+        # A manager only sees the cards delegated to their category, so the
+        # planner card selector can't enumerate another category's hardware.
+        if payload["role_id"] != "admin":
+            items = [
+                item for item in items if item.get("category") == payload["category_id"]
+            ]
         for item in items:
             total_plans = api_rp.list_item_plans(item["id"])
             profile = total_plans[0]["subitem_id"] if total_plans else None
@@ -62,7 +78,7 @@ def api_v3_reservable_types(payload, reservable_type):
         return json.dumps(items), 200
 
 
-# Updates a GPU item (name, description)
+# Updates a GPU item (name, description) and/or delegates it to a category
 @app.route("/api/v3/admin/reservables/gpus/<item_id>", methods=["PUT"])
 @is_admin
 def api_v3_reservable_update_gpu(payload, item_id):
@@ -70,7 +86,16 @@ def api_v3_reservable_update_gpu(payload, item_id):
     _validate_item("gpus_update", data)
     if "name" in data:
         checkDuplicate("gpus", data["name"], item_id=item_id)
-    return json.dumps(api_ri.update_item("gpus", item_id, data)), 200
+    # The owning category is delegated via set_item_category (one per card,
+    # enforced there); keep it out of the blind update_item write. An empty
+    # string clears the delegation (back to admin-only/global).
+    sentinel = object()
+    category = data.pop("category", sentinel)
+    if category is not sentinel:
+        api_ri.set_item_category("gpus", item_id, category or None)
+    if data:
+        return json.dumps(api_ri.update_item("gpus", item_id, data)), 200
+    return json.dumps({}), 200
 
 
 # Gets list of subitems available in this item_id (profiles) [{"id","profile","units"}]
@@ -152,8 +177,11 @@ def api_v3_reservable_items(
 @app.route(
     "/api/v3/admin/reservables/enabled/<reservable_type>/<item_id>", methods=["GET"]
 )
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservable_items_enabled(payload, reservable_type, item_id):
+    # A manager may list the enabled profiles only on a card delegated to
+    # their category (the planner needs them to label the plan windows).
+    api_rp._assert_manager_owns_card(payload, item_id)
     return json.dumps(api_ri.list_subitems_enabled(reservable_type, item_id)), 200
 
 
@@ -264,10 +292,10 @@ def api_v3_reservable_delete_gpu(payload, reservable_type, item_id, notify_user=
 
 # Gets all plans
 @app.route("/api/v3/admin/reservables_planner", methods=["GET"])
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables_planner_get(payload):
     return json.dumps(
-        api_rp.list_all_item_plans(),
+        api_rp.list_all_item_plans(payload),
         sort_keys=True,
         default=str,
     )
@@ -275,8 +303,9 @@ def api_v3_reservables_planner_get(payload):
 
 # Gets actual plan for item (card) /subitem (profile) reservable resources
 @app.route("/api/v3/admin/reservables_planner/actual_plan/<item_id>", methods=["GET"])
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables_planner_get_item_actual_plan(payload, item_id):
+    api_rp._assert_manager_owns_card(payload, item_id)
     plan = api_rp.list_item_plans(item_id)
     if not len(plan):
         return json.dumps({})
@@ -289,8 +318,9 @@ def api_v3_reservables_planner_get_item_actual_plan(payload, item_id):
     "/api/v3/admin/reservables_planner/<item_id>/<start>/<end>",
     methods=["GET"],
 )
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables_planner_get_item(payload, item_id, start=None, end=None):
+    api_rp._assert_manager_owns_card(payload, item_id)
     return json.dumps(
         api_rp.list_item_plans(item_id, start, end),
         indent=4,
@@ -304,10 +334,11 @@ def api_v3_reservables_planner_get_item(payload, item_id, start=None, end=None):
     "/api/v3/admin/reservables_planner/<item_id>/<subitem_id>/<start>/<end>",
     methods=["GET"],
 )
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables_planner_get_item_subitem(
     payload, item_id, subitem_id, start=None, end=None
 ):
+    api_rp._assert_manager_owns_card(payload, item_id)
     return json.dumps(
         api_rp.list_subitem_plans(item_id, subitem_id, start, end),
         indent=4,
@@ -333,31 +364,35 @@ def api_v3_reservables_planner_get_subitem(payload, subitem_id, start=None, end=
 
 # Adds new plan for a profile
 @app.route("/api/v3/admin/reservables_planner", methods=["POST"])
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables_planner_event(payload):
     data = request.get_json()
+    api_rp._assert_manager_owns_card(payload, data["item_id"])
     return json.dumps(api_rp.add_plan(payload, data))
 
 
 # Gets bookings in a plan
 @app.route("/api/v3/admin/reservables_planner/<plan_id>/bookings", methods=["GET"])
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables_planner_event_existing_bookings(payload, plan_id):
+    api_rp._assert_manager_owns_plan(payload, plan_id)
     return json.dumps(api_rp.get_plan_bookings(plan_id), sort_keys=True, default=str)
 
 
 # Deletes a plan
 @app.route("/api/v3/admin/reservables_planner/<plan_id>", methods=["DELETE"])
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables_planner_event_delete(payload, plan_id):
+    api_rp._assert_manager_owns_plan(payload, plan_id)
     api_rp.delete_plan(plan_id)
     return json.dumps({})
 
 
 # Updates plan start/end
 @app.route("/api/v3/admin/reservables_planner/<plan_id>/<start>/<end>", methods=["PUT"])
-@is_admin
+@can_manage_gpu_plannings
 def api_v3_reservables_planner_event_update(payload, plan_id, start, end):
+    api_rp._assert_manager_owns_plan(payload, plan_id)
     api_rp.update_plan(payload, plan_id, start, end)
     return json.dumps({})
 

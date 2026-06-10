@@ -51,6 +51,43 @@ class ReservablesPlanner:
             minutes=self.round_minutes
         )
 
+    def _assert_manager_owns_card(self, payload, item_id):
+        """A manager may only act on a GPU card delegated to their category.
+
+        Admins pass. A manager passes only when the card's ``gpus.category``
+        equals the manager's category; an unassigned/global card (``None``) is
+        forbidden for a manager. Admin-author plannings on global cards stay
+        admin-only.
+        """
+        if payload["role_id"] == "admin":
+            return
+        category = self.reservables.get_item_category("gpus", item_id)
+        if category != payload["category_id"]:
+            raise Error(
+                "forbidden",
+                "GPU card is not delegated to your category",
+                description_code="insufficient_permissions",
+            )
+
+    def _assert_manager_owns_plan(self, payload, plan_id):
+        """:meth:`_assert_manager_owns_card` resolved from an existing plan id.
+
+        Collapses a cross-category ``forbidden`` into ``not_found`` so a manager
+        cannot enumerate plans on cards outside their category by id.
+        """
+        if payload["role_id"] == "admin":
+            return
+        with app.app_context():
+            plan = r.table("resource_planner").get(plan_id).run(db.conn)
+        if not plan:
+            raise Error("not_found", "Plan not found", description_code="not_found")
+        try:
+            self._assert_manager_owns_card(payload, plan["item_id"])
+        except Error as e:
+            if e.args and e.args[0] == "forbidden":
+                raise Error("not_found", "Plan not found", description_code="not_found")
+            raise
+
     ## Reservables View endpoints
     def list_item_plans(self, item_id, start=None, end=None):
         if not start:
@@ -72,15 +109,24 @@ class ReservablesPlanner:
                 .run(db.conn)
             )
 
-    def list_all_item_plans(self):
+    def list_all_item_plans(self, payload=None):
         with app.app_context():
             plans = list(
                 r.table("resource_planner")
                 .merge(
-                    lambda plan: {"item": r.table("gpus").get(plan["item_id"])["name"]}
+                    lambda plan: {
+                        "item": r.table("gpus").get(plan["item_id"])["name"],
+                        "category": r.table("gpus")
+                        .get(plan["item_id"])["category"]
+                        .default(None),
+                    }
                 )
                 .run(db.conn)
             )
+        # A manager only sees plannings on cards delegated to their category;
+        # global (category=None) cards stay admin-only.
+        if payload and payload.get("role_id") == "manager":
+            plans = [p for p in plans if p.get("category") == payload["category_id"]]
         for plan in plans:
             plan["bookings"] = len(self.get_plan_bookings(plan["id"]))
 
