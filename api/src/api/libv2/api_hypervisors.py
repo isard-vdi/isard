@@ -110,6 +110,33 @@ def _overlay_max(infrastructure_mtu, tunneling_mode):
 _gpu_reconcile_lock = threading.Lock()
 
 
+def gpu_card_metadata_resync(existing_card, gpu):
+    """Catalog fields to heal when a card first auto-discovered via the sysfs
+    fallback is later seen NVML-clean.
+
+    A card discovered while vfio-bound / mid SR-IOV reset falls through to
+    ``gpu_discovery``'s sysfs path, which hardcodes ``memory_total_mb = 0`` and
+    names the card from pci.ids (the die-label "bracket" form). The create path
+    then stores ``memory: "0 GB"`` + ``description: "Auto-discovered from <pci.ids
+    name>"``. The existing-card update path never re-synced those, so the 0 GB
+    stuck forever once a real NVML reading arrived.
+
+    Returns the ``{memory, description}`` to merge into the update, or ``{}`` when
+    nothing needs healing. Gated on the ``"0 GB"`` sentinel so a real value is
+    never overwritten; description is healed only while it is still the
+    auto-generated form, so an admin edit is preserved. The immutable ``model``
+    is intentionally untouched. Pure (no DB) so it is unit-testable.
+    """
+    out = {}
+    if existing_card.get("memory") == "0 GB" and gpu.get("memory_total_mb", 0) > 0:
+        out["memory"] = f"{gpu['memory_total_mb'] // 1024} GB"
+        if str(existing_card.get("description", "")).startswith(
+            "Auto-discovered from "
+        ):
+            out["description"] = f"Auto-discovered from {gpu['name']}"
+    return out
+
+
 class ApiHypervisors:
     def get_hypervisors(
         self,
@@ -1122,6 +1149,10 @@ class ApiHypervisors:
                 companion_pci_bdfs = gpu.get("companion_pci_bdfs") or []
                 if existing_card.get("companion_pci_bdfs", []) != companion_pci_bdfs:
                     update_fields["companion_pci_bdfs"] = companion_pci_bdfs
+                # Heal stale sysfs-fallback metadata (memory "0 GB" + pci.ids
+                # die-label description) once the card is seen NVML-clean. Only
+                # touches the "0 GB" sentinel; never the immutable model above.
+                update_fields.update(gpu_card_metadata_resync(existing_card, gpu))
                 with app.app_context():
                     r.table("gpus").get(card_id).update(update_fields).run(db.conn)
                 log.info(f"GPU card '{card_id}' updated physical_device -> {vgpu_id}")
