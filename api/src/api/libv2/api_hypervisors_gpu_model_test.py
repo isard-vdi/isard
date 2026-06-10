@@ -99,3 +99,63 @@ def test_alias_maps_are_in_sync_across_api_and_hypervisor():
         "api_hypervisors._MODEL_ALIASES and gpu_discovery._MODEL_ALIASES drifted; "
         "they must stay identical so registration and discovery agree on the token."
     )
+
+
+def _load_resync_fn():
+    """Extract the self-contained gpu_card_metadata_resync function (pure, no DB)
+    so it can be unit-tested without booting Flask via api/__init__."""
+    src = open(_API_SRC).read()
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.FunctionDef)
+            and node.name == "gpu_card_metadata_resync"
+        ):
+            ns = {}
+            exec(ast.get_source_segment(src, node), ns)
+            return ns["gpu_card_metadata_resync"]
+    raise AssertionError("gpu_card_metadata_resync not found in api_hypervisors.py")
+
+
+_resync = _load_resync_fn()
+
+_CLEAN = "NVIDIA RTX PRO 6000 Blackwell Server Edition"
+_FALLBACK_DESC = (
+    "Auto-discovered from NVIDIA GB202GL [RTX PRO 6000 Blackwell Server Edition]"
+)
+
+
+def test_resync_heals_stale_zero_gb_card():
+    # Card first seen vfio-bound (0 GB + pci.ids die-label) now reads NVML-clean.
+    out = _resync(
+        {"memory": "0 GB", "description": _FALLBACK_DESC},
+        {"memory_total_mb": 97280, "name": _CLEAN},
+    )
+    assert out == {"memory": "95 GB", "description": f"Auto-discovered from {_CLEAN}"}
+
+
+def test_resync_noop_on_already_clean_card():
+    out = _resync(
+        {"memory": "95 GB", "description": f"Auto-discovered from {_CLEAN}"},
+        {"memory_total_mb": 97280, "name": _CLEAN},
+    )
+    assert out == {}
+
+
+def test_resync_preserves_admin_edited_description():
+    # An admin-renamed description is not the auto-generated form -> keep it;
+    # still heal the bogus memory.
+    out = _resync(
+        {"memory": "0 GB", "description": "Lab card 3 (do not touch)"},
+        {"memory_total_mb": 97280, "name": _CLEAN},
+    )
+    assert out == {"memory": "95 GB"}
+
+
+def test_resync_noop_when_card_still_vfio_bound():
+    # No NVML reading yet (fresh memory 0) -> nothing to heal, no churn.
+    out = _resync(
+        {"memory": "0 GB", "description": _FALLBACK_DESC},
+        {"memory_total_mb": 0, "name": _CLEAN},
+    )
+    assert out == {}
