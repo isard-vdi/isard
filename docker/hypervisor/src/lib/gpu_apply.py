@@ -250,6 +250,57 @@ def _live_mdev_count(pci_bdf, run, sub_paths=None):
         return 0
 
 
+def _live_mdev_pool(pci_bdf, run, current_suffix, gpu, sub_paths=None):
+    """Enumerate the card's LIVE mdevs into the ``vgpus.mdevs`` schema
+    ``{suffix: {uuid: entry}}`` carrying the EXISTING host UUIDs (entries free;
+    the API ingest re-adopts ``domain_started``/``domain_reserved`` for any UUID
+    it already tracked, so a running desktop is never dropped).
+
+    Used so a ``noop``/``skipped_busy`` report can re-pin the DB pool to host
+    reality (same profile, but the live UUIDs may have changed -- e.g. discovery
+    re-carved, or a hypervisor-container recreate minted a fresh set). Returns
+    ``None`` for passthrough/MIG_CURRENT (pseudo pool) or when nothing is live, so
+    the caller keeps the timestamp-only path."""
+    if not current_suffix or current_suffix in ("passthrough", MIG_CURRENT):
+        return None
+    type_id = _resolve_type_id(pci_bdf, current_suffix, sub_paths)
+    if not type_id:
+        return None
+    bases = list(sub_paths or [f"/sys/bus/pci/devices/{pci_bdf}"])
+    res = (
+        run(
+            [
+                f"ls -1 '{b.rstrip('/')}/mdev_supported_types/{type_id}/devices' "
+                "2>/dev/null || true"
+                for b in bases
+            ],
+            timeout=20,
+        )
+        or []
+    )
+    mig_ids = _mig_profile_ids(gpu)
+    is_mig = current_suffix in mig_ids
+    pool = {}
+    for idx, b in enumerate(bases):
+        out = (res[idx].get("out") if idx < len(res) else "") or ""
+        for uuid in out.split():
+            uuid = uuid.strip()
+            if not uuid:
+                continue
+            entry = {
+                "pci_mdev_id": os.path.basename(b.rstrip("/")),
+                "type_id": type_id,
+                "created": True,
+                "domain_started": False,
+                "domain_reserved": False,
+            }
+            if is_mig:
+                entry["mig"] = True
+                entry["mig_profile_id"] = mig_ids.get(current_suffix)
+            pool[uuid] = entry
+    return {current_suffix: pool} if pool else None
+
+
 def _apply(gpu, current, wanted, run):
     """Execute the host commands to apply ``wanted`` (from ``current``), in
     phases, and return ``(mdevs_pool, error)``. ``error`` is a string on a
@@ -699,11 +750,13 @@ def apply_target(gpu, target, run=run_local, deliberate=False):
     )
     if action == "noop" or (action == "skipped_busy" and not deliberate):
         log.info("apply %s: %s -- nothing to do, existing pool kept", pci_bdf, action)
-        # Carry mdevs_reset_at so the API can re-pin mdevs_last_synced_at even
-        # though nothing was applied: a noop/busy card's existing pool is still
-        # valid (a live desktop's mdev survived this discovery's reset), so the
-        # engine must CONFIRM, not run the authoritative rebuild that would stop
-        # the still-alive desktop.
+        # Nothing was applied, but the live UUID set may have drifted from the DB
+        # (same profile, but discovery re-carved or a hypervisor-container recreate
+        # minted a fresh set). Report the LIVE pool so the API re-pins the DB to
+        # reality (r.literal replace) WITHOUT stopping a running desktop -- a busy
+        # card's in-use mdev is in the live set and the ingest re-adopts its
+        # domain_started. _live_mdev_pool returns None (-> timestamp-only) for
+        # passthrough/MIG_CURRENT or an empty card, so those keep prior behaviour.
         return _report(
             pci_bdf,
             action,
@@ -711,6 +764,7 @@ def apply_target(gpu, target, run=run_local, deliberate=False):
             previous=current,
             binding=driver,
             mig_mode=mig_mode,
+            mdevs=_live_mdev_pool(pci_bdf, run, current, gpu, gpu.get("sub_paths")),
             mdevs_reset_at=reset_at,
         )
 

@@ -69,10 +69,6 @@ only_forced:
   type: boolean
 nvidia_enabled:
   type: boolean
-gpu_apply_capable:
-  type: boolean
-  required: false
-  default: false
 nvidia_gpus:
   type: list
   default: []
