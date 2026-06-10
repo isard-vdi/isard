@@ -2364,6 +2364,36 @@ def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=
     return xml_output
 
 
+def remove_memory_backing(xml):
+    """Strip hugepage <memoryBacking> so the guest falls back to 4K pages.
+
+    Exact inverse of ``add_memory_backing``: removes the hugepages / allocation /
+    locked children (preserving virtiofs ``<source>``/``<access>``) and drops the
+    whole ``<memoryBacking>`` element if nothing else remains -- yielding the same
+    XML the engine's native low-hugepage 4K path produces. Used by the start path
+    to RETRY a domain that hard-failed ``unable to map backing store for guest
+    RAM`` (the 1 GiB hugepage pool momentarily exhausted -- concurrent GPU starts
+    can over-commit it faster than the balancer's free-hugepage view refreshes)
+    with normal RAM, so a GPU desktop STARTS (slower VFIO mapping) instead of
+    failing.
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error("Exception parsing xml in remove_memory_backing: {}".format(e))
+        return xml
+
+    for mb_elem in tree.xpath("/domain/memoryBacking"):
+        for tag in ("hugepages", "allocation", "locked"):
+            for child in mb_elem.findall(tag):
+                mb_elem.remove(child)
+        if len(mb_elem) == 0:
+            mb_elem.getparent().remove(mb_elem)
+
+    return indent(etree.tostring(tree, encoding="unicode"))
+
+
 def _expand_cpulist(cpulist_str):
     """Expand a kernel cpulist string into a sorted list of CPU IDs.
 
