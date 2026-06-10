@@ -202,7 +202,7 @@ class AdminCategoryCreateData(BaseModel):
     maintenance: bool = False
     manager_permissions: ManagerPermissionsData
     recycle_bin_cutoff_time: int | None = None
-    ephimeral: Optional[EphimeralDesktopsData] = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = False
     storage_pool: Optional[str] = None
     gpu_use_global_pool: Optional[bool] = None
 
@@ -216,10 +216,10 @@ class AdminCategoryUpdateData(BaseModel):
     frontend: Optional[bool] = None
     custom_url_name: Optional[str] = None
     uid: Optional[str] = None
-    photo: Optional[str] = None
-    manager_permissions: Optional[dict] = None
-    maintenance: Optional[bool] = None
     recycle_bin_cutoff_time: int | None = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = None
+    maintenance: Optional[bool] = None
+    manager_permissions: Optional[ManagerPermissionsData] = None
     gpu_use_global_pool: Optional[bool] = None
 
 
