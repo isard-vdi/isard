@@ -718,12 +718,12 @@ class DesktopEditRequest(BaseModel):
         description="Bastion configuration for the desktop. If not provided, the bastion configuration will not be modified.",
         default=None,
     )
-    forced_hyp: list[str] = Field(
-        description="List of hypervisor IDs to force the desktop onto. Requires manager or admin role. If not provided, the current value will be kept.",
+    forced_hyp: list[str] | Literal[False] = Field(
+        description="List of hypervisor IDs to force the desktop onto, or False to clear it. Requires manager or admin role. If not provided, the current value will be kept.",
         default=None,
     )
-    favourite_hyp: list[str] = Field(
-        description="List of preferred hypervisor IDs. Requires manager or admin role. If not provided, the current value will be kept.",
+    favourite_hyp: list[str] | Literal[False] = Field(
+        description="List of preferred hypervisor IDs, or False to clear it. Requires manager or admin role. If not provided, the current value will be kept.",
         default=None,
     )
     server: bool = Field(
