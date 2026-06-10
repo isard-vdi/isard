@@ -77,6 +77,10 @@ lint-frontend-format:
 lint-frontend-lint:
 	cd component/frontend && bun install --frozen-lockfile && bun run lint
 
+.PHONY: lint-frontend-type-check
+lint-frontend-type-check:
+	cd component/frontend && bun install --frozen-lockfile && bun run type-check
+
 .PHONY: format-frontend
 format-frontend:
 	cd component/frontend && bun install --frozen-lockfile && bun run format && bun run lint:fix
