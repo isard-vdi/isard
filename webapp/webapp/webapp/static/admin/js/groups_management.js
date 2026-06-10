@@ -713,7 +713,7 @@ function actionsGroupDetail(){
                             type: "DELETE",
                             url: "/api/v4/admin/items/users",
                             data: JSON.stringify({
-                                user: users,
+                                user: users.map(u => u.id),
                                 delete_user: true
                             }),
                             contentType: "application/json",
