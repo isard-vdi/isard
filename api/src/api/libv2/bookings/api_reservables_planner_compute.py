@@ -664,16 +664,19 @@ def get_user_default_priority(payload, subitem):
             .run(db.conn)
         )
     priority = user_matches_priority_rule(payload, rules)
+    # Return the BARE priority value: the consumer (``most_restrictive_rule``)
+    # wraps it into ``{subitem: <value>}`` itself, so returning ``{subitem: ...}``
+    # here double-wraps it (``{subitem: {subitem: 0}}``) and breaks the comparison.
     if not priority:
         # Should we hardcode a default if the user removed it?
         return {
-            "priority": {subitem: 0},
+            "priority": 0,
             "forbid_time": 0,
             "max_time": None,
             "max_items": None,
         }
     return {
-        "priority": {subitem: priority["priority"]},
+        "priority": priority["priority"],
         "forbid_time": priority["forbid_time"],
         "max_time": priority["max_time"],
         "max_items": priority["max_items"],
