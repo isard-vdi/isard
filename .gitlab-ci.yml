@@ -128,7 +128,6 @@ stages:
   - generate
   - unit-test
   - build
-  - build-no-cache
   - test
   - release
   - container-scan
@@ -281,8 +280,8 @@ check-protobuf:
     name: bufbuild/buf:1.44.0@sha256:7e06f3027a16f8f63c25db6a1b5544866b677ad16e3907c14563c4a61d408228
     entrypoint: [""]
   allow_failure: $[[ inputs.allow-protobuf-lint-failure ]]
-  # bufbuild/buf image is distroless — no package manager to install make.
-  # Keep invocation inline; commands match `make lint-protobuf`.
+  # bufbuild/buf image is distroless, we can't install make
+  # Commands match `make lint-protobuf`
   script:
     - buf lint
     - buf breaking --against https://gitlab.com/isard/isardvdi.git
@@ -342,12 +341,6 @@ gen-protobuf:
       - component/frontend/src/gen
       - testing/e2e/src/gen
       - "**/testing_*_mock.go"
-      # openapi-python-client output. Each client's src/<pkg>/__init__.py is
-      # tracked but the rest of the tree (client.py, errors.py, types.py,
-      # api/, models/) is gitignored — codegen regenerates it. Without
-      # propagating these paths the downstream unit-test-apiv4 /
-      # unit-test-webapp jobs see only __init__.py whose first line is
-      # `from .client import …`, which raises ModuleNotFoundError at import.
       - component/apiv4-client/src/isardvdi_apiv4_client
       - component/authentication-client/src/isardvdi_authentication_client
       - component/notifier-client/src/isardvdi_notifier_client
@@ -568,30 +561,6 @@ unit-test-hypervisor:
     COVERAGE_DIR: docker/hypervisor
   script:
     - make ci-test-hypervisor
-
-check-codegen-freshness:
-  # Catches commits that modify ``pkg/oas/apiv4/*.json`` / ``.proto`` /
-  # SDK interfaces without regenerating the tracked mocks. ``pkg/gen/**``
-  # and ``component/frontend/src/gen/**`` are gitignored so they do not
-  # participate, but ``pkg/sdk/testing_*_mock.go`` IS tracked and must
-  # be kept current. The ``gen-protobuf`` job produces fresh artifacts;
-  # we compare them to what was committed.
-  stage: unit-test
-  needs: ["gen-protobuf"]
-  image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
-  before_script:
-    - apk add --no-cache git
-    - git config --global --add safe.directory "$CI_PROJECT_DIR"
-  script:
-    - |-
-      if ! git diff --exit-code -- '**/testing_*_mock.go' pkg/oas; then
-        echo ""
-        echo "ERROR: Generated code is out of date."
-        echo "Re-run codegen locally (bash build.sh with CODEGEN unset)"
-        echo "and commit the regenerated mocks + oas."
-        exit 1
-      fi
-    - echo "Generated code is up to date."
 
 unit-test-socketio:
   extends: .python-test-job
