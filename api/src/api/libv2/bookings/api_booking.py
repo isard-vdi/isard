@@ -171,14 +171,26 @@ class Bookings:
                 description_code="booking_max_items_exceeded",
             )
 
+        # Parse the client-supplied dates defensively: a malformed value must be
+        # a 400, not an unhandled strptime ValueError surfacing as a 500.
+        try:
+            start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            end_dt = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+        except (ValueError, TypeError):
+            raise Error(
+                "bad_request",
+                "Invalid booking start/end date format.",
+                description_code="invalid_booking_date",
+            )
+
         booking = {
             "id": str(uuid.uuid4()),
             "item_id": item_id,
             "item_type": item_type,
             "units": units,
             "reservables": reservables,
-            "start": datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
-            "end": datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
+            "start": start_dt,
+            "end": end_dt,
             "title": title if title else item_name,
             "user_id": payload["user_id"],
         }
