@@ -140,6 +140,15 @@ class ReservablesPlanner:
                 "bad_request", "End date invalid.", description_code="invalid_end_date"
             )
 
+        # A backwards window (end before start) is meaningless — it yields no
+        # availability — so reject it rather than silently storing a dead plan.
+        if end < start:
+            raise Error(
+                "bad_request",
+                "End date must be after start date.",
+                description_code="invalid_end_date",
+            )
+
         # Plan data structure
         try:
             plan = {
@@ -333,6 +342,26 @@ class ReservablesPlanner:
             raise Error(
                 "bad_request",
                 description="There's currently an ongoing booking with this GPU profile",
+            )
+
+    def check_subitem_running_desktops(self, subitem_id):
+        """Refuse to strip a profile a RUNNING desktop is still using. The
+        booking guard above only covers in-progress bookings; an admin-started
+        desktop has none, so without this an admin disable would delete the
+        reservable out from under a live domain. Forces a stop first."""
+        with app.app_context():
+            running = list(
+                r.table("domains")
+                .get_all(subitem_id, index="vgpus")
+                .filter(lambda d: r.expr(["Started", "Starting"]).contains(d["status"]))
+                .pluck("id")
+                .run(db.conn)
+            )
+        if running:
+            raise Error(
+                "bad_request",
+                description="There's a running desktop using this GPU profile; "
+                "stop it before disabling",
             )
 
     def check_subitem_desktops_and_plannings(
