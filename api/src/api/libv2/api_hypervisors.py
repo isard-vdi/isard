@@ -1543,8 +1543,14 @@ class ApiHypervisors:
                     and isinstance(live, dict)
                     and any(isinstance(v, dict) and v for v in live.values())
                 ):
+                    # Adopt domain_started ONLY for UUIDs a desktop is actually
+                    # running on now (the hypervisor's live virsh view). At
+                    # registration the entrypoint has just killed leftover qemu,
+                    # so this set is empty -> a clean-slate free pool.
                     reconciled = reconcile_pool_to_live(
-                        existing.get("mdevs") or {}, live
+                        existing.get("mdevs") or {},
+                        live,
+                        set(rep.get("running_mdev_uuids") or []),
                     )
                     patch = {"mdevs": r.literal(reconciled)}
                     if reset_at is not None:

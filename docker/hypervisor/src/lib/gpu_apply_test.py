@@ -687,3 +687,65 @@ def test_live_mdev_pool_none_on_truncated_batch(monkeypatch):
     assert (
         ga._live_mdev_pool("0000:d4:00.0", run, "8Q", {"mig_profiles": []}, sub) is None
     )
+
+
+# --- _running_mdev_uuids (the "actually running" cross-check) ----------------
+def test_running_mdev_uuids_extracts_mdev_addresses():
+    def run(cmds, timeout=0):
+        out = []
+        for c in cmds:
+            if "list --name --state-running" in c:
+                out.append({"out": "desk1\ndesk2\n", "err": ""})
+            elif "dumpxml desk1" in c:
+                # mdev hostdev address uuid + a domain <uuid> ELEMENT (must be ignored)
+                out.append(
+                    {
+                        "out": "<domain><uuid>dom-elem-uuid</uuid><devices>"
+                        "<hostdev mode='subsystem' type='mdev'><source>"
+                        "<address uuid='aaa-111'/></source></hostdev></devices></domain>",
+                        "err": "",
+                    }
+                )
+            elif "dumpxml desk2" in c:
+                out.append(
+                    {
+                        "out": "<hostdev type='mdev'><source>"
+                        "<address uuid='BBB-222'/></source></hostdev>",
+                        "err": "",
+                    }
+                )
+            else:
+                out.append({"out": "", "err": ""})
+        return out
+
+    # mdev address uuids only (lowercased); the domain <uuid> element is ignored
+    assert ga._running_mdev_uuids(run) == {"aaa-111", "bbb-222"}
+
+
+def test_running_mdev_uuids_shell_safe(monkeypatch):
+    # A domain name is interpolated into a shell command: it must be shlex-quoted
+    # (no injection) and a flag-like leading-dash name must be skipped.
+    dumped = []
+
+    def run(cmds, timeout=0):
+        out = []
+        for c in cmds:
+            if "list --name --state-running" in c:
+                out.append({"out": "ok_desk\n--evil\nweird name\n", "err": ""})
+            else:
+                dumped.append(c)
+                out.append({"out": "", "err": ""})
+        return out
+
+    ga._running_mdev_uuids(run)
+    joined = " ".join(dumped)
+    assert "dumpxml ok_desk " in joined  # safe name passes through unquoted
+    assert "--evil" not in joined  # leading-dash name skipped (flag-smuggle guard)
+    assert "'weird name'" in joined  # space-containing name is shlex-quoted
+
+
+def test_running_mdev_uuids_empty_when_nothing_running():
+    # Startup case: the entrypoint already killed leftover qemu -> no running
+    # domains -> empty set -> reconcile frees the whole pool (clean slate).
+    run = lambda cmds, timeout=0: [{"out": "", "err": ""} for _ in cmds]
+    assert ga._running_mdev_uuids(run) == set()
