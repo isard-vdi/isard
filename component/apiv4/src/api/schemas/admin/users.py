@@ -154,12 +154,19 @@ class AdminGroupCreateData(BaseModel):
     external_gid: Optional[str] = None
 
 
+class EphimeralDesktopsData(BaseModel):
+    minutes: int
+    action: Literal["Stopping", "StoppingAndDeleting"]
+
+
 class AdminGroupUpdateData(BaseModel):
     """Request body for updating a group."""
 
     id: str
     name: str
     description: Optional[str] = None
+    ephimeral: EphimeralDesktopsData | bool | None = None
+    linked_groups: Optional[List[str]] = None
 
 
 class AdminGroupEnrollmentData(BaseModel):
@@ -426,6 +433,7 @@ class AdminSecondaryGroupRef(BaseModel):
 
     id: str
     name: Optional[str] = None
+    category_name: Optional[str] = None
 
 
 class AdminUserFullDataResponse(AdminUser):
@@ -601,6 +609,7 @@ class AdminGroupFullDataResponse(AdminGroup):
     linked_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
     quota: Optional[bool | dict] = None
     enrollment: Optional[dict] = None
+    ephimeral: Optional[EphimeralDesktopsData | bool] = None
 
 
 class AdminGroupUserItem(BaseModel):

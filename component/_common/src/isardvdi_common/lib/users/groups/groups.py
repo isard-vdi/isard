@@ -131,7 +131,14 @@ class GroupsProcessed(RethinkSharedConnection):
                     lambda d: {
                         "linked_groups_data": r.table("groups")
                         .get_all(r.args(d["linked_groups"].default([])))
-                        .pluck("id", "name")
+                        .merge(
+                            lambda g: {
+                                "category_name": r.table("categories")
+                                .get(g["parent_category"])
+                                .default({"name": "[deleted]"})["name"]
+                            }
+                        )
+                        .pluck("id", "name", "category_name")
                         .coerce_to("array")
                     }
                 )
