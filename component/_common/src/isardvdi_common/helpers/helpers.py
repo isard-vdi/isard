@@ -149,7 +149,10 @@ class Helpers(RethinkSharedConnection):
     ):
         query = (
             r.table("domains")
-            .get_all([r.args(domain_names), user], index="name_user")
+            .get_all(
+                r.args([[name, user] for name in set(domain_names)]),
+                index="name_user",
+            )
             .filter(lambda item: (item["id"] != item_id) and item["kind"] == kind)
         )
         if user:
@@ -1048,7 +1051,13 @@ class Helpers(RethinkSharedConnection):
                     r.table("domains")
                     .get_all(r.args(batch_domain_ids))
                     .pluck(
-                        "create_dict", "kind", "tag", "name", "id", "category", "name"
+                        "create_dict",
+                        "kind",
+                        "tag",
+                        "name",
+                        "id",
+                        "category",
+                        "persistent",
                     )
                     .run(cls._rdb_connection)
                 )
@@ -1073,19 +1082,40 @@ class Helpers(RethinkSharedConnection):
                 "users": False,
             }
 
-        for domain in domain_data_list:
+        # Non-persistent (volatile) desktops are not migrated: they are torn
+        # down. Hand them to the engine via "ForceDeleting" so it removes the
+        # domain AND its storage — a raw .delete() here only removed the domain
+        # row and left the qcow2 + storage entry orphaned (and, because the
+        # storage owner had already been reassigned below, attributed to the
+        # target user).
+        # Match the previous semantics: only persistent is exactly False is
+        # torn down; templates / domains without the flag are still migrated.
+        persistent_data = [
+            d for d in domain_data_list if d.get("persistent") is not False
+        ]
+        persistent_ids = [d["id"] for d in persistent_data]
+        nonpersistent_ids = [
+            d["id"] for d in domain_data_list if d.get("persistent") is False
+        ]
+
+        for domain in persistent_data:
             cls.revoke_hardware_permissions(domain, user_data["payload"])
             cls.change_storage_ownership(domain, user_data["new_user"]["user"])
 
-        # change owner
-        for i in range(0, len(domain_ids), 100):
-            batch_domain_ids = domain_ids[i : i + 100]
+        # change owner of the persistent domains
+        for i in range(0, len(persistent_ids), 100):
+            batch_domain_ids = persistent_ids[i : i + 100]
             with cls._rdb_context():
-                r.table("domains").get_all(r.args(batch_domain_ids)).filter(
-                    {"persistent": False}
-                ).delete().run(cls._rdb_connection)
                 r.table("domains").get_all(r.args(batch_domain_ids)).update(
                     {**user_data["new_user"], "booking_id": False}
+                ).run(cls._rdb_connection)
+
+        # request engine teardown of the volatile domains (deletes storage too)
+        for i in range(0, len(nonpersistent_ids), 100):
+            batch_domain_ids = nonpersistent_ids[i : i + 100]
+            with cls._rdb_context():
+                r.table("domains").get_all(r.args(batch_domain_ids)).update(
+                    {"status": DesktopStatusEnum.force_deleting.value}
                 ).run(cls._rdb_connection)
 
     @classmethod
