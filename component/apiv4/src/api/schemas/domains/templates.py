@@ -254,6 +254,18 @@ class TemplateEditRequest(BaseModel):
         default=None,
         description="Image to be used for the template. If None or not provided, the current value will be kept.",
     )
+    forced_hyp: list[str] | Literal[False] = Field(
+        default=False,
+        description=(
+            "If set, the desktops will only be able to start on the specified hypervisors."
+        ),
+    )
+    favourite_hyp: list[str] | Literal[False] = Field(
+        default=False,
+        description=(
+            "If set, the desktops will start on the specified hypervisors if available, but can start on other hypervisors if the favourite ones are not available."
+        ),
+    )
 
 
 class TemplateToDesktopRequest(BaseModel):

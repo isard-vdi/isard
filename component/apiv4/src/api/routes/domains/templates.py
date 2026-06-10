@@ -31,6 +31,7 @@ from api.dependencies.alloweds import (
     owns_template_children,
 )
 from api.dependencies.domains import check_domain_kind, template_has_no_children
+from api.dependencies.jwt_token import is_admin
 from api.dependencies.quotas import can_create_template
 from api.dependencies.storage_pools import check_create_storage_pool_availability
 from api.schemas.domains.desktops import DomainInfoResponse
@@ -536,6 +537,9 @@ async def update_template(
         payload = data.model_dump(exclude_unset=True)
         if data.image is not None and getattr(data.image, "file", None) is not None:
             payload["image"]["file"] = data.image.file.model_dump(exclude_unset=True)
+
+        if "forced_hyp" in payload or "favourite_hyp" in payload:
+            await is_admin(request.token_payload)
 
         await asyncio.to_thread(
             DesktopService.edit_desktop,

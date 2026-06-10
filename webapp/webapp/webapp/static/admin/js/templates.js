@@ -719,7 +719,7 @@ function actionsDomainDetail(){
         $('#modalDeleteTemplate #manager-warning').hide();
         $('#modalDeleteTemplate #cross-category-footer').hide();
         $('#modalDeleteTemplate #delete-warning').show();
-        $('#modalDeleteTemplate #send').prop('disabled', false).removeClass('btn-secondary').addClass('btn-danger').text('Stop and Delete');
+        $('#modalDeleteTemplate #send').prop('disabled', false).removeClass('btn-secondary').addClass('btn-danger').text('Stop and Delete').show();
 
         var pk = $(this).closest("[data-pk]").attr("data-pk")
         $('#modalDeleteTemplate').modal({
@@ -1159,7 +1159,7 @@ function populate_tree_template_delete(id) {
                 $('#modalDeleteTemplate #manager-warning').show();
                 $('#modalDeleteTemplate #cross-category-footer').show();
                 $('#modalDeleteTemplate #delete-warning').hide();
-                $('#modalDeleteTemplate #send').prop('disabled', true).removeClass('btn-danger').addClass('btn-secondary').text('Stop and Delete');
+                $('#modalDeleteTemplate #send').hide();
             }
         }
     });
