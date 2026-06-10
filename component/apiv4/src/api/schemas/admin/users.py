@@ -37,6 +37,7 @@ class AdminUserCreateData(BaseModel):
     role: str
     password: str
     email: Optional[str] = ""
+    email_verified: bool = False
     photo: Optional[str] = ""
     bulk: bool = False
     secondary_groups: List[str] = Field(default_factory=list)
@@ -48,6 +49,7 @@ class AdminUserUpdateData(BaseModel):
     ids: Optional[List[str]] = None
     name: Optional[str] = None
     email: Optional[str] = None
+    email_verified: Optional[bool] = None
     role: Optional[str] = None
     category: Optional[str] = None
     group: Optional[str] = None
@@ -458,6 +460,7 @@ class AdminUserFullDataResponse(AdminUser):
     category_name: Optional[str] = None
     group_name: Optional[str] = None
     secondary_groups_data: Optional[list[AdminSecondaryGroupRef]] = None
+    email_verified: Optional[bool] = False
 
 
 class AdminUserNavItem(BaseModel):
