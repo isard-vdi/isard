@@ -455,11 +455,16 @@ class ResourceItemsGpus:
                 "Gpu id not found in gpu table",
                 description_code="not_found",
             )
+        # Idempotent: a repeated enable must not duplicate the id in
+        # profiles_enabled (a double-click / retried PUT otherwise leaves a
+        # dangling copy that only an equal number of disables can clear), and a
+        # disable strips every occurrence so the reservable is fully released.
         enabled_profiles = item["profiles_enabled"]
         if enabled:
-            enabled_profiles.append(subitem_id)
+            if subitem_id not in enabled_profiles:
+                enabled_profiles.append(subitem_id)
         else:
-            enabled_profiles.remove(subitem_id)
+            enabled_profiles = [p for p in enabled_profiles if p != subitem_id]
         with app.app_context():
             if not _check(
                 r.table("gpus")

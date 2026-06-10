@@ -62,7 +62,7 @@ class ApiClient:
 
     def update(self, url, data={}):
         try:
-            logging.error("PUT api url: " + self.base_url + url)
+            logging.info("PUT api url: " + self.base_url + url)
             resp = requests.put(
                 self.base_url + url,
                 data=data,
