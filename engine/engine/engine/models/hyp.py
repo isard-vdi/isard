@@ -793,16 +793,21 @@ class hyp(object):
             # The noop report now carries the LIVE pool for a real vGPU/MIG card:
             # re-pin the DB to host reality (r.literal replace via
             # ingest_applied_state) so a UUID drift can't leave the engine handing
-            # QEMU a phantom UUID, adopting domain_started/reserved for any UUID
-            # still live. Shared reconcile -> identical to the API ingest. This
-            # also supersedes the lazy-seeded placeholder pool (L1), so an
-            # engine-vs-host disagreement can't promote phantom UUIDs. Require a
-            # NON-EMPTY live inner pool so a forged/partial report can't
-            # r.literal-wipe a valid pool (a real report carries one).
+            # QEMU a phantom UUID. domain_started/reserved is adopted ONLY for a
+            # UUID a desktop is ACTUALLY running on now (running_mdev_uuids, the
+            # hypervisor's live virsh view) -- never on a stale DB flag. Shared
+            # reconcile -> identical to the API ingest. This also supersedes the
+            # lazy-seeded placeholder pool (L1), so an engine-vs-host disagreement
+            # can't promote phantom UUIDs. Require a NON-EMPTY live inner pool so a
+            # forged/partial report can't r.literal-wipe a valid pool.
             if isinstance(live, dict) and any(
                 isinstance(v, dict) and v for v in live.values()
             ):
-                reconciled = reconcile_pool_to_live(existing.get("mdevs") or {}, live)
+                reconciled = reconcile_pool_to_live(
+                    existing.get("mdevs") or {},
+                    live,
+                    set(report.get("running_mdev_uuids") or []),
+                )
                 patch = {"changing_to_profile": False, "mdevs": reconciled}
                 if reset_at is not None:
                     patch["mdevs_last_synced_at"] = reset_at
