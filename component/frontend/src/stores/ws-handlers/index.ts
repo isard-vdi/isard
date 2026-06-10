@@ -9,6 +9,7 @@ import { bulkSpawnEventHandlers } from './bulk-spawn'
 import { bookingEventHandlers } from './booking'
 import { planningEventHandlers } from './planning'
 import { usersEventHandlers } from './users'
+import { userMigrationEventHandlers } from './user-migration'
 import { messageEventHandlers } from './message'
 import type { WsEventMap, WsEventName } from '@/types/ws-events'
 import { QueryClient } from '@tanstack/vue-query'
@@ -32,6 +33,7 @@ export const allEventHandlers: EventHandlerMap = {
   ...bookingEventHandlers,
   ...planningEventHandlers,
   ...usersEventHandlers,
+  ...userMigrationEventHandlers,
   ...messageEventHandlers
 }
 

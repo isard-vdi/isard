@@ -258,6 +258,37 @@ export interface WsMessagePayload {
 }
 
 // ---------------------------------------------------------------------------
+// User migration — emitted by change-handler UsersMigrationsHandler to
+// /userspace room=target_user as the import progresses. Payload is the full
+// users_migrations record: `status` walks exported → imported → migrating →
+// migrated|failed, and each `migrated_<kind>` flag flips true (or its
+// `migrated_<kind>_error` is set) as that resource type finishes.
+// See component/change-handler/src/handlers/users_migrations.py.
+// ---------------------------------------------------------------------------
+
+export interface WsUserMigrationPayload {
+  id: string
+  origin_user?: string
+  target_user?: string
+  status: string
+  migrated_items?: {
+    desktops?: string[]
+    templates?: string[]
+    media?: string[]
+    deployments?: string[]
+  }
+  migrated_desktops?: boolean | null
+  migrated_desktops_error?: string | null
+  migrated_templates?: boolean | null
+  migrated_templates_error?: string | null
+  migrated_media?: boolean | null
+  migrated_media_error?: string | null
+  migrated_deployments?: boolean | null
+  migrated_deployments_error?: string | null
+  [key: string]: unknown
+}
+
+// ---------------------------------------------------------------------------
 // Shared-deployment desktop start/stop — emitted by DesktopDomainHandler
 // when a participant desktop in a shared deployment crosses the started
 // boundary. Payload is the deployment id (i.e. desktop.tag).
@@ -312,6 +343,8 @@ export interface WsEventMap {
 
   users_data: WsUserDataPayload
   users_delete: WsDeletePayload
+
+  user_migration_data: WsUserMigrationPayload
 
   shared_deployment_desktop_start: WsSharedDeploymentDesktopPayload
   shared_deployment_desktop_stop: WsSharedDeploymentDesktopPayload
