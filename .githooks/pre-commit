@@ -18,6 +18,12 @@ if echo "$CHANGED" | grep -qE '\.py$'; then
     make lint-python || FAILED=1
 fi
 
+# Golang files
+if echo "$CHANGED" | grep -qE '\.go$'; then
+    echo ">> Running lint-go..."
+    make lint-go || FAILED=1
+fi
+
 # Vue 3 frontend
 if echo "$CHANGED" | grep -q '^component/frontend/'; then
     echo ">> Running lint-frontend..."
@@ -40,6 +46,12 @@ fi
 if echo "$CHANGED" | grep -qE '(^|/)Dockerfile$|pyproject\.toml$'; then
     echo ">> Running lint-system-deps..."
     make lint-system-deps || FAILED=1
+fi
+
+# Grafana Alloy config
+if echo "$CHANGED" | grep -qE '\.alloy$'; then
+    echo ">> Running lint-alloy..."
+    make lint-alloy || FAILED=1
 fi
 
 if [ $FAILED -ne 0 ]; then
