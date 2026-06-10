@@ -40,6 +40,7 @@ class AdminListDomainsData(BaseModel):
     user: Optional[str] = None
     hyp_started: Optional[str] = None
     server: Optional[str] = None
+    name: Optional[List[str]] = None
 
 
 # ── Multiple Actions ─────────────────────────────────────────────────────
