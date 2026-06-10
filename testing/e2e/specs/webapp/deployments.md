@@ -93,12 +93,15 @@ in `afterEach` to ensure a clean state.
 
 ---
 
-## Scenario 2b — *admin expands a deployment row and sees the hardware panel* ⏭ skipped
+## Scenario 2b — *admin expands a deployment row and sees the hardware panel*
 
-> Skipped: `GET /api/v4/item/deployment/{id}/hardware` returns 500.
-> `DeploymentHardwareResponse` expects interfaces as `list[str]` or
-> `list[Interface]` (with `mac` field) but the DB returns `{id, name}`
-> objects without `mac`. Bug reported — unskip once fixed.
+### Given
+
+1. The deployments table has loaded with at least one row.
+
+### When
+
+1. They click the expand button (**+**) on a deployment row.
 
 ### Then
 
@@ -288,7 +291,7 @@ in `afterEach` to ensure a clean state.
 | --- | --- | --- |
 | S1 — Table loads | ✅ | API ok, rows visible, columns present |
 | S2a — Expand row: Target users + buttons | ✅ | Alloweds API ok, section visible, buttons visible |
-| S2b — Expand row: hardware panel | ⏭ | Hardware API bug — unskip once fixed |
+| S2b — Expand row: hardware panel | ✅ | Hardware API ok, panel populates |
 | S3 — Delete (no started desktops) | ✅ | Confirmation, API ok, row disappears (async poll) |
 | S5 — Bulk delete permanently | ✅ | `permanent=true`, "Deletion queued" notification, rows disappear (async poll) |
 | S6 — Bulk delete to recycle bin | ✅ | `permanent=false`, "Deletion queued" notification, rows disappear (async poll) |

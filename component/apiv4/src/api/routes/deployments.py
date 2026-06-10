@@ -522,7 +522,7 @@ async def get_deployment_csv(
     tags=[tag],
     summary="Recreate a deployment",
     response_model=SimpleResponse,
-    description="Recreates a deployment by deleting all desktops and creating them again with current parameters.",
+    description="Creates the desktops that are missing for the deployment's currently allowed users. Existing desktops are left untouched.",
     responses={
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -534,11 +534,6 @@ async def recreate_deployment(
     owns_deployment_id=Depends(owns_deployment_id()),
 ):
     try:
-        # ``recreate_desktops`` loops over every desktop in the
-        # deployment doing sync ``RethinkDomain.delete()`` per item
-        # plus a recreate dispatch. Offload to a worker thread so
-        # the event loop stays free for SocketIO and concurrent
-        # HTTP traffic during a multi-desktop recreate.
         await asyncio.to_thread(
             DeploymentService.recreate_desktops,
             request.token_payload,
@@ -551,11 +546,6 @@ async def recreate_deployment(
     except Error:
         raise
     except Exception as e:
-        # Bug 23 diagnosis aid: surface the exception type so probes
-        # can identify whether the failure is in the validate-recreate
-        # preflight, the desktop-delete iteration, or the
-        # ``CommonDeployments.recreate`` rebuild. The full traceback
-        # still lands in the structured log.
         raise await Error.create(
             request,
             "internal_server",

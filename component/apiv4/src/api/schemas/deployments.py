@@ -126,15 +126,15 @@ class CreateDeploymentRequest(BaseModel):
         default=True,
         description="Whether to create a desktop for the user creating the deployment.",
     )
-    visible: bool | None = Field(
+    visible: bool = Field(
         default=False,
         description="Whether the deployment is visible to it's users.",
     )
-    co_owners: list[str] | None = Field(
+    co_owners: list[str] = Field(
         default=[],
         description="List of user IDs that will be co-owners of the deployment.",
     )
-    user_permissions: list[DeploymentPermissions] | None = Field(
+    user_permissions: list[DeploymentPermissions] = Field(
         default=[],
         description="List of permissions the user creating the deployment has over it.",
     )
@@ -200,7 +200,9 @@ class DeploymentDesktopEditRequest(DesktopEditRequest):
 
 class DeploymentEditRequest(BaseModel):
     name: str = Field(description="Name of the deployment", default=None)
-    description: str = Field(description="Description of the deployment", default=None)
+    description: Optional[str] = Field(
+        description="Description of the deployment", default=None
+    )
     image: DomainImage | None = Field(
         default=None,
         description="Image to use for the deployment. If not provided, the image from the first desktop will be used.",
@@ -253,6 +255,11 @@ class DeploymentEditRequest(BaseModel):
         description="Legacy: name to apply to every desktop in the deployment.",
         min_length=1,
         max_length=50,
+    )
+    desktop_description: Optional[str] = Field(
+        default=None,
+        description="Legacy: description to apply to every desktop in the deployment.",
+        max_length=255,
     )
     hardware: Optional[dict] = Field(
         default=None,
@@ -323,7 +330,9 @@ class DeploymentCsvResponse(BaseModel):
 class OwnedDeployment(BaseModel):
     id: str = Field(description="ID of the deployment")
     name: str = Field(description="Name of the deployment")
-    description: str = Field(description="Description of the deployment")
+    description: Optional[str] = Field(
+        default=None, description="Description of the deployment"
+    )
     image: Image | None = Field(
         default=None,
         description="Image associated with the deployment (may be missing on legacy rows)",
@@ -331,6 +340,7 @@ class OwnedDeployment(BaseModel):
     desktop_names: list[str] = Field(
         description="List of desktop names associated with the deployment"
     )
+    template_names: list[str]
     started_desktops: int = Field(
         description="Number of desktops that have been started"
     )
@@ -400,7 +410,9 @@ class DeploymentDetail(BaseModel):
 
     id: str = Field(description="ID of the deployment")
     name: str = Field(description="Name of the deployment")
-    description: str = Field(description="Description of the deployment")
+    description: Optional[str] = Field(
+        default=None, description="Description of the deployment"
+    )
     tag_visible: bool = Field(
         description="Indicates if the deployment is visible", default=False
     )
@@ -743,6 +755,7 @@ class DeploymentInfoResponse(BaseModel):
     allowed: Optional[Allowed] = None
     tag: Optional[str] = None
     tag_name: Optional[str] = None
+    tag_description: Optional[str] = None
     tag_visible: Optional[bool] = None
 
 
@@ -753,7 +766,7 @@ class DeploymentVideowallResponse(BaseModel):
         description="List of user IDs that are co-owners of the deployment.",
     )
     description: str | None = Field(
-        default="", description="Description of the deployment"
+        default=None, description="Description of the deployment"
     )
 
     id: str = Field(description="ID of the deployment")
@@ -769,7 +782,7 @@ class DeploymentVideowallResponse(BaseModel):
         default=[],
         description="List of permissions the user has over the deployment.",
     )
-    total_desktops: int = Field(alias="totalDesktops")
+    total_desktops: int
     visible_desktops: int = Field(alias="visibleDesktops")
     started_desktops: int = Field(alias="startedDesktops")
     creating_desktops: int = Field(alias="creatingDesktops")
@@ -783,4 +796,3 @@ class DeploymentVideowallResponse(BaseModel):
     desktops: list[UserDeploymentDesktop]  # TODO
     total_users: int
     desktops_each_user: int
-    total_desktops: int

@@ -139,10 +139,12 @@ class DeploymentService:
         # into a desktops_to_edit list so the rest of the service runs
         # the same code path for both client versions.
         legacy_desktop_name = deployment_data.pop("desktop_name", None)
+        legacy_desktop_description = deployment_data.pop("desktop_description", None)
         legacy_hardware = deployment_data.pop("hardware", None)
         legacy_guest_properties = deployment_data.pop("guest_properties", None)
         if (
             legacy_desktop_name is not None
+            or legacy_desktop_description is not None
             or legacy_hardware is not None
             or legacy_guest_properties is not None
         ):
@@ -152,6 +154,8 @@ class DeploymentService:
                     fanout_template = {}
                     if legacy_desktop_name is not None:
                         fanout_template["name"] = legacy_desktop_name
+                    if legacy_desktop_description is not None:
+                        fanout_template["description"] = legacy_desktop_description
                     if legacy_hardware is not None:
                         fanout_template["hardware"] = legacy_hardware
                     if legacy_guest_properties is not None:
@@ -207,11 +211,14 @@ class DeploymentService:
             deployment_data,
         )
 
+        # invalidate cache
+        Caches.invalidate_cache("deployments", deployment_id)
+
     @staticmethod
     def recreate_desktops(payload: dict, deployment_id: str) -> str:
         """
-        Recreate all desktops for a deployment with updated parameters.
-        This involves deleting existing desktops and creating new ones.
+        Recreate a deployment by creating the desktops that are missing
+        for its currently allowed users.
 
         Args:
             payload: The token payload of the requesting user
@@ -225,18 +232,6 @@ class DeploymentService:
                 "not_found",
                 f"Deployment with ID {deployment_id} does not exist.",
             )
-
-        # Preflight every recipe before the irreversible delete so a
-        # malformed create_dict (missing template, missing hardware
-        # fields, booking conflict) raises *here* and the live desktops
-        # stay intact.
-        CommonDeployments.validate_recreate(payload, deployment_id)
-
-        deployment = RethinkDeployment(deployment_id)
-        desktops_to_delete = CommonDeploymentDesktops.get_with_tag_dict(deployment.tag)
-
-        for desktop in desktops_to_delete:
-            RethinkDomain.delete(desktop["id"])
 
         CommonDeployments.recreate(payload, deployment_id)
 

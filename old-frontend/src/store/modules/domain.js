@@ -250,8 +250,9 @@ export default {
     },
     fetchDomain (context, domainId) {
       axios.get(`${apiV3Segment}/item/desktop/${domainId}/get-info`).then(response => {
-        if (!context.getters.getEditDomainId) { // Only keep the domain name when editing
+        if (!context.getters.getEditDomainId) { // Keep the user-entered name/description, not the template's
           response.data.name = context.getters.getDomain.name
+          response.data.description = context.getters.getDomain.description
         } else if (response.data.kind !== 'template') { // bastion is desktop-only
           context.dispatch('fetchBastion', domainId)
         }

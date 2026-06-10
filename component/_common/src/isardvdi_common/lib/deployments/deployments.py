@@ -341,6 +341,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         "desktop_names": r.expr(deployment["create_dict"]).map(
                             lambda cd: cd["name"]
                         ),
+                        "template_names": r.expr(deployment["create_dict"]).map(
+                            lambda cd: (
+                                r.table("domains")
+                                .get(cd["template"])["name"]
+                                .default("")
+                            )
+                        ),
                         "co_owner": False,
                     }
                 )
@@ -379,7 +386,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
                     "id",
                     "description",
                     "image",
-                    {"create_dict": {"reservables": True, "name": True}},
+                    {
+                        "create_dict": {
+                            "reservables": True,
+                            "name": True,
+                            "template": True,
+                        }
+                    },
                 )
                 .merge(
                     lambda deployment: {
@@ -395,6 +408,13 @@ class DeploymentsProcessed(RethinkSharedConnection):
                         .count(),
                         "desktop_names": r.expr(deployment["create_dict"]).map(
                             lambda cd: cd["name"]
+                        ),
+                        "template_names": r.expr(deployment["create_dict"]).map(
+                            lambda cd: (
+                                r.table("domains")
+                                .get(cd["template"])["name"]
+                                .default("")
+                            )
                         ),
                         "co_owner": True,
                     }
@@ -911,18 +931,15 @@ class DeploymentsProcessed(RethinkSharedConnection):
         return deployment, plan
 
     @classmethod
-    def validate_recreate(cls, payload, deployment_id):
-        """Run preflight without performing any side effects.
-
-        Callers that delete the existing desktops before recreating must
-        invoke this first, so a malformed create_dict (missing template,
-        missing memory, etc.) doesn't leave the deployment empty after
-        the irreversible delete.
-        """
-        cls._prepare_recreate(payload, deployment_id)
-
-    @classmethod
     def recreate(cls, payload, deployment_id):
+        """Create the desktops missing for the deployment's allowed users.
+
+        Mirrors apiv3 ``api_deployments.recreate``: existing desktops are
+        left untouched. ``_prepare_recreate`` resolves users with
+        ``include_existing_desktops=False`` and builds the full plan
+        (raising on any malformed create_dict) before a single desktop is
+        created, so a bad recipe fails fast without partial side effects.
+        """
         _, plan = cls._prepare_recreate(payload, deployment_id)
         for deployment_tag, desktop, users in plan:
             cls.create_deployment_desktops(deployment_tag, [desktop], users)
@@ -1332,7 +1349,7 @@ class DeploymentsProcessed(RethinkSharedConnection):
             "tag": deployment_data.get("tag"),
             "tag_name": deployment_data.get("name"),
             "tag_visible": deployment_data.get("tag_visible"),
-            # "description": deployment_data.get("description"),
+            "tag_description": deployment_data.get("description"),
         }
         template = Caches.get_document(
             "domains",
@@ -1593,6 +1610,11 @@ class DeploymentsProcessed(RethinkSharedConnection):
             desktop["tag_desktop_id"]: desktop for desktop in create_dicts
         }
         for desktop_data in desktops_data:
+            # Each deployment desktop owns its derived disk; the deployment
+            # create_dict carries the template's own storage_id, so never let
+            # it overwrite the domain's disk or deleting the deployment would
+            # delete the template's storage.
+            desktop_data.get("hardware", {}).pop("disks", None)
             # If the networks have changed new macs should be generated for each domain
             if (
                 desktop_data.get("hardware", {}).get("interfaces")

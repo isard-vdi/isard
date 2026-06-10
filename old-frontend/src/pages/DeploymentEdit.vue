@@ -41,6 +41,36 @@
         </b-col>
       </b-row>
 
+      <!-- Description -->
+      <b-row>
+        <b-col
+          cols="4"
+          xl="2"
+        >
+          <label for="deploymentDescription">{{ $t('forms.new-deployment.description') }}</label>
+        </b-col>
+        <b-col
+          cols="6"
+          xl="4"
+          class="mb-4"
+        >
+          <b-form-input
+            id="deploymentDescription"
+            v-model="deploymentDescription"
+            type="text"
+            size="sm"
+            :state="v$.deploymentDescription.$error ? false : null"
+            @blur="v$.deploymentDescription.$touch"
+          />
+          <b-form-invalid-feedback
+            v-if="v$.deploymentDescription.$error"
+            id="deploymentDescriptionError"
+          >
+            {{ $t(`validations.${v$.deploymentDescription.$errors[0].$validator}`, { property: $t('forms.new-deployment.description'), model: deploymentDescription.length, max: 255 }) }}
+          </b-form-invalid-feedback>
+        </b-col>
+      </b-row>
+
       <b-row clas="mt-2">
         <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2">
           <strong>{{ $t('forms.edit-deployment.desktop.title') }}</strong>
@@ -154,6 +184,13 @@ export default {
         $store.commit('setDeployment', deployment.value)
       }
     })
+    const deploymentDescription = computed({
+      get: () => $store.getters.getDeployment.description,
+      set: (value) => {
+        deployment.value.description = value
+        $store.commit('setDeployment', deployment.value)
+      }
+    })
     const visible = ref(false)
     const collapseVisible = ref(false)
 
@@ -172,10 +209,10 @@ export default {
         minLengthValue: minLength(4),
         inputFormat
       },
-      description: {
+      deploymentDescription: {
         maxLengthValue: maxLength(255)
       }
-    }, { deploymentName })
+    }, { deploymentName, deploymentDescription })
 
     const submitForm = (toast) => {
       // Check if the form is valid
@@ -205,7 +242,8 @@ export default {
               id: domain.value.id,
               name: deploymentName.value,
               desktop_name: domain.value.name,
-              description: domain.value.description,
+              desktop_description: domain.value.description,
+              description: deploymentDescription.value || null,
               guest_properties: {
                 credentials: {
                   username: domain.value.guestProperties.credentials.username,
@@ -217,7 +255,6 @@ export default {
               hardware: {
                 boot_order: domain.value.hardware.bootOrder,
                 disk_bus: domain.value.hardware.diskBus,
-                disks: domain.value.hardware.disks,
                 floppies: domain.value.hardware.floppies,
                 interfaces: domain.value.hardware.interfaces,
                 isos: isos,
@@ -250,6 +287,7 @@ export default {
 
     return {
       deploymentName,
+      deploymentDescription,
       visible,
       groupsChecked,
       selectedGroups,

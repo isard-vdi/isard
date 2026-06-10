@@ -507,7 +507,12 @@ class DesktopDomainHandler:
             ]
             await self.emit(
                 "deploymentdesktop_delete",
-                json_dumps({"id": old_val.id}),
+                json_dumps(
+                    {
+                        "id": old_val.id,
+                        "tag": old_val.tag,
+                    }
+                ),
                 namespace="/userspace",
                 room=deployment_owners,
             )

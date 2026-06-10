@@ -20,6 +20,7 @@
 
 import asyncio
 
+from isardvdi_common.lib.deployments.deployments import DeploymentsProcessed
 from isardvdi_common.models.deployment import Deployment
 
 from .base import BaseHandler, json_dumps
@@ -43,18 +44,30 @@ class DeploymentsHandler(BaseHandler):
         await super().on_insert(new_val)
 
     async def on_update(self, old_val, new_val):
+        # ``get_deployment_or_none`` rather than ``get_deployment`` — the row
+        # may already be gone if this races a cascading delete.
+        deployment = await asyncio.to_thread(
+            DeploymentsProcessed.get_deployment_or_none, new_val.id
+        )
+        if deployment is None:
+            return
+        # snake_case aliases — the list parser reads these, not camelCase.
+        deployment["total_desktops"] = deployment.get("totalDesktops")
+        deployment["visible_desktops"] = deployment.get("visibleDesktops")
+        deployment["started_desktops"] = deployment.get("startedDesktops")
         await self.emit(
             "deployment_update",
-            json_dumps(new_val),
+            json_dumps(deployment),
             namespace="/userspace",
-            room=new_val.user,
+            room=deployment["user"],
         )
-        # await self.emit(
-        #     "deployment_update",
-        #     json_dumps(new_val),
-        #     namespace="/administrators",
-        #     room=new_val.category,
-        # ) # TODO
+        deployment_owners = (deployment.get("co_owners") or []) + [deployment["user"]]
+        await self.emit(
+            "deployments_update",
+            json_dumps(deployment),
+            namespace="/userspace",
+            room=deployment_owners,
+        )
         await super().on_update(old_val, new_val)
 
     async def on_delete(self, old_val):

@@ -96,6 +96,7 @@
         "new-deployment": {
             "title": "Create new deployment:",
             "name": "Deployment name",
+            "description": "Deployment description",
             "visible": "Visible to users",
             "not-visible": "Not visible to users",
             "section-title-template": "Select a template:",

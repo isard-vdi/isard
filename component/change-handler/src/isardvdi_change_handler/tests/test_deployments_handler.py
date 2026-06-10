@@ -38,18 +38,40 @@ class TestDeploymentsHandler:
         assert admin_kwargs["room"] == "admins"
 
     @pytest.mark.asyncio
-    async def test_update_emits_deployment_update_to_owner(self, handler):
+    @patch(
+        "isardvdi_change_handler.handlers.deployments.DeploymentsProcessed.get_deployment_or_none",
+        return_value={
+            "id": "d1",
+            "user": "u1",
+            "co_owners": ["u2"],
+            "name": "New",
+            "visibleDesktops": 3,
+            "startedDesktops": 1,
+            "totalDesktops": 5,
+        },
+    )
+    async def test_update_emits_deployment_update_to_owner(self, _mock_get, handler):
         old = FakeRow(id="d1", user="u1", name="Old")
         new = FakeRow(id="d1", user="u1", name="New")
         await handler.on_update(old, new)
         calls = handler.socketio_server.emit.call_args_list
-        assert len(calls) == 2
+        assert len(calls) == 3
         user_args, user_kwargs = calls[0]
         assert user_args[0] == "deployment_update"
         assert user_kwargs["room"] == "u1"
         payload = json.loads(user_args[1])
         assert payload["name"] == "New"
-        admin_args = calls[1][0]
+        # List event (plural) must reach the user's deployments list on
+        # /userspace, with co-owners included in the room.
+        list_args, list_kwargs = calls[1]
+        assert list_args[0] == "deployments_update"
+        assert list_kwargs["namespace"] == "/userspace"
+        assert list_kwargs["room"] == ["u2", "u1"]
+        list_payload = json.loads(list_args[1])
+        assert list_payload["visible_desktops"] == 3
+        assert list_payload["started_desktops"] == 1
+        assert list_payload["total_desktops"] == 5
+        admin_args = calls[2][0]
         assert admin_args[0] == "deployments_update"
 
     @pytest.mark.asyncio

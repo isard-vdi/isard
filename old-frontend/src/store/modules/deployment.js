@@ -118,6 +118,11 @@ export default {
       const deploymentIndex = state.deployment.desktops.findIndex(d => d.id === deploymentdesktop.id)
       if (deploymentIndex !== -1) {
         state.deployment.desktops.splice(deploymentIndex, 1)
+        // Keep totalDesktops in sync or desktopsCreatingLen sees a phantom
+        // pending count and re-opens the provisioning modal on delete.
+        if (typeof state.deployment.totalDesktops === 'number') {
+          state.deployment.totalDesktops = Math.max(0, state.deployment.totalDesktops - 1)
+        }
       }
     },
     toggleDeploymentsShowStarted: (state, type) => {
@@ -359,7 +364,7 @@ export default {
         // under `tag_name`. The form's "Deployment name" input must bind
         // to the deployment row, not the recipe.
         const deploymentName = response.data.tag_name || response.data.name
-        context.commit('setDeployment', { name: deploymentName })
+        context.commit('setDeployment', { name: deploymentName, description: response.data.tag_description })
         context.dispatch('setAllowedGroupsUsers', { groups: response.data.allowed.groups, users: response.data.allowed.users })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

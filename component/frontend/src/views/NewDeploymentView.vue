@@ -253,7 +253,7 @@ const form = useForm({
     createDeploymentAsync({
       body: {
         name: value.name,
-        description: value.description,
+        description: value.description || undefined, // omit when empty → backend stores None
         image: value.image,
         visible: value.visible,
 

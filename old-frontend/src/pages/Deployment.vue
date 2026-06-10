@@ -237,38 +237,16 @@ export default {
       }
     })
 
-    // Modal-open gate uses three signals OR'd together so the dialog
-    // stays open across the WHOLE bulk-spawn pipeline without flickering:
-    //
-    //   1. ``isBulkCreating`` — true between the engine's
-    //      ``creating_desktops`` and ``end_creating_desktops`` WS events
-    //      (``new_from_templateTh.process_desktops`` brackets the loop
-    //      with those). This survives the inter-batch lulls where every
-    //      already-spawned row momentarily reaches a terminal state
-    //      before the next ``deploymentdesktop_add`` arrives — purely
-    //      state-derived gates dropped to zero there and the modal
-    //      flickered closed/open.
-    //   2. ``totalDesktops > desktops.length`` — rows still expected to
-    //      arrive (covers the case where the user reloads mid-spawn and
-    //      the WS bracket events are missed entirely).
-    //   3. Any loaded desktop in an initial-creation state
-    //      (``Creating`` / ``CreatingDisk`` / ``CreatingAndStarting``).
-    //      Restricted to creation states only so clicking start/stop on
-    //      an already-finished desktop (``Starting`` / ``Shutting-down``)
-    //      doesn't spuriously reopen the modal.
     const CREATION_STATES = ['creating', 'creatingdisk', 'creatingandstarting']
     const isBulkCreating = computed(() =>
       !!deployment.value.id && $store.getters.isDeploymentBulkCreating(deployment.value.id)
     )
-    const desktopsCreatingLen = computed(() => {
-      const total = deployment.value.totalDesktops || deployment.value.desktops.length
-      const pending = Math.max(0, total - deployment.value.desktops.length)
-      const inCreation = deployment.value.desktops.filter(d => {
+    const desktopsCreatingLen = computed(() =>
+      deployment.value.desktops.filter(d => {
         const s = (d.state || '').toLowerCase()
         return s && CREATION_STATES.includes(s)
       }).length
-      return pending + inCreation
-    })
+    )
     const desktopsCreating = computed(() => isBulkCreating.value || desktopsCreatingLen.value > 0)
 
     let pendingCloseTimer = null
@@ -475,10 +453,10 @@ export default {
     },
     getDefaultViewer (desktop) {
       if (desktop.viewers !== undefined) {
-        if (this.getViewers[desktop.id] !== undefined && desktop.viewers.includes(this.getViewers[desktop.id])) {
-          return this.getViewers[desktop.id]
+        if (this.getViewers[desktop.id] !== undefined && desktop.viewers.map(s => s.replaceAll('_', '-')).includes(this.getViewers[desktop.id])) {
+          return this.getViewers[desktop.id].replaceAll('_', '-')
         } else if (desktop.viewers.length > 0) {
-          return desktop.viewers.includes('browser-vnc') ? 'browser-vnc' : desktop.viewers[0]
+          return desktop.viewers.map(s => s.replaceAll('_', '-')).includes('browser-vnc') ? 'browser-vnc' : desktop.viewers[0].replaceAll('_', '-')
         }
       }
       return ''

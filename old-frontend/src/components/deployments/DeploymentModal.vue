@@ -116,7 +116,7 @@
               variant="outline-primary"
               block
               size="sm"
-              @click="toggleVisibility"
+              @click="toggleVisibility(false)"
             >
               {{ $t(`views.deployment.modal.confirmation.make-visible`) }}
             </b-button>
