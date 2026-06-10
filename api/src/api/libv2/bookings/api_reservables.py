@@ -858,8 +858,16 @@ class ResourceItemsGpus:
                 ).run(db.conn)
 
     def get_subitem_parent_item(self, subitem):
-        parts = subitem.split("-")
-        return {"brand": parts[0], "model": parts[1], "profile": parts[1]}
+        # Drop any "~<variant>" qualifier, then split on the FIRST two dashes only
+        # so a dashed-MIG suffix (e.g. "1-2Q") stays intact; profile is the suffix
+        # part, not the model (the previous parts[1]/parts[1] was a bug).
+        base = split_qualifier(subitem)[0]
+        parts = base.split("-", 2)
+        return {
+            "brand": parts[0],
+            "model": parts[1] if len(parts) > 1 else "",
+            "profile": parts[2] if len(parts) == 3 else "",
+        }
 
     def get_subitem_units(self, item_id, subitem):
         return self.get_subitem(item_id, subitem)["units"]
