@@ -294,6 +294,20 @@ class AdminDomainsService:
         """Get the distinct values for a domain field as ``{"field": [...]}``."""
         return ApiAdmin.get_domains_field(field, kind, payload)
 
+    @staticmethod
+    @cached(
+        cache=domains_field_cache,
+        key=lambda payload, kind, term: hashkey(
+            payload.get("role_id"),
+            payload.get("category_id"),
+            kind,
+            term,
+        ),
+    )
+    def search_domains_names(payload: dict, kind: str, term: str) -> dict:
+        """Search domain names by term for type-ahead, as ``{"field": [...]}``."""
+        return ApiAdmin.search_domains_names(kind, term, payload)
+
     # ── Domain Hardware ──────────────────────────────────────────────────
 
     @staticmethod

@@ -316,7 +316,9 @@ func (c *Check) checkHypervisor(ctx context.Context, cli apiv4.Invoker, host, hy
 
 	// Force the hypervisor
 	if err := editDesktop(ctx, cli, dktp, &apiv4.DesktopEditRequest{
-		ForcedHyp: []string{hyperID},
+		ForcedHyp: apiv4.NewOptDesktopEditRequestForcedHyp(
+			apiv4.NewStringArrayDesktopEditRequestForcedHyp([]string{hyperID}),
+		),
 	}); err != nil {
 		return deps, fmt.Errorf("force the hypervisor: %w", err)
 	}

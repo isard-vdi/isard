@@ -520,9 +520,9 @@ $(document).ready(function() {
 
     // Indexed filters are sent to the API for server-side filtering
     // 'category' is handled separately via the categories parameter
-    const indexed_filters = ['status', 'group', 'user', 'hyp_started', 'server'];
+    const indexed_filters = ['status', 'group', 'user', 'hyp_started', 'server', 'name'];
     // Non-indexed filters remain client-side
-    const client_side_filters = ['favourite_hyp', 'forced_hyp', 'memory', 'name', 'vcpus'];
+    const client_side_filters = ['favourite_hyp', 'forced_hyp', 'memory', 'vcpus'];
     var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
     let searchDomainId = getGroupParam()
@@ -549,9 +549,12 @@ $(document).ready(function() {
             indexed_filters.forEach(function(field) {
                 var filterBox = $('#filter-' + field + ' #' + field);
                 if (filterBox.length && filterBox.val() && filterBox.val().length) {
-                    // For single-value filters, send first value; for multi-select, send first value
                     var val = filterBox.val();
-                    if (Array.isArray(val) && val.length > 0) {
+                    if (field === 'name') {
+                        // 'name' is multi-select: send every selected value
+                        requestData[field] = Array.isArray(val) ? val : [val];
+                    } else if (Array.isArray(val) && val.length > 0) {
+                        // Other indexed filters are single-value
                         requestData[field] = val[0];
                     } else if (val) {
                         requestData[field] = val;
@@ -625,7 +628,11 @@ $(document).ready(function() {
             var filterBox = $('#filter-' + field + ' #' + field);
             if (filterBox.length && filterBox.val() && filterBox.val().length) {
                 var val = filterBox.val();
-                state[field] = Array.isArray(val) ? val[0] : val;
+                if (field === 'name') {
+                    state[field] = Array.isArray(val) ? val : [val];
+                } else {
+                    state[field] = Array.isArray(val) ? val[0] : val;
+                }
             }
         });
         return JSON.stringify(state);
@@ -2361,6 +2368,31 @@ function renderStorageActionsButton(data) {
     
         function populateSelect(item) {
             const elem = $("#" + item)
+            // 'name' uses a remote type-ahead instead of plucking every name
+            if (item === "name") {
+                if (!elem.data('ajaxInit')) {
+                    elem.attr("index", item);
+                    elem.select2({
+                        width: '100%',
+                        multiple: true,
+                        minimumInputLength: 2,
+                        ajax: {
+                            url: "/api/v4/admin/items/domains/name/desktop/search",
+                            dataType: 'json',
+                            delay: 250,
+                            data: function (params) { return { q: params.term }; },
+                            processResults: function (data) {
+                                return { results: (data.field || []).map(function (n) {
+                                    return { id: n, text: n };
+                                }) };
+                            },
+                            cache: true
+                        }
+                    });
+                    elem.data('ajaxInit', true);
+                }
+                return;
+            }
             elem.select2();
             elem.attr("index", item);
             switch (item) {

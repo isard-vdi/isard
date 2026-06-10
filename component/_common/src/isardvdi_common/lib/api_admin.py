@@ -1,4 +1,5 @@
 import copy
+import re
 import threading
 import traceback
 
@@ -865,6 +866,10 @@ class ApiAdmin(RethinkSharedConnection):
             query = query.filter(lambda d: d["user"] == filters["user"])
         if "group" in filters and "group" not in used_filters:
             query = query.filter(lambda d: d["group"] == filters["group"])
+        if filters.get("name"):
+            names = filters["name"]
+            names = [names] if isinstance(names, str) else names
+            query = query.filter(lambda d: r.expr(names).contains(d["name"]))
 
         return cls._apply_domain_joins_and_pluck(query, bastion)
 
@@ -1514,6 +1519,39 @@ class ApiAdmin(RethinkSharedConnection):
             return r.expr({"field": values.distinct().coerce_to("array")}).run(
                 cls._rdb_connection
             )
+
+    @classmethod
+    def search_domains_names(cls, kind, term, payload, limit=50):
+        """Return up to ``limit`` distinct domain names matching ``term``.
+
+        Lazily scans the kind/category index and stops once enough matches are
+        found, so it never plucks every name like ``get_domains_field``.
+        """
+        if not term or len(term) < 2:
+            return {"field": []}
+
+        query = r.table("domains")
+        if payload["role_id"] == "manager":
+            query = query.get_all([kind, payload["category_id"]], index="kind_category")
+        else:
+            query = query.get_all(kind, index="kind")
+
+        pattern = "(?i)" + re.escape(term)
+        query = (
+            query.filter(lambda d: d["name"].match(pattern))
+            .limit(limit * 4)
+            .pluck("name")["name"]
+        )
+        with cls._rdb_context():
+            matches = list(query.run(cls._rdb_connection))
+
+        names = []
+        for name in matches:
+            if name not in names:
+                names.append(name)
+            if len(names) >= limit:
+                break
+        return {"field": names}
 
     @classmethod
     def set_logs_desktops_old_entries_max_time(cls, max_time):

@@ -103,6 +103,7 @@ async def admin_list_domains(request: Request, data: AdminListDomainsData):
                     "user": data.user,
                     "hyp_started": data.hyp_started,
                     "server": data.server,
+                    "name": data.name,
                 }.items()
                 if value is not None
             }
@@ -542,6 +543,48 @@ async def admin_template_delete(request: Request, template_id: str):
             request,
             "internal_server",
             "Failed to delete template",
+            traceback.format_exc(),
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Domain Name Search (typeahead)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+@manager_router.get(
+    "/admin/items/domains/name/{kind}/search",
+    tags=[tag],
+    response_model=AdminDomainsFieldResponse,
+    summary="Search domain names",
+    description="Returns up to a few dozen distinct domain names matching the "
+    "search term, for type-ahead filtering without loading every name.",
+    responses={
+        200: {"description": "Matching domain names retrieved"},
+        500: {"model": ErrorResponse},
+    },
+)
+async def admin_domains_name_search(
+    request: Request, kind: DomainKindEnum, q: str = ""
+):
+    try:
+        result = await asyncio.to_thread(
+            AdminDomainsService.search_domains_names,
+            request.token_payload,
+            kind.value,
+            q,
+        )
+        return JSONResponse(
+            content=AdminDomainsFieldResponse(**result).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to search domain names",
             traceback.format_exc(),
         )
 

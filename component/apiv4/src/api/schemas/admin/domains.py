@@ -40,6 +40,7 @@ class AdminListDomainsData(BaseModel):
     user: Optional[str] = None
     hyp_started: Optional[str] = None
     server: Optional[str] = None
+    name: Optional[List[str]] = None
 
 
 # ── Multiple Actions ─────────────────────────────────────────────────────
@@ -601,8 +602,8 @@ class DesktopLogRow(BaseModel):
     owner_group_name: Optional[str] = None
     owner_role_id: Optional[str] = None
     hyp_started: Optional[Union[str, bool]] = None
-    hyp_forced: Optional[str] = None
-    hyp_favourite: Optional[str] = None
+    hyp_forced: Optional[Union[str, List[str]]] = None
+    hyp_favourite: Optional[Union[str, List[str]]] = None
     hardware_vcpus: Optional[int] = None
     hardware_memory: Optional[float] = None
     hardware_bookables_vgpus: Optional[List[str]] = None

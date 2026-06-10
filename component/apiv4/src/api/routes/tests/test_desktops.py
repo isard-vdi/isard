@@ -790,6 +790,39 @@ def test_edit_desktop_propagates_forced_hyp_for_admin(monkeypatch, test_client):
     assert captured["data"] == {"forced_hyp": ["hyp-a", "hyp-b"]}
 
 
+def test_edit_desktop_forbids_forced_hyp_for_non_admin(monkeypatch, test_client):
+    """Only admins may set forced_hyp/favourite_hyp on a desktop, matching
+    the is_admin gate on PUT /item/template/{id}/edit. A manager must get
+    403 and the service must never be reached."""
+    jwt = MockJWT(role_id="manager")
+    called = {"edit": False}
+
+    def fake_edit_desktop(desktop_id, data, payload):
+        called["edit"] = True
+
+    monkeypatch.setattr(
+        "api.services.desktops.DesktopService.edit_desktop",
+        staticmethod(fake_edit_desktop),
+    )
+    _bypass_owns_domain_id(monkeypatch)
+
+    class _FakeDomain:
+        def __init__(self, _id):
+            self.kind = "desktop"
+
+    monkeypatch.setattr("api.dependencies.domains.Domain", _FakeDomain)
+
+    response = test_client(
+        url="/item/desktop/desktop-1/edit",
+        method="PUT",
+        body={"favourite_hyp": ["hyp-a"]},
+        jwt=jwt,
+    )
+
+    assert response.status_code == 403
+    assert called["edit"] is False
+
+
 def test_edit_desktop_accepts_image_upload_payload(monkeypatch, test_client):
     """Regression for round-2 Bug #41 — old-frontend's image-upload payload.
 
