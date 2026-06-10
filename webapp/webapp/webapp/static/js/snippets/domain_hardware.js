@@ -289,13 +289,18 @@ function setDomainStorage(domain_id) {
             {
                 "targets": 1,
                 "render": function (data, type, full, meta) {
-                    return full.actual_size.toFixed(1)
+                    // actual_size/virtual_size are GiB floats; render in human
+                    // units so sub-GiB disks don't collapse to "0.0". Keep the
+                    // raw value for sorting.
+                    if (type !== 'display') return full.actual_size || 0;
+                    return formatBytes((full.actual_size || 0) * 1024 * 1024 * 1024);
                 }
             },
             {
                 "targets": 2,
                 "render": function (data, type, full, meta) {
-                    return full.virtual_size.toFixed(1)
+                    if (type !== 'display') return full.virtual_size || 0;
+                    return formatBytes((full.virtual_size || 0) * 1024 * 1024 * 1024);
                 }
             }
         ],

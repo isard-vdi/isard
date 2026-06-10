@@ -21,6 +21,20 @@
 // sparsify, convert, …). Kept free of DOM init so they can be loaded
 // from any admin page that needs to invoke a storage operation.
 
+// Render a byte count in human units (B / KiB / MiB / GiB) so sub-GiB
+// disks (a 20 MiB load-test fixture, a 512 B empty disk) don't collapse
+// to "0.00 GB" and read as "0".
+function humanizeBytes(bytes) {
+  if (bytes === undefined || bytes === null) return '-';
+  bytes = Number(bytes);
+  if (!isFinite(bytes) || bytes < 0) return '-';
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KiB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(2) + ' MiB';
+  return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GiB';
+}
+
 function stopAllDesktops(storageId) {
   $.ajax({
     type: "PUT",

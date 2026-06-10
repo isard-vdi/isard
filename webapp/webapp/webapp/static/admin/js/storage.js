@@ -611,9 +611,13 @@ $(document).on('click', '.btn-find', function () {
     url: '/api/v4/item/storage/' + id + '/find',
     contentType: 'application/json',
     success: function (result) {
+      // The endpoint only enqueues the find task — the asynchronous
+      // chain handler updates the storage status (ready / deleted)
+      // when the scan actually completes. Saying "Storage found" here
+      // misleads operators when the file is genuinely gone.
       new PNotify({
-        title: 'Find',
-        text: 'Storage found',
+        title: 'Find task started',
+        text: 'Status will update when the scan completes',
         hide: true,
         delay: 2000,
         icon: '',
@@ -864,7 +868,13 @@ function initStorageSearchModal() {
             { label: 'ID', value: data.id || '-', selector: '#storage-info-id' },
             { label: 'Status', value: data.status || '-', selector: '#storage-info-status' },
             { label: 'Path', value: (data.directory_path && data.id && data.type) ? `${data.directory_path}/${data.id}.${data.type}` : '-', selector: '#storage-info-path' },
-            { label: 'Size', value: data.virtual_size ? (data.virtual_size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '-', selector: '#storage-info-size' }
+            // Sub-GiB disks (load-test fixtures, freshly-created empty
+            // disks, etc.) would render as "0.00 GB" / "0.02 GB" with a
+            // fixed GB unit and read as "0" to operators. Pick the unit
+            // dynamically (B / KiB / MiB / GiB) so the number is always
+            // meaningful at a glance. Guard against 0 explicitly so the
+            // `value ? ... : '-'` truthy-check above doesn't swallow it.
+            { label: 'Size', value: (data.virtual_size === undefined || data.virtual_size === null) ? '-' : humanizeBytes(data.virtual_size), selector: '#storage-info-size' }
           ];
           storageFields.forEach(field => {
             const html = `${field.value}${copyBtn(field.value)}`;
@@ -907,9 +917,12 @@ function initStorageSearchModal() {
           }
           $(modal + " #storage-info").show();
 
-          // Show actions panel and populate button data-ids
+          // Show actions panel and populate button data-ids. Set the
+          // jQuery data cache too: the action handlers read $(this).data("id"),
+          // which caches the value on first access — .attr() alone leaves it
+          // stale, so every storage opened after the first kept the first id.
           $(modal + " #storage-actions").show();
-          $(modal + " #storage-action-buttons button").attr("data-id", data.id);
+          $(modal + " #storage-action-buttons button").attr("data-id", data.id).data("id", data.id);
 
           // Show admin-only actions if user is admin
           if ($("#user_data").data("role") === "admin") {
@@ -1015,15 +1028,17 @@ $(document).on("click", ".btn-modal-disconnect", function() {
 $(document).on("click", ".btn-modal-find", function() {
   var storageId = $(this).data("id");
   $("#modalSearchStorage").modal("hide");
-  // Find action is a direct API call
+  // Find action is a direct API call. The endpoint only enqueues the
+  // task — see the .btn-find handler above for why this toaster cannot
+  // honestly say "Storage found".
   $.ajax({
     type: 'GET',
     url: '/api/v4/item/storage/' + storageId + '/find',
     contentType: 'application/json',
     success: function (result) {
       new PNotify({
-        title: 'Find',
-        text: 'Storage found',
+        title: 'Find task started',
+        text: 'Status will update when the scan completes',
         hide: true,
         delay: 2000,
         icon: '',
