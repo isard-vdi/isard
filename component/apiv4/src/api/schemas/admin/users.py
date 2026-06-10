@@ -180,6 +180,13 @@ class AdminGroupEnrollmentData(BaseModel):
 # ── Categories ───────────────────────────────────────────────────────────
 
 
+class ManagerPermissionsData(BaseModel):
+    authentication: bool = False
+    branding: bool = False
+    login_notification: bool = False
+    plannings: bool = False
+
+
 class AdminCategoryCreateData(BaseModel):
     """Request body for creating a category."""
 
@@ -190,9 +197,11 @@ class AdminCategoryCreateData(BaseModel):
     uid: Optional[str] = None
     photo: Optional[str] = None
     storage_pool: Optional[str] = None
-    manager_permissions: Optional[dict] = None
-    # Default (absent/None) = draw from the global GPU pool (own + global
-    # undelegated cards); False = only cards delegated to this category. (!4547)
+    maintenance: bool = False
+    manager_permissions: ManagerPermissionsData
+    recycle_bin_cutoff_time: int | None = None
+    ephimeral: Optional[EphimeralDesktopsData] = None
+    storage_pool: Optional[str] = None
     gpu_use_global_pool: Optional[bool] = None
 
 
