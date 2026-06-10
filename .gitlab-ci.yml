@@ -40,6 +40,13 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   GITLAB_ADVANCED_SAST_ENABLED: "true"
   MAX_UNVERIFIED_CORES: "16"
+  GOMODCACHE: "${CI_PROJECT_DIR}/.go-mod-cache"
+  GOCACHE: "${CI_PROJECT_DIR}/.go-build-cache"
+  # Same reason, and global rather than on the python template alone: the lint
+  # jobs and test-integration cache `.uv-cache` too, and uv writing to its
+  # default location inside the container made them re-resolve every dependency
+  # — including the two fetched straight from a git forge — on every run.
+  UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
   # Cache bun's content-addressed global install store (hash-verified, self-healing)
   # instead of the derived node_modules tree. A corrupt or truncated file inside a
   # cached node_modules (e.g. a 0-byte dependency file) otherwise persists across
@@ -53,68 +60,37 @@ variables:
   # not project secrets — they ship inside dependency tarballs. Excluding the
   # dependency caches keeps the report focused on this repo's own code.
   SECRET_DETECTION_EXCLUDED_PATHS: ".go-mod-cache,.go-build-cache,vendor,node_modules,old-frontend/node_modules,component/frontend/node_modules,testing/e2e/node_modules"
-  # GitLab only stores cache paths that live INSIDE the project directory: with
-  # Go's default GOMODCACHE (/go/pkg/mod) the runner logs `processPath: artifact
-  # path is not a subpath of project directory` and silently skips it, so the
-  # module cache was never actually stored. Point both Go caches into the tree.
-  GOMODCACHE: "$CI_PROJECT_DIR/.go-mod-cache"
-  GOCACHE: "$CI_PROJECT_DIR/.go-build-cache"
-  # Same reason, and it was only set on the python test template: the lint jobs
-  # and integration-real cached `.uv-cache` while uv wrote to its default
-  # location inside the container, so they re-resolved every dependency —
-  # including the two fetched straight from a git forge — on every run.
-  UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
 
 default:
   # Every job only reads the tree or pushes SHA-tagged images, so cancelling one
   # mid-flight leaves nothing half-applied. Required by `auto_cancel` above.
   interruptible: true
   retry: 1
-
-# A cache declared under `default:` is downloaded AND re-uploaded by EVERY job in
-# the pipeline. With an S3 cache backend each entry costs a round trip both ways,
-# and the four entries together are ~216k files. Most jobs read none of them: the
-# `docker-image` builds only drive docker-compose and the `docker-tag` jobs run a
-# single `crane tag`. Measured on a saturated runner, `restore_cache` was 1260 s
-# of a 1412 s `docker-tag` job whose real work is 1.3 s. Each job now declares
-# only what it reads.
-#
-# The key files must be the lockfiles that actually exist: a `key: files:` entry
-# naming a missing file silently degrades to a constant, so the cache stops
-# tracking the dependencies it is meant to key on.
-# Each anchor is a single cache ENTRY, not a list, so a job that needs two of
-# them can compose both under one `cache:` key.
-.cache-go: &cache_go
-  key:
-    files:
-      - go.mod
-      - go.sum
-  paths:
-    - .go-mod-cache
-    - .go-build-cache
-
-.cache-bun: &cache_bun
-  key:
-    files:
-      - component/frontend/bun.lock
-      - old-frontend/bun.lock
-  paths:
-    - .bun-cache
-
-.cache-e2e: &cache_e2e
-  key:
-    files:
-      - testing/e2e/package.json
-      - testing/e2e/bun.lock
-  paths:
-    - testing/e2e/node_modules
-
-.cache-uv: &cache_uv
-  key:
-    files:
-      - uv.lock
-  paths:
-    - .uv-cache
+  cache: &global_cache
+    - key:
+        files:
+          - go.mod
+          - go.sum
+      paths:
+        - .go-mod-cache
+        - .go-build-cache
+    - key:
+        files:
+          - component/frontend/bun.lockb
+          - old-frontend/bun.lock
+      paths:
+        - .bun-cache
+    - key:
+        files:
+          - testing/e2e/package.json
+          - testing/e2e/bun.lock
+      paths:
+        - testing/e2e/node_modules
+    - key:
+        files:
+          - uv.lock
+      paths:
+        - .uv-cache
 
 include:
   - template: Jobs/Dependency-Scanning.gitlab-ci.yml
@@ -134,8 +110,6 @@ stages:
 
 commit-lint:
   stage: lint
-  cache:
-    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
     - apk add --no-cache git
@@ -146,8 +120,6 @@ commit-lint:
 
 version:
   stage: lint
-  cache:
-    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   rules:
     # semantic-release checks repository write access and we cannot use
@@ -196,9 +168,6 @@ warm-uv-cache:
   # resolve from the network as they did before.
   allow_failure: true
   retry: 2
-  cache:
-    - <<: *cache_uv
-      policy: pull-push
   image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache git make
@@ -216,13 +185,10 @@ warm-uv-cache:
 .lint-uv-job:
   stage: lint
   needs: ["warm-uv-cache"]
-  cache:
-    - <<: *cache_uv
-      policy: pull
   image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
     - apk add --no-cache make
-    - uv sync --only-group dev
+    - uv sync --frozen --only-group dev
 
 check-python:
   extends: .lint-uv-job
@@ -236,16 +202,12 @@ check-system-deps:
 
 check-golang:
   stage: lint
-  cache:
-    - *cache_go
   image: golangci/golangci-lint@sha256:5cceeef04e53efe1470638d4b4b4f5ceefd574955ab3941b2d9a68a8c9ad5240
   script:
     - make lint-go
 
 check-frontend:
   stage: lint
-  cache:
-    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   parallel:
     matrix:
@@ -266,8 +228,6 @@ check-frontend:
 
 check-old-frontend:
   stage: lint
-  cache:
-    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
     - apk add --no-cache make
@@ -406,8 +366,6 @@ unit-test-go:
   stage: unit-test
   needs: ["gen-protobuf"]
   image: golang:1.25.8@sha256:3ac2864710f25e84381bf5d4272261c7ba73ada0339d62034df4de20dabb33ca
-  cache:
-    - *cache_go
   before_script:
     - apt-get update && apt-get install -y libvirt-dev make
   script:
@@ -443,9 +401,6 @@ unit-test-vmalert:
 # Shared Python test config — uv cache dir cached via default cache entry.
 .python-test-template:
   stage: unit-test
-  cache:
-    - <<: *cache_uv
-      policy: pull
   needs: ["gen-protobuf", "warm-uv-cache"]
   image: ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine@sha256:43f1154bf7569ff82cab78d76ba6e6e553f99b6a2cc9c0b4c83615837f237650
   before_script:
@@ -463,7 +418,7 @@ unit-test-vmalert:
 # dependency links, registries, Job.cancel), or a Lua script whose effect a
 # mocked connection cannot report — are not unit tests and no longer live here.
 # They are in testing/integration/redis/ and run against the stack's own
-# isard-redis through integration-real, so no row below needs a Redis service.
+# isard-redis through test-integration, so no row below needs a Redis service.
 #
 # One row per Makefile PY_PKGS entry.
 unit-test-python:
@@ -572,8 +527,6 @@ unit-test-frontend:
   # generated @/gen/oas/apiv4 client, but the alias must still resolve, so the
   # gen-protobuf-produced component/frontend/src/gen tree must be present.
   stage: unit-test
-  cache:
-    - *cache_bun
   needs: ["gen-protobuf"]
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   before_script:
@@ -690,17 +643,14 @@ docker-image:
         docker push $BUILDKIT_CACHE_REGISTRY/isard/isardvdi/$IMAGE:latest
       fi
 
-test-e2e:
+.real-deployment:
   stage: test
-  cache:
-    - *cache_bun
-    - *cache_e2e
   when: manual
+  timeout: 30m
   tags:
     - gpu
     - kvm
   needs: ["docker-image", "gen-protobuf"]
-  timeout: 30m
   allow_failure: true
   variables:
     DOCKER_TLS_CERTDIR: "/certs-root"
@@ -739,6 +689,13 @@ test-e2e:
     # Start the instance
     - docker-compose -f docker-compose.e2e.yml pull --quiet
     - docker-compose -f docker-compose.e2e.yml up -d
+  after_script:
+    - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
+
+test-e2e:
+  extends: .real-deployment
+  before_script:
+    - !reference [.real-deployment, before_script]
     ## Download bun
     - docker create --name bun-bin oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
     - docker cp bun-bin:/usr/local/bin/bun /usr/local/bin/bun
@@ -746,7 +703,7 @@ test-e2e:
   script:
     - make test-e2e
   after_script:
-    - docker-compose -f docker-compose.e2e.yml logs &> docker-compose.log
+    - !reference [.real-deployment, after_script]
     # Playwright writes [[ATTACHMENT|<path>]] relative to junit.xml; GitLab
     # resolves them from CI_PROJECT_DIR, so prepend the dir prefix.
     - |
@@ -762,89 +719,20 @@ test-e2e:
     reports:
       junit: testing/e2e/test-results/junit.xml
 
-integration-real:
-  # Runs the Python lifecycle suite (testing/integration/) against a
-  # full dind-rootless stack. Uses the same docker-compose.e2e.yml the
-  # Playwright job builds, so one stack serves both. Manual trigger +
-  # allow_failure: we're still bedding in the TCG hypervisor path; any
-  # intermittent archive.org outage shouldn't fail the pipeline.
-  stage: test
-  cache:
-    - <<: *cache_uv
-      policy: pull
-  when: manual
-  tags:
-    - gpu
-  needs: ["docker-image"]
-  timeout: 20m
-  allow_failure: true
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs-root"
-  services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless@sha256:7c3e797187e43738220462658f4586572cbd3bf009f728b21e34d9c5c06ce431"
-      variables:
-        DOCKER_TLS_CERTDIR: "/certs-root"
-      alias: docker
-  image: "docker:${DOCKER_VERSION}@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac"
+test-integration:
+  extends: .real-deployment
+  # The shared scaffolding caches what test-e2e reads; this job runs no
+  # `bun install` and does read the uv cache, through the project directory it
+  # mounts into the uv container. `cache:` is a list, so this replaces rather
+  # than extends the one .real-deployment declares.
   before_script:
-    - apk add bash git docker-compose python3 curl
-    - curl -fsSL -o /tmp/uv.tar.gz https://github.com/astral-sh/uv/releases/download/0.11.23/uv-x86_64-unknown-linux-musl.tar.gz
-    - echo "6be47081100ff1ce0ac7e85ba2ac12e32f2ffa6f946d78bf7f24ee9ce3a46181  /tmp/uv.tar.gz" | sha256sum -c -
-    - tar -xzf /tmp/uv.tar.gz -C /tmp
-    - mv /tmp/uv-x86_64-unknown-linux-musl/uv /usr/local/bin/uv
-    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - cp isardvdi.cfg.example isardvdi.e2e.cfg
-    - echo "USAGE=test" >> isardvdi.e2e.cfg
-    - echo "DOMAIN=host.docker.internal" >> isardvdi.e2e.cfg
-    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
-    - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
-    - echo "ENABLE_STATS=false" >> isardvdi.e2e.cfg
-    # FRONTEND_MODE=all keeps the Vue 3 SPA reachable for the e2e suite — the
-    # cfg.example default is "deprecated" (Vue 3 redirects to Vue 2) for safe
-    # production migrations, but every Vue 3 e2e spec navigates to /frontend/*
-    # and would silently land on Vue 2 without this override.
-    - echo "FRONTEND_MODE=all" >> isardvdi.e2e.cfg
-    # Test runs MUST disable the login rate limiter — cfg.example enables it
-    # (good for production), but serial/parallel test logins trip it and the
-    # whole run cascades into 429 failures. testing/config/isardvdi.e2e.cfg.template
-    # does the same for the test-e2e job.
-    - echo "AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false" >> isardvdi.e2e.cfg
-    # Redirect nvidia-smi / libnvidia-ml / sriov-manage mounts to an
-    # always-present file — rootless dind cannot mkdir /usr/bin/nvidia-smi
-    # or /usr/lib/nvidia/sriov-manage to satisfy the default bind. GPU
-    # discovery exits cleanly when exec fails.
-    - echo "NVIDIA_SMI_PATH=/etc/hostname" >> isardvdi.e2e.cfg
-    - echo "NVIDIA_ML_LIB_PATH=/etc/hostname" >> isardvdi.e2e.cfg
-    - echo "NVIDIA_SRIOV_MANAGE_PATH=/etc/hostname" >> isardvdi.e2e.cfg
-    # /dev/hugepages mount: see test-e2e job comment.
-    - mkdir -p /tmp/isard-real-hugepages
-    - echo "HUGEPAGES_PATH=/tmp/isard-real-hugepages" >> isardvdi.e2e.cfg
-    - CODEGEN=false ./build.sh
-    - "sed -i 's|source: /opt/isard/|source: /tmp/isard-real/opt/isard/|g; s|source: /opt/isard-local/|source: /tmp/isard-real/opt/isard-local/|g' docker-compose.e2e.yml"
-    - docker compose -f docker-compose.e2e.yml pull
-    - docker compose -f docker-compose.e2e.yml up -d
-    - uv sync --frozen --package isardvdi-testing --group test --no-editable
-    - uv run --group test --package isardvdi-testing isardvdi-populate-test-db
+    - !reference [.real-deployment, before_script]
   script:
-    - |
-      NETWORK_ID="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' isard-portal | tr -d '\n')"
-      docker run --rm \
-        --network="$NETWORK_ID" \
-        -v "$(pwd):/src" -w /src/testing \
-        -e E2E_ADMIN_USER=admin_e2e_01 \
-        -e E2E_ADMIN_PWD='IsardTest1!' \
-        -e E2E_SKIP_VM_BOOT=1 \
-        ghcr.io/astral-sh/uv:0.11.23-python3.14-trixie-slim bash -c '
-          apt-get update -qq && apt-get install -y -qq curl > /dev/null
-          bash /src/testing/integration/wait-for-stack.sh 240
-          cd /src && uv sync --frozen --package isardvdi-testing --group test --no-editable
-          cd /src/testing && uv run --group test --package isardvdi-testing pytest integration/ -v -m real --tb=short --junitxml=/src/testing/integration/report.xml
-        '
-  after_script:
-    - docker compose -f docker-compose.e2e.yml down || true
+    - make ci-test-integration
   artifacts:
     when: always
+    paths:
+      - docker-compose.log
     reports:
       junit: testing/integration/report.xml
 
@@ -887,8 +775,6 @@ release:
   # semantic-release pushes the tag and creates the release; cancelling it
   # mid-flight leaves one without the other, so it opts out of the default.
   interruptible: false
-  cache:
-    - *cache_bun
   image: oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

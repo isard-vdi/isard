@@ -220,9 +220,24 @@ test-sparsify:
 # replaced, so this needs no qemu binaries and no lock holder.
 .PHONY: ci-test-storage-utils
 ci-test-storage-utils:
-	uv sync --no-dev --group test --package isardvdi-storage
+	uv sync --frozen --no-dev --group test --package isardvdi-storage
 	cd docker/storage/utils && uv run --no-dev --group test --package isardvdi-storage pytest tests -q --tb=short --junitxml=report.xml --cov=storage_lib --cov-report=term --cov-report=xml:coverage.xml
 
+.PHONY: test-integration
+test-integration: test-e2e-seed
+	docker run $(_e2e_tty) --rm --network=isard-network \
+	-e E2E_SKIP_VM_BOOT=1 -e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	-v "${ISARDVDI_SRC}:/src" -w /src/testing \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
+	uv run --frozen --no-dev --group test --package isardvdi-testing pytest integration/ -v -m real
+
+.PHONY: ci-test-integration
+ci-test-integration: test-e2e-seed
+	docker run $(_e2e_tty) --rm --network=isard-network \
+	-e E2E_SKIP_VM_BOOT=1 -e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
+	-v "${ISARDVDI_SRC}:/src" -w /src/testing \
+	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
+	uv run --frozen --no-dev --group test --package isardvdi-testing pytest integration/ -m real --tb=short --junitxml=integration/report.xml
 
 # CI test targets: emit JUnit + Cobertura XML so GitLab CI can consume them
 # via artifacts.reports.*. Paths must match .gitlab-ci.yml byte-identical.
@@ -241,7 +256,7 @@ ci-test-go:
 define CI_TEST_RULE
 .PHONY: ci-test-$(word 1,$1)
 ci-test-$(word 1,$1):
-	uv sync --no-dev --group test --package isardvdi-$(word 1,$1)
+	uv sync --frozen --no-dev --group test --package isardvdi-$(word 1,$1)
 	cd $(word 3,$1) && uv run --no-dev --group test --package isardvdi-$(word 1,$1) pytest tests -q -n auto --dist=loadfile --tb=short --junitxml=report.xml --cov=$(word 2,$1) --cov-report=term --cov-report=xml:coverage.xml
 endef
 $(foreach r,$(PY_PKGS),$(eval $(call CI_TEST_RULE,$(subst :, ,$(r)))))

@@ -1,7 +1,7 @@
 # IsardVDI e2e / integration test configuration
 #
 # Mirrors the cfg that .gitlab-ci.yml builds for test-e2e and
-# integration-real jobs: USAGE=test, DOMAIN=host.docker.internal,
+# test-integration jobs: USAGE=test, DOMAIN=host.docker.internal,
 # ENABLE_STATS=false. This template exists so `make test-e2e-stack`
 # and CI produce byte-identical docker-compose.e2e.yml stacks.
 #

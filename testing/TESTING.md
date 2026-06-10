@@ -114,7 +114,7 @@ make ci-all
 | changefeed unit | — | `make test-changefeed` | `unit-test-python: changefeed` |
 | Go unit | ~60 `*_test.go` | `make test-go` (`go test -race -cover ./...`) | `unit-test-go` |
 | Playwright e2e | 76 scenarios | `make test-e2e` (auto-seeds + runs Playwright container) | `test-e2e` |
-| Integration (real stack) | — | `make test-e2e-stack` | `integration-real` |
+| Integration (real stack) | — | `make test-e2e-stack` | `test-integration` |
 
 ### E2E scenario breakdown (76 total)
 
