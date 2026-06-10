@@ -296,6 +296,94 @@ def test_admin_update_user(monkeypatch, test_client):
     assert "ids" not in captured["data"]
 
 
+# ─── Role-elevation guard (runs the real service, stubs only its DB deps) ──
+
+
+def _stub_update_deps(monkeypatch, target_role="user", target_category="cat-a"):
+    monkeypatch.setattr(
+        "api.services.admin.users.Caches.get_document",
+        staticmethod(
+            lambda table, _id: {
+                "category": target_category,
+                "role": target_role,
+                "name": _id,
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_user_id",
+        staticmethod(lambda *a, **k: None),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.AdminUsersService.owns_category_id",
+        staticmethod(lambda *a, **k: None),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.CommonUsers.update_user",
+        staticmethod(lambda *a, **k: None),
+    )
+    monkeypatch.setattr(
+        "api.services.admin.users.CommonUsers.update_multiple_users",
+        staticmethod(lambda *a, **k: None),
+    )
+    monkeypatch.setattr("api.routes.users.clear_users_list_cache", lambda *a, **k: None)
+
+
+def test_admin_update_user_blocks_role_elevation(monkeypatch, test_client):
+    _stub_update_deps(monkeypatch)
+    response = test_client(
+        url="/admin/item/user/u-victim",
+        method="PUT",
+        body={"role": "admin"},
+        jwt=MockJWT(role_id="manager", user_id="u-mgr", category_id="default"),
+    )
+    assert response.status_code == 403
+
+
+def test_admin_update_user_allows_lateral_grant(monkeypatch, test_client):
+    _stub_update_deps(monkeypatch)
+    response = test_client(
+        url="/admin/item/user/u-victim",
+        method="PUT",
+        body={"role": "manager"},
+        jwt=MockJWT(role_id="manager", user_id="u-mgr", category_id="default"),
+    )
+    assert response.status_code == 204
+
+
+def test_admin_update_user_blocks_self_role_change(monkeypatch, test_client):
+    _stub_update_deps(monkeypatch, target_role="admin")
+    response = test_client(
+        url="/admin/item/user/u-admin",
+        method="PUT",
+        body={"role": "manager"},
+        jwt=MockJWT(role_id="admin", user_id="u-admin"),
+    )
+    assert response.status_code == 403
+
+
+def test_admin_update_user_allows_permitted_role(monkeypatch, test_client):
+    _stub_update_deps(monkeypatch)
+    response = test_client(
+        url="/admin/item/user/u-victim",
+        method="PUT",
+        body={"role": "advanced"},
+        jwt=MockJWT(role_id="manager", user_id="u-mgr", category_id="default"),
+    )
+    assert response.status_code == 204
+
+
+def test_admin_update_users_bulk_blocks_role_elevation(monkeypatch, test_client):
+    _stub_update_deps(monkeypatch)
+    response = test_client(
+        url="/admin/items/users/bulk",
+        method="PUT",
+        body={"ids": ["u-victim"], "role": "admin"},
+        jwt=MockJWT(role_id="manager", user_id="u-mgr", category_id="default"),
+    )
+    assert response.status_code == 403
+
+
 # DELETE /admin/user takes a body (AdminUserDeleteData). The
 # ``test_client`` fixture forwards the body via ``client.request("DELETE",
 # ..., json=...)`` so it works fine; the previous skip note was
