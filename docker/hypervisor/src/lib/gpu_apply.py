@@ -21,6 +21,8 @@ touches the host is validated on a GPU host.
 
 import logging
 import os
+import re
+import shlex
 import signal
 import time
 import uuid as _uuid
@@ -294,6 +296,49 @@ def _live_mdev_pool(pci_bdf, run, current_suffix, gpu, sub_paths=None):
                 entry["mig_profile_id"] = mig_ids.get(current_suffix)
             pool[uuid] = entry
     return {current_suffix: pool} if pool else None
+
+
+def _running_mdev_uuids(run):
+    """Set of mdev UUIDs currently attached to a RUNNING libvirt domain.
+
+    Carried on a ``noop``/``skipped_busy`` report so the ingest reconcile adopts
+    ``domain_started``/``domain_reserved`` ONLY for a UUID a desktop is actually
+    running on right now -- never on the strength of a (possibly stale) DB flag.
+    At hypervisor startup the entrypoint kills leftover qemu BEFORE registration,
+    so this set is empty and a re-pin frees every entry (clean slate) instead of
+    re-asserting a desktop that is not running. Best-effort: returns an empty set
+    on any virsh failure (the reconcile then frees, which a real running desktop's
+    next start/booking-align re-reserves)."""
+    res = (
+        run(["virsh list --name --state-running 2>/dev/null || true"], timeout=15) or []
+    )
+    out = (res[0].get("out") if res else "") or ""
+    # `virsh list --name` prints one domain name per line; split on lines (NOT
+    # whitespace) so a name containing a space stays intact.
+    names = [n.strip() for n in out.splitlines() if n.strip()]
+    # Each name is interpolated into a shell command below. shlex.quote neutralises
+    # embedded quotes/metacharacters; additionally skip the (never-valid for an
+    # IsardVDI desktop) leading-dash names so they can't smuggle a virsh flag. A
+    # skipped name only means its mdev is treated as free, and real desktop ids
+    # start with '_' or an alphanumeric -- so this never drops a live desktop.
+    safe = [n for n in names if not n.startswith("-")]
+    if not safe:
+        return set()
+    dumps = (
+        run(
+            [f"virsh dumpxml {shlex.quote(n)} 2>/dev/null || true" for n in safe],
+            timeout=30,
+        )
+        or []
+    )
+    uuids = set()
+    for d in dumps:
+        xml = (d.get("out") if isinstance(d, dict) else "") or ""
+        # The only uuid= ATTRIBUTE in a domain XML is an mdev hostdev's
+        # <source><address uuid='...'/> (the domain's own uuid is an element).
+        for m in re.finditer(r"<address[^>]*\buuid=['\"]([0-9a-fA-F-]+)['\"]", xml):
+            uuids.add(m.group(1).lower())
+    return uuids
 
 
 def _apply(gpu, current, wanted, run):
@@ -748,10 +793,14 @@ def apply_target(gpu, target, run=run_local, deliberate=False):
         # Nothing was applied, but the live UUID set may have drifted from the DB
         # (same profile, but discovery re-carved or a hypervisor-container recreate
         # minted a fresh set). Report the LIVE pool so the API re-pins the DB to
-        # reality (r.literal replace) WITHOUT stopping a running desktop -- a busy
-        # card's in-use mdev is in the live set and the ingest re-adopts its
-        # domain_started. _live_mdev_pool returns None (-> timestamp-only) for
-        # passthrough/MIG_CURRENT or an empty card, so those keep prior behaviour.
+        # reality (r.literal replace). Carry the set of UUIDs a desktop is ACTUALLY
+        # running on right now (running_mdev_uuids) so the ingest re-adopts
+        # domain_started ONLY for those -- never on a stale DB flag, and never at
+        # startup (the entrypoint already killed leftover qemu, so the set is
+        # empty -> clean slate). _live_mdev_pool returns None (-> timestamp-only)
+        # for passthrough/MIG_CURRENT or an empty card, so those keep prior
+        # behaviour and we skip the (then unused) running-uuid virsh probe.
+        live_pool = _live_mdev_pool(pci_bdf, run, current, gpu, gpu.get("sub_paths"))
         return _report(
             pci_bdf,
             action,
@@ -759,7 +808,10 @@ def apply_target(gpu, target, run=run_local, deliberate=False):
             previous=current,
             binding=driver,
             mig_mode=mig_mode,
-            mdevs=_live_mdev_pool(pci_bdf, run, current, gpu, gpu.get("sub_paths")),
+            mdevs=live_pool,
+            running_mdev_uuids=(
+                sorted(_running_mdev_uuids(run)) if live_pool else None
+            ),
             mdevs_reset_at=reset_at,
         )
 
