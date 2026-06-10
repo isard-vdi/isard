@@ -112,3 +112,70 @@ def test_parse_apply_report_non_report_json_returns_none():
     assert vs.parse_apply_report('{"foo": 1}') is None
     assert vs.parse_apply_report("[1, 2, 3]") is None
     assert vs.parse_apply_report('"applied"') is None
+
+
+# --- reconcile_pool_to_live --------------------------------------------------
+def test_reconcile_replaces_stale_uuids_with_host_set():
+    db = {
+        "8Q": {
+            "old": {"created": True, "domain_started": False, "domain_reserved": False}
+        }
+    }
+    live = {
+        "8Q": {
+            "new": {
+                "pci_mdev_id": "0000:d4:00.2",
+                "type_id": "nvidia-1525",
+                "created": True,
+                "domain_started": False,
+                "domain_reserved": False,
+            }
+        }
+    }
+    out = vs.reconcile_pool_to_live(db, live)
+    assert set(out["8Q"]) == {"new"}  # stale 'old' dropped, host 'new' added free
+    assert out["8Q"]["new"]["domain_started"] is False
+
+
+def test_reconcile_adopts_running_desktop():
+    db = {
+        "8Q": {
+            "u": {
+                "created": True,
+                "domain_started": "desk1",
+                "domain_reserved": "desk1",
+            }
+        }
+    }
+    live = {
+        "8Q": {
+            "u": {
+                "pci_mdev_id": "0000:d4:00.3",
+                "type_id": "nvidia-1525",
+                "created": True,
+                "domain_started": False,
+                "domain_reserved": False,
+            }
+        }
+    }
+    out = vs.reconcile_pool_to_live(db, live)
+    assert out["8Q"]["u"]["domain_started"] == "desk1"  # never drop a running desktop
+    assert out["8Q"]["u"]["domain_reserved"] == "desk1"
+
+
+def test_reconcile_drops_sibling_profile_pools():
+    # A card carved to 8Q: a stale sibling 4Q pool in the DB is dropped (reality).
+    db = {"4Q": {"x": {"created": True}}, "8Q": {"y": {"created": True}}}
+    live = {
+        "8Q": {
+            "z": {
+                "pci_mdev_id": "p",
+                "type_id": "t",
+                "created": True,
+                "domain_started": False,
+                "domain_reserved": False,
+            }
+        }
+    }
+    out = vs.reconcile_pool_to_live(db, live)
+    assert set(out) == {"8Q"} and set(out["8Q"]) == {"z"}

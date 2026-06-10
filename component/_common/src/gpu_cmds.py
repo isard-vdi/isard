@@ -129,35 +129,6 @@ def build_mig_vgpu_carve_cmds(pci_bdf, gfx_profile_id, count):
     ]
 
 
-def build_mig_add_slice_cmds(pci_bdf, gfx_profile_id, placement=None):
-    """Create ONE ``+gfx`` MIG GPU-instance (with its compute instance) on a card
-    that is ALREADY MIG-enabled with SR-IOV up, WITHOUT touching SR-IOV or the PF.
-
-    This is the non-destructive per-slice add: the new GI lands in a free
-    placement (auto when ``placement`` is None) and the OTHER GPU-instances and
-    their VF mdevs are left untouched (no ``sriov-manage``, no ``-mig`` toggle, no
-    GPU reset). Validated on RTX PRO 6000 Blackwell: a running desktop on a
-    sibling slice is undisturbed. The caller then carves one mdev on a free VF
-    (``build_mdev_create_cmd``). ``placement`` (a slice start offset) is for the
-    asymmetric/mixed layout follow-up; symmetric same-size adds auto-place."""
-    gi = str(gfx_profile_id) if placement is None else f"{gfx_profile_id}:{placement}"
-    return [f"nvidia-smi mig -i {pci_bdf} -cgi {gi} -C"]
-
-
-def build_mig_remove_slice_cmds(pci_bdf, gi_id):
-    """Destroy ONE MIG GPU-instance (its compute instance first) by GI instance
-    id, on an already-MIG-enabled card, WITHOUT touching SR-IOV or the PF.
-
-    The non-destructive per-slice remove: the caller MUST first remove this GI's
-    VF mdev (``build_mdev_remove_cmd``) and confirm the slice is idle (no
-    domain). The other GPU-instances + mdevs and SR-IOV are left untouched. The
-    ``-dci`` is best-effort (a GI created without a compute instance has none)."""
-    return [
-        f"nvidia-smi mig -i {pci_bdf} -dci -gi {gi_id} 2>/dev/null || true",
-        f"nvidia-smi mig -i {pci_bdf} -dgi -gi {gi_id}",
-    ]
-
-
 def build_mig_clear_card_mdevs_cmds(pci_bdf):
     """Remove every live mdev under this card's SR-IOV VFs (so the backing MIG
     GPU-instances can then be destroyed). Best-effort shell loop; safe when there

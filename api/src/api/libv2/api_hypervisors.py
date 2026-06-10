@@ -1475,7 +1475,10 @@ class ApiHypervisors:
         endpoint) into the vgpus rows so the DB reflects reality and the engine
         reconcile confirms instead of re-applying. Only 'applied' results carry
         a rebuilt mdev pool worth persisting; everything else is left alone."""
-        from isardvdi_common.vgpu_state import build_applied_state_patch
+        from isardvdi_common.vgpu_state import (
+            build_applied_state_patch,
+            reconcile_pool_to_live,
+        )
 
         if not isinstance(applied, dict):
             return
@@ -1483,25 +1486,61 @@ class ApiHypervisors:
             if not isinstance(rep, dict):
                 continue
             result = rep.get("result")
-            # noop / skipped_busy / skipped_advisory: nothing was applied, but
-            # the card's existing pool is still valid (a live desktop's mdev
-            # survives discovery's reset). Re-pin ONLY mdevs_last_synced_at to
-            # this discovery's mdevs_reset_at so the engine reconcile CONFIRMS
-            # instead of running the authoritative rebuild that would stop the
-            # still-alive desktop. Never touch the pool/profile here. An 'error'
-            # result is NOT re-pinned (the state is uncertain -> let reconcile
-            # decide).
+            # noop / skipped_busy / skipped_advisory: nothing was APPLIED, but the
+            # live UUID set may have drifted from the DB (same profile, fresh
+            # UUIDs after a re-carve or a hypervisor-container recreate). When the
+            # report carries the LIVE pool (noop/skipped_busy on a real vGPU/MIG
+            # card), re-pin the DB to reality so the engine never hands QEMU a
+            # phantom UUID -- adopting domain_started/domain_reserved for any UUID
+            # still live so a running desktop is never dropped. skipped_advisory
+            # (unreliable read) carries no pool and stays timestamp-only.
             if result in ("noop", "skipped_busy", "skipped_advisory"):
                 reset_at = rep.get("mdevs_reset_at")
+                live = rep.get("mdevs")
+                vgpu_id = self._vgpu_id_for(hyper_id, pci_bus_id)
+                if isinstance(live, dict) and live:
+                    with app.app_context():
+                        existing = r.table("vgpus").get(vgpu_id).run(db.conn)
+                    if existing:
+                        reconciled = reconcile_pool_to_live(
+                            existing.get("mdevs") or {}, live
+                        )
+                        patch = {"mdevs": r.literal(reconciled)}
+                        if reset_at is not None:
+                            patch["mdevs_last_synced_at"] = reset_at
+                        with app.app_context():
+                            r.table("vgpus").get(vgpu_id).update(patch).run(db.conn)
+                        log.info(f"Reconciled live mdev pool for {vgpu_id} ({result})")
+                        continue
+                # advisory skip / no live pool / no row yet: re-pin only the
+                # timestamp so the engine CONFIRMS instead of rebuilding.
                 if reset_at is None:
                     continue
-                vgpu_id = self._vgpu_id_for(hyper_id, pci_bus_id)
                 with app.app_context():
                     r.table("vgpus").get(vgpu_id).update(
                         {"mdevs_last_synced_at": reset_at}
                     ).run(db.conn)
                 continue
             if result != "applied":
+                # error / teardown_blocked: the apply FAILED, so any pool we hold
+                # may be dead. Clear applied_by_hypervisor so the preservation-first
+                # rediscovery (update_db_hyp_nvidia_info) does NOT re-emit the stale
+                # pool; the next successful apply re-establishes the flag + a fresh
+                # pool. (The state is otherwise left for the engine to re-derive.)
+                if result in ("error", "teardown_blocked"):
+                    vgpu_id = self._vgpu_id_for(hyper_id, pci_bus_id)
+                    with app.app_context():
+                        ex = r.table("vgpus").get(vgpu_id).run(db.conn)
+                    if ex and ex.get("applied_by_hypervisor"):
+                        with app.app_context():
+                            r.table("vgpus").get(vgpu_id).update(
+                                {"applied_by_hypervisor": False}
+                            ).run(db.conn)
+                        log.warning(
+                            f"Apply {result} for {vgpu_id}: cleared "
+                            f"applied_by_hypervisor (pool may be stale): "
+                            f"{rep.get('error')}"
+                        )
                 continue
             applied_profile = rep.get("applied_profile")
             if not applied_profile:

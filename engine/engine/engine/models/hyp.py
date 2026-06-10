@@ -20,12 +20,7 @@ import libvirt
 import paramiko
 import xmltodict
 from engine.config import *
-from engine.models._gpu_pool import (
-    _profile_pool_size,
-    decide_reconcile_action,
-    plan_passthrough_dedup,
-    plan_pool_trim,
-)
+from engine.models._gpu_pool import _profile_pool_size
 from engine.services.db import (
     get_hyp_info,
     get_id_hyp_from_uri,
@@ -53,8 +48,6 @@ from engine.services.db.domains import (
     update_domain_status,
 )
 from engine.services.db.hypervisors import (
-    add_vgpu_uuids,
-    get_domains_vgpu_uuids,
     get_gpu_card_models,
     get_hypervisor,
     get_vgpu_full,
@@ -787,29 +780,61 @@ class hyp(object):
         WITHOUT touching sibling profiles or the rest of the pool. Anything else
         -> failure, no DB touch. Returns True on success, False on a reported
         error / unexpected result."""
-        from isardvdi_common.vgpu_state import build_applied_state_patch
+        from isardvdi_common.vgpu_state import (
+            build_applied_state_patch,
+            reconcile_pool_to_live,
+        )
 
         result = report.get("result")
         if result == "noop":
-            # Nothing changed (the live card is already at target). But
-            # change_vgpu_profile's pre-CLI teardown may have prematurely set
-            # created=False on the existing pool -- notably the passthrough
-            # pseudo-slot, since the passthrough branch always tears down even on
-            # old==new, with NO actual host removal. The inline path restores
-            # created=True in its create-loop; the CLI path early-returns before
-            # it. Re-pin mdevs_last_synced_at, then restore created=True per-uuid
-            # via update_vgpu_created (a targeted deep-merge, exactly like the
-            # inline create-loop) so the card stays bookable WITHOUT collapsing
-            # sibling-profile placeholder pools (which an r.literal mdevs write
-            # would drop).
             existing = get_vgpu_full(gpu_id) or {}
-            live_profile = report.get("applied_profile") or existing.get("vgpu_profile")
-            patch = {"changing_to_profile": False}
             reset_at = report.get("mdevs_reset_at")
+            live = report.get("mdevs")
+            # The noop report now carries the LIVE pool for a real vGPU/MIG card:
+            # re-pin the DB to host reality (r.literal replace via
+            # ingest_applied_state) so a UUID drift can't leave the engine handing
+            # QEMU a phantom UUID, adopting domain_started/reserved for any UUID
+            # still live. Shared reconcile -> identical to the API ingest. This
+            # also supersedes the lazy-seeded placeholder pool (L1), so an
+            # engine-vs-host disagreement can't promote phantom UUIDs.
+            if isinstance(live, dict) and live:
+                reconciled = reconcile_pool_to_live(existing.get("mdevs") or {}, live)
+                patch = {"changing_to_profile": False, "mdevs": reconciled}
+                if reset_at is not None:
+                    patch["mdevs_last_synced_at"] = reset_at
+                ingest_applied_state(gpu_id, patch)
+                applied = report.get("applied_profile")
+                if pci_id in self.info_nvidia and applied:
+                    self.info_nvidia[pci_id]["vgpu_profile"] = applied
+                self.mdevs[pci_id] = reconciled
+                return True
+            # No live pool (passthrough pseudo-slot, or an empty card):
+            # change_vgpu_profile's pre-CLI teardown may have set created=False on
+            # the existing pool (notably the passthrough pseudo-slot, torn down even
+            # on old==new with NO host removal). Re-pin mdevs_last_synced_at, then
+            # restore created=True per-uuid via update_vgpu_created (a targeted
+            # deep-merge) WITHOUT collapsing sibling pools. Key on the card's REAL
+            # current profile (applied_profile on a noop), falling back to the
+            # forced target / stored profile; log when the pool is empty so a
+            # mis-resolution leaves a diagnostic instead of a silently-unbookable
+            # card (M2) -- and so we never blindly promote the lazy-seed (L1).
+            live_profile = (
+                report.get("applied_profile")
+                or new_profile
+                or existing.get("vgpu_profile")
+            )
+            patch = {"changing_to_profile": False}
             if reset_at is not None:
                 patch["mdevs_last_synced_at"] = reset_at
             ingest_applied_state(gpu_id, patch)
             pool = (existing.get("mdevs") or {}).get(live_profile) or {}
+            if not pool:
+                logs.main.warning(
+                    f"gpu_apply_cli noop for {gpu_id}: no pool to re-assert for "
+                    f"profile {live_profile!r} (mdevs keys="
+                    f"{list((existing.get('mdevs') or {}).keys())}) -- card may show "
+                    f"un-created; skipping created restore"
+                )
             for uid in pool:
                 update_vgpu_created(gpu_id, live_profile, uid, created=True)
             return True
@@ -2476,24 +2501,6 @@ class hyp(object):
             logs.workers.debug(f"[{self.id_hyp_rethink}] No running mdevs found")
             return {}
 
-    def _get_profile_for_type_id(self, pci_id, type_id):
-        """Find the profile name for a given type_id on a PCI device.
-
-        Args:
-            pci_id: The PCI device ID (e.g., 'pci_0000_06_00_0')
-            type_id: The mdev type ID (e.g., 'nvidia-711')
-
-        Returns:
-            Profile name string or None if not found
-        """
-        if pci_id not in self.mdevs:
-            return None
-        for profile, mdevs in self.mdevs[pci_id].items():
-            for uuid, info in mdevs.items():
-                if info.get("type_id") == type_id:
-                    return profile
-        return None
-
     def _validate_vm_name(self, vm_name):
         """Validate that a vm_name is a real domain and not a parsing artifact.
 
@@ -2587,46 +2594,6 @@ class hyp(object):
             f"{len(gpu_domain_ids)} GPU domains"
         )
         return mdev_to_domain
-
-    def _adopt_mdev_to_db(self, uuid, pci_id, type_id, vm_name, profile):
-        """Adopt a running mdev that's not in the database.
-
-        Adds the mdev to self.mdevs and updates the vgpus table.
-
-        Args:
-            uuid: The mdev UUID
-            pci_id: The PCI device ID
-            type_id: The mdev type ID
-            vm_name: The VM name using this mdev (or empty string)
-            profile: The profile to add this mdev under
-        """
-        vgpu_id = "-".join([self.id_hyp_rethink, pci_id])
-
-        # Add to self.mdevs
-        if pci_id not in self.mdevs:
-            self.mdevs[pci_id] = {}
-        if profile not in self.mdevs[pci_id]:
-            self.mdevs[pci_id][profile] = {}
-
-        self.mdevs[pci_id][profile][uuid] = {
-            "pci_mdev_id": pci_id,
-            "type_id": type_id,
-            "created": True,
-            "domain_started": vm_name if vm_name else False,
-            "domain_reserved": False,
-        }
-
-        # Update database
-        from engine.services.db import close_rethink_connection, new_rethink_connection
-        from rethinkdb import r
-
-        r_conn = new_rethink_connection()
-        try:
-            r.table("vgpus").get(vgpu_id).update(
-                {"mdevs": {profile: {uuid: self.mdevs[pci_id][profile][uuid]}}}
-            ).run(r_conn)
-        finally:
-            close_rethink_connection(r_conn)
 
     def remove_domains_and_gpus_with_invalids_uuids(self):
         """Remove domains and mdevs with invalid or stale UUIDs.
