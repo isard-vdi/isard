@@ -84,17 +84,6 @@ def build_mdev_create_cmd(base_path, type_id, mdev_uuid):
     return f"echo {mdev_uuid} > '{base_path}/mdev_supported_types/{type_id}/create'"
 
 
-def build_mdev_remove_cmd(base_path, type_id, mdev_uuid):
-    """Command to remove one live mdev (``type_id``/``mdev_uuid``) under
-    ``base_path`` (the VF/PF path). Best-effort (``|| true``): the device may
-    already be gone. Used by the non-destructive per-slice remove to free a VF's
-    mdev before its backing MIG GPU-instance is destroyed."""
-    return (
-        f"echo 1 > '{base_path}/mdev_supported_types/{type_id}/devices/"
-        f"{mdev_uuid}/remove' 2>/dev/null || true"
-    )
-
-
 def new_mdev_pool_entry(pci_mdev_id, type_id, mig=False, mig_profile_id=None):
     """Build one ``vgpus.mdevs[profile][uuid]`` entry (engine schema) plus a
     fresh UUID. Returned as ``(uuid, entry)``."""
