@@ -1743,7 +1743,7 @@ function parseCSV(csv) {
             if (usr) {
                 // remove enclosing quotes and unescape fields
                 for (var key in usr) {
-                    usr[key] = usr[key].replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
+                    usr[key] = usr[key]?.replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
                 }
                 usr['id'] = usr['username']
                 users.push(usr)
