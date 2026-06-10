@@ -217,3 +217,33 @@ def test_reconcile_drops_sibling_profile_pools():
     }
     out = vs.reconcile_pool_to_live(db, live, set())
     assert set(out) == {"8Q"} and set(out["8Q"]) == {"z"}
+
+
+# --- vgpu_pool_frees_for_domain (release on stop) ----------------------------
+def test_vgpu_pool_frees_started_and_reserved_for_domain():
+    mdevs = {
+        "8Q": {
+            "u1": {"domain_started": "desk1", "domain_reserved": False},
+            "u2": {"domain_started": False, "domain_reserved": False},  # free
+            "u3": {
+                "domain_started": False,
+                "domain_reserved": "desk1",
+            },  # reserved-only
+            "u4": {"domain_started": "other", "domain_reserved": False},  # someone else
+        },
+        "passthrough": {  # passthrough card the noop reconcile never covers
+            "p1": {"domain_started": False, "domain_reserved": "desk1"},
+        },
+    }
+    free = vs.vgpu_pool_frees_for_domain(mdevs, "desk1")
+    assert set(free) == {"8Q", "passthrough"}
+    assert set(free["8Q"]) == {"u1", "u3"}  # started + reserved freed; u2/u4 untouched
+    assert free["8Q"]["u1"] == {"domain_started": False, "domain_reserved": False}
+    assert set(free["passthrough"]) == {"p1"}
+
+
+def test_vgpu_pool_frees_noop_for_other_domain_and_empty():
+    mdevs = {"8Q": {"u1": {"domain_started": "desk1"}}}
+    assert vs.vgpu_pool_frees_for_domain(mdevs, "nobody") == {}
+    assert vs.vgpu_pool_frees_for_domain(None, "desk1") == {}
+    assert vs.vgpu_pool_frees_for_domain({}, "desk1") == {}
