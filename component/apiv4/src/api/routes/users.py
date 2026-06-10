@@ -42,6 +42,7 @@ from api.schemas.users import (
     UserAllowedHardwareResponse,
     UserAPIKeyResponse,
     UserAppliedQuotaResponse,
+    UserBastionSshKeyResponse,
     UserConfigResponse,
     UserDesktop,
     UserDetailsResponse,
@@ -51,6 +52,7 @@ from api.schemas.users import (
     UserPasswordPolicyResponse,
     UserQuotaResponse,
     UserResponse,
+    UserSetBastionSshKeyPutData,
     UserSetEmailPutData,
     UserSetLangPutData,
     UserSetPasswordPutData,
@@ -604,6 +606,104 @@ async def set_user_email(request: Request, data: UserSetEmailPutData):
             request,
             "internal_server",
             f"Failed to update email for user {request.token_payload['user_id']}",
+            traceback.format_exc(),
+        )
+
+
+@token_router.get(
+    "/item/user/bastion-ssh-key",
+    tags=[tag],
+    response_model=UserBastionSshKeyResponse,
+    summary="Get the user's bastion SSH public key",
+    description="Returns the single SSH public key stored on the user's profile, "
+    "automatically added to the bastion access of any bastion-SSH desktop the user starts.",
+)
+async def get_user_bastion_ssh_key(request: Request):
+    try:
+        return JSONResponse(
+            content=UserBastionSshKeyResponse(
+                **await asyncio.to_thread(
+                    UsersService.get_user_bastion_ssh_key,
+                    request.token_payload["user_id"],
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to retrieve bastion SSH key",
+            traceback.format_exc(),
+        )
+
+
+@token_router.put(
+    "/item/user/bastion-ssh-key",
+    tags=[tag],
+    response_model=SimpleResponse,
+    summary="Set the user's bastion SSH public key",
+    description="Stores a single SSH public key on the user's profile. Replaces any "
+    "existing key. The key is validated and automatically added to the bastion access "
+    "of any bastion-SSH desktop the user starts.",
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def set_user_bastion_ssh_key(request: Request, data: UserSetBastionSshKeyPutData):
+    try:
+        await asyncio.to_thread(
+            UsersService.set_user_bastion_ssh_key,
+            user_id=request.token_payload["user_id"],
+            ssh_key=data.ssh_key,
+        )
+        return JSONResponse(
+            content=SimpleResponse(id=request.token_payload["user_id"]).model_dump(
+                mode="json"
+            ),
+            status_code=200,
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to set bastion SSH key for user {request.token_payload['user_id']}",
+            traceback.format_exc(),
+        )
+
+
+@token_router.delete(
+    "/item/user/bastion-ssh-key",
+    tags=[tag],
+    response_model=EmptyResponse,
+    summary="Delete the user's bastion SSH public key",
+    description="Removes the SSH public key stored on the user's profile. Keys already "
+    "added to existing desktops are left untouched.",
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+)
+async def delete_user_bastion_ssh_key(request: Request):
+    try:
+        await asyncio.to_thread(
+            UsersService.delete_user_bastion_ssh_key,
+            user_id=request.token_payload["user_id"],
+        )
+        return Response(status_code=204)
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to delete bastion SSH key for user {request.token_payload['user_id']}",
             traceback.format_exc(),
         )
 

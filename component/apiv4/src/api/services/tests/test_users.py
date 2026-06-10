@@ -5,11 +5,20 @@ and CommonUserPolicies. Tests pin the not-found dispatch + the simple
 delegate patterns.
 """
 
+import base64
+import struct
 from unittest.mock import patch
 
 import pytest
 from api.services.error import Error
-from api.services.users import UsersService
+from api.services.users import UsersService, validate_ssh_public_key
+
+
+def _valid_ed25519(seed: bytes = b"\x01" * 32, comment: str = "test@host") -> str:
+    """Build a structurally valid ssh-ed25519 public key string."""
+    blob = struct.pack(">I", 11) + b"ssh-ed25519" + struct.pack(">I", 32) + seed
+    key = "ssh-ed25519 " + base64.b64encode(blob).decode()
+    return f"{key} {comment}" if comment else key
 
 
 class TestCheckUserExists:
@@ -88,3 +97,99 @@ class TestGetUserConfig:
         result = UsersService.get_user_config(payload)
         mock_cfg.assert_called_once_with(payload)
         assert result == {"language": "en"}
+
+
+class TestValidateSshPublicKey:
+    def test_accepts_valid_ed25519_and_trims(self):
+        key = _valid_ed25519()
+        assert validate_ssh_public_key("  " + key + "  ") == key
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "",
+            "   ",
+            "not-a-key",
+            "ssh-ed25519",
+            "ssh-rsa not-base64!!!",
+            "rsa-sha2 AAAA",  # unknown type token
+        ],
+    )
+    def test_rejects_invalid(self, bad):
+        with pytest.raises(Error):
+            validate_ssh_public_key(bad)
+
+    def test_rejects_multiple_keys(self):
+        two = _valid_ed25519() + "\n" + _valid_ed25519(seed=b"\x02" * 32)
+        with pytest.raises(Error):
+            validate_ssh_public_key(two)
+
+    def test_rejects_type_mismatch(self):
+        # Token says ssh-rsa but the blob embeds ssh-ed25519.
+        blob = (
+            struct.pack(">I", 11)
+            + b"ssh-ed25519"
+            + struct.pack(">I", 32)
+            + b"\x01" * 32
+        )
+        key = "ssh-rsa " + base64.b64encode(blob).decode()
+        with pytest.raises(Error):
+            validate_ssh_public_key(key)
+
+
+class TestGetUserBastionSshKey:
+    @patch("api.services.users.RethinkUser")
+    def test_returns_key(self, mock_user):
+        mock_user.exists.return_value = True
+        mock_user.return_value.bastion_ssh_key = "ssh-ed25519 AAAA test"
+        assert UsersService.get_user_bastion_ssh_key("u1") == {
+            "ssh_key": "ssh-ed25519 AAAA test"
+        }
+
+    @patch("api.services.users.RethinkUser")
+    def test_returns_none_when_blank(self, mock_user):
+        mock_user.exists.return_value = True
+        mock_user.return_value.bastion_ssh_key = "   "
+        assert UsersService.get_user_bastion_ssh_key("u1") == {"ssh_key": None}
+
+    @patch("api.services.users.RethinkUser")
+    def test_not_found(self, mock_user):
+        mock_user.exists.return_value = False
+        with pytest.raises(Error):
+            UsersService.get_user_bastion_ssh_key("u1")
+
+
+class TestSetUserBastionSshKey:
+    @patch("api.services.users.CommonUser.update_user")
+    @patch("api.services.users.RethinkUser.exists", return_value=True)
+    def test_validates_and_stores(self, _exists, mock_update):
+        key = _valid_ed25519()
+        UsersService.set_user_bastion_ssh_key("u1", "  " + key + "  ")
+        mock_update.assert_called_once_with(
+            "u1", {"bastion_ssh_key": key}, revoke=False
+        )
+
+    @patch("api.services.users.RethinkUser.exists", return_value=True)
+    def test_rejects_invalid_key(self, _exists):
+        with pytest.raises(Error):
+            UsersService.set_user_bastion_ssh_key("u1", "garbage")
+
+    @patch("api.services.users.RethinkUser.exists", return_value=False)
+    def test_not_found(self, _exists):
+        with pytest.raises(Error):
+            UsersService.set_user_bastion_ssh_key("u1", _valid_ed25519())
+
+
+class TestDeleteUserBastionSshKey:
+    @patch("api.services.users.CommonUser.update_user")
+    @patch("api.services.users.RethinkUser.exists", return_value=True)
+    def test_clears_key(self, _exists, mock_update):
+        UsersService.delete_user_bastion_ssh_key("u1")
+        mock_update.assert_called_once_with(
+            "u1", {"bastion_ssh_key": None}, revoke=False
+        )
+
+    @patch("api.services.users.RethinkUser.exists", return_value=False)
+    def test_not_found(self, _exists):
+        with pytest.raises(Error):
+            UsersService.delete_user_bastion_ssh_key("u1")

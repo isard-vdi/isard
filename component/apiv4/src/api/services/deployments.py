@@ -18,11 +18,13 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
 import traceback
 from uuid import uuid4
 
 import requests
 from api.dependencies.jwt_token import TokenPayload
+from api.services.bastion import BastionService
 from api.services.desktops import DesktopService
 from api.services.error import Error
 from cachetools import TTLCache, cached
@@ -364,7 +366,7 @@ class DeploymentService:
             )
 
     @staticmethod
-    def start_all_desktops(deployment_id: str) -> None:
+    def start_all_desktops(deployment_id: str, user_id=None) -> None:
         desktops = CommonDeploymentDesktops.get_desktop_ids(deployment_id)
         if not desktops:
             raise Error(
@@ -373,6 +375,19 @@ class DeploymentService:
                 traceback.format_exc(),
             )
         DesktopEvents.desktops_start(desktops)
+        # Best-effort: add the starting user's profile bastion SSH key to each
+        # bastion-SSH-enabled desktop in the deployment (owner-first, de-duped).
+        if user_id:
+            for d_id in desktops:
+                try:
+                    BastionService.ensure_keys_on_start(d_id, user_id)
+                except Exception:
+                    logging.warning(
+                        "Failed to inject bastion SSH key on deployment start "
+                        "of desktop %s",
+                        d_id,
+                        exc_info=True,
+                    )
 
     @staticmethod
     def toggle_domain_visibility(domain_id: str) -> None:

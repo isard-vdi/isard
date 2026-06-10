@@ -99,6 +99,20 @@
                               {{ $t('components.profile.api-key') }}
                             </b-button>
                           </template>
+                          <template v-if="config.canUseBastion">
+                            <SshKeyModal />
+                            <b-button
+                              class="rounded-pill mr-2 pl-2 pr-3 btn-blue"
+                              :title="$t('components.profile.ssh-key')"
+                              @click="showSshKeyModal()"
+                            >
+                              <b-icon
+                                icon="terminal-fill"
+                                scale="0.75"
+                              />
+                              {{ $t('components.profile.ssh-key') }}
+                            </b-button>
+                          </template>
                           <b-row
                             class="justify-content-center"
                           >
@@ -407,6 +421,7 @@ import i18n from '@/i18n'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
 import ImportUserModal from '@/components/profile/ImportUserModal.vue'
 import ApiKeyModal from '@/components/profile/ApiKeyModal.vue'
+import SshKeyModal from '@/components/profile/SshKeyModal.vue'
 
 export default {
   components: {
@@ -416,7 +431,8 @@ export default {
     EmailVerificationModal,
     QuotaProgressBar,
     ImportUserModal,
-    ApiKeyModal
+    ApiKeyModal,
+    SshKeyModal
   },
   setup (_, context) {
     const $store = context.root.$store
@@ -462,6 +478,11 @@ export default {
       $store.dispatch('showApiKeyModal', true)
     }
 
+    const showSshKeyModal = () => {
+      $store.dispatch('fetchUserBastionSshKey')
+      $store.dispatch('showSshKeyModal', true)
+    }
+
     return {
       profile,
       profileLoaded,
@@ -472,7 +493,8 @@ export default {
       showExportUserButton,
       showImportUserButton,
       showImportUserModal,
-      showApiKeyModal
+      showApiKeyModal,
+      showSshKeyModal
     }
   },
   destroyed () {

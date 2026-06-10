@@ -273,6 +273,24 @@ class UserAPIKeyResponse(BaseModel):
     expires: float
 
 
+class UserBastionSshKeyResponse(BaseModel):
+    """The user's single bastion SSH public key."""
+
+    ssh_key: Optional[str] = Field(
+        default=None,
+        description="The user's bastion SSH public key, or null if none is set.",
+    )
+
+
+class UserSetBastionSshKeyPutData(BaseModel):
+    """Request body for setting the user's bastion SSH public key."""
+
+    ssh_key: str = Field(
+        ...,
+        description="A single SSH public key (e.g. 'ssh-ed25519 AAAA... comment').",
+    )
+
+
 class UserSetLangPutData(BaseModel):
     lang: str
 

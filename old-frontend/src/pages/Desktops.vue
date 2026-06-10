@@ -131,6 +131,7 @@ export default {
     watch(config, (newVal, prevVal) => {
       if (newVal.canUseBastion) {
         $store.dispatch('fetchBastionTargets')
+        $store.dispatch('fetchUserBastionSshKey')
       }
     }, { immediate: true })
 

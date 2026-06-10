@@ -573,6 +573,7 @@
           "change-password": "Change Password",
           "verify-email": "Verify / Change Email",
           "api-key": "API Key",
+          "ssh-key": "Bastion SSH Key",
           "reset-vpn": "Reset VPN",
           "download-vpn": "Download VPN"
         }
@@ -869,6 +870,21 @@
       }
     },
     "profile": {
+      "ssh-key-modal": {
+        "title": "Bastion SSH key",
+        "description": "Add a single SSH public key to your profile. It is added automatically to the bastion SSH access of any desktop you start (when bastion SSH is enabled on that desktop), so you don't have to add it to each desktop.",
+        "placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user@host",
+        "invalid": "This doesn't look like a valid SSH public key.",
+        "alert": {
+          "error-title": "Request failed",
+          "error-save": "Could not save the SSH key. Please check the key and try again.",
+          "error-remove": "Could not remove the SSH key. Please try again."
+        },
+        "buttons": {
+          "save": "Save key",
+          "remove": "Remove key"
+        }
+      },
       "api-key-modal": {
         "title": "API key",
         "alert": {
@@ -1185,7 +1201,13 @@
             },
             "authorized-keys": {
               "label": "Authorized SSH Keys (one per line)",
-              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+              "others-label": "Other people's SSH keys (one per line)",
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7...",
+              "own-key": {
+                "managed": "Your own key is added automatically from your profile when you start this desktop. This box is only for other people's public keys.",
+                "missing": "You don't have a bastion SSH key in your profile yet, so you won't get SSH access automatically.",
+                "add-link": "Add it in your profile"
+              }
             }
           }
         },

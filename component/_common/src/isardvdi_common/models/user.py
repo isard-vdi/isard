@@ -53,6 +53,7 @@ class UserModel(BaseModel):
     default_templates: list[str] | None = None
     vpn: dict | None = None
     user_storage: Optional[UserStorageModel] = None
+    bastion_ssh_key: str | None = None
 
 
 class User(RethinkCustomBase):
