@@ -447,6 +447,17 @@ class StorageService:
             raise Error(*e.args)
 
     @staticmethod
+    def batch_sparsify_by_status(payload: dict, status: str) -> None:
+        """Sparsify every storage with the given ``status``.
+
+        Webapp drop-down "Global actions → Sparsify disks" with no row
+        filter applied calls ``PUT /items/storage/sparsify/{status}`` for
+        the table's status. Mirrors :meth:`batch_check_backing_chain_by_status`.
+        """
+        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
+        StorageService.batch_sparsify(payload, storage_ids)
+
+    @staticmethod
     def batch_sparsify(payload: dict, storage_ids: list[str]) -> None:
         """Sparsify a batch of storages."""
         for storage_id in storage_ids:
@@ -770,3 +781,15 @@ class StorageService:
         for storage_id in storage_ids:
             storage = get_storage(payload, storage_id)
             storage.find(payload.get("user_id"))
+
+    @staticmethod
+    def batch_find_by_status(payload: dict, status: str) -> None:
+        """Find every storage with the given ``status`` on disk.
+
+        Webapp drop-down "Global actions → Find & update disks" with no
+        row filter applied calls ``PUT /items/storage/find/{status}`` for
+        the table's status (e.g. ``ready``, ``orphan``, ``deleted``,
+        ``other``). Mirrors :meth:`batch_check_backing_chain_by_status`.
+        """
+        storage_ids = StorageProcessed.get_disks_ids_by_status(status=status)
+        StorageService.batch_find(payload, storage_ids)
