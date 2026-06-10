@@ -796,3 +796,26 @@ class DeploymentVideowallResponse(BaseModel):
     desktops: list[UserDeploymentDesktop]  # TODO
     total_users: int
     desktops_each_user: int
+
+
+class DeploymentBastionSsh(BaseModel):
+    """Deployment-level bastion SSH options (no authorized keys — those come
+    from each user's profile)."""
+
+    enabled: bool = Field(default=False)
+    port: int = Field(default=22)
+
+
+class DeploymentBastionHttp(BaseModel):
+    """Deployment-level bastion HTTP options."""
+
+    enabled: bool = Field(default=False)
+    http_port: int = Field(default=80)
+    https_port: int = Field(default=443)
+
+
+class DeploymentBastionConfig(BaseModel):
+    """Deployment-level bastion configuration applied to all its desktops."""
+
+    ssh: DeploymentBastionSsh = Field(default_factory=DeploymentBastionSsh)
+    http: DeploymentBastionHttp = Field(default_factory=DeploymentBastionHttp)

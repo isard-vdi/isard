@@ -18,6 +18,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import csv
+import io
 import logging
 import traceback
 from uuid import uuid4
@@ -46,6 +48,7 @@ from isardvdi_common.lib.deployments.deployments import (
 )
 from isardvdi_common.models.deployment import Deployment as RethinkDeployment
 from isardvdi_common.models.domain import Domain as RethinkDomain
+from isardvdi_common.models.targets import Targets
 from isardvdi_common.models.user import User as RethinkUser
 
 deployment_cache = TTLCache(maxsize=1, ttl=360)
@@ -375,19 +378,20 @@ class DeploymentService:
                 traceback.format_exc(),
             )
         DesktopEvents.desktops_start(desktops)
-        # Best-effort: add the starting user's profile bastion SSH key to each
-        # bastion-SSH-enabled desktop in the deployment (owner-first, de-duped).
-        if user_id:
-            for d_id in desktops:
-                try:
-                    BastionService.ensure_keys_on_start(d_id, user_id)
-                except Exception:
-                    logging.warning(
-                        "Failed to inject bastion SSH key on deployment start "
-                        "of desktop %s",
-                        d_id,
-                        exc_info=True,
-                    )
+        # Best-effort: reconcile each desktop's bastion target to the deployment
+        # config and inject the deployment owner + co-owners (+ acting user)
+        # profile keys, owner-first and de-duped. ensure_keys_on_start resolves
+        # the deployment from the desktop, so this runs even without user_id.
+        for d_id in desktops:
+            try:
+                BastionService.ensure_keys_on_start(d_id, user_id)
+            except Exception:
+                logging.warning(
+                    "Failed to inject bastion SSH key on deployment start "
+                    "of desktop %s",
+                    d_id,
+                    exc_info=True,
+                )
 
     @staticmethod
     def toggle_domain_visibility(domain_id: str) -> None:
@@ -540,3 +544,170 @@ class DeploymentService:
         return CommonDeploymentDirectViewer.direct_viewer_csv(
             deployment_id, regenerate=regenerate
         )
+
+    # ── Deployment bastion ───────────────────────────────────────────────
+
+    @staticmethod
+    def _default_bastion_config() -> dict:
+        return {
+            "ssh": {"enabled": False, "port": 22},
+            "http": {"enabled": False, "http_port": 80, "https_port": 443},
+        }
+
+    @staticmethod
+    def get_deployment_bastion(deployment_id: str) -> dict:
+        """Return the deployment-level bastion config (or defaults)."""
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+        deployment = Caches.get_document("deployments", deployment_id)
+        return (deployment or {}).get(
+            "bastion"
+        ) or DeploymentService._default_bastion_config()
+
+    @staticmethod
+    def set_deployment_bastion(deployment_id: str, config: dict) -> dict:
+        """Persist the bastion config on the deployment and apply it (ssh/http
+        enable + ports) to every current desktop's bastion target, preserving
+        each target's authorized_keys / domains. New/recreated desktops inherit
+        it at their next start via BastionService.ensure_keys_on_start.
+        """
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+        normalized = {
+            "ssh": {
+                "enabled": bool(config.get("ssh", {}).get("enabled")),
+                "port": int(config.get("ssh", {}).get("port", 22)),
+            },
+            "http": {
+                "enabled": bool(config.get("http", {}).get("enabled")),
+                "http_port": int(config.get("http", {}).get("http_port", 80)),
+                "https_port": int(config.get("http", {}).get("https_port", 443)),
+            },
+        }
+        RethinkDeployment.update_document(deployment_id, {"bastion": normalized})
+        Caches.invalidate_cache("deployments", deployment_id)
+        for desktop_id in CommonDeploymentDesktops.get_desktop_ids(deployment_id):
+            try:
+                BastionService.apply_bastion_config(desktop_id, normalized)
+            except Exception:
+                logging.warning(
+                    "Failed to apply deployment bastion config to desktop %s",
+                    desktop_id,
+                    exc_info=True,
+                )
+        return normalized
+
+    @staticmethod
+    def get_deployment_desktop_bastion(deployment_id: str, desktop_id: str) -> dict:
+        """Read-only bastion status of a single deployment desktop, for the
+        owner/co-owner per-row view. Verifies the desktop belongs to the
+        deployment (``domains.tag == deployment_id``) before returning data, so
+        a co-owner (who is not the desktop owner) cannot read arbitrary targets.
+        """
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+        try:
+            tag = Caches.get_document("domains", desktop_id, ["tag"])
+        except ValueError:
+            tag = None
+        if tag != deployment_id:
+            raise Error(
+                "forbidden",
+                "Desktop does not belong to this deployment",
+                description_code="forbidden",
+            )
+        return BastionService.get_desktop_bastion_active(desktop_id)
+
+    @staticmethod
+    def bastion_csv(deployment_id: str) -> str:
+        """Build a CSV of every deployment desktop's bastion connection info
+        (no key material). One row per desktop.
+        """
+        if not RethinkDeployment.exists(deployment_id):
+            raise Error(
+                "not_found",
+                f"Deployment with ID {deployment_id} does not exist.",
+            )
+        cfg = BastionService.get_admin_bastion_config()
+        bastion_domain = cfg.get("bastion_domain")
+        ssh_port = cfg.get("bastion_ssh_port")
+
+        fieldnames = [
+            "username",
+            "email",
+            "desktop_name",
+            "status",
+            "target_id",
+            "ssh_enabled",
+            "ssh_command",
+            "http_enabled",
+            "http_url",
+            "https_url",
+            "custom_domain",
+        ]
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+
+        for desktop_id in CommonDeploymentDesktops.get_desktop_ids(deployment_id):
+            try:
+                domain = Caches.get_document("domains", desktop_id) or {}
+            except ValueError:
+                domain = {}
+            try:
+                user = Caches.get_document("users", domain.get("user")) or {}
+            except ValueError:
+                user = {}
+            try:
+                target = Targets.get_domain_target(desktop_id)
+            except Error:
+                target = None
+            ssh = (target or {}).get("ssh") or {}
+            http = (target or {}).get("http") or {}
+            target_id = (target or {}).get("id", "")
+            custom_domain = (target or {}).get("domain") or ""
+            host = custom_domain or bastion_domain or ""
+            target_host = (
+                ".".join(target_id.rsplit("-", 1))
+                if target_id and not custom_domain
+                else host
+            )
+            ssh_command = ""
+            if ssh.get("enabled") and target_id:
+                port = "" if str(ssh_port) == "22" else f" -p {ssh_port}"
+                ssh_command = f"ssh {target_id}@{host}{port}"
+            http_url = https_url = ""
+            if http.get("enabled"):
+                http_p = http.get("http_port", 80)
+                https_p = http.get("https_port", 443)
+                http_url = f"http://{target_host}" + (
+                    "" if str(http_p) == "80" else f":{http_p}"
+                )
+                https_url = f"https://{target_host}" + (
+                    "" if str(https_p) == "443" else f":{https_p}"
+                )
+            writer.writerow(
+                {
+                    "username": user.get("username", ""),
+                    "email": user.get("email", ""),
+                    "desktop_name": domain.get("name", ""),
+                    "status": domain.get("status", ""),
+                    "target_id": target_id,
+                    "ssh_enabled": bool(ssh.get("enabled")),
+                    "ssh_command": ssh_command,
+                    "http_enabled": bool(http.get("enabled")),
+                    "http_url": http_url,
+                    "https_url": https_url,
+                    "custom_domain": custom_domain,
+                }
+            )
+        return buffer.getvalue()

@@ -21,6 +21,7 @@ import os
 
 from isardvdi_common.helpers.alloweds import Alloweds
 from isardvdi_common.helpers.bastion import Bastion
+from isardvdi_common.helpers.caches import Caches
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.models.targets import Targets
@@ -105,14 +106,94 @@ class BastionService:
         return new_list
 
     @staticmethod
-    def ensure_keys_on_start(desktop_id: str, actor_user_id) -> None:
-        """Inject the starting user's profile key into a desktop's bastion
-        target at start time, re-asserting the owner-first convention.
+    def apply_bastion_config(desktop_id: str, config: dict) -> None:
+        """Apply a bastion config (ssh/http enable + ports) to a desktop's
+        target, **preserving** existing authorized_keys / domains. Creates the
+        target if missing. Writes only when something changed.
 
-        No-op when the desktop has no bastion target or its SSH access is not
-        enabled. ``actor_user_id`` is whoever performs the start (the owner, or
-        an admin/manager/advanced user starting someone else's desktop).
+        ``config`` shape: ``{"ssh": {"enabled", "port"}, "http": {"enabled",
+        "http_port", "https_port"}}``. Used both by the deployment-level apply
+        (over all desktops) and by the at-start reconcile.
         """
+        ssh_cfg = (config or {}).get("ssh") or {}
+        http_cfg = (config or {}).get("http") or {}
+        try:
+            target = Targets.get_domain_target(desktop_id)
+            exists = True
+        except Error as exc:
+            if getattr(exc, "status_code", None) != 404:
+                raise
+            target = {}
+            exists = False
+        cur_ssh = dict(target.get("ssh") or {})
+        cur_http = dict(target.get("http") or {})
+        new_ssh = {
+            **cur_ssh,
+            "enabled": bool(ssh_cfg.get("enabled")),
+            "port": int(ssh_cfg.get("port", cur_ssh.get("port", 22))),
+        }
+        new_ssh.setdefault("authorized_keys", cur_ssh.get("authorized_keys", []))
+        new_http = {
+            **cur_http,
+            "enabled": bool(http_cfg.get("enabled")),
+            "http_port": int(http_cfg.get("http_port", cur_http.get("http_port", 80))),
+            "https_port": int(
+                http_cfg.get("https_port", cur_http.get("https_port", 443))
+            ),
+        }
+        if exists and new_ssh == cur_ssh and new_http == cur_http:
+            return
+        Targets.update_domain_target(desktop_id, {"ssh": new_ssh, "http": new_http})
+
+    @staticmethod
+    def _get_desktop_deployment(desktop_id: str):
+        """Return ``(owner_id, co_owner_ids, bastion_config)`` for the desktop's
+        deployment, or ``(None, [], None)`` when it is not in a deployment.
+
+        Deployment membership is the ``domains.tag`` field == deployment id.
+        Tolerant: a missing domain/deployment doc (Caches raises ValueError)
+        yields the "no deployment" tuple.
+        """
+        try:
+            tag = Caches.get_document("domains", desktop_id, ["tag"])
+        except ValueError:
+            return None, [], None
+        if not tag:
+            return None, [], None
+        try:
+            deployment = Caches.get_document("deployments", tag)
+        except ValueError:
+            return None, [], None
+        if not deployment:
+            return None, [], None
+        return (
+            deployment.get("user"),
+            deployment.get("co_owners") or [],
+            deployment.get("bastion"),
+        )
+
+    @staticmethod
+    def ensure_keys_on_start(desktop_id: str, actor_user_id) -> None:
+        """At desktop start: reconcile a deployment desktop's bastion config and
+        inject the relevant profile keys, re-asserting the owner-first convention.
+
+        - If the desktop belongs to a deployment that has a bastion config, the
+          target is reconciled to it first (this is how recreated/new deployment
+          desktops inherit bastion on their first start).
+        - Injects the desktop owner (index 0, via normalize), the acting user,
+          and — for deployment desktops — the deployment owner + co-owners.
+        - No-op when the (post-reconcile) target has no SSH bastion enabled.
+
+        ``actor_user_id`` is whoever performs the start (owner, or an
+        admin/manager/advanced user starting someone else's desktop).
+        """
+        dep_owner, dep_co_owners, dep_bastion = BastionService._get_desktop_deployment(
+            desktop_id
+        )
+
+        if dep_bastion:
+            BastionService.apply_bastion_config(desktop_id, dep_bastion)
+
         try:
             target = Targets.get_domain_target(desktop_id)
         except Error as exc:
@@ -121,10 +202,18 @@ class BastionService:
             raise
         if not (target.get("ssh") or {}).get("enabled"):
             return
+
+        ensure_user_ids = [actor_user_id] if actor_user_id else []
+        if dep_owner and dep_owner not in ensure_user_ids:
+            ensure_user_ids.append(dep_owner)
+        for co_owner in dep_co_owners:
+            if co_owner not in ensure_user_ids:
+                ensure_user_ids.append(co_owner)
+
         BastionService.normalize_authorized_keys(
             desktop_id,
             other_keys=None,
-            ensure_user_ids=[actor_user_id] if actor_user_id else [],
+            ensure_user_ids=ensure_user_ids,
         )
 
     @staticmethod

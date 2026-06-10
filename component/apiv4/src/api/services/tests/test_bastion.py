@@ -171,9 +171,14 @@ class TestNormalizeAuthorizedKeys:
 
 
 class TestEnsureKeysOnStart:
+    # Non-deployment desktop by default.
+    @patch(
+        "api.services.bastion.BastionService._get_desktop_deployment",
+        return_value=(None, [], None),
+    )
     @patch("api.services.bastion.Targets.update_domain_target")
     @patch("api.services.bastion.Targets.get_domain_target")
-    def test_noop_when_ssh_disabled(self, mock_get, mock_update):
+    def test_noop_when_ssh_disabled(self, mock_get, mock_update, _dep):
         mock_get.return_value = {
             "id": "t1",
             "user_id": "owner",
@@ -182,19 +187,27 @@ class TestEnsureKeysOnStart:
         BastionService.ensure_keys_on_start("desk-1", "owner")
         mock_update.assert_not_called()
 
+    @patch(
+        "api.services.bastion.BastionService._get_desktop_deployment",
+        return_value=(None, [], None),
+    )
     @patch("api.services.bastion.Targets.update_domain_target")
     @patch(
         "api.services.bastion.Targets.get_domain_target",
         side_effect=Error("not_found", "Target not found"),
     )
-    def test_noop_when_no_target(self, _mock_get, mock_update):
+    def test_noop_when_no_target(self, _mock_get, mock_update, _dep):
         BastionService.ensure_keys_on_start("desk-1", "owner")
         mock_update.assert_not_called()
 
+    @patch(
+        "api.services.bastion.BastionService._get_desktop_deployment",
+        return_value=(None, [], None),
+    )
     @patch("api.services.bastion.Targets.update_domain_target")
     @patch("api.services.bastion.BastionService._get_user_bastion_key")
     @patch("api.services.bastion.Targets.get_domain_target")
-    def test_injects_actor_key_owner_first(self, mock_get, mock_key, mock_update):
+    def test_injects_actor_key_owner_first(self, mock_get, mock_key, mock_update, _dep):
         mock_get.return_value = {
             "id": "t1",
             "user_id": "owner",
@@ -207,6 +220,110 @@ class TestEnsureKeysOnStart:
         BastionService.ensure_keys_on_start("desk-1", "admin")
         forwarded = mock_update.call_args[0][1]["ssh"]["authorized_keys"]
         assert forwarded == ["owner-key", "admin-key", "friend"]
+
+    @patch(
+        "api.services.bastion.BastionService._get_desktop_deployment",
+        return_value=("dep-owner", ["co1", "co2"], None),
+    )
+    @patch("api.services.bastion.Targets.update_domain_target")
+    @patch("api.services.bastion.BastionService._get_user_bastion_key")
+    @patch("api.services.bastion.Targets.get_domain_target")
+    def test_injects_deployment_owner_and_co_owners(
+        self, mock_get, mock_key, mock_update, _dep
+    ):
+        mock_get.return_value = {
+            "id": "t1",
+            "user_id": "owner",
+            "ssh": {"enabled": True, "port": 22, "authorized_keys": []},
+        }
+        mock_key.side_effect = lambda uid: {
+            "owner": "owner-key",
+            "dep-owner": "depowner-key",
+            "co1": "co1-key",
+            "co2": "co2-key",
+        }.get(uid)
+        # Owner starts their own deployment desktop.
+        BastionService.ensure_keys_on_start("desk-1", "owner")
+        forwarded = mock_update.call_args[0][1]["ssh"]["authorized_keys"]
+        # desktop owner first (normalize), then ensured: actor(owner, deduped),
+        # deployment owner, co-owners.
+        assert forwarded == ["owner-key", "depowner-key", "co1-key", "co2-key"]
+
+    @patch("api.services.bastion.BastionService.apply_bastion_config")
+    @patch(
+        "api.services.bastion.BastionService._get_desktop_deployment",
+        return_value=(
+            "dep-owner",
+            [],
+            {"ssh": {"enabled": True, "port": 22}, "http": {"enabled": False}},
+        ),
+    )
+    @patch("api.services.bastion.Targets.update_domain_target")
+    @patch("api.services.bastion.BastionService._get_user_bastion_key")
+    @patch("api.services.bastion.Targets.get_domain_target")
+    def test_reconciles_deployment_config_before_inject(
+        self, mock_get, mock_key, _mock_update, _dep, mock_apply
+    ):
+        # Target ssh becomes enabled only after the deployment-config reconcile.
+        mock_get.return_value = {
+            "id": "t1",
+            "user_id": "owner",
+            "ssh": {"enabled": True, "port": 22, "authorized_keys": []},
+        }
+        mock_key.side_effect = lambda uid: {"owner": "owner-key"}.get(uid)
+        BastionService.ensure_keys_on_start("desk-1", "owner")
+        mock_apply.assert_called_once()
+        assert mock_apply.call_args[0][0] == "desk-1"
+
+
+class TestApplyBastionConfig:
+    @patch("api.services.bastion.Targets.update_domain_target")
+    @patch("api.services.bastion.Targets.get_domain_target")
+    def test_sets_enabled_and_preserves_keys(self, mock_get, mock_update):
+        mock_get.return_value = {
+            "id": "t1",
+            "user_id": "owner",
+            "ssh": {"enabled": False, "port": 22, "authorized_keys": ["k1"]},
+            "http": {"enabled": False, "http_port": 80, "https_port": 443},
+        }
+        BastionService.apply_bastion_config(
+            "desk-1",
+            {"ssh": {"enabled": True, "port": 2222}, "http": {"enabled": False}},
+        )
+        forwarded = mock_update.call_args[0][1]
+        assert forwarded["ssh"]["enabled"] is True
+        assert forwarded["ssh"]["port"] == 2222
+        # authorized_keys preserved
+        assert forwarded["ssh"]["authorized_keys"] == ["k1"]
+
+    @patch("api.services.bastion.Targets.update_domain_target")
+    @patch("api.services.bastion.Targets.get_domain_target")
+    def test_no_write_when_unchanged(self, mock_get, mock_update):
+        mock_get.return_value = {
+            "id": "t1",
+            "user_id": "owner",
+            "ssh": {"enabled": True, "port": 22, "authorized_keys": []},
+            "http": {"enabled": False, "http_port": 80, "https_port": 443},
+        }
+        BastionService.apply_bastion_config(
+            "desk-1",
+            {"ssh": {"enabled": True, "port": 22}, "http": {"enabled": False}},
+        )
+        mock_update.assert_not_called()
+
+    @patch("api.services.bastion.Targets.update_domain_target")
+    @patch(
+        "api.services.bastion.Targets.get_domain_target",
+        side_effect=Error("not_found", "Target not found"),
+    )
+    def test_creates_target_when_missing(self, _mock_get, mock_update):
+        BastionService.apply_bastion_config(
+            "desk-1",
+            {"ssh": {"enabled": True, "port": 22}, "http": {"enabled": True}},
+        )
+        forwarded = mock_update.call_args[0][1]
+        assert forwarded["ssh"]["enabled"] is True
+        assert forwarded["http"]["enabled"] is True
 
 
 class TestGetDesktopBastionActive:
