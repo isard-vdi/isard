@@ -276,9 +276,10 @@ class AdminDeleteChecksData(BaseModel):
 class AdminSecretCreateData(BaseModel):
     """Request body for creating a secret."""
 
-    category_id: str
-    secret: str
+    id: str
     description: Optional[str] = ""
+    domain: str
+    category_id: str
 
 
 # ── Search ───────────────────────────────────────────────────────────────
