@@ -57,8 +57,19 @@ module.exports = defineConfig({
     : [['list'], ['html', { open: 'never' }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.DOCKER ? 'https://host.docker.internal' : 'https://localhost',
+    /*
+     * Base URL to use in actions like `await page.goto('/')`.
+     *
+     * E2E_BASE_URL overrides the target (it was documented but never
+     * implemented). On a USAGE=devel stack it MUST be the stack's real
+     * DOMAIN, not https://localhost: the webpack dev server's sockjs
+     * endpoint is same-origin only for that domain, and via localhost
+     * every page emits CORS + "[WDS] Disconnected!" console errors that
+     * fail all console-clean specs and break networkidle waits.
+     */
+    baseURL:
+      process.env.E2E_BASE_URL ??
+      (process.env.DOCKER ? 'https://host.docker.internal' : 'https://localhost'),
 
     ignoreHTTPSErrors: true,
 

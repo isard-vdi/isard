@@ -55,7 +55,7 @@ test.describe('Login', () => {
   test('should login locally correctly against the DB', async ({ page }) => {
     const login = new PageLogin(page)
     await login.goto()
-    await login.form('admin', 'IsardVDI')
+    await login.form(process.env.E2E_ADMIN_USERNAME ?? 'admin', process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI')
     await login.finished()
   })
 

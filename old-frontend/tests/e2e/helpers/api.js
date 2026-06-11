@@ -25,7 +25,10 @@ export class ApiHelper {
   /**
    * Login as admin and store the token
    */
-  async login (username = 'admin', password = 'IsardVDI', category = 'default') {
+  // Defaults honour the E2E_ADMIN_* env overrides so spec-local
+  // ``seed.login()`` calls work on stacks with a non-default admin
+  // password (they previously 401'd deterministically there).
+  async login (username = process.env.E2E_ADMIN_USERNAME ?? 'admin', password = process.env.E2E_ADMIN_PASSWORD ?? 'IsardVDI', category = 'default') {
     const token = await this._loginAuth(username, password, category)
     this.token = token
     // Stash credentials so ``_authFetch`` can re-login on 401
@@ -74,6 +77,17 @@ export class ApiHelper {
       const res = await fetchInsecure(url, { method: 'POST', body: buildForm() })
       if (!res.ok) {
         const text = await res.text()
+        if (res.status === 429) {
+          // Tests MUST run with the login rate limiter disabled — a serial
+          // suite logs in once per test and trips it, cascading the whole
+          // run into 429s. Fail with the fix instead of a mystery.
+          throw new Error(
+            'authentication /login rate-limited (429). Test stacks must set ' +
+            'AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=false in the cfg ' +
+            '(then bash build.sh && docker compose up -d isard-authentication). ' +
+            `Server said: ${text}`
+          )
+        }
         throw new Error(`authentication /login failed (${res.status}): ${text}`)
       }
       return (await res.text()).trim()
@@ -116,7 +130,7 @@ export class ApiHelper {
   // --- Categories ---
 
   async createCategory (name, uid) {
-    return this._authFetch('POST', '/api/v4/admin/category', {
+    return this._authFetch('POST', '/api/v4/admin/item/category', {
       name,
       uid: uid || name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
       description: `Test category ${name}`
@@ -129,7 +143,7 @@ export class ApiHelper {
     // v4 AdminGroupCreateData does not accept `linked_groups`; the caller
     // argument is kept for API compatibility and currently ignored. If
     // tests need linked-groups, a follow-up PUT to the group is needed.
-    return this._authFetch('POST', '/api/v4/admin/group', {
+    return this._authFetch('POST', '/api/v4/admin/item/group', {
       name,
       parent_category: categoryId,
       description: `Test group ${name}`
@@ -139,7 +153,7 @@ export class ApiHelper {
   // --- Users ---
 
   async createUser (username, categoryId, groupId, role = 'user', password = 'test1234') {
-    const user = await this._authFetch('POST', '/api/v4/admin/user', {
+    const user = await this._authFetch('POST', '/api/v4/admin/item/user', {
       username,
       uid: username,
       name: username,
@@ -168,7 +182,7 @@ export class ApiHelper {
   }
 
   async setSecondaryGroups (userIds, groupIds) {
-    return this._authFetch('PUT', '/api/v4/admin/user/secondary-groups/add', {
+    return this._authFetch('PUT', '/api/v4/admin/item/user/secondary-groups/add', {
       ids: userIds,
       secondary_groups: groupIds
     })
@@ -180,21 +194,21 @@ export class ApiHelper {
    * Get the list of available downloads
    */
   async getDownloads (kind = 'domains') {
-    return this._authFetch('GET', `/api/v4/admin/downloads/${kind}`)
+    return this._authFetch('GET', `/api/v4/admin/items/downloads/${kind}`)
   }
 
   /**
    * Register with downloads server if not already registered
    */
   async registerDownloads () {
-    return this._authFetch('POST', '/api/v4/admin/downloads/register')
+    return this._authFetch('POST', '/api/v4/admin/item/downloads/register')
   }
 
   /**
    * Start downloading a template
    */
   async downloadTemplate (kind, id) {
-    return this._authFetch('POST', `/api/v4/admin/downloads/download/${kind}/${id}`)
+    return this._authFetch('POST', `/api/v4/admin/item/downloads/download/${kind}/${id}`)
   }
 
   /**
@@ -215,7 +229,7 @@ export class ApiHelper {
    * Get admin template tree list
    */
   async getAdminTemplateTree (templateId) {
-    return this._authFetch('GET', `/api/v4/admin/desktops/tree_list/${templateId}`)
+    return this._authFetch('GET', `/api/v4/admin/items/desktops/tree_list/${templateId}`)
   }
 
   /**
@@ -381,7 +395,7 @@ export class ApiHelper {
 
   async deleteUser (userId) {
     // ``DELETE /admin/user`` body: AdminUserDeleteData = {user: list[str], delete_user: bool}.
-    return this._authFetch('DELETE', '/api/v4/admin/user', {
+    return this._authFetch('DELETE', '/api/v4/admin/items/users', {
       user: [userId],
       delete_user: true
     })
@@ -436,7 +450,7 @@ export class ApiHelper {
    * @param {string|null} ip  pass null to clear (park back at WaitingIP)
    */
   async setDesktopGuestIp (desktopId, ip) {
-    return this._authFetch('PUT', '/api/v4/admin/table/update/domains', {
+    return this._authFetch('PUT', '/api/v4/admin/item/table/update/domains', {
       id: desktopId,
       viewer: { guest_ip: ip }
     })
