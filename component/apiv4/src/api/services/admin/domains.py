@@ -194,6 +194,14 @@ class AdminDomainsService:
         return result
 
     @staticmethod
+    def get_domain_live_xml(domain_id: str) -> dict:
+        """Live libvirt XML (incl. secrets) of a started desktop, from engine
+        RAM. Proxies to the engine's internal API; never stored in the DB."""
+        from isardvdi_common.helpers.engine_api import get_desktop_live_xml
+
+        return get_desktop_live_xml(domain_id)
+
+    @staticmethod
     def get_domain_xml_and_protected(domain_id: str) -> dict:
         """Return the domain xml plus its xml_protected_sections list."""
         return DomainsProcessed.get_xml_and_protected(domain_id)
@@ -217,15 +225,61 @@ class AdminDomainsService:
 
     @staticmethod
     def apply_xml_section_edits(
-        domain_id: str, sections: dict, protected: list[str]
+        domain_id: str,
+        sections: dict,
+        protected: list[str],
+        raw_xml: Optional[str] = None,
     ) -> str:
         """Merge edited xml sections into the domain xml and persist.
 
         Composed helper so the route doesn't have to chain
         get_domain_xml_and_protected + merge_xml_sections + save itself.
         Returns the rebuilt full xml.
+
+        ``protected`` is either the RAW-mode sentinel exactly ``['raw']``
+        (the whole <domain> is authoritative; the engine applies only the
+        isard-essentials) or a list of real protectable section keys
+        (validated against the allowlist — OWASP Finding 2).
         """
-        from api.services.xml_sections import merge_xml_sections
+        from api.services.xml_sections import (
+            SECTION_DEFS,
+            _safe_fromstring,
+            merge_xml_sections,
+        )
+
+        allowed_keys = {s["key"] for s in SECTION_DEFS if s.get("protectable")}
+        is_raw = protected == ["raw"]
+        if not is_raw and not all(
+            isinstance(k, str) and k in allowed_keys for k in protected
+        ):
+            raise Error(
+                "bad_request",
+                "Invalid xml_protected_sections: must be a list of valid "
+                "section keys, or exactly ['raw'] for RAW mode",
+            )
+
+        if is_raw:
+            # RAW mode: store the whole <domain> verbatim (no section merge).
+            if not isinstance(raw_xml, str) or not raw_xml.strip():
+                raise Error(
+                    "bad_request",
+                    "RAW mode requires 'raw_xml' (the full <domain> XML)",
+                )
+            if len(raw_xml) > 2 * 1024 * 1024:
+                raise Error("bad_request", "XML exceeds maximum allowed size (2 MB)")
+            try:
+                root = _safe_fromstring(raw_xml)
+            except Error:
+                raise
+            except Exception as e:
+                raise Error("bad_request", f"Invalid RAW XML: {e}")
+            if root.tag != "domain":
+                raise Error(
+                    "bad_request",
+                    f"RAW XML must be a libvirt <domain> document; got <{root.tag}>",
+                )
+            AdminDomainsService.save_domain_xml_sections(domain_id, raw_xml, ["raw"])
+            return raw_xml
 
         domain = AdminDomainsService.get_domain_xml_and_protected(domain_id)
         new_xml = merge_xml_sections(domain["xml"], sections)

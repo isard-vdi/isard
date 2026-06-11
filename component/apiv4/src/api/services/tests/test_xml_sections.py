@@ -403,3 +403,371 @@ def test_disk_cache_section_def_no_longer_carries_readonly_display():
     `_DERIVED_KEYS` computation. Make sure no contributor re-added it."""
     sdef = next(s for s in SECTION_DEFS if s["key"] == "disk_cache")
     assert "readonly_display" not in sdef
+
+
+SAMPLE_DOMAIN_XML = """<domain xmlns:ns0="http://libosinfo.org/xmlns/libvirt/domain/1.0" type="kvm">
+  <name>9d881705-2e33-4531-b85d-83cddfe3526b</name>
+  <uuid>d97fd0eb-b726-46b0-8509-ccd259ade9b1</uuid>
+  <metadata>
+    <ns0:libosinfo>
+      <ns0:os id="http://debian.org/debian/12"/>
+    </ns0:libosinfo>
+  </metadata>
+  <memory unit="KiB">8388608</memory>
+  <currentMemory unit="KiB">8388608</currentMemory>
+  <memoryBacking>
+    <source type="memfd"/>
+    <access mode="shared"/>
+  </memoryBacking>
+  <vcpu placement="static">4</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode="host-passthrough"/>
+  <clock offset="utc"/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>destroy</on_crash>
+  <pm/>
+  <devices>
+    <emulator>/usr/bin/qemu-kvm</emulator>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/isard/templates/x.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <interface type="network">
+      <source network="default"/>
+      <mac address="52:54:00:11:3f:37"/>
+      <model type="virtio"/>
+    </interface>
+    <channel type="unix">
+      <source mode="bind"/>
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+    <channel type="spicevmc">
+      <target type="virtio" name="com.redhat.spice.0"/>
+    </channel>
+    <graphics type="spice" autoport="yes"/>
+    <video><model type="virtio"/></video>
+  </devices>
+  <seclabel type="dynamic" model="dac" relabel="yes"/>
+</domain>"""
+
+
+def _roundtrip(base_xml, edit=None):
+    """Split the XML, optionally apply edits, merge back."""
+    sections = split_xml_sections(base_xml, [])
+    edited = {s["key"]: s["xml"] for s in sections if s.get("protectable")}
+    if edit:
+        edited.update(edit)
+    return merge_xml_sections(base_xml, edited)
+
+
+# ---------------------------------------------------------------------------
+# Upstream MR !4535 (xml-editor-live-libvirt-xml @ 5948ab8f0) additions:
+# comment preservation, domain_type extra-attr round-trip, qemu namespace
+# handling, GPU passthrough/mdev and NUMA-pinning round-trips.
+# ---------------------------------------------------------------------------
+
+
+def _canonical(xml_str):
+    """Normalized (tag, sorted-attrs, text, children) tree for whitespace/attr
+    order-insensitive equality, used by split->merge idempotency assertions."""
+
+    def norm(e):
+        return (
+            e.tag,
+            tuple(sorted(e.attrib.items())),
+            (e.text or "").strip(),
+            tuple(norm(c) for c in e if not callable(c.tag)),
+        )
+
+    return norm(ET.fromstring(xml_str))
+
+
+# ---- B2: absent device section is inserted under the right parent ----------
+
+
+_NO_AGENT_BASE = """<domain type="kvm">
+  <name>x</name>
+  <uuid>00000000-0000-0000-0000-000000000000</uuid>
+  <memory unit="KiB">8388608</memory>
+  <currentMemory unit="KiB">8388608</currentMemory>
+  <vcpu placement="static">2</vcpu>
+  <os><type arch="x86_64" machine="q35">hvm</type></os>
+  <devices>
+    <emulator>/usr/bin/qemu-kvm</emulator>
+    <channel type="spicevmc">
+      <target type="virtio" name="com.redhat.spice.0"/>
+    </channel>
+  </devices>
+</domain>"""
+
+
+def test_merge_inserts_absent_guest_agent_channel_inside_devices():
+    """B2: pasting a guest-agent channel into a base with none must land inside
+    <devices>, not as a direct child of <domain> (which libvirt rejects)."""
+    snippet = (
+        '<channel type="unix">'
+        '  <source mode="bind"/>'
+        '  <target type="virtio" name="org.qemu.guest_agent.0"/>'
+        "</channel>"
+    )
+    merged = merge_xml_sections(_NO_AGENT_BASE, {"qemu_guest_agent": snippet})
+    root = ET.fromstring(merged)
+    assert (
+        root.find("./channel") is None
+    ), "channel inserted as direct child of <domain>"
+    placed = root.find(
+        './devices/channel[@type="unix"]' '/target[@name="org.qemu.guest_agent.0"]/..'
+    )
+    assert placed is not None, "guest-agent channel not placed inside <devices>"
+
+
+# ---- B3: comments survive a no-op round-trip -------------------------------
+
+
+_COMMENT_BASE = """<domain type="kvm">
+  <!-- isard: do not edit memoryBacking, GPU desktop -->
+  <name>x</name>
+  <uuid>00000000-0000-0000-0000-000000000000</uuid>
+  <memory unit="KiB">8388608</memory>
+  <currentMemory unit="KiB">8388608</currentMemory>
+  <vcpu>2</vcpu>
+  <os><type arch="x86_64" machine="q35">hvm</type></os>
+  <devices><emulator>/usr/bin/qemu-kvm</emulator></devices>
+</domain>"""
+
+
+def test_noop_roundtrip_preserves_comment():
+    """B3: an XML comment must survive a no-op split->merge round-trip."""
+    merged = _roundtrip(_COMMENT_BASE)
+    assert "<!-- isard: do not edit memoryBacking, GPU desktop -->" in merged
+
+
+# ---- B4: domain_type is editable -------------------------------------------
+
+
+def test_domain_type_edit_changes_domain_type_attr():
+    """B4: editing the encoded type in the domain_type section sets
+    <domain type=...>."""
+    edited = {
+        "domain_type": '<!-- domain type="qemu" -->\n'
+        "<emulator>/usr/bin/qemu-system-x86_64</emulator>"
+    }
+    merged = merge_xml_sections(SAMPLE_DOMAIN_XML, edited)
+    assert ET.fromstring(merged).get("type") == "qemu"
+
+
+def test_domain_type_rejects_invalid_type():
+    """B4: an unknown domain type must be rejected, not silently applied."""
+    edited = {
+        "domain_type": '<!-- domain type="evil" -->\n<emulator>/usr/bin/qemu-kvm</emulator>'
+    }
+    try:
+        merge_xml_sections(SAMPLE_DOMAIN_XML, edited)
+    except Error as e:
+        assert "type" in str(e).lower()
+        return
+    raise AssertionError("merge accepted an invalid <domain type>")
+
+
+# ---- #2 / #4: qemu namespace handling --------------------------------------
+
+
+_QEMU_NS = 'xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0"'
+_QEMU_CMDLINE_BASE = (
+    f'<domain type="kvm" {_QEMU_NS}>'
+    "<name>d</name><uuid>00000000-0000-0000-0000-000000000000</uuid>"
+    '<memory unit="KiB">1048576</memory>'
+    '<currentMemory unit="KiB">1048576</currentMemory><vcpu>1</vcpu>'
+    '<os><type arch="x86_64" machine="q35">hvm</type></os>'
+    "<devices><emulator>/usr/bin/qemu-kvm</emulator></devices>"
+    "<qemu:commandline>"
+    '<qemu:arg value="-global"/>'
+    '<qemu:arg value="pcie-root-port.pref64-reserve=256G"/>'
+    "</qemu:commandline>"
+    "</domain>"
+)
+
+
+def test_merge_preserves_qemu_namespace_prefix():
+    """#4(api): a merge round-trip must keep the canonical `qemu:` prefix, not
+    rewrite it to `ns0:` (which defeats the engine's qemu:commandline dedup
+    regex). Upstream pins this on its catchall "other_toplevel" section; this
+    branch's editor revision has no catchall sections, so the equivalent
+    guarantee is that the un-split remainder round-trips with the registered
+    prefix."""
+    merged = _roundtrip(_QEMU_CMDLINE_BASE)
+    assert "qemu:commandline" in merged
+    assert "ns0:commandline" not in merged
+
+
+def test_qemu_commandline_roundtrip_single_block():
+    """#4(api): a full round-trip must keep exactly one qemu:commandline block
+    with the qemu: prefix (no duplication, no ns0:)."""
+    merged = _roundtrip(_QEMU_CMDLINE_BASE)
+    assert merged.count("<qemu:commandline") == 1
+    assert "ns0:commandline" not in merged
+
+
+# ---- Complex fixtures: PCI passthrough, NUMA, vGPU --------------------------
+
+
+_GPU_PASSTHROUGH_DOMAIN = """<domain type="kvm">
+  <name>gpu-vm</name>
+  <uuid>11111111-2222-3333-4444-555555555555</uuid>
+  <memory unit="KiB">16777216</memory>
+  <currentMemory unit="KiB">16777216</currentMemory>
+  <vcpu placement="static">8</vcpu>
+  <os firmware="efi">
+    <type arch="x86_64" machine="q35">hvm</type>
+    <loader readonly="yes" type="pflash">/usr/share/OVMF/OVMF_CODE.fd</loader>
+    <nvram>/var/lib/libvirt/qemu/nvram/gpu-vm_VARS.fd</nvram>
+    <boot dev="hd"/>
+  </os>
+  <features><acpi/><apic/></features>
+  <cpu mode="host-passthrough"/>
+  <devices>
+    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/isard/g.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <hostdev mode="subsystem" type="pci" managed="yes">
+      <source>
+        <address domain="0x0000" bus="0x86" slot="0x00" function="0x0"/>
+      </source>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x09" function="0x0" multifunction="on"/>
+    </hostdev>
+    <hostdev mode="subsystem" type="pci" managed="yes">
+      <source>
+        <address domain="0x0000" bus="0x86" slot="0x00" function="0x1"/>
+      </source>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x09" function="0x1"/>
+    </hostdev>
+  </devices>
+</domain>"""
+
+
+def test_gpu_passthrough_multifunction_roundtrips():
+    """Fixture 1: q35+OVMF multifunction GPU passthrough + HD-audio companion
+    round-trips: both hostdevs, multifunction attr, and shared guest slot."""
+    merged = _roundtrip(_GPU_PASSTHROUGH_DOMAIN)
+    root = ET.fromstring(merged)
+    hostdevs = root.findall('./devices/hostdev[@type="pci"]')
+    assert len(hostdevs) == 2
+    main, comp = hostdevs
+    assert main.find("source/address").get("function") == "0x0"
+    assert main.find("address").get("multifunction") == "on"
+    assert comp.find("source/address").get("function") == "0x1"
+    assert main.find("address").get("slot") == comp.find("address").get("slot")
+    assert comp.find("address").get("multifunction") is None
+
+
+def test_gpu_passthrough_paste_into_gpuless_base():
+    """Fixture 1b: pasting both hostdevs into a GPU-less base inserts them under
+    <devices>, never as a direct child of <domain>."""
+    src = ET.fromstring(_GPU_PASSTHROUGH_DOMAIN)
+    snippet = "\n".join(
+        ET.tostring(hd, encoding="unicode") for hd in src.findall("./devices/hostdev")
+    )
+    merged = _roundtrip(SAMPLE_DOMAIN_XML, edit={"hostdev": snippet})
+    root = ET.fromstring(merged)
+    assert len(root.findall('./devices/hostdev[@type="pci"]')) == 2
+    assert root.find("./hostdev") is None
+
+
+_FULL_NUMA_DOMAIN = (
+    """<domain type="kvm">
+  <name>numa-vm</name>
+  <uuid>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</uuid>
+  <memory unit="KiB">25165824</memory>
+  <currentMemory unit="KiB">25165824</currentMemory>
+  <memoryBacking><hugepages><page size="1" unit="G"/></hugepages></memoryBacking>
+  <vcpu placement="static">24</vcpu>
+  <iothreads>2</iothreads>
+  <cputune>
+"""
+    + "\n".join(f'    <vcpupin vcpu="{i}" cpuset="{24 + i}"/>' for i in range(24))
+    + """
+    <emulatorpin cpuset="48-71"/>
+    <iothreadpin iothread="1" cpuset="48-71"/>
+    <iothreadpin iothread="2" cpuset="48-71"/>
+  </cputune>
+  <numatune><memory mode="strict" nodeset="1"/></numatune>
+  <os><type arch="x86_64" machine="q35">hvm</type></os>
+  <devices>
+    <emulator>/usr/bin/qemu-kvm</emulator>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2" iothread="1"/>
+      <source file="/isard/a.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2" iothread="2"/>
+      <source file="/isard/b.qcow2"/>
+      <target dev="vdb" bus="virtio"/>
+    </disk>
+  </devices>
+</domain>"""
+)
+
+
+def test_full_numa_pinning_split_assignment():
+    """Fixture 2: split routes each NUMA/iothread/hugepage piece to its section."""
+    secs = {s["key"]: s for s in split_xml_sections(_FULL_NUMA_DOMAIN, [])}
+    assert "<hugepages>" in secs["memory_backing"]["xml"]
+    assert secs["vcpus"]["xml"].strip().startswith("<vcpu")
+    assert "<iothreads>2</iothreads>" in secs["iothreads"]["xml"]
+    assert secs["cputune"]["xml"].count("<vcpupin") == 24
+    assert "<emulatorpin" in secs["cputune"]["xml"]
+    assert secs["cputune"]["xml"].count("<iothreadpin") == 2
+    assert 'mode="strict"' in secs["numatune"]["xml"]
+    assert secs["disks"]["xml"].count("<disk") == 2
+
+
+def test_full_numa_pinning_roundtrip_semantic():
+    """Fixture 2b: a full split->merge is semantically identical."""
+    merged = _roundtrip(_FULL_NUMA_DOMAIN)
+    assert _canonical(merged) == _canonical(_FULL_NUMA_DOMAIN)
+
+
+_VGPU_MDEV_DOMAIN = """<domain type="kvm">
+  <name>vgpu-vm</name>
+  <uuid>99999999-8888-7777-6666-555555555555</uuid>
+  <memory unit="KiB">8388608</memory>
+  <currentMemory unit="KiB">8388608</currentMemory>
+  <vcpu>4</vcpu>
+  <os><type arch="x86_64" machine="q35">hvm</type></os>
+  <devices>
+    <emulator>/usr/bin/qemu-kvm</emulator>
+    <hostdev mode="subsystem" type="mdev" model="vfio-pci" display="off">
+      <source>
+        <address uuid="4b20d080-1b54-4048-85b3-a6a62d165c01"/>
+      </source>
+    </hostdev>
+  </devices>
+</domain>"""
+
+
+def test_vgpu_mdev_hostdev_roundtrips():
+    """Fixture 3: an mdev (vGPU) hostdev round-trips with model/display/uuid."""
+    merged = _roundtrip(_VGPU_MDEV_DOMAIN)
+    root = ET.fromstring(merged)
+    hd = root.findall('./devices/hostdev[@type="mdev"]')
+    assert len(hd) == 1
+    assert hd[0].get("model") == "vfio-pci"
+    assert hd[0].get("display") == "off"
+    assert (
+        hd[0].find("source/address").get("uuid")
+        == "4b20d080-1b54-4048-85b3-a6a62d165c01"
+    )
+    assert _canonical(merged) == _canonical(_VGPU_MDEV_DOMAIN)

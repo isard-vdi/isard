@@ -28,6 +28,7 @@ from api.schemas.admin.domains import (
     AdminDomainDetailsResponse,
     AdminDomainHardwareResponse,
     AdminDomainListItem,
+    AdminDomainLiveXmlResponse,
     AdminDomainSearchInfoResponse,
     AdminDomainsFieldResponse,
     AdminDomainStatusItem,
@@ -392,6 +393,41 @@ async def admin_domain_xml_update(
             request,
             "internal_server",
             "Failed to update domain XML",
+            traceback.format_exc(),
+        )
+
+
+@admin_router.get(
+    "/admin/item/domain/{domain_id}/live_xml",
+    tags=[tag],
+    response_model=AdminDomainLiveXmlResponse,
+    response_model_exclude_none=True,
+    summary="Get a started desktop's live libvirt XML",
+    description=(
+        "Live libvirt XML (incl. secrets) of a started desktop, from engine "
+        "RAM. Proxies to the engine's internal API; the XML is never stored "
+        "in the DB. 409 when the desktop is not running; 404 when the live "
+        "XML was not captured (restart the desktop to capture)."
+    ),
+    responses={
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        504: {"model": ErrorResponse},
+    },
+)
+async def admin_domain_live_xml(request: Request, domain_id: str):
+    try:
+        return await asyncio.to_thread(
+            AdminDomainsService.get_domain_live_xml, domain_id
+        )
+    except Error:
+        raise
+    except Exception:
+        raise await Error.create(
+            request,
+            "internal_server",
+            "Failed to get live XML",
             traceback.format_exc(),
         )
 
@@ -1518,7 +1554,9 @@ async def admin_domain_xml_sections_get(request: Request, domain_id: str):
         sections = split_xml_sections(domain["xml"], domain["protected"])
         return JSONResponse(
             content=AdminDomainXmlSectionsGetResponse(
-                sections=sections, xml_full=domain["xml"]
+                sections=sections,
+                xml_full=domain["xml"],
+                xml_protected_sections=domain["protected"],
             ).model_dump(mode="json"),
             status_code=200,
         )
@@ -1550,6 +1588,7 @@ async def admin_domain_xml_sections_save(
             domain_id,
             data.sections,
             data.protected_sections,
+            data.raw_xml,
         )
         return JSONResponse(
             content=AdminDomainXmlSectionsSaveResponse(xml=new_xml).model_dump(
