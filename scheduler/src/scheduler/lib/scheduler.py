@@ -340,6 +340,13 @@ class Scheduler:
             replace_existing=True,
             id=id,
             kwargs=kwargs,
+            # APScheduler's default misfire_grace_time (1s) silently skips a
+            # date job whose run_date is already past - e.g. the plan-boundary
+            # gpu_profile_set registered at "start - 1m" for a plan created
+            # mid-window, or any job due while the scheduler restarts. Allow a
+            # bounded lateness so those still run, without resurrecting jobs
+            # that are hours stale after a long outage.
+            misfire_grace_time=300,
         )
         with app.app_context():
             r.table("scheduler_jobs").get(id).update(
