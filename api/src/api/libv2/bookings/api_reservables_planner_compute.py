@@ -25,6 +25,8 @@ import portion as P
 import pytz
 from isardvdi_common.api_exceptions import Error
 
+from .gpu_multitenancy import filter_gpu_plans_by_category
+
 
 def _sorted_atomic_items(interval_dict):
     items = []
@@ -60,6 +62,11 @@ def booking_provisioning(
         # Sum overlapped and keep non overlapped
         for subitem in v:
             all_plans = get_subitems_planning([subitem])
+            # Phase 2 multitenancy: a non-admin only counts the availability of
+            # GPU cards delegated to their category (+ the global pool when the
+            # category allows it), so per-category capacity is the sum over
+            # *their* cards, not every card that enables the profile.
+            all_plans = filter_gpu_plans_by_category(all_plans, payload)
             resource_planner[subitem] = intersect_same_subitem_plan(all_plans, subitem)
             log.debug(
                 "Plans for "

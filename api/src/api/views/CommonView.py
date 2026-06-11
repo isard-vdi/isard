@@ -14,6 +14,7 @@ from api import app
 from ..libv2.api_logging import logs_domain_event_viewer
 from ..libv2.api_templates import ApiTemplates
 from ..libv2.bookings.api_reservables import attach_vgpu_hypervisor_groups
+from ..libv2.bookings.gpu_multitenancy import filter_reservables_by_category
 from ..libv2.caches import get_document
 from ..libv2.quotas import Quotas
 
@@ -103,6 +104,7 @@ def api_v3_domains_allowed_hardware_reservables(payload, kind, domain_id=None):
                 extra_ids_allowed=domain_reservables_vgpus,
             )
         else:
+            domain_reservables_vgpus = []
             vgpus = allowed.get_items_allowed(
                 payload,
                 "reservables_vgpus",
@@ -110,6 +112,12 @@ def api_v3_domains_allowed_hardware_reservables(payload, kind, domain_id=None):
                 order="name",
                 query_merge=False,
             )
+        # Phase 2 multitenancy: only show profiles backed by a GPU card delegated
+        # to the requester's category (+ the global pool when allowed). Profiles
+        # already attached to this desktop stay listed so it never loses its GPU.
+        vgpus = filter_reservables_by_category(
+            vgpus, payload, keep_ids=domain_reservables_vgpus
+        )
         return json.dumps({"vgpus": attach_vgpu_hypervisor_groups(vgpus, show_names)})
     if kind == "hardware":
         return Error("bad_request", "Not implemented")

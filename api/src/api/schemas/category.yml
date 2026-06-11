@@ -93,3 +93,6 @@ recycle_bin_cutoff_time:
 manager_permissions:
   type: dict
   schema: manager_permissions
+gpu_use_global_pool:
+  type: boolean
+  nullable: true
