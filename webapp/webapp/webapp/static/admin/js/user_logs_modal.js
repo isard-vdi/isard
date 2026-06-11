@@ -104,7 +104,7 @@
                 type: 'POST',
                 contentType: 'application/json',
                 data: function(d) {
-                    d.filter_field = 'user_id';
+                    d.filter_field = 'owner_user_id';
                     d.filter_value = userId;
                     return JSON.stringify(d);
                 }
@@ -142,7 +142,7 @@
                 length: 100000,
                 order: [{ column: 0, dir: 'desc' }],
                 columns: columns.map(function(col) { return { data: col.data }; }),
-                filter_field: 'user_id',
+                filter_field: 'owner_user_id',
                 filter_value: currentUserId
             };
 
