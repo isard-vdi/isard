@@ -45,6 +45,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
             $(parentid+"#quota-total_soft_size").removeAttr("max");
             $(parentid+"#quota-deployments_total").removeAttr("max");
             $(parentid+"#quota-deployment_users").removeAttr("max");
+            $(parentid+"#quota-deployment_desktops").removeAttr("max");
             $(parentid+"#quota-started_deployment_desktops").removeAttr("max");
 
             // ONLY FOR KIND=USER
@@ -90,6 +91,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
                 $(parentid+"#quota-total_soft_size").val(usrquota.quota.total_soft_size);
                 $(parentid+"#quota-deployments_total").val(usrquota.quota.deployments_total);
                 $(parentid+"#quota-deployment_users").val(usrquota.quota.deployment_users);
+                $(parentid+"#quota-deployment_desktops").val(usrquota.quota.deployment_desktops);
                 $(parentid+"#quota-started_deployment_desktops").val(usrquota.quota.started_deployment_desktops);
             }else{
                 $(parentid+"#unlimited").iCheck('check');
@@ -169,6 +171,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         $(parentid+"total_soft_size").removeAttr("disabled");
         $(parentid+"deployments_total").removeAttr("disabled");
         $(parentid+"deployment_users").removeAttr("disabled");
+        $(parentid+"deployment_desktops").removeAttr("disabled");
         $(parentid+"started_deployment_desktops").removeAttr("disabled");
     }
 
@@ -186,6 +189,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         $(parentid+"total_soft_size").attr("disabled", true);
         $(parentid+"deployments_total").attr("disabled", true);
         $(parentid+"deployment_users").attr("disabled", true);
+        $(parentid+"deployment_desktops").attr("disabled", true);
         $(parentid+"started_deployment_desktops").attr("disabled", true);
     }
 
