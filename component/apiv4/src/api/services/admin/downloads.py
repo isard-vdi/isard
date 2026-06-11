@@ -78,11 +78,8 @@ class AdminDownloadsService:
         from isardvdi_common.helpers.url_validation import validate_url_not_internal
 
         url, code, _ = AdminDownloadsService._get_cfg()
-        # Surface the SSRF guard as a typed bad_request — without this
-        # the outer ``except Exception: pass`` swallowed the ValueError
-        # entirely and the admin saw a generic gateway_timeout, hiding
-        # the real reason (the configured update server URL points to
-        # internal infrastructure).
+        # Surface as a typed bad_request; the outer ``except`` would
+        # otherwise swallow the ValueError into a generic gateway_timeout.
         try:
             validate_url_not_internal(url)
         except ValueError as e:
@@ -112,9 +109,21 @@ class AdminDownloadsService:
     @staticmethod
     def register() -> bool:
         """Register with the updates server."""
+        from isardvdi_common.helpers.url_validation import validate_url_not_internal
+
         url, code, _ = AdminDownloadsService._get_cfg()
         if code:
             return True
+        # The updates-server URL is admin-writable DB config; reject
+        # values pointing at internal infrastructure (SSRF).
+        try:
+            validate_url_not_internal(url)
+        except ValueError as e:
+            raise Error(
+                "bad_request",
+                str(e),
+                description_code="updates_url_internal",
+            )
         try:
             req = requests.post(url + "/register", allow_redirects=False, timeout=10)
             if req.status_code == 200:
@@ -129,7 +138,18 @@ class AdminDownloadsService:
     @cached(cache=_download_web_kind_cache)
     def _download_web_kind(kind: str) -> list | int | bool:
         """Download a specific kind from the updates server."""
+        from isardvdi_common.helpers.url_validation import validate_url_not_internal
+
         url, code, _ = AdminDownloadsService._get_cfg()
+        # Reject admin-set URLs pointing at internal infrastructure (SSRF).
+        try:
+            validate_url_not_internal(url)
+        except ValueError as e:
+            raise Error(
+                "bad_request",
+                str(e),
+                description_code="updates_url_internal",
+            )
         try:
             req = requests.post(
                 url + "/get/" + kind + "/list",
@@ -156,7 +176,18 @@ class AdminDownloadsService:
     @cached(cache=_download_web_private_kind_cache)
     def _download_web_private_kind(kind: str = "private_domains") -> list | bool:
         """Download private kind from the updates server."""
+        from isardvdi_common.helpers.url_validation import validate_url_not_internal
+
         url, code, private_code = AdminDownloadsService._get_cfg()
+        # Reject admin-set URLs pointing at internal infrastructure (SSRF).
+        try:
+            validate_url_not_internal(url)
+        except ValueError as e:
+            raise Error(
+                "bad_request",
+                str(e),
+                description_code="updates_url_internal",
+            )
         try:
             req = requests.post(
                 url + "/private_get/" + kind + "/list",
