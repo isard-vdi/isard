@@ -525,6 +525,7 @@ async def get_user_allowed_templates(
     summary="Update template information",
     description="Update the properties of a specific template.",
     dependencies=[
+        Depends(owns_domain_id("template_id")),
         Depends(check_domain_kind("template_id", "template")),
     ],
 )
