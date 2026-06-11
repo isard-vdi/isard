@@ -947,35 +947,30 @@ def update_vgpu_uuid_domain_action(
                     close_rethink_connection(r_conn)
                     return False
                 if domain_id is not False:
+                    # vgpu_info is a LIST of per-mdev bindings so a desktop can
+                    # hold several vGPUs (each on a distinct card of the SAME
+                    # hypervisor). Append this binding, replacing any stale entry
+                    # for the same uuid. Normalize a legacy scalar dict to [].
                     results = (
                         r.table("domains")
                         .get(domain_id)
                         .update(
-                            {
-                                "vgpu_info": {
-                                    "gpu_id": gpu_id,
-                                    "profile": profile,
-                                    "uuid": mdev_uuid,
-                                    "started": False,
-                                    "reserved": True,
-                                }
-                            }
-                        )
-                        .run(r_conn)
-                    )
-                else:
-                    results = (
-                        r.table("domains")
-                        .get(domain_id)
-                        .update(
-                            {
-                                "vgpu_info": {
-                                    "gpu_id": False,
-                                    "profile": False,
-                                    "uuid": False,
-                                    "started": False,
-                                    "reserved": False,
-                                }
+                            lambda d: {
+                                "vgpu_info": r.branch(
+                                    d["vgpu_info"].default([]).type_of().eq("ARRAY"),
+                                    d["vgpu_info"],
+                                    [],
+                                )
+                                .filter(lambda e: e["uuid"].ne(mdev_uuid))
+                                .append(
+                                    {
+                                        "gpu_id": gpu_id,
+                                        "profile": profile,
+                                        "uuid": mdev_uuid,
+                                        "started": False,
+                                        "reserved": True,
+                                    }
+                                )
                             }
                         )
                         .run(r_conn)
@@ -999,18 +994,23 @@ def update_vgpu_uuid_domain_action(
                     .run(r_conn)
                 )
                 if domain_id is not False:
+                    # Flip just this uuid's entry to started in the vgpu_info list.
                     results = (
                         r.table("domains")
                         .get(domain_id)
                         .update(
-                            {
-                                "vgpu_info": {
-                                    "gpu_id": gpu_id,
-                                    "profile": profile,
-                                    "uuid": mdev_uuid,
-                                    "started": True,
-                                    "reserved": False,
-                                }
+                            lambda d: {
+                                "vgpu_info": r.branch(
+                                    d["vgpu_info"].default([]).type_of().eq("ARRAY"),
+                                    d["vgpu_info"],
+                                    [],
+                                ).map(
+                                    lambda e: r.branch(
+                                        e["uuid"].eq(mdev_uuid),
+                                        e.merge({"started": True, "reserved": False}),
+                                        e,
+                                    )
+                                )
                             }
                         )
                         .run(r_conn)
@@ -1034,18 +1034,18 @@ def update_vgpu_uuid_domain_action(
                     .run(r_conn)
                 )
                 if domain_id is not False:
+                    # Drop just this uuid's binding from the list; other vGPUs of
+                    # the same desktop stay bound until they are stopped too.
                     results = (
                         r.table("domains")
                         .get(domain_id)
                         .update(
-                            {
-                                "vgpu_info": {
-                                    "gpu_id": False,
-                                    "profile": False,
-                                    "uuid": False,
-                                    "started": False,
-                                    "reserved": False,
-                                }
+                            lambda d: {
+                                "vgpu_info": r.branch(
+                                    d["vgpu_info"].default([]).type_of().eq("ARRAY"),
+                                    d["vgpu_info"],
+                                    [],
+                                ).filter(lambda e: e["uuid"].ne(mdev_uuid))
                             }
                         )
                         .run(r_conn)
@@ -1117,6 +1117,12 @@ def get_vgpus_mdevs(id_gpu, type_gpu):
 
 
 def domain_get_vgpu_info(domain_id):
+    """Return a domain's vGPU bindings as a LIST of per-mdev dicts.
+
+    A desktop may hold several vGPUs, so this is always a list. A legacy
+    scalar dict (single binding) is normalized to a one-element list; an
+    empty/cleared binding returns [].
+    """
     r_conn = new_rethink_connection()
     rtable_dom = r.table("domains")
     try:
@@ -1124,16 +1130,24 @@ def domain_get_vgpu_info(domain_id):
         close_rethink_connection(r_conn)
     except Exception as e:
         close_rethink_connection(r_conn)
-        return {}
-    return d.get("vgpu_info", {})
+        return []
+    vi = d.get("vgpu_info")
+    if isinstance(vi, list):
+        return vi
+    if isinstance(vi, dict) and vi.get("uuid"):
+        return [vi]
+    return []
 
 
 def update_vgpu_info_if_stopped(dom_id):
-    vgpu_info = domain_get_vgpu_info(dom_id)
-    if (
-        vgpu_info.get("started", False) is True
-        or vgpu_info.get("reserved", False) is True
-    ):
+    # Release EVERY vGPU the domain still holds (a multi-GPU desktop has more
+    # than one). Snapshot the list first; each release mutates the domain doc.
+    for vgpu_info in domain_get_vgpu_info(dom_id):
+        if not (
+            vgpu_info.get("started", False) is True
+            or vgpu_info.get("reserved", False) is True
+        ):
+            continue
         result = update_vgpu_uuid_domain_action(
             vgpu_info.get("gpu_id", False),
             vgpu_info.get("uuid", False),
@@ -1142,23 +1156,22 @@ def update_vgpu_info_if_stopped(dom_id):
             profile=vgpu_info.get("profile", False),
         )
         if result is False:
-            # UUID no longer exists in vgpus table — force clear stale vgpu_info
-            # so the domain can be restarted with a fresh GPU allocation
+            # UUID no longer exists in vgpus table — drop just this stale entry
+            # so the domain can be restarted with a fresh GPU allocation.
+            bad_uuid = vgpu_info.get("uuid")
             logs.main.warning(
                 f"Forcing vgpu_info cleanup for domain {dom_id} "
-                f"(stale uuid {vgpu_info.get('uuid')} not found in vgpus table)"
+                f"(stale uuid {bad_uuid} not found in vgpus table)"
             )
             r_conn = new_rethink_connection()
             try:
                 r.table("domains").get(dom_id).update(
-                    {
-                        "vgpu_info": {
-                            "gpu_id": False,
-                            "profile": False,
-                            "uuid": False,
-                            "started": False,
-                            "reserved": False,
-                        }
+                    lambda d: {
+                        "vgpu_info": r.branch(
+                            d["vgpu_info"].default([]).type_of().eq("ARRAY"),
+                            d["vgpu_info"],
+                            [],
+                        ).filter(lambda e: e["uuid"].ne(bad_uuid))
                     }
                 ).run(r_conn)
             except Exception as e:
@@ -1199,6 +1212,23 @@ def _free_stale_vgpu_pool_entries(dom_id):
         logs.main.error(f"Error freeing vgpu pool for stopped domain {dom_id}: {e}")
     finally:
         close_rethink_connection(r_conn)
+
+
+def mark_domain_vgpus_started(dom_id):
+    """Flip every still-reserved vGPU binding of a domain to started.
+
+    A multi-GPU desktop reserves several mdevs before boot; once the domain is
+    running they should all read as started (not merely reserved). Idempotent.
+    """
+    for vgpu_info in domain_get_vgpu_info(dom_id):
+        if vgpu_info.get("uuid") and vgpu_info.get("started") is not True:
+            update_vgpu_uuid_domain_action(
+                vgpu_info.get("gpu_id", False),
+                vgpu_info.get("uuid", False),
+                "domain_started",
+                domain_id=dom_id,
+                profile=vgpu_info.get("profile", False),
+            )
 
 
 ####

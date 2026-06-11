@@ -29,6 +29,7 @@ from engine.services.db import (
     get_hyp_status,
     get_hyp_viewer_info,
     get_table_field,
+    mark_domain_vgpus_started,
     update_db_hyp_info,
     update_domain_status,
     update_domain_viewer_started_values,
@@ -1400,15 +1401,10 @@ class HypWorkerThread(threading.Thread):
                 detail="Domain started by worker",
             )
 
-            # Update vGPU info if applicable
+            # Update vGPU info if applicable. A desktop may hold several vGPUs;
+            # mark ALL of its reserved bindings started, not just the primary.
             if action.get("nvidia_uid", False) is not False:
-                update_vgpu_uuid_domain_action(
-                    action["vgpu_id"],
-                    action["nvidia_uid"],
-                    "domain_started",
-                    domain_id=action["id_domain"],
-                    profile=action["profile"],
-                )
+                mark_domain_vgpus_started(action["id_domain"])
 
             # Log success
             logs.status.info(
@@ -1438,14 +1434,10 @@ class HypWorkerThread(threading.Thread):
             )
             logs.workers.error(f"Exception in start_domain action: {e}")
 
+            # Release EVERY vGPU the domain reserved (multi-GPU desktops have
+            # more than one), not just the primary.
             if action.get("nvidia_uid", False) is not False:
-                update_vgpu_uuid_domain_action(
-                    action["vgpu_id"],
-                    action["nvidia_uid"],
-                    "domain_stopped",
-                    domain_id=action["id_domain"],
-                    profile=action["profile"],
-                )
+                update_vgpu_info_if_stopped(action["id_domain"])
             log_action(
                 self.hyp_id,
                 action["id_domain"],
