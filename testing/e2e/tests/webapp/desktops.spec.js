@@ -13,11 +13,16 @@
 import { test, expect, apiv4ClientForPage, unwrap } from '../../fixtures/apiv4/index.js'
 import {
   adminListDomains,
+  adminMultipleActions,
   deleteDesktop,
   editDesktop,
   deleteTemplate,
   bulkCreatePersistentDesktops,
+  createDesktopFromMedia,
+  createTemplate,
+  getMediaInstalls,
   updateShareLink,
+  startDesktop,
   stopDesktop,
   getDesktopDetails,
   getUserAllowedTemplatesFlat,
@@ -48,6 +53,12 @@ const SEEDED = {
 // can yield an uncreatable template.
 const SEEDED_TEMPLATE_ID = 'template-test-001'
 
+// Seeded, already-Downloaded local ISO (testing/db/data/media.json → "empty-iso").
+// Building a desktop from it makes the storage worker carve a real qcow2, so a
+// template snapshotted from that desktop is disk-backed and its clones can boot —
+// unlike the pure-DB seed template, whose desktops have no disk.
+const BOOTABLE_MEDIA_ID = 'empty-iso'
+
 // ─── state helpers ───────────────────────────────────────────────────────────
 
 // Stop a desktop via API and wait for it to reach Stopped or Failed.
@@ -63,6 +74,68 @@ async function ensureDesktopStopped(client, domainId, { timeoutMs = 90000 } = {}
     await new Promise((res) => setTimeout(res, 3000))
   }
   throw new Error(`desktop ${domainId} did not reach Stopped within ${timeoutMs}ms`)
+}
+
+// Start a desktop via API and wait for it to reach Started. The hypervisor boots
+// it for real; retry the start if the engine is momentarily busy.
+async function ensureDesktopStarted(client, domainId, { timeoutMs = 120000 } = {}) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const result = await getDesktopDetails({ client, path: { desktop_id: domainId } }).catch(() => null)
+    const status = result?.data?.status
+    if (status === 'Started') return status
+    if (status === 'Stopped' || status === 'Failed') {
+      await startDesktop({ client, path: { desktop_id: domainId } }).catch(() => {})
+    }
+    await new Promise((res) => setTimeout(res, 3000))
+  }
+  throw new Error(`desktop ${domainId} did not reach Started within ${timeoutMs}ms`)
+}
+
+// Passive wait (no stop issued): poll until the desktop settles to Stopped/Failed.
+// Used while a freshly created desktop's disk is still being carved. Returns the
+// final status, or null on timeout — never throws (callers treat it as best-effort).
+async function waitForDesktopStopped(client, domainId, { timeoutMs = 180000 } = {}) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const result = await getDesktopDetails({ client, path: { desktop_id: domainId } }).catch(() => null)
+    const status = result?.data?.status
+    if (status === 'Stopped' || status === 'Failed') return status
+    await new Promise((res) => setTimeout(res, 3000))
+  }
+  return null
+}
+
+// Statuses from which a template can't yet be cloned — bulkCreate rejects with
+// 428 template_not_ready (see common lib desktops.py). A finished template
+// settles to 'Stopped'.
+const UNUSABLE_TEMPLATE_STATUSES = new Set([
+  'CreatingTemplate',
+  'Failed',
+  'Maintenance',
+  'DownloadStarting',
+  'Downloading',
+])
+
+// Poll until a freshly snapshotted template's disk-copy chain finishes and its
+// status leaves the unusable set, so clones can derive from it. Returns the
+// ready status, or null on timeout (best-effort — never throws).
+async function waitForTemplateReady(client, templateId, { timeoutMs = 180000 } = {}) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    // Query by id (get_by_ids plucks status); the kind:'template' list omits it.
+    const rows = await unwrap(
+      adminListDomains({ client, body: { domain_ids: [templateId] } }),
+    ).catch(() => [])
+    const tpl = Array.isArray(rows) ? rows.find((t) => t.id === templateId) : null
+    // Require a concrete status string — a missing one keeps polling rather than
+    // reading undefined as ready.
+    if (tpl && typeof tpl.status === 'string' && !UNUSABLE_TEMPLATE_STATUSES.has(tpl.status)) {
+      return tpl.status
+    }
+    await new Promise((res) => setTimeout(res, 3000))
+  }
+  return null
 }
 
 function uniqueDesktopName(testInfo, suffix = '') {
@@ -177,35 +250,40 @@ test.describe('Admin Desktops — webapp', () => {
   // for an integration suite that drives the real engine + hypervisor.
   test.describe.configure({ mode: 'serial' })
 
+  // `sharedTemplateId` is the template the create tests clone from. `beforeAll`
+  // prefers the disk-backed bootable template it builds (so clones can boot); if that
+  // build fails it falls back to the diskless seed template. `bootableTemplateId` is
+  // set ONLY when the real build succeeded — lifecycle tests gate on it.
   let sharedTemplateId = null
+  let bootableTemplateId = null
+  let bootableSourceDesktopId = null
 
-  // Intercept a desktop's PUT /start, capture the issued request, and stub a 200 so
-  // the engine never actually starts it. The dev DB ships no disk images (template
-  // qcow2 files are absent), so a real start wedges the desktop in `Starting` with no
-  // way back to Stopped (desktop_stop refuses to act from `Starting`). The start
-  // action is purely a webapp concern here: assert the correct PUT is issued, without
-  // the backend side-effect that would poison the shared seed for later tests.
-  async function interceptStart(page, desktopId) {
-    const captured = { request: null }
-    await page.route(`**/api/v4/item/desktop/${desktopId}/start`, async (route) => {
-      if (route.request().method() === 'PUT') {
-        captured.request = route.request()
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ id: desktopId }),
-        })
-      } else {
-        await route.continue()
-      }
-    })
-    return captured
+  // Create a throwaway persistent desktop from `sharedTemplateId` and track it for
+  // afterEach cleanup. When the bootable template is in use the clone inherits a real
+  // qcow2 and can boot on the hypervisor; the diskless seeds never can. Every
+  // start/stop/retry lifecycle test must use one (gated on `bootableTemplateId`).
+  async function createDisposableDesktop(client, testInfo, suffix, templateId = sharedTemplateId) {
+    const name = uniqueDesktopName(testInfo, suffix)
+    trackDesktopName(testInfo, name)
+    const created = await unwrap(
+      bulkCreatePersistentDesktops({
+        client,
+        body: {
+          name,
+          description: `e2e ${suffix} target`,
+          template_id: templateId,
+          allowed: { roles: false, categories: false, groups: false, users: ['local-default-admin-admin'] },
+        },
+      }),
+    )
+    return { id: created?.ids?.[0] ?? null, name }
   }
 
   test.beforeAll(async ({ authenticatedContext }, workerInfo) => {
-    // ensureDesktopStopped retries until the hypervisor finishes any in-flight
-    // transition (Starting → Started → Stopped). Allow 3 min for all three desktops.
-    test.setTimeout(180000)
+    // Beyond restoring the seeds, beforeAll builds a real disk-backed template
+    // (media → desktop → template), which involves two storage-worker disk
+    // operations. Allow plenty of headroom.
+    test.setTimeout(600000)
     const page = await authenticatedContext.newPage()
     try {
       const client = apiv4ClientForPage(page)
@@ -240,6 +318,106 @@ test.describe('Admin Desktops — webapp', () => {
       const list = Array.isArray(allowed) ? allowed : []
       sharedTemplateId =
         list.find((t) => t.id === SEEDED_TEMPLATE_ID)?.id ?? list[0]?.id ?? null
+
+      // ── Build a real, disk-backed template for the lifecycle tests ──────────
+      // Seed desktops/templates have no qcow2, so their clones can't boot. Create a
+      // desktop from the seeded (already-Downloaded) empty.iso media — the storage
+      // worker carves a real disk — let it settle, then snapshot it into a template.
+      // Desktops cloned from THIS template inherit a real disk and boot. Best-effort:
+      // on any failure we keep the seed template (creation-only tests still run) and
+      // the lifecycle tests skip on `!bootableTemplateId`.
+      try {
+        // /items/media/installs returns { installs: [...] }; the os_template must be a
+        // real virt_install id — a bogus one wedges the desktop in CreatingDomain forever
+        // (engine creating_and_test_xml_start: table('virt_install').get(id) → None → crash).
+        const installsResp = await unwrap(getMediaInstalls({ client })).catch(() => null)
+        const installs = Array.isArray(installsResp?.installs) ? installsResp.installs : []
+        const osTemplate = installs[0]?.id
+        if (!osTemplate) throw new Error('no virt_install os_template available — skipping bootable template build')
+        const stamp = `${workerInfo.workerIndex}-${Date.now()}`
+        const fromMedia = await unwrap(
+          createDesktopFromMedia({
+            client,
+            body: {
+              media_id: BOOTABLE_MEDIA_ID,
+              kind: 'iso',
+              os_template: osTemplate,
+              name: `e2e-bootable-src-${stamp}`,
+              description: 'e2e bootable template source',
+              guest_properties: { viewers: { browser_vnc: { options: null } } },
+              hardware: {
+                boot_order: ['disk'],
+                disk_bus: 'default',
+                disk_size: 10,
+                interfaces: ['default'],
+                memory: 1.0,
+                vcpus: 1,
+                videos: ['default'],
+                reservables: { vgpus: null },
+              },
+            },
+          }),
+        )
+        bootableSourceDesktopId = fromMedia?.id ?? null
+        if (bootableSourceDesktopId && (await waitForDesktopStopped(client, bootableSourceDesktopId)) === 'Stopped') {
+          const tpl = await unwrap(
+            createTemplate({
+              client,
+              body: {
+                desktop_id: bootableSourceDesktopId,
+                name: `e2e-bootable-tpl-${stamp}`,
+                description: 'e2e bootable template',
+                allowed: { groups: false, users: false },
+                enabled: true,
+              },
+            }),
+          )
+          const newTemplateId = tpl?.id ?? null
+          if (newTemplateId) {
+            // The snapshot is registered immediately but stays 'CreatingTemplate'
+            // until its disk-copy chain finishes — cloning before that fails with
+            // 428 template_not_ready. Gate on the real status, not list membership
+            // (the template is listed as allowed while still building).
+            if (await waitForTemplateReady(client, newTemplateId)) {
+              bootableTemplateId = newTemplateId
+              sharedTemplateId = newTemplateId
+              // Belt-and-suspenders: also wait until it surfaces in the allowed list.
+              const tdeadline = Date.now() + 60000
+              while (Date.now() < tdeadline) {
+                const tl = await unwrap(
+                  getUserAllowedTemplatesFlat({ client, path: { kind: 'all' } }),
+                ).catch(() => [])
+                if (Array.isArray(tl) && tl.some((t) => t.id === newTemplateId)) break
+                await new Promise((res) => setTimeout(res, 3000))
+              }
+            } else {
+              // Never became usable — keep the seed template so creation-only tests
+              // run, leave bootableTemplateId null so lifecycle tests skip, and clean
+              // up the half-built template.
+              console.warn(`beforeAll: bootable template ${newTemplateId} never became ready`)
+              await deleteTemplate({ client, path: { template_id: newTemplateId } }).catch(() => {})
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`beforeAll: could not build bootable template — ${err.message}`)
+      }
+    } finally {
+      await page.close()
+    }
+  })
+
+  test.afterAll(async ({ authenticatedContext }) => {
+    if (!bootableTemplateId && !bootableSourceDesktopId) return
+    const page = await authenticatedContext.newPage()
+    try {
+      const client = apiv4ClientForPage(page)
+      // Delete the source desktop first (it derives from the template), then the
+      // template. Best-effort — leftovers are cleaned by the next run's prefix sweep.
+      if (bootableSourceDesktopId) await deleteDesktopViaApi(client, bootableSourceDesktopId)
+      if (bootableTemplateId) {
+        await deleteTemplate({ client, path: { template_id: bootableTemplateId } }).catch(() => {})
+      }
     } finally {
       await page.close()
     }
@@ -301,42 +479,51 @@ test.describe('Admin Desktops — webapp', () => {
   // ──────────────────────────────────────────────────────────────────────────
   // S2 — admin starts a stopped desktop
   // ──────────────────────────────────────────────────────────────────────────
-  test('S2: clicking Start on a Stopped desktop fires PUT /start and the button changes', async ({
+  test('S2: clicking Start on a Stopped desktop fires PUT /start and the desktop boots', async ({
     authenticatedPage: page,
-  }) => {
-    test.setTimeout(60000)
-    // Stub PUT /start so the engine never actually starts SEEDED.test (which would
-    // wedge it in `Starting` and break the ~6 later tests that need it Stopped). The
-    // assertion is that the webapp issues the correct PUT on click.
-    const start = await interceptStart(page, SEEDED.test.id)
+    apiv4Admin,
+  }, testInfo) => {
+    test.skip(!bootableTemplateId, 'no bootable template available (media→desktop→template build failed)')
+    test.setTimeout(180000)
 
-    const row = await findDesktopRow(page, SEEDED.test.id)
+    // The seeds have no qcow2 and can't boot — create a real desktop for the start.
+    const { id } = await createDisposableDesktop(apiv4Admin, testInfo, 's2')
+    if (!id) test.skip(true, 'bulk-create did not return an id')
+    await ensureDesktopStopped(apiv4Admin, id)
+
+    const row = await findDesktopRow(page, id)
     await expect(row.locator('td').filter({ hasText: /^Stopped$/i }).first()).toBeVisible({ timeout: 10000 })
     await expect(row.locator('#btn-play')).toBeVisible({ timeout: 10000 })
 
+    const startResponse = page.waitForResponse(
+      (r) =>
+        r.url().includes(`/api/v4/item/desktop/${id}/start`) &&
+        r.request().method() === 'PUT',
+      { timeout: 15000 },
+    )
     await row.locator('#btn-play').click()
+    expect((await startResponse).status()).toBeLessThan(400)
 
-    // The webapp must issue PUT /start for this desktop.
-    await expect
-      .poll(() => start.request?.method() ?? null, { timeout: 10000 })
-      .toBe('PUT')
+    // The single UI click fires one PUT /start with no retry; confirm the real boot
+    // via the API (which re-issues start if the engine is momentarily busy) before
+    // asserting the row's Start button has given way to Stop.
+    await ensureDesktopStarted(apiv4Admin, id)
+    await expect(row.locator('#btn-stop')).toBeVisible({ timeout: 30000 })
 
-    // The button may transition optimistically; with a stubbed backend (no WebSocket
-    // status event) it may also stay as Start — either is acceptable, the contract is
-    // that the PUT was issued.
-    await expect(row.locator('#btn-play')).toBeHidden({ timeout: 5000 }).catch(() => {})
+    // Stop it so afterEach can delete it.
+    await ensureDesktopStopped(apiv4Admin, id)
   })
 
   // ──────────────────────────────────────────────────────────────────────────
   // S2 (GPU sub-case) — Start on a desktop with GPU reservables shows the
   // "non-booked desktop" PNotify warning; Cancel aborts, Confirm fires PUT /start
   // ──────────────────────────────────────────────────────────────────────────
-  // Confirm-fires-PUT/start is deliberately NOT asserted here: clicking Confirm
-  // fires a real start that wedges SEEDED.gpu in `Starting` with no way back to
-  // Stopped (and a seed can't be deleted+recreated like a disposable). The Start
-  // action itself is covered by S2/S18 against disposable desktops; the GPU-specific
-  // behaviour under test is the non-booked warning gate, which the Cancel path fully
-  // exercises (it confirms Confirm vs Cancel are wired and that Cancel suppresses start).
+  // Confirm-fires-PUT/start is deliberately NOT asserted here: the hypervisor isn't
+  // guaranteed to expose the vGPU reservable (NVIDIA-A16-2Q) this seed requires, so a
+  // confirmed start could legitimately fail to schedule. The GPU-specific behaviour
+  // under test is the non-booked warning gate, which the Cancel path fully exercises
+  // (it confirms Confirm vs Cancel are wired and that Cancel suppresses start). The
+  // real Start path itself is covered by S2 and S18.
   test('S2 (GPU): Start on GPU desktop shows non-booked warning; Cancel aborts without firing PUT /start', async ({
     authenticatedPage: page,
   }) => {
@@ -390,55 +577,159 @@ test.describe('Admin Desktops — webapp', () => {
   // ──────────────────────────────────────────────────────────────────────────
   // S3 — admin stops a running desktop
   // ──────────────────────────────────────────────────────────────────────────
-  test('S3: clicking Stop on a Started desktop fires PUT /stop and the button changes', async ({
+  test('S3: clicking Stop on a Started desktop fires PUT /stop and the desktop reaches Stopped', async ({
     authenticatedPage: page,
-  }) => {
-    const row = await findDesktopRow(page, SEEDED.started.id)
+    apiv4Admin,
+  }, testInfo) => {
+    test.skip(!bootableTemplateId, 'no bootable template available (media→desktop→template build failed)')
+    test.setTimeout(240000)
+
+    // Seeds can't boot (no qcow2): create a real desktop and start it for real.
+    const { id } = await createDisposableDesktop(apiv4Admin, testInfo, 's3')
+    if (!id) test.skip(true, 'bulk-create did not return an id')
+    await ensureDesktopStarted(apiv4Admin, id)
+
+    const row = await findDesktopRow(page, id)
     await expect(row.locator('#btn-stop')).toBeVisible({ timeout: 10000 })
 
     const stopResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/item/desktop/${SEEDED.started.id}/stop`) &&
+        r.url().includes(`/api/v4/item/desktop/${id}/stop`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
     await row.locator('#btn-stop').click()
     expect((await stopResponse).status()).toBeLessThan(400)
 
-    // The Stop button should disappear or transition.
-    await expect(row.locator('#btn-stop')).toBeHidden({ timeout: 10000 }).catch(() => {})
+    // The hypervisor shuts the VM down (Shutting-down → Stopped) and the row's
+    // Start button returns in place via the WebSocket status event.
+    await expect(row.locator('#btn-play')).toBeVisible({ timeout: 120000 })
   })
 
   // ──────────────────────────────────────────────────────────────────────────
   // S3 (force-stop sub-case) — Force stop on a Shutting-down desktop fires PUT /stop
   // ──────────────────────────────────────────────────────────────────────────
-  test('S3 (force-stop): Force stop button on Shutting-down desktop fires PUT /stop', async () => {
-    test.skip(
-      true,
-      'requires a genuine Started → Shutting-down lifecycle: the dev images are 1 MB stubs ' +
-        'that never boot, so a desktop can never reach Started (it wedges in Starting), and the ' +
-        'Shutting-down state the Force stop button depends on can never appear. Untestable without ' +
-        'a bootable image in CI.',
+  test('S3 (force-stop): Force stop button on Shutting-down desktop fires PUT /stop', async ({
+    authenticatedPage: page,
+    apiv4Admin,
+  }, testInfo) => {
+    test.skip(!bootableTemplateId, 'no bootable template available (media→desktop→template build failed)')
+    test.setTimeout(240000)
+
+    // Use a disposable desktop so the shutdown lifecycle never touches a shared seed.
+    const name = uniqueDesktopName(testInfo, 's3force')
+    trackDesktopName(testInfo, name)
+    const created = await unwrap(
+      bulkCreatePersistentDesktops({
+        client: apiv4Admin,
+        body: {
+          name,
+          description: 'e2e force-stop target',
+          template_id: sharedTemplateId,
+          allowed: { roles: false, categories: false, groups: false, users: ['local-default-admin-admin'] },
+        },
+      }),
     )
+    const desktopId = created?.ids?.[0]
+    if (!desktopId) test.skip(true, 'bulk-create did not return an id')
+
+    // Boot it on the hypervisor, then issue a graceful stop so it enters Shutting-down.
+    await ensureDesktopStarted(apiv4Admin, desktopId)
+
+    const row = await findDesktopRow(page, desktopId)
+    await expect(row.locator('#btn-stop')).toBeVisible({ timeout: 10000 })
+
+    // First click: graceful Stop → engine moves the desktop to Shutting-down, at which
+    // point the same #btn-stop button relabels to "Force stop".
+    const stopResponse = page.waitForResponse(
+      (r) =>
+        r.url().includes(`/api/v4/item/desktop/${desktopId}/stop`) &&
+        r.request().method() === 'PUT',
+      { timeout: 15000 },
+    )
+    await row.locator('#btn-stop').click()
+    expect((await stopResponse).status()).toBeLessThan(400)
+
+    // Wait for the Force stop button (Shutting-down). A guest that powers off quickly
+    // may skip straight to Stopped — skip rather than fail if the window is missed.
+    const forceStopBtn = row.locator('#btn-stop:has-text("Force stop")')
+    try {
+      await forceStopBtn.waitFor({ state: 'visible', timeout: 30000 })
+    } catch {
+      test.skip(true, 'desktop reached Stopped before the Shutting-down window could be observed')
+    }
+
+    // Second click: Force stop on a Shutting-down desktop fires PUT /stop again.
+    const forceStopResponse = page.waitForResponse(
+      (r) =>
+        r.url().includes(`/api/v4/item/desktop/${desktopId}/stop`) &&
+        r.request().method() === 'PUT',
+      { timeout: 15000 },
+    )
+    await forceStopBtn.click()
+    expect((await forceStopResponse).status()).toBeLessThan(400)
+
+    await ensureDesktopStopped(apiv4Admin, desktopId)
   })
 
   // ──────────────────────────────────────────────────────────────────────────
   // S4 — admin retries a failed desktop
   // ──────────────────────────────────────────────────────────────────────────
-  test('S4: clicking Retry on a Failed desktop fires PUT /retry', async ({
+  test('S4: clicking Retry on a Failed desktop fires PUT /retry and the desktop leaves Failed', async ({
     authenticatedPage: page,
-  }) => {
-    const row = await findDesktopRow(page, SEEDED.failed.id)
+    apiv4Admin,
+  }, testInfo) => {
+    test.skip(!sharedTemplateId, 'no template available in the dev DB')
+    test.setTimeout(180000)
+
+    // Drive a desktop to Failed deterministically. force_failed can't fail a Stopped
+    // desktop (the engine rejects Stopped/Started/Downloading/Shutting-down), and a
+    // disk-backed desktop has no stable force_failable state. A clone of the diskless
+    // seed template never gets a qcow2 and hangs in CreatingDisk — a force_failable
+    // state — so force_failed moves it to Failed.
+    const { id } = await createDisposableDesktop(apiv4Admin, testInfo, 's4', SEEDED_TEMPLATE_ID)
+    if (!id) test.skip(true, 'bulk-create did not return an id')
+
+    // Retry force_failed until it lands: the clone passes briefly through Creating, then
+    // settles in CreatingDisk (no parent disk to overlay) — both accept force_failed.
+    await expect
+      .poll(
+        async () => {
+          await adminMultipleActions({
+            client: apiv4Admin,
+            body: { ids: [id], action: 'force_failed' },
+          }).catch(() => {})
+          const r = await getDesktopDetails({ client: apiv4Admin, path: { desktop_id: id } }).catch(() => null)
+          return r?.data?.status
+        },
+        { timeout: 90000, intervals: [2000, 3000] },
+      )
+      .toBe('Failed')
+
+    const row = await findDesktopRow(page, id)
     await expect(row.locator('#btn-update')).toBeVisible({ timeout: 10000 })
 
     const retryResponse = page.waitForResponse(
       (r) =>
-        r.url().includes(`/api/v4/item/desktop/${SEEDED.failed.id}/retry`) &&
+        r.url().includes(`/api/v4/item/desktop/${id}/retry`) &&
         r.request().method() === 'PUT',
       { timeout: 15000 },
     )
     await row.locator('#btn-update').click()
     expect((await retryResponse).status()).toBeLessThan(400)
+
+    // Retry re-launches the desktop: the status leaves Failed (→ Starting). The diskless
+    // clone re-fails afterwards (no qcow2), so assert the transient departure from Failed
+    // via the API rather than a permanent Started. It settles back to Failed for afterEach.
+    await expect
+      .poll(
+        async () => {
+          const r = await getDesktopDetails({ client: apiv4Admin, path: { desktop_id: id } }).catch(() => null)
+          return r?.data?.status
+        },
+        { timeout: 60000, intervals: [500] },
+      )
+      .not.toBe('Failed')
   })
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -489,9 +780,9 @@ test.describe('Admin Desktops — webapp', () => {
     apiv4Admin,
   }) => {
     test.setTimeout(120000)
-    // Defensive: PUT /edit returns 428 unless the desktop is Stopped. No test
-    // starts SEEDED.test (the start-lifecycle tests use disposable desktops), so
-    // this is normally a no-op confirm; it still guards against manual interference.
+    // PUT /edit returns 428 unless the desktop is Stopped. No lifecycle test starts
+    // SEEDED.test (they use disposable desktops with a real qcow2), so this is a
+    // defensive no-op that also guards against manual interference.
     await ensureDesktopStopped(apiv4Admin, SEEDED.test.id)
 
     const row = await findDesktopRow(page, SEEDED.test.id)
@@ -597,10 +888,34 @@ test.describe('Admin Desktops — webapp', () => {
     authenticatedPage: page,
     apiv4Admin,
   }, testInfo) => {
-    test.skip(true, 'not idempotent without storage worker: template creation sets a queued task on SEEDED.test storage; GET /api/v4/admin/tasks (needed to cancel it) returns 500 in this env; subsequent runs hit 428 storage_pending_task')
+    test.skip(!bootableTemplateId, 'no bootable template available (media→desktop→template build failed)')
+    test.setTimeout(180000)
 
-    await findDesktopRow(page, SEEDED.test.id)
-    const detailPanel = await expandRowDetail(page, SEEDED.test.id)
+    // Create the template from a disposable desktop, not SEEDED.test: this keeps the
+    // shared seed pristine and avoids the storage_pending_task idempotency trap (the
+    // disposable is deleted in afterEach). The storage worker completes the queued
+    // task against real storage.
+    const name = uniqueDesktopName(testInfo, 's8')
+    trackDesktopName(testInfo, name)
+    const created = await unwrap(
+      bulkCreatePersistentDesktops({
+        client: apiv4Admin,
+        body: {
+          name,
+          description: 'e2e template source',
+          template_id: sharedTemplateId,
+          allowed: { roles: false, categories: false, groups: false, users: ['local-default-admin-admin'] },
+        },
+      }),
+    )
+    const desktopId = created?.ids?.[0]
+    if (!desktopId) test.skip(true, 'bulk-create did not return an id')
+
+    // Template creation requires the source desktop Stopped.
+    await ensureDesktopStopped(apiv4Admin, desktopId)
+
+    await findDesktopRow(page, desktopId)
+    const detailPanel = await expandRowDetail(page, desktopId)
 
     await detailPanel.locator('.btn-template').click()
     const modal = page.locator('#modalTemplateDesktop')
@@ -1320,15 +1635,20 @@ test.describe('Admin Desktops — webapp', () => {
   // ──────────────────────────────────────────────────────────────────────────
   test('S18: Info modal shows desktop ID; Start button fires PUT /start; UUID search opens same modal; invalid UUID shows error', async ({
     authenticatedPage: page,
-  }) => {
-    test.setTimeout(60000)
-    // Stub PUT /start so clicking the modal's Start button never wedges SEEDED.test
-    // (the dev DB has no disk images). The assertion is that the webapp issues the PUT.
-    const start = await interceptStart(page, SEEDED.test.id)
+    apiv4Admin,
+  }, testInfo) => {
+    test.skip(!bootableTemplateId, 'no bootable template available (media→desktop→template build failed)')
+    test.setTimeout(180000)
+
+    // The Start sub-case boots the desktop, so it needs a real qcow2 — use a created
+    // desktop, not a seed. The modal display + UUID-search assertions work on it too.
+    const { id } = await createDisposableDesktop(apiv4Admin, testInfo, 's18')
+    if (!id) test.skip(true, 'bulk-create did not return an id')
+    await ensureDesktopStopped(apiv4Admin, id)
 
     await gotoDesktops(page)
 
-    const row = waitForTableRow(page, SEEDED.test.id)
+    const row = waitForTableRow(page, id)
     await expect(row).toBeVisible({ timeout: 10000 })
 
     // Click the info button on the row — button has data-domain-info attribute.
@@ -1338,7 +1658,7 @@ test.describe('Admin Desktops — webapp', () => {
     await infoModal.waitFor({ state: 'visible', timeout: 10000 })
 
     // Modal loads content via AJAX — wait for the desktop ID to appear.
-    await expect(infoModal).toContainText(SEEDED.test.id, { timeout: 10000 })
+    await expect(infoModal).toContainText(id, { timeout: 10000 })
     // Owner section must have at least one row (username, role, etc.).
     await expect(infoModal.locator('#owner-info-table tr')).not.toHaveCount(0, { timeout: 8000 })
     // Network interfaces section must render (either real entries or the "No interfaces" message).
@@ -1347,15 +1667,19 @@ test.describe('Admin Desktops — webapp', () => {
     // ── Start button sub-case ─────────────────────────────────────────────
     // .btn-domain-start is enabled for Stopped/Failed desktops and fires
     // PUT /start directly — no reservables/booking check (unlike the table row button).
+    // The hypervisor boots the desktop for real; it is returned to Stopped at the end.
     const startBtn = infoModal.locator('.btn-domain-start')
     await expect(startBtn).toBeVisible({ timeout: 5000 })
     await expect(startBtn).toBeEnabled({ timeout: 5000 })
 
+    const startResponse = page.waitForResponse(
+      (r) =>
+        r.url().includes(`/api/v4/item/desktop/${id}/start`) &&
+        r.request().method() === 'PUT',
+      { timeout: 15000 },
+    )
     await startBtn.click()
-    // The webapp must issue PUT /start for this desktop (stubbed; no backend start).
-    await expect
-      .poll(() => start.request?.method() ?? null, { timeout: 10000 })
-      .toBe('PUT')
+    expect((await startResponse).status()).toBeLessThan(400)
 
     // Close modal.
     await infoModal.locator('[data-dismiss="modal"]').first().click()
@@ -1368,11 +1692,11 @@ test.describe('Admin Desktops — webapp', () => {
       // click() ensures focus after the Bootstrap modal close steals it;
       // without it fill() sets the value but press('Enter') is silently ignored.
       await uuidSearch.click()
-      await uuidSearch.fill(SEEDED.test.id)
+      await uuidSearch.fill(id)
       await uuidSearch.press('Enter')
 
       await infoModal.waitFor({ state: 'visible', timeout: 10000 })
-      await expect(infoModal).toContainText(SEEDED.test.id, { timeout: 10000 })
+      await expect(infoModal).toContainText(id, { timeout: 10000 })
 
       // Close modal.
       await infoModal.locator('[data-dismiss="modal"]').first().click()
@@ -1393,6 +1717,9 @@ test.describe('Admin Desktops — webapp', () => {
         page.locator('.ui-pnotify-text').filter({ hasText: 'Please enter a desktop ID' }),
       ).toBeVisible({ timeout: 5000 })
     }
+
+    // Stop it so afterEach can delete it (the real Start booted it).
+    await ensureDesktopStopped(apiv4Admin, id)
   })
 
   // ──────────────────────────────────────────────────────────────────────────

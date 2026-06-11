@@ -140,6 +140,7 @@ _e2e_tty := $(if $(CI),,-it)
 test-e2e-seed:
 	docker run $(_e2e_tty) --rm \
 	--network=isard-network \
+	--volumes-from isard-storage \
 	-e RETHINKDB_HOST=isard-db \
 	-e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
 	-e UV_CACHE_DIR=/tmp/uv-cache \

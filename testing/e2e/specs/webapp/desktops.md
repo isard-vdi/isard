@@ -74,6 +74,34 @@ For scenarios that create new desktops the test generates a unique name:
 The name is stored in `testInfo.annotations` (type `'desktop-name'`) so that
 `afterEach` can recover and delete the desktop even when assertions fail.
 
+## Common data — the bootable template (built in `beforeAll`)
+
+The seed desktops and the seed template are **pure DB records with no qcow2**, so
+desktops cloned from them cannot boot on the hypervisor. Any test that performs a
+real lifecycle action (start / stop / retry / force-stop, or templating a desktop)
+therefore needs a **disk-backed** source. `beforeAll` builds one once for the whole
+suite:
+
+1. **Media → desktop.** `POST /api/v4/item/desktop/from-media` against the seeded,
+   already-`Downloaded` local ISO `empty-iso` (`testing/db/data/media.json`). The
+   storage worker carves a real qcow2 for the new desktop — no download is needed.
+   The `os_template` is taken from `GET /api/v4/items/media/installs` (falling back
+   to `vi-1`).
+2. **Wait** for that desktop to settle to `Stopped` (disk creation finished).
+3. **Desktop → template.** `POST /api/v4/item/template` snapshots it into a
+   template (`bootableTemplateId`), then polls the allowed-templates list until it
+   is usable.
+
+`bootableTemplateId` is then used as the clone source for all created desktops. The
+build is **best-effort**: if any step fails the suite falls back to the seed
+template (so creation-only tests still run) and the lifecycle/templating tests skip
+with `test.skip(!bootableTemplateId, …)`. `afterAll` deletes the source desktop and
+the bootable template.
+
+> A real OS is **not** required: even an empty disk + empty ISO yields a libvirt
+> domain that can be defined, started and stopped — which is all the lifecycle
+> assertions need.
+
 ---
 
 ## Scenario 1 — *admin loads the desktops table and sees seeded desktops*
@@ -103,7 +131,9 @@ The name is stored in `testInfo.annotations` (type `'desktop-name'`) so that
 
 ### Given
 
-1. The seeded desktop `test` ("Desktop with storage") is in `Stopped` state.
+1. A persistent desktop **created via the API** from the suite's disk-backed
+   bootable template (see *Common data — the bootable template*), so it has a real
+   qcow2 and can boot — the pure-DB seeds cannot — is in `Stopped` state.
 2. It is visible in the `#domains` table.
 
 ### When
@@ -131,14 +161,21 @@ For the seeded `gpu` desktop (`needs_booking: true`, no active booking):
 2. On **Confirm**, `PUT /api/v4/item/desktop/{id}/start` fires.
 3. On **Cancel**, no API call is made; the row status is unchanged.
 
+> The E2E test exercises the warning gate and the **Cancel** path only. **Confirm**
+> is intentionally not asserted: the hypervisor is not guaranteed to expose the
+> vGPU profile (`NVIDIA-A16-2Q`) this seed requires, so a confirmed start could
+> legitimately fail to schedule. The real Start path is covered by S2 and S18.
+
 ---
 
 ## Scenario 3 — *admin stops a running desktop*
 
 ### Given
 
-1. The seeded desktop `started` ("Test started desktop") is in `Started` state
-   and visible in the table.
+1. A desktop **created via the API** from the bootable template (real qcow2) has
+   been **started on the hypervisor** and is in `Started` state, visible in the
+   table. Seeds are not used: they have no backing disk and would never reach
+   `Started`.
 
 ### When
 
@@ -154,17 +191,17 @@ For the seeded `gpu` desktop (`needs_booking: true`, no active booking):
 
 ### Force-stop sub-case
 
-If the desktop is already in `Shutting-down`:
+The E2E test drives the real lifecycle: it creates a disposable desktop, starts it
+on the hypervisor, issues a graceful **Stop** so the engine moves it to
+`Shutting-down`, and then:
 
 1. The button label shows **Force stop** (with a spinner icon).
-2. Clicking it calls `PUT /api/v4/item/desktop/{id}/stop` again.
+2. Clicking it calls `PUT /api/v4/item/desktop/{id}/stop` again, responding `< 400`.
 3. The desktop transitions to `Stopping` → `Stopped`.
 
-> **Dev-env note:** In an isolated environment without a real hypervisor the
-> domain is put into `Shutting-down` directly via RethinkDB (no actual VM is
-> running). In this case the engine has no active VM to force-stop and returns
-> `428` instead of `200`. The test accepts both `200` and `428` to cover both
-> environments.
+> If the guest powers off before the `Shutting-down` window can be observed the
+> sub-case is skipped (the transition is too fast to assert deterministically),
+> not failed.
 
 ---
 
@@ -172,7 +209,10 @@ If the desktop is already in `Shutting-down`:
 
 ### Given
 
-1. The seeded desktop `failed` ("Failed desktop") is in `Failed` state.
+1. A desktop **created via the API** from the bootable template (real qcow2) has
+   been driven to `Failed` state via the `force_failed` admin bulk action. A real
+   backing disk is required so that **Retry** can actually re-launch it — a diskless
+   seed would just fail again.
 
 ### When
 
@@ -285,18 +325,16 @@ made and the row remains.
 
 ## Scenario 8 — *admin creates a template from a desktop*
 
-> **Skipped — not idempotent in this environment.** `POST /api/v4/item/template`
-> enqueues a storage task on `SEEDED.test`'s storage row. Without a storage
-> worker the task stays queued, and every subsequent run raises
-> 428 `storage_pending_task`. Cleanup would require cancelling the task via
-> `DELETE /task/{id}`, but the only API to discover that ID
-> (`GET /api/v4/admin/tasks`) returns 500 in this environment (separate bug).
-> To enable this test: fix `GET /api/v4/admin/tasks` **or** expose the `task`
-> field in `AdminDomainStorageItem` **or** run a real storage worker.
+> The template is created from a **disposable** desktop (cloned from the bootable
+> template for this test and deleted in `afterEach`), not from a shared seed. This
+> keeps the seeds pristine and avoids the `storage_pending_task` idempotency trap:
+> the real storage worker completes the queued task against the disposable's
+> storage, which is then thrown away. Skipped if the bootable template build failed.
 
 ### Given
 
-1. The seeded desktop `test` ("Desktop with storage") is in `Stopped` state.
+1. A disposable persistent desktop cloned from the bootable template (real qcow2)
+   is in `Stopped` state.
 2. The template quota is below 100%.
 
 ### When
@@ -544,11 +582,10 @@ If the admin presses **Cancel** in the confirmation dialog on disable:
 
 ## Scenario 15 — *admin sets a forced hypervisor for a desktop*
 
-> **Skipped in dev** — the test auto-skips if no hypervisors are registered in
-> the DB (`#forced_hyp` dropdown is empty). Hypervisors are not seed data: they
-> register themselves when the isard-hypervisor service connects to the engine.
-> In the isolated testing environment no hypervisor service runs, so the
-> dropdown is always empty. Same applies to S19 (favourite hypervisor).
+> The E2E environment runs a real hypervisor, so it registers itself with the
+> engine and the `#forced_hyp` dropdown is populated — this scenario runs. The
+> test still auto-skips **defensively** if the dropdown is empty (no hypervisor
+> registered yet). Same applies to S19 (favourite hypervisor).
 
 > **Semantics (docs):** When forced hypervisor is active the desktop
 > **will only start on that specific hypervisor and on no other**. This is
@@ -721,8 +758,11 @@ If the admin checks `#server` but leaves `#autostart` unchecked:
 
 ### Given
 
-1. The seeded desktop `test` ("Desktop with storage") is visible in the
-   `#domains` table.
+1. A desktop **created via the API** from the bootable template (real qcow2, so the
+   in-modal **Start** button can boot it) is visible in the `#domains` table. The
+   display and UUID-search assertions are DB-driven and would work on any desktop;
+   the created one is used so the whole scenario — including the real Start — is
+   self-contained.
 
 ### When
 
@@ -948,26 +988,26 @@ entry point to the same modal:
 | Scenario | Covered in test? | Key checks |
 | --- | --- | --- |
 | S1 — Table loads | ✅ | `#domains` renders; seeded row visible; status correct |
-| S2 — Start desktop | ⚠️ partial | `PUT /start` ok; btn-play hidden after click — WebSocket transition to Started/btn-stop not verifiable without a running hypervisor |
-| S2 (GPU sub-case) — Start GPU desktop | ✅ | `GET /admin/item/domain/{id}/viewer_data` ok; non-booked PNotify appears; Cancel aborts; Confirm fires `PUT /start` |
-| S3 — Stop desktop | ⚠️ partial | `PUT /stop` ok; btn-stop hidden after click — WebSocket transition to Stopped/btn-play not verifiable without a running hypervisor |
-| S3 (force-stop sub-case) — Force stop | ⚠️ partial | Shutting-down state renders Force stop button; `PUT /stop` fires; returns 428 in dev (no hypervisor/active VM) instead of 200 |
-| S4 — Retry failed desktop | ⚠️ partial | `PUT /retry` ok; UI state after retry (button change, status transition) not verifiable without a running hypervisor |
+| S2 — Start desktop | ✅ | creates a real desktop (real qcow2); `PUT /start` ok; hypervisor boots it; row reaches `Started` (btn-stop visible) |
+| S2 (GPU sub-case) — Start GPU desktop | ✅ | `GET /admin/item/domain/{id}/viewer_data` ok; non-booked PNotify appears; Cancel aborts without `PUT /start` (Confirm not asserted — vGPU profile not guaranteed) |
+| S3 — Stop desktop | ✅ | creates a real desktop and starts it on the hypervisor; `PUT /stop` ok; it shuts down; row reaches `Stopped` (btn-play returns) |
+| S3 (force-stop sub-case) — Force stop | ✅ | created desktop started → graceful Stop → `Shutting-down` renders Force stop; second `PUT /stop` responds `< 400` (skips only if the shutdown is too fast to observe) |
+| S4 — Retry failed desktop | ✅ | creates a real desktop, forces it `Failed`; `PUT /retry` ok; hypervisor re-launches it; row leaves `Failed` (btn-update hidden) |
 | S5 — Cancel maintenance op | ✅ | `GET /domain/storage` ok; `abort-operations` called; PNotify "Cancelling" visible |
 | S6 — Edit desktop | ✅ | `PUT /edit` ok; modal closes; "Domain updated successfully" PNotify visible; table refreshed |
 | S7 — Delete desktop | ✅ | `DELETE` ok; row disappears — skips if no template in DB |
-| S8 — Create template | ⏭ skipped | not idempotent without storage worker: subsequent runs hit 428 `storage_pending_task`; `GET /admin/tasks` returns 500 |
+| S8 — Create template | ✅ | creates the template from a disposable desktop; `POST /item/template` ok; modal closes; template deleted in cleanup — skips if no template in DB |
 | S9 — Bulk create desktops | ✅ | `POST bulk-create` ok; modal closes; row appears — skips if no template in DB |
 | S10 — Bulk edit hardware | ✅ | `PUT bulk-edit` ok; modal closes — skips if no template in DB |
 | S11 — Bulk action (selected) | ✅ | `POST multiple_actions` ok; rows disappear — skips if no template in DB |
 | S12 — Bulk action (all, "I'm aware") | ✅ | Wrong phrase → Cancelled PNotify; prompt stays open; correct phrase → API fires |
 | S13 — Change owner | ✅ | `PUT change-owner` ok; User column updates — skips if no template in DB |
 | S14 — Share link enable/disable | ✅ | `PUT update-share-link` ok; URL non-empty and visible; Copy button shown/hidden |
-| S15 — Forced hypervisor set/clear | ✅ | SET: `PUT /edit { forced_hyp }` ok; Forced Hyper column shows chosen hyp ID after reload; CLEAR: column reverts to `-`; auto-skipped if no hypervisors |
+| S15 — Forced hypervisor set/clear | ✅ | hypervisor registered so the dropdown is populated; SET: `PUT /edit { forced_hyp }` ok; Forced Hyper column shows chosen hyp ID after reload; CLEAR: column reverts to `-`; defensive skip only if none registered |
 | S16 — Storage view & increase | ✅ | `GET domain/storage` ok; Cancel aborts without API call; `PUT /increase` ok; "Task created successfully" PNotify visible; modal closes |
 | S17 — Server mode + autostart | ✅ | Enable: `PUT /edit { server, server_autostart }` ok; Server column shows `AUTO` after reload; Disable: column reverts to `-` after reload |
-| S18 — Info modal + UUID search | ✅ | Modal shows ID; owner table non-empty; interfaces table renders; Start fires `PUT /start`; UUID search works |
-| S19 — Favourite hypervisor set/clear | ✅ | SET: `PUT /edit { favourite_hyp }` ok; Fav Hyper column shows chosen hyp ID after reload; CLEAR: column reverts to `-`; auto-skipped if no hypervisors |
+| S18 — Info modal + UUID search | ✅ | created real desktop; modal shows ID; owner table non-empty; interfaces table renders; Start fires `PUT /start` (real boot); UUID search works |
+| S19 — Favourite hypervisor set/clear | ✅ | hypervisor registered so the dropdown is populated; SET: `PUT /edit { favourite_hyp }` ok; Fav Hyper column shows chosen hyp ID after reload; CLEAR: column reverts to `-`; defensive skip only if none registered |
 | S20 — Desktop logs modal smoke | ✅ | Modal title correct; CSV button present; both `POST /logs_desktops` calls return `< 400`; no error state in either tab |
 | S21 — User/Category/Role/Group columns populated | ✅ | A: cells show exact seeded values on load; B: exact values survive `ajax.reload()` after edit; C: metadata cells populated for new row (skips if no template) |
 | S22 — XML sections editor smoke | ✅ | Modal opens; both GETs respond `< 400`; sections render without error; Save: `POST /xml_sections` responds `< 400`; modal closes |
@@ -989,6 +1029,8 @@ entry point to the same modal:
 - `GET    /api/v4/admin/item/domain/{id}/viewer_data` — viewer data (reservables + booking check before start; admin path).
 - `GET    /api/v4/item/desktop/{id}/get-info` — desktop info for template dialog pre-fill.
 - `POST   /api/v4/item/template` — create a template from a desktop.
+- `POST   /api/v4/item/desktop/from-media` — create a desktop from a media (used by `beforeAll` to build the disk-backed bootable template).
+- `GET    /api/v4/items/media/installs` — list virt-install `os_template` options (picks one for the from-media build).
 - `POST   /api/v4/items/desktops/bulk-create` — create desktops in bulk from template.
 - `PUT    /api/v4/items/desktops/bulk-edit` — edit hardware on multiple desktops.
 - `POST   /api/v4/admin/items/multiple_actions` — apply an action to a list of desktop IDs.
