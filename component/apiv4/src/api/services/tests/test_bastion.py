@@ -7,6 +7,7 @@ Alloweds helpers. Tests pin the dispatch + the validation paths
 
 from unittest.mock import patch
 
+import pytest
 from api.services.bastion import BastionService
 from isardvdi_common.helpers.error_factory import Error
 

@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
   getDeploymentOptions,
+  getUserConfigOptions,
   stopAllDesktopsInDeploymentMutation,
   deleteUserDeploymentDesktopsMutation,
   stopUserDesktopsInDeploymentMutation,
@@ -10,7 +11,7 @@ import {
   toggleDesktopDeploymentVisibilityMutation
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
-import { getDeploymentCsv } from '@/gen/oas/apiv4/sdk.gen'
+import { getDeploymentCsv, getDeploymentBastionCsv } from '@/gen/oas/apiv4/sdk.gen'
 
 import Input from '@/components/ui/input/Input.vue'
 import Button from '@/components/ui/button/Button.vue'
@@ -19,6 +20,8 @@ import DataTable from '@/components/data-table/DataTable.vue'
 import Badge from '@/components/ui/badge/Badge.vue'
 import Icon from '@/components/icon/Icon.vue'
 import AlertModal from '@/components/modal/AlertModal.vue'
+import DeploymentBastionModal from '@/components/deployments/DeploymentBastionModal.vue'
+import DeploymentUserBastionModal from '@/components/deployments/DeploymentUserBastionModal.vue'
 import { useDeleteDeployment } from '@/lib/deployments'
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -49,6 +52,9 @@ const isPending = computed(() => deploymentIsPending.value)
 const isError = computed(() => deploymentIsError.value)
 const error = computed(() => deploymentError.value)
 const data = computed(() => deploymentData.value)
+
+const { data: userConfig } = useQuery(getUserConfigOptions())
+const canUseBastion = computed(() => userConfig.value?.can_use_bastion === true)
 
 const showStopAllModal = ref(false)
 const stopAllError = ref('')
@@ -212,6 +218,36 @@ function downloadDirectViewer({ path }: { path: { deployment_id: string | number
   })
 }
 
+function downloadBastionCsv({ path }: { path: { deployment_id: string | number } }) {
+  getDeploymentBastionCsv({
+    path: { deployment_id: path.deployment_id }
+  }).then((response) => {
+    if (!response.data) {
+      throw new Error('No data received')
+      // TODO: Should be an alert modal or similar to notify the user
+    } else {
+      let csvData = response.data as string
+      if (csvData.startsWith('"') && csvData.endsWith('"')) {
+        csvData = csvData
+          .slice(1, -1)
+          .replace(/""/g, '"')
+          .replace(/\\r\\n|\\n/g, '\n')
+      }
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const el = document.createElement('a')
+      el.href = url
+      el.download = `${path.deployment_id}_bastion.csv`
+      document.body.appendChild(el)
+      el.click()
+      setTimeout(() => {
+        document.body.removeChild(el)
+        window.URL.revokeObjectURL(url)
+      }, 100)
+    }
+  })
+}
+
 function goToEditLab(id: string): void {
   router.push(`/lab/edit/${id}`)
 }
@@ -308,6 +344,20 @@ const menuLab = computed(() => [
     text: t('views.deployments.actions.direct-viewer'),
     onClick: () => downloadDirectViewer({ path: { deployment_id: labId } })
   },
+  ...(canUseBastion.value
+    ? [
+        {
+          icon: 'globe-04',
+          text: t('views.deployment.menu.bastion'),
+          onClick: () => (showBastionConfigModal.value = true)
+        },
+        {
+          icon: 'download-01',
+          text: t('views.deployment.menu.bastion-csv'),
+          onClick: () => downloadBastionCsv({ path: { deployment_id: labId } })
+        }
+      ]
+    : []),
   {
     icon: 'refresh-cw-04',
     text: t('views.deployment.menu.recreate'),
@@ -338,6 +388,9 @@ const menuLab = computed(() => [
     onClick: () => handleDelete(labId, data.value?.name || '')
   }
 ])
+
+const showBastionConfigModal = ref(false)
+const bastionUserModalData = ref<{ userId: string; username: string } | null>(null)
 
 const searchUser = t('components.input.placeholder.search')
 const searchTerm = ref('')
@@ -652,6 +705,15 @@ function confirmToggleUserVisibility() {
                 @click="enterUserVideowall({ path: { deployment_id: labId, user_id: row.user } })"
               /> -->
               <Button
+                v-if="canUseBastion"
+                hierarchy="link-gray"
+                size="md"
+                icon="globe-04"
+                icon-size="md"
+                :title="t('views.deployment.user-bastion.title')"
+                @click="bastionUserModalData = { userId: row.user_id, username: row.user }"
+              />
+              <Button
                 hierarchy="link-gray"
                 size="md"
                 icon="trash-04"
@@ -668,6 +730,21 @@ function confirmToggleUserVisibility() {
         </DataTable>
       </div>
     </div>
+    <DeploymentBastionModal
+      v-if="showBastionConfigModal"
+      :open="showBastionConfigModal"
+      :deployment-id="labId"
+      :deployment-name="data?.name || ''"
+      @close="showBastionConfigModal = false"
+    />
+    <DeploymentUserBastionModal
+      v-if="bastionUserModalData !== null"
+      :open="bastionUserModalData !== null"
+      :deployment-id="labId"
+      :user-id="bastionUserModalData.userId"
+      :username="bastionUserModalData.username"
+      @close="bastionUserModalData = null"
+    />
     <AlertModal
       :open="showStopAllModal"
       level="warning"

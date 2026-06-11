@@ -114,7 +114,7 @@
         </b-input-group>
       </b-row>
       <b-row
-        v-if="canChangeDomain"
+        v-if="canChangeDomain && !modal.readOnly"
         class="ml-2 pr-3"
       >
         <label
@@ -271,7 +271,10 @@
           </b-input-group-append>
         </b-input-group>
       </b-row>
-      <b-row class="ml-2 pr-3">
+      <b-row
+        v-if="!modal.readOnly"
+        class="ml-2 pr-3"
+      >
         <label
           for="sshAuthorizedKeysField"
           class="ml-2 mb-0"

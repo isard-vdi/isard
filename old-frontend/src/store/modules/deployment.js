@@ -309,6 +309,66 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+    fetchDeploymentBastion (_, payload) {
+      return axios.get(`${apiV3Segment}/item/deployment/${payload.id}/bastion`).then(response => {
+        return response.data
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
+      })
+    },
+    updateDeploymentBastion (_, payload) {
+      return axios.put(`${apiV3Segment}/item/deployment/${payload.id}/bastion`, { ssh: payload.ssh, http: payload.http }).then(() => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deployment-bastion-updated'), '', false, 2000)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
+      })
+    },
+    downloadDeploymentBastionCSV (_, payload) {
+      axios.get(`${apiV3Segment}/item/deployment/${payload.id}/bastion/csv`).then(response => {
+        this._vm.$snotify.clear()
+        const el = document.createElement('a')
+        el.setAttribute(
+          'href',
+            `data: text/csv;charset=utf-8,${encodeURIComponent(response.data)}`
+        )
+        el.setAttribute('download', `${payload.id}_bastion.csv`)
+        el.style.display = 'none'
+        document.body.appendChild(el)
+        el.click()
+        document.body.removeChild(el)
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.file-downloaded'), '', false, 1000)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchDeploymentDesktopBastion (context, payload) {
+      axios.get(`${apiV3Segment}/item/deployment/${payload.deploymentId}/desktop/${payload.desktopId}/bastion`).then(response => {
+        const data = response.data
+        if (!data.exists || !((data.ssh && data.ssh.enabled) || (data.http && data.http.enabled))) {
+          ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-not-configured'), '', true, 2000)
+          return
+        }
+        // Map the deployment-scoped BastionActiveResponse onto the shape the
+        // shared BastionModal expects. No keys come back from this endpoint,
+        // so the modal must be opened read-only.
+        context.dispatch('bastionModalShow', {
+          show: true,
+          readOnly: true,
+          bastion: {
+            id: data.id,
+            desktop_id: payload.desktopId,
+            http: data.http || { enabled: false },
+            ssh: { ...(data.ssh || { enabled: false }), authorized_keys: [] },
+            domains: data.domains && data.domains.length ? data.domains : (data.domain ? [data.domain] : [])
+          },
+          desktop: { id: payload.desktopId, name: payload.desktopName }
+        })
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
     startDeploymentDesktops (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.starting-desktops'), '', true, 1000)
       axios.put(`${apiV3Segment}/item/deployment/${payload.id}/start`).then(response => {

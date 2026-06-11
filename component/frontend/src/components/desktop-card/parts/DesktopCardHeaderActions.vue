@@ -86,6 +86,7 @@ const iconButtonClass = (active: boolean) =>
         :class="iconButtonClass(props.activeOverlay === 'bastion')"
         icon="globe-04"
         icon-stroke-color="base-white"
+        :aria-label="t('components.desktops.desktop-card.actions.bastion-access')"
         @click="emit('bastionClick')"
       />
     </TooltipTrigger>

@@ -373,6 +373,12 @@
                     "download-direct-viewer": {
                         "title": "Download direct viewer file"
                     },
+                    "bastion": {
+                        "title": "Bastion configuration"
+                    },
+                    "download-bastion-csv": {
+                        "title": "Download bastion access file"
+                    },
                     "delete": {
                         "title": "Delete deployment"
                     },
@@ -461,7 +467,8 @@
             "actions": {
                 "delete": "Delete",
                 "hide": "Make invisible",
-                "show": "Make visible"
+                "show": "Make visible",
+                "bastion": "Bastion info"
             },
             "table-header": {
                 "user": "User",
@@ -952,7 +959,8 @@
                     "make-invisible": "Make deployment '{name}' invisible",
                     "download-csv": "Download '{name}' direct viewer CSV",
                     "delete": "Delete deployment",
-                    "co-owners": "Edit co-owners for '{name}'"
+                    "co-owners": "Edit co-owners for '{name}'",
+                    "bastion": "Bastion configuration for '{name}'"
                 },
                 "body": {
                     "text": "This action cannot be undone and all its associated data will be lost.",
@@ -963,7 +971,8 @@
                     "warning-co-owner": "As a co-owner you are not authorized to perform this action. Please contact the owner of this deployment.",
                     "co-owners-warning": "WARNING! Users set as co-owners will have the same permissions as the owner except for changing ownership and deleting the deployment.",
                     "co-owners-label": "Co-owners:",
-                    "owner-label": "Owner: {owner}"
+                    "owner-label": "Owner: {owner}",
+                    "bastion-info": "Applies to every desktop in this deployment. Running desktops are updated immediately; new and recreated desktops inherit this configuration when they first start."
                 },
                 "option": {
                     "dont-stop-desktops": "Make this deployment invisible to the users and allow the use of the desktops until they're stopped",
@@ -979,7 +988,8 @@
                     "keep-csv": "Keep URLs and download CSV",
                     "reset-csv": "Reset URLs and download CSV",
                     "delete": "Delete",
-                    "co-owners": "Update co-owners"
+                    "co-owners": "Update co-owners",
+                    "bastion": "Save"
                 }
             },
             "alloweds-warning": "WARNING! Removing users from this deployment will also remove their associated desktops.",
@@ -1488,6 +1498,8 @@
             "creating-deployment": "Creating Deployment",
             "recreating-deployment": "Recreating Deployment",
             "deployment-desktops-created": "Deployment desktops created",
+            "deployment-bastion-updated": "Deployment bastion configuration updated",
+            "bastion-not-configured": "Bastion is not enabled for this desktop",
             "deleting-deployment": "Deleting deployment",
             "deployment-deleted": "Deployment deleted",
             "making-visible-deployment": "Making the deployment visible",

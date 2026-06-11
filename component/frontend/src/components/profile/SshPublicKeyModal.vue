@@ -60,9 +60,7 @@ const storedKey = computed(() => sshKeyData.value?.ssh_key || '')
 const hasKey = computed(() => storedKey.value.trim().length > 0)
 const isValid = computed(() => SSH_KEY_RE.test(keyInput.value.trim()))
 
-const { mutateAsync: setSshKey, isPending: isSaving } = useMutation(
-  setUserBastionSshKeyMutation()
-)
+const { mutateAsync: setSshKey, isPending: isSaving } = useMutation(setUserBastionSshKeyMutation())
 const { mutateAsync: deleteSshKey, isPending: isDeleting } = useMutation(
   deleteUserBastionSshKeyMutation()
 )

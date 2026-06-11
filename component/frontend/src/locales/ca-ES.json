@@ -50,8 +50,8 @@
         "subtitle": "Crea una nova plantilla a partir d'un escriptori existent"
       },
       "edit": {
-        "title": "Edita Plantilla",
-        "subtitle": "Actualitza la configuració de la plantilla"
+        "title": "Edita la plantilla",
+        "subtitle": "Modifica el nom, el maquinari i les opcions d’accés"
       },
       "duplicate": {
         "title": "Duplica Plantilla",
@@ -64,10 +64,6 @@
           "title": "Entrada de la paperera",
           "subtitle": "Revisa l'element eliminat i el seu contingut"
         }
-      },
-      "edit": {
-        "title": "Edita la plantilla",
-        "subtitle": "Modifica el nom, el maquinari i les opcions d’accés"
       }
     },
     "media": {
@@ -618,6 +614,8 @@
           "download-viewer": "Descarregar enllaços directes",
           "recreate": "Recrear desplegament",
           "reserve": "Reservar",
+          "bastion": "Bastió",
+          "bastion-csv": "Descarrega el CSV del bastió",
           "delete": "Eliminar desplegament"
         }
       },
@@ -630,6 +628,19 @@
       }
     },
     "deployment": {
+      "menu": {
+        "bastion": "Bastió",
+        "bastion-csv": "Descarrega el CSV del bastió",
+        "edit": "Edita",
+        "recreate": "Recrea",
+        "toggle-visibility": "Canvia la visibilitat",
+        "delete": "Suprimeix",
+        "book": "Reserva",
+        "create-template": "Crea una plantilla"
+      },
+      "user-bastion": {
+        "title": "Accés per bastió de l'usuari"
+      },
       "banner": {
         "alt": "Banner del desplegament",
         "users": "Usuaris",
@@ -656,12 +667,68 @@
       "tooltips": {
         "videowall": "Videowall",
         "resources": "Recursos",
+        "bastion": "Accés per bastió de l'usuari",
         "delete": "Elimina"
       },
       "recreate-modal": {
         "title": "Recrear desplegament '{name}'",
         "description": "Restableix els escriptoris a l'estat inicial en què es van crear. Només els escriptoris eliminats es restabliran",
         "button": "Recrear desplegament"
+      },
+      "actions": {
+        "access": "Accedeix",
+        "stop": "Atura"
+      },
+      "delete-user": {
+        "title": "Suprimeix els escriptoris de l'usuari",
+        "description": "Se suprimiran tots els escriptoris d'aquest usuari del desplegament. Aquesta acció no es pot desfer.",
+        "error": "No s'han pogut suprimir els escriptoris de l'usuari",
+        "loading": "S'estan suprimint els escriptoris de l'usuari…",
+        "confirm": "Suprimeix"
+      },
+      "detail": {
+        "users": "Usuaris",
+        "started-desktops": "Escriptoris iniciats",
+        "visible": "Escriptoris visibles"
+      },
+      "headers": {
+        "visible": "Visible",
+        "last-access": "Darrer accés",
+        "user": "Usuari",
+        "started-desktops": "Escriptoris iniciats",
+        "actions": "Accions"
+      },
+      "recreate": {
+        "title": "Recrea el desplegament",
+        "description": "Restaura els escriptoris a l'estat inicial en què es van crear. Només es restauraran els escriptoris suprimits.",
+        "error": "No s'ha pogut recrear el desplegament",
+        "loading": "S'està recreant el desplegament…"
+      },
+      "stop-all": {
+        "title": "Atura tots els escriptoris",
+        "description": "S'aturaran tots els escriptoris iniciats del desplegament. Els usuaris poden perdre la feina no desada.",
+        "error": "No s'han pogut aturar els escriptoris del desplegament",
+        "loading": "S'estan aturant els escriptoris del desplegament…"
+      },
+      "stop-user": {
+        "title": "Atura els escriptoris de l'usuari",
+        "description": "S'aturaran els escriptoris iniciats d'aquest usuari. Pot perdre la feina no desada.",
+        "error": "No s'han pogut aturar els escriptoris de l'usuari",
+        "loading": "S'estan aturant els escriptoris de l'usuari…"
+      },
+      "toggle-lab-visibility": {
+        "title-visible": "Fes visible el desplegament",
+        "title-invisible": "Fes invisible el desplegament",
+        "description-visible": "Els usuaris del desplegament veuran i podran utilitzar els seus escriptoris.",
+        "description-invisible": "Els usuaris del desplegament deixaran de veure els seus escriptoris. També podeu aturar els iniciats.",
+        "only-hide": "Només amaga",
+        "hide-and-stop": "Amaga i atura els escriptoris"
+      },
+      "toggle-user-visibility": {
+        "title-visible": "Fes visibles els escriptoris de l'usuari",
+        "title-invisible": "Fes invisibles els escriptoris de l'usuari",
+        "description-visible": "L'usuari veurà i podrà utilitzar els seus escriptoris del desplegament.",
+        "description-invisible": "L'usuari deixarà de veure els seus escriptoris del desplegament."
       }
     },
     "new-deployment": {
@@ -1545,6 +1612,23 @@
         }
       }
     },
+    "deployment-bastion-modal": {
+      "title": "Bastió — {name}",
+      "description": "Activeu o desactiveu l'accés per bastió per a tots els escriptoris d'aquest desplegament. Els escriptoris en marxa s'actualitzen immediatament; els escriptoris nous i recreats hereten aquesta configuració quan s'inicien per primer cop.",
+      "error-loading": "No s'ha pogut carregar la configuració del bastió del desplegament",
+      "error-saving": "No s'ha pogut desar la configuració del bastió del desplegament",
+      "buttons": {
+        "save": "Desa"
+      }
+    },
+    "deployment-user-bastion-modal": {
+      "title": "Accés per bastió — {name}",
+      "description": "Seleccioneu un escriptori per veure'n els detalls d'accés per bastió.",
+      "error-loading": "No s'han pogut carregar els escriptoris de l'usuari",
+      "no-desktops": "Aquest usuari no té escriptoris en aquest desplegament",
+      "view-bastion": "Accés per bastió",
+      "back": "Torna als escriptoris"
+    },
     "bastion-info-modal": {
       "description": "Utilitzeu la informació següent per connectar-vos a l'escriptori mitjançant el bastió.",
       "title": "Informació del bastió per a l'escriptori '{name}'",
@@ -1989,45 +2073,6 @@
         },
         "cancel": "Cancel·la",
         "confirm": "Confirma"
-      }
-    },
-    "desktop-gpu-unavailable-modal": {
-      "title": "La GPU '{current-gpu}' no està disponible per a l'escriptori '{name}' en aquest moment.",
-      "book": {
-        "action-button": "Reserva l'escriptori",
-        "title": "Reserva l'escriptori",
-        "subtitle": "Reserva l'escriptori amb el seu model de targeta gràfica actual comprovant la seva planificació"
-      },
-      "change-and-start": {
-        "action-button": "Canvia i inicia",
-        "subtitle": "Es pot canviar a un model de targeta gràfica disponible ara i iniciar-lo (Això podria afectar el rendiment de l'escriptori)",
-        "title": "Canvia i inicia"
-      }
-    },
-    "desktop-start-now-modal": {
-      "cancel": "Cancel·la",
-      "confirm": "Inicia l'escriptori",
-      "description": "Selecciona fins quan s'utilitzarà l'escriptori",
-      "title": "Iniciar",
-      "select": {
-        "label": "Hora de finalització",
-        "placeholder": "Selecciona fins quan s'utilitzarà"
-      }
-    },
-    "desktop-gpu-change-and-start-modal": {
-      "title": "Canvia i inicia",
-      "book": "Reserva l'escriptori",
-      "cancel": "Cancel·la",
-      "confirm": "Canvia i inicia",
-      "description": "Canvieu la GPU de l'escriptori i inicieu-lo immediatament.",
-      "empty": {
-        "description": "No hi ha altres perfils de GPU disponibles actualment",
-        "title": "No hi ha perfils disponibles"
-      },
-      "gpu-select": {
-        "placeholder": "Perfils de GPU disponibles",
-        "value": "Canvia a \"{profile}\"",
-        "label": "Nou perfil de GPU"
       }
     },
     "change-image-modal": {
