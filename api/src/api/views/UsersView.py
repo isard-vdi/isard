@@ -12,6 +12,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.bookings.api_reservables import attach_vgpu_hypervisor_groups
 from ..libv2.quotas import Quotas
 from ..libv2.validators import _validate_item
 
@@ -211,17 +212,21 @@ def api_v3_external_user_delete(payload):
 def api_v3_user_hardware_allowed(payload, domain_id=None):
     if domain_id and ownsDomainId(payload, domain_id):
         hardware_allowed = quotas.get_hardware_allowed(payload, domain_id)
-        return (
-            json.dumps(hardware_allowed),
-            200,
-            {"Content-Type": "application/json"},
-        )
     else:
-        return (
-            json.dumps(quotas.get_hardware_allowed(payload)),
-            200,
-            {"Content-Type": "application/json"},
+        hardware_allowed = quotas.get_hardware_allowed(payload)
+    # Tag vGPU profiles with the hypervisor groups that can host them so the
+    # webapp can group/restrict the multi-select. Admins/managers see real
+    # hypervisor names; other roles only the anonymized group indices.
+    _vgpus = (hardware_allowed or {}).get("reservables", {}).get("vgpus")
+    if isinstance(_vgpus, list):
+        attach_vgpu_hypervisor_groups(
+            _vgpus, show_names=payload.get("role_id") in ("admin", "manager")
         )
+    return (
+        json.dumps(hardware_allowed),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/user/hardware/<kind>/allowed", methods=["GET"])

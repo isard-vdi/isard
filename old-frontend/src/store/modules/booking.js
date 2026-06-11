@@ -40,7 +40,7 @@ const getDefaultState = () => {
         show: false,
         showProfileDropdown: false, // if the profile select must be shown
         selected: {
-          profile: null, // selected profile
+          profiles: [], // selected profile ids (a desktop may carry several)
           endDate: null, // until when will be booked
           action: null
         },
@@ -56,7 +56,7 @@ const getDefaultState = () => {
           id: '',
           type: '',
           action: '',
-          profile: ''
+          profiles: [] // the desktop's current profile ids
         },
         showChangeProfileAndStartOption: true
       }
@@ -356,8 +356,9 @@ export default {
     },
     checkCanStart (context, data) {
       return axios.get(`${apiV3Segment}/booking/max_booking_date/${data.id}`).then(response => {
+        // Primary path: the whole desktop (all its profiles) fits a current
+        // window. max_booking_date is already the multi-profile bottleneck.
         response.data.show = true
-        response.data.profile = { id: data.profile, maxBookingDate: response.data.max_booking_date }
         response.data.action = data.action
         context.commit('setBookingItemId', data.id)
         context.commit('setStartNowModal', BookingUtils.parseStartNowModal(response.data))
@@ -370,7 +371,7 @@ export default {
               id: data.id,
               type: data.type,
               action: data.action,
-              profile: data.profile
+              profiles: data.profiles || []
             },
             showChangeProfileAndStartOption: true
           }
@@ -385,8 +386,10 @@ export default {
         this._vm.$snotify.clear()
         response.data.showProfileDropdown = true
         response.data.show = true
-        response.data.profile = null
         response.data.action = context.getters.getCantStartNowModal.item.action
+        // Pre-seed the recovery multi-select with the desktop's current profiles
+        // that are still available now.
+        response.data.desktopProfiles = context.getters.getCantStartNowModal.item.profiles
         context.commit('setStartNowModal', BookingUtils.parseStartNowModal(response.data))
         context.dispatch('resetCantStartNowModal')
       }).catch(e => {

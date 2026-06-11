@@ -76,8 +76,15 @@ def booking_provisioning(
     if len(resource_planner.keys()) > 1:
         all_plans = []
         for subitem, plans in resource_planner.items():
+            # Tag each plan with its originating subitem so the cross-subitem
+            # intersection can require that ALL requested profiles overlap, even
+            # when same-subitem intersection already "/"-joined ids across cards.
+            for plan in plans:
+                plan["subitem"] = subitem
             all_plans += plans
-        resource_planner = intersect_different_subitem_plan(all_plans)
+        resource_planner = intersect_different_subitem_plan(
+            all_plans, expected_subitems=len(resource_planner.keys())
+        )
     else:
         resource_planner = resource_planner[list(resource_planner.keys())[0]]
 
@@ -512,21 +519,43 @@ def join_consecutive_plans(plan):
     ]
 
 
-def intersect_different_subitem_plan(plan, keep_non_overlapped=False):
+def intersect_different_subitem_plan(
+    plan, keep_non_overlapped=False, expected_subitems=None
+):
     join_plan_op = lambda x, y: {
         "units": min(x["units"], y["units"]),
         "id": x["id"] + "/" + y["id"],
+        "subitems": x.get("subitems", frozenset()) | y.get("subitems", frozenset()),
     }
 
     output = P.IntervalDict()
     for interval in plan:
         i = P.closed(interval["start"], interval["end"])
-        d = P.IntervalDict({i: {"units": interval["units"], "id": interval["id"]}})
+        d = P.IntervalDict(
+            {
+                i: {
+                    "units": interval["units"],
+                    "id": interval["id"],
+                    "subitems": frozenset(
+                        [interval["subitem"]] if interval.get("subitem") else []
+                    ),
+                }
+            }
+        )
         output = output.combine(d, how=join_plan_op)
 
     items = _sorted_atomic_items(output)
 
     if not keep_non_overlapped:
+        # A window is only available if EVERY requested profile overlaps there.
+        # Counting distinct subitems is correct even when ids were "/"-joined
+        # across cards of the same profile. Fall back to the id-part heuristic
+        # only when the caller didn't provide the expected subitem count.
+        def _all_profiles_present(value):
+            if expected_subitems is not None:
+                return len(value.get("subitems", frozenset())) >= expected_subitems
+            return len(value["id"].split("/")) > 1
+
         return [
             {
                 "start": item[0].lower,
@@ -537,7 +566,7 @@ def intersect_different_subitem_plan(plan, keep_non_overlapped=False):
                 "event_type": "available",
             }
             for item in items
-            if len(item[1]["id"].split("/")) > 1
+            if _all_profiles_present(item[1])
         ]
     else:
         return [
@@ -562,7 +591,10 @@ def payload_priority(payload, reservables):
         for subitem in v:
             with app.app_context():
                 reservable = r.table("reservables_" + k).get(subitem).run(db.conn)
-            if not reservable.get("priority_id") or reservable["priority_id"] == "":
+            # A dangling reservable id (profile deleted after a desktop referenced
+            # it) returns None here; treat it as the default priority instead of
+            # dereferencing None and 500ing the caller.
+            if not reservable or not reservable.get("priority_id"):
                 priority_id = "default"
             else:
                 priority_id = reservable.get("priority_id")
@@ -591,19 +623,32 @@ def min_profile_priority(reservables):
         for subitem in v:
             with app.app_context():
                 reservable = r.table("reservables_" + k).get(subitem).run(db.conn)
-            if not reservable.get("priority_id") or reservable["priority_id"] == "":
+            if not reservable or not reservable.get("priority_id"):
                 priority_id = "default"
             else:
                 priority_id = reservable.get("priority_id")
             # Exclude default admins priority
             with app.app_context():
-                priority = (
+                profile_priority = (
                     r.table("bookings_priority")
                     .get_all(priority_id, index="rule_id")
                     .filter(lambda row: row["id"] != "default admins")
                     .filter(lambda row: row["max_time"] != 0)
                     .min("forbid_time")
                     .run(db.conn)
+                )
+            if priority is None:
+                priority = profile_priority
+            else:
+                # A desktop may carry several vGPU profiles; it can only start
+                # within the limits of the MOST restrictive one, so keep the
+                # minimum of each limiting field across all profiles.
+                priority = dict(priority)
+                priority["forbid_time"] = min(
+                    priority["forbid_time"], profile_priority["forbid_time"]
+                )
+                priority["max_time"] = min(
+                    priority["max_time"], profile_priority["max_time"]
                 )
     return priority
 
@@ -619,16 +664,19 @@ def get_user_default_priority(payload, subitem):
             .run(db.conn)
         )
     priority = user_matches_priority_rule(payload, rules)
+    # Return the BARE priority value: the consumer (``most_restrictive_rule``)
+    # wraps it into ``{subitem: <value>}`` itself, so returning ``{subitem: ...}``
+    # here double-wraps it (``{subitem: {subitem: 0}}``) and breaks the comparison.
     if not priority:
         # Should we hardcode a default if the user removed it?
         return {
-            "priority": {subitem: 0},
+            "priority": 0,
             "forbid_time": 0,
             "max_time": None,
             "max_items": None,
         }
     return {
-        "priority": {subitem: priority["priority"]},
+        "priority": priority["priority"],
         "forbid_time": priority["forbid_time"],
         "max_time": priority["max_time"],
         "max_items": priority["max_items"],

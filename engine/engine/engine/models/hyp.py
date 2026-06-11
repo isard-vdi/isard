@@ -2550,9 +2550,17 @@ class hyp(object):
         # Filter to only domains that have GPU reservables
         gpu_domain_ids = []
         for domain_id in hyp_domains.keys():
+            # domain_get_vgpu_info returns a LIST of per-mdev binding dicts (a
+            # desktop may hold several vGPUs), not a scalar dict -- include the
+            # domain if ANY of its bindings is live. Calling .get() on the list
+            # raised "'list' object has no attribute 'get'" and aborted the
+            # whole profile change before quiesce (fail-closed, but the change
+            # never completed).
             vgpu_info = domain_get_vgpu_info(domain_id)
-            if vgpu_info and (
-                vgpu_info.get("started") is True or vgpu_info.get("reserved") is True
+            if any(
+                isinstance(b, dict)
+                and (b.get("started") is True or b.get("reserved") is True)
+                for b in (vgpu_info or [])
             ):
                 gpu_domain_ids.append(domain_id)
 

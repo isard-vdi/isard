@@ -5,8 +5,10 @@ from engine.models.domain_xml import (
     DomainXML,
     add_memory_backing,
     add_numa_pinning,
+    count_passthrough_gpus_in_xml,
     ensure_iothreads_declared,
     hostdev_locked,
+    pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
     remove_memory_backing,
 )
@@ -782,6 +784,87 @@ def test_ensure_iothreads_declared_honors_explicit_iothreadids():
     assert tree.xpath("/domain/iothreads") == []
     assert len(tree.xpath('/domain/iothreadids/iothread[@id="5"]')) == 1
     assert len(tree.xpath("/domain/devices/interface")) == 1
+
+
+# ---- pinned_cpuset_from_xml: NUMA-aware GPU placement input ----------------
+
+
+def test_pinned_cpuset_from_xml_unions_vcpupin():
+    """Union every <vcpupin cpuset/> into one cpulist string (the carve maps it
+    to a NUMA node)."""
+    xml = (
+        '<domain type="kvm"><name>d</name><vcpu>24</vcpu>'
+        '<cputune><vcpupin vcpu="0" cpuset="48-71"/>'
+        '<vcpupin vcpu="1" cpuset="92-93"/>'
+        '<iothreadpin iothread="1" cpuset="92-93"/></cputune>'
+        "<devices/></domain>"
+    )
+    assert pinned_cpuset_from_xml(xml) == "48-71,92-93"
+
+
+def test_pinned_cpuset_from_xml_reads_vcpu_attr():
+    """A whole-domain <vcpu cpuset="..."> pin is also picked up."""
+    xml = '<domain type="kvm"><vcpu cpuset="0-15">16</vcpu><devices/></domain>'
+    assert pinned_cpuset_from_xml(xml) == "0-15"
+
+
+def test_pinned_cpuset_from_xml_none_when_unpinned():
+    """No pinning => None, so the carve keeps its default placement."""
+    xml = '<domain type="kvm"><vcpu>4</vcpu><devices/></domain>'
+    assert pinned_cpuset_from_xml(xml) is None
+
+
+def test_pinned_cpuset_from_xml_none_on_bad_xml():
+    """Malformed XML => None (never raises)."""
+    assert pinned_cpuset_from_xml("<domain><not-closed>") is None
+
+
+def test_count_passthrough_gpus_none():
+    """No passthrough hostdevs => 0."""
+    assert count_passthrough_gpus_in_xml("<domain><devices/></domain>") == 0
+
+
+def test_count_passthrough_gpus_single():
+    """One passed-through GPU => 1."""
+    xml = recreate_xml_if_gpu(
+        '<domain type="kvm"><devices/></domain>',
+        "fake-uid",
+        pci_bus_id="pci_0000_e7_00_0",
+        is_passthrough=True,
+    )
+    assert count_passthrough_gpus_in_xml(xml) == 1
+
+
+def test_count_passthrough_gpus_audio_companion_not_double_counted():
+    """A GPU + its .1 audio companion is still ONE GPU (function 0x1 ignored)."""
+    xml = recreate_xml_if_gpu(
+        '<domain type="kvm"><devices/></domain>',
+        "fake-uid",
+        pci_bus_id="pci_0000_86_00_0",
+        is_passthrough=True,
+        companion_pci_bdfs=["0000:86:00.1"],
+    )
+    # two hostdevs (GPU + audio) but only one function-0 device => 1 GPU
+    assert len(_parse(xml).xpath('//hostdev[@type="pci"][@managed="yes"]')) == 2
+    assert count_passthrough_gpus_in_xml(xml) == 1
+
+
+def test_count_passthrough_gpus_two_cards():
+    """Two passed-through GPUs on distinct guest slots => 2 (the >=2 case that
+    requires the pcie-root-port.pref64-reserve large-BAR window)."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    xml = recreate_xml_if_gpu(
+        xml, "uid-0", pci_bus_id="pci_0000_e7_00_0", is_passthrough=True, guest_index=0
+    )
+    xml = recreate_xml_if_gpu(
+        xml, "uid-1", pci_bus_id="pci_0000_86_00_0", is_passthrough=True, guest_index=1
+    )
+    assert count_passthrough_gpus_in_xml(xml) == 2
+
+
+def test_count_passthrough_gpus_bad_xml():
+    """Malformed XML => 0 (never raises)."""
+    assert count_passthrough_gpus_in_xml("<domain><not-closed>") == 0
 
 
 def test_add_numa_pinning_excess_vcpus_still_pins_emulator():

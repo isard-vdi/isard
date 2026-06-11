@@ -74,6 +74,10 @@ def api_v3_desktop_start(payload, desktop_id):
         desktop = quotas.desktop_start(payload["user_id"], desktop_id)
     desktop = _parse_desktop_booking(desktop)
 
+    # Self-heal dangling GPU reservables (profile deleted after desktop creation)
+    # before any booking/availability check dereferences them and 500s.
+    desktops.clean_missing_reservables(desktop_id)
+
     try:
         check_virt_storage_pool_availability(desktop_id)
     except Error as e:

@@ -16,10 +16,13 @@ from engine.models.domain_xml import (
     add_memory_backing,
     add_numa_pinning,
     add_qemu_pcie_reserve,
+    count_passthrough_gpus_in_xml,
     hostdev_locked,
+    pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
     recreate_xml_to_start,
+    vcpus_from_xml,
 )
 from engine.services.db import (
     create_disk_template_created_list_in_domain,
@@ -361,14 +364,25 @@ class UiActions(object):
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
-            # Loop selection+reservation so we can retry on a lost CAS when two
-            # starters race for the same mdev UUID. Non-GPU paths exit after the
-            # first iteration.
             next_hyp = False
             extra_info = {}
             is_gpu = False
             max_attempts = 5
-            for attempt in range(max_attempts):
+            # vCPU footprint, used to balance non-GPU desktops across NUMA nodes.
+            domain_vcpus = vcpus_from_xml(xml)
+
+            # A desktop may request several vGPU profiles. They MUST all land on
+            # ONE hypervisor (a guest runs on a single host and can only attach
+            # that host's devices) and on DISTINCT cards. Pin the host to the
+            # first profile's selection, reserve+inject every profile there, and
+            # roll back if any can't be placed. start_paused_domain intentionally
+            # starts with no GPU (minimal memory), so it takes the non-GPU path.
+            gpu_profiles = []
+            if action != "start_paused_domain":
+                gpu_profiles = list((reservables or {}).get("vgpus") or [])
+
+            if not gpu_profiles:
+                # Non-GPU path (or paused): a single hypervisor selection, no mdev.
                 next_hyp, extra_info = self.manager.pools[
                     pool_id
                 ].balancer.get_next_hypervisor(
@@ -378,57 +392,152 @@ class UiActions(object):
                     force_gpus=force_gpus,
                     storage_pool_id=storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
+                    domain_vcpus=domain_vcpus,
                 )
-                if next_hyp is False:
-                    break
                 if action == "start_paused_domain":
                     extra_info = {}
                 is_gpu = extra_info.get("nvidia", False) is True
-                if not is_gpu:
-                    break
-                reserved_ok = update_vgpu_uuid_domain_action(
-                    extra_info["gpu_id"],
-                    extra_info["uid"],
-                    "domain_reserved",
-                    domain_id=id_domain,
-                    profile=extra_info["profile"],
-                )
-                if reserved_ok:
-                    try:
-                        xml = recreate_xml_if_gpu(
-                            xml,
-                            extra_info["uid"],
-                            pci_bus_id=extra_info.get("pci_bus_id"),
-                            is_passthrough=(extra_info.get("profile") == "passthrough"),
-                            companion_pci_bdfs=extra_info.get("companion_pci_bdfs")
-                            or [],
-                            is_mig=extra_info.get("mig", False),
-                        )
-                    except ValueError as e:
-                        log.error(
-                            "{}: recreate_xml_if_gpu failed: {}".format(id_domain, e)
-                        )
-                        update_domain_status(
-                            "Failed",
-                            id_domain,
-                            detail="GPU XML injection failed: {}".format(e),
-                        )
-                        return False
-                    if extra_info.get("profile") == "passthrough":
-                        xml = add_qemu_pcie_reserve(xml)
-                    break
-                log.warning(
-                    f"{id_domain}: vgpu reservation lost CAS on uuid "
-                    f"{extra_info.get('uid')} (attempt {attempt + 1}/{max_attempts}); "
-                    f"re-selecting"
-                )
             else:
-                update_domain_status(
-                    "Failed",
-                    id_domain,
-                    detail="Could not reserve a free vGPU mdev after retries (concurrent starters)",
-                )
-                return False
+                # GPU path: reserve EVERY requested profile on a single host.
+                reserved = []  # [(gpu_id, uuid, profile)] for rollback
+                pinned_hyp = list(forced_hyp) if forced_hyp else None
+                primary_extra = None
+                placement_failed = False
+                # NUMA-aware placement: if the desktop pins its vCPUs, prefer
+                # GPU cards on the matching NUMA node; then group every later
+                # card on the first card's node so a multi-GPU guest is not
+                # split across NUMA nodes. Both are preferences (the carve falls
+                # back to any free card), so single-node hosts and cards with an
+                # unknown numa_node behave exactly as before.
+                prefer_cpuset = pinned_cpuset_from_xml(xml)
+                group_node = None
+
+                def _rollback_vgpus():
+                    for _g, _u, _p in reserved:
+                        try:
+                            update_vgpu_uuid_domain_action(
+                                _g,
+                                _u,
+                                "domain_stopped",
+                                domain_id=id_domain,
+                                profile=_p,
+                            )
+                        except Exception as _re:
+                            log.error(
+                                f"{id_domain}: rollback release failed for "
+                                f"{_u}: {_re}"
+                            )
+
+                for guest_index, profile in enumerate(gpu_profiles):
+                    per_reservables = {"vgpus": [profile]}
+                    placed = False
+                    # Retry per profile on a lost CAS (concurrent starters).
+                    for attempt in range(max_attempts):
+                        nh, ei = self.manager.pools[
+                            pool_id
+                        ].balancer.get_next_hypervisor(
+                            forced_hyp=pinned_hyp if pinned_hyp else forced_hyp,
+                            favourite_hyp=favourite_hyp,
+                            reservables=per_reservables,
+                            force_gpus=force_gpus,
+                            storage_pool_id=storage_pool_id,
+                            domain_memory_gb=domain_memory_gb,
+                            domain_vcpus=domain_vcpus,
+                            prefer_cpuset=prefer_cpuset,
+                            prefer_numa_node=group_node,
+                        )
+                        if nh is False or ei.get("nvidia", False) is not True:
+                            # No card for this profile on the pinned host.
+                            break
+                        if pinned_hyp is None:
+                            pinned_hyp = [nh]
+                        elif nh not in pinned_hyp:
+                            # Belt-and-suspenders: never split a guest across hosts.
+                            log.error(
+                                f"{id_domain}: profile {profile} resolved to host "
+                                f"{nh} != pinned {pinned_hyp}; refusing cross-host GPU"
+                            )
+                            break
+                        reserved_ok = update_vgpu_uuid_domain_action(
+                            ei["gpu_id"],
+                            ei["uid"],
+                            "domain_reserved",
+                            domain_id=id_domain,
+                            profile=ei["profile"],
+                        )
+                        if not reserved_ok:
+                            log.warning(
+                                f"{id_domain}: vgpu reserve lost CAS on uuid "
+                                f"{ei.get('uid')} (attempt {attempt + 1}/"
+                                f"{max_attempts}); re-selecting"
+                            )
+                            continue
+                        try:
+                            xml = recreate_xml_if_gpu(
+                                xml,
+                                ei["uid"],
+                                pci_bus_id=ei.get("pci_bus_id"),
+                                is_passthrough=(ei.get("profile") == "passthrough"),
+                                companion_pci_bdfs=ei.get("companion_pci_bdfs") or [],
+                                is_mig=ei.get("mig", False),
+                                guest_index=guest_index,
+                            )
+                        except ValueError as e:
+                            log.error(
+                                "{}: recreate_xml_if_gpu failed: {}".format(
+                                    id_domain, e
+                                )
+                            )
+                            update_vgpu_uuid_domain_action(
+                                ei["gpu_id"],
+                                ei["uid"],
+                                "domain_stopped",
+                                domain_id=id_domain,
+                                profile=ei["profile"],
+                            )
+                            _rollback_vgpus()
+                            update_domain_status(
+                                "Failed",
+                                id_domain,
+                                detail="GPU XML injection failed: {}".format(e),
+                            )
+                            return False
+                        if ei.get("profile") == "passthrough":
+                            xml = add_qemu_pcie_reserve(xml)
+                        reserved.append((ei["gpu_id"], ei["uid"], ei["profile"]))
+                        if primary_extra is None:
+                            primary_extra = ei
+                        # Group any later card on this (first) card's NUMA node
+                        # so the guest's GPUs stay on one node. Skip when the
+                        # node is unknown (-1/None) — then later cards just take
+                        # any free card, as before.
+                        if group_node is None:
+                            _nn = ei.get("gpu_numa_node")
+                            if _nn is not None and int(_nn) >= 0:
+                                group_node = int(_nn)
+                        placed = True
+                        break
+                    if not placed:
+                        placement_failed = True
+                        break
+
+                if placement_failed:
+                    _rollback_vgpus()
+                    update_domain_status(
+                        "Failed",
+                        id_domain,
+                        detail=(
+                            "Could not place all {} requested vGPU profiles on a "
+                            "single hypervisor with distinct free cards".format(
+                                len(gpu_profiles)
+                            )
+                        ),
+                    )
+                    return False
+
+                is_gpu = True
+                next_hyp = pinned_hyp[0]
+                extra_info = primary_extra
             if next_hyp is not False:
                 # Flag the slow-VFIO path so the worker can extend its
                 # libvirt createXML timeout for this action (see
@@ -438,6 +547,22 @@ class UiActions(object):
                 # even if the optimization block bails out.
                 expects_slow_createxml = False
 
+                # --- Large-BAR multi-GPU PCIe reserve (best-effort) ---
+                # A guest with >=2 passed-through GPUs (large BARs, e.g. RTX PRO
+                # 6000) needs a bigger 64-bit prefetchable MMIO window on the PCIe
+                # root ports, or the second card's BAR fails to map. The per-card
+                # carve loop only covers engine-reserved profiles; this also covers
+                # the manual-passthrough path (hostdevs baked into the XML, no
+                # reservation). add_qemu_pcie_reserve is idempotent.
+                try:
+                    if count_passthrough_gpus_in_xml(xml) >= 2:
+                        xml = add_qemu_pcie_reserve(xml)
+                except Exception as _pref_err:
+                    log.warning(
+                        f"{id_domain}: pcie pref64-reserve check failed: "
+                        f"{_pref_err}; continuing without it"
+                    )
+
                 # --- NUMA / hugepages optimizations (best-effort) ---
                 # A failure anywhere in this block (bad topology data,
                 # unexpected XML shape, missing fields) must never stop the
@@ -446,9 +571,12 @@ class UiActions(object):
                 _xml_before_opts = xml
                 try:
                     # --- NUMA node selection ---
-                    # We always trust the sysfs view for CPU pinning (<cputune>
+                    # The engine derives CPU pinning from the sysfs view (<cputune>
                     # and <vcpu cpuset='...'> reference CPU IDs, which libvirt
-                    # sees correctly even when its capability XML is broken).
+                    # sees correctly even when its capability XML is broken) —
+                    # UNLESS the admin locked <cputune> via xml_protected_sections,
+                    # in which case the editor's manual pinning is authoritative and
+                    # must not be overwritten (see cputune_locked below).
                     # The libvirt_numa_ok flag only gates <numatune>: when False
                     # (libvirt-in-container reporting duplicate cell IDs, etc.),
                     # add_numa_pinning skips the memory-binding element so
@@ -479,8 +607,14 @@ class UiActions(object):
                                         f"{node_free}KB free < {domain_memory_kb}KB needed, "
                                         f"using preferred mode (may cross NUMA)"
                                     )
+                        elif extra_info.get("selected_numa_node") in numa_nodes:
+                            # Non-GPU: the balancer load-spreads desktops across
+                            # nodes (per-node RAM+vCPU in-flight accounting) so they
+                            # don't all pile on the node with most free hugepages.
+                            target_node = extra_info["selected_numa_node"]
                         else:
-                            # Pick NUMA node with most free hugepages, or hash-distribute
+                            # Fallback (paused start / balancer gave nothing): pick
+                            # NUMA node with most free hugepages, or hash-distribute.
                             if numa_hp_free:
                                 candidates = {
                                     n: free_kb
@@ -544,7 +678,22 @@ class UiActions(object):
                                         xml = add_memory_backing(xml, "2", "M")
 
                     # --- NUMA CPU pinning + IO thread pinning ---
-                    if target_node is not None and target_node in numa_nodes:
+                    # Honor an admin-locked CPU pinning: when the desktop protects
+                    # <cputune> in its XML editor, the manual pinning is the source
+                    # of truth (the GPU carve already prefers a card on the pinned
+                    # node, see prefer_cpuset). Don't overwrite it here.
+                    cputune_locked = "cputune" in (
+                        (get_domain(id_domain) or {})
+                        .get("create_dict", {})
+                        .get("xml_protected_sections", [])
+                        or []
+                    )
+                    if cputune_locked:
+                        log.info(
+                            f"{id_domain}: <cputune> is admin-protected; keeping the "
+                            f"manual CPU pinning (skipping engine NUMA pinning)"
+                        )
+                    elif target_node is not None and target_node in numa_nodes:
                         cpulist = numa_nodes[target_node].get("cpulist", "")
                         if cpulist:
                             from io import StringIO
@@ -567,6 +716,13 @@ class UiActions(object):
                                 emit_numatune=libvirt_numa_ok,
                             )
                             xml = add_iothread_pinning(xml, cpulist)
+                    log.info(
+                        f"{id_domain}: NUMA placement -> is_gpu={is_gpu} "
+                        f"gpu_numa={extra_info.get('gpu_numa_node')} "
+                        f"target_node={target_node} mem_mode={mem_mode} "
+                        f"hugepages={'yes' if '<hugepages>' in xml else 'no'} "
+                        f"selected_numa_node={extra_info.get('selected_numa_node')}"
+                    )
                 except Exception as _opt_err:
                     log.warning(
                         f"NUMA/hugepages optimizations failed for {id_domain}: "

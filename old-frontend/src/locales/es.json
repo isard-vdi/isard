@@ -604,7 +604,9 @@
     "start-now-modal": {
       "title": "Iniciar ahora",
       "profile": "Perfil",
+      "profiles": "Perfiles",
       "select-profile": "Selecciona el perfil que se utilizará",
+      "select-profiles": "Selecciona los perfiles que se utilizarán",
       "end-date": "Fecha de finalización",
       "end-time": "Hora de finalización",
       "select-end-date": "Selecciona hasta cuando se utilizará",
@@ -612,11 +614,11 @@
     },
     "cant-start-now-modal": {
       "title": {
-        "available-profile": "El modelo de tarjeta gráfica de este escritorio ({profile}) no está disponible en este momento",
+        "available-profile": "Los modelos de tarjeta gráfica de este escritorio no están disponibles en este momento",
         "no-available-profile": "No hay ningún otro modelo de tarjeta gráfica disponible en este momento"
       },
       "change-desktop-gpu": {
-        "text": "Se puede modificar a un modelo de tarjeta gráfica disponible ahora e iniciarlo (puede afectar al rendimiento del escritorio)",
+        "text": "Se pueden cambiar a modelos de tarjeta gráfica disponibles ahora e iniciarlo (puede afectar al rendimiento del escritorio)",
         "button": "Cambiar e iniciar"
       },
       "go-to-bookings": {
@@ -1584,6 +1586,7 @@
     "deployment_stop": "Para realizar esta acción es necesario que los escritorios del despliegue estén parados",
     "desktop_not_booked": "Para arrancar el escritorio debe estar reservado",
     "desktop_not_booked_until": "No se puede arrancar el escritorio hasta su próxima reserva: {start}",
+    "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo.",
     "booking_does_not_fit_date": "La reserva no se ajusta a la fecha solicitada",
     "booking_desktop_delete_stop": "Para eliminar esta reserva el escritorio debe estar parado",
     "booking_deployment_delete_stop": "Para eliminar esta reserva es necesario que los escritorios del despliegue estén parados",

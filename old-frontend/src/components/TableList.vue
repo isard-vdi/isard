@@ -433,7 +433,7 @@ export default {
       } else if (canStart(desktop) || data.action !== 'start') {
         $store.dispatch('changeDesktopStatus', data)
       } else {
-        $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0], action: data.action })
+        $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profiles: desktop.reservables.vgpus, action: data.action })
       }
     }
 

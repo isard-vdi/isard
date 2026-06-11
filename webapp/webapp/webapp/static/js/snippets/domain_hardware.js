@@ -90,11 +90,69 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                 }
             }
 
-            $(id+" #reservables-vgpus").find('option').remove();
+            // Rebuild the vGPU control from scratch. It is enhanced with select2
+            // (like #hardware-interfaces) so the list is click-to-toggle (no
+            // Ctrl), searchable and scrollable instead of a cramped native
+            // multi-select; destroy any previous instance before repopulating.
+            if($(id+" #reservables-vgpus").hasClass('select2-hidden-accessible')){
+                $(id+" #reservables-vgpus").select2('destroy');
+            }
+            $(id+" #reservables-vgpus").find('option,optgroup').remove();
             if("reservables" in hardware && "vgpus" in hardware.reservables){
-                $.each(hardware.reservables.vgpus,function(key, value)
-                {
-                    $(id+" #reservables-vgpus").append('<option value="' + value.id + '">' + value.name + ' - ' + value.description + '</option>');
+                // A desktop may carry several vGPU profiles but they must all run
+                // on ONE hypervisor. Group the options by hypervisor name so the
+                // admin sees which profiles are co-locatable; a profile enabled on
+                // several hypervisors appears under each. Each option carries its
+                // full hypervisor list so selection can be hard-restricted to one.
+                var byHyp = {};
+                var ungrouped = [];
+                $.each(hardware.reservables.vgpus, function(key, value){
+                    var hyps = value.hypervisors || [];
+                    if(!hyps.length){ ungrouped.push(value); return; }
+                    $.each(hyps, function(i, h){ (byHyp[h] = byHyp[h] || []).push(value); });
+                });
+                function optHtml(value){
+                    return '<option value="' + value.id + '" data-hyps=\'' +
+                        JSON.stringify(value.hypervisors || []) + '\'>' +
+                        value.name + ' - ' + value.description + '</option>';
+                }
+                Object.keys(byHyp).sort().forEach(function(h){
+                    var $g = $('<optgroup label="' + h + '">');
+                    byHyp[h].forEach(function(value){ $g.append(optHtml(value)); });
+                    $(id+" #reservables-vgpus").append($g);
+                });
+                ungrouped.forEach(function(value){
+                    $(id+" #reservables-vgpus").append(optHtml(value));
+                });
+                // Hard-restrict: once a profile is chosen, disable any profile not
+                // hostable on a hypervisor common to the whole selection, then
+                // tell select2 to re-render so the greyed-out options show.
+                $(id+" #reservables-vgpus").off('change.vgpurestrict').on('change.vgpurestrict', function(){
+                    var selected = $(this).val() || [];
+                    var common = null;
+                    selected.forEach(function(v){
+                        var hyps = $(this).find('option[value="'+v+'"]').first().data('hyps') || [];
+                        var s = {}; hyps.forEach(function(h){ s[h]=true; });
+                        if(common === null){ common = s; }
+                        else { var n={}; Object.keys(common).forEach(function(h){ if(s[h]) n[h]=true; }); common = n; }
+                    }.bind(this));
+                    var hasCommon = common && Object.keys(common).length;
+                    $(this).find('option').each(function(){
+                        if($(this).val() === 'None'){ return; }
+                        if(!selected.length || !hasCommon){ $(this).prop('disabled', false); return; }
+                        var hyps = $(this).data('hyps') || [];
+                        var ok = hyps.some(function(h){ return common[h]; });
+                        $(this).prop('disabled', !ok);
+                    });
+                    if($(this).hasClass('select2-hidden-accessible')){
+                        $(this).trigger('change.select2');
+                    }
+                });
+                // Enhance with select2: click-to-toggle, searchable, scrollable.
+                $(id+" #reservables-vgpus").select2({
+                    width: '100%',
+                    closeOnSelect: false,
+                    placeholder: 'Select GPU profile(s)',
                 });
             }
             if (callback) {
@@ -199,14 +257,21 @@ function setHardwareDomainDefaults(div_id,domain){
     }
 
     $(div_id+' #reservables-vgpus option:selected').prop("selected", false);
-    if(domain.hasOwnProperty("reservables") && "vgpus" in domain.reservables && domain.reservables.vgpus && domain.reservables.vgpus[0]){
-        if ($(div_id+' #reservables-vgpus option[value="'+domain.reservables.vgpus[0]+'"]').length == 0) {
-                $(div_id+" #reservables-vgpus").append('<option disabled value=' + domain.reservables.vgpus[0] + '>' + domain.reservables.vgpus[0] + '</option>')
-        }
-        $(div_id+' #reservables-vgpus option[value="'+domain.reservables.vgpus[0]+'"]').prop("selected",true);
+    var domVgpus = (domain.reservables && domain.reservables.vgpus) || [];
+    if(domVgpus.length){
+        // Preselect EVERY assigned profile (a desktop may have several).
+        domVgpus.forEach(function(vgpu){
+            if ($(div_id+' #reservables-vgpus option[value="'+vgpu+'"]').length == 0) {
+                $(div_id+" #reservables-vgpus").append('<option disabled value="' + vgpu + '">' + vgpu + '</option>')
+            }
+            $(div_id+' #reservables-vgpus option[value="'+vgpu+'"]').prop("selected",true);
+        });
     }else{
         $(div_id+' #reservables-vgpus option[value="None"]').prop("selected",true);
     }
+    // Plain 'change' so select2 re-renders the selection AND the hard-restrict
+    // handler (namespaced on change) runs.
+    $(div_id+' #reservables-vgpus').trigger('change');
 }
 
 function setHardwareDomainDefaultsDetails(domain_id,item){

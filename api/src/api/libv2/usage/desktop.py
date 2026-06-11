@@ -132,12 +132,14 @@ class DesktopsUsage:
         return data
 
     def _process_consumption(self, consumption):
-        if "hardware_bookables_vgpus" in consumption:
-            profile_suffix = consumption["hardware_bookables_vgpus"][0].split("-")[2]
+        # A desktop can carry multiple vGPU profiles, each occupying a memory
+        # partition on a distinct physical card, so bill the SUM of their vRAM
+        # (a single-profile desktop is just a one-element list).
+        gpu_mem = 0
+        for profile in consumption.get("hardware_bookables_vgpus") or []:
+            profile_suffix = profile.split("-")[2]
             match = re.match(r"(\d+)", profile_suffix)
-            gpu_mem = int(match.group(1)) if match else 0
-        else:
-            gpu_mem = 0
+            gpu_mem += int(match.group(1)) if match else 0
         return self._calculate_consumption(
             consumption["started_time"],
             consumption["stopped_time"],

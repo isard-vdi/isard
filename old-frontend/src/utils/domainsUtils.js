@@ -34,7 +34,7 @@ export class DomainsUtils {
       },
       limitedHardware,
       reservables: {
-        vgpus: reservables && reservables.vgpus && reservables.vgpus.length > 0 ? [reservables.vgpus[0]] : ['None']
+        vgpus: reservables && reservables.vgpus && reservables.vgpus.length > 0 ? [...reservables.vgpus] : ['None']
       },
       image
     }

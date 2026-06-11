@@ -1299,7 +1299,10 @@ function renderDisplay(data){
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalEdit').serializeObject();
-                data['reservables-vgpus'] = [data['reservables-vgpus']]
+                // The GPU control is a multi-select: serializeObject() keeps only
+                // ONE value for a repeated field, so read the full array straight
+                // from the select (select2 keeps the underlying <select> in sync).
+                data['reservables-vgpus'] = $('#modalEdit #reservables-vgpus').val() || []
                 data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
                 var notice = new PNotify({
                     text: 'Updating selected item...',

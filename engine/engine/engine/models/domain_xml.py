@@ -2156,6 +2156,68 @@ GUEST_GPU_SLOT_BASE = 0x09
 GUEST_GPU_SLOT_MAX = 0x1F
 
 
+def pinned_cpuset_from_xml(xml):
+    """Union of a domain's CPU-pinning cpusets as a cpulist string
+    (e.g. ``"48-71,92-93"``), or None when the domain is not CPU-pinned.
+
+    Reads ``<cputune><vcpupin cpuset=.../>`` and ``<vcpu cpuset=...>``. The GPU
+    carve uses it to place a desktop's passed-through GPU(s) on the NUMA node
+    matching its pinned vCPUs.
+    """
+    try:
+        tree = etree.parse(StringIO(xml), etree.XMLParser(remove_blank_text=True))
+    except Exception:
+        return None
+    parts = []
+    for el in tree.xpath("/domain/cputune/vcpupin"):
+        cs = el.get("cpuset")
+        if cs:
+            parts.append(cs)
+    for el in tree.xpath("/domain/vcpu"):
+        cs = el.get("cpuset")
+        if cs:
+            parts.append(cs)
+    joined = ",".join(parts)
+    return joined or None
+
+
+def vcpus_from_xml(xml, default=1):
+    """Number of vCPUs from ``<vcpu>`` in a domain XML, or ``default``.
+
+    Used to weigh a desktop's CPU footprint when balancing it across NUMA nodes.
+    """
+    try:
+        tree = etree.parse(StringIO(xml), etree.XMLParser(remove_blank_text=True))
+        el = tree.xpath("/domain/vcpu")
+        if el and el[0].text:
+            return int(el[0].text)
+    except Exception:
+        pass
+    return default
+
+
+def count_passthrough_gpus_in_xml(xml):
+    """Number of passed-through GPUs in a domain XML.
+
+    Counts managed PCI ``<hostdev>`` entries whose source PCI function is ``0``
+    (the GPU itself), so an audio companion at function ``1`` of the same card
+    is not double-counted. Used to decide whether the guest needs the larger
+    64-bit prefetchable MMIO window (``pcie-root-port.pref64-reserve``): with two
+    or more large-BAR cards (e.g. RTX PRO 6000) the second card's BAR fails to
+    map without it.
+    """
+    try:
+        tree = etree.parse(StringIO(xml), etree.XMLParser(remove_blank_text=True))
+    except Exception:
+        return 0
+    return len(
+        tree.xpath(
+            "/domain/devices/hostdev[@type='pci'][@managed='yes']"
+            "/source/address[@function='0x0']"
+        )
+    )
+
+
 def recreate_xml_if_gpu(
     xml,
     mdev_uid,
@@ -2176,12 +2238,16 @@ def recreate_xml_if_gpu(
 
     ``guest_index`` is the GPU's 0-based position in the desktop's reservable
     list. It deterministically fixes the guest-side PCI slot
-    (``GUEST_GPU_SLOT_BASE + guest_index``) for every passthrough hostdev, so
+    (``GUEST_GPU_SLOT_BASE + guest_index``) for every passthrough hostdev
+    (single-function and the GPU+companion multifunction pair), so a desktop
+    with several passthrough GPUs — built by calling this once per card,
+    threading the returned XML back in — lands each on its own stable slot and
     the guest sees its GPUs at the SAME PCI addresses on every start regardless
     of which host card the carve picked. Without it libvirt auto-assigns the
     slot, which drifts between starts / with carve order and re-shuffles
     in-guest GPU enumeration (``nvidia-smi`` index, ``CUDA_VISIBLE_DEVICES``,
-    Docker ``--gpus`` and LLM device maps).
+    Docker ``--gpus`` and LLM device maps). mdev (vGPU) hostdevs get no explicit
+    guest address and never collide, so this does not apply to them.
     """
     xml = xml
 
@@ -2233,8 +2299,8 @@ def recreate_xml_if_gpu(
         companions = list(companion_pci_bdfs or [])
         if companions:
             # GPU + its companion(s) (e.g. the .1 HD-audio function) as a
-            # multifunction pair on the one guest slot, so the guest sees one
-            # logical device matching bare-metal topology.
+            # multifunction pair on the one guest slot (guest_slot above), so the
+            # guest sees one logical device matching bare-metal topology.
             xml_hostdev = (
                 "  <hostdev mode='subsystem' type='pci' managed='yes'>\n"
                 "    <source>\n"

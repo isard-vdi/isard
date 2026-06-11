@@ -162,9 +162,11 @@ def _get_reservables(item_type, item_id):
                 description_code="not_found",
             )
 
-        # Filter out None values
+        # Filter out None values. Sort each desktop's profile list so the
+        # "all desktops share the same vGPU set" check is order-insensitive
+        # (a multi-profile desktop may list profiles in any order).
         valid_vgpus = [
-            tuple(item["reservables"]["vgpus"])
+            tuple(sorted(item["reservables"]["vgpus"]))
             for item in deployment["create_dict"]
             if item["reservables"]["vgpus"] is not None
         ]
@@ -527,9 +529,13 @@ def _parse_desktop_booking(desktop):
     if not booking and desktop.get("tag"):
         booking = get_cached_deployment_bookings(desktop.get("tag"))
 
-    if booking and booking[0].get("reservables", {}).get("vgpus") == desktop.get(
-        "create_dict", {}
-    ).get("reservables", {}).get("vgpus"):
+    # Match the booking to the desktop by vGPU profile SET (order-insensitive):
+    # a multi-profile desktop's booking may list its profiles in any order.
+    if booking and set(
+        (booking[0].get("reservables", {}) or {}).get("vgpus") or []
+    ) == set(
+        (desktop.get("create_dict", {}).get("reservables", {}) or {}).get("vgpus") or []
+    ):
         return {
             "needs_booking": True,
             "next_booking_start": booking[0]["start"].strftime("%Y-%m-%dT%H:%M%z"),

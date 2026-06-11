@@ -140,6 +140,15 @@ class ReservablesPlanner:
                 "bad_request", "End date invalid.", description_code="invalid_end_date"
             )
 
+        # A backwards window (end before start) is meaningless — it yields no
+        # availability — so reject it rather than silently storing a dead plan.
+        if end < start:
+            raise Error(
+                "bad_request",
+                "End date must be after start date.",
+                description_code="invalid_end_date",
+            )
+
         # Plan data structure
         try:
             plan = {
@@ -335,6 +344,26 @@ class ReservablesPlanner:
                 description="There's currently an ongoing booking with this GPU profile",
             )
 
+    def check_subitem_running_desktops(self, subitem_id):
+        """Refuse to strip a profile a RUNNING desktop is still using. The
+        booking guard above only covers in-progress bookings; an admin-started
+        desktop has none, so without this an admin disable would delete the
+        reservable out from under a live domain. Forces a stop first."""
+        with app.app_context():
+            running = list(
+                r.table("domains")
+                .get_all(subitem_id, index="vgpus")
+                .filter(lambda d: r.expr(["Started", "Starting"]).contains(d["status"]))
+                .pluck("id")
+                .run(db.conn)
+            )
+        if running:
+            raise Error(
+                "bad_request",
+                description="There's a running desktop using this GPU profile; "
+                "stop it before disabling",
+            )
+
     def check_subitem_desktops_and_plannings(
         self, reservable_type, item_id, subitem_id
     ):
@@ -515,17 +544,20 @@ class ReservablesPlanner:
                 log.debug(
                     "Plans for " + k + "/" + subitem + ": " + str(len(plans[subitem]))
                 )
-        if len(plans.keys()) == 0:
-            return []
-        elif len(plans.keys()) == 1:
-            return plans
-        else:
-            log.error(
-                "Trying to book desktop with multiple reservables"
-                + str(list(plans.keys()))
-                + ". Not implemented"
-            )
-            return []
+        # Keep only the subitems (profiles) that obtained at least one plan.
+        non_empty = {k: v for k, v in plans.items() if v}
+        requested = [s for sublist in subitems.values() for s in (sublist or [])]
+        if len(non_empty) != len(requested):
+            # At least one requested profile cannot fit in the window: the whole
+            # multi-profile booking is unsatisfiable.
+            return {}
+        # Each profile must land on a distinct physical card (item_id). Plannings
+        # already enforce one profile per card per window, so distinct profiles are
+        # structurally on distinct cards; this set() check is a cheap final guard.
+        chosen_item_ids = [p["item_id"] for v in non_empty.values() for p in v]
+        if len(set(chosen_item_ids)) != len(chosen_item_ids):
+            return {}
+        return non_empty
 
     ##### Scheduling
     def reschedule_existing_plan_start(self, new_plan, existing_plan):

@@ -38,31 +38,41 @@ export class BookingUtils {
   }
 
   static parseStartNowModal (item) {
-    const { max_booking_date: maxBookingDate, showProfileDropdown, reservables_available: availableProfiles, show, profile, action } = item
+    const { max_booking_date: maxBookingDate, showProfileDropdown, reservables_available: availableProfiles, desktopProfiles, show, action } = item
+    const formattedProfiles = showProfileDropdown ? this.formatAvailableProfilesDropdown(availableProfiles) : []
+    // Recovery: pre-seed with the desktop's current profiles that are still
+    // available now (the rest the user re-picks from the available set).
+    const availableIds = formattedProfiles.map((p) => p.id)
+    const preselected = (desktopProfiles || []).filter((id) => availableIds.includes(id))
     return {
       show,
       showProfileDropdown, // if the profile select must be shown
       selected: {
-        profile,
+        profiles: preselected, // ids; a desktop may carry several
         endDate: null,
         action
       },
       data: {
-        availableProfiles: showProfileDropdown ? this.formatAvailableProfilesDropdown(availableProfiles) : [], // if the profile select must be shown
-        availableTimes: DateUtils.breakTimeInChunks(DateUtils.dateToMoment(new Date()), DateUtils.stringToDate(DateUtils.utcToLocalTime(maxBookingDate)), 30, 'minutes'),
+        availableProfiles: formattedProfiles,
+        // Non-recovery: the desktop's single bottleneck window. Recovery: the
+        // component recomputes from the min window of the selected profiles.
+        availableTimes: showProfileDropdown
+          ? []
+          : DateUtils.breakTimeInChunks(DateUtils.dateToMoment(new Date()), DateUtils.stringToDate(DateUtils.utcToLocalTime(maxBookingDate)), 30, 'minutes'),
         maxBookingDate
       }
     }
   }
 
   static formatAvailableProfilesDropdown (profiles) {
-    return profiles.map((item) => {
+    return (profiles || []).map((item) => {
       return {
-        text: item.name,
-        value: { id: item.id, maxBookingDate: item.max_booking_date },
-        maxBookingDate: item.max_booking_date
+        id: item.id,
+        name: item.name,
+        maxBookingDate: item.max_booking_date,
+        hypervisorGroups: item.hypervisor_groups || []
       }
-    }) || []
+    })
   }
 
   static priorityAllowed (payload, priority) {

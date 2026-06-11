@@ -13,6 +13,7 @@ from api import app
 
 from ..libv2.api_logging import logs_domain_event_viewer
 from ..libv2.api_templates import ApiTemplates
+from ..libv2.bookings.api_reservables import attach_vgpu_hypervisor_groups
 from ..libv2.caches import get_document
 from ..libv2.quotas import Quotas
 
@@ -88,29 +89,28 @@ def api_v2_desktop_viewers(payload, desktop_id=False, protocol=False):
 @has_token
 def api_v3_domains_allowed_hardware_reservables(payload, kind, domain_id=None):
     if kind == "reservables":
+        # Admin UIs (webapp) may ask for real hypervisor names; the end-user
+        # frontend (vue2) only gets anonymized group indices.
+        show_names = request.args.get("hypervisor_names", "false").lower() == "true"
         if domain_id and ownsDomainId(payload, domain_id):
             domain_reservables_vgpus = _get_domain_reservables(domain_id)["vgpus"]
-            reservables = {
-                "vgpus": allowed.get_items_allowed(
-                    payload,
-                    "reservables_vgpus",
-                    query_pluck=["id", "name", "description"],
-                    order="name",
-                    query_merge=False,
-                    extra_ids_allowed=domain_reservables_vgpus,
-                )
-            }
-            return json.dumps(reservables)
-        else:
-            reservables = {}
-            reservables["vgpus"] = allowed.get_items_allowed(
+            vgpus = allowed.get_items_allowed(
                 payload,
                 "reservables_vgpus",
-                query_pluck=["id", "name", "description"],
+                query_pluck=["id", "name", "description", "model"],
+                order="name",
+                query_merge=False,
+                extra_ids_allowed=domain_reservables_vgpus,
+            )
+        else:
+            vgpus = allowed.get_items_allowed(
+                payload,
+                "reservables_vgpus",
+                query_pluck=["id", "name", "description", "model"],
                 order="name",
                 query_merge=False,
             )
-            return json.dumps(reservables)
+        return json.dumps({"vgpus": attach_vgpu_hypervisor_groups(vgpus, show_names)})
     if kind == "hardware":
         return Error("bad_request", "Not implemented")
 

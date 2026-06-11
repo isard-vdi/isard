@@ -96,6 +96,7 @@ def api_v3_reservable_items(
             # in-progress booking, so a scripted/direct PUT cannot bypass the
             # UI's check/last guard. (raises bad_request if one spans now.)
             api_rp.check_subitem_current_plan(subitem_id, item_id)
+            api_rp.check_subitem_running_desktops(subitem_id)
             api_rp.delete_subitem(reservable_type, item_id, subitem_id)
 
             if notify_user:
