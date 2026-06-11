@@ -6,6 +6,7 @@
 # License: AGPLv3
 
 import logging as log
+import re as _re
 import traceback
 from typing import Literal
 from uuid import uuid4
@@ -16,6 +17,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.helpers import Helpers
 from isardvdi_common.lib.api_admin import ApiAdmin
+from isardvdi_common.lib.bookings.gpu_realizability import split_qualifier
 from pydantic import BaseModel, Field
 from rethinkdb import r
 
@@ -30,6 +32,157 @@ class GPUsModel(BaseModel):
     description: str = Field(max_length=255, default="")
     brand: str
     reservable_type: Literal["gpus", "usbs"]
+
+
+# An optional admin "~<variant>" qualifier differentiates otherwise-identical
+# brand-model-profile cards into distinct selectable reservables. Restricted to
+# lowercase alphanumerics so it can never collide with the id/suffix parsing
+# (which keys on "-" and the reserved "~" delimiter, and where ".","_","+" already
+# occur inside MIG suffixes).
+_VARIANT_RE = _re.compile(r"^[a-z0-9]{1,20}$")
+
+
+def get_vgpus_hypervisors():
+    """Map each bookable vGPU reservable id to the hypervisors that can host it.
+
+    A profile is hostable on a hypervisor when that hypervisor has a physical
+    card with the profile enabled (``gpus.profiles_enabled``). The hypervisor id
+    is the card id prefix (``<hyp_id>-pci_<bdf>``). Returns ``{reservable_id:
+    sorted([hyp_id, ...])}`` — used to keep a multi-profile desktop's profiles on
+    a single hypervisor (a guest runs on one host).
+    """
+    with ResourceItemsGpus._rdb_context():
+        cards = list(
+            r.table("gpus")
+            .pluck("physical_device", "profiles_enabled")
+            .run(ResourceItemsGpus._rdb_connection)
+        )
+    hyp_by_profile = {}
+    for card in cards:
+        physical_device = card.get("physical_device") or ""
+        hyp_id = (
+            physical_device.rsplit("-pci_", 1)[0]
+            if "-pci_" in physical_device
+            else physical_device
+        )
+        if not hyp_id:
+            continue
+        for profile_id in card.get("profiles_enabled") or []:
+            hyp_by_profile.setdefault(profile_id, set()).add(hyp_id)
+    return {profile_id: sorted(hyps) for profile_id, hyps in hyp_by_profile.items()}
+
+
+def _pci_id_to_sysfs(pci_underscored):
+    """``0000_41_00_0`` -> ``0000:41:00.0`` (the sysfs/pci_devices key form).
+
+    Mirrors the transform the engine uses in
+    ``services/db/hypervisors.py`` so a card's ``physical_device`` BDF can be
+    looked up in ``hypervisors.pci_devices``.
+    """
+    s = pci_underscored.replace("_", ":", 2)
+    return s[:-2] + "." + s[-1] if len(s) >= 2 else s
+
+
+def get_vgpus_placements():
+    """Map each reservable id to the ``{hyp_id: {numa_node, ...}}`` its cards occupy.
+
+    A reservable can be enabled on several physical cards across one or more
+    hypervisors, and within a multi-socket host on cards bound to different NUMA
+    nodes. Returns ``{reservable_id: {hyp_id: sorted([numa_node, ...])}}`` using
+    only real nodes (``>= 0``; ``-1``/unknown/single-socket affinity is dropped),
+    so the UI can group selectable cards by (server, socket) and hint when two
+    profiles can share a socket. The card's NUMA node lives in
+    ``hypervisors.pci_devices[<sysfs_bdf>].numa_node`` (discovered from sysfs).
+    """
+    with ResourceItemsGpus._rdb_context():
+        cards = list(
+            r.table("gpus")
+            .pluck("physical_device", "profiles_enabled")
+            .run(ResourceItemsGpus._rdb_connection)
+        )
+        hypers = list(
+            r.table("hypervisors")
+            .pluck("id", "pci_devices")
+            .run(ResourceItemsGpus._rdb_connection)
+        )
+    # {hyp_id: {sysfs_bdf: numa_node}}
+    numa_by_hyp_bdf = {
+        h["id"]: (h.get("pci_devices") or {}) for h in hypers if h.get("id")
+    }
+    placements = {}  # {reservable_id: {hyp_id: set(numa_node)}}
+    for card in cards:
+        physical_device = card.get("physical_device") or ""
+        if "-pci_" not in physical_device:
+            continue
+        hyp_id, pci_part = physical_device.rsplit("-pci_", 1)
+        if not hyp_id:
+            continue
+        sysfs_bdf = _pci_id_to_sysfs(pci_part)
+        numa = (numa_by_hyp_bdf.get(hyp_id, {}).get(sysfs_bdf, {}) or {}).get(
+            "numa_node"
+        )
+        try:
+            numa = int(numa)
+        except (TypeError, ValueError):
+            numa = None
+        if numa is None or numa < 0:
+            continue
+        for profile_id in card.get("profiles_enabled") or []:
+            placements.setdefault(profile_id, {}).setdefault(hyp_id, set()).add(numa)
+    return placements
+
+
+def attach_vgpu_hypervisor_groups(vgpus, show_names):
+    """Tag each vGPU profile with the hypervisor groups that can host it.
+
+    A multi-profile desktop must keep all its profiles on one hypervisor, so the
+    UI needs to know which profiles share a host. Always attach
+    ``hypervisor_groups`` (anonymized stable indices — two profiles are
+    co-selectable iff their lists intersect). When ``show_names`` (admin/webapp)
+    also attach the real ``hypervisors`` names for grouped labels. Tolerates
+    items missing an ``id`` and a non-list input.
+
+    Also attach the NUMA-socket placement of each profile's cards so the UI can
+    sub-group server → socket and hint when two profiles can share a socket
+    (best memory bandwidth). ``numa_by_group`` keys on the anonymized hypervisor
+    index (``{"1": [0, 1]}``); with ``show_names`` also ``numa_by_hypervisor``
+    keyed on the real hypervisor id. Nodes are real (``>= 0``) only, so a
+    single-socket / unknown-NUMA server yields an empty mapping and the UI shows
+    no socket layer.
+    """
+    if not isinstance(vgpus, list):
+        return vgpus
+    return _tag_vgpus_with_groups(
+        vgpus, get_vgpus_hypervisors(), get_vgpus_placements(), show_names
+    )
+
+
+def _tag_vgpus_with_groups(vgpus, hyp_map, placements, show_names):
+    """Pure tagging step of :func:`attach_vgpu_hypervisor_groups` (no DB).
+
+    ``hyp_map`` is ``{reservable_id: [hyp_id, ...]}`` and ``placements`` is
+    ``{reservable_id: {hyp_id: iterable(numa_node)}}``. Kept dependency-free so it
+    can be unit-tested without booting Flask.
+    """
+    if not isinstance(vgpus, list):
+        return vgpus
+    ordered_hyps = sorted({h for v in vgpus for h in hyp_map.get(v.get("id"), [])})
+    anon_index = {h: i + 1 for i, h in enumerate(ordered_hyps)}
+    for v in vgpus:
+        hyps = hyp_map.get(v.get("id"), [])
+        v["hypervisor_groups"] = [anon_index[h] for h in hyps]
+        placement = placements.get(v.get("id"), {})
+        v["numa_by_group"] = {
+            str(anon_index[h]): sorted(nodes)
+            for h, nodes in placement.items()
+            if h in anon_index and nodes
+        }
+        if show_names:
+            v["hypervisors"] = hyps
+            v["numa_by_hypervisor"] = {
+                h: sorted(nodes) for h, nodes in placement.items() if nodes
+            }
+    return vgpus
 
 
 class Reservables:
@@ -310,6 +463,39 @@ class ResourceItemsGpus(RethinkSharedConnection):
 
     @classmethod
     def enable_subitem(cls, item_id, subitem_id, enabled):
+        # Reject a malformed "~<variant>" qualifier early (choke point for every
+        # enable/disable caller) so a bad label can never reach id/suffix parsing.
+        variant = split_qualifier(subitem_id)[1]
+        if variant is not None and not _VARIANT_RE.match(variant):
+            raise Error(
+                "bad_request",
+                "Invalid vGPU variant name '%s' (use 1-20 lowercase alphanumerics)"
+                % variant,
+                description_code="bad_request",
+            )
+        # A variant name must map to a SINGLE base profile: the same "~<name>" may
+        # be re-used to join the identical profile across several cards (same base
+        # id), but never attached to a DIFFERENT profile (a different brand-model-
+        # suffix, i.e. a different RAM size) -- that would be an operator mistake.
+        # Only guard when enabling; a disable targets an id that already exists.
+        if enabled and variant is not None:
+            base = split_qualifier(subitem_id)[0]
+            with cls._rdb_context():
+                clashes = list(
+                    r.table("reservables_vgpus")
+                    .filter(lambda res: res["id"].match("~" + variant + "$"))
+                    .pluck("id")
+                    .run(cls._rdb_connection)
+                )
+            for res in clashes:
+                if split_qualifier(res["id"])[0] != base:
+                    raise Error(
+                        "bad_request",
+                        "vGPU variant '%s' is already used by profile '%s'; pick a "
+                        "different name or the matching profile."
+                        % (variant, res["id"]),
+                        description_code="bad_request",
+                    )
         with cls._rdb_context():
             item = r.table("gpus").get(item_id).run(cls._rdb_connection)
         if not item:
@@ -318,11 +504,16 @@ class ResourceItemsGpus(RethinkSharedConnection):
                 "Gpu id not found in gpu table",
                 description_code="not_found",
             )
+        # Idempotent: a repeated enable must not duplicate the id in
+        # profiles_enabled (a double-click / retried PUT otherwise leaves a
+        # dangling copy that only an equal number of disables can clear), and a
+        # disable strips every occurrence so the reservable is fully released.
         enabled_profiles = item["profiles_enabled"]
         if enabled:
-            enabled_profiles.append(subitem_id)
+            if subitem_id not in enabled_profiles:
+                enabled_profiles.append(subitem_id)
         else:
-            enabled_profiles.remove(subitem_id)
+            enabled_profiles = [p for p in enabled_profiles if p != subitem_id]
         with cls._rdb_context():
             if not Helpers._check(
                 r.table("gpus")
@@ -367,6 +558,14 @@ class ResourceItemsGpus(RethinkSharedConnection):
                 "Gpu profile id not found in gpu_profiles table",
                 description_code="not_found",
             )
+        # Canonical base id from the card + profile; preserve any "~<variant>"
+        # qualifier the admin attached so two same brand-model-profile cards can
+        # be distinct, separately-bookable reservables. The variant is also shown
+        # in the human name/description.
+        variant = split_qualifier(subitem_id)[1]
+        base_id = item["brand"] + "-" + item["model"] + "-" + subitem["profile"]
+        reservable_id = base_id + ("~" + variant if variant else "")
+        variant_label = " [" + variant + "]" if variant else ""
         new_reservable_vgpu = {
             "allowed": {
                 "categories": False,
@@ -380,20 +579,22 @@ class ResourceItemsGpus(RethinkSharedConnection):
             + item["model"]
             + " with profile "
             + subitem["profile"]
+            + variant_label
             + " with "
             + str(subitem["memory"])
             + " vRAM with maximum "
             + str(subitem["units"])
             + " vGPUs per device",
             "heads": 1,
-            "id": item["brand"] + "-" + item["model"] + "-" + subitem["profile"],
+            "id": reservable_id,
             "model": item["model"],
             "name": "GPU "
             + item["brand"]
             + " "
             + item["model"]
             + " "
-            + str(subitem["memory"]),
+            + str(subitem["memory"])
+            + variant_label,
             "profile": subitem["profile"],
             "ram": subitem["memory"],
             "vram": subitem["memory"],
@@ -501,6 +702,25 @@ class ResourceItemsGpus(RethinkSharedConnection):
                 )
 
     @classmethod
+    def _variants_by_base(cls):
+        """Map each base reservable id (``brand-model-suffix``) to the set of
+        ``~<name>`` variant names currently defined for it across all cards.
+
+        Sourced from ``reservables_vgpus`` so the admin UI can offer the exact
+        names already in use for a profile (to join the same profile over several
+        cards without retyping/mistyping the label)."""
+        with cls._rdb_context():
+            ids = list(
+                r.table("reservables_vgpus").pluck("id").run(cls._rdb_connection)
+            )
+        out = {}
+        for row in ids:
+            base, name = split_qualifier(row["id"])
+            if name:
+                out.setdefault(base, set()).add(name)
+        return out
+
+    @classmethod
     def list_subitems(cls, item_id):
         with cls._rdb_context():
             item = r.table("gpus").get(item_id).run(cls._rdb_connection)
@@ -519,6 +739,12 @@ class ResourceItemsGpus(RethinkSharedConnection):
                 )[0]["profiles"]
         except (IndexError, KeyError):
             raise Error("not_found", "Gpu id not found in gpu definitions table")
+        # Attach the variant names already defined for each base profile so the
+        # admin can re-use an exact "~<name>" (instead of free-typing it) to join
+        # the same profile across cards. Empty list when none exist yet.
+        variants_by_base = cls._variants_by_base()
+        for subitem in subitems:
+            subitem["variants"] = sorted(variants_by_base.get(subitem.get("id"), set()))
         return subitems
 
     @classmethod
@@ -570,7 +796,11 @@ class ResourceItemsGpus(RethinkSharedConnection):
                     )
                     .run(cls._rdb_connection)
                 )[0].get("profiles")
-            subitem = [s for s in subitems if s.get("id") == subitem_id][0]
+            # Resolve against the BASE id; an optional "~<variant>" qualifier is
+            # an admin label on the reservable, not part of the hardware profile
+            # catalog, so strip it before matching gpu_profiles.
+            base_subitem_id = split_qualifier(subitem_id)[0]
+            subitem = [s for s in subitems if s.get("id") == base_subitem_id][0]
         except (IndexError, KeyError, TypeError):
             log.debug(traceback.format_exc())
             raise Error(
@@ -715,8 +945,16 @@ class ResourceItemsGpus(RethinkSharedConnection):
 
     @classmethod
     def get_subitem_parent_item(cls, subitem):
-        parts = subitem.split("-")
-        return {"brand": parts[0], "model": parts[1], "profile": parts[1]}
+        # Drop any "~<variant>" qualifier, then split on the FIRST two dashes only
+        # so a dashed-MIG suffix (e.g. "1-2Q") stays intact; profile is the suffix
+        # part, not the model (the previous parts[1]/parts[1] was a bug).
+        base = split_qualifier(subitem)[0]
+        parts = base.split("-", 2)
+        return {
+            "brand": parts[0],
+            "model": parts[1] if len(parts) > 1 else "",
+            "profile": parts[2] if len(parts) == 3 else "",
+        }
 
     @classmethod
     def get_subitem_units(cls, item_id, subitem):

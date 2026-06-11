@@ -191,45 +191,39 @@ class Scheduler(RethinkSharedConnection):
         start_date = datetime.now(pytz.utc)
 
         if ((desktop.get("create_dict") or {}).get("reservables") or {}).get("vgpus"):
+            # Match the booking whose vGPU profiles are the SAME SET as the
+            # desktop's (a multi-profile desktop may list them in any order, so
+            # compare sets in Python rather than relying on array order/index).
+            desktop_vgpus_set = set(
+                ((desktop.get("create_dict") or {}).get("reservables") or {}).get(
+                    "vgpus"
+                )
+                or []
+            )
+
+            def _matching_bookings(item_id):
+                with cls._rdb_context():
+                    candidates = (
+                        r.table("bookings")
+                        .get_all(item_id, index="item_id")
+                        .filter(lambda plan: plan["end"] > r.now())
+                        .order_by("start")
+                        .run(cls._rdb_connection)
+                    )
+                return [
+                    b
+                    for b in candidates
+                    if set((b.get("reservables") or {}).get("vgpus") or [])
+                    == desktop_vgpus_set
+                ]
+
             # First find if deployment has a booking
             booking = []
             if desktop.get("tag"):
-                item_id = desktop.get("tag")
-                with cls._rdb_context():
-                    booking = (
-                        r.table("bookings")
-                        .get_all(item_id, index="item_id")
-                        .filter(
-                            lambda plan: (plan["end"] > r.now())
-                            & (
-                                plan["reservables"]["vgpus"]
-                                == desktop.get("create_dict", {})
-                                .get("reservables", {})
-                                .get("vgpus")
-                            )
-                        )
-                        .order_by("start")
-                        .run(cls._rdb_connection)
-                    )
+                booking = _matching_bookings(desktop.get("tag"))
             if not len(booking):
                 # If not, find if desktop has a booking
-                item_id = desktop_id
-                with cls._rdb_context():
-                    booking = (
-                        r.table("bookings")
-                        .get_all(item_id, index="item_id")
-                        .filter(
-                            lambda plan: (plan["end"] > r.now())
-                            & (
-                                plan["reservables"]["vgpus"]
-                                == desktop.get("create_dict", {})
-                                .get("reservables", {})
-                                .get("vgpus")
-                            )
-                        )
-                        .order_by("start")
-                        .run(cls._rdb_connection)
-                    )
+                booking = _matching_bookings(desktop_id)
             if not len(booking):
                 if payload["role_id"] in ["admin", "manager"]:
                     # They are gods, they can do whatever they want

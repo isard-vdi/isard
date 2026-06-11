@@ -72,6 +72,74 @@ socketio = RedisManager(socketio_url(), write_only=True)
 
 _get_domain_enrichment_cache: TTLCache = TTLCache(maxsize=50, ttl=30)
 
+MAX_VGPU_PROFILES_PER_DESKTOP = 4
+
+
+def validate_reservables_vgpus(vgpus):
+    """Validate a desktop's list of vGPU reservable ids.
+
+    Rejects duplicate profiles, more than MAX_VGPU_PROFILES_PER_DESKTOP, and
+    unknown reservable ids. Tolerates None / the ``["None"]`` "no GPU" sentinel
+    and returns the value unchanged so callers can keep their normalization.
+    """
+    if not vgpus:
+        return vgpus
+    if len(vgpus) > MAX_VGPU_PROFILES_PER_DESKTOP:
+        raise Error(
+            "bad_request",
+            f"A desktop can have at most {MAX_VGPU_PROFILES_PER_DESKTOP} vGPU profiles",
+            description_code="too_many_vgpu_profiles",
+        )
+    if len(set(vgpus)) != len(vgpus):
+        raise Error(
+            "bad_request",
+            "Duplicate vGPU profiles are not allowed",
+            description_code="duplicate_vgpu_profiles",
+        )
+    real = [v for v in vgpus if v and v != "None"]
+    if real:
+        with DesktopsProcessed._rdb_context():
+            rows = list(
+                r.table("reservables_vgpus")
+                .get_all(r.args(real))
+                .pluck("id", "model")
+                .run(DesktopsProcessed._rdb_connection)
+            )
+        if len(rows) != len(real):
+            raise Error(
+                "not_found",
+                "One or more vGPU profiles do not exist",
+                description_code="vgpu_profile_not_found",
+            )
+        if len(real) > 1:
+            # A guest runs on a single hypervisor and can only attach that host's
+            # cards, so every profile must be hostable on one common hypervisor.
+            # lazy: avoids domains->bookings import cycle at module load
+            from isardvdi_common.lib.bookings.reservables import get_vgpus_hypervisors
+
+            hyp_map = get_vgpus_hypervisors()
+            hyp_sets = [set(hyp_map.get(v, [])) for v in real]
+            if all(hyp_sets):
+                # Enablement data is complete: reject when no host hosts them all.
+                common = set.intersection(*hyp_sets)
+                if not common:
+                    raise Error(
+                        "bad_request",
+                        "The selected vGPU profiles are not all available on a "
+                        "single hypervisor",
+                        description_code="vgpu_profiles_different_hypervisors",
+                    )
+            elif len({row.get("model") for row in rows}) > 1:
+                # Incomplete enablement data: fall back to the same-model rule
+                # (a model generally lives on its own hypervisors).
+                raise Error(
+                    "bad_request",
+                    "All vGPU profiles must be of the same GPU model so they can "
+                    "run on one hypervisor",
+                    description_code="vgpu_profiles_different_models",
+                )
+    return vgpus
+
 
 class DesktopsProcessed(RethinkSharedConnection):
     _rdb_table = "domains"
@@ -1550,10 +1618,14 @@ class DesktopsProcessed(RethinkSharedConnection):
             desktop = cls.parse_domain_update(d, data, admin_or_manager)
             domain = Caches.get_document("domains", d)
 
-            if (desktop_data.get("reservables") or {}).get("vgpus", []) != (
-                domain.get("create_dict", {}).get("reservables") or {}
-            ).get("vgpus", []):
-                # Delete booking when the vGPU profile is changed
+            new_vgpus = (desktop_data.get("reservables") or {}).get("vgpus") or []
+            validate_reservables_vgpus(new_vgpus)
+            old_vgpus = (domain.get("create_dict", {}).get("reservables") or {}).get(
+                "vgpus"
+            ) or []
+            if set(new_vgpus) != set(old_vgpus):
+                # Delete booking when the SET of vGPU profiles changes (reordering
+                # the same profiles must not drop a still-valid booking).
                 Bookings.delete_item_bookings("desktop", d)
 
             update_payload = {**desktop}
@@ -2066,6 +2138,54 @@ class DesktopsProcessed(RethinkSharedConnection):
     #             traceback.format_exc(),
     #             description_code="generic_error",
     #         )
+
+    @classmethod
+    def clean_missing_reservables(cls, desktop_id):
+        """Strip vGPU reservables that no longer exist, and alert the user.
+
+        A desktop keeps the reservable ids it was created with; if an admin later
+        deletes that GPU profile, the id dangles and the booking/start path blows
+        up (``payload_priority`` dereferences a ``None`` reservable). Here we
+        detect dangling ids, remove them from ``create_dict.reservables.vgpus``
+        (keeping any still-valid profiles, clearing to ``None`` when none remain
+        so the edit form shows no GPU selected and the desktop can start without
+        one on retry), and raise a clear Error telling the user to pick a new GPU.
+        No-op when the desktop has no reservables or all of them still exist.
+        """
+        with cls._rdb_context():
+            desktop = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck({"create_dict": {"reservables": True}})
+                .run(cls._rdb_connection)
+            )
+        reservables = (desktop or {}).get("create_dict", {}).get("reservables") or {}
+        vgpus = reservables.get("vgpus") or []
+        real = [v for v in vgpus if v and v != "None"]
+        if not real:
+            return
+        with cls._rdb_context():
+            existing = {
+                x["id"]
+                for x in r.table("reservables_vgpus")
+                .get_all(r.args(real))
+                .pluck("id")
+                .run(cls._rdb_connection)
+            }
+        missing = [v for v in real if v not in existing]
+        if not missing:
+            return
+        valid = [v for v in vgpus if v in existing]
+        with cls._rdb_context():
+            r.table("domains").get(desktop_id).update(
+                {"create_dict": {"reservables": {"vgpus": valid or None}}}
+            ).run(cls._rdb_connection)
+        raise Error(
+            "precondition_required",
+            "The desktop's GPU profile no longer exists and has been removed. "
+            "Edit the desktop to select an available GPU profile before starting it.",
+            description_code="desktop_reservable_not_found",
+        )
 
     @classmethod
     def stop_user_desktops(cls, user_id: str, force: bool = None):

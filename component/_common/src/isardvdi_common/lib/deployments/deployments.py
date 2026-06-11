@@ -1059,8 +1059,10 @@ class DeploymentsProcessed(RethinkSharedConnection):
         # Vue 3 deployments without a GPU pin omit the key entirely, so
         # the entry is ``None``. Treat that as "no vgpus" rather than
         # crashing with ``NoneType.get``.
+        # Sorted so the same-vGPU-set check is order-insensitive (a
+        # multi-profile desktop may list profiles in any order).
         valid_vgpus = [
-            tuple((d.get("reservables") or {}).get("vgpus"))
+            tuple(sorted((d.get("reservables") or {}).get("vgpus")))
             for d in parsed_desktops
             if (d.get("reservables") or {}).get("vgpus") is not None
         ]
@@ -1784,8 +1786,10 @@ class DeploymentsProcessed(RethinkSharedConnection):
         # Vue 3 deployments without a GPU pin omit the key entirely, so
         # the entry is ``None``. Treat that as "no vgpus" rather than
         # crashing with ``NoneType.get``.
+        # Sorted so the same-vGPU-set check is order-insensitive (a
+        # multi-profile desktop may list profiles in any order).
         valid_vgpus = [
-            tuple((d.get("reservables") or {}).get("vgpus"))
+            tuple(sorted((d.get("reservables") or {}).get("vgpus")))
             for d in parsed_desktops
             if (d.get("reservables") or {}).get("vgpus") is not None
         ]
