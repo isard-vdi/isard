@@ -18,8 +18,6 @@ plugins:
     out: pkg/gen/proto/python/src/isardvdi_protobuf
   - protoc_builtin: pyi
     out: pkg/gen/proto/python/src/isardvdi_protobuf
-  # Use the local grpc_python_plugin (apk grpc-plugins) instead of the BSR
-  # remote plugin so codegen does not depend on buf.build rate limits.
   - local: grpc_python_plugin
     out: pkg/gen/proto/python/src/isardvdi_protobuf
   - local: protoc-gen-es

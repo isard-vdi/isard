@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.20
 
 FROM golang:1.25.12-alpine3.24@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587 AS go-build
 ENV CGO_ENABLED=0
@@ -40,7 +40,7 @@ RUN apk add --no-cache \
         openssl-dev \
         zlib-dev
 WORKDIR /workspace
-COPY . .
+COPY --parents ./**/pyproject.toml ./uv.lock ./.python-version ./
 RUN uv sync --frozen --no-dev \
         --package isardvdi-codegen \
         --no-editable && \

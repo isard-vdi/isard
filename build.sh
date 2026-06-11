@@ -734,15 +734,7 @@ generate_code(){
 	CODEGEN_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/isardvdi/codegen"
 	mkdir -p "$CODEGEN_CACHE"
 
-	# Redirect stdin from /dev/null so the codegen container does not
-	# steal stdin from the outer `echo "$CONFIG_FILES" | while read`
-	# loop — without it, only the first cfg gets processed when more
-	# than one isardvdi*.cfg exists in cwd.
-	docker run --rm -u "$(id -u)" \
-		-e HOME=/tmp \
-		-v "$(pwd):/build" \
-		-v "$CODEGEN_CACHE:/cache" \
-		"$DOCKER_IMAGE" </dev/null
+	docker run --rm -u "$(id -u)" -e HOME=/tmp -v "$(pwd):/build" -v "$CODEGEN_CACHE:/cache" "$DOCKER_IMAGE"
 	echo "Generated the code successfully"
 }
 
