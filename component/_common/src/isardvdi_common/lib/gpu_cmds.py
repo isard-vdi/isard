@@ -23,20 +23,30 @@ def build_mig_transition_cmds(
     old_profile,
     new_profile,
     new_mig_profile_id,
+    mig_count=1,
 ):
     """Commands to transition MIG mode for a card (vGPU/PT<->MIG, MIG<->MIG).
+
+    ``mig_count`` is how many ``+gfx`` GPU-instances of ``new_mig_profile_id`` to
+    carve (one per bookable vGPU slice). A MIG-backed vGPU profile like ``1_24Q``
+    exposes ``mig_count`` slices, so the inline path MUST create that many GIs --
+    matching ``build_mig_vgpu_carve_cmds``/``build_mig_recarve_cmds`` -- or it
+    under-carves the card to a single slice. The ``+gfx`` GI variant is the only
+    one that backs a vGPU mdev, and ``-C`` creates the compute instance per GI in
+    one shot (so the separate ``-cci`` is not needed).
 
     Returns a ``list[str]``, or ``None`` when neither side is MIG (the caller
     should not have routed here). The caller does the logging and execution.
     """
+    gis = ",".join([str(new_mig_profile_id)] * max(1, int(mig_count or 1)))
     cmds = []
     if old_is_mig and new_is_mig:
-        # MIG -> MIG: destroy old instances, create new ones
+        # MIG -> MIG: destroy old instances, create new ones (one +gfx GI per
+        # bookable slice, with its compute instance via -C)
         cmds = [
             f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
             f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
-            f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
-            f"nvidia-smi mig -i {pci_bdf} -cci",
+            f"nvidia-smi mig -i {pci_bdf} -cgi {gis} -C",
         ]
     elif not old_is_mig and new_is_mig:
         # vGPU/PT -> MIG: remove mdevs, rebind nvidia if PT, enable MIG
@@ -61,8 +71,7 @@ def build_mig_transition_cmds(
                 f"nvidia-smi -i {pci_bdf} -mig 1",
                 f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
                 "sleep 2",
-                f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
-                f"nvidia-smi mig -i {pci_bdf} -cci",
+                f"nvidia-smi mig -i {pci_bdf} -cgi {gis} -C",
             ]
         )
     elif old_is_mig and not new_is_mig:
@@ -82,6 +91,72 @@ def build_mig_transition_cmds(
     else:
         return None
     return cmds
+
+
+def build_mig_vgpu_carve_cmds(pci_bdf, gfx_profile_id, count):
+    """Enable MIG, re-enable SR-IOV, then carve ``count`` graphics MIG
+    GPU-instances of the ``+gfx`` GI profile ``gfx_profile_id`` (each with a
+    compute instance), so the per-slice vGPU mdev type (``DC-N-<mem>Q``) becomes
+    available on the VFs. The caller then creates one mdev per VF (up to
+    ``count``).
+
+    ORDER IS LOAD-BEARING (validated on RTX PRO 6000 Blackwell hardware):
+    ``sriov-manage -e`` MUST run BEFORE ``-cgi``. ``sriov-manage -e`` re-enables
+    SR-IOV by unbinding and rebinding the nvidia driver on the PF (its
+    pci-pf-stub dance), which DESTROYS any GPU-instances that already exist. So
+    the working sequence is: tear VFs down (the PF rejects MIG-enable while VFs
+    are bound) -> ``-mig 1`` -> ``--gpu-reset`` to apply -> ``sriov-manage -e``
+    to bring the VFs up -> THEN ``-cgi <gfx>,... -C`` (the GIs survive and back
+    the VF mdev types; the ``+gfx`` GI variant is the only one that exposes a
+    vGPU mdev, and ``-C`` creates the compute instance per GI in one shot).
+    Creating the GIs first and enabling SR-IOV after wipes them -> 0 bookable.
+
+    Returns a ``list[str]``; the caller logs and executes. Reuses ``sriov-manage``
+    (bind-mounted in the hypervisor container; its pci-pf-stub dance is also
+    inlined in ``build_vfio_unbind_cmds`` as the proven fallback)."""
+    gis = ",".join([str(gfx_profile_id)] * max(1, int(count)))
+    return [
+        f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
+        f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
+        f"sriov-manage -d {pci_bdf} 2>/dev/null || true",
+        f"nvidia-smi -i {pci_bdf} -mig 1",
+        f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+        "sleep 2",
+        f"sriov-manage -e {pci_bdf} 2>/dev/null || true",
+        "udevadm settle 2>/dev/null || true",
+        f"nvidia-smi mig -i {pci_bdf} -cgi {gis} -C",
+        "sleep 1",
+    ]
+
+
+def build_mig_clear_card_mdevs_cmds(pci_bdf):
+    """Remove every live mdev under this card's SR-IOV VFs (so the backing MIG
+    GPU-instances can then be destroyed). Best-effort shell loop; safe when there
+    are none. Used by the warm repartition path before re-laying-out the GIs."""
+    return [
+        f"for d in /sys/bus/pci/devices/{pci_bdf}/virtfn*/mdev_supported_types/*/devices/*/; "
+        f'do [ -e "$d" ] && echo 1 > "${{d}}remove" 2>/dev/null || true; done'
+    ]
+
+
+def build_mig_recarve_cmds(pci_bdf, gfx_profile_id, count):
+    """Re-lay-out an ALREADY-MIG-enabled card (SR-IOV VFs up) to ``count`` ``+gfx``
+    GPU-instances of one profile, at the GI level ONLY — **no ``sriov-manage``, no
+    ``-mig`` toggle, no GPU reset**. The gentle, dynamic counterpart of
+    ``build_mig_vgpu_carve_cmds`` (the cold path that also enables MIG mode and
+    re-cycles SR-IOV). The caller clears existing mdevs first
+    (``build_mig_clear_card_mdevs_cmds``) so the old GIs can be destroyed, then
+    re-carves one mdev per VF. Validated on RTX PRO 6000 Blackwell: switching a
+    card's uniform MIG-vGPU profile this way leaves SR-IOV/VFs and the PF binding
+    intact (no bus reset). Symmetric layouts auto-place; mixed layouts are the
+    asymmetric follow-up."""
+    gis = ",".join([str(gfx_profile_id)] * max(1, int(count)))
+    return [
+        f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
+        f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
+        f"nvidia-smi mig -i {pci_bdf} -cgi {gis} -C",
+        "sleep 1",
+    ]
 
 
 def build_vfio_bind_cmds(pci_bdf, sriov_totalvfs, sriov_numvfs):

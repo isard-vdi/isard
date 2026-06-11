@@ -38,9 +38,15 @@ RUN apk -U upgrade --no-cache
 RUN mkdir -p /lib64 && \
     ln -sf /lib/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
 
+# eudev provides the `udevadm` CLI (eudev-libs alone does not). GPU discovery's
+# SR-IOV VF cycle settles the kernel with `udevadm settle` after
+# `sriov-manage -e` so the new VFs rebind to nvidia before mdev enumeration.
+# Without it the settle is skipped and slower cards (e.g. A16 with many VFs)
+# time out the VF-bound poll and fall back to a disruptive per-card
+# `nvidia-smi -r` bus reset.
 RUN apk add --no-cache \
     alsa-lib augeas-libs bash bridge-utils cairo cdparanoia-libs coreutils curl \
-    dbus eudev-libs fontconfig freetype fribidi gcompat graphite2 gst-plugins-base \
+    dbus eudev eudev-libs fontconfig freetype fribidi gcompat graphite2 gst-plugins-base \
     gstreamer harfbuzz iproute2 libcap libcrypto3 libdrm libepoxy libffi libgcrypt \
     libgpg-error libjpeg-turbo libogg libpcap libpciaccess libpng libseccomp \
     libtheora libusb libvirt libvirt-common-drivers libvirt-daemon libvirt-qemu \

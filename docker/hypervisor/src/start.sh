@@ -42,7 +42,80 @@ ssh-keygen -A
 /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config >/dev/null 2>&1 &
 sleep 1
 
-echo "---> Setting up hypervisor certificates from api..."
+# Do NOT progress the startup until the API is reachable. A hypervisor that runs
+# its (slow) GPU discovery and registers against a not-yet-ready API ends up
+# Online-but-incomplete -- registration half-persists (no vgpus / no gpu_targets
+# back), so no GPU profile is applied and the card looks empty. This bites on a
+# full-stack `docker compose up -d` where every container (db/engine/api/hyp)
+# restarts at once and the fast hypervisor races ahead. Block here until the API
+# answers (any HTTP status = the API is serving; only a connection failure means
+# down), then register against a ready stack.
+echo "---> Waiting for the API to be reachable before registering..."
+api_wait=0
+until python3 -c "
+import os, sys, ssl, urllib.request, urllib.error
+# Resolve the API base URL the SAME way the generated isardvdi_apiv4_client
+# does (isardvdi_apiv4_client_auth._url.resolve_base_url): no API_DOMAIN /
+# legacy sentinels mean the in-cluster isard-apiv4 service (all-in-one);
+# anything else is a remote API on a standalone hypervisor. On an
+# all-in-one this gate solves the boot race against the co-located
+# db/engine/apiv4; on a standalone hypervisor it waits for the already-up
+# remote API instead of a non-existent local service.
+api_domain = os.environ.get('API_DOMAIN', '').strip()
+if not api_domain or api_domain == 'isard-api' or api_domain == 'localhost' or api_domain.startswith('isard-'):
+    base = 'http://isard-apiv4:5000/api/v4/'
+else:
+    base = 'https://%s/api/v4/' % api_domain
+ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+try:
+    urllib.request.urlopen(base, timeout=3, context=ctx)
+except urllib.error.HTTPError:
+    pass  # 4xx/5xx still means the API process is up and serving
+except Exception:
+    sys.exit(1)
+" 2>/dev/null; do
+  api_wait=$((api_wait + 3))
+  echo "     API not reachable yet (${api_wait}s elapsed); waiting 3s..."
+  sleep 3
+done
+echo "---> API reachable; proceeding with registration."
+
+# Release the GPUs BEFORE any discovery/apply. A privileged container runs qemu
+# in the HOST PID namespace, so qemu from the previous container life survives a
+# restart and still holds VFs/mdevs. Both of the next steps are unsafe while a
+# stale qemu holds a card: discovery cycles SR-IOV VFs (`sriov-manage -d` wedges
+# the PF in D-state if a VF is in use), and the registration apply is
+# non-deliberate, so a busy card makes it skip the carve entirely. So kill any
+# leftover qemu and wipe sysfs mdevs FIRST -- then `setup` discovers and carves a
+# clean card, and the pool it creates is the final one. (This block used to run
+# AFTER `setup`, which destroyed the freshly-applied vGPU pool and left the DB
+# advertising phantom mdevs.)
+echo "---> Cleaning up leftover qemu processes and mdevs (before GPU discovery)..."
+STALE_QEMU=$(pgrep -f 'qemu-system' 2>/dev/null || true)
+if [ -n "$STALE_QEMU" ]; then
+    echo "    Killing $(echo "$STALE_QEMU" | wc -w) leftover qemu process(es)..."
+    echo "$STALE_QEMU" | xargs kill -TERM 2>/dev/null || true
+    # Wait up to 10s for graceful exit, then force
+    for i in $(seq 1 20); do
+        pgrep -f 'qemu-system' >/dev/null 2>&1 || break
+        sleep 0.5
+    done
+    pgrep -f 'qemu-system' >/dev/null 2>&1 && {
+        echo "    Force-killing remaining qemu processes..."
+        pkill -9 -f 'qemu-system' 2>/dev/null || true
+        sleep 1
+    }
+fi
+# Wipe all sysfs mdevs now that no qemu holds them, so discovery+apply start clean
+for uuid in $(ls /sys/bus/mdev/devices/ 2>/dev/null); do
+    echo 1 > /sys/bus/mdev/devices/$uuid/remove 2>/dev/null || true
+done
+echo "    qemu cleanup done (remaining mdevs: $(ls /sys/bus/mdev/devices/ 2>/dev/null | wc -l))"
+
+echo "---> Registering hypervisor with API (certificates + SR-IOV/GPU discovery)..."
+echo "     GPU/vGPU discovery can take a while on vGPU hosts;"
+echo "     see 'docker logs isard-hypervisor' for per-GPU progress and failures."
+report_step 0 "GPU/hardware discovery" None
 python3 /src/lib/hypervisor.py setup
 chmod 440 /etc/pki/libvirt-spice/*
 chown qemu:root /etc/pki/libvirt-spice/*
@@ -152,47 +225,23 @@ do
 done
 report_step 5 "Network setup" None
 
-echo "---> Cleaning up leftover qemu processes and mdevs..."
-# Privileged containers run qemu in the host PID namespace; processes
-# survive docker restart.  Kill them so VFs release their mdevs before
-# GPU discovery creates the fresh engine-managed pool.
-STALE_QEMU=$(pgrep -f 'qemu-system' 2>/dev/null || true)
-if [ -n "$STALE_QEMU" ]; then
-    echo "    Killing $(echo "$STALE_QEMU" | wc -w) leftover qemu process(es)..."
-    echo "$STALE_QEMU" | xargs kill -TERM 2>/dev/null || true
-    # Wait up to 10s for graceful exit, then force
-    for i in $(seq 1 20); do
-        pgrep -f 'qemu-system' >/dev/null 2>&1 || break
-        sleep 0.5
-    done
-    # Force kill any survivors
-    pgrep -f 'qemu-system' >/dev/null 2>&1 && {
-        echo "    Force-killing remaining qemu processes..."
-        pkill -9 -f 'qemu-system' 2>/dev/null || true
-        sleep 1
-    }
-fi
-# Wipe all sysfs mdevs now that no qemu holds them
-for uuid in $(ls /sys/bus/mdev/devices/ 2>/dev/null); do
-    echo 1 > /sys/bus/mdev/devices/$uuid/remove 2>/dev/null || true
-done
-MDEV_COUNT=$(ls /sys/bus/mdev/devices/ 2>/dev/null | wc -l)
-echo "    qemu cleanup done (remaining mdevs: $MDEV_COUNT)"
-
-echo "---> Discovering NVIDIA GPUs and hugepages..."
+# GPUs were discovered AND carved at registration (step 0) on a clean card (the
+# qemu/mdev cleanup now runs BEFORE registration, above). The destructive second
+# discovery that used to live here ran another `sriov-manage` VF cycle, which
+# wiped the freshly-applied vGPU pool and left the DB advertising phantom mdevs.
+# It is gone; only report hugepages here (read-only).
+echo "---> Reporting hugepages..."
 export LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH:-}
 python3 -c "
-from lib.gpu_discovery import discover_gpus, discover_hugepages
+from lib.gpu_discovery import discover_hugepages
 import json
-gpus = discover_gpus()
-print(json.dumps(gpus, indent=2)) if gpus else print('No NVIDIA GPUs found')
 hp = discover_hugepages()
 if hp.get('1G', {}).get('total') or hp.get('2M', {}).get('total'):
     print(json.dumps(hp, indent=2))
 else:
     print('No hugepages configured')
 "
-report_step 6 "GPU & hugepages discovery" None
+report_step 6 "Hugepages report" None
 
 echo "---> Checking hypervisor by creating/destroying test domain..."
 virsh create /src/checks/domain.xml

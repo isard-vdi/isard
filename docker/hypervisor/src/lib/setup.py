@@ -1,10 +1,12 @@
+import fcntl
 import json
+import logging
 import os
 import sys
 import traceback
 from importlib.machinery import SourceFileLoader
 from pprint import pprint
-from time import sleep
+from time import monotonic, sleep
 
 
 def strtobool(val):
@@ -33,13 +35,31 @@ from isardvdi_apiv4_client.api.role_admin import (
     admin_hypervisor_create,
     admin_hypervisor_delete,
     admin_hypervisor_enable,
+    admin_hypervisor_gpu_applied,
 )
 from isardvdi_apiv4_client.models import (
+    AdminGpuAppliedRequest,
     AdminHypervisorCreateData,
     AdminHypervisorEnableData,
     AdminHypervisorEnableDataNumaTopology,
 )
 from isardvdi_apiv4_client_auth import ApiV4Error, build_client, raise_for_status
+from progress import report_progress
+
+# Surface this entrypoint's own progress logs to stdout (docker logs). The
+# gpu_discovery module configures its own handler; this covers setup.py.
+logging.basicConfig(
+    level=os.environ.get("HYPERVISOR_LOG_LEVEL", "INFO"),
+    stream=sys.stdout,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+log = logging.getLogger("hypervisor.setup")
+
+# Serializes GPU discovery/reset across concurrent `hypervisor.py setup`
+# invocations (the engine re-runs setup over SSH while the hyp is
+# unregistered). Without it, parallel GPU resets race and pile up stuck
+# nvidia-smi -r processes — itself a source of the "VFs busy" anomaly.
+SETUP_GPU_LOCK = "/run/isard-hyp-setup.lock"
 
 DEFAULT_STORAGE_POOL_ID = (
     SourceFileLoader(
@@ -109,21 +129,110 @@ def _detect_nested_virtualization():
     return False
 
 
-def SetupHypervisor():
-    ensure_sriov_vfs()
+def _discover_gpus_locked():
+    """Run SR-IOV enablement + GPU discovery under an exclusive lock.
 
-    # GPU discovery runs unconditionally and nvidia_enabled is derived from
-    # whether any NVIDIA GPU was found (apiv3/main behaviour). The
-    # GPU_NVIDIA_SCAN opt-in gate was dropped: it silently hid passthrough
-    # and vGPU capable cards on hypervisors that never set the variable,
-    # diverging from main where the same hardware is auto-detected.
-    nvidia_gpus = None
+    Holds ``SETUP_GPU_LOCK`` so a second concurrent ``hypervisor.py setup``
+    (the engine re-runs it over SSH while the hyp is unregistered) does not race
+    GPU resets. Reports a boot-progress step so the admin UI is not blank during
+    the sometimes-long discovery, and an error step if it raises. Returns the
+    list of discovered GPU dicts.
+    """
+    report_progress(0, 9, "GPU/hardware discovery")
     try:
+        lock_f = open(SETUP_GPU_LOCK, "w")
+    except OSError as e:
+        log.warning(
+            "Could not open GPU setup lock %s (%s); proceeding without it",
+            SETUP_GPU_LOCK,
+            e,
+        )
+        lock_f = None
+    t0 = monotonic()
+    try:
+        if lock_f is not None:
+            try:
+                fcntl.flock(lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                log.warning(
+                    "Another hypervisor setup holds %s — waiting for it to "
+                    "finish before GPU discovery (avoids racing concurrent GPU "
+                    "resets)...",
+                    SETUP_GPU_LOCK,
+                )
+                fcntl.flock(lock_f, fcntl.LOCK_EX)
+        log.info("Enabling SR-IOV VFs where needed...")
+        ensure_sriov_vfs()
+        log.info(
+            "Starting GPU discovery (can be slow on vGPU hosts; see per-GPU "
+            "logs below)..."
+        )
         nvidia_gpus = discover_gpus()
-    except Exception as exc:
-        print(f"discover_gpus failed: {type(exc).__name__}: {exc}")
-        traceback.print_exc()
-        nvidia_gpus = None
+        log.info(
+            "GPU discovery complete: %d GPU(s) in %.1fs",
+            len(nvidia_gpus),
+            monotonic() - t0,
+        )
+        return nvidia_gpus
+    except Exception:
+        report_progress(
+            0, 9, "GPU/hardware discovery", error=traceback.format_exc()[-800:]
+        )
+        raise
+    finally:
+        if lock_f is not None:
+            try:
+                fcntl.flock(lock_f, fcntl.LOCK_UN)
+            finally:
+                lock_f.close()
+
+
+def _apply_gpus_locked(nvidia_gpus, targets):
+    """Apply the API's per-card target profiles locally, under the SAME
+    exclusive lock _discover_gpus_locked uses so a concurrent setup cannot race
+    driver swaps. Returns the applied-state report {pci_bus_id: {...}}.
+
+    Reports per-card boot progress so the admin UI is not stuck on
+    "GPU/hardware discovery" for the whole (sometimes multi-minute) apply: each
+    card updates the boot_progress label + timestamp as it is carved."""
+    import gpu_apply
+
+    def _report_apply_progress(idx, total, pci_bdf, wanted):
+        report_progress(
+            0,
+            9,
+            f"Applying GPU profiles ({idx}/{total}): {pci_bdf} -> {wanted}",
+        )
+
+    try:
+        lock_f = open(SETUP_GPU_LOCK, "w")
+    except OSError:
+        lock_f = None
+    try:
+        if lock_f is not None:
+            fcntl.flock(lock_f, fcntl.LOCK_EX)
+        return gpu_apply.apply_targets(
+            nvidia_gpus, targets, progress=_report_apply_progress
+        )
+    finally:
+        if lock_f is not None:
+            try:
+                fcntl.flock(lock_f, fcntl.LOCK_UN)
+            finally:
+                lock_f.close()
+
+
+def SetupHypervisor():
+    log.info(
+        "Hypervisor setup starting (hyper_id=%s)",
+        os.environ.get("HYPER_ID", "isard-hypervisor"),
+    )
+    # GPU discovery runs unconditionally (the GPU_NVIDIA_SCAN opt-in gate
+    # was dropped on this branch) and now goes through the upstream locked
+    # helper: SR-IOV enablement + discovery under SETUP_GPU_LOCK with boot
+    # progress reporting. A discovery failure aborts registration loudly --
+    # registering half-discovered hides cards and skips the local apply.
+    nvidia_gpus = _discover_gpus_locked()
     nvidia_enabled = bool(nvidia_gpus)
 
     # Sysfs-only discovery (no libvirt required, runs before libvirtd). The
@@ -227,6 +336,31 @@ def SetupHypervisor():
             sleep(2)
         else:
             ok = True
+
+    ## Apply the per-card GPU target profiles the API returned locally, then
+    ## report the applied state back so the API/engine DB reflects reality and
+    ## the engine reconcile confirms instead of re-applying. Best-effort: any
+    ## failure (or an old API that returns no gpu_targets) falls back to the
+    ## engine applying, exactly as before.
+    try:
+        # `data` is the generated client's parsed model; gpu_targets is an
+        # undeclared extra (extra="allow"), exposed via subscript -- not .get().
+        try:
+            gpu_targets = data["gpu_targets"]
+        except (KeyError, TypeError):
+            gpu_targets = None
+        if gpu_targets is not None:
+            applied = _apply_gpus_locked(nvidia_gpus, gpu_targets)
+            with build_client("isard-hypervisor", role="hypervisor") as client:
+                resp = admin_hypervisor_gpu_applied.sync_detailed(
+                    HYPERVISOR["hyper_id"],
+                    client=client,
+                    body=AdminGpuAppliedRequest.from_dict({"applied": applied}),
+                )
+                raise_for_status(resp)
+    except Exception:
+        print("GPU target apply/report-back failed (engine will reconcile):")
+        print(traceback.format_exc())
 
     ## Check if certificates have changed and needs updating
     try:
