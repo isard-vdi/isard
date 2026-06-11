@@ -876,11 +876,9 @@ class Helpers(RethinkSharedConnection):
             ),
             "groups": r.row["groups_count"].default(r.row["groups"].count()),
             "users": r.row["users_count"].default(r.row["users"].count()),
-            "last": r.row["last_log"].default(
-                r.row["logs"].default([]).nth(-1).default(None)
-            ),
+            "last": r.row["last_log"].default(r.row["logs"][-1]),
         }
-        query = query.without("logs", "tasks").merge(count_query)
+        query = query.merge(count_query).without("logs", "tasks")
         with cls._rdb_context():
             return list(query.run(cls._rdb_connection))
 
