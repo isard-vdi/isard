@@ -591,6 +591,28 @@ def test_get_system_cutoff_time(monkeypatch, test_client):
     assert response.json()["recycle_bin_cuttoff_time"] == 60
 
 
+def test_get_system_cutoff_time_manager(monkeypatch, test_client):
+    """Managers get the {category, system} breakdown the webapp reads to cap
+    the dropdown; the response schema must not narrow it to a bare int."""
+    jwt = MockJWT(role_id="manager", category_id="cat-1")
+    monkeypatch.setattr(
+        "api.services.recycle_bin.RecycleBinService.get_system_cutoff_time",
+        staticmethod(lambda category_id=None: {"category": 24, "system": 48}),
+    )
+
+    response = test_client(
+        url="/item/recycle-bin/system/cutoff-time",
+        jwt=jwt,
+        db_tables_data={"categories": [{"id": "cat-1", "maintenance": False}]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["recycle_bin_cuttoff_time"] == {
+        "category": 24,
+        "system": 48,
+    }
+
+
 def test_set_system_cutoff_time(monkeypatch, test_client):
     jwt = MockJWT()
     captured = {}

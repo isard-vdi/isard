@@ -19,7 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from pydantic import BaseModel, Field
@@ -191,10 +191,21 @@ class RecycleBinSetDefaultDeleteRequest(BaseModel):
     rb_default: bool
 
 
-class RecycleBinSystemCutoffTimeResponse(BaseModel):
-    """System-wide recycle bin cutoff time."""
+class RecycleBinCategoryCutoffTime(BaseModel):
+    """Manager view: the category's effective cutoff and the system ceiling."""
 
-    recycle_bin_cuttoff_time: int
+    category: Optional[int] = None
+    system: Optional[int] = None
+
+
+class RecycleBinSystemCutoffTimeResponse(BaseModel):
+    """System-wide recycle bin cutoff time.
+
+    Admins get a bare int; managers get the {category, system} breakdown the
+    webapp uses to cap the dropdown (recyclebin_domains.js:839-848).
+    """
+
+    recycle_bin_cuttoff_time: Union[int, RecycleBinCategoryCutoffTime, None]
 
 
 class RecycleBinUpdateCutoffTimeRequest(BaseModel):
