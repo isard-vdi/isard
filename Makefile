@@ -1,5 +1,9 @@
 ISARDVDI_SRC := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
+# Cap pytest-xdist auto workers so `-n auto` doesn't spawn one worker per core
+# on high-core CI runners (= 128 threads → OOM). Override with e.g.
+export PYTEST_XDIST_AUTO_NUM_WORKERS ?= 16
+
 .PHONY: all
 all: build up test
 
