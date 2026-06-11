@@ -99,6 +99,55 @@ def bare_suffix(reservable_id):
     return canonical_suffix(parts[2]) if len(parts) == 3 else base
 
 
+def passthrough_variant_token(host, pci_bus_id, numa_node):
+    """Stable, globally-unique passthrough variant label for ONE physical card.
+
+    Builds ``<host>n<numa>b<bus>`` reduced to the variant shape
+    ``^[a-z0-9]{1,20}$`` so every passthrough-capable card can carry a
+    human-meaningful (host, socket, slot) identity, assigned automatically at
+    hypervisor registration:
+
+      * ``host``       -- the hypervisor's identifying string (hostname or id);
+                          lowercased and stripped to ``[a-z0-9]``.
+      * ``pci_bus_id`` -- the card BDF (``0000:83:00.0``); the PCI *bus* token
+                          (``83`` / ``d3``) is stable per physical slot.
+      * ``numa_node``  -- the card's NUMA node (>= 0); dropped when ``-1`` /
+                          unknown / non-numeric (single-socket affinity).
+
+    The host prefix keeps the token unique across a multi-hypervisor install (so
+    identical-model cards do not silently pool into one reservable and
+    different-model cards do not collide on the one-base-per-variant guard in
+    ``enable_subitem``); it is truncated so the ``n<numa>b<bus>`` suffix always
+    survives the 20-char budget.
+
+    Examples::
+
+        passthrough_variant_token("hyp1", "0000:d3:00.0", 1) -> "hyp1n1bd3"
+        passthrough_variant_token("hyp1", "0000:83:00.0", 0) -> "hyp1n0b83"
+        passthrough_variant_token("aio",  "0000:41:00.0", -1) -> "aiob41"
+
+    Assumes one card per PCI bus on a single PCI domain (true on these hosts).
+    Returns ``None`` when no valid token can be formed (bad BDF / empty result).
+    """
+    if not isinstance(pci_bus_id, str):
+        return None
+    parts = pci_bus_id.lower().split(":")
+    bus = re.sub(r"[^a-z0-9]", "", parts[1]) if len(parts) >= 2 else ""
+    if not bus:
+        return None
+    try:
+        n = int(numa_node)
+    except (TypeError, ValueError):
+        n = -1
+    numa_part = f"n{n}" if n >= 0 else ""
+    suffix = f"{numa_part}b{bus}"
+    host_part = re.sub(r"[^a-z0-9]", "", (host or "").lower())[
+        : max(0, 20 - len(suffix))
+    ]
+    token = (host_part + suffix)[:20]
+    return token if re.match(r"^[a-z0-9]{1,20}$", token) else None
+
+
 def realizable_suffixes(gpu_payload):
     """The set of profile SUFFIXES a single card's CURRENT discovery proves
     realizable, or ``None`` when the reading must NOT drive a removal.

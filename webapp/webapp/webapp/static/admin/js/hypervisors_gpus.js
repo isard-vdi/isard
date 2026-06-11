@@ -247,8 +247,19 @@ $(document).ready(function () {
                 enabledId && enabledId.indexOf("~") >= 0
                   ? enabledId.split("~")[1]
                   : "";
+              // Auto per-card passthrough identity (<host>n<numa>b<bus>): shown as
+              // a muted suggestion when passthrough is not yet enabled, and
+              // adopted by default when the admin enables it.
+              var ptVariant =
+                full.profile === "passthrough" && rowData.passthrough_variant
+                  ? rowData.passthrough_variant
+                  : "";
               var label = variant
                 ? '<span class="label label-info">' + variant + "</span>"
+                : ptVariant
+                ? '<span class="text-muted" title="Auto card identity (host/socket/slot); adopted when you enable passthrough">' +
+                  ptVariant +
+                  "</span>"
                 : '<span class="text-muted">&mdash;</span>';
               // Names already defined for this base profile (other cards), passed
               // to the editor so the admin can re-use one without retyping it.
@@ -259,6 +270,7 @@ $(document).ready(function () {
                 'data-base="' + full.id + '" ' +
                 'data-memory="' + (full.memory || "") + '" ' +
                 'data-variants="' + existing + '" ' +
+                'data-pt-variant="' + ptVariant + '" ' +
                 'title="Manage variant"><i class="fa fa-pencil"></i></button>'
               );
             },
@@ -675,6 +687,9 @@ $(document).ready(function () {
       var memory = $(this).attr("data-memory");
       var current =
         enabledId && enabledId.indexOf("~") >= 0 ? enabledId.split("~")[1] : "";
+      // Auto passthrough identity for this card; pre-selected when nothing is
+      // enabled yet so enabling adopts it by default (admin can still change it).
+      var ptVariant = $(this).attr("data-pt-variant") || "";
       var existing = ($(this).attr("data-variants") || "")
         .split(",")
         .filter(function (v) { return v; });
@@ -688,6 +703,8 @@ $(document).ready(function () {
 
       var names = existing.slice();
       if (current && names.indexOf(current) < 0) names.push(current);
+      if (!current && ptVariant && names.indexOf(ptVariant) < 0)
+        names.push(ptVariant);
       names.sort();
       var $sel = $("#modalEditVariant #variant_select").empty();
       $sel.append('<option value="">none (bare)</option>');
@@ -695,7 +712,7 @@ $(document).ready(function () {
         $sel.append('<option value="' + n + '">' + n + "</option>");
       });
       $sel.append('<option value="__new__">new variant…</option>');
-      $sel.val(current || "");
+      $sel.val(current || ptVariant || "");
       $("#modalEditVariant #variant_new").val("");
       $("#modalEditVariant #variant_new_group").hide();
 
