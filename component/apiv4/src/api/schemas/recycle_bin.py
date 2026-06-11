@@ -220,8 +220,9 @@ class UnusedItemTimeoutRule(BaseModel):
     Mirrors apiv3 ``main:api/src/api/schemas/unused_item_timeout.yml``:
     ``op`` selects which scheduler hook the rule applies to (e.g.
     ``send_unused_desktops_to_recycle_bin``); ``cutoff_time`` is the
-    threshold in hours after which the action fires (nullable for
-    "never"); ``priority`` orders rules with overlapping allowed-sets;
+    threshold in months (scheduler multiplies by 30 days) after which the
+    action fires (nullable for "never"); ``priority`` orders rules with
+    overlapping allowed-sets;
     ``allowed`` scopes the rule by users/groups/categories/roles.
     """
 

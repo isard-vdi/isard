@@ -496,9 +496,9 @@ def test_create_unused_item_timeout_rule_accepts_webapp_payload(
         method="POST",
         body={
             "name": "Old desktops",
-            "description": "Older than 30 days",
+            "description": "Older than 1 month",
             "op": "send_unused_desktops_to_recycle_bin",
-            "cutoff_time": 720,
+            "cutoff_time": 1,
             "priority": 10,
         },
         jwt=jwt,
@@ -508,7 +508,7 @@ def test_create_unused_item_timeout_rule_accepts_webapp_payload(
     assert response.json() == {"id": "rule-new"}
     assert captured["name"] == "Old desktops"
     assert captured["op"] == "send_unused_desktops_to_recycle_bin"
-    assert captured["cutoff_time"] == 720
+    assert captured["cutoff_time"] == 1
     assert captured["priority"] == 10
 
 
@@ -566,7 +566,7 @@ def test_update_unused_item_timeout_rule_persists_priority(monkeypatch, test_cli
             "name": "Old desktops v2",
             "description": "Updated",
             "op": "send_unused_desktops_to_recycle_bin",
-            "cutoff_time": 1440,
+            "cutoff_time": 12,
             "priority": 20,
         },
         jwt=jwt,
@@ -575,7 +575,7 @@ def test_update_unused_item_timeout_rule_persists_priority(monkeypatch, test_cli
     assert response.status_code == 204
     assert captured["rule_id"] == "rule-1"
     assert captured["priority"] == 20
-    assert captured["cutoff_time"] == 1440
+    assert captured["cutoff_time"] == 12
 
 
 def test_get_system_cutoff_time(monkeypatch, test_client):
