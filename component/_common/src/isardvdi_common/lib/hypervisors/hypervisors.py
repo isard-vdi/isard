@@ -1240,10 +1240,14 @@ class HypervisorsProcessed(RethinkSharedConnection):
             return
         from isardvdi_common.lib.bookings.gpu_realizability import plan_card_prunes
         from isardvdi_common.lib.bookings.reservables import Reservables
-        from isardvdi_common.lib.bookings.reservables_planner import ReservablesPlanner
+        from isardvdi_common.lib.bookings.reservables_planner import (
+            ReservablesPlannerProccess,
+        )
 
         api_ri = Reservables()
-        api_rp = ReservablesPlanner()
+        # All ReservablesPlannerProccess methods are classmethods; pass the
+        # class itself where apiv3 instantiated ReservablesPlanner().
+        api_rp = ReservablesPlannerProccess
 
         # Build per-model card entries from THIS registration's payload. Only a
         # card we just read (with a trustworthy reading) can drive its own

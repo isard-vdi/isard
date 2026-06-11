@@ -291,9 +291,24 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
         result = ResourcePlanner.delete_bookings_by_plan_id(plan_id)
 
         if result.get("changes"):
-            booking_ids = [b["old_val"]["id"] for b in result["changes"]]
-            for booking_id in booking_ids:
-                SchedulerHelper.remove_scheduler_startswith_id(booking_id)
+            for change in result["changes"]:
+                old = change["old_val"]
+                SchedulerHelper.remove_scheduler_startswith_id(old["id"])
+                # Reset the referencing desktop/deployment booking_id so no
+                # domain is left pointing at a now-deleted booking (mirrors
+                # Bookings.delete). delete_plan is the bulk path: the caller has
+                # already deassigned the GPU profile and an unrealizable profile
+                # has no running session, so no in-progress guard is needed here.
+                if old.get("item_type") == "desktop" and old.get("item_id"):
+                    with cls._rdb_context():
+                        r.table("domains").get(old["item_id"]).update(
+                            {"booking_id": False}
+                        ).run(cls._rdb_connection)
+                elif old.get("item_type") == "deployment" and old.get("item_id"):
+                    with cls._rdb_context():
+                        r.table("domains").get_all(old["item_id"], index="tag").update(
+                            {"booking_id": False}
+                        ).run(cls._rdb_connection)
 
     @classmethod
     def get_plan_bookings(cls, plan_id):
@@ -377,16 +392,12 @@ class ReservablesPlannerProccess(RethinkSharedConnection):
                     item_type, item_id, subitem_id
                 )
         if True in data["last"]:
-            # unassign from desktops
-            desktops_ids = (
-                [desktop["id"] for desktop in data["desktops"]]
-                if data.get("desktops")
-                else None
-            )
-            if desktops_ids:
-                cls.reservables.deassign_desktops_with_gpu(
-                    item_type, subitem_id, desktops_ids
-                )
+            # Unassign from desktops via the broad index sweep (desktops=None).
+            # The explicit data["desktops"] list is built from an inner eq_join
+            # to users, so it DROPS domains whose owning user was deleted; the
+            # None branch uses get_all(subitem_id, index="vgpus") and resets
+            # EVERY domain still holding the reference. Idempotent.
+            cls.reservables.deassign_desktops_with_gpu(item_type, subitem_id, None)
             # TODO: Test when changing to apiv4
             # unassign from deployments
             deployments_ids = (
