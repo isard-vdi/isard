@@ -1375,6 +1375,12 @@ class RecycleBin(RethinkSharedConnection):
                 self.agent_category_name,
                 self.agent_role,
             )
+            # A new recycled entry must show up immediately; without this the
+            # 60 s ``get_item_count`` cache hides it from the recycle bin list.
+            Helpers.clear_get_item_count_cache()
+            Helpers.clear_get_count_cache()
+            Helpers.clear_get_user_amount_cache()
+            Helpers.clear_get_user_recycle_bin_ids_cache()
 
         else:
             with self._rdb_context():
