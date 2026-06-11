@@ -193,6 +193,23 @@ def api_v3_admin_domains_xml(payload, domain_id):
     )
 
 
+@app.route("/api/v3/admin/domains/<domain_id>/live_xml", methods=["GET"])
+@is_admin
+def api_v3_admin_domains_live_xml(payload, domain_id):
+    """Live libvirt XML (incl. secrets) of a started desktop, from engine RAM.
+
+    Proxies to the engine's internal API; the XML is never stored in the DB.
+    """
+    from ..libv2.api_engine import get_desktop_live_xml
+
+    data = get_desktop_live_xml(domain_id)
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/domains/xml_capabilities", methods=["GET"])
 @is_admin
 def api_v3_admin_domains_xml_capabilities(payload):
@@ -244,43 +261,78 @@ def api_v3_admin_domains_xml_sections(payload, domain_id):
         sections = split_xml_sections(domain["xml"], protected)
         return (
             json.dumps(
-                {"sections": sections, "xml_full": domain["xml"]},
+                {
+                    "sections": sections,
+                    "xml_full": domain["xml"],
+                    "xml_protected_sections": protected,
+                },
             ),
             200,
             {"Content-Type": "application/json"},
         )
 
-    # POST — merge edited sections back into full XML
+    # POST
     data = request.get_json(force=True)
-    if "sections" not in data:
-        raise Error(
-            "bad_request",
-            "Missing 'sections' in request body",
-            traceback.format_exc(),
-        )
-
-    domain = admin_table_get("domains", domain_id, pluck=["xml", "create_dict"])
-    merged_xml = merge_xml_sections(domain["xml"], data["sections"])
-
     protected_sections = data.get("xml_protected_sections", [])
 
-    # Validate xml_protected_sections against allowlist (OWASP Finding 2)
-    from ..libv2.api_xml_sections import SECTION_DEFS, save_domain_xml_and_protected
+    from ..libv2.api_xml_sections import (
+        SECTION_DEFS,
+        _safe_fromstring,
+        save_domain_xml_and_protected,
+    )
 
+    # The list is either the RAW-mode sentinel exactly ['raw'] (the whole
+    # <domain> is authoritative; the engine applies only the isard-essentials),
+    # or a list of real protectable section keys.
     allowed_keys = {s["key"] for s in SECTION_DEFS if s["protectable"]}
-    if not isinstance(protected_sections, list) or not all(
-        isinstance(k, str) and k in allowed_keys for k in protected_sections
+    is_raw = protected_sections == ["raw"]
+    if not is_raw and (
+        not isinstance(protected_sections, list)
+        or not all(isinstance(k, str) and k in allowed_keys for k in protected_sections)
     ):
         raise Error(
             "bad_request",
-            "Invalid xml_protected_sections: must be a list of valid section keys",
+            "Invalid xml_protected_sections: must be a list of valid section keys, "
+            "or exactly ['raw'] for RAW mode",
             traceback.format_exc(),
         )
 
-    save_domain_xml_and_protected(domain_id, merged_xml, protected_sections)
+    if is_raw:
+        # RAW mode: store the whole <domain> verbatim (no section merge).
+        raw_xml = data.get("raw_xml")
+        if not isinstance(raw_xml, str) or not raw_xml.strip():
+            raise Error(
+                "bad_request",
+                "RAW mode requires 'raw_xml' (the full <domain> XML)",
+                traceback.format_exc(),
+            )
+        if len(raw_xml) > 2 * 1024 * 1024:
+            raise Error("bad_request", "XML exceeds maximum allowed size (2 MB)")
+        try:
+            root = _safe_fromstring(raw_xml)
+        except Exception as e:
+            raise Error("bad_request", f"Invalid RAW XML: {e}", traceback.format_exc())
+        if root.tag != "domain":
+            raise Error(
+                "bad_request",
+                f"RAW XML must be a libvirt <domain> document; got <{root.tag}>",
+                traceback.format_exc(),
+            )
+        save_domain_xml_and_protected(domain_id, raw_xml, ["raw"])
+        saved_xml = raw_xml
+    else:
+        if "sections" not in data:
+            raise Error(
+                "bad_request",
+                "Missing 'sections' in request body",
+                traceback.format_exc(),
+            )
+        domain = admin_table_get("domains", domain_id, pluck=["xml", "create_dict"])
+        saved_xml = merge_xml_sections(domain["xml"], data["sections"])
+        save_domain_xml_and_protected(domain_id, saved_xml, protected_sections)
 
     return (
-        json.dumps({"xml": merged_xml, "valid": True}),
+        json.dumps({"xml": saved_xml, "valid": True}),
         200,
         {"Content-Type": "application/json"},
     )

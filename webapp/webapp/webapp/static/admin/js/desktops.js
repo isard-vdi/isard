@@ -1972,6 +1972,9 @@ function setDomainDetailButtonsStatus(id,data,old_data){
             $('#actions-'+id+' .btn-owner').prop('disabled', false);
             $('#actions-'+id+' .btn-server').prop('disabled', false);
             $('#actions-'+id+' .btn-desktop-logs').prop('disabled', false);
+            // The XML editor edits the stored definition, which the engine
+            // re-applies at the next start; it is safe to open while running.
+            $('#actions-'+id+' .btn-xml').prop('disabled', false);
         }else{
             $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
         }

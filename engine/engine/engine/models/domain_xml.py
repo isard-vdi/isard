@@ -337,9 +337,9 @@ class DomainXML(object):
         if mac is None:
             mac = randomMAC()
 
-        self.tree.xpath("/domain/devices/interface")[dev_index].xpath("mac")[
-            dev_index
-        ].set("address", mac)
+        self.tree.xpath("/domain/devices/interface")[dev_index].xpath("mac")[0].set(
+            "address", mac
+        )
 
     def dict_from_xml(self, xml_tree=False, domain_id=None):
         ## TODO INFO TO DEVELOPER: hay que montar excepciones porque si no el xml peta
@@ -425,10 +425,17 @@ class DomainXML(object):
             vm_dict["disks"] = list()
             for tree in xml_tree.xpath('/domain/devices/disk[@device="disk"]'):
                 list_dict = {}
-                list_dict["type"] = tree.xpath("driver")[0].get("type")
-                list_dict["file"] = tree.xpath("source")[0].get("file")
-                list_dict["dev"] = tree.xpath("target")[0].get("dev")
-                list_dict["bus"] = tree.xpath("target")[0].get("bus")
+                # A disk may legitimately lack <source> before start: the engine
+                # injects it from create_dict.hardware.disks (storage_id) at start
+                # time. Guard every child lookup so this info pass never crashes
+                # (matches the floppy/cdrom blocks below).
+                if len(tree.xpath("driver")) != 0:
+                    list_dict["type"] = tree.xpath("driver")[0].get("type")
+                if len(tree.xpath("source")) != 0:
+                    list_dict["file"] = tree.xpath("source")[0].get("file")
+                if len(tree.xpath("target")) != 0:
+                    list_dict["dev"] = tree.xpath("target")[0].get("dev")
+                    list_dict["bus"] = tree.xpath("target")[0].get("bus")
                 vm_dict["disks"].append(list_dict)
 
         if xml_tree.xpath('/domain/devices/disk[@device="floppy"]'):
@@ -1438,12 +1445,20 @@ class DomainXML(object):
 
     def set_vdisk(self, new_path_vdisk, index=0, type_disk="qcow2", force_bus=False):
         if self.tree.xpath('/domain/devices/disk[@device="disk"]'):
-            self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath(
-                "source"
-            )[0].set("file", new_path_vdisk)
-            self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath(
-                "driver"
-            )[0].set("type", type_disk)
+            disk_el = self.tree.xpath('/domain/devices/disk[@device="disk"]')[index]
+            # The disk may have no <source>/<driver> yet (e.g. authored via the
+            # XML editor): the engine injects the storage path here, so create
+            # the elements when missing instead of assuming they already exist.
+            source_els = disk_el.xpath("source")
+            if source_els:
+                source_els[0].set("file", new_path_vdisk)
+            else:
+                etree.SubElement(disk_el, "source", file=new_path_vdisk)
+            driver_els = disk_el.xpath("driver")
+            if driver_els:
+                driver_els[0].set("type", type_disk)
+            else:
+                etree.SubElement(disk_el, "driver", name="qemu", type=type_disk)
             # Cache attribute is applied at the top of recreate_xml_to_start
             # under the `disk_cache not in protected` guard. Calling it here
             # would bypass that guard whenever the disk path changes (Redmine
@@ -1738,6 +1753,12 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     if protected:
         log.info(f"Domain {id_domain}: xml_protected_sections={sorted(protected)}")
 
+    # RAW mode (sentinel ['raw']): the uploaded <domain> is authoritative; apply
+    # only the isard-essentials and leave everything else verbatim.
+    if protected == {"raw"}:
+        log.info(f"Domain {id_domain}: RAW XML mode")
+        return recreate_xml_to_start_raw(dict_domain, x, ssl)
+
     x.set_name(id_domain)
     try:
         uuid.UUID(id_domain)
@@ -1945,13 +1966,18 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
             if file_spice_options.get("shared_folder") is True:
                 x.add_shared_folder()
 
-    x.remove_selinux_options()
+    # Stripping all <seclabel> would wipe an admin-locked custom security label.
+    if "seclabel" not in protected:
+        x.remove_selinux_options()
 
     if "domain_type" not in protected:
         x.set_domain_type_and_emulator()
 
-    # remove boot order in disk definition that conflict with /os/boot order in xml
-    x.remove_boot_order_and_danger_options_from_disks()
+    # remove boot order in disk definition that conflict with /os/boot order in
+    # xml. Skip when disks are admin-locked so a hand-pinned <boot>/<address>
+    # (e.g. a passthrough-fixed PCI slot) is preserved.
+    if "disks" not in protected:
+        x.remove_boot_order_and_danger_options_from_disks()
 
     # Ensure there's always QEMU guest agent
     if "qemu_guest_agent" not in protected:
@@ -1982,6 +2008,88 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     # log.debug('#####################################################')
 
     return xml, viewer_passwd
+
+
+def recreate_xml_to_start_raw(dict_domain, x, ssl=True):
+    """RAW mode start XML — apply ONLY the isard-essential adaptations.
+
+    Activated by create_dict.xml_protected_sections == ['raw']. The uploaded
+    <domain> XML is authoritative; the engine only:
+      - sets name/uuid to the desktop id,
+      - injects the isard-managed disk <source> paths (storage),
+      - rebuilds interfaces from create_dict + the mac2network metadata the OVS
+        worker needs (networking),
+      - injects the isard <metadata> (ownership),
+      - ensures the spice/vnc viewer with a fresh password (video/viewer).
+    Everything else (memory, vcpu, cpu, features, os, video model, custom
+    devices, qemu:commandline, cputune, hostdev, …) is left exactly as uploaded.
+    """
+    id_domain = dict_domain["id"]
+
+    # name + uuid (isard identity)
+    x.set_name(id_domain)
+    try:
+        uuid.UUID(id_domain)
+        domain_uuid = id_domain
+    except ValueError:
+        domain_uuid = str(uuid.uuid5(uuid.NAMESPACE_OID, id_domain))
+    uuid_nodes = x.tree.xpath("/domain/uuid")
+    if uuid_nodes:
+        uuid_nodes[0].text = domain_uuid
+    else:
+        name_node = x.tree.xpath("/domain/name")[0]
+        uuid_el = etree.Element("uuid")
+        uuid_el.text = domain_uuid
+        name_node.addnext(uuid_el)
+
+    # storage — inject isard-resolved disk source paths into the existing disks
+    hw = resolve_hardware_from_create_dict(dict_domain)
+    if "disks" in hw:
+        total_disks_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="disk"]'))
+        for i, disk in enumerate(hw["disks"]):
+            if not disk.get("file"):
+                log.error(f"RAW: disk {i} in domain {id_domain} not resolved")
+                return False
+            s = disk["file"]
+            type_disk = (
+                "qcow2" if s[s.rfind(".") :].lower().find("qcow") == 1 else "raw"
+            )
+            if i >= total_disks_in_xml:
+                x.add_disk(
+                    index=i,
+                    path_disk=s,
+                    type_disk=type_disk,
+                    bus=disk.get("bus") or "virtio",
+                )
+            else:
+                x.set_vdisk(s, index=i, type_disk=type_disk)
+
+    # metadata (isard ownership)
+    x.add_metadata_isard(
+        dict_domain["user"],
+        dict_domain["group"],
+        dict_domain["category"],
+        dict_domain["create_dict"].get("origin", ""),
+    )
+
+    # viewer — ensure spice graphics + fresh password + vnc websockets
+    x.add_spice_graphics_if_not_exist()
+    if ssl is True:
+        x.reset_viewer_passwd()
+    else:
+        x.spice_remove_passwd_nossl()
+    x.add_vnc_with_websockets()
+
+    # networking — rebuild interfaces from create_dict + mac2network metadata
+    recreate_xml_interfaces(dict_domain, x)
+    if x.mac2network_mappings:
+        x.add_mac2network_metadata(x.mac2network_mappings)
+
+    x.dict_from_xml()
+    viewer_passwd = x.viewer_passwd if "viewer_passwd" in x.__dict__.keys() else ""
+    if not viewer_passwd:
+        log.error(f"RAW: viewer password not found in domain {id_domain}")
+    return x.return_xml(), viewer_passwd
 
 
 def recreate_xml_interfaces(dict_domain, x):
@@ -2135,17 +2243,28 @@ def recreate_xml_if_start_paused(xml, memory_mb=64):
     return xml_output
 
 
+def domain_is_raw(domain):
+    """True when the domain is in RAW XML mode.
+
+    RAW mode is signalled by the sentinel ``xml_protected_sections == ['raw']``:
+    the uploaded <domain> XML is authoritative and the engine applies only the
+    isard-essential adaptations (name/uuid, storage paths, networking, viewer,
+    metadata). 'raw' therefore reads as "everything locked".
+    """
+    return (domain.get("create_dict") or {}).get("xml_protected_sections") == ["raw"]
+
+
 def hostdev_locked(domain):
     """True when the admin locked the <hostdev> XML section for this domain.
 
     When create_dict.xml_protected_sections contains "hostdev", the manual
     passthrough <hostdev> entries are authoritative: the engine must not also
     reserve/inject a managed GPU on top of them (otherwise recreate_xml_if_gpu
-    would append an extra balancer-selected <hostdev>, with no dedup).
+    would append an extra balancer-selected <hostdev>, with no dedup). RAW mode
+    ('raw' sentinel) locks every section, hostdev included.
     """
-    return "hostdev" in (
-        (domain.get("create_dict") or {}).get("xml_protected_sections") or []
-    )
+    protected = (domain.get("create_dict") or {}).get("xml_protected_sections") or []
+    return "hostdev" in protected or "raw" in protected
 
 
 # Base guest PCI slot for the first passed-through GPU. Picked from a high free
@@ -2216,6 +2335,29 @@ def count_passthrough_gpus_in_xml(xml):
             "/source/address[@function='0x0']"
         )
     )
+
+
+def numa_opts_allowed(domain):
+    """Which engine start-time XML injections are permitted for this domain.
+
+    `add_memory_backing`, `add_numa_pinning` (cputune/numatune) and
+    `add_iothread_pinning` are applied at start by the controller. When the admin
+    has locked the corresponding XML section via
+    create_dict.xml_protected_sections, the hand-tuned XML is authoritative and
+    must not be overwritten — return False for that section so the controller
+    skips (or, for cputune/numatune, disables that half of) the injection. RAW
+    mode ('raw' sentinel) disables all of them.
+    """
+    protected = set(
+        (domain.get("create_dict") or {}).get("xml_protected_sections") or []
+    )
+    raw = "raw" in protected
+    return {
+        "memory_backing": not raw and "memory_backing" not in protected,
+        "cputune": not raw and "cputune" not in protected,
+        "numatune": not raw and "numatune" not in protected,
+        "iothreads": not raw and "iothreads" not in protected,
+    }
 
 
 def recreate_xml_if_gpu(
@@ -2482,7 +2624,13 @@ def _expand_cpulist(cpulist_str):
 
 
 def add_numa_pinning(
-    xml, numa_node, cpulist_str, vcpus, memory_mode="preferred", emit_numatune=True
+    xml,
+    numa_node,
+    cpulist_str,
+    vcpus,
+    memory_mode="preferred",
+    emit_numatune=True,
+    emit_cputune=True,
 ):
     """Add <cputune> and (optionally) <numatune> for NUMA-local CPU pinning.
 
@@ -2511,6 +2659,10 @@ def add_numa_pinning(
                        pinning still works because <cputune>/cpuset
                        reference CPU IDs, not cell IDs, and the kernel's
                        first-touch policy provides soft memory locality.
+        emit_cputune: When True (default), (re)build <cputune> (and the
+                      <vcpu cpuset> on the contention path). Set False when the
+                      admin has locked the cputune XML section so the
+                      hand-tuned CPU pinning is preserved.
 
     See https://libvirt.org/formatdomain.html#cpu-tuning
     See https://libvirt.org/formatdomain.html#numa-node-tuning
@@ -2526,12 +2678,19 @@ def add_numa_pinning(
     if not node_cpus:
         return xml
 
-    # Remove existing cputune and numatune (idempotent)
-    for tag in ("cputune", "numatune"):
+    # Remove existing cputune (only when we will rebuild it) and numatune
+    # (idempotent). When the admin has locked <cputune> (emit_cputune=False) it
+    # must be left untouched; <numatune> can still be emitted independently.
+    rebuild_tags = []
+    if emit_cputune:
+        rebuild_tags.append("cputune")
+    if emit_numatune:
+        rebuild_tags.append("numatune")
+    for tag in rebuild_tags:
         for elem in tree.xpath(f"/domain/{tag}"):
             elem.getparent().remove(elem)
 
-    if vcpus <= len(node_cpus):
+    if emit_cputune and vcpus <= len(node_cpus):
         # Per-vCPU pinning: distribute round-robin across node CPUs
         pins = []
         for i in range(vcpus):
@@ -2551,7 +2710,7 @@ def add_numa_pinning(
             vcpu_elem[0].addnext(cputune_elem)
         else:
             tree.xpath("/domain")[0].insert(0, cputune_elem)
-    else:
+    elif emit_cputune:
         # Too many vCPUs for the node: don't force per-vCPU pinning (it would
         # oversubscribe cores and add contention). Constrain every vCPU to the
         # node via <vcpu cpuset='...'> and let the host scheduler distribute
@@ -2624,11 +2783,14 @@ def add_qemu_pcie_reserve(xml, reserve_size="256G"):
             # Handle <domain type="..."> without space before type
             xml = xml.replace("<domain", f"<domain {QEMU_NS}", 1)
 
-    # Remove any existing qemu:commandline block
+    # Remove any existing commandline block, regardless of namespace prefix.
+    # The XML-section editor (ElementTree) may have re-serialized the block with
+    # a different prefix (e.g. <ns0:commandline>); a prefix-literal match would
+    # miss it and we would append a second block (duplicate qemu:commandline).
     import re as _re
 
     xml = _re.sub(
-        r"\s*<qemu:commandline>.*?</qemu:commandline>\s*",
+        r"\s*<(?:\w+:)?commandline\b.*?</(?:\w+:)?commandline>\s*",
         "\n",
         xml,
         flags=_re.DOTALL,

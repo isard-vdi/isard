@@ -174,6 +174,10 @@ export class ApiHelper {
     })
   }
 
+  async startDesktop (desktopId) {
+    return this._authFetch('GET', `/api/v3/desktop/start/${desktopId}`)
+  }
+
   async stopDesktop (desktopId) {
     return this._authFetch('PUT', `/api/v3/desktop/updating/${desktopId}`, {
       status: 'Stopping'
