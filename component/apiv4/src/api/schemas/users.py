@@ -116,6 +116,9 @@ class UserConfigResponse(BaseModel):
     """User configuration response model"""
 
     show_bookings_button: bool
+    # Admins always; managers only with the 'plannings' manager permission;
+    # never for regular users. Drives the old-frontend planner nav gate. (!4546)
+    show_gpu_plannings: bool = False
     documentation_url: str
     viewers_documentation_url: str
     show_change_email_button: bool

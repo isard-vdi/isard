@@ -26,7 +26,8 @@ from typing import Literal, Optional
 
 log = logging.getLogger("apiv4")
 
-from api import admin_router, token_router
+from api import admin_router, manager_router, token_router
+from api.dependencies.jwt_token import can_manage_gpu_plannings
 from api.schemas.common import EmptyResponse, ErrorResponse, SimpleResponse
 from api.schemas.reservables import (
     AddReservableItemRequest,
@@ -43,14 +44,15 @@ from api.schemas.reservables import (
 )
 from api.services.error import Error
 from api.services.reservables import ReservableService
-from fastapi import Path, Query, Request
+from fastapi import Depends, Path, Query, Request
 from fastapi.responses import JSONResponse
 
 tag = "reservables"
 
 
-@admin_router.get(
+@manager_router.get(
     "/items/reservables",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     response_model=ReservablesListResponse,
     tags=[tag],
     summary="Get list of reservable types",
@@ -111,8 +113,9 @@ async def list_profiles(
         )
 
 
-@admin_router.get(
+@manager_router.get(
     "/items/reservables/{reservable_type}",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     response_model=ReservableDetailResponse,
     tags=[tag],
     summary="Get items of a specific reservable type",
@@ -134,7 +137,9 @@ async def get_reservable_items(
     """
     try:
         items = await asyncio.to_thread(
-            ReservableService.get_reservable_detail, reservable_type
+            ReservableService.get_reservable_detail,
+            reservable_type,
+            request.token_payload,
         )
         return ReservableDetailResponse(items=items)
     except Error:
@@ -295,8 +300,9 @@ async def enable_reservable_subitem(
         )
 
 
-@admin_router.get(
+@manager_router.get(
     "/item/reservable/enabled/{reservable_type}/{item_id}",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     tags=[tag],
     response_model=list[dict],
     summary="List enabled subitems",
@@ -315,7 +321,10 @@ async def list_enabled_subitems(
     try:
         return (
             await asyncio.to_thread(
-                ReservableService.list_subitems_enabled, reservable_type, item_id
+                ReservableService.list_subitems_enabled,
+                reservable_type,
+                item_id,
+                request.token_payload,
             )
             or []
         )
@@ -475,8 +484,9 @@ async def update_reservable_item(
         )
 
 
-@admin_router.get(
+@manager_router.get(
     "/items/reservables-planner",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     tags=[tag],
     response_model=list[dict],
     summary="List all plans",
@@ -487,7 +497,9 @@ async def update_reservable_item(
 )
 async def list_all_plans(request: Request) -> list[dict]:
     try:
-        plans = await asyncio.to_thread(ReservableService.list_all_plans)
+        plans = await asyncio.to_thread(
+            ReservableService.list_all_plans, request.token_payload
+        )
         return plans or []
     except Error:
         raise
@@ -583,8 +595,9 @@ async def get_plan_bookings(
         )
 
 
-@admin_router.get(
+@manager_router.get(
     "/item/reservables-planner/by-item/{item_id}",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     tags=[tag],
     response_model=list[dict],
     summary="Get plans for item",
@@ -609,7 +622,11 @@ async def get_item_plans(
     try:
         return (
             await asyncio.to_thread(
-                ReservableService.get_item_plans, item_id, start, end
+                ReservableService.get_item_plans,
+                item_id,
+                start,
+                end,
+                request.token_payload,
             )
             or []
         )
@@ -624,8 +641,9 @@ async def get_item_plans(
         )
 
 
-@admin_router.post(
+@manager_router.post(
     "/item/reservables-planner",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     tags=[tag],
     response_model=dict,
     summary="Create plan",
@@ -658,8 +676,9 @@ async def create_plan(request: Request, data: CreatePlanRequest) -> dict:
         )
 
 
-@admin_router.delete(
+@manager_router.delete(
     "/item/reservables-planner/{plan_id}",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     tags=[tag],
     response_model=EmptyResponse,
     summary="Delete plan",
@@ -673,7 +692,9 @@ async def delete_plan(
     plan_id: str = Path(..., description="The plan ID"),
 ):
     try:
-        await asyncio.to_thread(ReservableService.delete_plan, plan_id)
+        await asyncio.to_thread(
+            ReservableService.delete_plan, plan_id, request.token_payload
+        )
         return EmptyResponse()
     except Error:
         raise
@@ -686,8 +707,9 @@ async def delete_plan(
         )
 
 
-@admin_router.put(
+@manager_router.put(
     "/item/reservables-planner/{plan_id}/{start}/{end}",
+    dependencies=[Depends(can_manage_gpu_plannings)],
     tags=[tag],
     response_model=EmptyResponse,
     summary="Update plan",

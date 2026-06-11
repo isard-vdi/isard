@@ -368,3 +368,37 @@ async def has_email_verification_required_or_login_token(
     request.token_payload = payload
 
     return payload
+
+
+async def can_manage_gpu_plannings(
+    payload: TokenPayload = Depends(is_admin_or_manager),
+) -> TokenPayload:
+    """Gate the GPU planner routes for admins and permitted managers.
+
+    Admins always pass. A manager passes only when the ``plannings``
+    capability is enabled in their OWN category's ``manager_permissions``
+    (the planner routes carry no ``category_id`` arg, so we use the token's
+    category). The per-card category scoping (the plan must target a card
+    delegated to the manager's category) is enforced separately in the
+    planner twin via ``_assert_manager_owns_card`` /
+    ``_assert_manager_owns_plan``. Cross-cutting check as a dependency per
+    B7 (upstream apiv3 ships it as the ``can_manage_gpu_plannings``
+    decorator in ``views/decorators.py``).
+    """
+    if payload["role_id"] == "manager":
+        # lazy: Category pulls the rethink stack; keep dependency import light
+        from isardvdi_common.helpers.category import Category
+
+        manager_permissions = (
+            await asyncio.to_thread(
+                lambda: Category(payload["category_id"]).manager_permissions
+            )
+            or {}
+        )
+        if not manager_permissions.get("plannings"):
+            raise Error(
+                "forbidden",
+                "Manager does not have permission: plannings",
+                traceback.format_exc(),
+            )
+    return payload
