@@ -70,6 +70,9 @@ class AdminUsersService:
     Service for admin user management operations.
     """
 
+    # Role hierarchy derived from USER_ROLE so the two can't drift; higher rank is more privileged.
+    _ROLE_RANK = {role: rank for rank, role in enumerate(get_args(USER_ROLE))}
+
     # ── Ownership Checks ─────────────────────────────────────────────────
 
     @staticmethod
@@ -85,14 +88,38 @@ class AdminUsersService:
     # ── User CRUD ────────────────────────────────────────────────────────
 
     @staticmethod
-    def get_impersonate_jwt(user_id: str) -> dict:
-        """Generate an impersonation JWT for a user."""
+    def get_impersonate_jwt(payload: dict, user_id: str) -> dict:
+        """Generate an impersonation JWT, rejecting targets whose role
+        outranks the caller's (equal rank is allowed)."""
         if not RethinkUser.exists(user_id):
             raise Error(
                 "not_found",
                 f"User {user_id} not found",
                 description_code="not_found",
             )
+
+        target = CommonUsers.get_user(user_id)
+        target_role = target.get("role") if isinstance(target, dict) else None
+        caller_role = payload.get("role_id", "")
+
+        caller_rank = AdminUsersService._ROLE_RANK.get(caller_role, -1)
+        target_rank = AdminUsersService._ROLE_RANK.get(target_role, -1)
+
+        # Cannot impersonate a role above the caller's (e.g. manager→admin).
+        if target_rank < 0 or caller_rank < target_rank:
+            raise Error(
+                "forbidden",
+                f"Cannot impersonate user with role '{target_role}' from role '{caller_role}'",
+                description_code="not_enough_rights",
+            )
+
+        log.warning(
+            "Impersonation: user %s (%s) impersonating user %s (%s)",
+            payload.get("user_id"),
+            caller_role,
+            user_id,
+            target_role,
+        )
         return CommonUsers.gen_impersonate_jwt(user_id)
 
     @staticmethod
@@ -202,9 +229,6 @@ class AdminUsersService:
         data.pop("password", None)
         data.pop("password_history", None)
         return data
-
-    # Role hierarchy derived from USER_ROLE so the two can't drift; higher rank is more privileged.
-    _ROLE_RANK = {role: rank for rank, role in enumerate(get_args(USER_ROLE))}
 
     @staticmethod
     def _check_role_elevation(

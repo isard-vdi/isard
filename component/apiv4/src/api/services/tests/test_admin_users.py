@@ -93,19 +93,85 @@ class TestRoleElevation:
 
 
 class TestGetImpersonateJwt:
+    ADMIN = {"user_id": "u-admin", "category_id": "default", "role_id": "admin"}
+    MANAGER = {"user_id": "u-mgr", "category_id": "cat-a", "role_id": "manager"}
+
+    @patch(
+        "api.services.admin.users.CommonUsers.get_user",
+        return_value={"id": "u1", "role": "user"},
+    )
     @patch(
         "api.services.admin.users.CommonUsers.gen_impersonate_jwt",
         return_value="jwt-string",
     )
     @patch("api.services.admin.users.RethinkUser.exists", return_value=True)
-    def test_returns_jwt(self, _exists, mock_gen):
-        assert AdminUsersService.get_impersonate_jwt("u1") == "jwt-string"
+    def test_admin_can_impersonate_lower_rank(self, _exists, mock_gen, _get):
+        assert AdminUsersService.get_impersonate_jwt(self.ADMIN, "u1") == "jwt-string"
         mock_gen.assert_called_once_with("u1")
+
+    @patch(
+        "api.services.admin.users.CommonUsers.get_user",
+        return_value={"id": "u-target-admin", "role": "admin"},
+    )
+    @patch(
+        "api.services.admin.users.CommonUsers.gen_impersonate_jwt",
+        return_value="jwt-string",
+    )
+    @patch("api.services.admin.users.RethinkUser.exists", return_value=True)
+    def test_manager_cannot_impersonate_admin(self, _exists, _gen, _get):
+        with pytest.raises(Error) as exc:
+            AdminUsersService.get_impersonate_jwt(self.MANAGER, "u-target-admin")
+        assert "Cannot impersonate" in str(exc.value)
+
+    @patch(
+        "api.services.admin.users.CommonUsers.get_user",
+        return_value={"id": "u-target-mgr", "role": "manager"},
+    )
+    @patch(
+        "api.services.admin.users.CommonUsers.gen_impersonate_jwt",
+        return_value="jwt-string",
+    )
+    @patch("api.services.admin.users.RethinkUser.exists", return_value=True)
+    def test_manager_can_impersonate_peer_manager(self, _exists, mock_gen, _get):
+        assert (
+            AdminUsersService.get_impersonate_jwt(self.MANAGER, "u-target-mgr")
+            == "jwt-string"
+        )
+
+    @patch(
+        "api.services.admin.users.CommonUsers.get_user",
+        return_value={"id": "u-advanced", "role": "advanced"},
+    )
+    @patch(
+        "api.services.admin.users.CommonUsers.gen_impersonate_jwt",
+        return_value="jwt-string",
+    )
+    @patch("api.services.admin.users.RethinkUser.exists", return_value=True)
+    def test_manager_can_impersonate_advanced(self, _exists, mock_gen, _get):
+        assert (
+            AdminUsersService.get_impersonate_jwt(self.MANAGER, "u-advanced")
+            == "jwt-string"
+        )
+
+    @patch(
+        "api.services.admin.users.CommonUsers.get_user",
+        return_value={"id": "u-peer-admin", "role": "admin"},
+    )
+    @patch(
+        "api.services.admin.users.CommonUsers.gen_impersonate_jwt",
+        return_value="jwt-string",
+    )
+    @patch("api.services.admin.users.RethinkUser.exists", return_value=True)
+    def test_admin_can_impersonate_peer_admin(self, _exists, mock_gen, _get):
+        assert (
+            AdminUsersService.get_impersonate_jwt(self.ADMIN, "u-peer-admin")
+            == "jwt-string"
+        )
 
     @patch("api.services.admin.users.RethinkUser.exists", return_value=False)
     def test_raises_not_found(self, _exists):
         with pytest.raises(Error):
-            AdminUsersService.get_impersonate_jwt("ghost")
+            AdminUsersService.get_impersonate_jwt(self.ADMIN, "ghost")
 
 
 class TestUserExists:

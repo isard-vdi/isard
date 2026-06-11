@@ -131,7 +131,9 @@ async def admin_get_jwt(request: Request, user_id: str):
         await asyncio.to_thread(
             AdminUsersService.owns_user_id, request.token_payload, user_id
         )
-        result = await asyncio.to_thread(AdminUsersService.get_impersonate_jwt, user_id)
+        result = await asyncio.to_thread(
+            AdminUsersService.get_impersonate_jwt, request.token_payload, user_id
+        )
         return JSONResponse(
             content=AdminUserImpersonateJwtResponse(**result).model_dump(mode="json"),
             status_code=200,
