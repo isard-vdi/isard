@@ -410,13 +410,13 @@ def test_set_delete_action(monkeypatch, test_client):
     )
 
     response = test_client(
-        url="/item/recycle-bin/config/delete-action/permanent",
+        url="/item/recycle-bin/config/delete-action/move",
         method="PUT",
         jwt=jwt,
     )
 
     assert response.status_code == 204
-    assert calls == ["permanent"]
+    assert calls == ["move"]
 
 
 def test_set_default_delete(monkeypatch, test_client):

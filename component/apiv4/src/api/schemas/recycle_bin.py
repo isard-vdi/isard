@@ -30,8 +30,8 @@ from .allowed import Allowed
 class DeleteActionEnum(str, Enum):
     """Action to perform when deleting items."""
 
-    recycle = "recycle"
-    permanent = "permanent"
+    move = "move"
+    delete = "delete"
 
 
 class OldEntriesActionEnum(str, Enum):
