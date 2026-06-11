@@ -3,7 +3,7 @@
     id="cantStartModal"
     v-model="modal.show"
     size="lg"
-    :title="modal.showChangeProfileAndStartOption ? $t(`components.cant-start-now-modal.title.available-profile`, { profile: modal.item.profile }): $t('components.cant-start-now-modal.title.no-available-profile')"
+    :title="modal.showChangeProfileAndStartOption ? $t(`components.cant-start-now-modal.title.available-profile`): $t('components.cant-start-now-modal.title.no-available-profile')"
     centered
     hide-footer
     header-class="bg-orange text-white"

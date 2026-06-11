@@ -331,15 +331,17 @@
       "end-date": "Data de finalització",
       "end-time": "Hora de finalització",
       "select-end-date": "Selecciona fins a quan es farà servir",
-      "button": "Iniciar escriptori"
+      "button": "Iniciar escriptori",
+      "profiles": "Perfils",
+      "select-profiles": "Selecciona els perfils que es faran servir"
     },
     "cant-start-now-modal": {
       "title": {
-        "available-profile": "El model de targeta gràfica d'aquest escriptori ({profile}) no està disponible en aquest moment",
+        "available-profile": "Els models de targeta gràfica d'aquest escriptori no estan disponibles en aquest moment",
         "no-available-profile": "No hi ha cap altre model de targeta gràfica disponible en aquest moment"
       },
       "change-desktop-gpu": {
-        "text": "Podeu canviar a un model de targeta gràfica disponible ara i iniciar-lo (pot afectar al rendiment de l'escriptori)",
+        "text": "Es poden canviar a models de targeta gràfica disponibles ara i iniciar-lo (pot afectar al rendiment de l'escriptori)",
         "button": "Canviar i iniciar"
       },
       "go-to-bookings": {
@@ -1331,7 +1333,13 @@
       },
       "bookables": {
         "title": "Reservables",
-        "vgpus": "GPU"
+        "vgpus": "GPU",
+        "sets": "conjunts",
+        "server-set": "Conjunt de servidor {n}",
+        "numa-socket": "Sòcol NUMA {n}",
+        "numa-socket-unknown": "Sòcol NUMA (desconegut)",
+        "numa-same-socket": "Mateix sòcol NUMA possible (node {node}) — les targetes poden compartir sòcol, millor ample de banda de memòria.",
+        "numa-diff-socket": "Sòcols NUMA diferents — l'escriptori igualment arrenca, però l'accés a memòria entre sòcols és més lent."
       },
       "media": {
         "title": "Mitjans",
@@ -1581,7 +1589,8 @@
     "bastion_domain_dns_error": "S'ha produït un error al comprovar el DNS del domini. Torna-ho a provar més tard.",
     "bastion_domain_dns_mismatch": "El registre DNS del domini no coincideix amb el valor esperat. Si us plau, comprova-ho i torna-ho a provar.",
     "bastion_domain_exists": "El domini ja existeix. Si us plau, tria un altre nom de domini.",
-    "parent_template_not_found": "L'element no es pot restaurar ja que la plantilla pare no existeix."
+    "parent_template_not_found": "L'element no es pot restaurar ja que la plantilla pare no existeix.",
+    "desktop_reservable_not_found": "El perfil de GPU de l'escriptori ja no existeix i s'ha eliminat. Edita l'escriptori per seleccionar un perfil de GPU disponible abans d'iniciar-lo."
   },
   "messages": {
     "title": {

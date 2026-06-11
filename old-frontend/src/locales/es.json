@@ -198,7 +198,13 @@
       },
       "bookables": {
         "title": "Reservables",
-        "vgpus": "GPU"
+        "vgpus": "GPU",
+        "sets": "conjuntos",
+        "server-set": "Conjunto de servidor {n}",
+        "numa-socket": "Socket NUMA {n}",
+        "numa-socket-unknown": "Socket NUMA (desconocido)",
+        "numa-same-socket": "Mismo socket NUMA posible (nodo {node}) — las tarjetas pueden compartir socket, mejor ancho de banda de memoria.",
+        "numa-diff-socket": "Sockets NUMA distintos — el escritorio igualmente arranca, pero el acceso a memoria entre sockets es más lento."
       },
       "media": {
         "title": "Media",
@@ -615,15 +621,17 @@
       "end-date": "Fecha de finalización",
       "end-time": "Hora de finalización",
       "select-end-date": "Selecciona hasta cuando se utilizará",
-      "button": "Iniciar escritorio"
+      "button": "Iniciar escritorio",
+      "profiles": "Perfiles",
+      "select-profiles": "Selecciona los perfiles que se utilizarán"
     },
     "cant-start-now-modal": {
       "title": {
-        "available-profile": "El modelo de tarjeta gráfica de este escritorio ({profile}) no está disponible en este momento",
+        "available-profile": "Los modelos de tarjeta gráfica de este escritorio no están disponibles en este momento",
         "no-available-profile": "No hay ningún otro modelo de tarjeta gráfica disponible en este momento"
       },
       "change-desktop-gpu": {
-        "text": "Se puede modificar a un modelo de tarjeta gráfica disponible ahora e iniciarlo (puede afectar al rendimiento del escritorio)",
+        "text": "Se pueden cambiar a modelos de tarjeta gráfica disponibles ahora e iniciarlo (puede afectar al rendimiento del escritorio)",
         "button": "Cambiar e iniciar"
       },
       "go-to-bookings": {
@@ -1688,7 +1696,8 @@
     "bastion_domain_error": "Se ha producido un error al comprobar el dominio. Por favor, inténtalo de nuevo más tarde.",
     "bastion_domain_mismatch": "El dominio no coincide con el valor esperado. Por favor, comprueba el nombre del dominio e inténtalo de nuevo.",
     "bastion_domain_exists": "El dominio ya existe. Por favor, elige un nombre de dominio diferente.",
-    "parent_template_not_found": "El elemento no se puede restaurar ya que la plantilla padre no existe."
+    "parent_template_not_found": "El elemento no se puede restaurar ya que la plantilla padre no existe.",
+    "desktop_reservable_not_found": "El perfil de GPU del escritorio ya no existe y se ha eliminado. Edita el escritorio para seleccionar un perfil de GPU disponible antes de arrancarlo."
   },
   "router": {
     "titles": {
