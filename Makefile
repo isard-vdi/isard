@@ -35,7 +35,7 @@ down:
 reset: down up
 
 .PHONY: lint
-lint: lint-python lint-system-deps lint-go lint-frontend lint-old-frontend lint-protobuf
+lint: lint-python lint-system-deps lint-go lint-frontend lint-old-frontend lint-protobuf lint-alloy
 
 .PHONY: format
 format: format-python format-frontend format-old-frontend
