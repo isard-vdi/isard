@@ -556,6 +556,10 @@ $(document).ready(function () {
       var data = JSON.parse(data);
       dtUpdateInsert(recyclebin_domains, data, false);
     });
+    socket.on('delete_recycle_bin', function (data) {
+      var data = JSON.parse(data);
+      dtUpdateInsert(recyclebin_domains, data, false);
+    });
   }
 
   recyclebin_domains.on('click', 'tbody tr', function (e) {
