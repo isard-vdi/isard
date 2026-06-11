@@ -3,22 +3,24 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Pin ``HypervisorsProcessed.hyper`` re-registration ``enabled`` read.
+"""Pin ``HypervisorsProcessed.hyper`` re-registration ``enabled`` handling.
 
-When a hypervisor row already exists (re-registration after a
-container restart) the method needs to feed ``enabled`` back into
-``add_hyper`` AND emit a ``.update({"enabled": False})`` if it was
-previously enabled. The ``enabled`` field can be:
+Since the GPU lifecycle port (upstream MR !4496) a re-registration keeps
+the hypervisor DISABLED for the whole boot: ``add_hyper`` is ALWAYS
+called with ``enabled=False`` and the hypervisor re-enables itself
+(EnableHypervisor) only once it is fully ready — after GPU
+discovery/apply, VPN bring-up and libvirtd. The stored ``enabled`` field
+only decides whether the in-flight ``.update({"enabled": False})``
+side-effect is emitted (a no-op otherwise), and it can be:
 
 * missing entirely (partial row written by another writer mid-flight,
   or row restored from a dump that predates v189),
 * stored as ``None`` from a partial write,
 * stored as ``True`` / ``False``.
 
-``dict.get(k, default)`` only defaults on a missing key, NOT on a
-stored ``None`` (per the engine-hypervisors skill, gotcha #2). The
-defensive read is wrapped in ``bool(...)`` so all four shapes
-collapse to a clean True/False.
+``dict.get(k)`` returns ``None`` for both absent and ``None``-stored
+shapes, which is falsy — so only a stored ``True`` triggers the
+pre-disable update.
 """
 
 from unittest.mock import MagicMock
@@ -98,19 +100,20 @@ def _row(**overrides) -> dict:
 
 
 class TestReregistrationEnabledReadback:
-    """The four shapes of a stored ``enabled`` value all flow into
-    ``add_hyper(..., enabled=<bool>, ...)`` and only emit the
-    ``update({"enabled": False})`` side-effect when the previous
-    value coerced to True."""
+    """All four shapes of a stored ``enabled`` value flow into
+    ``add_hyper(..., enabled=False, ...)`` — the hypervisor re-enables
+    itself only when fully booted — and only a stored ``True`` emits the
+    ``update({"enabled": False})`` side-effect."""
 
-    def test_enabled_true_disables_first_then_re_adds(self, stub_hyper):
+    def test_enabled_true_disables_first_then_re_adds_disabled(self, stub_hyper):
         stub_hyper["mock_table"].return_value.get.return_value.run.return_value = _row(
             enabled=True
         )
         stub_hyper["Processed"].hyper("isard-hypervisor", "isard-hypervisor")
-        # add_hyper saw enabled=True (so the engine restarts in the
-        # same enabled state once the disable→re-register dance lands).
-        assert stub_hyper["add_hyper_calls"][-1]["kwargs"]["enabled"] is True
+        # add_hyper saw enabled=False: the host must NOT come back as
+        # engine-managed until its own EnableHypervisor fires after the
+        # long GPU discovery/apply + VPN + libvirtd bring-up.
+        assert stub_hyper["add_hyper_calls"][-1]["kwargs"]["enabled"] is False
         # AND the in-flight disable was issued.
         update_calls = stub_hyper[
             "mock_table"

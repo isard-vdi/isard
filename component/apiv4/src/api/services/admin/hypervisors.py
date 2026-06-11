@@ -240,13 +240,6 @@ class AdminHypervisorsService:
         """Delete media by paths."""
         HypervisorsProcessed.delete_media(medias_paths)
 
-    # ── GPU Management ───────────────────────────────────────────────────
-
-    @staticmethod
-    def assign_gpus() -> None:
-        """Assign physical GPUs to GPU profiles."""
-        HypervisorsProcessed.assign_gpus()
-
     # ── Orchestrator ─────────────────────────────────────────────────────
 
     @staticmethod

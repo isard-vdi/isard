@@ -505,36 +505,6 @@ async def admin_hypervisor_media_delete(
         )
 
 
-# ── GPU Management ───────────────────────────────────────────────────────
-
-
-@admin_router.put(
-    "/admin/items/hypervisors/gpus",
-    tags=[tag],
-    response_model=EmptyResponse,
-    summary="Assign GPUs to hypervisors",
-    description="Reassign physical GPU devices to GPU profiles across all online hypervisors.",
-    responses={
-        500: {"model": ErrorResponse},
-    },
-)
-async def admin_hypervisors_assign_gpus(
-    request: Request,
-):
-    try:
-        await asyncio.to_thread(AdminHypervisorsService.assign_gpus)
-        return Response(status_code=204)
-    except Error:
-        raise
-    except Exception as e:
-        raise await Error.create(
-            request,
-            "internal_server",
-            "Failed to assign GPUs",
-            traceback.format_exc(),
-        )
-
-
 # ── Orchestrator: List Hypervisors ───────────────────────────────────────
 
 
