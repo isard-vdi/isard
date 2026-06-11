@@ -19,12 +19,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from pydantic import BaseModel, Field
 
 from .allowed import Allowed
+
+# Months offered by the webapp dropdown (recyclebin_config_modals.html); null = disabled.
+UnusedItemCutoffTime = Literal[1, 2, 3, 4, 5, 6, 12]
 
 
 class DeleteActionEnum(str, Enum):
@@ -231,7 +234,7 @@ class UnusedItemTimeoutRuleCreateRequest(BaseModel):
     name: str = Field(max_length=50)
     description: str = Field(default="", max_length=255)
     op: str
-    cutoff_time: Optional[int] = None
+    cutoff_time: Optional[UnusedItemCutoffTime] = None
     priority: int
     allowed: Optional[Allowed] = None
 
@@ -246,7 +249,7 @@ class UnusedItemTimeoutRuleUpdateRequest(BaseModel):
     name: Optional[str] = Field(default=None, max_length=50)
     description: Optional[str] = Field(default=None, max_length=255)
     op: Optional[str] = None
-    cutoff_time: Optional[int] = None
+    cutoff_time: Optional[UnusedItemCutoffTime] = None
     priority: Optional[int] = None
     allowed: Optional[Allowed] = None
 
