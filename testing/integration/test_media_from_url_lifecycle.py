@@ -24,8 +24,33 @@ from __future__ import annotations
 import os
 
 import pytest
+from isardvdi_apiv4_client.api.role_advanced import create_media, create_template
+from isardvdi_apiv4_client.api.role_user import (
+    create_desktop,
+    create_desktop_from_media,
+    start_desktop,
+    stop_desktop,
+)
+from isardvdi_apiv4_client.models.allowed_base import AllowedBase
+from isardvdi_apiv4_client.models.allowed_input import AllowedInput
+from isardvdi_apiv4_client.models.create_desktop_from_media import (
+    CreateDesktopFromMedia,
+)
+from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
+from isardvdi_apiv4_client.models.create_media_request import CreateMediaRequest
+from isardvdi_apiv4_client.models.domain_guest_properties_input import (
+    DomainGuestPropertiesInput,
+)
+from isardvdi_apiv4_client.models.guest_properties_viewers_input import (
+    GuestPropertiesViewersInput,
+)
+from isardvdi_apiv4_client.models.media_hardware import MediaHardware
+from isardvdi_apiv4_client.models.media_kind_enum import MediaKindEnum
+from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
+from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
 
 from .helpers.client import IsardClient
+from .helpers.responses import created_id
 from .helpers.sockets import SocketIOListener
 
 DEFAULT_MEDIA_URL = os.environ.get(
@@ -40,49 +65,44 @@ DOWNLOAD_TIMEOUT = 240
 TEMPLATE_TIMEOUT = 180
 
 
-def _media_payload(url: str, name: str) -> dict:
-    return {
-        "url": url,
-        "name": name,
-        "description": "e2e real-stack lifecycle",
-        "kind": "iso",
-        "allowed": {
-            "roles": False,
-            "categories": False,
-            "groups": False,
-            "users": False,
-        },
-        "hypervisors_pools": ["default"],
-    }
+def _media_payload(url: str, name: str) -> CreateMediaRequest:
+    return CreateMediaRequest(
+        url=url,
+        name=name,
+        description="e2e real-stack lifecycle",
+        kind=MediaKindEnum.ISO,
+        allowed=AllowedInput(roles=False, categories=False, groups=False, users=False),
+        hypervisors_pools=["default"],
+    )
 
 
 OS_TEMPLATE = os.environ.get("E2E_OS_TEMPLATE", "win7Virtio")
 
 
-def _desktop_from_media_payload(media_id: str, name: str) -> dict:
+def _desktop_from_media_payload(media_id: str, name: str) -> CreateDesktopFromMedia:
     # Intentionally omit `reservables` — this exercises the Bug A fix
     # (MediaHardware.reservables must be optional). The os_template we
     # use is a real virt_install row (win7Virtio is the default seed);
     # we never actually boot a Windows 7 OS, just need the XML shape.
-    return {
-        "media_id": media_id,
-        "kind": "iso",
-        "os_template": OS_TEMPLATE,
-        "name": name,
-        "description": "",
-        "guest_properties": {
-            "viewers": {"browser_vnc": {"options": None}},
-        },
-        "hardware": {
-            "boot_order": ["disk"],
-            "disk_bus": "default",
-            "disk_size": 1,
-            "interfaces": ["default"],
-            "memory": 0.5,
-            "vcpus": 1,
-            "videos": ["default"],
-        },
-    }
+    return CreateDesktopFromMedia(
+        media_id=media_id,
+        kind=MediaKindEnum.ISO,
+        os_template=OS_TEMPLATE,
+        name=name,
+        description="",
+        guest_properties=DomainGuestPropertiesInput(
+            viewers=GuestPropertiesViewersInput(browser_vnc=ViewerConfig()),
+        ),
+        hardware=MediaHardware(
+            boot_order=["disk"],
+            disk_bus="default",
+            disk_size=1,
+            interfaces=["default"],
+            memory=0.5,
+            vcpus=1,
+            videos=["default"],
+        ),
+    )
 
 
 @pytest.mark.real
@@ -94,11 +114,12 @@ def test_media_from_url_full_lifecycle(
 ):
     # --- Step 1: create media ---
     media_name = f"{test_namespace}media"
-    media = admin_client.post(
-        "/api/v4/item/media",
-        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    media_id = created_id(
+        create_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        )
     )
-    media_id = media["id"]
     try:
         admin_client.poll_media_status(
             media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
@@ -110,39 +131,41 @@ def test_media_from_url_full_lifecycle(
 
     # --- Step 2: create desktop from media ---
     desktop_name = f"{test_namespace}media_desktop"
-    desktop = admin_client.post(
-        "/api/v4/item/desktop/from-media",
-        json_body=_desktop_from_media_payload(media_id, desktop_name),
+    desktop_id = created_id(
+        create_desktop_from_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_desktop_from_media_payload(media_id, desktop_name),
+        )
     )
-    desktop_id = desktop["id"]
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=BOOT_TIMEOUT
     )
 
     # --- Step 3: start → stop (opt-out when KVM accel is unavailable) ---
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/start")
+        start_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Started", "WaitingIP"}, max_wait=BOOT_TIMEOUT
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped"}, max_wait=STOP_TIMEOUT
         )
 
     # --- Step 4: create template from stopped desktop (Bug B) ---
     template_name = f"{test_namespace}media_template"
-    template = admin_client.post(
-        "/api/v4/item/template",
-        json_body={
-            "desktop_id": desktop_id,
-            "name": template_name,
-            "description": "",
-            "allowed": {"users": False, "groups": False},
-            "enabled": True,
-        },
+    template_id = created_id(
+        create_template.sync_detailed(
+            client=admin_client.apiv4(),
+            body=NewTemplateRequest(
+                desktop_id=desktop_id,
+                name=template_name,
+                description="",
+                allowed=AllowedBase(users=False, groups=False),
+                enabled=True,
+            ),
+        )
     )
-    template_id = template["id"]
     admin_client.wait_for_template_created(
         source_desktop_id=desktop_id,
         template_id=template_id,
@@ -151,26 +174,27 @@ def test_media_from_url_full_lifecycle(
 
     # --- Step 5: derive new desktop from template (Bug B symmetric) ---
     derived_name = f"{test_namespace}media_derived"
-    derived = admin_client.post(
-        "/api/v4/item/desktop",
-        json_body={
-            "template_id": template_id,
-            "name": derived_name,
-            "description": "",
-        },
+    derived_id = created_id(
+        create_desktop.sync_detailed(
+            client=admin_client.apiv4(),
+            body=CreateDesktopRequest(
+                template_id=template_id,
+                name=derived_name,
+                description="",
+            ),
+        )
     )
-    derived_id = derived["id"]
     admin_client.poll_desktop_status(
         derived_id, want={"Stopped"}, max_wait=BOOT_TIMEOUT
     )
 
     # --- Step 6: start → stop derived ---
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{derived_id}/start")
+        start_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             derived_id, want={"Started", "WaitingIP"}, max_wait=BOOT_TIMEOUT
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{derived_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             derived_id, want={"Stopped"}, max_wait=STOP_TIMEOUT
         )

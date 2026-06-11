@@ -109,6 +109,10 @@ def _user_delete_check(scratch) -> dict:
     return {"ids": [scratch.user_id]}
 
 
+def _users_bulk_active(scratch) -> dict:
+    return {"ids": [scratch.user_id], "active": True}
+
+
 OVERRIDES: dict[tuple[str, str], OverrideFn] = {
     ("POST", "/api/v4/admin/user"): _user_create,
     ("DELETE", "/api/v4/admin/user"): _user_bulk_delete,
@@ -121,10 +125,7 @@ OVERRIDES: dict[tuple[str, str], OverrideFn] = {
     ("POST", "/api/v4/admin/allowed/term/categories"): _allowed_term,
     ("POST", "/api/v4/admin/allowed/term/users/{category_id}"): _allowed_term,
     ("POST", "/api/v4/admin/user/delete/check"): _user_delete_check,
-    ("POST", "/api/v4/admin/users/bulk"): lambda s: {
-        "ids": [s.user_id],
-        "active": True,
-    },
+    ("POST", "/api/v4/admin/users/bulk"): _users_bulk_active,
 }
 
 

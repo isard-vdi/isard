@@ -20,8 +20,36 @@ import os
 import time
 
 import pytest
+from isardvdi_apiv4_client.api.role_admin import (
+    admin_downloads_action_id,
+    admin_downloads_kind,
+)
+from isardvdi_apiv4_client.api.role_advanced import create_template
+from isardvdi_apiv4_client.api.role_manager import admin_list_domains
+from isardvdi_apiv4_client.api.role_user import (
+    create_desktop,
+    edit_desktop,
+    start_desktop,
+    stop_desktop,
+)
+from isardvdi_apiv4_client.models.admin_downloads_action_id_body import (
+    AdminDownloadsActionIdBody,
+)
+from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
+    AdminDownloadsKindKind,
+)
+from isardvdi_apiv4_client.models.admin_list_domains_data import AdminListDomainsData
+from isardvdi_apiv4_client.models.admin_list_domains_data_kind import (
+    AdminListDomainsDataKind,
+)
+from isardvdi_apiv4_client.models.allowed_base import AllowedBase
+from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
+from isardvdi_apiv4_client.models.desktop_edit_request import DesktopEditRequest
+from isardvdi_apiv4_client.models.download_item import DownloadItem
+from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
 
 from .helpers.client import IsardClient
+from .helpers.responses import created_id, expect
 from .helpers.sockets import SocketIOListener
 
 REGISTRY_IMAGE_NAME = os.environ.get("E2E_REGISTRY_IMAGE", "TetrOS")
@@ -32,24 +60,27 @@ STOP_TIMEOUT = 90
 TEMPLATE_TIMEOUT = 180
 
 
-def _find_registry_entry(admin_client: IsardClient, name: str) -> dict | None:
-    entries = admin_client.get("/api/v4/admin/downloads/domains")
-    for entry in entries:
-        if (entry.get("name") or "").lower() == name.lower():
-            return entry
-    return None
-
-
-def _find_existing_downloaded_desktop(
-    admin_client: IsardClient, name: str
-) -> dict | None:
-    """Find a TetrOS-named desktop already owned by any admin (not ours)."""
-    rows = (
-        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
+def _desktop_rows(admin_client: IsardClient) -> list:
+    rows = expect(
+        admin_list_domains.sync_detailed(
+            client=admin_client.apiv4(),
+            body=AdminListDomainsData(kind=AdminListDomainsDataKind.DESKTOP),
+        )
     )
-    for row in rows:
-        if (row.get("name") or "") == name:
-            return row
+    assert isinstance(rows, list)
+    return rows
+
+
+def _find_registry_entry(admin_client: IsardClient, name: str) -> DownloadItem | None:
+    entries = expect(
+        admin_downloads_kind.sync_detailed(
+            kind=AdminDownloadsKindKind.DOMAINS, client=admin_client.apiv4()
+        )
+    )
+    assert isinstance(entries, list)
+    for entry in entries:
+        if (entry.name or "").lower() == name.lower():
+            return entry
     return None
 
 
@@ -64,13 +95,9 @@ def _wait_for_new_download_desktop(
     desktops by that name when the test started)."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        rows = (
-            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
-            or []
-        )
-        for row in rows:
-            if (row.get("name") or "") == name and row["id"] not in exclude_ids:
-                return row["id"]
+        for row in _desktop_rows(admin_client):
+            if (row.name or "") == name and row.id not in exclude_ids:
+                return row.id
         time.sleep(2)
     raise TimeoutError(f"no new desktop named {name!r} appeared within {timeout}s")
 
@@ -85,31 +112,44 @@ def test_registry_download_full_lifecycle(
     registry_entry = _find_registry_entry(admin_client, REGISTRY_IMAGE_NAME)
     if registry_entry is None:
         pytest.skip(
-            f"{REGISTRY_IMAGE_NAME!r} not listed at /api/v4/admin/downloads/domains — "
+            f"{REGISTRY_IMAGE_NAME!r} not listed at /api/v4/admin/items/downloads/domains — "
             "check registry reachability / registration"
         )
-    if registry_entry.get("status") and registry_entry["status"] != "Available":
+    # ``status`` / ``url-isard`` aren't in the DownloadItem schema; they ride
+    # along in additional_properties on the registry listing.
+    status = registry_entry.additional_properties.get("status")
+    if status and status != "Available":
         pytest.skip(
-            f"{REGISTRY_IMAGE_NAME!r} not Available in registry "
-            f"(status={registry_entry['status']!r})"
+            f"{REGISTRY_IMAGE_NAME!r} not Available in registry (status={status!r})"
         )
 
     # --- Step 1: capture pre-existing desktops by the same name ---
     # The registry download creates a desktop named REGISTRY_IMAGE_NAME.
     # If a developer already has one (outside our prefix), record its id
     # so we don't mistake it for ours later.
-    existing_rows = (
-        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
-    )
     existing_ids = {
-        r["id"] for r in existing_rows if (r.get("name") or "") == REGISTRY_IMAGE_NAME
+        r.id
+        for r in _desktop_rows(admin_client)
+        if (r.name or "") == REGISTRY_IMAGE_NAME
     }
 
     # --- Step 2: trigger download ---
-    admin_client.post(
-        f"/api/v4/admin/downloads/download/domains/{registry_entry.get('url-isard') or registry_entry['id']}",
-        expected=(200, 201, 204),
+    download_id = (
+        registry_entry.additional_properties.get("url-isard") or registry_entry.id
     )
+    assert isinstance(download_id, str) and download_id, "registry entry has no id"
+    download = admin_downloads_action_id.sync_detailed(
+        action="download",
+        kind="domains",
+        id=download_id,
+        client=admin_client.apiv4(),
+        body=AdminDownloadsActionIdBody(),
+    )
+    assert download.status_code in (
+        200,
+        201,
+        204,
+    ), f"registry download -> {download.status_code}"
 
     # --- Step 3: wait for the new domain row to appear ---
     tetros_id = _wait_for_new_download_desktop(
@@ -121,10 +161,12 @@ def test_registry_download_full_lifecycle(
 
     # --- Step 4: rename into our namespace so teardown finds it ---
     tetros_name = f"{test_namespace}tetros"
-    admin_client.raw(
-        "PUT",
-        f"/api/v4/item/desktop/{tetros_id}/edit",
-        json={"name": tetros_name, "description": "e2e real-stack lifecycle"},
+    edit_desktop.sync_detailed(
+        desktop_id=tetros_id,
+        client=admin_client.apiv4(),
+        body=DesktopEditRequest(
+            name=tetros_name, description="e2e real-stack lifecycle"
+        ),
     )
 
     # --- Step 5: wait for download complete (status Stopped) ---
@@ -134,28 +176,29 @@ def test_registry_download_full_lifecycle(
 
     # --- Step 6: start → stop ---
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{tetros_id}/start")
+        start_desktop.sync_detailed(desktop_id=tetros_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             tetros_id, want={"Started", "WaitingIP"}, max_wait=BOOT_TIMEOUT
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{tetros_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=tetros_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             tetros_id, want={"Stopped"}, max_wait=STOP_TIMEOUT
         )
 
     # --- Step 7: create template from stopped downloaded desktop (Bug B) ---
     template_name = f"{test_namespace}tetros_template"
-    template = admin_client.post(
-        "/api/v4/item/template",
-        json_body={
-            "desktop_id": tetros_id,
-            "name": template_name,
-            "description": "",
-            "allowed": {"users": False, "groups": False},
-            "enabled": True,
-        },
+    template_id = created_id(
+        create_template.sync_detailed(
+            client=admin_client.apiv4(),
+            body=NewTemplateRequest(
+                desktop_id=tetros_id,
+                name=template_name,
+                description="",
+                allowed=AllowedBase(users=False, groups=False),
+                enabled=True,
+            ),
+        )
     )
-    template_id = template["id"]
     admin_client.wait_for_template_created(
         source_desktop_id=tetros_id,
         template_id=template_id,
@@ -164,26 +207,27 @@ def test_registry_download_full_lifecycle(
 
     # --- Step 8: derive a new desktop from the template ---
     derived_name = f"{test_namespace}tetros_derived"
-    derived = admin_client.post(
-        "/api/v4/item/desktop",
-        json_body={
-            "template_id": template_id,
-            "name": derived_name,
-            "description": "",
-        },
+    derived_id = created_id(
+        create_desktop.sync_detailed(
+            client=admin_client.apiv4(),
+            body=CreateDesktopRequest(
+                template_id=template_id,
+                name=derived_name,
+                description="",
+            ),
+        )
     )
-    derived_id = derived["id"]
     admin_client.poll_desktop_status(
         derived_id, want={"Stopped"}, max_wait=BOOT_TIMEOUT
     )
 
     # --- Step 9: start → stop derived ---
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{derived_id}/start")
+        start_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             derived_id, want={"Started", "WaitingIP"}, max_wait=BOOT_TIMEOUT
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{derived_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             derived_id, want={"Stopped"}, max_wait=STOP_TIMEOUT
         )

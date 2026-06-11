@@ -54,8 +54,78 @@ import time
 from typing import Optional
 
 import pytest
+from isardvdi_apiv4_client.api.role_admin import (
+    admin_domain_xml_get,
+    admin_downloads_action_id,
+    admin_downloads_kind,
+    admin_hypervisors_list,
+)
+from isardvdi_apiv4_client.api.role_advanced import (
+    create_deployment,
+    create_media,
+    create_template,
+    get_deployment_videowall,
+)
+from isardvdi_apiv4_client.api.role_manager import admin_list_domains
+from isardvdi_apiv4_client.api.role_user import (
+    create_desktop,
+    create_desktop_from_media,
+    create_nonpersistent_desktop,
+    edit_desktop,
+    get_desktop_details,
+    start_desktop,
+    stop_desktop,
+)
+from isardvdi_apiv4_client.models.admin_domain_list_item import AdminDomainListItem
+from isardvdi_apiv4_client.models.admin_domain_xml_response import (
+    AdminDomainXmlResponse,
+)
+from isardvdi_apiv4_client.models.admin_downloads_action_id_body import (
+    AdminDownloadsActionIdBody,
+)
+from isardvdi_apiv4_client.models.admin_downloads_kind_kind import (
+    AdminDownloadsKindKind,
+)
+from isardvdi_apiv4_client.models.admin_list_domains_data import AdminListDomainsData
+from isardvdi_apiv4_client.models.admin_list_domains_data_kind import (
+    AdminListDomainsDataKind,
+)
+from isardvdi_apiv4_client.models.allowed_base import AllowedBase
+from isardvdi_apiv4_client.models.allowed_input import AllowedInput
+from isardvdi_apiv4_client.models.api_schemas_domains_hardware_reservables import (
+    ApiSchemasDomainsHardwareReservables,
+)
+from isardvdi_apiv4_client.models.create_deployment_request import (
+    CreateDeploymentRequest,
+)
+from isardvdi_apiv4_client.models.create_desktop_from_media import (
+    CreateDesktopFromMedia,
+)
+from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
+from isardvdi_apiv4_client.models.create_media_request import CreateMediaRequest
+from isardvdi_apiv4_client.models.desktop_details_response import DesktopDetailsResponse
+from isardvdi_apiv4_client.models.desktop_edit_request import DesktopEditRequest
+from isardvdi_apiv4_client.models.domain_guest_properties_input import (
+    DomainGuestPropertiesInput,
+)
+from isardvdi_apiv4_client.models.domain_hardware import DomainHardware
+from isardvdi_apiv4_client.models.domain_hardware_boot_order_item import (
+    DomainHardwareBootOrderItem,
+)
+from isardvdi_apiv4_client.models.guest_properties_viewers_input import (
+    GuestPropertiesViewersInput,
+)
+from isardvdi_apiv4_client.models.media_hardware import MediaHardware
+from isardvdi_apiv4_client.models.media_kind_enum import MediaKindEnum
+from isardvdi_apiv4_client.models.new_nonpersistent_desktop_request import (
+    NewNonpersistentDesktopRequest,
+)
+from isardvdi_apiv4_client.models.new_template_request import NewTemplateRequest
+from isardvdi_apiv4_client.models.viewer_config import ViewerConfig
+from isardvdi_apiv4_client.types import UNSET
 
 from .helpers.client import IsardClient
+from .helpers.responses import created_id, expect
 
 # ---------------------------------------------------------------------------
 # constants — all overridable via env so CI can substitute different mirrors
@@ -85,63 +155,111 @@ OS_TEMPLATE = os.environ.get("E2E_OS_TEMPLATE", "win7Virtio")
 # ---------------------------------------------------------------------------
 
 
-def _media_payload(url: str, name: str) -> dict:
-    return {
-        "url": url,
-        "name": name,
-        "description": "e2e hw lifecycle",
-        "kind": "iso",
-        "allowed": {
-            "roles": False,
-            "categories": False,
-            "groups": False,
-            "users": False,
-        },
-        "hypervisors_pools": ["default"],
-    }
+def _media_payload(url: str, name: str) -> CreateMediaRequest:
+    return CreateMediaRequest(
+        url=url,
+        name=name,
+        description="e2e hw lifecycle",
+        kind=MediaKindEnum.ISO,
+        allowed=AllowedInput(roles=False, categories=False, groups=False, users=False),
+        hypervisors_pools=["default"],
+    )
 
 
-def _hardware_dict(*, vcpus: int, memory_gb: float, disk_size_gb: int) -> dict:
-    """The hardware shape the apiv4 ``MediaHardware`` and
-    ``DomainHardware`` schemas accept on POST. Memory is in GB at the
-    apiv4 boundary (``DesktopService.create_from_media`` converts to
-    KiB before writing ``create_dict``)."""
-    return {
-        "boot_order": ["disk"],
-        "disk_bus": "default",
-        "disk_size": disk_size_gb,
-        "interfaces": ["default"],
-        "memory": memory_gb,
-        "vcpus": vcpus,
-        "videos": ["default"],
-    }
+def _media_hardware(
+    *,
+    vcpus: int,
+    memory_gb: float,
+    disk_size_gb: int,
+    boot_order: list[str] | None = None,
+) -> MediaHardware:
+    """The hardware shape the apiv4 ``MediaHardware`` schema accepts on a
+    from-media POST. Memory is in GB at the apiv4 boundary
+    (``DesktopService.create_from_media`` converts to KiB before writing
+    ``create_dict``)."""
+    return MediaHardware(
+        boot_order=boot_order if boot_order is not None else ["disk"],
+        disk_bus="default",
+        disk_size=disk_size_gb,
+        interfaces=["default"],
+        memory=memory_gb,
+        vcpus=vcpus,
+        videos=["default"],
+    )
 
 
-def _desktop_from_media_payload(media_id: str, name: str, hardware: dict) -> dict:
-    return {
-        "media_id": media_id,
-        "kind": "iso",
-        "os_template": OS_TEMPLATE,
-        "name": name,
-        "description": "",
-        "guest_properties": {
-            "viewers": {"browser_vnc": {"options": None}},
-        },
-        "hardware": hardware,
-    }
+def _domain_hardware(
+    *, vcpus: int, memory_gb: float, disk_size_gb: int
+) -> DomainHardware:
+    """The ``DomainHardware`` shape for create-from-template / edit. The
+    schema doesn't model ``disk_size``; the engine still honors it, so it
+    rides in additional_properties to keep the pre-SDK wire shape."""
+    hardware = DomainHardware(
+        boot_order=[DomainHardwareBootOrderItem.DISK],
+        disk_bus="default",
+        interfaces=["default"],
+        memory=memory_gb,
+        vcpus=vcpus,
+        videos=["default"],
+    )
+    hardware.additional_properties["disk_size"] = disk_size_gb
+    return hardware
+
+
+def _desktop_from_media_payload(
+    media_id: str, name: str, hardware: MediaHardware
+) -> CreateDesktopFromMedia:
+    return CreateDesktopFromMedia(
+        media_id=media_id,
+        kind=MediaKindEnum.ISO,
+        os_template=OS_TEMPLATE,
+        name=name,
+        description="",
+        guest_properties=DomainGuestPropertiesInput(
+            viewers=GuestPropertiesViewersInput(browser_vnc=ViewerConfig()),
+        ),
+        hardware=hardware,
+    )
+
+
+def _desktop_rows(admin_client: IsardClient) -> list[AdminDomainListItem]:
+    rows = expect(
+        admin_list_domains.sync_detailed(
+            client=admin_client.apiv4(),
+            body=AdminListDomainsData(kind=AdminListDomainsDataKind.DESKTOP),
+        )
+    )
+    assert isinstance(rows, list)
+    return rows
+
+
+def _details(admin_client: IsardClient, desktop_id: str) -> DesktopDetailsResponse:
+    details = expect(
+        get_desktop_details.sync_detailed(
+            desktop_id=desktop_id, client=admin_client.apiv4()
+        )
+    )
+    assert isinstance(details, DesktopDetailsResponse)
+    return details
+
+
+def _detail_vcpu_memory(details: DesktopDetailsResponse) -> tuple[float, float]:
+    assert isinstance(details.vcpu, (int, float))
+    assert isinstance(details.memory, (int, float))
+    return float(details.vcpu), float(details.memory)
 
 
 def _xml(admin_client: IsardClient, domain_id: str) -> str:
     """Return engine's XML for the domain — the source of truth that
-    isard-hypervisor's libvirtd will define on next start."""
-    resp = admin_client.raw("GET", f"/api/v4/admin/domain/{domain_id}/xml")
-    if resp.status_code != 200:
-        raise AssertionError(
-            f"GET /admin/domain/{domain_id}/xml -> {resp.status_code}: "
-            f"{resp.text[:300]}"
-        )
-    body = resp.json()
-    return body if isinstance(body, str) else body.get("xml") or ""
+    isard-hypervisor's libvirtd will define on next start. Tolerates a
+    not-yet-rendered XML (returns "") so callers can poll."""
+    resp = admin_domain_xml_get.sync_detailed(
+        domain_id=domain_id, client=admin_client.apiv4()
+    )
+    parsed = resp.parsed
+    if isinstance(parsed, AdminDomainXmlResponse) and isinstance(parsed.xml, str):
+        return parsed.xml
+    return ""
 
 
 _VCPU_RE = re.compile(r"<vcpu[^>]*>\s*(\d+)\s*</vcpu>")
@@ -208,7 +326,7 @@ def _start_then_settle(
     """Best-effort start. Returns the terminal status. Accepts ``Failed``
     for KVM-less runners — the test cares about the XML, not the boot
     success."""
-    admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/start")
+    start_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
     return admin_client.poll_desktop_status(
         desktop_id,
         want={"Started", "WaitingIP", "Failed"},
@@ -231,39 +349,42 @@ def _media_then_template(
     template ready to derive desktops from.
     """
     media_name = f"{test_namespace}{prefix}_tmpl_media"
-    media = admin_client.post(
-        "/api/v4/item/media",
-        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    media_id = created_id(
+        create_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        )
     )
-    media_id = media["id"]
     admin_client.poll_media_status(
         media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
     )
 
     src_name = f"{test_namespace}{prefix}_tmpl_src"
-    src = admin_client.post(
-        "/api/v4/item/desktop/from-media",
-        json_body=_desktop_from_media_payload(
-            media_id,
-            src_name,
-            _hardware_dict(vcpus=1, memory_gb=0.5, disk_size_gb=1),
-        ),
+    src_id = created_id(
+        create_desktop_from_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_desktop_from_media_payload(
+                media_id,
+                src_name,
+                _media_hardware(vcpus=1, memory_gb=0.5, disk_size_gb=1),
+            ),
+        )
     )
-    src_id = src["id"]
     admin_client.poll_desktop_status(src_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT)
 
     template_name = f"{test_namespace}{prefix}_tmpl"
-    template = admin_client.post(
-        "/api/v4/item/template",
-        json_body={
-            "desktop_id": src_id,
-            "name": template_name,
-            "description": "",
-            "allowed": {"users": False, "groups": False},
-            "enabled": True,
-        },
+    template_id = created_id(
+        create_template.sync_detailed(
+            client=admin_client.apiv4(),
+            body=NewTemplateRequest(
+                desktop_id=src_id,
+                name=template_name,
+                description="",
+                allowed=AllowedBase(users=False, groups=False),
+                enabled=True,
+            ),
+        )
     )
-    template_id = template["id"]
     admin_client.wait_for_template_created(
         source_desktop_id=src_id,
         template_id=template_id,
@@ -291,39 +412,47 @@ def _trigger_registry_download(admin_client: IsardClient, name: str) -> str:
               -> core: storage_update (storage→ready, _promote_domains_to_stopped)
                 -> core: update_status (FAILED/CANCELED → Failed)
     """
-    entries = admin_client.get("/api/v4/admin/downloads/domains")
+    entries = expect(
+        admin_downloads_kind.sync_detailed(
+            kind=AdminDownloadsKindKind.DOMAINS, client=admin_client.apiv4()
+        )
+    )
+    assert isinstance(entries, list)
     entry = None
     for e in entries:
-        if (e.get("name") or "").lower() == name.lower():
+        if (e.name or "").lower() == name.lower():
             entry = e
             break
-    if entry is None or entry.get("status") not in (None, "Available"):
+    # ``status`` / ``url-isard`` aren't in the DownloadItem schema; they
+    # ride along in additional_properties on the registry listing.
+    if entry is None or entry.additional_properties.get("status") not in (
+        None,
+        "Available",
+    ):
         pytest.skip(f"{name!r} not Available in registry")
 
-    existing_rows = (
-        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
-    )
-    existing_ids = {r["id"] for r in existing_rows if (r.get("name") or "") == name}
+    existing_ids = {r.id for r in _desktop_rows(admin_client) if (r.name or "") == name}
 
-    admin_client.post(
-        f"/api/v4/admin/downloads/download/domains/"
-        f"{entry.get('url-isard') or entry['id']}",
-        expected=(200, 201, 204),
+    download_id = entry.additional_properties.get("url-isard") or entry.id
+    assert isinstance(download_id, str) and download_id, "registry entry has no id"
+    download = admin_downloads_action_id.sync_detailed(
+        action="download",
+        kind="domains",
+        id=download_id,
+        client=admin_client.apiv4(),
+        body=AdminDownloadsActionIdBody(),
     )
+    assert download.status_code in (200, 201, 204)
 
     deadline = time.monotonic() + DOWNLOAD_TIMEOUT
     while time.monotonic() < deadline:
-        rows = (
-            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
-            or []
-        )
-        for row in rows:
+        for row in _desktop_rows(admin_client):
             if (
-                (row.get("name") or "") == name
-                and row["id"] not in existing_ids
-                and row.get("status") == "Stopped"
+                (row.name or "") == name
+                and row.id not in existing_ids
+                and row.status == "Stopped"
             ):
-                return row["id"]
+                return row.id
         time.sleep(2)
     raise TimeoutError(
         f"registry download for {name!r} did not reach Stopped within "
@@ -361,30 +490,31 @@ def test_desktop_from_template_uses_explicit_hardware_in_xml(
     requested_memory_gb = 1.5
     requested_memory_kib = int(requested_memory_gb * 1048576)
     derived_name = f"{test_namespace}hw_derived"
-    derived = admin_client.post(
-        "/api/v4/item/desktop",
-        json_body={
-            "template_id": template_id,
-            "name": derived_name,
-            "description": "",
-            "hardware": _hardware_dict(
-                vcpus=requested_vcpus,
-                memory_gb=requested_memory_gb,
-                disk_size_gb=1,
+    derived_id = created_id(
+        create_desktop.sync_detailed(
+            client=admin_client.apiv4(),
+            body=CreateDesktopRequest(
+                template_id=template_id,
+                name=derived_name,
+                description="",
+                hardware=_domain_hardware(
+                    vcpus=requested_vcpus,
+                    memory_gb=requested_memory_gb,
+                    disk_size_gb=1,
+                ),
             ),
-        },
+        )
     )
-    derived_id = derived["id"]
     admin_client.poll_desktop_status(
         derived_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
 
     # --- pin: apiv4 detail response reflects the explicit hardware.
-    details = admin_client.get(f"/api/v4/item/desktop/{derived_id}/get-details")
-    assert int(details["vcpu"]) == requested_vcpus
-    assert abs(details["memory"] - requested_memory_gb) < 1e-3, (
-        f"memory mismatch: got {details['memory']}, " f"expected {requested_memory_gb}"
-    )
+    vcpu, memory = _detail_vcpu_memory(_details(admin_client, derived_id))
+    assert int(vcpu) == requested_vcpus
+    assert (
+        abs(memory - requested_memory_gb) < 1e-3
+    ), f"memory mismatch: got {memory}, expected {requested_memory_gb}"
 
     # --- pin: engine XML carries the same vcpu/memory.
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
@@ -396,7 +526,7 @@ def test_desktop_from_template_uses_explicit_hardware_in_xml(
             memory_kib=requested_memory_kib,
             max_wait=60.0,
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{derived_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=derived_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             derived_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -414,11 +544,12 @@ def test_desktop_from_media_uses_explicit_hardware_in_xml(
     most affected by Phase A — both halves are now task-driven.
     """
     media_name = f"{test_namespace}hw_media"
-    media = admin_client.post(
-        "/api/v4/item/media",
-        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    media_id = created_id(
+        create_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        )
     )
-    media_id = media["id"]
     try:
         admin_client.poll_media_status(
             media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
@@ -430,28 +561,29 @@ def test_desktop_from_media_uses_explicit_hardware_in_xml(
     requested_memory_gb = 1.0
     requested_memory_kib = int(requested_memory_gb * 1048576)
     desktop_name = f"{test_namespace}hw_media_desktop"
-    desktop = admin_client.post(
-        "/api/v4/item/desktop/from-media",
-        json_body=_desktop_from_media_payload(
-            media_id,
-            desktop_name,
-            _hardware_dict(
-                vcpus=requested_vcpus,
-                memory_gb=requested_memory_gb,
-                disk_size_gb=1,
+    desktop_id = created_id(
+        create_desktop_from_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_desktop_from_media_payload(
+                media_id,
+                desktop_name,
+                _media_hardware(
+                    vcpus=requested_vcpus,
+                    memory_gb=requested_memory_gb,
+                    disk_size_gb=1,
+                ),
             ),
-        ),
+        )
     )
-    desktop_id = desktop["id"]
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
 
-    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}/get-details")
-    assert int(details["vcpu"]) == requested_vcpus
-    assert abs(details["memory"] - requested_memory_gb) < 1e-3, (
-        f"memory mismatch: got {details['memory']}, " f"expected {requested_memory_gb}"
-    )
+    vcpu, memory = _detail_vcpu_memory(_details(admin_client, desktop_id))
+    assert int(vcpu) == requested_vcpus
+    assert (
+        abs(memory - requested_memory_gb) < 1e-3
+    ), f"memory mismatch: got {memory}, expected {requested_memory_gb}"
 
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
         _start_then_settle(admin_client, desktop_id, boot_timeout=BOOT_TIMEOUT)
@@ -462,7 +594,7 @@ def test_desktop_from_media_uses_explicit_hardware_in_xml(
             memory_kib=requested_memory_kib,
             max_wait=60.0,
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -487,11 +619,12 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
     """
     # Use the smallest ISO so the storage chain finishes quickly.
     media_name = f"{test_namespace}hw_edit_media"
-    media = admin_client.post(
-        "/api/v4/item/media",
-        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    media_id = created_id(
+        create_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        )
     )
-    media_id = media["id"]
     try:
         admin_client.poll_media_status(
             media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
@@ -504,15 +637,16 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
     v1_memory_gb = 0.5
     v1_memory_kib = int(v1_memory_gb * 1048576)
     desktop_name = f"{test_namespace}hw_edit_desktop"
-    desktop = admin_client.post(
-        "/api/v4/item/desktop/from-media",
-        json_body=_desktop_from_media_payload(
-            media_id,
-            desktop_name,
-            _hardware_dict(vcpus=v1_vcpus, memory_gb=v1_memory_gb, disk_size_gb=1),
-        ),
+    desktop_id = created_id(
+        create_desktop_from_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_desktop_from_media_payload(
+                media_id,
+                desktop_name,
+                _media_hardware(vcpus=v1_vcpus, memory_gb=v1_memory_gb, disk_size_gb=1),
+            ),
+        )
     )
-    desktop_id = desktop["id"]
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
@@ -527,7 +661,7 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
             memory_kib=v1_memory_kib,
             max_wait=60.0,
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -536,13 +670,14 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
     v2_vcpus = 4
     v2_memory_gb = 2.0
     v2_memory_kib = int(v2_memory_gb * 1048576)
-    admin_client.put(
-        f"/api/v4/item/desktop/{desktop_id}/edit",
-        json_body={
-            "hardware": _hardware_dict(
+    edit_desktop.sync_detailed(
+        desktop_id=desktop_id,
+        client=admin_client.apiv4(),
+        body=DesktopEditRequest(
+            hardware=_domain_hardware(
                 vcpus=v2_vcpus, memory_gb=v2_memory_gb, disk_size_gb=1
             ),
-        },
+        ),
     )
     # The engine flips Stopped → Updating → Stopped after edit. Wait
     # for it to settle; the apiv4 detail-shape vcpu/memory must already
@@ -550,14 +685,13 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
     )
-    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}/get-details")
-    assert int(details["vcpu"]) == v2_vcpus, (
-        f"post-edit vcpu mismatch: got {details['vcpu']}, " f"expected {v2_vcpus}"
-    )
-    assert abs(details["memory"] - v2_memory_gb) < 1e-3, (
-        f"post-edit memory mismatch: got {details['memory']}, "
-        f"expected {v2_memory_gb}"
-    )
+    vcpu, memory = _detail_vcpu_memory(_details(admin_client, desktop_id))
+    assert (
+        int(vcpu) == v2_vcpus
+    ), f"post-edit vcpu mismatch: got {vcpu}, expected {v2_vcpus}"
+    assert (
+        abs(memory - v2_memory_gb) < 1e-3
+    ), f"post-edit memory mismatch: got {memory}, expected {v2_memory_gb}"
 
     if os.environ.get("E2E_SKIP_VM_BOOT") != "1":
         _start_then_settle(admin_client, desktop_id, boot_timeout=BOOT_TIMEOUT)
@@ -569,7 +703,7 @@ def test_edit_hardware_after_stop_propagates_to_xml_on_next_start(
             memory_kib=v2_memory_kib,
             max_wait=60.0,
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -622,32 +756,30 @@ def test_registry_download_lands_desktop_as_stopped_via_new_chain(
     # DownloadStarting/Downloading). Asserted via the admin listing
     # before any subsequent edit, since edit transitions Stopped →
     # Updating → Stopped.
-    rows = (
-        admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"}) or []
-    )
-    row = next((d for d in rows if d.get("id") == desktop_id), None)
+    row = next((d for d in _desktop_rows(admin_client) if d.id == desktop_id), None)
     assert row is not None, "registry desktop disappeared from admin listing"
-    assert row.get("status") == "Stopped", (
+    assert row.status == "Stopped", (
         f"registry desktop reached Stopped via the chain but immediately "
-        f"flipped to {row.get('status')!r} — investigate the changefeed."
+        f"flipped to {row.status!r} — investigate the changefeed."
     )
 
     # ── Pin (2): the storage row got created and is ``ready`` (the
     # downloaded file is on disk and qemu-img info validated it).
-    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}/get-details")
-    disks = details.get("disks") or []
-    assert disks, "registry desktop has no disks attached"
-    storage_id = disks[0].get("id")
-    assert storage_id, f"first disk missing storage id: {disks[0]!r}"
+    details = _details(admin_client, desktop_id)
+    assert details.disks, "registry desktop has no disks attached"
+    storage_id = details.disks[0].id
+    assert storage_id, f"first disk missing storage id: {details.disks[0]!r}"
 
     # ── Pin (3): rename into test prefix so teardown finds it.
     # Wait for the post-edit Updating → Stopped sweep before
     # finishing — leaving the desktop in Updating would crash later
     # tests that scan ``/items/desktops``.
-    admin_client.raw(
-        "PUT",
-        f"/api/v4/item/desktop/{desktop_id}/edit",
-        json={"name": f"{test_namespace}registry_tetros", "description": "registry"},
+    edit_desktop.sync_detailed(
+        desktop_id=desktop_id,
+        client=admin_client.apiv4(),
+        body=DesktopEditRequest(
+            name=f"{test_namespace}registry_tetros", description="registry"
+        ),
     )
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
@@ -684,11 +816,12 @@ def test_from_media_attaches_iso_with_boot_order_and_persists_reservables_shape(
     must reflect that.
     """
     media_name = f"{test_namespace}iso_attach_media"
-    media = admin_client.post(
-        "/api/v4/item/media",
-        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    media_id = created_id(
+        create_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        )
     )
-    media_id = media["id"]
     try:
         admin_client.poll_media_status(
             media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
@@ -697,36 +830,45 @@ def test_from_media_attaches_iso_with_boot_order_and_persists_reservables_shape(
         pytest.skip(f"media source unreachable: {exc}")
 
     desktop_name = f"{test_namespace}iso_attach_desktop"
-    payload = _desktop_from_media_payload(
-        media_id,
-        desktop_name,
-        _hardware_dict(vcpus=1, memory_gb=0.5, disk_size_gb=1),
-    )
     # Override boot_order: boot from ISO instead of disk.
-    payload["hardware"]["boot_order"] = ["iso"]
-    desktop = admin_client.post("/api/v4/item/desktop/from-media", json_body=payload)
-    desktop_id = desktop["id"]
+    desktop_id = created_id(
+        create_desktop_from_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_desktop_from_media_payload(
+                media_id,
+                desktop_name,
+                _media_hardware(
+                    vcpus=1, memory_gb=0.5, disk_size_gb=1, boot_order=["iso"]
+                ),
+            ),
+        )
+    )
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
 
     # ── apiv4 detail response: media became an iso entry ───────────
-    details = admin_client.get(f"/api/v4/item/desktop/{desktop_id}/get-details")
-    iso_ids = [iso.get("id") for iso in (details.get("isos") or [])]
+    details = _details(admin_client, desktop_id)
+    iso_ids = [iso.id for iso in (details.isos or [])]
     assert media_id in iso_ids, (
         f"from-media desktop did not include the source media in `isos`; "
         f"got {iso_ids!r}, expected media {media_id!r}"
     )
 
     # ── reservables shape: vgpus stays None, not coerced to [] ────
-    reservables = details.get("reservables") or {}
-    assert reservables.get("vgpus") is None, (
-        f"reservables.vgpus was coerced from None to {reservables.get('vgpus')!r}; "
+    reservables = details.reservables
+    vgpus = (
+        reservables.vgpus
+        if isinstance(reservables, ApiSchemasDomainsHardwareReservables)
+        else UNSET
+    )
+    assert vgpus in (UNSET, None), (
+        f"reservables.vgpus was coerced from None to {vgpus!r}; "
         f"the apiv4 schema explicitly allows None to mean 'no reservables'"
     )
 
     # ── boot order is preserved on the apiv4 detail response ──────
-    boot_ids = [b.get("id") for b in details.get("boot_order", [])]
+    boot_ids = [b.id for b in details.boot_order]
     assert "iso" in boot_ids, f"requested boot_order=['iso'], got back {boot_ids!r}"
 
     # ── engine XML carries a CD-ROM device once the desktop starts ─
@@ -744,7 +886,7 @@ def test_from_media_attaches_iso_with_boot_order_and_persists_reservables_shape(
             "expected <disk device='cdrom'> in the engine XML for an ISO-boot "
             "desktop, got: " + (last_xml[:600] if last_xml else "<empty>")
         )
-        admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/stop")
+        stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
         admin_client.poll_desktop_status(
             desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
         )
@@ -806,11 +948,12 @@ def test_nonpersistent_desktop_inherits_template_hardware_in_xml(
         pytest.skip(f"media source unreachable: {exc}")
 
     # Non-persistent create: minimal payload, no hardware override.
-    np_resp = admin_client.post(
-        "/api/v4/item/desktop/new-nonpersistent",
-        json_body={"template_id": template_id},
+    np_id = created_id(
+        create_nonpersistent_desktop.sync_detailed(
+            client=admin_client.apiv4(),
+            body=NewNonpersistentDesktopRequest(template_id=template_id),
+        )
     )
-    np_id = np_resp["id"]
     # Non-persistent desktops can transition through CreatingDisk →
     # Stopped, then engine starts them automatically (StartingPaused).
     # Allow Started / WaitingIP / Failed too — we only need to be sure
@@ -821,7 +964,6 @@ def test_nonpersistent_desktop_inherits_template_hardware_in_xml(
         max_wait=CREATE_TIMEOUT,
     )
 
-    np_details = admin_client.get(f"/api/v4/item/desktop/{np_id}/get-details")
     # ``_media_then_template`` builds the source desktop with vcpus=1
     # and memory=0.5 GB, then snapshots a template from it; the
     # non-persistent derive must inherit those values. The apiv4
@@ -831,12 +973,12 @@ def test_nonpersistent_desktop_inherits_template_hardware_in_xml(
     # directly rather than reading the template back.
     expected_vcpus = 1
     expected_memory_gb = 0.5
-    assert int(np_details["vcpu"]) == expected_vcpus, (
-        f"non-persistent vcpu {np_details['vcpu']} != template-derived "
-        f"expected {expected_vcpus}"
-    )
-    assert abs(np_details["memory"] - expected_memory_gb) < 1e-3, (
-        f"non-persistent memory {np_details['memory']} != template-derived "
+    vcpu, memory = _detail_vcpu_memory(_details(admin_client, np_id))
+    assert (
+        int(vcpu) == expected_vcpus
+    ), f"non-persistent vcpu {vcpu} != template-derived expected {expected_vcpus}"
+    assert abs(memory - expected_memory_gb) < 1e-3, (
+        f"non-persistent memory {memory} != template-derived "
         f"expected {expected_memory_gb}"
     )
 
@@ -865,35 +1007,31 @@ def test_deployment_desktops_inherit_hardware_from_request(
     dep_vcpus = 2
     dep_memory_gb = 1.0
     dep_name = f"{test_namespace}deployment"
-    dep_resp = admin_client.post(
-        "/api/v4/item/deployment",
-        json_body={
-            "name": dep_name,
-            "description": "hw-test",
-            "allowed": {
-                "users": False,
-                "groups": ["default-default"],
-                "categories": False,
-                "roles": False,
-            },
-            "create_owner_desktop": True,
-            "visible": False,
-            "desktops": [
-                {
-                    "template_id": template_id,
-                    "name": dep_name,
-                    "description": "",
-                    "persistent": True,
-                    "hardware": _hardware_dict(
-                        vcpus=dep_vcpus,
-                        memory_gb=dep_memory_gb,
-                        disk_size_gb=1,
-                    ),
-                }
-            ],
-        },
+    deployment_id = created_id(
+        create_deployment.sync_detailed(
+            client=admin_client.apiv4(),
+            body=CreateDeploymentRequest(
+                name=dep_name,
+                description="hw-test",
+                allowed=AllowedBase(users=False, groups=["default-default"]),
+                create_owner_desktop=True,
+                visible=False,
+                desktops=[
+                    CreateDesktopRequest(
+                        template_id=template_id,
+                        name=dep_name,
+                        description="",
+                        persistent=True,
+                        hardware=_domain_hardware(
+                            vcpus=dep_vcpus,
+                            memory_gb=dep_memory_gb,
+                            disk_size_gb=1,
+                        ),
+                    )
+                ],
+            ),
+        )
     )
-    deployment_id = dep_resp["id"]
 
     # Wait for the deployment to spawn at least one desktop, and pick
     # one that has reached ``Stopped``. The apiv4 ``/items/desktops``
@@ -904,10 +1042,14 @@ def test_deployment_desktops_inherit_hardware_from_request(
     stopped_id = None
     deadline = time.monotonic() + CREATE_TIMEOUT
     while time.monotonic() < deadline:
-        videowall = admin_client.get(
-            f"/api/v4/item/deployment/{deployment_id}/videowall"
+        videowall = expect(
+            get_deployment_videowall.sync_detailed(
+                deployment_id=deployment_id, client=admin_client.apiv4()
+            )
         )
-        desktops = videowall.get("desktops") or []
+        # ``desktops`` isn't in the videowall schema; it rides in
+        # additional_properties as an embedded id + status array.
+        desktops = videowall.additional_properties.get("desktops") or []
         candidates = [d for d in desktops if d.get("status") == "Stopped"]
         if candidates:
             stopped_id = candidates[0]["id"]
@@ -918,15 +1060,13 @@ def test_deployment_desktops_inherit_hardware_from_request(
         stopped_id is not None
     ), f"no spawned deployment desktop reached Stopped within {CREATE_TIMEOUT}s"
 
-    detail = admin_client.get(f"/api/v4/item/desktop/{stopped_id}/get-details")
-    assert int(detail["vcpu"]) == dep_vcpus, (
-        f"deployment desktop vcpu mismatch: got {detail['vcpu']}, "
-        f"expected {dep_vcpus}"
-    )
-    assert abs(detail["memory"] - dep_memory_gb) < 1e-3, (
-        f"deployment desktop memory mismatch: got {detail['memory']}, "
-        f"expected {dep_memory_gb}"
-    )
+    vcpu, memory = _detail_vcpu_memory(_details(admin_client, stopped_id))
+    assert (
+        int(vcpu) == dep_vcpus
+    ), f"deployment desktop vcpu mismatch: got {vcpu}, expected {dep_vcpus}"
+    assert (
+        abs(memory - dep_memory_gb) < 1e-3
+    ), f"deployment desktop memory mismatch: got {memory}, expected {dep_memory_gb}"
 
 
 @pytest.mark.real
@@ -949,11 +1089,12 @@ def test_engine_xml_matches_virsh_dumpxml_when_running(
         pytest.skip("VM boot disabled — virsh dumpxml needs a running domain")
 
     media_name = f"{test_namespace}xml_match_media"
-    media = admin_client.post(
-        "/api/v4/item/media",
-        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    media_id = created_id(
+        create_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        )
     )
-    media_id = media["id"]
     try:
         admin_client.poll_media_status(
             media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
@@ -961,15 +1102,16 @@ def test_engine_xml_matches_virsh_dumpxml_when_running(
     except RuntimeError as exc:
         pytest.skip(f"media source unreachable: {exc}")
 
-    desktop = admin_client.post(
-        "/api/v4/item/desktop/from-media",
-        json_body=_desktop_from_media_payload(
-            media_id,
-            f"{test_namespace}xml_match_desktop",
-            _hardware_dict(vcpus=2, memory_gb=1.0, disk_size_gb=1),
-        ),
+    desktop_id = created_id(
+        create_desktop_from_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_desktop_from_media_payload(
+                media_id,
+                f"{test_namespace}xml_match_desktop",
+                _media_hardware(vcpus=2, memory_gb=1.0, disk_size_gb=1),
+            ),
+        )
     )
-    desktop_id = desktop["id"]
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
@@ -999,7 +1141,7 @@ def test_engine_xml_matches_virsh_dumpxml_when_running(
         f"virsh dumpxml has {live_mem}"
     )
 
-    admin_client.raw("PUT", f"/api/v4/item/desktop/{desktop_id}/stop")
+    stop_desktop.sync_detailed(desktop_id=desktop_id, client=admin_client.apiv4())
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped", "Failed"}, max_wait=STOP_TIMEOUT
     )
@@ -1021,19 +1163,21 @@ def test_edit_sets_forced_hyp_and_round_trips_to_admin_response(
     always present); if no hypervisor exists for some reason the test
     skips so we don't create false negatives on stripped-down stacks.
     """
-    hyps = admin_client.get("/api/v4/admin/hypervisors")
+    hyps = expect(admin_hypervisors_list.sync_detailed(client=admin_client.apiv4()))
+    assert isinstance(hyps, list)
     if not hyps:
         pytest.skip("no hypervisors known to the stack — cannot test forced_hyp")
-    hyp_id = hyps[0]["id"]
+    hyp_id = hyps[0].id
 
     # Build a tiny non-persistent-style stub via from-media — the
     # smallest path that reliably produces a stopped desktop.
     media_name = f"{test_namespace}forced_hyp_media"
-    media = admin_client.post(
-        "/api/v4/item/media",
-        json_body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+    media_id = created_id(
+        create_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_media_payload(DEFAULT_MEDIA_URL, media_name),
+        )
     )
-    media_id = media["id"]
     try:
         admin_client.poll_media_status(
             media_id, want={"Downloaded"}, max_wait=DOWNLOAD_TIMEOUT
@@ -1042,23 +1186,25 @@ def test_edit_sets_forced_hyp_and_round_trips_to_admin_response(
         pytest.skip(f"media source unreachable: {exc}")
 
     desktop_name = f"{test_namespace}forced_hyp_desktop"
-    desktop = admin_client.post(
-        "/api/v4/item/desktop/from-media",
-        json_body=_desktop_from_media_payload(
-            media_id,
-            desktop_name,
-            _hardware_dict(vcpus=1, memory_gb=0.5, disk_size_gb=1),
-        ),
+    desktop_id = created_id(
+        create_desktop_from_media.sync_detailed(
+            client=admin_client.apiv4(),
+            body=_desktop_from_media_payload(
+                media_id,
+                desktop_name,
+                _media_hardware(vcpus=1, memory_gb=0.5, disk_size_gb=1),
+            ),
+        )
     )
-    desktop_id = desktop["id"]
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=CREATE_TIMEOUT
     )
 
     # ── pin: edit accepts forced_hyp for an admin caller ──────────
-    admin_client.put(
-        f"/api/v4/item/desktop/{desktop_id}/edit",
-        json_body={"forced_hyp": [hyp_id]},
+    edit_desktop.sync_detailed(
+        desktop_id=desktop_id,
+        client=admin_client.apiv4(),
+        body=DesktopEditRequest(forced_hyp=[hyp_id]),
     )
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT
@@ -1068,14 +1214,11 @@ def test_edit_sets_forced_hyp_and_round_trips_to_admin_response(
     # ``/admin/domain/<id>/details`` only exposes detail+description;
     # ``/admin/domains`` is the wider admin listing that includes
     # ``forced_hyp``, so we go through it to verify persistence.
-    def _admin_forced_hyp(d_id):
-        rows = (
-            admin_client.post("/api/v4/admin/domains", json_body={"kind": "desktop"})
-            or []
-        )
-        for row in rows:
-            if row.get("id") == d_id:
-                return row.get("forced_hyp") or []
+    def _admin_forced_hyp(d_id: str) -> list:
+        for row in _desktop_rows(admin_client):
+            if row.id == d_id:
+                forced = row.forced_hyp
+                return forced if isinstance(forced, list) else []
         raise AssertionError(f"desktop {d_id!r} not found in admin domains list")
 
     forced = _admin_forced_hyp(desktop_id)
@@ -1085,9 +1228,10 @@ def test_edit_sets_forced_hyp_and_round_trips_to_admin_response(
     )
 
     # ── pin: clearing forced_hyp via edit returns it to empty ────
-    admin_client.put(
-        f"/api/v4/item/desktop/{desktop_id}/edit",
-        json_body={"forced_hyp": []},
+    edit_desktop.sync_detailed(
+        desktop_id=desktop_id,
+        client=admin_client.apiv4(),
+        body=DesktopEditRequest(forced_hyp=[]),
     )
     admin_client.poll_desktop_status(
         desktop_id, want={"Stopped"}, max_wait=EDIT_TIMEOUT

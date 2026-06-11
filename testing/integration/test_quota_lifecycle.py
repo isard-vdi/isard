@@ -26,8 +26,30 @@ import time
 from typing import Iterator, Optional
 
 import pytest
+from isardvdi_apiv4_client.api.role_admin import admin_update_category_quota
+from isardvdi_apiv4_client.api.role_manager import admin_get_templates
+from isardvdi_apiv4_client.api.role_user import (
+    admin_allowed_update,
+    check_quota_new_desktop,
+    create_desktop,
+    get_user_allowed_templates_flat,
+)
+from isardvdi_apiv4_client.models.admin_allowed_update_table import (
+    AdminAllowedUpdateTable,
+)
+from isardvdi_apiv4_client.models.admin_quota_update_data import AdminQuotaUpdateData
+from isardvdi_apiv4_client.models.allowed_update_request import AllowedUpdateRequest
+from isardvdi_apiv4_client.models.allowed_update_request_allowed import (
+    AllowedUpdateRequestAllowed,
+)
+from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
+from isardvdi_apiv4_client.models.get_user_allowed_templates_flat_kind import (
+    GetUserAllowedTemplatesFlatKind,
+)
+from isardvdi_apiv4_client.models.quota import Quota
 
 from .helpers.client import IsardClient
+from .helpers.responses import created_id, expect
 
 USER01_USERNAME = os.environ.get("E2E_USER01_USERNAME", "user01")
 USER01_PASSWORD = os.environ.get("E2E_USER01_PASSWORD", "a?)49hgT")
@@ -66,6 +88,30 @@ _FULL_QUOTA = {
 }
 
 
+def _set_category_quota(
+    admin_client: IsardClient, category_id: str, quota: dict, propagate: bool
+) -> None:
+    # apiv4 models the quota object as the typed Quota model; building it
+    # from the raw dict keeps any unknown keys in additional_properties.
+    resp = admin_update_category_quota.sync_detailed(
+        category_id=category_id,
+        client=admin_client.apiv4(),
+        body=AdminQuotaUpdateData(
+            quota=Quota.from_dict(quota),
+            propagate=propagate,
+        ),
+    )
+    assert resp.status_code in (
+        200,
+        204,
+    ), f"set category quota -> {resp.status_code}: {resp.content[:200]!r}"
+
+
+def _quota_gate_new_desktop(client: IsardClient) -> int:
+    """Status of the ``/quota/desktop/new`` gate (204 allowed, 412/428 full)."""
+    return check_quota_new_desktop.sync_detailed(client=client.apiv4()).status_code
+
+
 def _restore_default_quota(admin_client: IsardClient) -> None:
     """Reset default category quota to "no limits" — the populate.py
     seed shape — so the next test run starts from a clean slate.
@@ -74,10 +120,7 @@ def _restore_default_quota(admin_client: IsardClient) -> None:
     otherwise propagated user quotas come back malformed and break
     ``GET /item/user/get-quotas``.
     """
-    admin_client.put(
-        "/api/v4/admin/quota/category/default",
-        json_body={"quota": _FULL_QUOTA, "propagate": True},
-    )
+    _set_category_quota(admin_client, "default", _FULL_QUOTA, True)
 
 
 @pytest.fixture
@@ -104,11 +147,10 @@ def _count_user_desktops(user_client: IsardClient) -> int:
 def _assert_quota_check(
     client: IsardClient, path: str, expect_status: int, msg_suffix: str = ""
 ) -> None:
-    resp = client.raw("GET", path)
-    assert resp.status_code == expect_status, (
-        f"{path} {msg_suffix}: expected {expect_status}, got {resp.status_code}; "
-        f"body={resp.text[:200]}"
-    )
+    status = _quota_gate_new_desktop(client)
+    assert (
+        status == expect_status
+    ), f"{path} {msg_suffix}: expected {expect_status}, got {status}"
 
 
 # ---------------------------------------------------------------------------
@@ -148,12 +190,8 @@ def test_desktop_quota_gate_flips_when_exhausted(
     # all groups in the category so every user is gated, not just newly
     # created ones. We keep all other fields at the comfortable
     # ceiling and only constrain ``desktops``.
-    admin_client.put(
-        "/api/v4/admin/quota/category/default",
-        json_body={
-            "quota": {**_FULL_QUOTA, "desktops": target},
-            "propagate": True,
-        },
+    _set_category_quota(
+        admin_client, "default", {**_FULL_QUOTA, "desktops": target}, True
     )
     # Bust the per-process Caches (Quotas reads from the same TTLCache
     # the categories pluck does); even a small wait gives the apiv4
@@ -171,61 +209,65 @@ def test_desktop_quota_gate_flips_when_exhausted(
     # download — any seeded template suffices.
     # Basic-role users use ``/items/templates/allowed/all`` — the
     # advanced-role-only ``/items/templates`` endpoint 403s for them.
-    templates = user_client.get("/api/v4/items/templates/allowed/all")
-    if isinstance(templates, dict):
-        templates = templates.get("templates") or list(templates.values())[0]
+    templates = expect(
+        get_user_allowed_templates_flat.sync_detailed(
+            kind=GetUserAllowedTemplatesFlatKind.ALL, client=user_client.apiv4()
+        )
+    )
+    assert isinstance(templates, list)
     if not templates:
         # Make the seeded admin template allowed-for-all temporarily so
         # user01 can derive a desktop. ``/admin/items/templates`` is
         # the admin-scoped listing — ``/items/templates`` filters by
         # the caller's allowed-list (so admin_e2e_01 sees nothing if
         # no template has them in ``allowed``).
-        admin_templates = admin_client.get("/api/v4/admin/items/templates") or []
-        if isinstance(admin_templates, dict):
-            admin_templates = (
-                admin_templates.get("templates") or list(admin_templates.values())[0]
-            )
+        admin_templates = expect(
+            admin_get_templates.sync_detailed(client=admin_client.apiv4())
+        )
+        assert isinstance(admin_templates, list)
         if not admin_templates:
             pytest.skip("no admin templates seeded; cannot exhaust quota")
         seed_template = admin_templates[0]
-        original_allowed = seed_template.get("allowed", {})
         # ``allowed.users == False`` means "not configured" (not "any
-        # user"). Use ``/admin/allowed/update/domains`` to set
+        # user"). Use ``/item/allowed/update/domains`` to set
         # ``categories: ["default"]`` — the only encoding that resolves
         # to "every member of the default category" through
         # ``Alloweds.is_allowed``.
-        admin_client.post(
-            "/api/v4/admin/allowed/update/domains",
-            json_body={
-                "id": seed_template["id"],
-                "allowed": {
-                    "users": False,
-                    "groups": False,
-                    "categories": ["default"],
-                    "roles": False,
-                },
-            },
+        admin_allowed_update.sync_detailed(
+            table=AdminAllowedUpdateTable.DOMAINS,
+            client=admin_client.apiv4(),
+            body=AllowedUpdateRequest(
+                id=seed_template.id,
+                allowed=AllowedUpdateRequestAllowed.from_dict(
+                    {
+                        "users": False,
+                        "groups": False,
+                        "categories": ["default"],
+                        "roles": False,
+                    }
+                ),
+            ),
         )
-        try:
-            templates = user_client.get("/api/v4/items/templates/allowed/all")
-            if isinstance(templates, dict):
-                templates = templates.get("templates") or list(templates.values())[0]
-            assert (
-                templates
-            ), "after relaxing template allowed, user01 still sees no templates"
-        finally:
-            # Always restore the original allowed dict — even if the
-            # rest of the test fails — so subsequent runs start clean.
-            pass  # The teardown is handled by the cleanup fixture.
-    template_id = templates[0]["id"]
+        templates = expect(
+            get_user_allowed_templates_flat.sync_detailed(
+                kind=GetUserAllowedTemplatesFlatKind.ALL, client=user_client.apiv4()
+            )
+        )
+        assert isinstance(templates, list)
+        assert (
+            templates
+        ), "after relaxing template allowed, user01 still sees no templates"
+    template_id = templates[0].id
     new_desktop_name = f"{test_namespace}quota_user01_desk"
-    user_client.post(
-        "/api/v4/item/desktop",
-        json_body={
-            "template_id": template_id,
-            "name": new_desktop_name,
-            "description": "quota lifecycle",
-        },
+    created_id(
+        create_desktop.sync_detailed(
+            client=user_client.apiv4(),
+            body=CreateDesktopRequest(
+                template_id=template_id,
+                name=new_desktop_name,
+                description="quota lifecycle",
+            ),
+        )
     )
     # Pollution-free: don't wait for Stopped here, the quota check
     # lives on the row-count, not the row-status.
@@ -235,9 +277,8 @@ def test_desktop_quota_gate_flips_when_exhausted(
     deadline = time.monotonic() + 15.0
     last_status: Optional[int] = None
     while time.monotonic() < deadline:
-        resp = user_client.raw("GET", "/api/v4/quota/desktop/new")
-        last_status = resp.status_code
-        if resp.status_code in (412, 428):
+        last_status = _quota_gate_new_desktop(user_client)
+        if last_status in (412, 428):
             break
         time.sleep(1)
     assert last_status in (412, 428), (
@@ -249,8 +290,7 @@ def test_desktop_quota_gate_flips_when_exhausted(
     _restore_default_quota(admin_client)
     deadline = time.monotonic() + 15.0
     while time.monotonic() < deadline:
-        resp = user_client.raw("GET", "/api/v4/quota/desktop/new")
-        if resp.status_code == 204:
+        if _quota_gate_new_desktop(user_client) == 204:
             break
         time.sleep(1)
     _assert_quota_check(user_client, "/api/v4/quota/desktop/new", 204, "after release")
@@ -284,10 +324,7 @@ def test_admin_quota_endpoints_round_trip(admin_client: IsardClient):
         "started_deployment_desktops": 7,
     }
     try:
-        admin_client.put(
-            "/api/v4/admin/quota/category/default",
-            json_body={"quota": fresh_quota, "propagate": False},
-        )
+        _set_category_quota(admin_client, "default", fresh_quota, False)
         time.sleep(1)
         body = admin_client.get("/api/v4/admin/quota/category/default")
         # Quota readback can be either ``False`` (no quota) or a dict;

@@ -4,6 +4,8 @@ version = "0.0.0"
 requires-python = ">=3.14,<3.15"
 dependencies = [
   "rethinkdb==2.4.10.post1",
+  "isardvdi-apiv4-client",
+  "isardvdi-authentication-client",
 ]
 
 [project.scripts]

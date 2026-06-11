@@ -1530,6 +1530,8 @@ name = "isardvdi-testing"
 version = "0.0.0"
 source = { editable = "testing" }
 dependencies = [
+    { name = "isardvdi-apiv4-client" },
+    { name = "isardvdi-authentication-client" },
     { name = "rethinkdb" },
 ]
 
@@ -1547,7 +1549,11 @@ test = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "rethinkdb", specifier = "==2.4.10.post1" }]
+requires-dist = [
+    { name = "isardvdi-apiv4-client", editable = "component/apiv4-client" },
+    { name = "isardvdi-authentication-client", editable = "component/authentication-client" },
+    { name = "rethinkdb", specifier = "==2.4.10.post1" },
+]
 
 [package.metadata.requires-dev]
 test = [

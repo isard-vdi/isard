@@ -227,17 +227,17 @@ ci-test-storage-utils:
 test-integration: test-e2e-seed
 	docker run $(_e2e_tty) --rm --network=isard-network \
 	-e E2E_SKIP_VM_BOOT=1 -e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
-	-v "${ISARDVDI_SRC}:/src" -w /src/testing \
+	-v "${ISARDVDI_SRC}:/src" -w /src \
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
-	uv run --frozen --no-dev --group test --package isardvdi-testing pytest integration/ -v -m real
+	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -v -m real
 
 .PHONY: ci-test-integration
 ci-test-integration: test-e2e-seed
 	docker run $(_e2e_tty) --rm --network=isard-network \
 	-e E2E_SKIP_VM_BOOT=1 -e UV_PROJECT_ENVIRONMENT=/tmp/.venv \
-	-v "${ISARDVDI_SRC}:/src" -w /src/testing \
+	-v "${ISARDVDI_SRC}:/src" -w /src \
 	ghcr.io/astral-sh/uv:0.11.23-python3.14-alpine \
-	uv run --frozen --no-dev --group test --package isardvdi-testing pytest integration/ -m real --tb=short --junitxml=integration/report.xml
+	uv run --frozen --no-dev --group test --package isardvdi-testing pytest testing/integration/ -m real --tb=short --junitxml=testing/integration/report.xml
 
 # CI test targets: emit JUnit + Cobertura XML so GitLab CI can consume them
 # via artifacts.reports.*. Paths must match .gitlab-ci.yml byte-identical.

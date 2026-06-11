@@ -13,9 +13,69 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import requests
+from isardvdi_apiv4_client import AuthenticatedClient
+from isardvdi_authentication_client import (
+    AuthenticatedClient as AuthAuthenticatedClient,
+)
+from isardvdi_authentication_client import Client as AuthClient
+from isardvdi_authentication_client.api.default import login as login_op
+from isardvdi_authentication_client.models.login_request import LoginRequest
+from isardvdi_authentication_client.models.providers import Providers
+
+# The sessions service validates the caller's remote address with net.ParseIP
+# (sessions/sessions/sessions.go), which rejects the host:port form of
+# r.RemoteAddr. The auth service uses X-Forwarded-For when present, so we send a
+# loopback IP to give it a bare address that ParseIP accepts — otherwise session
+# creation fails with "invalid remote address" (HTTP 500). apiv4 keeps it too,
+# so RemoteAddrControl session checks see the same address as the login.
+_XFF = {"X-Forwarded-For": "127.0.0.1"}
+
+
+def auth_login(
+    auth_url: str,
+    username: str,
+    password: str,
+    category_id: str = "default",
+    provider: str = "form",
+) -> str:
+    """Return a session JWT for ``username`` via the authentication client."""
+    # The auth API is mounted under the /authentication prefix (StripPrefix in
+    # the Go service), while the generated client's paths are /login etc., so
+    # the prefix belongs in base_url. login is unauthenticated, but the
+    # generated op is typed against AuthenticatedClient; a plain Client works
+    # at runtime (no token sent).
+    client = AuthClient(base_url=f"{auth_url.rstrip('/')}/authentication").with_headers(
+        _XFF
+    )
+    resp = login_op.sync_detailed(
+        client=cast(AuthAuthenticatedClient, client),
+        body=LoginRequest(username=username, password=password),
+        provider=Providers(provider),
+        category_id=category_id,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"login failed for {username}: HTTP {resp.status_code} {resp.content!r}"
+        )
+    token = resp.parsed
+    if not isinstance(token, str):
+        token = resp.content.decode().strip().strip('"')
+    return token.strip()
+
+
+def apiv4_client(apiv4_url: str, token: str) -> AuthenticatedClient:
+    """Bearer-authenticated apiv4 client. Never raises on non-2xx — call
+    sites assert on ``status_code`` themselves so status-contract tests can
+    pin 404 / 405 / 412 / 428."""
+    return AuthenticatedClient(
+        base_url=apiv4_url,
+        token=token,
+        prefix="Bearer",
+        raise_on_unexpected_status=False,
+    ).with_headers(_XFF)
 
 
 class IsardClient:
@@ -51,21 +111,9 @@ class IsardClient:
         # (download_url + qcow2 create + start/stop cycles) routinely
         # outlive the JWT TTL.
         self._login_args = (username, password, category_id, provider)
-        resp = self._session.post(
-            f"{self.auth_url}/authentication/login",
-            params={"provider": provider, "category_id": category_id},
-            files={
-                "username": (None, username),
-                "password": (None, password),
-            },
-            headers={"X-Forwarded-For": "127.0.0.1"},
-            timeout=self.timeout,
+        self.token = auth_login(
+            self.auth_url, username, password, category_id, provider
         )
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"login failed for {username}: HTTP {resp.status_code} {resp.text}"
-            )
-        self.token = resp.text.strip()
         details = self.get("/api/v4/item/user/get-details")
         self.user_id = details["id"]
         return self.token
@@ -75,25 +123,25 @@ class IsardClient:
         if not self._login_args:
             return
         username, password, category_id, provider = self._login_args
-        resp = self._session.post(
-            f"{self.auth_url}/authentication/login",
-            params={"provider": provider, "category_id": category_id},
-            files={
-                "username": (None, username),
-                "password": (None, password),
-            },
-            headers={"X-Forwarded-For": "127.0.0.1"},
-            timeout=self.timeout,
+        self.token = auth_login(
+            self.auth_url, username, password, category_id, provider
         )
-        if resp.status_code == 200:
-            self.token = resp.text.strip()
+
+    def apiv4(self) -> AuthenticatedClient:
+        """A generated apiv4 client bound to the *current* token. Built fresh
+        per call so a mid-test ``_relogin`` is picked up by the SDK."""
+        return apiv4_client(self.apiv4_url, self.token or "")
 
     # --- REST primitives -------------------------------------------------
 
     def _headers(self) -> dict:
         if not self.token:
             raise RuntimeError("call login() before issuing requests")
-        return {"Authorization": f"Bearer {self.token}"}
+        # apiv4's get_remote_addr reads X-Forwarded-For and the session was
+        # created with it, so every request carries the same loopback IP to
+        # stay consistent (and to pass a RemoteAddrControl-enabled sessions
+        # service).
+        return {"Authorization": f"Bearer {self.token}", **_XFF}
 
     def _url(self, path: str) -> str:
         return path if path.startswith("http") else f"{self.apiv4_url}{path}"
@@ -288,7 +336,7 @@ class IsardClient:
             resp = self.raw("GET", path)
             if resp.status_code == 200:
                 last = (resp.json() or {}).get("status")
-                if last in want:
+                if last is not None and last in want:
                     return last
                 if last in self.MEDIA_TERMINAL_FAILURE:
                     raise RuntimeError(
@@ -325,7 +373,7 @@ class IsardClient:
                 time.sleep(interval)
                 continue
             last = (resp.json() or {}).get("status")
-            if last in want:
+            if last is not None and last in want:
                 return last
             time.sleep(interval)
         raise TimeoutError(
