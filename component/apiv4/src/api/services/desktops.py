@@ -838,6 +838,10 @@ class DesktopService:
                 f"Desktop with ID {desktop_id} not found",
                 description_code="not_found",
             )
+        # Self-heal dangling GPU reservables (profile deleted after desktop
+        # creation) before any booking/availability check dereferences them
+        # and 500s.
+        CommonDesktops.clean_missing_reservables(desktop_id)
         payload = Helpers.gen_payload_from_user(user_id=user_id)
         if Helpers.owns_deployment_desktop_id(payload=payload, desktop_id=desktop_id):
             desktop = Quotas.deployment_desktop_start(user_id, desktop_id)

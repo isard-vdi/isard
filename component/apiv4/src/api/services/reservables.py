@@ -258,6 +258,13 @@ class ReservableService:
     ) -> str:
         reservables = Reservables()
         if not enabled:
+            # Server-side guards so a scripted/direct PUT cannot bypass the
+            # UI's check/last pre-flight: refuse while an in-progress booking
+            # spans now, or while a RUNNING desktop still uses the profile
+            # (an admin-started desktop has no booking, so the booking guard
+            # alone would let the disable strip a live domain's GPU).
+            ReservablesPlannerProccess.check_subitem_current_plan(subitem_id, item_id)
+            ReservablesPlannerProccess.check_subitem_running_desktops(subitem_id)
             if notify_user:
                 ReservableService._notify_affected_users(reservable_type, item_id)
             ReservablesPlannerProccess.delete_subitem(
