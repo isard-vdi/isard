@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from html_sanitizer import Sanitizer
+from isardvdi_common.helpers.desktops_priority import MAX_SHUTDOWN_MINUTES
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.lib.api_admin_table_defaults import apply_table_defaults
 
@@ -75,6 +76,32 @@ UNASSIGN_ON_ALLOWED_UPDATE_TABLES = [
     "boots",
     "videos",
 ]
+
+
+def _validate_desktops_priority(table: str, data: dict) -> None:
+    """Bound shutdown values: max in (0, MAX], interval time in [-MAX, -1].
+
+    apiv3 enforced this via Cerberus; the apiv4 raw-dict path re-asserts it.
+    """
+    if table != "desktops_priority":
+        return
+    shutdown = data.get("shutdown")
+    if not isinstance(shutdown, dict):
+        return
+    max_time = shutdown.get("max")
+    if isinstance(max_time, int) and (max_time <= 0 or max_time > MAX_SHUTDOWN_MINUTES):
+        raise Error(
+            "bad_request",
+            f"shutdown max must be between 1 and {MAX_SHUTDOWN_MINUTES} minutes",
+        )
+    for interval in shutdown.get("notify_intervals") or []:
+        time = interval.get("time")
+        if isinstance(time, int) and (time >= 0 or time < -MAX_SHUTDOWN_MINUTES):
+            raise Error(
+                "bad_request",
+                "shutdown notify interval time must be between "
+                f"{-MAX_SHUTDOWN_MINUTES} and -1 minutes",
+            )
 
 
 class AdminTablesService:
@@ -146,6 +173,7 @@ class AdminTablesService:
             if "name" not in data:
                 raise Error("bad_request", "Missing 'name' field in request body")
             Helpers.check_duplicate(table, data["name"])
+        _validate_desktops_priority(table, data)
 
         ApiAdmin.insert_table_item(table, data)
         return {}
@@ -163,6 +191,7 @@ class AdminTablesService:
             if "name" not in data:
                 raise Error("bad_request", "Missing 'name' field in request body")
             Helpers.check_duplicate(table, data["name"], item_id=data["id"])
+        _validate_desktops_priority(table, data)
 
         ApiAdmin.update_table_item(table, data)
         return {}

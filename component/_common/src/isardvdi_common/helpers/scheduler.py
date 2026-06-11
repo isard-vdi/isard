@@ -29,6 +29,7 @@ from isardvdi_common.helpers.api_notify import notify_desktop, notify_user
 from isardvdi_common.helpers.desktop_nonpersistent_events import (
     DesktopNonpersistentEvents,
 )
+from isardvdi_common.helpers.desktops_priority import MAX_SHUTDOWN_MINUTES
 from isardvdi_common.helpers.error_factory import Error
 from isardvdi_common.helpers.quotas import Quotas
 from isardvdi_common.models.config import Config
@@ -267,8 +268,8 @@ class Scheduler(RethinkSharedConnection):
         if not timeouts:
             return
 
-        # Send now notification only to web
-        time_remaining = timeouts["max"]
+        # Send now notification only to web. Clamp against stale out-of-range rules.
+        time_remaining = min(timeouts["max"], MAX_SHUTDOWN_MINUTES)
         stop_date = start_date + timedelta(minutes=time_remaining)
         data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         absolute_end_time = data["date"]
@@ -300,8 +301,10 @@ class Scheduler(RethinkSharedConnection):
                         },
                     )
                 else:
-                    # Program in max time + NEGATIVE INTERVAL TIME minutes
-                    time_remaining = timeouts["max"] + interval["time"]
+                    # Program in max time + NEGATIVE INTERVAL TIME minutes (both clamped)
+                    time_remaining = min(timeouts["max"], MAX_SHUTDOWN_MINUTES) + max(
+                        interval["time"], -MAX_SHUTDOWN_MINUTES
+                    )
                     data["id"] = desktop_id + ".shutdown-" + str(interval["time"]) + "m"
                     data["date"] = (
                         (start_date + timedelta(minutes=time_remaining))
