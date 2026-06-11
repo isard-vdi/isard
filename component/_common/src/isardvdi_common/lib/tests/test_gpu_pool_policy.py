@@ -171,6 +171,42 @@ def test_canonical_profile_id_preserves_variant():
     assert gpp.canonical_profile_id("NVIDIA-L40S-8Q~lab") == "NVIDIA-L40S-8Q~lab"
 
 
+# --- the scheduler same-profile NO-OP contract ------------------------------
+# scheduler/.../actions.py gpu_profile_set skips the engine call (a hardware
+# no-op: no re-carve, no quiesce) when the card's live profile already equals
+# the plan's target, i.e. when
+#   canonical_suffix(vgpus.vgpu_profile) == profile_suffix_from_id(subitem_id)
+# These cases pin that equality so a same-profile plan boundary never churns a
+# physical card; only the booking END stops desktops.
+
+
+@pytest.mark.parametrize(
+    "live_profile,subitem_id",
+    [
+        ("passthrough", "NVIDIA-GB203GL[RTXPRO4000Blackwell]-passthrough"),
+        ("8Q", "NVIDIA-RTXPro6000BlackwellDC-8Q"),
+        ("1_2Q", "NVIDIA-A100-1-2Q"),  # live underscore vs plan dash-form MIG
+        ("1_2Q", "NVIDIA-A100-1_2Q"),
+        ("8Q", "NVIDIA-L40S-8Q~lab"),  # a ~variant plan still no-ops the bare card
+    ],
+)
+def test_same_profile_is_a_noop(live_profile, subitem_id):
+    assert gpp.canonical_suffix(live_profile) == gpp.profile_suffix_from_id(subitem_id)
+
+
+@pytest.mark.parametrize(
+    "live_profile,subitem_id",
+    [
+        ("passthrough", "NVIDIA-RTXPro6000BlackwellDC-8Q"),  # PT card -> vGPU plan
+        ("8Q", "NVIDIA-RTXPro6000BlackwellDC-1_24Q"),  # different vGPU carve
+        ("8Q", "NVIDIA-RTXPro6000BlackwellDC-passthrough"),  # vGPU -> passthrough
+        ("1_2Q", "NVIDIA-A100-2_4Q"),  # different MIG slice
+    ],
+)
+def test_different_profile_is_not_a_noop(live_profile, subitem_id):
+    assert gpp.canonical_suffix(live_profile) != gpp.profile_suffix_from_id(subitem_id)
+
+
 def test_operator_passthrough_overrides_keep_current():
     # A card the operator forced to passthrough, but discovered as a realizable
     # SR-IOV carve (so keep_current=True) -- e.g. after a reboot where idle-reclaim

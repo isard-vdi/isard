@@ -1,7 +1,7 @@
 """Unit tests for the pure vGPU realizability/prune decision logic.
 
 ``gpu_realizability`` is a dependency-free leaf module under
-``isardvdi_common.lib.bookings`` (port of upstream MR !4496/!4519
+``isardvdi_common.lib.bookings`` (port of upstream MR !4496..!4544
 api/src/api/libv2/gpu_realizability.py).
 """
 
@@ -284,3 +284,52 @@ def test_bare_suffix(rid, expected):
 )
 def test_canonical_profile_id_preserves_variant(rid, expected):
     assert gr.canonical_profile_id(rid) == expected
+
+
+# --- passthrough_variant_token ----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "host,bdf,numa,expected",
+    [
+        # host + numa + bus, lowercase bus token straight from the BDF
+        ("hyp1", "0000:d3:00.0", 1, "hyp1n1bd3"),
+        ("hyp1", "0000:83:00.0", 0, "hyp1n0b83"),
+        ("hyp1", "0000:84:00.0", 0, "hyp1n0b84"),
+        # single-socket / unknown / non-numeric numa -> drop the n<numa> part
+        ("aio", "0000:41:00.0", -1, "aiob41"),
+        ("aio", "0000:41:00.0", None, "aiob41"),
+        ("aio", "0000:41:00.0", "x", "aiob41"),
+        # dashy/uppercase host gets sanitized to [a-z0-9]
+        ("isard-hypervisor", "0000:83:00.0", 0, "isardhypervisorn0b83"),
+        # numeric numa given as a string still works
+        ("hyp1", "0000:d4:00.0", "1", "hyp1n1bd4"),
+    ],
+)
+def test_passthrough_variant_token(host, bdf, numa, expected):
+    assert gr.passthrough_variant_token(host, bdf, numa) == expected
+
+
+def test_passthrough_variant_token_truncates_long_host_keeping_suffix():
+    # A long host name is clipped so the n<numa>b<bus> suffix always survives
+    # and the whole token stays within the 20-char variant budget.
+    token = gr.passthrough_variant_token("a" * 40, "0000:d3:00.0", 1)
+    assert token is not None
+    assert len(token) == 20
+    assert token.endswith("n1bd3")
+    import re
+
+    assert re.match(r"^[a-z0-9]{1,20}$", token)
+
+
+@pytest.mark.parametrize(
+    "host,bdf,numa",
+    [
+        ("hyp1", "garbage", 0),  # BDF has no bus segment
+        ("hyp1", "", 0),
+        ("hyp1", None, 0),  # non-str BDF
+        ("hyp1", "0000::00.0", 0),  # empty bus segment -> sanitizes to ""
+    ],
+)
+def test_passthrough_variant_token_none_on_bad_bdf(host, bdf, numa):
+    assert gr.passthrough_variant_token(host, bdf, numa) is None

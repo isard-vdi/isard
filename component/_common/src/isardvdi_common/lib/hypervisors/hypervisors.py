@@ -1077,9 +1077,44 @@ class HypervisorsProcessed(RethinkSharedConnection):
         idempotent. Only ``profiles_enabled`` (left empty) and
         ``physical_device`` are managed. ``resolve_gpu_models`` MUST run
         first so each gpu dict carries ``_resolved_model``.
+
+        Also auto-assigns a stable per-card ``passthrough_variant`` label
+        (``<host>n<numa>b<bus>``) so identical passthrough cards are uniquely
+        identifiable by (host, socket, slot). The label is a fill-if-empty hint
+        only -- no reservable is created and ``profiles_enabled`` is untouched;
+        an admin enabling passthrough later adopts it (see ``enable_subitem``).
         """
         if not nvidia_gpus:
             return
+
+        # Per-card passthrough identity: read the hypervisor's hostname + the
+        # NUMA map (already persisted by add_hyper before this runs) once, so
+        # each card can be auto-labelled. Pure-string helpers; best-effort.
+        from isardvdi_common.lib.bookings.gpu_realizability import (
+            bare_suffix,
+            passthrough_variant_token,
+            split_qualifier,
+        )
+
+        with cls._rdb_context():
+            hyp_row = (
+                r.table("hypervisors")
+                .get(hyper_id)
+                .pluck("hostname", "pci_devices")
+                .run(cls._rdb_connection)
+            ) or {}
+        host_label = hyp_row.get("hostname") or hyper_id
+        pci_devices = hyp_row.get("pci_devices") or {}
+
+        def _needs_pt_variant(card):
+            # Fill-if-empty: never overwrite an existing auto label, and never
+            # override an admin who already enabled a passthrough ~variant.
+            if card.get("passthrough_variant"):
+                return False
+            for p in card.get("profiles_enabled") or []:
+                if bare_suffix(p) == "passthrough" and split_qualifier(p)[1]:
+                    return False
+            return True
 
         for gpu in nvidia_gpus:
             model = gpu.get("_resolved_model")
@@ -1090,7 +1125,18 @@ class HypervisorsProcessed(RethinkSharedConnection):
                     f"run first"
                 )
 
-            pci_name = cls._gpu_pci_name(gpu["pci_bus_id"])
+            # Normalize PCI bus ID to libvirt pci_name format
+            pci_bus_id = gpu["pci_bus_id"]
+            normalized = pci_bus_id.lower()
+            if len(normalized.split(":")[0]) > 4:
+                normalized = "0000:" + normalized.split(":", 1)[1]
+            pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+
+            # Stable per-card passthrough identity (None if no valid token).
+            # ``normalized`` is the sysfs/pci_devices key form ("0000:bb:dd.f").
+            numa_node = (pci_devices.get(normalized) or {}).get("numa_node")
+            pt_token = passthrough_variant_token(host_label, normalized, numa_node)
+
             card_id = f"auto-{hyper_id}-{pci_name}"
             vgpu_id = f"{hyper_id}-{pci_name}"
             gpu_profile_id = f"NVIDIA-{model}"
@@ -1135,6 +1181,10 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 # die-label description) once the card is seen NVML-clean. Only
                 # touches the "0 GB" sentinel; never the immutable model above.
                 update_fields.update(gpu_card_metadata_resync(existing_card, gpu))
+                # Fill-if-empty per-card passthrough identity (never overrides an
+                # existing auto/admin label).
+                if pt_token and _needs_pt_variant(existing_card):
+                    update_fields["passthrough_variant"] = pt_token
                 with cls._rdb_context():
                     r.table("gpus").get(card_id).update(update_fields).run(
                         cls._rdb_connection
@@ -1162,15 +1212,19 @@ class HypervisorsProcessed(RethinkSharedConnection):
                             "physical_device": None,
                         }
                     )
-                    .pluck("id", "profiles_enabled")
+                    .pluck("id", "profiles_enabled", "passthrough_variant")
                     .run(cls._rdb_connection)
                 )
 
             if unassigned:
+                # Assign physical_device to the existing manually-created card
+                assign_fields = {"physical_device": vgpu_id}
+                if pt_token and _needs_pt_variant(unassigned[0]):
+                    assign_fields["passthrough_variant"] = pt_token
                 with cls._rdb_context():
-                    r.table("gpus").get(unassigned[0]["id"]).update(
-                        {"physical_device": vgpu_id}
-                    ).run(cls._rdb_connection)
+                    r.table("gpus").get(unassigned[0]["id"]).update(assign_fields).run(
+                        cls._rdb_connection
+                    )
                 log.info(
                     f"GPU card '{unassigned[0]['id']}' assigned "
                     f"physical_device -> {vgpu_id}"
@@ -1202,7 +1256,10 @@ class HypervisorsProcessed(RethinkSharedConnection):
                 "pci_device_id": gpu.get("pci_device_id"),
                 "pci_subsystem_id": gpu.get("pci_subsystem_id"),
                 "companion_pci_bdfs": gpu.get("companion_pci_bdfs") or [],
+                "category": None,
             }
+            if pt_token:
+                new_card["passthrough_variant"] = pt_token
 
             with cls._rdb_context():
                 r.table("gpus").insert(new_card).run(cls._rdb_connection)

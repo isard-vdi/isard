@@ -33,6 +33,7 @@ from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
 from isardvdi_common.helpers.caches import Caches
+from isardvdi_common.helpers.category import Category
 from isardvdi_common.schemas.recycle_bin import RecycleBinStatusEnum
 from rethinkdb import r
 
@@ -510,6 +511,16 @@ class UsersProcessed(RethinkSharedConnection):
             or getenv("FRONTEND_SHOW_BOOKINGS") == "True"
             else False
         )
+        # Admins always see the GPU planner; a manager sees it only when their
+        # category has the 'plannings' manager permission (matches the
+        # can_manage_gpu_plannings API gate). Regular users never see it. (!4546)
+        show_gpu_plannings = payload["role_id"] == "admin"
+        if not show_gpu_plannings and payload["role_id"] == "manager":
+            show_gpu_plannings = bool(
+                (Category(payload["category_id"]).manager_permissions or {}).get(
+                    "plannings"
+                )
+            )
         frontend_show_temporal_tab = (
             True
             if getenv("FRONTEND_SHOW_TEMPORAL") is None
@@ -559,6 +570,7 @@ class UsersProcessed(RethinkSharedConnection):
         return {
             **{
                 "show_bookings_button": show_bookings_button,
+                "show_gpu_plannings": show_gpu_plannings,
                 "documentation_url": getenv(
                     "FRONTEND_DOCS_URI", "https://isard.gitlab.io/isardvdi-docs/"
                 ),

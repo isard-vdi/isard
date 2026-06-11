@@ -26,6 +26,7 @@ import pytz
 from isardvdi_common.connections.rethink_connection_factory import (
     RethinkSharedConnection,
 )
+from isardvdi_common.lib.bookings.gpu_multitenancy import filter_gpu_plans_by_category
 from rethinkdb import r
 
 
@@ -79,6 +80,12 @@ class ReservablesPlannerCompute(RethinkSharedConnection):
             # Sum overlapped and keep non overlapped
             for subitem in v:
                 all_plans = cls.get_subitems_planning([subitem])
+                # Phase 2 multitenancy: a non-admin only counts the availability
+                # of GPU cards delegated to their category (+ the global pool
+                # when the category allows it), so per-category capacity is the
+                # sum over *their* cards, not every card that enables the
+                # profile.
+                all_plans = filter_gpu_plans_by_category(all_plans, payload)
                 resource_planner[subitem] = cls.intersect_same_subitem_plan(
                     all_plans, subitem
                 )
