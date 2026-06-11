@@ -291,6 +291,38 @@ class AdminBootProgressRequest(BaseModel):
     boot_progress: Dict[str, Any]
 
 
+class AdminGpuAppliedRequest(BaseModel):
+    """Body for ``PUT /admin/item/hypervisor/{hyper_id}/gpu_applied``.
+
+    A gpu-apply-capable hypervisor reports back, after registration, the
+    per-card profile it actually applied locally (+ the created mdev
+    pool): ``{pci_bus_id: {result, profile, mdevs, ...}}``. Persisted
+    into ``vgpus`` so the DB reflects reality and the engine reconcile
+    confirms instead of re-applying.
+    """
+
+    applied: Dict[str, Any]
+
+
+class AdminGpuForceProfilePreviewRequest(BaseModel):
+    """Body for ``POST /admin/item/hypervisor/gpus/{card_id}/force_profile_preview``."""
+
+    target_profile: str
+
+
+class AdminGpuForceProfilePreviewResponse(BaseModel):
+    """Read-only pre-flight for the admin force-profile dialog: which
+    running desktops would be stopped and which reservables would be
+    removed (no other card provides them) if this card is forced to
+    ``target_profile``. ``current_profile``/``target_profile`` are absent
+    when the card row does not exist."""
+
+    current_profile: Optional[str] = None
+    target_profile: Optional[str] = None
+    desktops_to_stop: List[str]
+    resources_to_remove: List[str]
+
+
 class AdminHypervisorWgAddrResponse(BaseModel):
     """Response for ``GET /admin/item/hypervisor/vm/wg_addr`` — the wireguard
     table lookup result for the hypervisor host."""
