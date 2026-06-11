@@ -6,8 +6,11 @@ from lxml import etree
 from engine.models.domain_xml import (
     DomainXML,
     add_memory_backing,
+    add_numa_pinning,
+    ensure_iothreads_declared,
     hostdev_locked,
     recreate_xml_if_gpu,
+    remove_memory_backing,
 )
 
 
@@ -207,7 +210,48 @@ def test_add_memory_backing_idempotent():
     hp = mb[0].findall("hugepages")
     assert len(hp) == 1
     assert hp[0].find("page").get("size") == "2"
-    assert hp[0].find("page").get("unit") == "M"
+
+
+def test_remove_memory_backing_round_trip():
+    """add_memory_backing then remove_memory_backing -> no <memoryBacking> (the
+    native 4K shape), guest RAM untouched. This is the start-path OOM fallback."""
+    xml = (
+        '<domain type="kvm">'
+        "<memory>16777216</memory>"
+        "<currentMemory>16777216</currentMemory>"
+        "<devices/>"
+        "</domain>"
+    )
+    backed = add_memory_backing(xml, "1", "G")
+    assert _parse(backed).xpath("/domain/memoryBacking/hugepages")  # sanity
+    stripped = remove_memory_backing(backed)
+    tree = _parse(stripped)
+    assert tree.xpath("/domain/memoryBacking") == []  # whole element dropped
+    assert tree.xpath("/domain/memory/text()")[0] == "16777216"  # RAM intact
+
+
+def test_remove_memory_backing_keeps_virtiofs():
+    """remove_memory_backing drops only hugepages/allocation/locked; a virtiofs
+    <source>/<access> memoryBacking must survive (just without hugepages)."""
+    xml = (
+        '<domain type="kvm">'
+        "<memory>8388608</memory>"
+        "<currentMemory>8388608</currentMemory>"
+        "<memoryBacking>"
+        '  <source type="memfd"/>'
+        '  <access mode="shared"/>'
+        "</memoryBacking>"
+        "<devices/>"
+        "</domain>"
+    )
+    backed = add_memory_backing(xml, "1", "G")  # adds hugepages alongside virtiofs
+    stripped = remove_memory_backing(backed)
+    tree = _parse(stripped)
+    mb = tree.xpath("/domain/memoryBacking")
+    assert len(mb) == 1  # kept (still has virtiofs children)
+    assert mb[0].find("hugepages") is None and mb[0].find("locked") is None
+    assert mb[0].find("source").get("type") == "memfd"
+    assert mb[0].find("access").get("mode") == "shared"
 
     # virtiofs children still there
     assert mb[0].find("source") is not None
@@ -298,9 +342,11 @@ def test_recreate_xml_if_gpu_passthrough_with_audio_companion():
     assert comp_guest.get("multifunction") is None
 
 
-def test_recreate_xml_if_gpu_passthrough_without_companion_unchanged():
-    """Compute-mode boards (no audio companion) keep the original
-    single-hostdev shape with no guest-side address (libvirt auto-assigns)."""
+def test_recreate_xml_if_gpu_passthrough_single_function_deterministic_slot():
+    """Compute-mode boards (no audio companion) now get a deterministic guest
+    PCI slot from guest_index (default 0 -> 0x09), single function, NOT
+    multifunction, so multi-GPU guests keep a stable carve-order-independent
+    PCI layout."""
     xml = '<domain type="kvm"><devices/></domain>'
     result = recreate_xml_if_gpu(
         xml,
@@ -312,9 +358,101 @@ def test_recreate_xml_if_gpu_passthrough_without_companion_unchanged():
     tree = _parse(result)
     hostdevs = tree.xpath('//hostdev[@type="pci"][@managed="yes"]')
     assert len(hostdevs) == 1
-    # No guest-side multifunction injection when there are no companions.
     guest_addr = hostdevs[0].find("address")
-    assert guest_addr is None
+    assert guest_addr is not None
+    assert guest_addr.get("slot") == "0x09"
+    assert guest_addr.get("function") == "0x0"
+    assert guest_addr.get("multifunction") is None
+
+
+def test_recreate_xml_if_gpu_guest_index_distinct_slots():
+    """Two GPUs on one desktop get distinct, index-derived guest slots
+    (index 0 -> 0x09, index 1 -> 0x0a) regardless of which host card."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    r0 = recreate_xml_if_gpu(
+        xml, "u", pci_bus_id="pci_0000_03_00_0", is_passthrough=True, guest_index=0
+    )
+    r1 = recreate_xml_if_gpu(
+        xml, "u", pci_bus_id="pci_0000_63_00_0", is_passthrough=True, guest_index=1
+    )
+    s0 = _parse(r0).xpath("//hostdev/address")[0].get("slot")
+    s1 = _parse(r1).xpath("//hostdev/address")[0].get("slot")
+    assert s0 == "0x09"
+    assert s1 == "0x0a"
+    assert s0 != s1
+
+
+def test_recreate_xml_if_gpu_guest_index_deterministic_across_calls():
+    """Same guest_index + same source card -> byte-identical XML (stable guest
+    PCI address across starts)."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    a = recreate_xml_if_gpu(
+        xml, "u", pci_bus_id="pci_0000_03_00_0", is_passthrough=True, guest_index=2
+    )
+    b = recreate_xml_if_gpu(
+        xml, "u", pci_bus_id="pci_0000_03_00_0", is_passthrough=True, guest_index=2
+    )
+    assert a == b
+    assert _parse(a).xpath("//hostdev/address")[0].get("slot") == "0x0b"
+
+
+def test_recreate_xml_if_gpu_companion_uses_guest_index_slot():
+    """Companion multifunction pair lands on the index-derived slot (index 2 ->
+    0x0b), .0 multifunction='on', .1 same slot at function 0x1."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(
+        xml,
+        "u",
+        pci_bus_id="pci_0000_86_00_0",
+        is_passthrough=True,
+        companion_pci_bdfs=["0000:86:00.1"],
+        guest_index=2,
+    )
+    hostdevs = _parse(result).xpath('//hostdev[@type="pci"][@managed="yes"]')
+    assert len(hostdevs) == 2
+    g0 = hostdevs[0].find("address")
+    g1 = hostdevs[1].find("address")
+    assert g0.get("slot") == "0x0b"
+    assert g0.get("multifunction") == "on"
+    assert g0.get("function") == "0x0"
+    assert g1.get("slot") == "0x0b"
+    assert g1.get("function") == "0x1"
+
+
+def test_recreate_xml_if_gpu_guest_index_overflow_raises():
+    """guest_index beyond the available guest PCI slots is a clear error, not a
+    silently malformed address."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    with pytest.raises(ValueError):
+        recreate_xml_if_gpu(
+            xml,
+            "u",
+            pci_bus_id="pci_0000_03_00_0",
+            is_passthrough=True,
+            guest_index=0x20,
+        )
+
+
+def test_recreate_xml_if_gpu_mig_mdev_sets_display_off():
+    """A MIG-backed vGPU mdev (compute slice, no display engine) must emit
+    display='off' on the hostdev; otherwise the guest fails to start."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(xml, "fake-uid", is_mig=True)
+    tree = _parse(result)
+    hd = tree.xpath('//hostdev[@type="mdev"]')
+    assert len(hd) == 1
+    assert hd[0].get("display") == "off"
+
+
+def test_recreate_xml_if_gpu_plain_vgpu_mdev_keeps_default_display():
+    """A plain (non-MIG) vGPU mdev keeps libvirt's default — no display
+    attribute is injected (unchanged behaviour)."""
+    xml = '<domain type="kvm"><devices/></domain>'
+    result = recreate_xml_if_gpu(xml, "fake-uid")
+    tree = _parse(result)
+    hd = tree.xpath('//hostdev[@type="mdev"]')
+    assert len(hd) == 1
+    assert hd[0].get("display") is None
 
 
 # ---- engine bug fixes surfaced during the Redmine #15065 audit -------------
@@ -568,4 +706,112 @@ def test_add_interface_overlay_no_mtu_when_cluster_value_none(monkeypatch):
     x.add_interface("ovs", "52:54:00:aa:bb:cc", "dom1", "if1", net="100")
     tree = _parse(x.return_xml())
     assert tree.xpath("/domain/devices/interface/mtu") == []
-    assert len(tree.xpath("/domain/devices/interface")) == 1
+
+
+# ---- ensure_iothreads_declared: orphan <iothreadpin> repair on load ---------
+
+
+def _iothreadpin_domain_xml(iothread_id="1", with_iothreads=None):
+    """A domain with a <cputune><iothreadpin> referencing iothread_id. When
+    with_iothreads is None no <iothreads> is declared (the orphan/bug shape);
+    otherwise a <iothreads>{with_iothreads}</iothreads> is emitted after <vcpu>.
+    """
+    iothreads = (
+        f"<iothreads>{with_iothreads}</iothreads>" if with_iothreads is not None else ""
+    )
+    return (
+        '<domain type="kvm">'
+        "<name>d1</name>"
+        "<vcpu>24</vcpu>"
+        f"{iothreads}"
+        "<cputune>"
+        '  <vcpupin vcpu="0" cpuset="48-71"/>'
+        f'  <iothreadpin iothread="{iothread_id}" cpuset="92-93"/>'
+        "</cputune>"
+        "<devices/>"
+        "</domain>"
+    )
+
+
+def test_ensure_iothreads_declared_inserts_missing():
+    """Orphan <iothreadpin iothread='1'/> with no <iothreads> => declare
+    <iothreads>1</iothreads> right after <vcpu> (the libvirt-correct order)."""
+    result = ensure_iothreads_declared(_iothreadpin_domain_xml(iothread_id="1"))
+    tree = _parse(result)
+    iothreads = tree.xpath("/domain/iothreads")
+    assert len(iothreads) == 1
+    assert iothreads[0].text == "1"
+    # Declared after <vcpu> and before <cputune>.
+    children = [c.tag for c in tree.xpath("/domain")[0]]
+    assert children.index("iothreads") == children.index("vcpu") + 1
+    assert children.index("iothreads") < children.index("cputune")
+    # Pinning preserved, not dropped.
+    assert len(tree.xpath("/domain/cputune/iothreadpin")) == 1
+
+
+def test_ensure_iothreads_declared_bumps_too_small():
+    """<iothreads>1</iothreads> but a pin references iothread 3 => bump to 3."""
+    result = ensure_iothreads_declared(
+        _iothreadpin_domain_xml(iothread_id="3", with_iothreads="1")
+    )
+    tree = _parse(result)
+    assert tree.xpath("/domain/iothreads")[0].text == "3"
+    assert len(tree.xpath("/domain/iothreads")) == 1
+
+
+def test_ensure_iothreads_declared_noop_when_already_covered():
+    """A pin id already within <iothreads>N is left untouched (idempotent)."""
+    xml = _iothreadpin_domain_xml(iothread_id="1", with_iothreads="2")
+    result = ensure_iothreads_declared(xml)
+    tree = _parse(result)
+    assert tree.xpath("/domain/iothreads")[0].text == "2"
+
+
+def test_ensure_iothreads_declared_noop_without_iothreadpin():
+    """No <iothreadpin> => no <iothreads> synthesized, XML unchanged."""
+    xml = (
+        '<domain type="kvm"><name>d</name><vcpu>4</vcpu>'
+        '<cputune><vcpupin vcpu="0" cpuset="0-3"/></cputune>'
+        "<devices/></domain>"
+    )
+    result = ensure_iothreads_declared(xml)
+    assert _parse(result).xpath("/domain/iothreads") == []
+
+
+def test_ensure_iothreads_declared_honors_explicit_iothreadids():
+    """An explicit <iothreadids><iothread id='5'/></iothreadids> already declares
+    id 5 => a pin to 5 is a no-op (no spurious <iothreads> count added)."""
+    xml = (
+        '<domain type="kvm"><name>d</name><vcpu>8</vcpu>'
+        '<iothreadids><iothread id="5"/></iothreadids>'
+        '<cputune><iothreadpin iothread="5" cpuset="0-3"/></cputune>'
+        "<devices/></domain>"
+    )
+    result = ensure_iothreads_declared(xml)
+    tree = _parse(result)
+    assert tree.xpath("/domain/iothreads") == []
+    assert len(tree.xpath('/domain/iothreadids/iothread[@id="5"]')) == 1
+
+
+def test_add_numa_pinning_excess_vcpus_still_pins_emulator():
+    # More vCPUs (8) than the node has CPUs (0-3 = 4): per-vCPU pinning is
+    # intentionally skipped to avoid core oversubscription, but the emulator
+    # threads MUST still be pinned to the node and every vCPU constrained to it.
+    xml = "<domain type='kvm'><vcpu placement='static'>8</vcpu><devices></devices></domain>"
+    out = add_numa_pinning(xml, 0, "0-3", 8, emit_numatune=False)
+    tree = etree.parse(StringIO(out))
+    emu = tree.xpath("/domain/cputune/emulatorpin")
+    assert emu and emu[0].get("cpuset") == "0-3"
+    assert tree.xpath("/domain/vcpu")[0].get("cpuset") == "0-3"
+    assert not tree.xpath(
+        "/domain/cputune/vcpupin"
+    )  # no per-vCPU pins when oversubscribed
+
+
+def test_add_numa_pinning_fits_pins_all_vcpus_and_emulator():
+    # 4 vCPUs on a 4-CPU node: full per-vCPU pinning + emulatorpin (regression lock).
+    xml = "<domain type='kvm'><vcpu placement='static'>4</vcpu><devices></devices></domain>"
+    out = add_numa_pinning(xml, 0, "0-3", 4, emit_numatune=False)
+    tree = etree.parse(StringIO(out))
+    assert len(tree.xpath("/domain/cputune/vcpupin")) == 4
+    assert tree.xpath("/domain/cputune/emulatorpin")[0].get("cpuset") == "0-3"

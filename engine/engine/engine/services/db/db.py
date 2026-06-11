@@ -354,10 +354,39 @@ def cleanup_hypervisor_gpus(hyp_id: str):
         )
     if len(physical_devs) != 0:
         with rethink_conn() as conn:
+            affected = (
+                r.table("gpus")
+                .filter(
+                    lambda gpu: r.expr(physical_devs).contains(gpu["physical_device"])
+                )
+                .concat_map(lambda gpu: gpu["profiles_enabled"].default([]))
+                .distinct()
+                .run(conn)
+            )
             r.table("gpus").filter(
                 lambda gpu: r.expr(physical_devs).contains(gpu["physical_device"])
             ).update({"physical_device": None}).run(conn)
             r.table("vgpus").filter({"hyp_id": hyp_id}).delete().run(conn)
+            # Detached cards have no hardware -> recompute capacity so
+            # reservables_vgpus.total_units stops counting them (mirrors the API
+            # ResourceItemsGpus.recompute_total_units; profiles_enabled and
+            # bookings are preserved so capacity recovers if the host returns).
+            for reservable_id in affected:
+                surv = r.table("reservables_vgpus").get(reservable_id).run(conn)
+                if not surv:
+                    continue
+                cards = (
+                    r.table("gpus")
+                    .filter(
+                        lambda g: g["profiles_enabled"].contains(reservable_id)
+                        & g["physical_device"].default(None).ne(None)
+                    )
+                    .count()
+                    .run(conn)
+                )
+                r.table("reservables_vgpus").get(reservable_id).update(
+                    {"total_units": cards * (surv.get("units") or 0)}
+                ).run(conn)
 
 
 ## In unused functions

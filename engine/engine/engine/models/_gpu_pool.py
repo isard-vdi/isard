@@ -3,7 +3,16 @@
 Kept in a dependency-free leaf module so it can be unit-tested without
 importing :mod:`engine.models.hyp` (which imports ``libvirt`` at module
 scope and is not importable in the lint/test environment).
+
+``decide_reconcile_action`` now lives in
+:mod:`isardvdi_common.lib.gpu_pool_policy` (shared with the API so the policy
+cannot diverge); it is re-exported here so existing engine imports keep
+working. This module retains only the pool-sizing/trim helpers.
 """
+
+from isardvdi_common.lib.gpu_pool_policy import (  # noqa: F401  (re-exported)
+    decide_reconcile_action,
+)
 
 
 def _profile_pool_size(d_type):
