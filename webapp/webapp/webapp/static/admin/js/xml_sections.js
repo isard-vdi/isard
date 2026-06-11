@@ -25,6 +25,8 @@ var SECTION_CAPS_MAP = {
 
 // Global state for XML sections editor mode
 var xmlSectionsMode = 'domain'; // 'domain' or 'virt_install'
+var xmlSectionsRawMode = false;  // RAW XML mode (xml_protected_sections == ['raw'])
+var xmlSectionsFullXml = '';     // the stored full <domain> XML
 
 function xmlSectionsApiUrl(id) {
     if (xmlSectionsMode === 'virt_install') {
@@ -36,6 +38,12 @@ function xmlSectionsApiUrl(id) {
 function openXmlSections(domainId, mode) {
     xmlSectionsMode = mode || 'domain';
     $('#xmlSectionsDomainId').val(domainId);
+    // Reset RAW state from any previous open so it can't leak across desktops.
+    xmlSectionsRawMode = false;
+    xmlSectionsFullXml = '';
+    $('#xmlRawTextarea').val('');
+    $('#xmlRawToggle').prop('checked', false);
+    if ($.fn.iCheck) { $('#xmlRawToggle').iCheck('update'); }
     $('#xmlSectionsContainer').html(
         '<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>'
     );
@@ -45,6 +53,9 @@ function openXmlSections(domainId, mode) {
     } else {
         $('#xmlSectionsSaveVirtInstall').show();
     }
+    // Reset the live-compare view (editor visible, comparison hidden).
+    xmlSectionsShowEditorView();
+    $('#xmlSectionsLiveXml').hide();
     $('#modalEditXmlSections').modal({backdrop: 'static', keyboard: false}).modal('show');
 
     // Fetch sections and capabilities in parallel
@@ -53,6 +64,20 @@ function openXmlSections(domainId, mode) {
         $.ajax({type: "GET", url: "/api/v4/admin/item/domains/xml_capabilities"})
     ).done(function(sectionsResp, capsResp) {
         renderXmlSections(sectionsResp[0].sections, capsResp[0]);
+        // RAW mode detection (xml_protected_sections == ['raw']).
+        xmlSectionsFullXml = sectionsResp[0].xml_full || '';
+        var prot = sectionsResp[0].xml_protected_sections || [];
+        var isRaw = (xmlSectionsMode !== 'virt_install') &&
+            prot.length === 1 && prot[0] === 'raw';
+        $('#xmlRawToggle').prop('checked', isRaw).prop('disabled', xmlSectionsMode === 'virt_install');
+        if ($.fn.iCheck) {
+            $('#xmlRawToggle').iCheck(xmlSectionsMode === 'virt_install' ? 'disable' : 'enable').iCheck('update');
+        }
+        xmlSectionsSetRawView(isRaw);
+        // Offer the live running XML only for a running desktop (not virt_install).
+        if (xmlSectionsMode !== 'virt_install' && xmlSectionsDesktopIsRunning(domainId)) {
+            $('#xmlSectionsLiveXml').show();
+        }
     }).fail(function(data) {
         $('#xmlSectionsContainer').html(
             '<div class="alert alert-danger">Failed to load XML sections: ' +
@@ -314,6 +339,17 @@ $(document).on('change', '#xmlUploadFile', function(e) {
     reader.onload = function(ev) {
         var xmlContent = ev.target.result;
 
+        // RAW mode: load the whole file verbatim into the raw textarea.
+        if (xmlSectionsRawMode) {
+            $('#xmlRawTextarea').val(xmlContent);
+            new PNotify({
+                title: 'RAW XML loaded',
+                text: 'Click <b>Update</b> to save the raw XML.',
+                type: 'success', hide: true, delay: 4000, icon: 'fa fa-upload'
+            });
+            return;
+        }
+
         $.ajax({
             type: 'POST',
             url: '/api/v4/admin/item/domains/xml_sections/parse',
@@ -321,8 +357,8 @@ $(document).on('change', '#xmlUploadFile', function(e) {
             contentType: 'application/json',
             success: function(resp) {
                 var loaded = [];
-                var emptyInUpload = [];
-                var skipped = [];
+                var leftUnchanged = [];  // present in the form, absent/empty in the file
+                var skipped = [];        // uploaded content NOT applied because locked
                 resp.sections.forEach(function(section) {
                     if (!section.key || !/^[a-z_]+$/.test(section.key)) return;
                     var panel = $('#xml-section-' + section.key);
@@ -332,40 +368,54 @@ $(document).on('change', '#xmlUploadFile', function(e) {
                     // stray <driver> snippet doesn't try to land in a
                     // non-editable textarea.
                     if (panel.attr('data-section-derived') === '1') return;
+                    var snippet = section.xml || '';
+                    var hasContent = snippet.trim().length > 0;
                     var hiddenInput = panel.find('.xml-section-protect');
                     if (hiddenInput.length === 0) {
-                        skipped.push(escapeHtml(section.label) + ' (system-locked)');
+                        // System-locked (identity/metadata): always engine-managed,
+                        // never loaded from a file. Expected, so report silently.
                         return;
                     }
                     if (hiddenInput.val() === '1') {
-                        skipped.push(escapeHtml(section.label) + ' (admin-locked)');
+                        // Admin-locked: the lock wins, but make it explicit that
+                        // the uploaded content for this section was NOT applied.
+                        if (hasContent) skipped.push(escapeHtml(section.label));
                         return;
                     }
-                    var snippet = section.xml || '';
-                    panel.find('.xml-section-textarea').val(snippet);
-                    if (snippet.trim().length > 0) {
+                    if (hasContent) {
+                        panel.find('.xml-section-textarea').val(snippet);
                         loaded.push(escapeHtml(section.label));
                     } else {
-                        emptyInUpload.push(escapeHtml(section.label));
+                        // Absent/empty in the file: leave the existing value in
+                        // place instead of clearing it, so an upload never
+                        // silently removes a section the file simply omits.
+                        leftUnchanged.push(escapeHtml(section.label));
                     }
                 });
 
                 var msg = '';
-                if (loaded.length) msg += '<b>Loaded:</b> ' + loaded.join(', ');
-                if (skipped.length) msg += (msg ? '<br>' : '') + '<b>Skipped (locked):</b> ' + skipped.join(', ');
-                if (emptyInUpload.length) msg += (msg ? '<br>' : '') + '<b>Empty in upload:</b> ' + emptyInUpload.join(', ');
-                if (!loaded.length && !skipped.length && !emptyInUpload.length) {
-                    msg = 'No sections found in the uploaded XML.';
+                if (loaded.length) msg += '<b>Loaded from file:</b> ' + loaded.join(', ');
+                if (skipped.length) msg += (msg ? '<br>' : '') +
+                    '<b>NOT applied — section is locked:</b> ' + skipped.join(', ') +
+                    ' <small>(unlock the section, then re-upload, to apply it)</small>';
+                if (leftUnchanged.length) msg += (msg ? '<br>' : '') +
+                    '<small>Left unchanged (not present in the file): ' +
+                    leftUnchanged.join(', ') + '</small>';
+                if (!loaded.length && !skipped.length) {
+                    msg = msg || 'No editable sections found in the uploaded XML.';
                 }
                 if (loaded.length) {
                     msg += '<br><i>Click <b>Update</b> to save these changes.</i>';
                 }
 
+                // Keep the notice on screen (no auto-hide) whenever uploaded
+                // content was dropped because a section is locked, so the admin
+                // sees exactly what was not applied.
                 new PNotify({
                     title: 'XML Loaded',
                     text: msg,
-                    type: loaded.length ? 'success' : 'info',
-                    hide: true,
+                    type: skipped.length ? 'info' : (loaded.length ? 'success' : 'info'),
+                    hide: skipped.length === 0,
                     delay: 6000,
                     icon: 'fa fa-upload'
                 });
@@ -457,10 +507,154 @@ $(document).on('click', '#xmlSectionsValidate', function() {
     });
 });
 
+// Best-effort: is this desktop currently running? Used to warn that XML edits
+// apply at the next start (the engine rebuilds the domain XML from the stored
+// definition on each start, it does not hot-apply to a running domain).
+// Guarded so it is safe in template / virt_install contexts where the desktops
+// datatable is absent.
+function xmlSectionsDesktopIsRunning(domainId) {
+    if (xmlSectionsMode === 'virt_install') { return false; }
+    try {
+        if (typeof domains_table !== 'undefined' && domains_table) {
+            var row = domains_table.row('#' + domainId);
+            if (row && row.data()) {
+                return ['Starting', 'Started', 'Shutting-down', 'Stopping']
+                    .indexOf(row.data().status) !== -1;
+            }
+        }
+    } catch (e) { /* datatable not present in this context */ }
+    return false;
+}
+
+function xmlSectionsShowEditorView() {
+    $('#xmlLiveCompare').hide().empty();
+    $('#xmlLiveCompareBack').hide();
+    // Restore whichever editor was active (RAW textarea vs section panels).
+    if (xmlSectionsRawMode) {
+        xmlSectionsSetRawView(true);
+        return;
+    }
+    $('#xmlSectionsContainer').show();
+    $('#xmlSectionsValidate, #xmlSectionsSave, #xmlSectionsDownload').show();
+    if (xmlSectionsMode === 'virt_install') {
+        $('#xmlSectionsSaveVirtInstall').hide();
+    } else {
+        $('#xmlSectionsSaveVirtInstall').show();
+    }
+}
+
+function xmlSectionsShowCompareView() {
+    $('#xmlSectionsContainer').hide();
+    $('#xmlRawContainer').hide();
+    $('#xmlLiveCompare').show();
+    $('#xmlLiveCompareBack').show();
+    $('#xmlSectionsValidate, #xmlSectionsSave, #xmlSectionsSaveVirtInstall, #xmlSectionsLiveXml, #xmlSectionsDownload').hide();
+}
+
+// RAW XML mode: edit the whole <domain> in one textarea; on start the engine
+// applies only the isard-essentials (uuid, storage path, networking, viewer).
+function xmlSectionsSetRawView(on) {
+    xmlSectionsRawMode = !!on;
+    if (on) {
+        if (!$('#xmlRawTextarea').val().trim()) {
+            $('#xmlRawTextarea').val(xmlSectionsFullXml);
+        }
+        $('#xmlSectionsContainer').hide();
+        $('#xmlRawContainer').show();
+        // Section-level actions don't apply in RAW mode.
+        $('#xmlSectionsValidate, #xmlSectionsSaveVirtInstall').hide();
+        $('#xmlSectionsDownload, #xmlSectionsSave').show();
+    } else {
+        $('#xmlRawContainer').hide();
+        $('#xmlSectionsContainer').show();
+        $('#xmlSectionsValidate, #xmlSectionsDownload, #xmlSectionsSave').show();
+        if (xmlSectionsMode === 'virt_install') {
+            $('#xmlSectionsSaveVirtInstall').hide();
+        } else {
+            $('#xmlSectionsSaveVirtInstall').show();
+        }
+    }
+}
+
+// The XML modal skins checkboxes with iCheck, which fires 'ifChanged' on toggle
+// instead of a native 'change'; bind both so the RAW view switches either way.
+$(document).on('ifChanged change', '#xmlRawToggle', function() {
+    xmlSectionsSetRawView($(this).is(':checked'));
+});
+
+// Minimal dependency-free line diff: highlights lines unique to each side.
+function xmlRenderLineDiff(storedXml, liveXml) {
+    function splitLines(s) { return (s || '').replace(/\r/g, '').split('\n'); }
+    function bag(arr) {
+        var m = {};
+        arr.forEach(function(l) { var t = l.trim(); if (t) { m[t] = (m[t] || 0) + 1; } });
+        return m;
+    }
+    var a = splitLines(storedXml), b = splitLines(liveXml);
+    var ba = bag(a), bb = bag(b);
+    function col(arr, other) {
+        return arr.map(function(l) {
+            var t = l.trim();
+            var changed = t.length > 0 && !(other[t] > 0);
+            var style = changed ? ' style="background:#fff3cd;"' : '';
+            return '<div' + style + '>' + (escapeHtml(l) || '&nbsp;') + '</div>';
+        }).join('');
+    }
+    var paneStyle = 'flex:1; min-width:0; overflow:auto; max-height:60vh; border:1px solid #ddd; ' +
+        'padding:6px; white-space:pre; font-family:monospace; font-size:12px;';
+    return '<div style="display:flex; gap:8px;">' +
+        '<div style="' + paneStyle + '"><b>Stored (editor base)</b><hr style="margin:4px 0;">' + col(a, bb) + '</div>' +
+        '<div style="' + paneStyle + '"><b>Live (running)</b><hr style="margin:4px 0;">' + col(b, ba) + '</div>' +
+        '</div>';
+}
+
+// Live XML button: fetch the running domain's libvirt XML (engine RAM, incl.
+// secrets) and the stored base, and show them side-by-side read-only.
+$(document).on('click', '#xmlSectionsLiveXml', function() {
+    var domainId = $('#xmlSectionsDomainId').val();
+    $('#xmlLiveCompare').html('<div class="text-center"><i class="fa fa-spinner fa-pulse fa-2x"></i></div>');
+    xmlSectionsShowCompareView();
+    $.when(
+        $.ajax({type: 'GET', url: '/api/v4/admin/item/domain/' + encodeURIComponent(domainId) + '/live_xml'}),
+        $.ajax({type: 'GET', url: '/api/v4/admin/item/domain/' + encodeURIComponent(domainId) + '/xml'})
+    ).done(function(liveResp, storedResp) {
+        var live = (liveResp[0] && liveResp[0].xml) || '';
+        var hyp = (liveResp[0] && liveResp[0].hyp) || '';
+        var stored = (typeof storedResp[0] === 'string') ? storedResp[0] : (storedResp[0] || '');
+        var banner = '<div class="alert alert-warning" style="margin-bottom:8px;">' +
+            '<i class="fa fa-exclamation-triangle"></i> Live XML from libvirt' +
+            (hyp ? ' on hypervisor <b>' + escapeHtml(hyp) + '</b>' : '') +
+            ' — read-only, <b>includes secrets</b> (viewer password). ' +
+            'Lines that differ from the stored editor base are highlighted.' +
+            '</div>';
+        $('#xmlLiveCompare').html(banner + xmlRenderLineDiff(stored, live));
+    }).fail(function(data) {
+        var msg = (data && data.responseJSON && data.responseJSON.description)
+            ? data.responseJSON.description
+            : 'Could not fetch live XML (is the desktop running?)';
+        $('#xmlLiveCompare').html('<div class="alert alert-danger">' + escapeHtml(msg) + '</div>');
+    });
+});
+
+$(document).on('click', '#xmlLiveCompareBack', function() {
+    xmlSectionsShowEditorView();
+    var domainId = $('#xmlSectionsDomainId').val();
+    if (xmlSectionsMode !== 'virt_install' && xmlSectionsDesktopIsRunning(domainId)) {
+        $('#xmlSectionsLiveXml').show();
+    }
+});
+
 // Save button
 $(document).on('click', '#xmlSectionsSave', function() {
     var domainId = $('#xmlSectionsDomainId').val();
-    var data = collectXmlSections();
+    var data;
+    if (xmlSectionsRawMode) {
+        // RAW mode: store the whole <domain> verbatim with the 'raw' sentinel.
+        data = { raw_xml: $('#xmlRawTextarea').val(), xml_protected_sections: ['raw'] };
+    } else {
+        data = collectXmlSections();
+    }
+    var isRunning = xmlSectionsDesktopIsRunning(domainId);
     var notice = new PNotify({
         text: 'Updating XML sections...',
         hide: false,
@@ -475,15 +669,28 @@ $(document).on('click', '#xmlSectionsSave', function() {
         contentType: 'application/json',
         success: function(resp) {
             $('#modalEditXmlSections').modal('hide');
-            notice.update({
-                title: 'Updated',
-                text: 'Domain XML sections updated successfully',
-                type: 'success',
-                hide: true,
-                delay: 2000,
-                icon: 'fa fa-check',
-                opacity: 1
-            });
+            if (isRunning) {
+                notice.update({
+                    title: 'Saved — applies at next start',
+                    text: 'The desktop is running. Changes are saved to its ' +
+                          'definition and will take effect the next time it is started.',
+                    type: 'success',
+                    hide: true,
+                    delay: 6000,
+                    icon: 'fa fa-info-circle',
+                    opacity: 1
+                });
+            } else {
+                notice.update({
+                    title: 'Updated',
+                    text: 'Domain XML sections updated successfully',
+                    type: 'success',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-check',
+                    opacity: 1
+                });
+            }
         },
         error: function(data) {
             notice.update({

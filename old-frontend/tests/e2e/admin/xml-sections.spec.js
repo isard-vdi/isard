@@ -12,6 +12,15 @@
 //   (4) Uploading a non-<domain> XML root surfaces an explicit Upload Error
 //       toast instead of silently wiping every section.
 //
+// Extended for the domain-XML-editor-bugs fixes:
+//   (5) A natural <qemu:commandline> pasted into "Other (top-level)" validates
+//       (qemu: namespace declared; no "unbound prefix"; prefix preserved).
+//   (6) The Domain Type section is editable — an invalid type is rejected.
+//   (7) Uploading a PARTIAL XML is non-destructive: omitted sections are kept,
+//       not wiped, and the notice lists what was left in place.
+//   (8) The editor is usable while a desktop is running and saving warns the
+//       change applies at the next start.
+//
 // The spec follows the same pattern as ../admin/template-delete.spec.js:
 // Page Object Model, ApiHelper for fixture data, serial mode so a single
 // throw-away desktop can be reused across the four scenarios.
@@ -196,6 +205,202 @@ test.describe('XML sections editor (Redmine #15065)', () => {
 
     // Disks textarea must be untouched.
     await expect(disksTextarea).toHaveValue(before)
+  })
+
+  // -----------------------------------------------------------------
+  // (5) Pasting a natural <qemu:commandline> into the catch-all
+  // "Other (top-level)" section validates: the qemu: namespace prefix
+  // is declared on the snippet wrapper so it no longer fails with
+  // "unbound prefix", and split preserves the qemu: prefix (not ns0:),
+  // which keeps the engine's qemu:commandline dedup working.
+  // -----------------------------------------------------------------
+  test('Other (top-level) accepts a natural <qemu:commandline>', async ({ page, administration }) => {
+    await openXmlEditor(page, testDesktopId)
+    const other = page.locator('#xml-section-other_toplevel .xml-section-textarea')
+    await expect(other).toBeVisible()
+    await other.fill(
+      '<qemu:commandline>\n' +
+      '  <qemu:arg value="-global"/>\n' +
+      '  <qemu:arg value="pcie-root-port.pref64-reserve=256G"/>\n' +
+      '</qemu:commandline>'
+    )
+    await page.locator('#xmlSectionsValidate').click()
+    await expect(
+      page.locator('.ui-pnotify-title').filter({ hasText: /^Valid$/ })
+    ).toBeVisible({ timeout: 10000 })
+    await expect(
+      page.locator('.ui-pnotify-text').filter({ hasText: /unbound prefix/i })
+    ).toHaveCount(0)
+  })
+
+  // -----------------------------------------------------------------
+  // (6) The Domain Type section is editable: an unknown <domain type>
+  // is rejected on validate (editing it used to be a silent no-op).
+  // -----------------------------------------------------------------
+  test('Domain Type: an invalid type is rejected on validate', async ({ page, administration }) => {
+    await openXmlEditor(page, testDesktopId)
+    const dt = page.locator('#xml-section-domain_type .xml-section-textarea')
+    await expect(dt).toBeVisible()
+    const orig = await dt.inputValue()
+    expect(orig, 'domain_type should expose the encoded <domain type=...>').toMatch(/domain type=/)
+    await dt.fill(orig.replace(/domain type="[^"]*"/, 'domain type="bogus"'))
+    await page.locator('#xmlSectionsValidate').click()
+    await expect(
+      page.locator('.ui-pnotify-title').filter({ hasText: /Validation Error/ })
+    ).toBeVisible({ timeout: 10000 })
+  })
+
+  // -----------------------------------------------------------------
+  // (7) Uploading a PARTIAL XML loads only the sections it contains and
+  // leaves the omitted ones unchanged (non-destructive upload), with a
+  // notice listing what was left in place.
+  // -----------------------------------------------------------------
+  test('Upload of a partial XML is non-destructive (omitted sections kept)', async ({ page, administration }) => {
+    await openXmlEditor(page, testDesktopId)
+    const video = page.locator('#xml-section-video .xml-section-textarea')
+    const videoBefore = await video.inputValue()
+
+    const partial =
+      '<domain type="kvm">' +
+      '<name>partial</name>' +
+      '<uuid>11111111-2222-3333-4444-555555555555</uuid>' +
+      '<memory unit="KiB">2097152</memory>' +
+      '<currentMemory unit="KiB">2097152</currentMemory>' +
+      '<vcpu placement="static">2</vcpu>' +
+      '<os><type arch="x86_64" machine="q35">hvm</type><boot dev="hd"/></os>' +
+      '<devices><emulator>/usr/bin/qemu-kvm</emulator>' +
+      '<disk type="file" device="disk"><driver name="qemu" type="qcow2"/>' +
+      '<source file="/tmp/x.qcow2"/><target dev="vda" bus="virtio"/></disk>' +
+      '</devices></domain>'
+    await page.locator('#xmlUploadFile').setInputFiles({
+      name: 'partial.xml',
+      mimeType: 'application/xml',
+      buffer: Buffer.from(partial)
+    })
+
+    // Memory IS loaded from the file ...
+    await expect(page.locator('#xml-section-memory .xml-section-textarea'))
+      .toHaveValue(/2097152/, { timeout: 10000 })
+    // ... while Video, absent from the file, is left UNCHANGED (not wiped) ...
+    await expect(video).toHaveValue(videoBefore)
+    // ... and the notice explains what was left in place.
+    await expect(
+      page.locator('.ui-pnotify-text').filter({ hasText: /not present in the file/i })
+    ).toBeVisible()
+  })
+
+  // -----------------------------------------------------------------
+  // (8) The XML editor is usable while a desktop is running, and saving
+  // warns the change applies at the next start (the editor edits the
+  // stored definition, which the engine re-applies on the next start).
+  // Implicitly checks the row .btn-xml stays enabled while running —
+  // openXmlEditor clicks it.
+  // -----------------------------------------------------------------
+  test('XML editor works while running and warns it applies at next start', async ({ page, administration, api }) => {
+    await api.startDesktop(testDesktopId)
+    await api.waitForDomainStatus(testDesktopId, 'Started', 120000)
+    try {
+      await openXmlEditor(page, testDesktopId)
+      await page.locator('#xmlSectionsSave').click()
+      await expect(
+        page.locator('.ui-pnotify-text')
+          .filter({ hasText: /next time it is started|applies at next start/i })
+      ).toBeVisible({ timeout: 10000 })
+    } finally {
+      await api.stopDesktop(testDesktopId)
+      await api.waitForDomainStatus(testDesktopId, 'Stopped', 120000).catch(() => {})
+    }
+  })
+
+  // -----------------------------------------------------------------
+  // (9) Live XML: a running desktop exposes a "Live XML" button that shows
+  // the actual libvirt running domain (engine RAM, incl. secrets) side-by-side
+  // with the stored base. The button is absent for a stopped desktop.
+  // -----------------------------------------------------------------
+  test('Live XML shows the running domain side-by-side', async ({ page, administration, api }) => {
+    await api.startDesktop(testDesktopId)
+    await api.waitForDomainStatus(testDesktopId, 'Started', 120000)
+    try {
+      await openXmlEditor(page, testDesktopId)
+      const liveBtn = page.locator('#xmlSectionsLiveXml')
+      await expect(liveBtn).toBeVisible({ timeout: 10000 })
+      await liveBtn.click()
+
+      const compare = page.locator('#xmlLiveCompare')
+      await expect(compare).toBeVisible()
+      // The live pane shows the running domain with its graphics/viewer block.
+      await expect(compare).toContainText('<domain', { timeout: 15000 })
+      await expect(compare).toContainText('<graphics')
+
+      // Back returns to the section editor.
+      await page.locator('#xmlLiveCompareBack').click()
+      await expect(page.locator('#xml-section-disks')).toBeVisible()
+    } finally {
+      await api.stopDesktop(testDesktopId)
+      await api.waitForDomainStatus(testDesktopId, 'Stopped', 120000).catch(() => {})
+    }
+  })
+
+  // -----------------------------------------------------------------
+  // (10) RAW XML mode: the editor exposes a toggle that swaps the section
+  // panels for a single full-document <domain> textarea. Saving stores the
+  // verbatim XML with the ['raw'] sentinel; reopening round-trips it. On
+  // start the engine applies only the isard essentials, leaving custom
+  // blocks (here a marker <qemu:commandline>) untouched.
+  // -----------------------------------------------------------------
+  test('RAW mode: full-document textarea round-trips with the raw sentinel', async ({ page, administration, api }) => {
+    await openXmlEditor(page, testDesktopId)
+
+    // Enable RAW mode: section panels hide, the full-XML textarea shows.
+    // The modal skins checkboxes with iCheck (an <ins.iCheck-helper> overlay
+    // intercepts clicks and fires 'ifChanged' instead of 'change'); toggle via
+    // the helper when present, else fall back to a native check().
+    const rawHelper = page.locator('#xmlRawToggle ~ ins.iCheck-helper')
+    if (await rawHelper.count()) {
+      await rawHelper.click()
+    } else {
+      await page.locator('#xmlRawToggle').check()
+    }
+    const rawArea = page.locator('#xmlRawTextarea')
+    await expect(rawArea).toBeVisible()
+    await expect(page.locator('#xmlSectionsContainer')).toBeHidden()
+
+    const rawXml = [
+      '<domain type="kvm">',
+      '<name>placeholder</name>',
+      '<uuid>11111111-2222-3333-4444-555555555555</uuid>',
+      '<memory unit="KiB">2097152</memory>',
+      '<currentMemory unit="KiB">2097152</currentMemory>',
+      '<vcpu placement="static">2</vcpu>',
+      '<os><type arch="x86_64" machine="q35">hvm</type><boot dev="hd"/></os>',
+      '<features><acpi/><apic/></features>',
+      '<devices>',
+      '<emulator>/usr/bin/qemu-system-x86_64</emulator>',
+      '<disk type="file" device="disk"><driver name="qemu" type="qcow2"/>',
+      '<source file="/placeholder.qcow2"/><target dev="vda" bus="virtio"/></disk>',
+      '<interface type="network"><source network="default"/><model type="virtio"/></interface>',
+      '<graphics type="spice" autoport="yes"/><video><model type="qxl"/></video>',
+      '</devices>',
+      '<qemu:commandline xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">',
+      '<qemu:arg value="-RAWMARKER"/></qemu:commandline>',
+      '</domain>'
+    ].join('')
+    await rawArea.fill(rawXml)
+
+    await page.locator('#xmlSectionsSave').click()
+    await expect(page.locator('#modalEditXmlSections')).toBeHidden({ timeout: 10000 })
+
+    // Reopen: the desktop is now in RAW mode, so the toggle is checked and the
+    // raw textarea round-trips the verbatim document (custom marker included).
+    await page.goto('/isard-admin/admin/domains/render/Desktops')
+    await expect(page.locator('table#domains')).toBeVisible({ timeout: 15000 })
+    await page.locator('#domains_filter input[type="search"]').fill(testDesktopId)
+    await page.waitForTimeout(500) // DataTable filter debounce
+    await page.locator(`table#domains tbody tr[data-pk="${testDesktopId}"] .btn-xml`).click()
+    await expect(page.locator('#modalEditXmlSections')).toBeVisible({ timeout: 10000 })
+
+    await expect(page.locator('#xmlRawToggle')).toBeChecked({ timeout: 10000 })
+    await expect(page.locator('#xmlRawTextarea')).toHaveValue(/-RAWMARKER/, { timeout: 10000 })
   })
 })
 
