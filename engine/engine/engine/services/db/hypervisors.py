@@ -11,6 +11,7 @@ from engine.services.db import (
 )
 from engine.services.db.domains import get_vgpus_mdevs
 from engine.services.log import log, logs
+from isardvdi_common.gpu_pool_policy import profile_suffix_from_id
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -886,10 +887,28 @@ def get_hypers_gpu_online(
         for pci, model in h["info"]["nvidia"].items():
             if model == gpu_model:
                 gpu_id = h["id"] + "-" + pci
-                gpu_profile_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_profile)
+                gpu_profile_active, mdevs, changing_to_profile = get_vgpus_mdevs(
+                    gpu_id, gpu_profile
+                )
+
+                if changing_to_profile:
+                    # A profile change is in progress on this card: it is being
+                    # torn down and re-carved, so it offers NO bookable capacity
+                    # until the new profile is up. Skip it so NO desktop (user
+                    # click, autostart, scheduler, booking, or a forced-hyp
+                    # server desktop) is placed on a card mid-change -- a start
+                    # there would re-grab the card and wedge the teardown.
+                    continue
 
                 if gpu_profile_active == gpu_profile:
-                    for mdev_uuid, d in mdevs[gpu_profile].items():
+                    # get_vgpus_mdevs plucks {"mdevs": [gpu_profile]}, so a card
+                    # whose pool lacks that key (mid-transition, stale active
+                    # field, pool not yet rebuilt) yields an EMPTY mdevs dict -
+                    # treat it as "no free uuid on this card" instead of
+                    # KeyError-ing the whole start action. A multi-vGPU desktop
+                    # probes every requested profile against every card of the
+                    # model, which makes this window easy to hit.
+                    for mdev_uuid, d in mdevs.get(gpu_profile, {}).items():
                         if (
                             d.get("domain_reserved", False) is False
                             and d.get("domain_started", False) is False
@@ -1166,6 +1185,21 @@ def replace_vgpu_profile_mdevs(vgpu_id, profile, mdevs_for_profile):
     close_rethink_connection(r_conn)
 
 
+def ingest_applied_state(vgpu_id, patch):
+    """Apply a ``vgpu_state.build_applied_state_patch`` patch to a vgpus row,
+    wrapping ``mdevs`` in ``r.literal`` so the hypervisor-reported pool REPLACES
+    wholesale (RethinkDB's default update deep-merges, which would double a
+    racing engine-seeded pool). Mirrors the API's gpu_applied ingest so a
+    runtime apply the engine drives over SSH and the registration apply write
+    byte-identical rows.
+    """
+    r_conn = new_rethink_connection()
+    if "mdevs" in patch:
+        patch = {**patch, "mdevs": r.literal(patch["mdevs"])}
+    r.table("vgpus").get(vgpu_id).update(patch).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
 def get_vgpu_full(vgpu_id):
     r_conn = new_rethink_connection()
     try:
@@ -1277,6 +1311,11 @@ def reset_vgpu_created_started(hyp_id, pci_id, d_mdevs_running):
 
 
 def update_vgpu_profile(vgpu_id, vgpu_profile):
+    """Set the currently-active runtime vgpu_profile.
+
+    Engine writes this after a successful driver transition; reconcile must
+    never write this directly without going through change_vgpu_profile.
+    """
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
 
@@ -1284,11 +1323,115 @@ def update_vgpu_profile(vgpu_id, vgpu_profile):
     close_rethink_connection(r_conn)
 
 
+def _mirror_operator_intent_to_catalog(vgpu_id, fields):
+    """Persist operator GPU intent durably in the gpus CATALOG row.
+
+    The live ``vgpus`` row is deleted+recreated on every hypervisor (re)start,
+    so operator intent stored only there is lost across a reboot -- the card
+    comes back un-intented and ``compute_gpu_targets`` no longer applies the
+    operator's passthrough (the cards had to be re-forced by hand). The ``gpus``
+    catalog row (keyed by ``physical_device == vgpu_id``) is persistent, so we
+    mirror the intent there; ``compute_gpu_targets`` re-seeds from it at
+    registration when the fresh vgpus row carries no intent. Best-effort: a
+    catalog write failure must not break the operator force.
+    """
+    r_conn = new_rethink_connection()
+    try:
+        r.table("gpus").filter({"physical_device": vgpu_id}).update(fields).run(r_conn)
+    except Exception as e:
+        logs.main.warning(
+            f"could not mirror operator intent {fields} to gpus catalog "
+            f"for {vgpu_id}: {e}"
+        )
+    finally:
+        close_rethink_connection(r_conn)
+
+
+def update_requested_profile(vgpu_id, requested_profile):
+    """Set operator-requested profile for this vgpu.
+
+    Only writers: the set_gpu_profile API endpoint and the one-time backfill.
+    Reconcile/discovery code paths must NEVER call this — that conflation is
+    the bug we are fixing.
+    """
+    r_conn = new_rethink_connection()
+    r.table("vgpus").filter({"id": vgpu_id}).update(
+        {"requested_profile": requested_profile}
+    ).run(r_conn)
+    close_rethink_connection(r_conn)
+    # Durable mirror so the intent survives a hypervisor restart (see helper).
+    _mirror_operator_intent_to_catalog(
+        vgpu_id, {"operator_requested_profile": requested_profile}
+    )
+
+
+def update_operator_passthrough(vgpu_id, flag):
+    """Mark whether the operator explicitly chose passthrough for this vgpu.
+
+    Used by the engine startup re-apply loop to know whether vfio-pci
+    binding should survive across container/host restarts. A True value
+    here is the *durable* form of "operator chose passthrough" and is the
+    only signal that triggers the re-apply — never the transient
+    ``vgpu_profile == "passthrough"`` (which could have been written by
+    the legacy buggy reconcile path).
+    """
+    r_conn = new_rethink_connection()
+    r.table("vgpus").filter({"id": vgpu_id}).update(
+        {"operator_passthrough": bool(flag)}
+    ).run(r_conn)
+    close_rethink_connection(r_conn)
+    # Durable mirror so the intent survives a hypervisor restart (see helper).
+    _mirror_operator_intent_to_catalog(vgpu_id, {"operator_passthrough": bool(flag)})
+
+
 def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
+    # Per-card map vgpu_id -> applied_by_hypervisor, returned so the caller can
+    # skip its own UUID/profile seeding for cards the hypervisor already applied.
+    applied_flags = {}
     for pci_bus, d_vgpu in d_info_nvidia.items():
         vgpu_id = "-".join([hyp_id, pci_bus])
+        # Read existing operator-intent fields BEFORE delete so they survive
+        # the re-insert. The delete+insert pattern wipes the row entirely;
+        # without this preservation step, every fresh discovery erases the
+        # operator's profile choice — which is one of the defects this
+        # redesign fixes.
+        preserved = {
+            "requested_profile": None,
+            "operator_passthrough": False,
+            "force_selected_profile": False,
+            # Hypervisor-applied state. The hypervisor applies the profile itself
+            # at registration and the API records the applied profile + mdev pool
+            # here. The engine relies on what the hypervisor set at boot, so this
+            # delete+insert must NOT wipe it — otherwise the next reconcile
+            # re-derives passthrough and re-applies over SSH, defeating the
+            # hypervisor-owns-GPU handoff.
+            "vgpu_profile": None,
+            "mdevs": {},
+            "mdevs_reset_at": None,
+            "mdevs_last_synced_at": None,
+            "applied_by_hypervisor": False,
+        }
+        try:
+            existing = rtable.get(vgpu_id).run(r_conn)
+        except ReqlNonExistenceError:
+            existing = None
+        if existing:
+            preserved["requested_profile"] = existing.get("requested_profile")
+            preserved["operator_passthrough"] = bool(
+                existing.get("operator_passthrough", False)
+            )
+            preserved["force_selected_profile"] = bool(
+                existing.get("force_selected_profile", False)
+            )
+            preserved["vgpu_profile"] = existing.get("vgpu_profile")
+            preserved["mdevs"] = existing.get("mdevs") or {}
+            preserved["mdevs_reset_at"] = existing.get("mdevs_reset_at")
+            preserved["mdevs_last_synced_at"] = existing.get("mdevs_last_synced_at")
+            preserved["applied_by_hypervisor"] = bool(
+                existing.get("applied_by_hypervisor", False)
+            )
         try:
             rtable.get(vgpu_id).delete().run(r_conn)
         except ReqlNonExistenceError:
@@ -1296,14 +1439,27 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
         d = {}
         d["id"] = vgpu_id
         d["hyp_id"] = hyp_id
-        d["force_selected_profile"] = False
+        d["force_selected_profile"] = preserved["force_selected_profile"]
         d["changing_to_profile"] = False
-        # d["selected_profile"] = False
+        d["requested_profile"] = preserved["requested_profile"]
+        d["operator_passthrough"] = preserved["operator_passthrough"]
         d["nvidia_uids"] = {}
         d["info"] = d_vgpu
         d["model"] = d_vgpu["model"]
         d["brand"] = "NVIDIA"
+        # Carry the hypervisor-applied state across the re-insert (see preserve
+        # comment above). Only emit keys we actually have, so a never-applied
+        # card stays clean for the engine's own seeding below.
+        d["applied_by_hypervisor"] = preserved["applied_by_hypervisor"]
+        if preserved["applied_by_hypervisor"]:
+            d["vgpu_profile"] = preserved["vgpu_profile"]
+            d["mdevs"] = preserved["mdevs"]
+            if preserved["mdevs_reset_at"] is not None:
+                d["mdevs_reset_at"] = preserved["mdevs_reset_at"]
+            if preserved["mdevs_last_synced_at"] is not None:
+                d["mdevs_last_synced_at"] = preserved["mdevs_last_synced_at"]
         rtable.insert(d).run(r_conn)
+        applied_flags[vgpu_id] = preserved["applied_by_hypervisor"]
 
         # Check if a GPU card already has this physical_device assigned
         already_assigned = list(
@@ -1330,7 +1486,7 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
                         "physical_device": None,
                     }
                 )
-                .pluck("id")
+                .pluck("id", "profiles_enabled")
                 .run(r_conn)
             )
             if len(gpus) == 0:
@@ -1342,9 +1498,30 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
                 r.table("gpus").get(gpus[0]["id"]).update(
                     {"physical_device": vgpu_id}
                 ).run(r_conn)
+                # Capacity restore: the card was detached (physical_device None)
+                # and is now re-bound, so recompute total_units for its enabled
+                # profiles -- symmetric to cleanup_hypervisor_gpus' detach drop,
+                # else a detach+reattach permanently zeroes vGPU capacity. Count
+                # only cards that still have a physical_device.
+                for reservable_id in gpus[0].get("profiles_enabled") or []:
+                    surv = r.table("reservables_vgpus").get(reservable_id).run(r_conn)
+                    if not surv:
+                        continue
+                    cards = (
+                        r.table("gpus")
+                        .filter(
+                            lambda g: g["profiles_enabled"].contains(reservable_id)
+                            & g["physical_device"].default(None).ne(None)
+                        )
+                        .count()
+                        .run(r_conn)
+                    )
+                    r.table("reservables_vgpus").get(reservable_id).update(
+                        {"total_units": cards * (surv.get("units") or 0)}
+                    ).run(r_conn)
 
     close_rethink_connection(r_conn)
-    return True
+    return applied_flags
 
 
 def update_vgpu_created(vgpu_id, profile, uuid64, created=True):
@@ -1420,5 +1597,10 @@ def get_vgpu_actual_profile(vgpu_id):
         logs.workers.info("==================================")
     close_rethink_connection(r_conn)
     if len(data):
-        return data["subitem_id"].split("-")[-1]
+        # Canonicalize the planned subitem_id to its bare profile suffix the same
+        # way the API's get_vgpu_scheduled_profile_now does, so the runtime
+        # reconcile and the hypervisor-startup path agree: a dash-form MIG id
+        # ("NVIDIA-<model>-1-2Q") yields "1_2Q" (not a mis-split "2Q"), and any
+        # "~<variant>" qualifier is dropped, instead of a naive split("-")[-1].
+        return profile_suffix_from_id(data["subitem_id"])
     return None

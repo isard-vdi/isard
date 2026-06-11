@@ -4,6 +4,7 @@
 # License: AGPLv3
 import json
 import os
+import re
 import sys
 import time
 from distutils.util import strtobool
@@ -16,11 +17,27 @@ from redis import Redis
 
 from .lib import *
 from .log import *
+from .upgrade_helpers import (
+    _system_upgrades,
+    add_keys,
+    check_done,
+    del_keys,
+    get_card,
+    get_domain_stock_card,
+    index_create,
+    keys_exists,
+    v189_backfill_and_canon_vgpus,
+    v189_canonicalize_vgpu_ids,
+)
 
 """
 Update to new database release version when new code version release
 """
-release_version = 188
+release_version = 189
+# release 189: Seed vgpus.requested_profile (operator intent) and
+#              vgpus.operator_passthrough from current vgpu_profile so the new
+#              reconcile policy (intent vs runtime state) has DB rows to read.
+#              Idempotent — only touches rows missing the new fields.
 # release 188: Add default rule for send_unused_deployment_desktops_to_recycle_bin op
 # release 187: Add allow_insecure_tls field to LDAP and SAML provider configs
 # release 186: Split category authentication tri-state boolean into two explicit booleans
@@ -240,10 +257,37 @@ tables = [
     "notifications",
     "notifications_action",
     "targets",
+    "vgpus",
 ]
 
 
+# --- vGPU id canonicalization (used only by the one-shot v189 migration) -----
+# Kept local: this is migration-only code (runs once, version-gated), so it is
+# deliberately NOT promoted into the shared isardvdi_common package. The runtime
+# canonicalization lives at the discovery source
+# (gpu_discovery._canon_vgpu_profile_name); this mirrors its transform on the
+# full BRAND-MODEL-PROFILE id so freshly-discovered and migrated ids share one
+# canonical shape.
+#
+# BRAND-MODEL-PROFILE must have exactly two dashes. Canonical form strips dashes
+# from MODEL and replaces the dash inside a MIG suffix with "_" ("1-2Q" -> "1_2Q");
+# dot-form MIG ("1g.24gb") and "passthrough" are already dash-free (unchanged).
+
+
 class Upgrade(object):
+    # The table-upgrade helper methods live in upgrade_helpers (module-level
+    # functions taking `self`, so upgrade_vgpu_unify_test can import that file
+    # without this module's runtime deps). Bind them here so the hundreds of
+    # existing self.add_keys()/self.check_done()/... call sites keep working.
+    add_keys = add_keys
+    del_keys = del_keys
+    check_done = check_done
+    keys_exists = keys_exists
+    index_create = index_create
+    get_domain_stock_card = get_domain_stock_card
+    get_card = get_card
+    _system_upgrades = _system_upgrades
+
     def __init__(self):
         cfg = loadConfig()
         self.conf = cfg.cfg()
@@ -7140,108 +7184,35 @@ password:s:%s"""
 
         return True
 
-    """
-    Upgrade general actions
-    """
+    def vgpus(self, version):
+        """vgpus table + vGPU-id canonicalization migrations.
 
-    def add_keys(self, table, keys, id=False):
-        for key in keys:
-            if id is False:
-                r.table(table).update(key).run(self.conn)
-            else:
-                r.table(table).get(id).update(key).run(self.conn)
+        v189 does two things idempotently, combined so vgpus is iterated once:
 
-    def del_keys(self, table, keys, id=False):
-        for key in keys:
-            if id is False:
-                r.table(table).replace(r.row.without(key)).run(self.conn)
-            else:
-                r.table(table).get(id).replace(r.row.without(key)).run(self.conn)
-
-    def check_done(self, dict, must=[], mustnot=[]):
-        log.info("Self check init")
-        done = False
-        # ~ check_done(cfg,['grafana','resources','voucher_access',{'engine':{'api':{'token'}}}],[{'engine':{'carbon'}}])
-        for m in must:
-            if type(m) is str:
-                m = [m]
-            if self.keys_exists(dict, m):
-                done = True
-                # ~ print(str(m)+' exists on dict. ok')
-            # ~ else:
-            # ~ print(str(m)+' not exists on dict. KO')
-
-        for mn in mustnot:
-            log.info(mn)
-            if type(mn) is str:
-                mn = [mn]
-            if not self.keys_exists(dict, mn):
-                done = True
-                # ~ print(str(mn)+' not exists on dict. ok')
-            # ~ else:
-            # ~ print(str(mn)+' exists on dict. KO')
-        return done
-
-    def keys_exists(self, element, keys):
+        1. Seed operator-intent fields (``requested_profile``,
+           ``operator_passthrough``) on rows that lack them. The reconcile-policy
+           redesign reads them; without a seed the first reconcile would reset
+           idle cards to the discovery default (and flip passthrough cards to a
+           vGPU profile).
+        2. Canonicalize dash-form vGPU ids to the underscore form
+           (``...-1-2Q`` -> ``...-1_2Q``) across vgpus + the catalog + every
+           reference, in lockstep with the release that makes discovery emit the
+           canonical form. Without it, post-upgrade ``info.types`` are underscore
+           while stored reservables/bookings stay dash and every MIG-backed
+           profile change breaks. This migration replaces the former standalone
+           ``normalize_vgpu_ids.py`` script (now removed) so the rewrite runs
+           automatically, in lockstep with the release.
         """
-        Check if *keys (nested) exists in `element` (dict).
-        """
-        if type(element) is not dict:
-            raise AttributeError("keys_exists() expects dict as first argument.")
-        if len(keys) == 0:
-            raise AttributeError(
-                "keys_exists() expects at least two arguments, one given."
-            )
+        log.info("UPGRADING vgpus TABLE TO VERSION " + str(version))
 
-        _element = element
-        for key in keys:
-            log.info(key)
+        if version == 189:
             try:
-                _element = _element[key]
-            except KeyError:
-                return False
-        return True
+                v189_backfill_and_canon_vgpus(self)
+            except Exception as e:
+                log.error(f"vgpus v189 backfill/canon failed: {e}")
+            try:
+                v189_canonicalize_vgpu_ids(self)
+            except Exception as e:
+                log.error(f"v189 vGPU-id canonicalization failed: {e}")
 
-    def index_create(self, table, indexes):
-        indexes_ontable = r.table(table).index_list().run(self.conn)
-        apply_indexes = [mi for mi in indexes if mi not in indexes_ontable]
-        for i in apply_indexes:
-            r.table(table).index_create(i).run(self.conn)
-            r.table(table).index_wait(i).run(self.conn)
-
-    ## To upgrade to default cards
-    def get_domain_stock_card(self, domain_id):
-        total = 0
-        for i in range(0, len(domain_id)):
-            total += total + ord(domain_id[i])
-        total = total % 48 + 1
-        return self.get_card(str(total) + ".jpg", "stock")
-
-    def get_card(self, card_id, type):
-        return {
-            "id": card_id,
-            "url": "/assets/img/desktops/" + type + "/" + card_id,
-            "type": type,
-        }
-
-    """
-    System upgrades
-    """
-
-    def _system_upgrades(self):
-        """
-        GPU_PROFILES DISK TABLE UPGRADES
-        """
-
-        log.info("Checking for new gpu_profiles...")
-
-        try:
-            f = open("./initdb/profiles/gpu_profiles.json")
-            gpu_profiles = json.loads(f.read())
-            f.close()
-            r.table("gpu_profiles").insert(gpu_profiles, conflict="update").run(
-                self.conn
-            )
-        except Exception as e:
-            print(e)
         return True

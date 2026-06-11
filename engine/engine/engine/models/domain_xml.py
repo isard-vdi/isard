@@ -1970,6 +1970,13 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         log.error("viewer password not found in domain {}".format(id_domain))
 
     xml = x.return_xml()
+    # Guarantee every <iothreadpin iothread="N"/> has a matching declared
+    # iothread. Stored XML can carry an orphan iothreadpin (admin-pasted custom
+    # XML, or the independently-editable cputune/iothreads protected sections)
+    # with no <iothreads>; libvirt then rejects the domain at start with
+    # "Cannot find 'iothread' : N". This repair runs on every start path,
+    # including the ones that don't regenerate pinning (add_iothread_pinning).
+    xml = ensure_iothreads_declared(xml)
     # log.debug('#####################################################')
     # log.debug(xml)
     # log.debug('#####################################################')
@@ -2141,12 +2148,21 @@ def hostdev_locked(domain):
     )
 
 
+# Base guest PCI slot for the first passed-through GPU. Picked from a high free
+# range to avoid colliding with libvirt's default device placement on q35 /
+# i440fx topologies; GPU N lands on GUEST_GPU_SLOT_BASE + N. Highest slot on a
+# single PCI bus is 0x1f.
+GUEST_GPU_SLOT_BASE = 0x09
+GUEST_GPU_SLOT_MAX = 0x1F
+
+
 def recreate_xml_if_gpu(
     xml,
     mdev_uid,
     pci_bus_id=None,
     is_passthrough=False,
     companion_pci_bdfs=None,
+    guest_index=0,
 ):
     """Inject the appropriate GPU hostdev(s) into a domain XML.
 
@@ -2156,6 +2172,15 @@ def recreate_xml_if_gpu(
     pair on a single guest PCI slot so the guest sees them as one logical
     device — matching bare-metal topology so the GPU driver finds its
     audio codec at the expected offset.
+
+    ``guest_index`` is the GPU's 0-based position in the desktop's reservable
+    list. It deterministically fixes the guest-side PCI slot
+    (``GUEST_GPU_SLOT_BASE + guest_index``) for every passthrough hostdev, so
+    the guest sees its GPUs at the SAME PCI addresses on every start regardless
+    of which host card the carve picked. Without it libvirt auto-assigns the
+    slot, which drifts between starts / with carve order and re-shuffles
+    in-guest GPU enumeration (``nvidia-smi`` index, ``CUDA_VISIBLE_DEVICES``,
+    Docker ``--gpus`` and LLM device maps).
     """
     xml = xml
 
@@ -2193,12 +2218,22 @@ def recreate_xml_if_gpu(
         bus = "0x" + parts[1]
         slot = "0x" + parts[2]
         function = "0x" + parts[3]
+        # Deterministic guest-side slot from the GPU's reservable index, so the
+        # guest always sees this GPU at the same PCI address across starts.
+        guest_slot_num = GUEST_GPU_SLOT_BASE + int(guest_index)
+        if guest_slot_num > GUEST_GPU_SLOT_MAX:
+            raise ValueError(
+                "recreate_xml_if_gpu: guest_index {} exceeds available guest PCI "
+                "slots (base 0x{:02x}..0x{:02x})".format(
+                    guest_index, GUEST_GPU_SLOT_BASE, GUEST_GPU_SLOT_MAX
+                )
+            )
+        guest_slot = "0x{:02x}".format(guest_slot_num)
         companions = list(companion_pci_bdfs or [])
         if companions:
-            # Guest-side slot for the GPU+audio multifunction pair. Slot
-            # picked from a high free range to avoid colliding with
-            # libvirt's default device placement on q35/i440fx topologies.
-            guest_slot = "0x09"
+            # GPU + its companion(s) (e.g. the .1 HD-audio function) as a
+            # multifunction pair on the one guest slot, so the guest sees one
+            # logical device matching bare-metal topology.
             xml_hostdev = (
                 "  <hostdev mode='subsystem' type='pci' managed='yes'>\n"
                 "    <source>\n"
@@ -2231,11 +2266,17 @@ def recreate_xml_if_gpu(
                     "  </hostdev>"
                 )
         else:
-            xml_hostdev = f"""  <hostdev mode='subsystem' type='pci' managed='yes'>
-        <source>
-          <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>
-        </source>
-      </hostdev>"""
+            # Single-function GPU: pin the guest slot deterministically too, so
+            # multi-GPU desktops keep a stable, carve-order-independent guest
+            # PCI layout (single function → no multifunction flag).
+            xml_hostdev = (
+                "  <hostdev mode='subsystem' type='pci' managed='yes'>\n"
+                "    <source>\n"
+                f"      <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>\n"
+                "    </source>\n"
+                f"    <address type='pci' slot='{guest_slot}' function='0x0'/>\n"
+                "  </hostdev>"
+            )
         xpath_parent = "/domain/devices"
     else:
         xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
@@ -2316,6 +2357,36 @@ def add_memory_backing(xml, hugepage_size="1", hugepage_unit="G", alloc_threads=
 
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output
+
+
+def remove_memory_backing(xml):
+    """Strip hugepage <memoryBacking> so the guest falls back to 4K pages.
+
+    Exact inverse of ``add_memory_backing``: removes the hugepages / allocation /
+    locked children (preserving virtiofs ``<source>``/``<access>``) and drops the
+    whole ``<memoryBacking>`` element if nothing else remains -- yielding the same
+    XML the engine's native low-hugepage 4K path produces. Used by the start path
+    to RETRY a domain that hard-failed ``unable to map backing store for guest
+    RAM`` (the 1 GiB hugepage pool momentarily exhausted -- concurrent GPU starts
+    can over-commit it faster than the balancer's free-hugepage view refreshes)
+    with normal RAM, so a GPU desktop STARTS (slower VFIO mapping) instead of
+    failing.
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error("Exception parsing xml in remove_memory_backing: {}".format(e))
+        return xml
+
+    for mb_elem in tree.xpath("/domain/memoryBacking"):
+        for tag in ("hugepages", "allocation", "locked"):
+            for child in mb_elem.findall(tag):
+                mb_elem.remove(child)
+        if len(mb_elem) == 0:
+            mb_elem.getparent().remove(mb_elem)
+
+    return indent(etree.tostring(tree, encoding="unicode"))
 
 
 def _expand_cpulist(cpulist_str):
@@ -2410,12 +2481,27 @@ def add_numa_pinning(
         else:
             tree.xpath("/domain")[0].insert(0, cputune_elem)
     else:
-        # Too many vCPUs for the node: only constrain via cpuset on <vcpu>
-        # so the host scheduler distributes within the node without
-        # per-vCPU pinning that would cause contention
+        # Too many vCPUs for the node: don't force per-vCPU pinning (it would
+        # oversubscribe cores and add contention). Constrain every vCPU to the
+        # node via <vcpu cpuset='...'> and let the host scheduler distribute
+        # within it -- but STILL pin the QEMU emulator threads to the node so
+        # they stay NUMA-local with the guest's memory and GPUs (otherwise the
+        # emulator floats across all nodes). add_iothread_pinning() adds
+        # <iothreadpin> into this same <cputune>.
         vcpu_elem = tree.xpath("/domain/vcpu")
         if vcpu_elem:
             vcpu_elem[0].set("cpuset", cpulist_str)
+        cputune_xml = "<cputune>\n  <emulatorpin cpuset='{}'/>\n</cputune>".format(
+            cpulist_str
+        )
+        cputune_elem = etree.parse(StringIO(cputune_xml)).getroot()
+        mem_backing = tree.xpath("/domain/memoryBacking")
+        if mem_backing:
+            mem_backing[0].addnext(cputune_elem)
+        elif vcpu_elem:
+            vcpu_elem[0].addnext(cputune_elem)
+        else:
+            tree.xpath("/domain")[0].insert(0, cputune_elem)
 
     if emit_numatune:
         # Add numatune
@@ -2480,6 +2566,78 @@ def add_qemu_pcie_reserve(xml, reserve_size="256G"):
     # Insert before closing </domain>
     xml = xml.replace("</domain>", qemu_block + "</domain>")
     return xml
+
+
+def ensure_iothreads_declared(xml):
+    """Guarantee every ``<iothreadpin iothread="N"/>`` has a matching declared
+    iothread.
+
+    libvirt rejects a domain whose ``<cputune>`` references an iothread id that
+    is not declared by a top-level ``<iothreads>N</iothreads>`` (or an explicit
+    ``<iothreadids>``), failing at start with
+    ``unsupported configuration: Cannot find 'iothread' : N``. Stored XML can
+    carry an orphan ``<iothreadpin>`` without the matching ``<iothreads>`` —
+    from admin-pasted custom XML, or because the ``cputune`` and ``iothreads``
+    XML sections are independently editable/protectable. This repair declares
+    enough iothreads so the domain is valid.
+
+    Chosen strategy: declare (don't drop). Raising ``<iothreads>`` to cover the
+    highest referenced id preserves the admin's iothread-pinning intent; an
+    otherwise-unused declared iothread is harmless to libvirt. Idempotent, and a
+    no-op when there are no iothreadpins or they are already declared.
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error(f"Exception parsing xml in ensure_iothreads_declared: {e}")
+        return xml
+
+    pin_ids = []
+    for pin in tree.xpath("/domain/cputune/iothreadpin"):
+        try:
+            pin_ids.append(int(pin.get("iothread")))
+        except (TypeError, ValueError):
+            continue
+    if not pin_ids:
+        return xml
+    max_id = max(pin_ids)
+    if max_id < 1:
+        return xml
+
+    # Which iothread ids are already declared? <iothreads>N</iothreads> declares
+    # ids 1..N; <iothreadids><iothread id="K"/></iothreadids> declares K's.
+    iothreads_elems = tree.xpath("/domain/iothreads")
+    declared_count = 0
+    if iothreads_elems and (iothreads_elems[0].text or "").strip().isdigit():
+        declared_count = int(iothreads_elems[0].text.strip())
+    declared_ids = set(range(1, declared_count + 1))
+    for idel in tree.xpath("/domain/iothreadids/iothread"):
+        try:
+            declared_ids.add(int(idel.get("id")))
+        except (TypeError, ValueError):
+            continue
+
+    if all(pid in declared_ids for pid in pin_ids):
+        return xml
+
+    # Raise the <iothreads> count to cover the highest referenced id. A plain
+    # count (declaring 1..max_id) is the simplest declaration that satisfies the
+    # contiguous pin set the engine itself emits (see add_iothread_pinning); we
+    # don't synthesize <iothreadids>.
+    needed = max(max_id, declared_count)
+    if iothreads_elems:
+        iothreads_elems[0].text = str(needed)
+    else:
+        iothreads_elem = etree.Element("iothreads")
+        iothreads_elem.text = str(needed)
+        vcpu_elem = tree.xpath("/domain/vcpu")
+        if vcpu_elem:
+            vcpu_elem[0].addnext(iothreads_elem)
+        else:
+            tree.xpath("/domain")[0].insert(0, iothreads_elem)
+
+    return indent(etree.tostring(tree, encoding="unicode"))
 
 
 def add_iothread_pinning(xml, cpulist_str):

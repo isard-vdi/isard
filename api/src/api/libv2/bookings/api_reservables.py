@@ -47,6 +47,9 @@ class Reservables:
     def enable_subitems(self, item_type, item_id, subitem_id, enabled):
         return self.reservable[item_type].enable_subitem(item_id, subitem_id, enabled)
 
+    def recompute_reservable_total_units(self, item_type, subitem_id):
+        return self.reservable[item_type].recompute_total_units(subitem_id)
+
     def list_subitems(self, item_type, item_id):
         return self.reservable[item_type].list_subitems(item_id)
 
@@ -304,6 +307,13 @@ class ResourceItemsGpus:
         # if it's the last profile of this kind, delete it
         elif len(gpus_enabled_subitem) == 0:
             self.delete_reservable_vgpu(subitem_id)
+        else:
+            # Non-last disable: a realizing card went away but the reservable
+            # survives. enable_subitem is the single choke point every disable
+            # caller goes through (admin PUT, delete_item loop, GPU reconcile),
+            # so recompute the total_units invariant HERE rather than in each
+            # caller (it was previously left stale -> capacity overcount).
+            self.recompute_total_units(subitem_id)
         return item
 
     def add_reservable_vgpu(self, item_id, subitem_id):
@@ -370,6 +380,7 @@ class ResourceItemsGpus:
                         lambda profiles: profiles["profiles_enabled"].contains(
                             new_reservable_vgpu["id"]
                         )
+                        & profiles["physical_device"].default(None).ne(None)
                     )
                     .count()
                     .run(db.conn)
@@ -404,6 +415,35 @@ class ResourceItemsGpus:
                     "not_found",
                     "Reservable vgpu id not found in reservables_vgpus table",
                 )
+
+    def recompute_total_units(self, subitem_id):
+        """Recompute ``reservables_vgpus.total_units`` for one profile.
+
+        ``total_units = (# gpus whose profiles_enabled contains subitem_id) *
+        units``. This centralizes the formula already used by
+        :meth:`add_reservable_vgpu` so that DISABLING a non-last card (via
+        :meth:`enable_subitem`, which does not recompute) keeps the invariant
+        correct. No-op when the reservable no longer exists (it was the last
+        card and the row was already deleted)."""
+        with app.app_context():
+            reservable = r.table("reservables_vgpus").get(subitem_id).run(db.conn)
+        if not reservable:
+            return
+        with app.app_context():
+            total_profiles = (
+                r.table("gpus")
+                .filter(
+                    lambda gpu: gpu["profiles_enabled"].contains(subitem_id)
+                    & gpu["physical_device"].default(None).ne(None)
+                )
+                .count()
+                .run(db.conn)
+            )
+        total_units = total_profiles * reservable.get("units", 0)
+        with app.app_context():
+            r.table("reservables_vgpus").get(subitem_id).update(
+                {"total_units": total_units}
+            ).run(db.conn)
 
     def list_subitems(self, item_id):
         with app.app_context():

@@ -18,6 +18,7 @@ from engine.services.db import (
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.lib.storage import update_storage_deleted_domain
 from engine.services.log import logs
+from isardvdi_common.vgpu_state import vgpu_pool_frees_for_domain
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -1059,16 +1060,49 @@ def update_vgpu_uuid_domain_action(
     return True
 
 
+def any_vgpu_changing_profile():
+    """True if ANY GPU card currently has a profile change in progress
+    (``changing_to_profile`` set). Used to render a blocked GPU start as a
+    transient 'retry in a few minutes' instead of a hard Failed."""
+    r_conn = new_rethink_connection()
+    try:
+        n = (
+            r.table("vgpus")
+            .filter(lambda v: v["changing_to_profile"].default(False).ne(False))
+            .count()
+            .run(r_conn)
+        )
+    except Exception:
+        close_rethink_connection(r_conn)
+        return False
+    close_rethink_connection(r_conn)
+    return n > 0
+
+
 def get_vgpus_mdevs(id_gpu, type_gpu):
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
     try:
-        d = rtable.get(id_gpu).pluck("vgpu_profile", {"mdevs": [type_gpu]}).run(r_conn)
+        d = (
+            rtable.get(id_gpu)
+            .pluck("vgpu_profile", "changing_to_profile", {"mdevs": [type_gpu]})
+            .run(r_conn)
+        )
     except Exception as e:
         close_rethink_connection(r_conn)
-        return False, {}
+        return False, {}, False
     close_rethink_connection(r_conn)
-    return d["vgpu_profile"], d["mdevs"]
+    # pluck OMITS absent fields, so a freshly-discovered/uncarved card (no
+    # vgpu_profile, no mdevs of this type) yields a doc missing those keys.
+    # Read defensively: an absent vgpu_profile -> None (caller skips the card
+    # as "not serving this profile"), and a missing/null mdevs -> {} (caller
+    # treats it as "no free uuid on this card") -- NEVER KeyError the whole
+    # start action just because one probed card of the model is uncarved.
+    return (
+        d.get("vgpu_profile"),
+        (d.get("mdevs") or {}),
+        d.get("changing_to_profile", False),
+    )
 
 
 def domain_get_vgpu_info(domain_id):
@@ -1122,6 +1156,38 @@ def update_vgpu_info_if_stopped(dom_id):
                 )
             finally:
                 close_rethink_connection(r_conn)
+
+    # Belt-and-suspenders: free EVERY vgpus pool entry still pinned to this
+    # domain across ALL cards and profiles. The vgpu_info-keyed release above
+    # tracks only ONE uuid, so a MULTI-GPU desktop (it holds >1 card), a
+    # PASSTHROUGH card (never covered by the noop reconcile), or a stale
+    # reserved-but-not-started entry would otherwise leak the card -- no other
+    # desktop could start on it until manually cleared. The physical mdev / VFIO
+    # device is released by qemu on process exit; this reconciles the DB pool
+    # flag so capacity accounting matches reality.
+    _free_stale_vgpu_pool_entries(dom_id)
+
+
+def _free_stale_vgpu_pool_entries(dom_id):
+    """Clear ``domain_started``/``domain_reserved`` for every ``vgpus.mdevs`` entry
+    pinned to ``dom_id`` (all cards/profiles, incl. passthrough). Idempotent and a
+    no-op for a non-GPU domain. Deep-merges only the two flags, so the rest of the
+    pool is untouched."""
+    r_conn = new_rethink_connection()
+    try:
+        for v in r.table("vgpus").pluck("id", "mdevs").run(r_conn):
+            free = vgpu_pool_frees_for_domain(v.get("mdevs"), dom_id)
+            if free:
+                r.table("vgpus").get(v["id"]).update({"mdevs": free}).run(r_conn)
+                logs.main.info(
+                    f"Freed leaked vgpu reservation(s) for stopped domain "
+                    f"{dom_id} on {v['id']}: "
+                    f"{[u for us in free.values() for u in us]}"
+                )
+    except Exception as e:
+        logs.main.error(f"Error freeing vgpu pool for stopped domain {dom_id}: {e}")
+    finally:
+        close_rethink_connection(r_conn)
 
 
 ####

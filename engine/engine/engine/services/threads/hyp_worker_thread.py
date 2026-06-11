@@ -12,7 +12,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from pprint import pformat
 
-from engine.models.domain_xml import DomainXML
+from engine.models.domain_xml import DomainXML, remove_memory_backing
 from engine.models.hyp import hyp
 from engine.services.db import (
     get_hyp_hostname_from_id,
@@ -1368,6 +1368,43 @@ class HypWorkerThread(threading.Thread):
                 e, action, action_time, intervals
             )
         except libvirtError as e:
+            # Hugepage-backed guest RAM couldn't be mapped: the 1 GiB hugepage
+            # pool was momentarily exhausted (concurrent GPU starts can
+            # over-commit it faster than the balancer's free-hugepage view
+            # refreshes). A GPU desktop MUST be able to start on normal RAM
+            # rather than hard-fail, so RETRY ONCE with 4K pages (slower VFIO
+            # mapping) -- the same degradation the engine's native low-hugepage
+            # path chooses up front.
+            if (
+                "unable to map backing store for guest RAM" in str(e)
+                and "<memoryBacking>" in xml
+            ):
+                logs.workers.warning(
+                    f"[{self.hyp_id}] start {action['id_domain']}: hugepage "
+                    f"backing-store OOM -> retrying with 4K pages"
+                )
+                try:
+                    dom = self._execute_libvirt_with_timeout(
+                        self.h.conn.createXML,
+                        args=(remove_memory_backing(xml),),
+                        operation_name="libvirt createXML (4K fallback)",
+                        intervals=intervals,
+                        timeout=createxml_timeout,
+                    )
+                    xml_started = self._execute_libvirt_with_timeout(
+                        dom.XMLDesc,
+                        operation_name="libvirt XMLDesc",
+                        intervals=intervals,
+                    )
+                    self._process_domain_startup(
+                        xml_started, action, action_time, intervals
+                    )
+                    return
+                except Exception as e2:
+                    self._handle_libvirt_error_in_start_domain(
+                        e2, action, action_time, intervals
+                    )
+                    return
             self._handle_libvirt_error_in_start_domain(
                 e, action, action_time, intervals
             )
@@ -1520,7 +1557,11 @@ class HypWorkerThread(threading.Thread):
                 "Failed",
             )
 
-            # Clear stale vgpu_info so next retry can reallocate a fresh mdev
+            # Clear stale vgpu_info so next retry can reallocate a fresh mdev.
+            # "mediated device '<uuid>' not found" means the DB pool advertised an
+            # mdev the host has lost; freeing the reservation here lets the next
+            # start reallocate, and the hypervisor (which owns the mdev pool)
+            # re-reports reality on its next discovery/registration.
             update_vgpu_info_if_stopped(action["id_domain"])
 
             # Handle lost connection
