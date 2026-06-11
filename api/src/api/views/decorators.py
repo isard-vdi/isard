@@ -469,6 +469,32 @@ def check_permissions(permission):
     return decorator
 
 
+def can_manage_gpu_plannings(f):
+    """Gate the GPU planner routes for admins and permitted managers.
+
+    Admins always pass. A manager passes only when the ``plannings`` capability
+    is enabled in their OWN category's ``manager_permissions`` (the planner
+    routes carry no ``category_id`` arg, so we use the token's category). The
+    per-card category scoping (the plan must target a card delegated to the
+    manager's category) is enforced separately in the planner service via
+    ``_assert_manager_owns_card`` / ``_assert_manager_owns_plan``.
+    """
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = _validate_payload(["admin", "manager"])
+        kwargs["payload"] = payload
+        if payload["role_id"] == "manager":
+            manager_permissions = (
+                Category(payload["category_id"]).manager_permissions or {}
+            )
+            if not manager_permissions.get("plannings"):
+                raise Error("forbidden", "Manager does not have permission: plannings")
+        return f(*args, **kwargs)
+
+    return decorated
+
+
 @cached(TTLCache(maxsize=100, ttl=10))
 def CategoryNameGroupNameMatch(category_name, group_name):
     with app.app_context():

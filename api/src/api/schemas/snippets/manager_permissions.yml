@@ -4,3 +4,5 @@ branding:
   type: boolean
 login_notification:
   type: boolean
+plannings:
+  type: boolean

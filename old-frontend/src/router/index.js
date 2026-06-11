@@ -96,7 +96,7 @@ const router = new VueRouter({
           component: () => import('@/pages/Planning.vue'),
           meta: {
             title: i18n.t('router.titles.planning'),
-            allowedRoles: ['admin']
+            allowedRoles: ['admin', 'manager']
           }
         }
       ],
