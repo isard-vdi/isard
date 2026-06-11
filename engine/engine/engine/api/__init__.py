@@ -15,6 +15,7 @@ from engine.services.db.hypervisors import (
     update_operator_passthrough,
     update_requested_profile,
 )
+from engine.services.lib import live_xml_cache
 from engine.services.lib.functions import execute_commands
 from engine.services.lib.status import engine_threads, get_next_hypervisor
 from engine.services.log import logs
@@ -347,6 +348,25 @@ def qmp_notify(payload, desktop_id):
     data = request.get_json(force=True)
     _send_message_qmp(data.get("desktop_id"), data.get("message"))
     return jsonify(True)
+
+
+@api.route("/engine/desktop/<string:desktop_id>/live_xml", methods=["GET"])
+@is_admin
+def get_desktop_live_xml(payload, desktop_id):
+    """Return the live libvirt XML (incl. secrets) of a started desktop.
+
+    Served from the engine's in-RAM cache populated at start — never read from
+    or written to the database. Only returned while the desktop is actually
+    running (so a stale cache entry is never served for a stopped desktop).
+    """
+    hyp = current_app.db.get_domain_hyp_started(desktop_id)
+    if not hyp:
+        return jsonify({"error": "not_running"}), 409
+    xml = live_xml_cache.get(desktop_id)
+    if xml is None:
+        # Running but not captured (e.g. engine restarted after the start).
+        return jsonify({"error": "not_captured", "hyp": hyp}), 404
+    return jsonify({"xml": xml, "hyp": hyp})
 
 
 def _send_message_qmp(desktop_id, message):

@@ -83,6 +83,7 @@ tetris/.env
 /.venv/
 
 /docker-compose*.yml
+/docker-compose*.yml.*
 
 #debug
 /debug.yml

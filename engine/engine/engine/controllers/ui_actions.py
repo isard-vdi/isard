@@ -22,6 +22,7 @@ from engine.models.domain_xml import (
     add_qemu_pcie_reserve,
     count_passthrough_gpus_in_xml,
     hostdev_locked,
+    numa_opts_allowed,
     pinned_cpuset_from_xml,
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
@@ -234,6 +235,9 @@ class UiActions(object):
                 domain.get("create_dict", {}).get("hardware", {}).get("memory", 1048576)
             )
             domain_memory_gb = domain_memory_kb / 1048576
+            # Which engine start-time XML injections (hugepages/NUMA/iothreads)
+            # are allowed — admin-locked sections must not be overwritten.
+            numa_opts = numa_opts_allowed(domain)
             # Clean up any stale vGPU reservation before starting
             update_vgpu_info_if_stopped(id_domain)
             if starting_paused is True:
@@ -248,6 +252,7 @@ class UiActions(object):
                     storage_pool_id=domain_storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
                     viewer_passwd=viewer_passwd,
+                    numa_opts=numa_opts,
                 )
             else:
                 hyp = self.start_domain_from_xml(
@@ -261,6 +266,7 @@ class UiActions(object):
                     storage_pool_id=domain_storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
                     viewer_passwd=viewer_passwd,
+                    numa_opts=numa_opts,
                 )
             return hyp
 
@@ -276,6 +282,7 @@ class UiActions(object):
         storage_pool_id=None,
         domain_memory_gb=1.0,
         viewer_passwd="",
+        numa_opts=None,
     ):
         if storage_pool_id is None:
             # Domain storage and storage pool
@@ -328,6 +335,7 @@ class UiActions(object):
             reservables=None,
             storage_pool_id=domain_storage_pool_id,
             domain_memory_gb=domain_memory_gb,
+            numa_opts=numa_opts,
         )
 
     def start_domain_from_xml(
@@ -343,6 +351,7 @@ class UiActions(object):
         storage_pool_id=None,
         domain_memory_gb=1.0,
         viewer_passwd="",
+        numa_opts=None,
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
@@ -557,6 +566,14 @@ class UiActions(object):
                 # XML and log a warning.
                 _xml_before_opts = xml
                 try:
+                    # Admin-locked XML sections must not be overwritten by the
+                    # engine's start-time hugepages/NUMA/iothread injection.
+                    _allow = numa_opts or {
+                        "memory_backing": True,
+                        "cputune": True,
+                        "numatune": True,
+                        "iothreads": True,
+                    }
                     # --- NUMA node selection ---
                     # The engine derives CPU pinning from the sysfs view (<cputune>
                     # and <vcpu cpuset='...'> reference CPU IDs, which libvirt
@@ -631,7 +648,9 @@ class UiActions(object):
                         if hugepages.get("mounted"):
                             hp_free_kb = extra_info.get("hugepages_free_kb", 0)
                             if hp_free_kb >= domain_memory_kb:
-                                if hugepages.get("1G", {}).get("total", 0) > 0:
+                                if not _allow["memory_backing"]:
+                                    pass  # memory_backing section is admin-locked
+                                elif hugepages.get("1G", {}).get("total", 0) > 0:
                                     xml = add_memory_backing(xml, "1", "G")
                                 elif hugepages.get("2M", {}).get("total", 0) > 0:
                                     xml = add_memory_backing(xml, "2", "M")
@@ -658,7 +677,10 @@ class UiActions(object):
                             regular_available_kb = mem_available_kb
 
                             if regular_available_kb - domain_memory_kb < min_free_kb:
-                                if hp_free_kb >= domain_memory_kb:
+                                if (
+                                    _allow["memory_backing"]
+                                    and hp_free_kb >= domain_memory_kb
+                                ):
                                     if hugepages.get("1G", {}).get("total", 0) > 0:
                                         xml = add_memory_backing(xml, "1", "G")
                                     elif hugepages.get("2M", {}).get("total", 0) > 0:
@@ -700,9 +722,11 @@ class UiActions(object):
                                 cpulist,
                                 _vcpus,
                                 memory_mode=mem_mode,
-                                emit_numatune=libvirt_numa_ok,
+                                emit_numatune=(libvirt_numa_ok and _allow["numatune"]),
+                                emit_cputune=_allow["cputune"],
                             )
-                            xml = add_iothread_pinning(xml, cpulist)
+                            if _allow["iothreads"]:
+                                xml = add_iothread_pinning(xml, cpulist)
                     log.info(
                         f"{id_domain}: NUMA placement -> is_gpu={is_gpu} "
                         f"gpu_numa={extra_info.get('gpu_numa_node')} "
