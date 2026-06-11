@@ -1405,7 +1405,7 @@ class ApiHypervisors:
         resource_planner by item_id, now-overlap) but canonicalizes the suffix
         via canonical_profile_id so a dash-form MIG id parses correctly (the
         engine's split('-')[-1] would mis-split it)."""
-        from .gpu_realizability import canonical_profile_id
+        from .gpu_realizability import canonical_profile_id, split_qualifier
 
         now = datetime.datetime.now(pytz.utc)
         with app.app_context():
@@ -1418,7 +1418,9 @@ class ApiHypervisors:
             )
         if not plans:
             return None
-        parts = canonical_profile_id(plans[0]["subitem_id"]).split("-", 2)
+        # Drop any "~<variant>" qualifier so the bare suffix matches info.types.
+        base = split_qualifier(plans[0]["subitem_id"])[0]
+        parts = canonical_profile_id(base).split("-", 2)
         # Guard a malformed/empty suffix (e.g. a trailing-hyphen subitem_id):
         # an empty string would be treated differently from None downstream.
         return parts[2] if len(parts) == 3 and parts[2].strip() else None
@@ -1708,7 +1710,7 @@ class ApiHypervisors:
           infrastructure is a provider -> the reservable + its bookings would be
           pruned. Admin-only; end users are not notified.
         """
-        from .gpu_realizability import canonical_suffix
+        from .gpu_realizability import canonical_suffix, split_qualifier
 
         with app.app_context():
             card = r.table("gpus").get(card_id).run(db.conn)
@@ -1723,13 +1725,15 @@ class ApiHypervisors:
         info_types = (vgpu_row.get("info") or {}).get("types", {}) or {}
 
         def _suffix(reservable_id):
-            # NVIDIA-<model>-<suffix>; model is dash-free by construction, so the
-            # suffix is everything after the first two hyphens. Canonicalize so a
-            # dash-form MIG id (NVIDIA-A16-1-2Q) maps to the same key the rest of
-            # the system uses (1_2Q) -- a plain split("-")[-1] would wrongly yield
-            # "2Q" and misclassify it (false reassurance on dash-form installs).
-            parts = reservable_id.split("-", 2)
-            return canonical_suffix(parts[2]) if len(parts) == 3 else reservable_id
+            # NVIDIA-<model>-<suffix>[~<variant>]; model is dash-free by
+            # construction, so the suffix is everything after the first two
+            # hyphens (up to an optional "~<variant>"). Drop the qualifier and
+            # canonicalize so a dash-form MIG id (NVIDIA-A16-1-2Q) maps to the key
+            # the rest of the system uses (1_2Q) -- a plain split("-")[-1] would
+            # wrongly yield "2Q" and misclassify it.
+            base = split_qualifier(reservable_id)[0]
+            parts = base.split("-", 2)
+            return canonical_suffix(parts[2]) if len(parts) == 3 else base
 
         def _is_mig(suffix):
             # authoritative mig flag from the card's live info.types when the

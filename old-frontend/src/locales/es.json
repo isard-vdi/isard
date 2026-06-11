@@ -193,7 +193,13 @@
       },
       "bookables": {
         "title": "Reservables",
-        "vgpus": "GPU"
+        "vgpus": "GPU",
+        "sets": "conjuntos",
+        "server-set": "Conjunto de servidor {n}",
+        "numa-socket": "Socket NUMA {n}",
+        "numa-socket-unknown": "Socket NUMA (desconocido)",
+        "numa-same-socket": "Mismo socket NUMA posible (nodo {node}) — las tarjetas pueden compartir socket, mejor ancho de banda de memoria.",
+        "numa-diff-socket": "Sockets NUMA distintos — el escritorio igualmente arranca, pero el acceso a memoria entre sockets es más lento."
       },
       "media": {
         "title": "Media",

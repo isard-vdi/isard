@@ -42,6 +42,7 @@ from datetime import datetime, timedelta
 
 BATCH_SIZE = 50000
 
+from .._common.gpu_pool_policy import canonical_suffix, profile_suffix_from_id
 from .api_client import ApiClient
 from .exceptions import Error
 
@@ -433,10 +434,14 @@ class Actions:
             return
 
         answer = engine_client.get("/engine/profile/gpu/" + gpu_device)
-        if (
-            answer.get("vgpu_profile")
-            and answer["vgpu_profile"] == kwargs["subitem_id"].split("-")[-1]
-        ):
+        # Compare the card's applied profile to the booked reservable's BARE
+        # suffix: drop any "~<variant>" qualifier and canonicalize (a plain
+        # split("-")[-1] would keep "1_24Q~lab" / mis-split dash-form "1-2Q",
+        # falsely differ from the card's "1_24Q", and trigger a needless re-carve
+        # that empties the mdev pool and races the desktop start).
+        if answer.get("vgpu_profile") and canonical_suffix(
+            answer["vgpu_profile"]
+        ) == profile_suffix_from_id(kwargs["subitem_id"]):
             raise Error(
                 "bad_request",
                 "-> The actual profile at vgpu is the same we want to put: "

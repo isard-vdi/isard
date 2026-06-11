@@ -170,6 +170,52 @@ def test_mixed_driver_only_unrealizing_card_pruned():
     assert gr.plan_card_prunes("A16", cards) == [("hB-card", "NVIDIA-A16-4C")]
 
 
+def test_no_prune_variant_passthrough_always_realizable():
+    # A "~<variant>" passthrough is always realizable (the variant is only an admin
+    # label); it must NEVER be pruned on a re-registration. Regression: the full
+    # variant id was compared against a BARE realizable set and wrongly pruned,
+    # wiping every variant profile on each hypervisor restart.
+    cards = [
+        {
+            "id": "h-c6",
+            "profiles_enabled": ["NVIDIA-A16-passthrough~lab"],
+            "gpu_payload": {"vgpu_profiles": _vgpu("1Q", "2Q", "4Q")},
+            "sriov_totalvfs": 16,
+        }
+    ]
+    assert gr.plan_card_prunes("A16", cards) == []
+
+
+def test_prune_variant_when_bare_profile_unrealizable():
+    # The BARE profile drives realizability; an unrealizable bare profile IS still
+    # pruned -- by its FULL "~<variant>" id, so enable_subitem disables the right
+    # entry.
+    cards = [
+        {
+            "id": "h-c6",
+            "profiles_enabled": ["NVIDIA-A16-4C~lab"],
+            "gpu_payload": {"vgpu_profiles": _vgpu("1Q", "2Q", "4Q")},
+            "sriov_totalvfs": 16,
+        }
+    ]
+    assert gr.plan_card_prunes("A16", cards) == [("h-c6", "NVIDIA-A16-4C~lab")]
+
+
+def test_no_prune_variant_dashed_mig_suffix():
+    # A dashed-MIG variant ("1-2Q~lab") reduces (base, canonical) to NVIDIA-A16-1_2Q
+    # which the MIG reading realizes -> no prune (stripping the variant AND the
+    # dash-form both matter).
+    cards = [
+        {
+            "id": "h-c6",
+            "profiles_enabled": ["NVIDIA-A16-1-2Q~lab"],
+            "gpu_payload": {"vgpu_profiles": [], "mig_profiles": [{"name": "1-2Q"}]},
+            "sriov_totalvfs": 16,
+        }
+    ]
+    assert gr.plan_card_prunes("A16", cards) == []
+
+
 def test_other_model_ids_untouched():
     cards = [
         {
@@ -195,3 +241,52 @@ def test_dash_form_mig_realizable_not_pruned():
         }
     ]
     assert gr.plan_card_prunes("A16", cards) == []
+
+
+# --- variant qualifier (@<name>) --------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "rid,base,name",
+    [
+        ("NVIDIA-L40S-8Q", "NVIDIA-L40S-8Q", None),
+        ("NVIDIA-L40S-8Q~lab", "NVIDIA-L40S-8Q", "lab"),
+        ("NVIDIA-RTXPro6000DC-1g.24gb~prod", "NVIDIA-RTXPro6000DC-1g.24gb", "prod"),
+        ("NVIDIA-A16-1-2Q~x", "NVIDIA-A16-1-2Q", "x"),
+        ("passthrough", "passthrough", None),
+        (None, None, None),
+    ],
+)
+def test_split_qualifier(rid, base, name):
+    assert gr.split_qualifier(rid) == (base, name)
+
+
+@pytest.mark.parametrize(
+    "rid,expected",
+    [
+        ("NVIDIA-L40S-8Q~lab", "8Q"),
+        ("NVIDIA-L40S-8Q", "8Q"),
+        (
+            "NVIDIA-RTXPro6000DC-1g.24gb~prod",
+            "1g.24gb",
+        ),  # dot-form MIG kept, @ stripped
+        ("NVIDIA-A16-1-2Q~x", "1_2Q"),  # dash-form MIG canonicalized, @ stripped
+        ("NVIDIA-A16-1-2Q", "1_2Q"),
+        ("NVIDIA-T4-passthrough~p", "passthrough"),
+    ],
+)
+def test_bare_suffix(rid, expected):
+    assert gr.bare_suffix(rid) == expected
+
+
+@pytest.mark.parametrize(
+    "rid,expected",
+    [
+        # canonical_profile_id canonicalizes the suffix while preserving ~<name>
+        ("NVIDIA-A16-1-2Q~lab", "NVIDIA-A16-1_2Q~lab"),
+        ("NVIDIA-L40S-8Q~lab", "NVIDIA-L40S-8Q~lab"),
+        ("NVIDIA-L40S-8Q", "NVIDIA-L40S-8Q"),
+    ],
+)
+def test_canonical_profile_id_preserves_variant(rid, expected):
+    assert gr.canonical_profile_id(rid) == expected

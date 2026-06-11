@@ -36,29 +36,46 @@ def canonical_suffix(suffix):
     return s
 
 
+def split_qualifier(reservable_id):
+    """Split an optional ``~<name>`` variant qualifier off a reservable id.
+
+    Admins may differentiate otherwise-identical brand-model-profile cards by
+    appending ``~<name>`` (e.g. ``NVIDIA-L40S-8Q~lab``). ``~`` is forbidden in
+    profile suffixes AND is URL-unreserved (path-segment safe), so a single
+    right-split is unambiguous. Returns ``(base_id, name_or_None)``."""
+    if not isinstance(reservable_id, str) or "~" not in reservable_id:
+        return reservable_id, None
+    base, name = reservable_id.rsplit("~", 1)
+    return base, (name or None)
+
+
 def canonical_profile_id(reservable_id):
-    """Canonicalize a ``NVIDIA-<model>-<suffix>`` id by canonicalizing only its
-    suffix. Model tokens are dash-free by construction, so the first two hyphens
-    delimit brand/model and everything after is the (possibly dash-bearing MIG)
-    suffix."""
+    """Canonicalize a ``NVIDIA-<model>-<suffix>[~<name>]`` id by canonicalizing
+    only its suffix, preserving any ``~<name>`` variant qualifier. Model tokens
+    are dash-free by construction, so the first two hyphens delimit brand/model
+    and everything after (up to an optional ``~``) is the (possibly dash-bearing
+    MIG) suffix."""
     if not isinstance(reservable_id, str):
         return reservable_id
-    parts = reservable_id.split("-", 2)
+    base, name = split_qualifier(reservable_id)
+    parts = base.split("-", 2)
     if len(parts) == 3:
-        return f"{parts[0]}-{parts[1]}-{canonical_suffix(parts[2])}"
-    return reservable_id
+        base = f"{parts[0]}-{parts[1]}-{canonical_suffix(parts[2])}"
+    return base if name is None else f"{base}~{name}"
 
 
 def profile_suffix_from_id(reservable_id):
-    """Reduce a profile id to its canonical bare suffix. Accepts either a full
-    ``NVIDIA-<model>-<suffix>`` catalog id (the scheduler) or an already-bare
-    suffix (the webapp force button). Canonicalizes BEFORE reducing, so a
-    dash-form MIG id (``NVIDIA-<model>-1-2Q``) yields ``"1_2Q"`` instead of a
-    mis-split ``"2Q"``; a bare dash-form suffix is canonicalized too. Non-str /
-    falsy passes through unchanged."""
+    """Reduce a profile id to its canonical bare suffix, dropping any ``~<name>``
+    variant qualifier. Accepts either a full ``NVIDIA-<model>-<suffix>[~<name>]``
+    catalog id (the scheduler) or an already-bare suffix (the webapp force
+    button). Canonicalizes BEFORE reducing, so a dash-form MIG id
+    (``NVIDIA-<model>-1-2Q``) yields ``"1_2Q"`` instead of a mis-split ``"2Q"``;
+    a bare dash-form suffix is canonicalized too. The bare suffix is what matches
+    a host's ``vgpus.info.types`` keys. Non-str / falsy passes through."""
     if not isinstance(reservable_id, str):
         return reservable_id
-    cid = canonical_profile_id(reservable_id)
+    base, _ = split_qualifier(reservable_id)
+    cid = canonical_profile_id(base)
     parts = cid.split("-", 2)
     return canonical_suffix(parts[2] if len(parts) == 3 else cid)
 

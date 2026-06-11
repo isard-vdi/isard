@@ -28,6 +28,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..flask_rethink import RDB
+from ..gpu_realizability import bare_suffix
 from .common import get_abs_consumptions, get_params_item_type_custom, securize_eval
 from .consolidate import ConsolidateConsumption
 
@@ -137,7 +138,9 @@ class DesktopsUsage:
         # (a single-profile desktop is just a one-element list).
         gpu_mem = 0
         for profile in consumption.get("hardware_bookables_vgpus") or []:
-            profile_suffix = profile.split("-")[2]
+            # Canonical bare suffix (drops any "~<variant>" qualifier and the
+            # NVIDIA-<model>- prefix) before reading the leading vRAM digits.
+            profile_suffix = bare_suffix(profile)
             match = re.match(r"(\d+)", profile_suffix)
             gpu_mem += int(match.group(1)) if match else 0
         return self._calculate_consumption(

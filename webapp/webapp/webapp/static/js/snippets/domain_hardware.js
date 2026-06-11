@@ -111,15 +111,53 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                     if(!hyps.length){ ungrouped.push(value); return; }
                     $.each(hyps, function(i, h){ (byHyp[h] = byHyp[h] || []).push(value); });
                 });
+                // NUMA nodes a card of any reservable occupies on hypervisor h; a
+                // server is "multi-socket" when this spans >1 node (single-socket /
+                // all-in-one stay a plain per-hypervisor group, as before).
+                function hypNodes(h){
+                    var s = {};
+                    (byHyp[h]||[]).forEach(function(v){
+                        ((v.numa_by_hypervisor||{})[h]||[]).forEach(function(n){ s[n]=true; });
+                    });
+                    return Object.keys(s).map(Number).sort(function(a,b){return a-b;});
+                }
+                // Each option carries its hypervisor list (cross-server restrict) and
+                // its per-hypervisor NUMA nodes (same-socket hint), both informational.
                 function optHtml(value){
                     return '<option value="' + value.id + '" data-hyps=\'' +
-                        JSON.stringify(value.hypervisors || []) + '\'>' +
+                        JSON.stringify(value.hypervisors || []) + '\' data-numa=\'' +
+                        JSON.stringify(value.numa_by_hypervisor || {}) + '\'>' +
                         value.name + ' - ' + value.description + '</option>';
                 }
                 Object.keys(byHyp).sort().forEach(function(h){
-                    var $g = $('<optgroup label="' + h + '">');
-                    byHyp[h].forEach(function(value){ $g.append(optHtml(value)); });
-                    $(id+" #reservables-vgpus").append($g);
+                    var nodes = hypNodes(h);
+                    if(nodes.length > 1){
+                        // Multi-socket server: one optgroup per NUMA socket so the
+                        // admin can pick same-socket cards. Each reservable is listed
+                        // once, under its LOWEST socket on this host (annotated with
+                        // any other sockets it can also reach) -- no duplication, so
+                        // no accidental double-select.
+                        var bySock = {};
+                        byHyp[h].forEach(function(value){
+                            var vn = ((value.numa_by_hypervisor||{})[h]||[]).slice().sort(function(a,b){return a-b;});
+                            var primary = vn.length ? vn[0] : -1;
+                            (bySock[primary] = bySock[primary] || []).push({v:value, vn:vn});
+                        });
+                        Object.keys(bySock).map(Number).sort(function(a,b){return a-b;}).forEach(function(s){
+                            var label = s >= 0 ? (h + ' · NUMA ' + s) : (h + ' · NUMA (unknown)');
+                            var $g = $('<optgroup label="' + label + '">');
+                            bySock[s].forEach(function(item){
+                                var $o = $(optHtml(item.v));
+                                if(item.vn.length > 1){ $o.text($o.text() + ' (NUMA ' + item.vn.join('/') + ')'); }
+                                $g.append($o);
+                            });
+                            $(id+" #reservables-vgpus").append($g);
+                        });
+                    } else {
+                        var $g = $('<optgroup label="' + h + '">');
+                        byHyp[h].forEach(function(value){ $g.append(optHtml(value)); });
+                        $(id+" #reservables-vgpus").append($g);
+                    }
                 });
                 ungrouped.forEach(function(value){
                     $(id+" #reservables-vgpus").append(optHtml(value));
@@ -144,6 +182,39 @@ function setHardwareOptions(id,default_boot,domain_id,callback){
                         var ok = hyps.some(function(h){ return common[h]; });
                         $(this).prop('disabled', !ok);
                     });
+                    // Same-socket performance hint (informational; NUMA never
+                    // disables a card). On a multi-socket common server, is there a
+                    // NUMA node every selected profile has a card on?
+                    var $sel = $(this);
+                    var hint = '';
+                    if(selected.length >= 2 && hasCommon){
+                        var okNode = null, anyMulti = false;
+                        Object.keys(common).forEach(function(h){
+                            var union = {};
+                            $sel.find('option').each(function(){
+                                var nm = $(this).data('numa') || {};
+                                (nm[h]||[]).forEach(function(n){ union[n]=true; });
+                            });
+                            if(Object.keys(union).length <= 1){ return; }
+                            anyMulti = true;
+                            var inter = null;
+                            selected.forEach(function(v){
+                                var nm = $sel.find('option[value="'+v+'"]').first().data('numa') || {};
+                                var s = {}; (nm[h]||[]).forEach(function(n){ s[n]=true; });
+                                if(inter === null){ inter = s; }
+                                else { var n2={}; Object.keys(inter).forEach(function(k){ if(s[k]) n2[k]=true; }); inter=n2; }
+                            });
+                            if(inter && Object.keys(inter).length && okNode === null){
+                                okNode = Object.keys(inter).map(Number).sort(function(a,b){return a-b;})[0];
+                            }
+                        });
+                        if(okNode !== null){
+                            hint = '<span class="text-success"><i class="fa fa-check-circle"></i> Same NUMA socket possible (node '+okNode+') — cards can share a socket, best memory bandwidth.</span>';
+                        } else if(anyMulti){
+                            hint = '<span class="text-warning"><i class="fa fa-exclamation-triangle"></i> Different NUMA sockets — the desktop still starts, but cross-socket memory access is slower.</span>';
+                        }
+                    }
+                    $(id+" #vgpu-numa-hint").html(hint);
                     if($(this).hasClass('select2-hidden-accessible')){
                         $(this).trigger('change.select2');
                     }

@@ -1317,7 +1317,13 @@
       },
       "bookables": {
         "title": "Reservables",
-        "vgpus": "GPU"
+        "vgpus": "GPU",
+        "sets": "conjunts",
+        "server-set": "Conjunt de servidor {n}",
+        "numa-socket": "Sòcol NUMA {n}",
+        "numa-socket-unknown": "Sòcol NUMA (desconegut)",
+        "numa-same-socket": "Mateix sòcol NUMA possible (node {node}) — les targetes poden compartir sòcol, millor ample de banda de memòria.",
+        "numa-diff-socket": "Sòcols NUMA diferents — l'escriptori igualment arrenca, però l'accés a memòria entre sòcols és més lent."
       },
       "media": {
         "title": "Mitjans",
